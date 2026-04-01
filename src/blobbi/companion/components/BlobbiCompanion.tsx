@@ -19,6 +19,7 @@ import type {
   Position,
   EntryState,
 } from '../types/companion.types';
+import type { RefObject } from 'react';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { 
   calculateFloatAnimation,
@@ -28,6 +29,9 @@ import {
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
 import { useClickDetection } from '../interaction';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
+import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
+import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 
 interface BlobbiCompanionProps {
   /** Companion data */
@@ -36,8 +40,8 @@ interface BlobbiCompanionProps {
   state: CompanionState;
   /** Current motion state */
   motion: CompanionMotion;
-  /** Eye offset for gaze */
-  eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative gaze control (avoids per-frame rerenders) */
+  eyeOffsetRef: RefObject<EyeOffset>;
   /** Whether entry animation is playing */
   isEntering: boolean;
   /** Entry animation progress (0-1) */
@@ -58,6 +62,17 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
+  /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
+  recipe?: BlobbiVisualRecipe;
+  /** Label for the recipe (CSS class names). */
+  recipeLabel?: string;
+  /** Named emotion preset (convenience). Ignored when `recipe` is provided. */
+  emotion?: BlobbiEmotion;
+  /**
+   * Body-level visual effects — for manual/external use only.
+   * Status-reaction body effects are already folded into the recipe.
+   */
+  bodyEffects?: BodyEffectsSpec;
   /** Callback to report rendered position (including animations) */
   onPositionUpdate?: (position: Position) => void;
   /** Debug mode - disables animations and shows visual debug aids */
@@ -68,7 +83,7 @@ export function BlobbiCompanion({
   companion,
   state,
   motion,
-  eyeOffset,
+  eyeOffsetRef,
   isEntering,
   entryProgress: _entryProgress,
   entryState,
@@ -79,13 +94,17 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  recipe,
+  recipeLabel,
+  emotion,
+  bodyEffects,
   onPositionUpdate,
   debugMode = false,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
-  
+
   // Click detection - distinguishes click from drag
   const clickDetection = useClickDetection({
     onClick,
@@ -174,8 +193,9 @@ export function BlobbiCompanion({
   }
   
   // Calculate floating animation offset (gentle sway/float)
-  // Skip during entry animation, dragging, or debug mode
-  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode)
+  // Skip during entry animation, dragging, debug mode, or sleeping
+  const isSleeping = companion.state === 'sleeping';
+  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode && !isSleeping)
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
   
@@ -209,12 +229,15 @@ export function BlobbiCompanion({
     : undefined;
   
   // Drag handlers with click detection
+  // Uses pointer events only (handles mouse, touch, and pen natively)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     
-    // Capture pointer for tracking outside element
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture pointer on the container (not e.target which may be a child)
+    // for reliable tracking across element boundaries during drag
+    if (containerRef.current) {
+      containerRef.current.setPointerCapture(e.pointerId);
+    }
     
     // Start click detection tracking
     clickDetection.handlePointerDown({ x: e.clientX, y: e.clientY });
@@ -235,45 +258,11 @@ export function BlobbiCompanion({
   }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (containerRef.current) {
+      containerRef.current.releasePointerCapture(e.pointerId);
+    }
     
     // Finalize click detection - will call onClick if it was a click
-    clickDetection.handlePointerUp();
-    
-    // Always end drag state
-    if (motion.isDragging) {
-      onEndDrag();
-    }
-  }, [clickDetection, motion.isDragging, onEndDrag]);
-  
-  // Touch handlers for mobile (with click detection)
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 0) return;
-    
-    const touch = e.touches[0];
-    clickDetection.handlePointerDown({ x: touch.clientX, y: touch.clientY });
-  }, [clickDetection]);
-  
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 0) return;
-    
-    const touch = e.touches[0];
-    const position = { x: touch.clientX, y: touch.clientY };
-    
-    // Check if movement exceeds click threshold (starts drag)
-    const isDrag = clickDetection.handlePointerMove(position);
-    
-    // If dragging, update position
-    if (motion.isDragging || isDrag) {
-      const newX = touch.clientX - config.size / 2;
-      const newY = touch.clientY - config.size / 2;
-      onUpdateDrag({ x: newX, y: newY });
-    }
-  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
-  
-  const handleTouchEnd = useCallback(() => {
-    // Finalize click detection
     clickDetection.handlePointerUp();
     
     // Always end drag state
@@ -302,20 +291,21 @@ export function BlobbiCompanion({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       <BlobbiCompanionVisual
         companion={companion}
         size={config.size}
-        eyeOffset={eyeOffset}
+        eyeOffsetRef={eyeOffsetRef}
         direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
         isWalking={state === 'walking'}
         floatOffset={floatOffset}
         isOnGround={isOnGround}
         distanceFromGround={distanceFromGround}
+        recipe={recipe}
+        recipeLabel={recipeLabel}
+        emotion={emotion}
+        bodyEffects={bodyEffects}
         debugMode={debugMode}
       />
     </div>

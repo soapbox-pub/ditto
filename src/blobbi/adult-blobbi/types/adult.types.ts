@@ -4,7 +4,7 @@
  * Type definitions for adult stage visuals and customization
  */
 
-import type { Blobbi } from '@/types/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 /**
  * All available adult evolution forms.

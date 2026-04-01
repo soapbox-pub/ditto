@@ -8,14 +8,14 @@ import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Users, Ta
 // Note: AlertTriangle kept for stat warning indicators
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useProjectedBlobbiState } from '@/hooks/useProjectedBlobbiState';
+import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
-import { useBlobbisCollection } from '@/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useBlobbiMigration } from '@/hooks/useBlobbiMigration';
+import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -37,9 +37,9 @@ import {
   updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
@@ -72,17 +72,21 @@ import {
   createNoActivity,
   getActionForItem,
   trackDailyMissionProgress,
+  getStreakTagUpdates,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
   type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
-  getStreakTagUpdates,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
+import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
+import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -307,12 +311,14 @@ function BlobbiContent() {
   }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD, invalidateCompanion, invalidateProfile]);
   
   // ─── Rest Action (with automatic legacy migration) ───
+  // Operates on the page-selected `companion` (not profile.currentCompanion).
+  // The companion floating button has its own independent sleep toggle.
   const handleRest = useCallback(async () => {
     if (!user?.pubkey || !companion) return;
-    
+
     const isCurrentlySleeping = companion.state === 'sleeping';
     const newState = isCurrentlySleeping ? 'active' : 'sleeping';
-    
+
     setActionInProgress('rest');
     try {
       // Ensure canonical before action (auto-migrates legacy pets)
@@ -321,7 +327,7 @@ function BlobbiContent() {
         setActionInProgress(null);
         return;
       }
-      
+
       // Apply accumulated decay before the state change
       const now = Math.floor(Date.now() / 1000);
       const decayResult = applyBlobbiDecay({
@@ -331,13 +337,13 @@ function BlobbiContent() {
         lastDecayAt: canonical.companion.lastDecayAt,
         now,
       });
-      
+
       // Build the new tags with decayed stats + new state
       const nowStr = now.toString();
-      
+
       // Get streak updates (putting to sleep/waking counts as care activity)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
-      
+
       const newTags = updateBlobbiTags(canonical.allTags, {
         state: newState,
         hunger: decayResult.stats.hunger.toString(),
@@ -349,26 +355,26 @@ function BlobbiContent() {
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
-      
+
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
         tags: newTags,
       });
-      
+
       updateCompanionEvent(event);
       invalidateCompanion();
       if (canonical.wasMigrated) {
         invalidateProfile();
       }
-      
+
       toast({
         title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
         description: isCurrentlySleeping
           ? 'Your Blobbi is now awake and active!'
           : 'Your Blobbi is taking a rest.',
       });
-      
+
       // Track daily mission progress for sleep action (only when putting to sleep)
       if (!isCurrentlySleeping) {
         trackDailyMissionProgress('sleep', 1, user?.pubkey);
@@ -785,7 +791,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/lib/blobbi').StorageItem[];
+    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
@@ -858,8 +864,42 @@ function BlobbiDashboard({
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
   
-  // DEV ONLY: Get effective emotion (dev override or default)
-  const effectiveEmotion = useEffectiveEmotion();
+  // DEV ONLY: Get effective emotion (dev override or base)
+  const devEmotionOverride = useEffectiveEmotion();
+  
+  // Action override emotion - set when Blobbi is doing an action (eating, cleaning, etc.)
+  // This takes priority over status reactions but not dev override
+  const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
+  
+  // Status-based automatic reactions (recipe-first pipeline).
+  // Uses projected stats (with decay applied) for accurate reactions.
+  // Body effects (dirt, stink) are folded into the recipe by the resolver —
+  // no separate bodyEffects prop needed.
+  const currentStats = useMemo(() => ({
+    hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
+    happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
+    health: projectedState?.stats.health ?? companion.stats.health ?? 100,
+    hygiene: projectedState?.stats.hygiene ?? companion.stats.hygiene ?? 100,
+    energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
+  }), [projectedState, companion.stats]);
+  
+  const { recipe: rawStatusRecipe, recipeLabel: rawStatusRecipeLabel } = useStatusReaction({
+    stats: currentStats,
+    enabled: !isEgg, // Keep enabled during sleep so body effects still resolve
+    actionOverride: isSleeping ? null : actionOverrideEmotion,
+  });
+
+  // When sleeping, overlay the sleeping face on top of the status recipe.
+  // This keeps body effects (dirty, stink) and food icon while overriding
+  // eyes, mouth, and eyebrows with sleeping visuals.
+  const statusRecipe = isSleeping
+    ? buildSleepingRecipe(rawStatusRecipe)
+    : rawStatusRecipe;
+  const statusRecipeLabel = isSleeping ? 'sleeping' : rawStatusRecipeLabel;
+  
+  // Final recipe: dev override uses named emotion; status system uses resolved recipe
+  const hasDevOverride = isLocalhostDev() && devEmotionOverride !== 'neutral';
+  const effectiveEmotion: BlobbiEmotion = hasDevOverride ? devEmotionOverride : 'neutral';
   
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -1209,24 +1249,29 @@ function BlobbiDashboard({
   const handleCloseInlineActivity = () => {
     setInlineActivity(createNoActivity());
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle music playback state changes (for Blobbi reaction)
   const handleMusicPlaybackStart = () => {
     setBlobbiReaction('listening');
+    setActionOverrideEmotion(getActionEmotion('music'));
   };
   
   const handleMusicPlaybackStop = () => {
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle sing recording state changes (for Blobbi reaction)
   const handleSingRecordingStart = () => {
     setBlobbiReaction('singing');
+    setActionOverrideEmotion(getActionEmotion('sing'));
   };
   
   const handleSingRecordingStop = () => {
     setBlobbiReaction('idle');
+    setActionOverrideEmotion(null);
   };
   
   // Handle opening track picker to change track (from inline player)
@@ -1238,12 +1283,16 @@ function BlobbiDashboard({
   const handleUseItem = async (itemId: string, quantity: number = 1) => {
     if (!inventoryAction || isUsingItem) return;
     setUsingItemId(itemId);
+    // Set action emotion override while item is being used
+    setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
     try {
       await onUseItem(itemId, inventoryAction, quantity);
       // Close the modal on success
       setInventoryAction(null);
     } finally {
       setUsingItemId(null);
+      // Clear action emotion after a brief delay for visual feedback
+      setTimeout(() => setActionOverrideEmotion(null), 1500);
     }
   };
   
@@ -1260,12 +1309,16 @@ function BlobbiDashboard({
     if (!action) return;
 
     setUsingItemId(itemId);
+    // Set action emotion override while item is being used
+    setActionOverrideEmotion(getActionEmotion(action as ActionType));
     try {
       await onUseItem(itemId, action, quantity);
       // Close the inventory modal on success
       setShowInventoryModal(false);
     } finally {
       setUsingItemId(null);
+      // Clear action emotion after a brief delay for visual feedback
+      setTimeout(() => setActionOverrideEmotion(null), 1500);
     }
   };
   
@@ -1371,10 +1424,7 @@ function BlobbiDashboard({
             </p>
           </div>
         ) : (
-          <div className={cn(
-            "relative transition-all duration-500",
-            isSleeping && "opacity-80"
-          )}>
+          <div className="relative transition-all duration-500">
             {/* Subtle glow effect behind the egg */}
             <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
             
@@ -1383,7 +1433,10 @@ function BlobbiDashboard({
               size="lg"
               animated={!isSleeping}
               reaction={blobbiReaction}
+              recipe={hasDevOverride ? undefined : statusRecipe}
+              recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
+
               className="size-48 sm:size-56"
             />
           </div>

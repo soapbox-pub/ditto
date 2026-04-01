@@ -49,10 +49,8 @@ interface UseBlobbiCompanionGazeOptions {
 }
 
 interface UseBlobbiCompanionGazeResult {
-  /** Current gaze state */
-  gaze: GazeState;
-  /** Smoothed eye offset for rendering */
-  eyeOffset: EyeOffset;
+  /** Ref-based eye offset for imperative gaze control (no rerenders) */
+  eyeOffsetRef: React.RefObject<EyeOffset>;
 }
 
 /**
@@ -94,8 +92,11 @@ export function useBlobbiCompanionGaze({
   attentionPosition,
   entryInspectionDirection,
 }: UseBlobbiCompanionGazeOptions): UseBlobbiCompanionGazeResult {
-  const [gaze, setGaze] = useState<GazeState>(createInitialGaze);
-  const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
+  const [, setGaze] = useState<GazeState>(createInitialGaze);
+  // Eye offset is driven imperatively via ref — no React state needed.
+  // The RAF loop writes to eyeOffsetRef; useExternalEyeOffset reads from it.
+  /** Ref-based eye offset for imperative consumers (avoids per-frame React rerenders) */
+  const eyeOffsetRef = useRef<EyeOffset>({ x: 0, y: 0 });
   const [mousePosition, setMousePosition] = useState<Position | null>(null);
   
   // Use refs for values that shouldn't trigger re-renders
@@ -109,7 +110,24 @@ export function useBlobbiCompanionGaze({
   const mouseFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mouseFollowCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
+  // Refs for frequently changing values used in animation loop
+  // This prevents RAF effect from being torn down on every position change
+  const directionRef = useRef(direction);
+  const companionPositionRef = useRef(companionPosition);
+  const companionSizeRef = useRef(companionSize);
+  const mousePositionRef = useRef(mousePosition);
+  const observationTargetRef = useRef(observationTarget);
+  const attentionPositionRef = useRef(attentionPosition);
+  
   const config = DEFAULT_COMPANION_CONFIG;
+  
+  // Keep refs updated with latest values
+  useEffect(() => { directionRef.current = direction; }, [direction]);
+  useEffect(() => { companionPositionRef.current = companionPosition; }, [companionPosition]);
+  useEffect(() => { companionSizeRef.current = companionSize; }, [companionSize]);
+  useEffect(() => { mousePositionRef.current = mousePosition; }, [mousePosition]);
+  useEffect(() => { observationTargetRef.current = observationTarget; }, [observationTarget]);
+  useEffect(() => { attentionPositionRef.current = attentionPosition; }, [attentionPosition]);
   
   // Clear all timers helper
   const clearAllTimers = useCallback(() => {
@@ -275,6 +293,9 @@ export function useBlobbiCompanionGaze({
   }, [isActive, state, observationTarget, attentionPosition, entryInspectionDirection, config.gaze.randomInterval, config.gaze.mouseFollowCooldown, config.gaze.mouseFollowChance, config.gaze.mouseFollowDuration, clearAllTimers]);
   
   // Animation loop for smooth eye movement
+  // IMPORTANT: This effect only depends on isActive to start/stop the loop.
+  // All other values are read from refs to prevent loop recreation on every
+  // position change (which caused jitter and stuck eyes after entry).
   useEffect(() => {
     if (!isActive) {
       if (animationRef.current) {
@@ -285,6 +306,14 @@ export function useBlobbiCompanionGaze({
     }
     
     const animate = () => {
+      // Read current values from refs (not closure captures)
+      const currentPosition = companionPositionRef.current;
+      const currentSize = companionSizeRef.current;
+      const currentDirection = directionRef.current;
+      const currentMouse = mousePositionRef.current;
+      const currentObservation = observationTargetRef.current;
+      const currentAttention = attentionPositionRef.current;
+      
       // Calculate target offset based on current gaze mode
       let targetOffset: EyeOffset;
       
@@ -294,19 +323,19 @@ export function useBlobbiCompanionGaze({
         // During entry inspection - use the pre-set target offset from inspection direction
         // This is set by the main effect when entryInspectionDirection changes
         targetOffset = targetOffsetRef.current;
-      } else if (currentMode === 'attend-ui' && attentionPosition) {
+      } else if (currentMode === 'attend-ui' && currentAttention) {
         // Look at UI element that appeared - calculate offset to that position
-        targetOffset = calculateEyeOffset(companionPosition, attentionPosition, companionSize);
-      } else if (currentMode === 'observe-target' && observationTarget) {
+        targetOffset = calculateEyeOffset(currentPosition, currentAttention, currentSize);
+      } else if (currentMode === 'observe-target' && currentObservation) {
         // Look at observation target - calculate offset to that position
-        targetOffset = calculateEyeOffset(companionPosition, observationTarget, companionSize);
-      } else if (currentMode === 'follow-mouse' && mousePosition) {
+        targetOffset = calculateEyeOffset(currentPosition, currentObservation, currentSize);
+      } else if (currentMode === 'follow-mouse' && currentMouse) {
         // Follow mouse cursor
-        targetOffset = calculateEyeOffset(companionPosition, mousePosition, companionSize);
+        targetOffset = calculateEyeOffset(currentPosition, currentMouse, currentSize);
       } else if (currentMode === 'forward') {
         // Look in movement direction - STRONGER offset for clear visual feedback
         targetOffset = {
-          x: direction === 'right' ? 0.85 : -0.85,
+          x: currentDirection === 'right' ? 0.85 : -0.85,
           y: 0.15, // Slightly down, looking at path ahead
         };
       } else {
@@ -329,10 +358,13 @@ export function useBlobbiCompanionGaze({
                          : currentMode === 'forward' ? 0.12 
                          : 0.06;
       
-      setEyeOffset(prev => ({
-        x: smoothLerp(prev.x, targetOffset.x, smoothFactor),
-        y: smoothLerp(prev.y, targetOffset.y, smoothFactor),
-      }));
+      // Update the ref imperatively (no React rerender) — companion visual reads from this
+      const prevOffset = eyeOffsetRef.current;
+      const newOffset = {
+        x: smoothLerp(prevOffset.x, targetOffset.x, smoothFactor),
+        y: smoothLerp(prevOffset.y, targetOffset.y, smoothFactor),
+      };
+      eyeOffsetRef.current = newOffset;
       
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -345,10 +377,9 @@ export function useBlobbiCompanionGaze({
         animationRef.current = null;
       }
     };
-  }, [isActive, direction, companionPosition, mousePosition, companionSize, observationTarget, attentionPosition, entryInspectionDirection]);
+  }, [isActive]); // ONLY depend on isActive - all other values read from refs
   
   return {
-    gaze,
-    eyeOffset,
+    eyeOffsetRef,
   };
 }

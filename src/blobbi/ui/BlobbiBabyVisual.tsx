@@ -1,161 +1,120 @@
 /**
- * BlobbiBabyVisual - Reusable component for rendering Blobbi babies
+ * BlobbiBabyVisual — Visual wrapper for rendering Blobbi babies.
  *
- * Uses the baby-blobbi module for SVG resolution and customization.
- * Handles awake vs sleeping states automatically.
- * Eyes always track the mouse cursor in real-time.
+ * Responsibilities:
+ *   - Owns the container ref for eye hooks to query SVG DOM
+ *   - Runs useBlobbiEyes (blink RAF loop, optional mouse tracking)
+ *   - Runs useExternalEyeOffset (companion gaze RAF loop)
+ *   - Applies reaction CSS classes (sway/bounce) in page mode
+ *   - Delegates SVG rendering to BlobbiBabySvgRenderer
+ *
+ * Render modes:
+ *   - 'page' (default): Mouse tracking enabled, reaction classes applied here.
+ *   - 'companion': Mouse tracking disabled (gaze via ref), reaction classes
+ *     suppressed (applied by outer companion wrapper instead).
  */
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useRef, type RefObject } from 'react';
 
-import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
-import { addEyeAnimation } from './lib/eye-animation';
-import { applyEmotion, type BlobbiEmotion } from './lib/emotions';
-import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
 import { cn } from '@/lib/utils';
-import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
-import type { Blobbi } from '@/types/blobbi';
-import { isBlobbiSleeping } from '@/types/blobbi';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/**
- * Reaction states for baby Blobbi animations
- */
-export type BabyReactionState = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
-
-/**
- * External eye offset for companion control
- * Values range from -1 to 1, converted to pixel movement internally
- */
-export interface ExternalEyeOffset {
-  x: number;
-  y: number;
-}
+import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
+import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
+import type { ExternalEyeOffset, BlobbiReactionState, BlobbiRenderMode } from './lib/types';
+import type { BlobbiVisualRecipe } from './lib/recipe';
+import type { BlobbiEmotion } from './lib/emotion-types';
+import type { BodyEffectsSpec } from './lib/bodyEffects';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
+import { BlobbiBabySvgRenderer } from './BlobbiBabySvgRenderer';
 
 export interface BlobbiBabyVisualProps {
-  /** The Blobbi data */
   blobbi: Blobbi;
-  /** Reaction state for music/sing animations */
-  reaction?: BabyReactionState;
-  /** Controls eye tracking behavior (default: 'follow-pointer') */
+  reaction?: BlobbiReactionState;
   lookMode?: BlobbiLookMode;
-  /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
-  /** 
-   * External eye offset from companion system.
-   * When provided, bypasses internal mouse tracking and uses this offset directly.
-   * Values should be -1 to 1, will be converted to pixel movement.
-   */
   externalEyeOffset?: ExternalEyeOffset;
-  /** 
-   * Emotional state to display.
-   * Adds visual overlays like eyebrows, modified mouth, and tears.
-   * Default: 'neutral' (no modifications)
-   */
+  /** Ref-based external eye offset (imperative — no rerenders). Preferred for companion mode. */
+  externalEyeOffsetRef?: RefObject<ExternalEyeOffset>;
+  /** Render mode. Default: 'page'. */
+  renderMode?: BlobbiRenderMode;
+  /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
+  recipe?: BlobbiVisualRecipe;
+  /** Label for the recipe (CSS class names). */
+  recipeLabel?: string;
+  /** Named emotion preset. Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Additional CSS classes for the container */
+  /** Body-level visual effects — for manual/external use only. */
+  bodyEffects?: BodyEffectsSpec;
   className?: string;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-/**
- * Renders a baby Blobbi using inline SVG.
- *
- * - Resolves the correct SVG (awake or sleeping) based on state
- * - Applies color customization from Blobbi traits
- * - Eyes always track the mouse cursor (instant, real-time)
- * - Renders safely using dangerouslySetInnerHTML
- */
-export function BlobbiBabyVisual({ blobbi, reaction = 'idle', lookMode = 'follow-pointer', disableBlink = false, externalEyeOffset, emotion = 'neutral', className }: BlobbiBabyVisualProps) {
+export function BlobbiBabyVisual({
+  blobbi,
+  reaction = 'idle',
+  lookMode = 'follow-pointer',
+  disableBlink = false,
+  externalEyeOffset,
+  externalEyeOffsetRef,
+  renderMode = 'page',
+  recipe,
+  recipeLabel,
+  emotion = 'neutral',
+  bodyEffects,
+  className,
+}: BlobbiBabyVisualProps) {
   const isSleeping = isBlobbiSleeping(blobbi);
+
+  // DOM query boundary for eye hooks. See BlobbiAdultVisual for details.
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Disable reactions when sleeping
+  const isCompanion = renderMode === 'companion';
+
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Eye animation hook - handles DOM manipulation internally
-  // When externalEyeOffset is provided, we disable tracking but keep blinking
+  // ── Eye hooks ──────────────────────────────────────────────────────────────
+
   useBlobbiEyes(containerRef, {
     isSleeping,
     maxMovement: 2,
     lookMode,
     disableBlink,
-    disableTracking: !!externalEyeOffset, // External system controls eye position
+    disableTracking: isCompanion,
   });
 
-  // External eye offset control - applies offset directly when provided
-  // This bypasses useBlobbiEyes and gives companion full control
-  useEffect(() => {
-    if (!externalEyeOffset || !containerRef.current || isSleeping) return;
+  useExternalEyeOffset({
+    containerRef,
+    externalEyeOffset,
+    externalEyeOffsetRef,
+    isSleeping,
+    variant: 'baby',
+  });
 
-    const eyeElements = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left, .blobbi-eye-right');
-    if (eyeElements.length === 0) return;
-
-    // Convert -1 to 1 offset to pixel movement
-    // Increased max movement for more visible eye tracking (4px horizontal)
-    const maxMovementX = 4;
-    const x = externalEyeOffset.x * maxMovementX;
-    
-    // Asymmetric vertical movement:
-    // - Upward (negative y): stronger movement (1.0x) for clear "looking up" effect
-    // - Downward (positive y): reduced movement (0.6x) to avoid looking too droopy
-    // Y offset: -1 = looking up, +1 = looking down
-    const maxMovementYUp = 4;    // Full range for looking up
-    const maxMovementYDown = 2.4; // Reduced range for looking down (0.6x)
-    const y = externalEyeOffset.y < 0 
-      ? externalEyeOffset.y * maxMovementYUp    // Looking up: full range
-      : externalEyeOffset.y * maxMovementYDown; // Looking down: reduced range
-
-    eyeElements.forEach(el => {
-      el.setAttribute('transform', `translate(${x} ${y})`);
-    });
-  }, [externalEyeOffset, isSleeping]);
-
-  // Memoize the customized SVG to avoid unnecessary processing
-  const customizedSvg = useMemo(() => {
-    const baseSvg = resolveBabySvg(blobbi, { isSleeping });
-    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
-
-    // Add eye animation wrappers (only when not sleeping)
-    if (!isSleeping) {
-      // Pass base color for eyelid generation
-      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
-      
-      // Apply emotion overlays (eyebrows, sad mouth, tears, etc.)
-      // Pass 'baby' variant for baby-specific adjustments (e.g., eyebrow positioning)
-      if (emotion !== 'neutral') {
-        animatedSvg = applyEmotion(animatedSvg, emotion, 'baby');
-      }
-      
-      return animatedSvg;
-    }
-
-    return colorizedSvg;
-  }, [blobbi, isSleeping, emotion]);
-
-  // Defense-in-depth: sanitize the final SVG before DOM injection.
-  // The upstream pipeline validates inputs (normalizeHexColor, instanceId sanitization),
-  // but this catches anything unexpected from the 3000+ lines of SVG string manipulation.
-  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div
       ref={containerRef}
       className={cn(
         'relative flex items-center justify-center',
-        // Reduced opacity when sleeping for visual feedback
-        isSleeping && 'opacity-70',
-        // Reaction animations for baby
-        (effectiveReaction === 'listening' ||
+        // No opacity change for sleeping — sleeping is a recipe overlay, not a visual dim
+        !isCompanion && (effectiveReaction === 'listening' ||
           effectiveReaction === 'swaying' ||
           effectiveReaction === 'happy') &&
           'animate-blobbi-sway',
-        effectiveReaction === 'singing' && 'animate-blobbi-bounce',
-        className
+        !isCompanion && effectiveReaction === 'singing' && 'animate-blobbi-bounce',
+        className,
       )}
-      dangerouslySetInnerHTML={{ __html: safeSvg }}
-    />
+    >
+      <BlobbiBabySvgRenderer
+        blobbi={blobbi}
+        isSleeping={isSleeping}
+        recipe={recipe}
+        recipeLabel={recipeLabel}
+        emotion={emotion}
+        bodyEffects={bodyEffects}
+        className="size-full"
+      />
+    </div>
   );
 }

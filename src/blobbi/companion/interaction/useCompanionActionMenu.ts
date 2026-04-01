@@ -19,7 +19,7 @@ import { useLocation } from 'react-router-dom';
 
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { StorageItem } from '@/lib/blobbi';
+import type { StorageItem } from '@/blobbi/core/lib/blobbi';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import type {

@@ -27,7 +27,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
@@ -36,8 +36,8 @@ import {
   createStorageTags,
   parseBlobbiEvent,
   isValidBlobbiEvent,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -188,14 +188,45 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     return parseBlobbiEvent(validEvents[0]) ?? null;
   }, [nostr, user?.pubkey, profile?.currentCompanion, options.companion]);
   
-  // Update companion in query cache
-  const updateCompanionInCache = useCallback((_event: NostrEvent) => {
+  // Update companion in query cache - optimistic update for immediate UI refresh
+  const updateCompanionInCache = useCallback((event: NostrEvent) => {
     if (!user?.pubkey || !profile?.currentCompanion) return;
     
-    // Invalidate and update the companion query
-    queryClient.invalidateQueries({ 
-      queryKey: ['companion-blobbi', user.pubkey, profile.currentCompanion] 
-    });
+    // Parse the new event to get the updated companion
+    const parsed = parseBlobbiEvent(event);
+    if (!parsed) {
+      // Fallback to invalidation if parsing fails
+      queryClient.invalidateQueries({ 
+        queryKey: ['blobbi-collection', user.pubkey] 
+      });
+      return;
+    }
+    
+    // Optimistically update the blobbi-collection cache
+    // This ensures the companion layer sees the update immediately
+    queryClient.setQueryData<{ companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] } | undefined>(
+      // Use partial key match - React Query will find any matching query
+      ['blobbi-collection', user.pubkey],
+      (prev) => {
+        if (!prev) return prev;
+        
+        // Update the specific companion in the record
+        const newCompanionsByD = {
+          ...prev.companionsByD,
+          [parsed.d]: parsed,
+        };
+        
+        // Rebuild companions array from the record
+        const newCompanions = Object.values(newCompanionsByD);
+        
+        return {
+          companionsByD: newCompanionsByD,
+          companions: newCompanions,
+        };
+      },
+    );
+    
+    // Also invalidate to trigger background refetch (ensures consistency)
     queryClient.invalidateQueries({ 
       queryKey: ['blobbi-collection', user.pubkey] 
     });

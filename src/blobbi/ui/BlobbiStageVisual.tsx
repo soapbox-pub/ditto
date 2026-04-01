@@ -2,24 +2,27 @@
  * BlobbiStageVisual - Stage-aware visual component for Blobbi
  *
  * Routes to the appropriate visual component based on the Blobbi's life stage:
- * - egg   → BlobbiEggVisual
- * - baby  → BlobbiBabyVisual
- * - adult → BlobbiAdultVisual
+ *   - egg   → BlobbiEggVisual
+ *   - baby  → BlobbiBabyVisual
+ *   - adult → BlobbiAdultVisual
  *
  * This component is the single entry point for rendering any Blobbi visually.
+ * It passes through visual recipe props to the stage-specific components.
  */
 
 import { useMemo } from 'react';
 
-import { BlobbiEggVisual, type BlobbiEggSize } from './BlobbiEggVisual';
+import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
+import { blobbiCompanionToBlobbi } from './lib/adapters';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@/lib/blobbi';
-import type { Blobbi } from '@/types/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
-import type { BlobbiEmotion } from './lib/emotions';
+import type { BlobbiEmotion } from './lib/emotion-types';
+import type { BlobbiVisualRecipe } from './lib/recipe';
+import type { BodyEffectsSpec } from './lib/bodyEffects';
 
 export type { BlobbiLookMode };
 
@@ -27,96 +30,39 @@ export type { BlobbiLookMode };
 
 export type BlobbiVisualSize = 'sm' | 'md' | 'lg';
 
-/**
- * Reaction states for all Blobbi stages.
- * Controls music/sing dance animations.
- */
 export type BlobbiReaction = 'idle' | 'listening' | 'swaying' | 'singing' | 'happy';
 
 export interface BlobbiStageVisualProps {
-  /** The Blobbi companion data from parseBlobbiEvent */
   companion: BlobbiCompanion;
-  /** Size variant: sm (48px), md (96px), lg (160px) */
   size?: BlobbiVisualSize;
-  /** Enable ambient animations (glow, particles) */
   animated?: boolean;
-  /** Reaction state for music/sing animations */
   reaction?: BlobbiReaction;
-  /** Controls eye tracking behavior (default: 'follow-pointer') */
   lookMode?: BlobbiLookMode;
-  /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
-  /** 
-   * Emotional state to display.
-   * Adds visual overlays like eyebrows, modified mouth, and tears.
-   * Default: 'neutral' (no modifications)
-   */
+  /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
+  recipe?: BlobbiVisualRecipe;
+  /** Label for the recipe (CSS class names). Required when `recipe` is provided. */
+  recipeLabel?: string;
+  /** Named emotion preset (convenience path). Ignored when `recipe` is provided. */
   emotion?: BlobbiEmotion;
-  /** Additional CSS classes for the container */
+  /**
+   * Body-level visual effects — for manual/external use only.
+   * Status-reaction body effects are already in the recipe.
+   */
+  bodyEffects?: BodyEffectsSpec;
   className?: string;
 }
 
 // ─── Size Configuration ───────────────────────────────────────────────────────
 
-/**
- * Container sizes for baby/adult stages.
- * Matches the egg visual sizing for consistency.
- */
 const SIZE_CONFIG: Record<BlobbiVisualSize, string> = {
   sm: 'size-14',
   md: 'size-24',
   lg: 'size-40',
 };
 
-// ─── Adapter ──────────────────────────────────────────────────────────────────
-
-/**
- * Converts BlobbiCompanion to the Blobbi type for baby/adult rendering.
- *
- * This is a minimal adapter that extracts only the fields needed
- * by BlobbiBabyVisual and BlobbiAdultVisual. It does not perform a full conversion.
- */
-function toBlobbiForVisual(companion: BlobbiCompanion): Blobbi {
-  return {
-    id: companion.d,
-    name: companion.name,
-    lifeStage: companion.stage,
-    state: companion.state,
-    isSleeping: companion.state === 'sleeping',
-    stats: {
-      hunger: companion.stats.hunger ?? 100,
-      happiness: companion.stats.happiness ?? 100,
-      health: companion.stats.health ?? 100,
-      hygiene: companion.stats.hygiene ?? 100,
-      energy: companion.stats.energy ?? 100,
-    },
-    // Visual traits
-    baseColor: companion.visualTraits.baseColor,
-    secondaryColor: companion.visualTraits.secondaryColor,
-    eyeColor: companion.visualTraits.eyeColor,
-    pattern: companion.visualTraits.pattern,
-    specialMark: companion.visualTraits.specialMark,
-    size: companion.visualTraits.size,
-    // Metadata
-    seed: companion.seed,
-    tags: companion.allTags,
-    // Adult-specific data (for adult form resolution)
-    adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
-  };
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
-/**
- * Renders a Blobbi visual based on its current life stage.
- *
- * Responsibilities:
- * - Stage routing (egg/baby/adult)
- * - Size and container management
- *
- * Does NOT handle:
- * - Individual stage rendering logic (delegated to stage-specific components)
- */
 export function BlobbiStageVisual({
   companion,
   size = 'md',
@@ -124,29 +70,37 @@ export function BlobbiStageVisual({
   reaction = 'idle',
   lookMode = 'follow-pointer',
   disableBlink = false,
+  recipe,
+  recipeLabel,
   emotion = 'neutral',
+  bodyEffects,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
   const isSleeping = companion.state === 'sleeping';
-  
-  // Disable reactions when sleeping
+
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // Convert to Blobbi for baby/adult rendering (memoized)
   const blobbiForVisual = useMemo(
-    () => (stage === 'baby' || stage === 'adult' ? toBlobbiForVisual(companion) : null),
+    () => (stage === 'baby' || stage === 'adult' ? blobbiCompanionToBlobbi(companion) : null),
     [companion, stage]
   );
 
-  // Show music notes when listening to music
   const showMusicNotes = effectiveReaction === 'listening';
-  
-  // Container size class (shared across all stages)
   const containerClass = SIZE_CONFIG[size];
 
-  // Egg stage
   if (stage === 'egg') {
+    // Derive egg status effects from the recipe
+    // Eggs don't have faces, so we translate recipe parts to egg-specific effects
+    const eggStatusEffects: EggStatusEffects | undefined = recipe ? {
+      // Dirty: hygiene-related body effects
+      dirty: Boolean(recipe.bodyEffects?.dirtMarks?.enabled || recipe.bodyEffects?.stinkClouds?.enabled),
+      // Sick: health-critical dizzy eyes → floating spirals for egg
+      sick: Boolean(recipe.eyes?.dizzySpirals),
+      // Happy: positive reaction or explicit happy state (not sad/crying)
+      happy: effectiveReaction === 'happy' && !recipe.extras?.tears?.enabled,
+    } : undefined;
+
     return (
       <div className={cn('relative', containerClass, className)}>
         <BlobbiEggVisual
@@ -154,6 +108,7 @@ export function BlobbiStageVisual({
           size={size as BlobbiEggSize}
           animated={animated}
           reaction={effectiveReaction}
+          statusEffects={eggStatusEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -161,7 +116,6 @@ export function BlobbiStageVisual({
     );
   }
 
-  // Baby stage
   if (stage === 'baby' && blobbiForVisual) {
     return (
       <div className={cn('relative', containerClass, className)}>
@@ -170,7 +124,10 @@ export function BlobbiStageVisual({
           reaction={effectiveReaction}
           lookMode={lookMode}
           disableBlink={disableBlink}
+          recipe={recipe}
+          recipeLabel={recipeLabel}
           emotion={emotion}
+          bodyEffects={bodyEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -178,7 +135,6 @@ export function BlobbiStageVisual({
     );
   }
 
-  // Adult stage
   if (stage === 'adult' && blobbiForVisual) {
     return (
       <div className={cn('relative', containerClass, className)}>
@@ -187,7 +143,10 @@ export function BlobbiStageVisual({
           reaction={effectiveReaction}
           lookMode={lookMode}
           disableBlink={disableBlink}
+          recipe={recipe}
+          recipeLabel={recipeLabel}
           emotion={emotion}
+          bodyEffects={bodyEffects}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />
@@ -195,6 +154,5 @@ export function BlobbiStageVisual({
     );
   }
 
-  // Fallback for unknown stage (should not happen)
   return null;
 }

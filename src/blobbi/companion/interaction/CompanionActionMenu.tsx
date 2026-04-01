@@ -35,6 +35,8 @@ interface CompanionActionMenuProps {
   onActionClick: (action: CompanionMenuAction) => void;
   /** Callback for clicking outside the menu */
   onClickOutside?: () => void;
+  /** Whether Blobbi is currently sleeping (affects sleep button label) */
+  isSleeping?: boolean;
 }
 
 // Layout configuration
@@ -90,6 +92,7 @@ export function CompanionActionMenu({
   selectedAction,
   onActionClick,
   onClickOutside,
+  isSleeping = false,
 }: CompanionActionMenuProps) {
   if (!isOpen) return null;
   
@@ -121,6 +124,11 @@ export function CompanionActionMenu({
         
         const isSelected = selectedAction === action.id;
         const delay = index * MENU_CONFIG.staggerDelay;
+        
+        // Sleep action toggles label/emoji based on sleeping state
+        const isSleepAction = action.id === 'sleep';
+        const displayEmoji = isSleepAction && isSleeping ? '\u2600\uFE0F' : action.emoji;
+        const displayLabel = isSleepAction && isSleeping ? 'Wake up' : action.label;
         
         return (
           <button
@@ -155,15 +163,15 @@ export function CompanionActionMenu({
               e.stopPropagation();
               onActionClick(action.id);
             }}
-            title={action.label}
-            aria-label={action.label}
+            title={displayLabel}
+            aria-label={displayLabel}
           >
             <span 
               className="text-xl select-none"
               role="img"
               aria-hidden="true"
             >
-              {action.emoji}
+              {displayEmoji}
             </span>
           </button>
         );

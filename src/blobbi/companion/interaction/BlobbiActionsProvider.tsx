@@ -100,7 +100,6 @@ export function BlobbiActionsProvider({ children }: BlobbiActionsProviderProps) 
   const registerRef = useRef<UseItemFunction | null>(null);
   const canUseItemsRegisteredRef = useRef<boolean>(false);
   const isUsingItemRegisteredRef = useRef<boolean>(false);
-
   // Subscribers for manual notification
   const subscribersRef = useRef<Set<() => void>>(new Set());
 

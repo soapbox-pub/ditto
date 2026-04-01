@@ -21,7 +21,7 @@ import {
   getLocalDayString,
   getDaysDifference,
   type BlobbiCompanion,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

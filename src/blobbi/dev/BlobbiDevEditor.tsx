@@ -22,7 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-import type { BlobbiCompanion, BlobbiStage, BlobbiState, BlobbiStats } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbiStage, BlobbiState, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

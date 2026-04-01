@@ -12,7 +12,7 @@
 import './styles/egg-animations.css';
 
 // Components
-export { EggGraphic, type EggReactionState } from './components/EggGraphic';
+export { EggGraphic, type EggReactionState, type EggStatusEffects } from './components/EggGraphic';
 export { SpecialMarkRenderer, SpecialMarkFallback } from './components/SpecialMarkRenderer';
 
 // Hooks

@@ -15,7 +15,7 @@ import { forwardRef } from 'react';
 
 import { BlobbiStageVisual } from './BlobbiStageVisual';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@/lib/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

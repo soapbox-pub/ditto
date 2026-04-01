@@ -2,7 +2,7 @@
  * useBlobbiEyes - Hook for Blobbi eye animations
  *
  * Real-time mouse tracking:
- * - Pupils ALWAYS follow the mouse cursor (via .blobbi-eye groups)
+ * - Pupils ALWAYS follow the mouse cursor (via .blobbi-eye-gaze groups)
  * - Instant response using SVG transform attribute
  * - No CSS transitions (they cause delayed updates)
  * - Eye whites do NOT move - only pupils track
@@ -19,26 +19,30 @@
  * - Single requestAnimationFrame loop per instance
  * - Direct SVG attribute manipulation (not style.transform)
  * - Element caching with automatic refresh on SVG changes
- * - Separate transforms:
- *   - .blobbi-eye: translate(x y) for mouse tracking
- *   - .blobbi-blink: scale(1, blinkY) for blinking
+ * - Separate groups:
+ *   - .blobbi-eye: CSS animations (like sleepy wake-glance)
+ *   - .blobbi-eye-gaze: translate(x y) for mouse/gaze tracking
+ *   - .blobbi-blink: clip-path for blinking
  */
 
 import { useEffect, useRef } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import type { BlobbiLookMode, EyePosition } from './types';
+import {
+  DEFAULT_EYE_MAX_MOVEMENT,
+  EYE_VERTICAL_SCALE,
+  BLINK_MIN_INTERVAL,
+  BLINK_MAX_INTERVAL,
+  BLINK_CLOSE_DURATION,
+  BLINK_CLOSED_DURATION,
+  BLINK_OPEN_DURATION,
+  BLINK_CLOSED_AMOUNT,
+  DOUBLE_BLINK_CHANCE,
+} from './constants';
+import { EYE_CLASSES, EYE_DATA_ATTRS } from './eyes/types';
 
-export interface EyePosition {
-  x: number;
-  y: number;
-}
-
-/**
- * Controls how the Blobbi's eyes behave
- * - 'follow-pointer': Eyes track the mouse cursor (default)
- * - 'forward': Eyes look straight ahead (for photos/export)
- */
-export type BlobbiLookMode = 'follow-pointer' | 'forward';
+// Re-export types for backwards compatibility
+export type { BlobbiLookMode, EyePosition };
 
 export interface UseBlobbiEyesOptions {
   /** Whether the Blobbi is sleeping (disables animation) */
@@ -49,27 +53,12 @@ export interface UseBlobbiEyesOptions {
   lookMode?: BlobbiLookMode;
   /** Disable blinking animation (for photo/export mode) */
   disableBlink?: boolean;
-  /** 
+  /**
    * Disable eye tracking only (keep blinking).
    * Used when external system controls eye position (e.g., companion mode).
    */
   disableTracking?: boolean;
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DEFAULT_MAX_MOVEMENT = 2;
-const VERTICAL_SCALE = 0.7; // Reduce vertical movement to 70%
-
-// ─── Blink Constants ──────────────────────────────────────────────────────────
-
-const BLINK_MIN_INTERVAL = 2000; // Minimum time between blinks (ms)
-const BLINK_MAX_INTERVAL = 5000; // Maximum time between blinks (ms)
-const BLINK_CLOSE_DURATION = 80; // Time to close eyes (ms)
-const BLINK_CLOSED_DURATION = 100; // Time eyes stay closed (ms)
-const BLINK_OPEN_DURATION = 120; // Time to open eyes (ms)
-const BLINK_CLOSED_AMOUNT = 0.95; // How much of the eye to hide when closed (0.95 = 95% hidden)
-const DOUBLE_BLINK_CHANCE = 0.2; // 20% chance for double blink
 
 // ─── Global Mouse Position ────────────────────────────────────────────────────
 
@@ -215,14 +204,14 @@ export function useBlobbiEyes(
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: UseBlobbiEyesOptions = {}
 ): void {
-  const { isSleeping = false, maxMovement = DEFAULT_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false, disableTracking = false } = options;
+  const { isSleeping = false, maxMovement = DEFAULT_EYE_MAX_MOVEMENT, lookMode = 'follow-pointer', disableBlink = false, disableTracking = false } = options;
 
   // Animation frame ref for cleanup
   const animationRef = useRef<number | null>(null);
 
-  // Cached eye elements for TRACKING (pupil + highlight only)
-  const leftEyesRef = useRef<SVGGElement[]>([]);
-  const rightEyesRef = useRef<SVGGElement[]>([]);
+  // Cached gaze elements for TRACKING (innermost group containing pupil + highlight)
+  const leftGazeRef = useRef<SVGGElement[]>([]);
+  const rightGazeRef = useRef<SVGGElement[]>([]);
 
   // Cached eye elements for BLINKING (whole eye including white)
   const leftBlinkRef = useRef<SVGGElement[]>([]);
@@ -241,22 +230,28 @@ export function useBlobbiEyes(
       // Reset eyes to center when sleeping (no blinking)
       const resetEyes = () => {
         // Reset tracking transforms
-        leftEyesRef.current.forEach((el) => {
+        leftGazeRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
         });
-        rightEyesRef.current.forEach((el) => {
+        rightGazeRef.current.forEach((el) => {
           el.setAttribute('transform', 'translate(0 0)');
         });
-        // Reset clip-paths to fully open
+        // Reset clip-paths to fully open (unless SMIL animations are controlling them)
         [...leftBlinkRef.current, ...rightBlinkRef.current].forEach((el) => {
-          const clipId = el.getAttribute('data-clip-id');
-          const eyeTopAttr = el.getAttribute('data-eye-top');
-          const clipHeightAttr = el.getAttribute('data-clip-height');
+          const clipId = el.getAttribute(EYE_DATA_ATTRS.clipId);
+          // Try new format first, fall back to legacy for old SVGs
+          const clipTopAttr = el.getAttribute(EYE_DATA_ATTRS.clipTop) ?? el.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
+          const clipHeightAttr = el.getAttribute(EYE_DATA_ATTRS.clipHeight);
           
-          if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
+          if (clipId && clipTopAttr && clipHeightAttr && containerRef.current) {
             const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
             if (clipRect) {
-              clipRect.setAttribute('y', eyeTopAttr);
+              // Don't override SMIL animations (e.g., sleepy emotion)
+              const hasSmilAnimation = clipRect.querySelector('animate') !== null;
+              if (hasSmilAnimation) {
+                return;
+              }
+              clipRect.setAttribute('y', clipTopAttr);
               clipRect.setAttribute('height', clipHeightAttr);
             }
           }
@@ -280,30 +275,30 @@ export function useBlobbiEyes(
 
       // Check if SVG content changed
       const currentContent = containerRef.current.innerHTML;
-      if (currentContent === lastSvgContentRef.current && leftEyesRef.current.length > 0) {
+      if (currentContent === lastSvgContentRef.current && leftGazeRef.current.length > 0) {
         return true; // Already cached and unchanged
       }
 
-      // Query and cache TRACKING elements (pupil + highlight only)
-      const leftEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-left');
-      const rightEyes = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-eye-right');
+      // Query and cache GAZE elements (innermost group for gaze transforms)
+      const leftGaze = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.gazeLeft}`);
+      const rightGaze = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.gazeRight}`);
 
       // Query and cache BLINK elements (whole eye including white)
-      const leftBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-left');
-      const rightBlink = containerRef.current.querySelectorAll<SVGGElement>('.blobbi-blink-right');
+      const leftBlink = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.blinkLeft}`);
+      const rightBlink = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.blinkRight}`);
 
-      if (leftEyes.length === 0 && rightEyes.length === 0) {
+      if (leftGaze.length === 0 && rightGaze.length === 0) {
         return false; // SVG not rendered yet
       }
 
-      leftEyesRef.current = Array.from(leftEyes);
-      rightEyesRef.current = Array.from(rightEyes);
+      leftGazeRef.current = Array.from(leftGaze);
+      rightGazeRef.current = Array.from(rightGaze);
       leftBlinkRef.current = Array.from(leftBlink);
       rightBlinkRef.current = Array.from(rightBlink);
       lastSvgContentRef.current = currentContent;
 
       // Remove any CSS transitions that might interfere
-      [...leftEyesRef.current, ...rightEyesRef.current, ...leftBlinkRef.current, ...rightBlinkRef.current].forEach(
+      [...leftGazeRef.current, ...rightGazeRef.current, ...leftBlinkRef.current, ...rightBlinkRef.current].forEach(
         (el) => {
           el.style.transition = 'none';
         }
@@ -316,7 +311,7 @@ export function useBlobbiEyes(
 
     const animate = (timestamp: number) => {
       // Try to cache elements if not done yet
-      if (leftEyesRef.current.length === 0 || rightEyesRef.current.length === 0) {
+      if (leftGazeRef.current.length === 0 || rightGazeRef.current.length === 0) {
         if (!cacheEyeElements()) {
           // SVG not ready yet, try again next frame
           animationRef.current = requestAnimationFrame(animate);
@@ -378,19 +373,21 @@ export function useBlobbiEyes(
 
           // Calculate eye position (instant, no interpolation)
           eyeX = Math.cos(angle) * maxMovement;
-          eyeY = Math.sin(angle) * maxMovement * VERTICAL_SCALE;
+          eyeY = Math.sin(angle) * maxMovement * EYE_VERTICAL_SCALE;
         }
         // 'forward' mode: eyes stay at (0, 0) - looking straight ahead
 
         // ─── Apply Tracking Transform (pupils only) ──────────────────────────
         // Only translate - no scale here. Eye whites stay fixed.
+        // Gaze groups are the innermost layer, separate from the CSS animation layer (.blobbi-eye)
+        // so we can safely apply transforms without conflicting with emotion animations.
         const trackingTransform = `translate(${eyeX} ${eyeY})`;
 
-        leftEyesRef.current.forEach((el) => {
+        leftGazeRef.current.forEach((el) => {
           el.setAttribute('transform', trackingTransform);
         });
 
-        rightEyesRef.current.forEach((el) => {
+        rightGazeRef.current.forEach((el) => {
           el.setAttribute('transform', trackingTransform);
         });
       }
@@ -403,22 +400,33 @@ export function useBlobbiEyes(
       // 
       // The clip-path rect's Y position moves down as the blink progresses,
       // effectively hiding more of the eye from the top.
+      //
+      // IMPORTANT: Skip JS-based blink if the clip-rect has SMIL <animate> children
+      // (e.g., sleepy emotion uses SMIL animations that we shouldn't override)
       const applyBlinkClip = (el: SVGGElement) => {
-        const clipId = el.getAttribute('data-clip-id');
-        const eyeTopAttr = el.getAttribute('data-eye-top');
-        const clipHeightAttr = el.getAttribute('data-clip-height');
+        const clipId = el.getAttribute(EYE_DATA_ATTRS.clipId);
+        // Try new format first, fall back to legacy for old SVGs
+        const clipTopAttr = el.getAttribute(EYE_DATA_ATTRS.clipTop) ?? el.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
+        const clipHeightAttr = el.getAttribute(EYE_DATA_ATTRS.clipHeight);
 
-        if (clipId && eyeTopAttr && clipHeightAttr && containerRef.current) {
-          const eyeTop = parseFloat(eyeTopAttr);
-          const fullHeight = parseFloat(clipHeightAttr);
-          
+        if (clipId && clipTopAttr && clipHeightAttr && containerRef.current) {
           // Find the clip rect element
           const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
           if (clipRect) {
+            // Check if SMIL animations are controlling this clip-rect
+            // If so, don't override them with JS-based blink animation
+            const hasSmilAnimation = clipRect.querySelector('animate') !== null;
+            if (hasSmilAnimation) {
+              return; // Let SMIL handle the animation
+            }
+            
+            const clipTop = parseFloat(clipTopAttr);
+            const fullHeight = parseFloat(clipHeightAttr);
+            
             // Calculate new Y position and height based on blink progress
             // As blinkProgress goes from 0 to 1, the rect moves down and shrinks
             const closedOffset = fullHeight * blinkProgress;
-            const newY = eyeTop + closedOffset;
+            const newY = clipTop + closedOffset;
             const newHeight = fullHeight - closedOffset;
             
             clipRect.setAttribute('y', newY.toString());

@@ -5,12 +5,12 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { PurchaseRequest } from '../types/shop.types';
-import type { BlobbonautProfile, StorageItem } from '@/lib/blobbi';
+import type { BlobbonautProfile, StorageItem } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   createStorageTags,
-} from '@/lib/blobbi';
+} from '@/blobbi/core/lib/blobbi';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 
 /**

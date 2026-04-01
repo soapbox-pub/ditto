@@ -5,7 +5,7 @@
  * This is the state layer - it handles state transitions and timing.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 'react';
 
 import type {
   CompanionState,
@@ -21,14 +21,20 @@ import { DEFAULT_COMPANION_CONFIG, randomDuration } from '../core/companionConfi
 interface UseBlobbiCompanionStateOptions {
   /** Whether the companion is active and should be making decisions */
   isActive: boolean;
-  /** Current motion state (used for position/dragging checks) */
-  motion: CompanionMotion;
+  /** 
+   * Ref to current motion state (shared with motion hook).
+   * Using a ref allows state to read live motion values without
+   * creating a circular dependency between state and motion hooks.
+   */
+  motionRef: MutableRefObject<CompanionMotion>;
   /** Movement bounds */
   bounds: MovementBounds;
   /** Whether to force walking on first activation (after entry) */
   forceInitialWalk?: boolean;
   /** Current attention target (from UI attention system) */
   attentionTarget?: AttentionTarget | null;
+  /** Whether the companion is sleeping (freezes all decisions/movement) */
+  isSleeping?: boolean;
 }
 
 interface UseBlobbiCompanionStateResult {
@@ -51,10 +57,11 @@ interface UseBlobbiCompanionStateResult {
  */
 export function useBlobbiCompanionState({
   isActive,
-  motion,
+  motionRef,
   bounds,
   forceInitialWalk = true,
   attentionTarget,
+  isSleeping = false,
 }: UseBlobbiCompanionStateOptions): UseBlobbiCompanionStateResult {
   const [state, setState] = useState<CompanionState>('idle');
   const [direction, setDirection] = useState<CompanionDirection>('right');
@@ -67,14 +74,11 @@ export function useBlobbiCompanionState({
   
   const timerRef = useRef<number | null>(null);
   const hasHadInitialWalk = useRef(false);
-  const motionRef = useRef(motion);
   const lastObservationTimeRef = useRef<number>(0);
   const config = DEFAULT_COMPANION_CONFIG;
   
-  // Keep motion ref updated
-  useEffect(() => {
-    motionRef.current = motion;
-  }, [motion]);
+  // motionRef is now passed in from the orchestrator and shared with motion hook
+  // No need for local ref or sync effect - just read directly from motionRef.current
   
   // Clear timer on cleanup
   useEffect(() => {
@@ -136,7 +140,7 @@ export function useBlobbiCompanionState({
   
   // Make a decision about what to do next
   const makeDecision = useCallback(() => {
-    if (!isActive || motionRef.current.isDragging) {
+    if (!isActive || isSleeping || motionRef.current.isDragging) {
       return;
     }
     
@@ -172,7 +176,7 @@ export function useBlobbiCompanionState({
     // Schedule next decision
     const duration = transition.duration ?? randomDuration(config.idleTime);
     timerRef.current = window.setTimeout(makeDecision, duration);
-  }, [isActive, bounds, state, config, startObservation]);
+  }, [isActive, isSleeping, bounds, state, config, startObservation]);
   
   // Handle reaching target
   const onReachedTarget = useCallback(() => {
@@ -207,9 +211,22 @@ export function useBlobbiCompanionState({
     }
   }, [makeDecision, observationTarget, config.observation.lookDuration]);
   
-  // Start decision loop when active
+  // Force idle when sleeping - stop all movement/decisions immediately
   useEffect(() => {
-    if (isActive && !motionRef.current.isDragging) {
+    if (isSleeping) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setState('idle');
+      setTargetX(null);
+      setObservationTarget(null);
+    }
+  }, [isSleeping]);
+
+  // Start decision loop when active (and not sleeping)
+  useEffect(() => {
+    if (isActive && !isSleeping && !motionRef.current.isDragging) {
       // Clear any existing timer
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -238,19 +255,33 @@ export function useBlobbiCompanionState({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isActive, forceInitialWalk, startInitialWalk, makeDecision]);
+  }, [isActive, isSleeping, forceInitialWalk, startInitialWalk, makeDecision]);
   
   // Pause decisions while dragging
+  // We poll isDragging via interval since motionRef changes don't trigger re-renders
   useEffect(() => {
-    if (motion.isDragging) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+    if (!isActive) return;
+    
+    let wasDragging = false;
+    
+    const checkDragging = () => {
+      const isDragging = motionRef.current.isDragging;
+      if (isDragging && !wasDragging) {
+        // Started dragging
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        setState('idle');
+        setTargetX(null);
       }
-      setState('idle');
-      setTargetX(null);
-    }
-  }, [motion.isDragging]);
+      wasDragging = isDragging;
+    };
+    
+    // Check frequently for drag state changes
+    const interval = setInterval(checkDragging, 100);
+    return () => clearInterval(interval);
+  }, [isActive, motionRef]);
   
   // Handle attention targets - interrupt current behavior when UI elements appear
   useEffect(() => {

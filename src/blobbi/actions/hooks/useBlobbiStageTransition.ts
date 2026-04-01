@@ -19,14 +19,14 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
   DEFAULT_EGG_STATS,
-} from '@/lib/blobbi';
-import { applyBlobbiDecay } from '@/lib/blobbi-decay';
-import { validateAndRepairBlobbiTags } from '@/lib/blobbi-tag-schema';
+} from '@/blobbi/core/lib/blobbi';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { validateAndRepairBlobbiTags } from '@/blobbi/core/lib/blobbi-tag-schema';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 
 // ─── Content Helpers ──────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export interface CanonicalActionResult {
   /** Latest profile tags after migration */
   profileAllTags: string[][];
   /** Latest profile storage after migration */
-  profileStorage: import('@/lib/blobbi').StorageItem[];
+  profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
 }
 
 /**

@@ -15,6 +15,16 @@
  * - Eye white stays fixed during mouse tracking
  */
 
+import { darkenColor } from './svg/colors';
+import {
+  PUPIL_COLORS,
+  EYE_PROXIMITY,
+  EYE_WHITE_MIN_RADIUS,
+  DEFAULT_EYELID_COLOR,
+  EYELID_DARKEN_AMOUNT,
+} from './constants';
+import { EYE_CLASSES } from './eyes/types';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ElementInfo {
@@ -49,48 +59,6 @@ interface FullEyeGroup {
   blinkCenterY: number;
   /** Eye white geometry for eyelid generation (rx, ry for ellipse) */
   eyeWhiteGeometry: { rx: number; ry: number } | null;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-// Dark colors used for pupils
-// These are the solid fill colors used in adult Blobbi SVGs for pupils
-// - #1f2937, #374151, #1e293b, #111827, #0f172a: Dark gray/slate colors (most forms)
-// - #64748b: Slate color (cloudi)
-// - #1e1b4b: Dark indigo (starri, crysti)
-// - #0891b2: Cyan (droppi)
-const PUPIL_COLORS = ['#1f2937', '#374151', '#1e293b', '#111827', '#0f172a', '#64748b', '#1e1b4b', '#0891b2'];
-
-// Default eyelid color (used when no base color is provided)
-const DEFAULT_EYELID_COLOR = '#6d28d9';
-
-// Max distance for elements to belong to the same eye
-const EYE_PROXIMITY = 15;
-
-// How much to darken the base color for eyelids (0-100)
-// Keep it subtle so it reads as an eyelid, not a shadow
-const EYELID_DARKEN_AMOUNT = 8;
-
-// ─── Color Helpers ────────────────────────────────────────────────────────────
-
-/**
- * Darken a hex color by a percentage
- */
-function darkenColor(color: string, percent: number): string {
-  if (!color.startsWith('#')) return color;
-  
-  const num = parseInt(color.slice(1), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = Math.max(0, (num >> 16) - amt);
-  const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
-  const B = Math.max(0, (num & 0x0000FF) - amt);
-  
-  return '#' + (
-    0x1000000 +
-    R * 0x10000 +
-    G * 0x100 +
-    B
-  ).toString(16).slice(1).toUpperCase();
 }
 
 // ─── Detection Helpers ────────────────────────────────────────────────────────
@@ -131,7 +99,7 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
 
   // Check for plain white fills - must be LARGE to be an eye white
   // Adults use r=8-12 for eye whites, r=2-6 for highlights
-  // Use radius >= 8 threshold to avoid catching highlights as eye whites
+  // Use radius >= EYE_WHITE_MIN_RADIUS threshold to avoid catching highlights as eye whites
   const isWhite =
     element.includes('fill="white"') ||
     element.includes("fill='white'") ||
@@ -140,7 +108,7 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  if (isWhite && radius >= 8) {
+  if (isWhite && radius >= EYE_WHITE_MIN_RADIUS) {
     return true;
   }
 
@@ -168,7 +136,7 @@ function isPupilElement(element: string): boolean {
 
 /**
  * Check if element is a highlight (white element, typically small)
- * 
+ *
  * Highlights are the white reflective spots on the pupil.
  * They're white fills that are smaller than eye whites.
  * Adults use r=2-6 for highlights, r=8+ for eye whites.
@@ -182,9 +150,9 @@ function isHighlightElement(element: string, radius: number): boolean {
     element.includes('fill="#FFF"') ||
     element.includes('fill="#FFFFFF"');
 
-  // Highlights are white fills with radius < 8 (the eye white threshold)
+  // Highlights are white fills with radius < EYE_WHITE_MIN_RADIUS (the eye white threshold)
   // This captures adult highlights at r=2-6 and baby highlights at r=2
-  return isWhite && radius < 8;
+  return isWhite && radius < EYE_WHITE_MIN_RADIUS;
 }
 
 /**
@@ -418,7 +386,9 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
   const eyelidColor = darkenColor(baseColor, EYELID_DARKEN_AMOUNT);
   
   // Generate unique ID prefix for clipPaths to avoid collisions between multiple Blobbis
-  const instanceId = options?.instanceId || Math.random().toString(36).substring(2, 8);
+  // Sanitize to only allow valid SVG ID characters (letters, numbers, underscore, hyphen)
+  const rawInstanceId = options?.instanceId || Math.random().toString(36).substring(2, 8);
+  const instanceId = rawInstanceId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
   for (const group of eyeGroups) {
     // Collect all elements for this eye (for removal tracking)
@@ -433,24 +403,30 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
 
     const first = sorted[0];
 
-    // Build the tracking group content (pupil + highlights only)
-    const trackingElements = [group.pupil, ...group.highlights].sort((a, b) => a.index - b.index);
-    const trackingContent = trackingElements.map((el) => el.match).join('\n      ');
+    // Build the gaze group content (pupil + highlights only)
+    const gazeElements = [group.pupil, ...group.highlights].sort((a, b) => a.index - b.index);
+    const gazeContent = gazeElements.map((el) => el.match).join('\n        ');
 
-    // Build the inner tracking group
-    const trackingGroup = `<g class="blobbi-eye blobbi-eye-${group.side}" style="transform-box: fill-box; transform-origin: center;">
-      ${trackingContent}
+    // Build the inner gaze group (receives JS gaze transforms - translate)
+    const gazeGroup = `<g class="${EYE_CLASSES.gaze} ${EYE_CLASSES.gaze}-${group.side}">
+        ${gazeContent}
+      </g>`;
+
+    // Build the eye animation group (receives CSS animations like sleepy wake-glance)
+    // The gaze group is nested inside so CSS animations and gaze transforms don't conflict
+    const eyeGroup = `<g class="${EYE_CLASSES.eye} ${EYE_CLASSES.eye}-${group.side}" style="transform-box: fill-box; transform-origin: center;">
+      ${gazeGroup}
     </g>`;
 
     // Build the outer blink group
     let blinkContent: string;
     if (group.eyeWhite) {
-      // Eye white goes outside tracking group, inside blink group
+      // Eye white goes outside eye group, inside blink group
       blinkContent = `${group.eyeWhite.match}
-    ${trackingGroup}`;
+    ${eyeGroup}`;
     } else {
-      // No eye white found, just wrap tracking group
-      blinkContent = trackingGroup;
+      // No eye white found, just wrap eye group
+      blinkContent = eyeGroup;
     }
 
     // Calculate eye bounds for clip-path blink animation
@@ -471,10 +447,11 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     const clipHeight = eyeHeight + clipPadding * 2;
 
     // Store eye geometry as data attributes for the animation loop
-    // data-eye-top/bottom define the clipping bounds for blink animation
-    // data-clip-id references the clipPath element
+    // Uses the official EYE_DATA_ATTRS naming convention from eyes/types.ts
+    // data-eye-cx/cy: eye center coordinates
+    // data-clip-top/height/id: clipping bounds for blink animation
     const clipId = `blobbi-blink-clip-${instanceId}-${group.side}`;
-    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-cx="${group.blinkCenterX}" data-cy="${group.blinkCenterY}" data-eye-top="${clipTop}" data-eye-bottom="${eyeBottom + clipPadding}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
+    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-eye-cx="${group.blinkCenterX}" data-eye-cy="${group.blinkCenterY}" data-eye-side="${group.side}" data-clip-top="${clipTop}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
     ${blinkContent}
   </g>`;
 
@@ -496,7 +473,7 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     // Generate clipPath definition for this eye
     // The rect starts at full height and will be animated to shrink from top
     const clipPathDef = `<clipPath id="${clipId}">
-      <rect class="blobbi-blink-clip-rect" x="${clipLeft}" y="${clipTop}" width="${clipWidth}" height="${clipHeight}" />
+      <rect class="${EYE_CLASSES.clipRect}" x="${clipLeft}" y="${clipTop}" width="${clipWidth}" height="${clipHeight}" />
     </clipPath>`;
     
     // Store clipPath to add to defs later

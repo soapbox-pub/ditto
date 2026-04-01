@@ -1,57 +1,18 @@
 /**
  * Adult Blobbi SVG Customizer
- * 
+ *
  * Handles applying colors and customizations to adult SVG content.
  * Each adult form has different gradient IDs that need color mapping.
- * 
+ *
  * IMPORTANT: Gradients must be preserved for 3D shading effects.
  * We replace gradient colors, not the gradient structure.
+ *
+ * Uses shared utilities from blobbi/ui/lib/svg for common operations.
  */
 
-import type { Blobbi } from '@/types/blobbi';
+import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import { lightenColor, darkenColor, uniquifySvgIds, ensureSvgFillsContainer } from '@/blobbi/ui/lib/svg';
 import type { AdultForm, AdultSvgCustomization } from '../types/adult.types';
-
-// ─── Color Utilities ──────────────────────────────────────────────────────────
-
-/**
- * Lighten a hex color by a percentage
- */
-function lightenColor(color: string, percent: number): string {
-  if (color.startsWith('#')) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return '#' + (
-      0x1000000 +
-      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-      (B < 255 ? (B < 1 ? 0 : B) : 255)
-    ).toString(16).slice(1).toUpperCase();
-  }
-  return color;
-}
-
-/**
- * Darken a hex color by a percentage
- */
-function darkenColor(color: string, percent: number): string {
-  if (color.startsWith('#')) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) - amt;
-    const G = (num >> 8 & 0x00FF) - amt;
-    const B = (num & 0x0000FF) - amt;
-    return '#' + (
-      0x1000000 +
-      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-      (B < 255 ? (B < 1 ? 0 : B) : 255)
-    ).toString(16).slice(1).toUpperCase();
-  }
-  return color;
-}
 
 // ─── Gradient Builders ────────────────────────────────────────────────────────
 
@@ -608,77 +569,6 @@ export function customizeAdultSvg(
   }
 
   return modifiedSvg;
-}
-
-/**
- * Ensure SVG has width/height attributes so it fills its container
- */
-function ensureSvgFillsContainer(svgText: string): string {
-  if (/\swidth=/.test(svgText) && /\sheight=/.test(svgText)) {
-    return svgText;
-  }
-
-  return svgText.replace(
-    /<svg([^>]*)>/,
-    '<svg$1 width="100%" height="100%">'
-  );
-}
-
-/**
- * Make all SVG definition IDs unique by prefixing with an instance ID.
- * This prevents gradient ID collisions when multiple Blobbis are rendered on the same page.
- * 
- * Updates both:
- * - Definition IDs: id="gradientName" → id="prefix_gradientName"
- * - References: url(#gradientName) → url(#prefix_gradientName)
- */
-function uniquifySvgIds(svgText: string, instanceId: string): string {
-  // Generate a unique prefix from the full instance ID
-  // Sanitize to only allow valid SVG ID characters (letters, numbers, underscore, hyphen)
-  // Note: instanceId format is "blobbi-{pubkeyPrefix12}-{petId10}" so we need the full ID
-  // to distinguish between Blobbis owned by the same user
-  const prefix = `b_${instanceId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-  
-  // Find all IDs defined in the SVG (in defs, gradients, clipPaths, etc.)
-  const idPattern = /\bid=["']([^"']+)["']/g;
-  const ids = new Set<string>();
-  let match;
-  
-  while ((match = idPattern.exec(svgText)) !== null) {
-    ids.add(match[1]);
-  }
-  
-  // Replace each ID and its references
-  let modified = svgText;
-  for (const id of ids) {
-    const prefixedId = `${prefix}_${id}`;
-    
-    // Replace the ID definition
-    modified = modified.replace(
-      new RegExp(`\\bid=["']${id}["']`, 'g'),
-      `id="${prefixedId}"`
-    );
-    
-    // Replace url() references
-    modified = modified.replace(
-      new RegExp(`url\\(#${id}\\)`, 'g'),
-      `url(#${prefixedId})`
-    );
-    
-    // Replace xlink:href references (older SVG format)
-    modified = modified.replace(
-      new RegExp(`xlink:href=["']#${id}["']`, 'g'),
-      `xlink:href="#${prefixedId}"`
-    );
-    
-    // Replace href references (newer SVG format)
-    modified = modified.replace(
-      new RegExp(`\\bhref=["']#${id}["']`, 'g'),
-      `href="#${prefixedId}"`
-    );
-  }
-  
-  return modified;
 }
 
 /**

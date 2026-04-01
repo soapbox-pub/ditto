@@ -5,7 +5,8 @@
  * decoupled from app-specific concerns.
  */
 
-import type { BlobbiVisualTraits } from '@/lib/blobbi';
+import type { BlobbiVisualTraits, BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiState } from '@/blobbi/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
 
@@ -176,6 +177,10 @@ export interface CompanionData {
   visualTraits: BlobbiVisualTraits;
   /** Current energy level (0-100) - affects walking speed */
   energy: number;
+  /** Current stats for status-based visual reactions */
+  stats: BlobbiStats;
+  /** Current companion state (e.g., 'sleeping') */
+  state?: BlobbiState;
   /** Adult evolution form type (e.g., 'catti', 'pupp', 'buni') - only for adults */
   adultType?: string;
   /** Deterministic seed for deriving traits */
@@ -318,8 +323,6 @@ export interface CompanionContextValue {
   state: CompanionState;
   /** Current motion state */
   motion: CompanionMotion;
-  /** Current gaze state */
-  gaze: GazeState;
   /** Start dragging the companion */
   startDrag: () => void;
   /** Update drag position */

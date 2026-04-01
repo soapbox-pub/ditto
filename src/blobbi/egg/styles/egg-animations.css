@@ -83,6 +83,86 @@
 }
 
 /* ==========================================
+   Egg Status Effect Animations
+   ========================================== */
+
+/* Sweat droplet - slides down and fades */
+@keyframes egg-sweat-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.animate-egg-sweat-drop {
+  animation: egg-sweat-drop 2s ease-in-out infinite;
+}
+
+/* Dust particles - gentle float up */
+@keyframes egg-dust-particle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-3px);
+  }
+}
+
+.animate-egg-dust-particle {
+  animation: egg-dust-particle 2s ease-in-out infinite;
+}
+
+/* Dizzy spirals - rotate and float */
+@keyframes egg-spiral {
+  0% {
+    opacity: 0.4;
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: rotate(180deg) translateY(-4px);
+  }
+  100% {
+    opacity: 0.4;
+    transform: rotate(360deg) translateY(0);
+  }
+}
+
+.animate-egg-spiral {
+  animation: egg-spiral 3s ease-in-out infinite;
+}
+
+/* Happy sparkles - twinkle effect */
+@keyframes egg-sparkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.animate-egg-sparkle {
+  animation: egg-sparkle 1.5s ease-in-out infinite;
+}
+
+/* ==========================================
    Special Mark Animations
    ========================================== */
 
@@ -234,7 +314,11 @@
   .animate-egg-sway,
   .animate-egg-bounce,
   .animate-egg-warmth,
-  .animate-egg-crack {
+  .animate-egg-crack,
+  .animate-egg-sweat-drop,
+  .animate-egg-dust-particle,
+  .animate-egg-spiral,
+  .animate-egg-sparkle {
     animation: none !important;
   }
 }
