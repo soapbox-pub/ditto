@@ -50,11 +50,11 @@ deploy-nsite:
       nsyte deploy ./dist
       -i
       --sec "$NSITE_NBUNKSEC"
+      --name ditto
       --relays "wss://relay.ditto.pub,wss://relay.nsite.lol,wss://relay.dreamith.to,wss://relay.primal.net"
       --servers "https://blossom.primal.net,https://blossom.ditto.pub,https://blossom.dreamith.to"
       --fallback "/index.html"
       --publish-server-list
-      --publish-relay-list
       --use-fallback-relays
       --use-fallback-servers
 
