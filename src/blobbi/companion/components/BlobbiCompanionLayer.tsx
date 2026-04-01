@@ -24,6 +24,7 @@ import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
+import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import type { ActionType } from '@/blobbi/ui/lib/status-reactions';
 import {
   useCompanionActionMenu,
@@ -220,17 +221,29 @@ export function BlobbiCompanionLayer() {
   // Resolves companion stats into a visual recipe (sleepy, hungry, dirty, etc.).
   // The actionOverride from useActionEmotionOverride temporarily overrides
   // the recipe when an item is used (e.g., feeding → happy face for 1.5s).
+  //
+  // Status reaction stays ENABLED during sleep so body effects (dirty) and
+  // extras (food icon) still resolve. The sleeping recipe overlay is applied
+  // on top to override the face while preserving compatible body effects.
 
   const isSleeping = companion?.state === 'sleeping';
   const companionStats = useMemo(() => companion?.stats ?? {
     hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100,
   }, [companion?.stats]);
 
-  const { recipe: companionRecipe, recipeLabel: companionRecipeLabel } = useStatusReaction({
+  const { recipe: statusRecipe, recipeLabel: statusRecipeLabel } = useStatusReaction({
     stats: companionStats,
-    enabled: isVisible && !isSleeping && companion?.stage !== 'egg',
-    actionOverride,
+    enabled: isVisible && companion?.stage !== 'egg',
+    actionOverride: isSleeping ? null : actionOverride,
   });
+
+  // When sleeping, overlay the sleeping face on top of the status recipe.
+  // This keeps body effects (dirty, stink) and food icon while overriding
+  // eyes, mouth, and eyebrows with sleeping visuals.
+  const companionRecipe = isSleeping
+    ? buildSleepingRecipe(statusRecipe)
+    : statusRecipe;
+  const companionRecipeLabel = isSleeping ? 'sleeping' : statusRecipeLabel;
 
   // ── Early return ───────────────────────────────────────────────────────────
 

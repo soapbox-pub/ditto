@@ -111,7 +111,7 @@ export function BlobbiAdultVisual({
       ref={containerRef}
       className={cn(
         'relative flex items-center justify-center',
-        isSleeping && 'opacity-70',
+        // No opacity change for sleeping — sleeping is a recipe overlay, not a visual dim
         !isCompanion && (effectiveReaction === 'listening' ||
           effectiveReaction === 'swaying' ||
           effectiveReaction === 'happy') &&

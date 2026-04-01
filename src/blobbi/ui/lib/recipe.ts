@@ -100,8 +100,10 @@ export interface EyeRecipe {
   starEyes?: { points: number; color: string; scale: number };
   /** Dizzy spiral overlays */
   dizzySpirals?: { rotationDuration: number };
-  /** Sleepy closing-blink animation */
+  /** Sleepy closing-blink animation (drowsy cycling — low energy reaction) */
   sleepyBlink?: { cycleDuration: number };
+  /** Sleeping state: eyes permanently closed, no blink cycle */
+  sleepingClosed?: true;
 }
 
 /**
@@ -626,6 +628,144 @@ function applySleepyAnimation(
   return svgText;
 }
 
+// ─── Sleeping State (permanently closed eyes + Zzz) ──────────────────────────
+
+/**
+ * CSS styles for the sleeping state.
+ * Eyes are permanently closed (no blink cycle). Zzz floats gently.
+ */
+function generateSleepingStyles(): string {
+  return `
+  <style type="text/css">
+    @keyframes sleeping-zzz {
+      0%   { opacity: 0;   transform: translateY(0); }
+      15%  { opacity: 0.8; transform: translateY(-2px); }
+      50%  { opacity: 1;   transform: translateY(-6px); }
+      85%  { opacity: 0.4; transform: translateY(-10px); }
+      100% { opacity: 0;   transform: translateY(-12px); }
+    }
+    .blobbi-sleeping .blobbi-sleeping-zzz text:nth-child(1) {
+      animation: sleeping-zzz 3.5s ease-in-out infinite;
+    }
+    .blobbi-sleeping .blobbi-sleeping-zzz text:nth-child(2) {
+      animation: sleeping-zzz 3.5s ease-in-out 0.6s infinite;
+    }
+    .blobbi-sleeping .blobbi-sleeping-zzz text:nth-child(3) {
+      animation: sleeping-zzz 3.5s ease-in-out 1.2s infinite;
+    }
+  </style>`;
+}
+
+function generateSleepingZzz(): string {
+  return `<g class="blobbi-sleeping-zzz">
+    <text x="70" y="12" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#6b7280" opacity="0">z</text>
+    <text x="76" y="8" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" fill="#6b7280" opacity="0">z</text>
+    <text x="84" y="3" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" opacity="0">z</text>
+  </g>`;
+}
+
+/**
+ * Apply sleeping state visuals: permanently closed eyes + Zzz.
+ *
+ * Unlike `applySleepyAnimation` (which cycles between open/closed for the
+ * drowsy low-energy reaction), this keeps the eyes fully shut and uses
+ * closed-eye line overlays + permanent clip-path closure.
+ *
+ * Called from `applyVisualRecipe` when `recipe.eyes.sleepingClosed` is set.
+ */
+function applySleepingClosedEyes(
+  svgText: string,
+  eyes: EyePosition[],
+  anchor: { cx: number; cy: number } | null,
+): string {
+  // Add 'blobbi-sleeping' class to SVG root
+  svgText = svgText.replace(/<svg([^>]*)>/, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="([^"]*)"/, 'class="$1 blobbi-sleeping"');
+    } else if (attrs.includes("class='")) {
+      return match.replace(/class='([^']*)'/, "class='$1 blobbi-sleeping'");
+    } else {
+      return `<svg${attrs} class="blobbi-sleeping">`;
+    }
+  });
+
+  // Inject CSS animations for Zzz float
+  const styles = generateSleepingStyles();
+  if (svgText.includes('<defs>')) {
+    svgText = svgText.replace('<defs>', '<defs>' + styles);
+  } else {
+    svgText = svgText.replace(/(<svg[^>]*>)/, '$1' + styles);
+  }
+
+  // Close eyes permanently by moving clip-path rects to fully closed position (no SMIL animation)
+  const clipRectRegex = new RegExp(
+    `<rect\\s+class="${EYE_CLASSES.clipRect}"\\s+x="([^"]+)"\\s+y="([^"]+)"\\s+width="([^"]+)"\\s+height="([^"]+)"\\s*/>`,
+    'g'
+  );
+  svgText = svgText.replace(clipRectRegex, (_match, x, y, width, height) => {
+    const baseY = parseFloat(y);
+    const fullHeight = parseFloat(height);
+    const closedOffset = fullHeight * 0.95;
+    const closedY = baseY + closedOffset;
+    const closedHeight = fullHeight - closedOffset;
+    // Set clip rect to closed position — no animation
+    return `<rect class="${EYE_CLASSES.clipRect}" x="${x}" y="${closedY}" width="${width}" height="${closedHeight}" />`;
+  });
+
+  // Replace mouth with sleeping mouth
+  if (anchor) {
+    svgText = applySleepyMouth(svgText, anchor);
+  }
+
+  // Overlays: closed eye lines (permanently visible) + Zzz
+  const closedEyeLines = eyes.map(eye => {
+    const lineWidth = eye.radius * 1.6;
+    const startX = eye.cx - lineWidth / 2;
+    const endX = eye.cx + lineWidth / 2;
+    const curveDepth = eye.radius * 0.5;
+    const yOffset = eye.radius * 0.75;
+    const lineY = eye.cy + yOffset;
+    return `<path class="blobbi-closed-eye blobbi-closed-eye-${eye.side}" d="M ${startX} ${lineY} Q ${eye.cx} ${lineY + curveDepth} ${endX} ${lineY}" stroke="#374151" stroke-width="2" stroke-linecap="round" fill="none" opacity="1" />`;
+  }).join('\n');
+
+  const zzz = generateSleepingZzz();
+  const sleepingOverlays = `
+  <g class="blobbi-sleeping-overlays">
+    ${closedEyeLines}
+    ${zzz}
+  </g>`;
+  svgText = svgText.replace('</svg>', sleepingOverlays + '\n</svg>');
+
+  return svgText;
+}
+
+/**
+ * Build a sleeping recipe overlay from a base status recipe.
+ *
+ * Sleeping overrides the face (eyes, mouth, eyebrows) but allows
+ * selective coexistence with body effects and some extras:
+ *
+ * - Eyes: always sleeping closed (overrides watery, dizzy, star, sleepy blink)
+ * - Mouth: always sleeping mouth (overrides all other mouth shapes)
+ * - Eyebrows: removed (sleeping is relaxed)
+ * - Body effects: preserved (dirty smudges, stink clouds still visible)
+ * - Extras: food icon kept, drool/tears removed
+ */
+export function buildSleepingRecipe(statusRecipe?: BlobbiVisualRecipe): BlobbiVisualRecipe {
+  return {
+    // Sleeping face overrides everything
+    eyes: { sleepingClosed: true },
+    mouth: { sleepyMouth: true },
+    eyebrows: undefined,
+    // Keep body effects from status (dirty, stink)
+    bodyEffects: statusRecipe?.bodyEffects,
+    // Keep food icon, strip drool/tears
+    extras: statusRecipe?.extras ? {
+      foodIcon: statusRecipe.extras.foodIcon,
+    } : undefined,
+  };
+}
+
 // ─── Recipe Application ───────────────────────────────────────────────────────
 
 /**
@@ -747,6 +887,12 @@ export function applyVisualRecipe(
       mouthAnchor,
       recipe.eyes.sleepyBlink.cycleDuration,
     );
+  }
+
+  // ── Sleeping state (permanently closed eyes + Zzz) ──
+  // Mutually exclusive with sleepyBlink — sleepingClosed takes precedence
+  if (recipe.eyes?.sleepingClosed && !recipe.eyes?.sleepyBlink) {
+    svgText = applySleepingClosedEyes(svgText, eyes, mouthAnchor);
   }
 
   // ── Animated eyebrows ──

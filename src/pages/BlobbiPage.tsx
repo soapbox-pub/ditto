@@ -31,15 +31,11 @@ import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompan
 import { cn } from '@/lib/utils';
 
 import {
-  KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
-  updateBlobbiTags,
   updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
 } from '@/blobbi/core/lib/blobbi';
-
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
 import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
@@ -71,17 +67,16 @@ import {
   createSingActivity,
   createNoActivity,
   getActionForItem,
-  trackDailyMissionProgress,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
   type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
-  getStreakTagUpdates,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
+import { useBlobbiSleepToggle } from '@/blobbi/companion/interaction/useBlobbiSleepToggle';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
@@ -309,84 +304,20 @@ function BlobbiContent() {
     });
   }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD, invalidateCompanion, invalidateProfile]);
   
-  // ─── Rest Action (with automatic legacy migration) ───
+  // ─── Rest Action ───
+  // Uses the shared useBlobbiSleepToggle hook so the sleep/wake path is
+  // identical whether triggered from the BlobbiActionsModal or the companion
+  // radial menu. Both fetch fresh relay data, publish, and update the cache.
+  const { toggleSleep } = useBlobbiSleepToggle();
+
   const handleRest = useCallback(async () => {
-    if (!user?.pubkey || !companion) return;
-    
-    const isCurrentlySleeping = companion.state === 'sleeping';
-    const newState = isCurrentlySleeping ? 'active' : 'sleeping';
-    
     setActionInProgress('rest');
     try {
-      // Ensure canonical before action (auto-migrates legacy pets)
-      const canonical = await ensureCanonicalBeforeAction();
-      if (!canonical) {
-        setActionInProgress(null);
-        return;
-      }
-      
-      // Apply accumulated decay before the state change
-      const now = Math.floor(Date.now() / 1000);
-      const decayResult = applyBlobbiDecay({
-        stage: canonical.companion.stage,
-        state: canonical.companion.state,
-        stats: canonical.companion.stats,
-        lastDecayAt: canonical.companion.lastDecayAt,
-        now,
-      });
-      
-      // Build the new tags with decayed stats + new state
-      const nowStr = now.toString();
-      
-      // Get streak updates (putting to sleep/waking counts as care activity)
-      const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
-      
-      const newTags = updateBlobbiTags(canonical.allTags, {
-        state: newState,
-        hunger: decayResult.stats.hunger.toString(),
-        happiness: decayResult.stats.happiness.toString(),
-        health: decayResult.stats.health.toString(),
-        hygiene: decayResult.stats.hygiene.toString(),
-        energy: decayResult.stats.energy.toString(),
-        ...streakUpdates,
-        last_interaction: nowStr,
-        last_decay_at: nowStr,
-      });
-      
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
-        tags: newTags,
-      });
-      
-      updateCompanionEvent(event);
-      invalidateCompanion();
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
-      
-      toast({
-        title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
-        description: isCurrentlySleeping
-          ? 'Your Blobbi is now awake and active!'
-          : 'Your Blobbi is taking a rest.',
-      });
-      
-      // Track daily mission progress for sleep action (only when putting to sleep)
-      if (!isCurrentlySleeping) {
-        trackDailyMissionProgress('sleep', 1, user?.pubkey);
-      }
-    } catch (error) {
-      console.error('Failed to update state:', error);
-      toast({
-        title: 'Failed to update',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
+      await toggleSleep();
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
+  }, [toggleSleep]);
   
   // ─── Use Inventory Item Hook ───
   const { mutateAsync: executeUseItem, isPending: isUsingItem } = useBlobbiUseInventoryItem({

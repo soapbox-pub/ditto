@@ -74,17 +74,24 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
       return;
     }
 
-    queryClient.setQueryData<
-      { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] } | undefined
-    >(
-      ['blobbi-collection', pubkey],
-      (prev) => {
-        if (!prev) return prev;
-        const newCompanionsByD = { ...prev.companionsByD, [parsed.d]: parsed };
-        return { companionsByD: newCompanionsByD, companions: Object.values(newCompanionsByD) };
-      },
-    );
+    // Optimistically update ALL blobbi-collection queries for this user.
+    // The cache key is ['blobbi-collection', pubkey, dListArray], so we use
+    // partial matching to find all entries regardless of dList shape.
+    type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
+    const matchingQueries = queryClient.getQueriesData<CollectionData>({
+      queryKey: ['blobbi-collection', pubkey],
+    });
 
+    for (const [queryKey, data] of matchingQueries) {
+      if (!data) continue;
+      const newCompanionsByD = { ...data.companionsByD, [parsed.d]: parsed };
+      queryClient.setQueryData<CollectionData>(queryKey, {
+        companionsByD: newCompanionsByD,
+        companions: Object.values(newCompanionsByD),
+      });
+    }
+
+    // Also invalidate for background refetch to ensure eventual consistency
     queryClient.invalidateQueries({ queryKey: ['blobbi-collection', pubkey] });
   }, [queryClient]);
 

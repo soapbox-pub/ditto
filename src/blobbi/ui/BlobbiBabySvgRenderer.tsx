@@ -26,7 +26,6 @@ import { addEyeAnimation } from './lib/eye-animation';
 import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
-import { applySleepingAnimation } from './lib/sleeping-animation';
 import { debugBlobbi } from './lib/debug';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
@@ -60,7 +59,7 @@ export interface BlobbiBabySvgRendererProps {
  */
 export function BlobbiBabySvgRenderer({
   blobbi,
-  isSleeping,
+  isSleeping: _isSleeping,
   recipe: recipeProp,
   recipeLabel,
   emotion = 'neutral',
@@ -70,28 +69,25 @@ export function BlobbiBabySvgRenderer({
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
 
-    const baseSvg = resolveBabySvg(blobbi, { isSleeping });
-    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, isSleeping);
+    // Always use the base (awake) SVG — sleeping is a recipe overlay, not an asset swap
+    const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
+    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
 
-    if (!isSleeping) {
-      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
+    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
 
-      if (recipeProp) {
-        animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, blobbi.id);
-      } else if (emotion !== 'neutral') {
-        const resolved = resolveVisualRecipe(emotion);
-        animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, blobbi.id);
-      }
-
-      if (bodyEffects && !recipeProp) {
-        animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
-      }
-
-      return animatedSvg;
+    if (recipeProp) {
+      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, blobbi.id);
+    } else if (emotion !== 'neutral') {
+      const resolved = resolveVisualRecipe(emotion);
+      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, blobbi.id);
     }
 
-    return applySleepingAnimation(colorizedSvg);
-  }, [blobbi, isSleeping, recipeProp, recipeLabel, emotion, bodyEffects]);
+    if (bodyEffects && !recipeProp) {
+      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
+    }
+
+    return animatedSvg;
+  }, [blobbi, recipeProp, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 
