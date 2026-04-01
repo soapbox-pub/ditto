@@ -163,7 +163,6 @@ function BlobbiContent() {
   const {
     profile,
     isLoading: profileLoading,
-    isFetching: profileFetching,
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
@@ -706,7 +705,6 @@ function BlobbiContent() {
       isDirectActionPending={isDirectActionPending}
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
-      isFetching={profileFetching || companionFetching}
       profile={profile}
       onHatch={handleHatch}
       onEvolve={handleEvolve}
@@ -761,7 +759,6 @@ interface BlobbiDashboardProps {
   isDirectActionPending: boolean;
   actionInProgress: string | null;
   isPublishing: boolean;
-  isFetching: boolean;
   profile: BlobbonautProfile | null;
   // Stage transition handlers
   onHatch: () => Promise<void>;
@@ -805,7 +802,6 @@ function BlobbiDashboard({
   isDirectActionPending,
   actionInProgress,
   isPublishing,
-  isFetching,
   profile,
   onHatch,
   onEvolve,
