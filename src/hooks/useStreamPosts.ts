@@ -322,6 +322,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       // 'all' means no media filter
     }
 
+    // Sort preference (NIP-50 extension)
+    if (options.sort === 'hot') {
+      searchParts.push('sort:hot');
+    } else if (options.sort === 'trending') {
+      searchParts.push('sort:trending');
+    }
+
     const initialFilter: NostrFilter = { ...streamFilter };
     if (searchParts.length > 0) {
       initialFilter.search = searchParts.join(' ');
@@ -331,13 +338,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     if (resolvedAuthorPubkeys && resolvedAuthorPubkeys.length > 0) {
       initialFilter.authors = resolvedAuthorPubkeys;
       streamFilter.authors = resolvedAuthorPubkeys;
-    }
-
-    // Sort preference (NIP-50 extension)
-    if (options.sort === 'hot') {
-      searchParts.push('sort:hot');
-    } else if (options.sort === 'trending') {
-      searchParts.push('sort:trending');
     }
 
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)

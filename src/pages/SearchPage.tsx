@@ -363,8 +363,14 @@ export function SearchPage() {
     if (debouncedSearchQuery.trim()) filter.search = debouncedSearchQuery.trim();
     if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
     if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
+    // Persist NIP-50 extension filters so saved feeds can replay them
+    if (!includeReplies) filter.includeReplies = false;
+    if (mediaType !== 'all') filter.mediaType = mediaType;
+    if (language !== 'global') filter.language = language;
+    if (platform !== 'nostr') filter.platform = platform;
+    if (sort !== 'recent') filter.sort = sort;
     return filter;
-  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys]);
+  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, includeReplies, mediaType, language, platform, sort]);
 
   const alreadySaved = savedFeeds.some(
     (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),

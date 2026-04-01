@@ -371,9 +371,25 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
   const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
 
+  // Extract NIP-50 extension fields saved by the search page (stored on the raw filter, not NostrFilter)
+  const f = feed.filter;
+  const includeReplies = f.includeReplies !== false;
+  const mediaType = (['all', 'images', 'videos', 'vines', 'none'] as const).includes(f.mediaType as 'all')
+    ? (f.mediaType as 'all' | 'images' | 'videos' | 'vines' | 'none')
+    : 'all';
+  const language = typeof f.language === 'string' ? f.language : undefined;
+  const platform = typeof f.platform === 'string' ? f.platform : 'nostr';
+  const protocols = useMemo(() => [platform], [platform]);
+  const sort = (['recent', 'hot', 'trending'] as const).includes(f.sort as 'recent')
+    ? (f.sort as 'recent' | 'hot' | 'trending')
+    : undefined;
+
   const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
+    includeReplies,
+    mediaType,
+    language,
+    protocols,
+    sort,
     kindsOverride,
     authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });
