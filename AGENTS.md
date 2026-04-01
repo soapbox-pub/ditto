@@ -1338,7 +1338,7 @@ After adding or removing plugins, run `npx cap sync` to update the native projec
 The project uses GitLab CI (`.gitlab-ci.yml`) with the following stages:
 
 1. **test** - Runs `npm run test` on every commit (skipped for tags)
-2. **deploy** - Builds and deploys to GitLab Pages (default branch only)
+2. **deploy** - Builds and deploys to nsite via nsyte (`deploy-nsite` job, default branch only)
 3. **build** - Builds a signed release APK (`build-apk` job, tags only)
 4. **release** - Creates a GitLab Release with the APK artifact (tags only)
 5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only)
@@ -1395,3 +1395,52 @@ The script accepts options:
 **Key points:**
 - After authorization, the bunker recognizes the client key and no secret or manual approval is needed for CI runs
 - If the client key is rotated, run the script again and update the GitLab CI/CD variables
+
+### nsite Publishing
+
+The project automatically deploys the web app to [nsite](https://nsite.run) on every push to the default branch using [nsyte](https://github.com/sandwichfarm/nsyte). The `deploy-nsite` CI job builds the Vite app and uploads the `dist/` directory to Blossom servers, publishing site manifest events to Nostr relays.
+
+nsyte uses a NIP-46 bunker credential called `nbunksec` -- a bech32-encoded string that bundles the bunker pubkey, client secret key, and relay info into a single self-contained token. This is passed to nsyte via `--sec`.
+
+**GitLab CI/CD Variables** (Settings > CI/CD > Variables):
+
+| Variable | Description | Protected | Masked | Raw |
+|---|---|---|---|---|
+| `NSITE_NBUNKSEC` | nbunksec credential from `nsyte ci`. Must start with `nbunksec1`. | Yes | Yes | Yes |
+
+#### Initial Setup (one-time)
+
+1. Install nsyte locally:
+   ```bash
+   curl -fsSL https://nsyte.run/get/install.sh | bash
+   ```
+
+2. Generate the CI credential:
+   ```bash
+   nsyte ci
+   ```
+   This will guide you through connecting a NIP-46 bunker (e.g. Amber) and output an `nbunksec1...` string. The credential is shown only once.
+
+3. Add the `nbunksec1...` value as the `NSITE_NBUNKSEC` variable in GitLab CI/CD settings (Settings > CI/CD > Variables). Mark it as **Protected** and **Masked**.
+
+#### Configured Relays and Servers
+
+The deploy job publishes to these relays:
+- `wss://relay.ditto.pub`
+- `wss://relay.nsite.lol`
+- `wss://relay.dreamith.to`
+- `wss://relay.primal.net`
+
+And uploads blobs to these Blossom servers:
+- `https://blossom.primal.net`
+- `https://blossom.ditto.pub`
+- `https://blossom.dreamith.to`
+
+The `--use-fallback-relays` and `--use-fallback-servers` flags also include nsyte's built-in defaults for broader coverage. The `--fallback "/index.html"` flag enables SPA client-side routing.
+
+#### Credential Rotation
+
+To rotate the nsite credential:
+1. Revoke the old bunker connection in your signer app
+2. Run `nsyte ci` again to generate a new `nbunksec1...` string
+3. Update the `NSITE_NBUNKSEC` variable in GitLab CI/CD settings

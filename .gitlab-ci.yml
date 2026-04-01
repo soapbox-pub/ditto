@@ -26,19 +26,37 @@ test:
   script:
     - npm run test
 
-pages:
+deploy-nsite:
   stage: deploy
-  timeout: 5 minutes
+  timeout: 10 minutes
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  variables:
+    NSYTE_VERSION: "v0.24.1"
   script:
+    # Build the web app
+    - npm ci
     - npm run build
-    - rm -rf public
-    - mv dist public
-  artifacts:
-    paths:
-      - public
-  only:
-    variables:
-      - $CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME
+    - cp dist/index.html dist/404.html
+
+    # Download nsyte binary
+    - curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/${NSYTE_VERSION}/nsyte-linux" -o /usr/local/bin/nsyte
+    - chmod +x /usr/local/bin/nsyte
+
+    # Deploy to nsite via nsyte using the nbunksec credential
+    - >-
+      nsyte deploy ./dist
+      -i
+      --sec "$NSITE_NBUNKSEC"
+      --relays "wss://relay.ditto.pub,wss://relay.nsite.lol,wss://relay.dreamith.to,wss://relay.primal.net"
+      --servers "https://blossom.primal.net,https://blossom.ditto.pub,https://blossom.dreamith.to"
+      --fallback "/index.html"
+      --publish-server-list
+      --publish-relay-list
+      --use-fallback-relays
+      --use-fallback-servers
 
 build-apk:
   stage: build
