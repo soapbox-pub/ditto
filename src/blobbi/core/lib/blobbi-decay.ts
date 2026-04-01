@@ -61,7 +61,7 @@ export interface DecayInput {
  * - health has conditional decay based on hygiene
  * - happiness depends on health and hygiene state
  */
-const _EGG_DECAY = {
+const EGG_DECAY = {
   hygiene: -8.0,        // Base hygiene decay
   health: {
     base: -1.0,         // Base health decay
