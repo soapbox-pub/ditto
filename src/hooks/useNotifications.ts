@@ -415,8 +415,14 @@ export function useNotifications(): NotificationData {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
       });
-      // Immediately clear the nav dot
-      queryClient.setQueryData(['notifications-unread', user.pubkey], false);
+      // Immediately clear the nav dot — use setQueriesData with a partial key
+      // match because useHasUnreadNotifications uses a 4-element key
+      // ['notifications-unread', pubkey, kindsKey, authorsKey] and setQueryData
+      // requires an exact match (which silently misses the real cache entry).
+      queryClient.setQueriesData<boolean>(
+        { queryKey: ['notifications-unread', user.pubkey] },
+        false,
+      );
       queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
