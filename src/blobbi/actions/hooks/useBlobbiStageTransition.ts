@@ -22,8 +22,8 @@ import { toast } from '@/hooks/useToast';
 import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
+  STAT_MAX,
   updateBlobbiTags,
-  DEFAULT_EGG_STATS,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@/blobbi/core/lib/blobbi-tag-schema';
@@ -157,14 +157,13 @@ export function useBlobbiHatch({
       });
 
       // ─── Calculate Baby Stats ───
-      // Baby inherits the decayed health from the egg
-      // Other stats start fresh at 100 for the new life stage
+      // All stats reset to 100 when hatching — the baby starts fresh
       const babyStats = {
-        hunger: DEFAULT_EGG_STATS.hunger,      // Start full
-        happiness: DEFAULT_EGG_STATS.happiness, // Start happy
-        health: decayResult.stats.health,       // Inherit from egg
-        hygiene: DEFAULT_EGG_STATS.hygiene,    // Start clean
-        energy: DEFAULT_EGG_STATS.energy,      // Start energized
+        hunger: STAT_MAX,
+        happiness: STAT_MAX,
+        health: STAT_MAX,
+        hygiene: STAT_MAX,
+        energy: STAT_MAX,
       };
 
       // ─── Build Updated Tags ───

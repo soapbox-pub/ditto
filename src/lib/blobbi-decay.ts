@@ -224,44 +224,15 @@ function hoursFromSeconds(seconds: number): number {
  */
 function calculateEggDecay(
   stats: Partial<BlobbiStats>,
-  elapsedHours: number
+  _elapsedHours: number
 ): BlobbiStats {
-  // Get current values
-  let hygiene = getStat(stats, 'hygiene');
-  let health = getStat(stats, 'health');
-  let happiness = getStat(stats, 'happiness');
-  
-  // Calculate hygiene decay first
-  const hygieneDelta = EGG_DECAY.hygiene * elapsedHours;
-  hygiene = clamp(hygiene + Math.floor(hygieneDelta));
-  
-  // Calculate health decay (depends on current hygiene)
-  let healthDelta = EGG_DECAY.health.base * elapsedHours;
-  if (hygiene < 70) {
-    healthDelta += EGG_DECAY.health.hygieneBelow70 * elapsedHours;
-  }
-  if (hygiene < 40) {
-    healthDelta += EGG_DECAY.health.hygieneBelow40 * elapsedHours;
-  }
-  health = clamp(health + Math.floor(healthDelta));
-  
-  // Calculate happiness (depends on updated health and hygiene)
-  let happinessDelta: number;
-  if (health >= 70 && hygiene >= 70) {
-    happinessDelta = EGG_DECAY.happiness.healthyAndClean * elapsedHours;
-  } else if (health >= 40 && hygiene >= 40) {
-    happinessDelta = EGG_DECAY.happiness.moderate * elapsedHours;
-  } else {
-    happinessDelta = EGG_DECAY.happiness.poor * elapsedHours;
-  }
-  happiness = clamp(happiness + Math.floor(happinessDelta));
-  
+  // Eggs do not decay — all stats remain fixed until hatching.
   return {
-    hunger: 100,    // Fixed for eggs
-    energy: 100,    // Fixed for eggs
-    hygiene,
-    health,
-    happiness,
+    hunger: 100,
+    energy: 100,
+    hygiene: getStat(stats, 'hygiene'),
+    health: getStat(stats, 'health'),
+    happiness: getStat(stats, 'happiness'),
   };
 }
 
