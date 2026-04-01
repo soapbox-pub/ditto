@@ -1,5 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
-import { Plus, Check, Loader2 } from 'lucide-react';
+import { useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { Plus, Check, Loader2, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+
+const EmojiPackDialog = lazy(() => import('@/components/EmojiPackDialog').then(m => ({ default: m.EmojiPackDialog })));
 
 /** Maximum emojis to show in the preview grid before truncating. */
 const PREVIEW_LIMIT = 24;
@@ -60,6 +62,9 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const isOwnPack = user?.pubkey === event.pubkey;
 
   // Fetch the user's kind 10030 emoji list to check if this pack is already added
   const emojiListQuery = useQuery({
@@ -213,7 +218,25 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             {isAdded ? 'Added' : 'Add to Collection'}
           </Button>
         )}
+        {isOwnPack && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
+        )}
       </div>
+
+      {/* Edit dialog (lazy loaded) */}
+      {editOpen && (
+        <Suspense fallback={null}>
+          <EmojiPackDialog open={editOpen} onOpenChange={setEditOpen} editEvent={event} />
+        </Suspense>
+      )}
     </div>
   );
 }
