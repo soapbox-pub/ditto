@@ -130,7 +130,22 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJsonDialogProps) {
+  const { nostr } = useNostr();
+  const [broadcasting, setBroadcasting] = useState(false);
+
   const jsonText = JSON.stringify(event, null, 2);
+
+  const handleBroadcast = async () => {
+    setBroadcasting(true);
+    try {
+      await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+      toast({ title: 'Event broadcast to relays' });
+    } catch {
+      toast({ title: 'Failed to broadcast event', variant: 'destructive' });
+    } finally {
+      setBroadcasting(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -159,6 +174,18 @@ function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJsonDialog
               {jsonText}
             </pre>
           </div>
+        </div>
+
+        <div className="px-5 pb-5 shrink-0">
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleBroadcast}
+            disabled={broadcasting}
+          >
+            <Radio className="size-4" />
+            {broadcasting ? 'Broadcasting...' : 'Broadcast Event'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -283,7 +310,6 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
 
 function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
@@ -330,16 +356,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
       toast({ title: 'Added to sidebar' });
     }
     close();
-  };
-
-  const handleBroadcast = async () => {
-    close();
-    try {
-      await nostr.event(event, { signal: AbortSignal.timeout(5000) });
-      toast({ title: 'Event broadcast to relays' });
-    } catch {
-      toast({ title: 'Failed to broadcast event', variant: 'destructive' });
-    }
   };
 
   const handleTogglePin = () => {
@@ -437,11 +453,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
             icon={<FileJson className="size-5" />}
             label="View Event JSON"
             onClick={onViewEventJson}
-          />
-          <MenuItem
-            icon={<Radio className="size-5" />}
-            label="Broadcast Event"
-            onClick={handleBroadcast}
           />
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
