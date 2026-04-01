@@ -117,6 +117,24 @@ function companionNeedsCare(companion: BlobbiCompanion): boolean {
   );
 }
 
+/** Map stat keys to display labels */
+const STAT_LABEL_MAP: Record<string, string> = {
+  hunger: 'Hunger',
+  happiness: 'Happy',
+  health: 'Health',
+  hygiene: 'Hygiene',
+  energy: 'Energy',
+};
+
+/** Map stat keys to indicator colors */
+const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
+  hunger: 'orange',
+  happiness: 'yellow',
+  health: 'green',
+  hygiene: 'blue',
+  energy: 'violet',
+};
+
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export function BlobbiPage() {
@@ -1404,53 +1422,27 @@ function BlobbiDashboard({
       {/* Stats Section */}
       <div className="px-4 sm:px-6">
         {/* Stats Grid - shows projected decay state */}
-        {/* Egg stage shows only 3 stats, baby/adult shows all 5 */}
-        {isEgg ? (() => {
-          const healthVal = projectedState?.stats.health ?? companion.stats.health ?? 0;
-          const hygieneVal = projectedState?.stats.hygiene ?? companion.stats.hygiene ?? 0;
-          const happyVal = projectedState?.stats.happiness ?? companion.stats.happiness ?? 0;
-          const visibleStats = [
-            healthVal < 70 && { label: 'Health' as const, value: healthVal, color: 'green' as const, stat: 'health' },
-            hygieneVal < 70 && { label: 'Hygiene' as const, value: hygieneVal, color: 'blue' as const, stat: 'hygiene' },
-            happyVal < 70 && { label: 'Happy' as const, value: happyVal, color: 'yellow' as const, stat: 'happiness' },
-          ].filter(Boolean) as { label: string; value: number; color: 'green' | 'blue' | 'yellow'; stat: string }[];
+        {/* Only stats below the visibility threshold are shown (centralized in getVisibleStatsWithValues) */}
+        {(() => {
+          const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
+            ...vs,
+            label: STAT_LABEL_MAP[vs.stat],
+            color: STAT_COLOR_MAP[vs.stat],
+          }));
           if (visibleStats.length === 0) return null;
           return (
-            <div className={cn("grid gap-3 sm:gap-4 max-w-xs mx-auto", visibleStats.length === 1 ? "grid-cols-1" : visibleStats.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+            <div className={cn(
+              "grid gap-2 sm:gap-4",
+              visibleStats.length <= 3 ? "max-w-xs mx-auto" : "",
+              visibleStats.length === 1 ? "grid-cols-1" : visibleStats.length === 2 ? "grid-cols-2" : visibleStats.length === 3 ? "grid-cols-3" : visibleStats.length === 4 ? "grid-cols-4" : "grid-cols-5",
+            )}>
               {visibleStats.map((s) => (
                 <StatIndicator
                   key={s.stat}
                   label={s.label}
                   value={s.value}
                   color={s.color}
-                  status={projectedState?.visibleStats.find(vs => vs.stat === s.stat)?.status}
-                />
-              ))}
-            </div>
-          );
-        })() : (() => {
-          const healthVal = projectedState?.stats.health ?? companion.stats.health ?? 0;
-          const hygieneVal = projectedState?.stats.hygiene ?? companion.stats.hygiene ?? 0;
-          const happyVal = projectedState?.stats.happiness ?? companion.stats.happiness ?? 0;
-          const conditionalStats = [
-            happyVal < 70 && { label: 'Happy' as const, value: happyVal, color: 'yellow' as const, stat: 'happiness' },
-            healthVal < 70 && { label: 'Health' as const, value: healthVal, color: 'green' as const, stat: 'health' },
-            hygieneVal < 70 && { label: 'Hygiene' as const, value: hygieneVal, color: 'blue' as const, stat: 'hygiene' },
-          ].filter(Boolean) as { label: string; value: number; color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet'; stat: string }[];
-          const allStats = [
-            { label: 'Hunger', value: projectedState?.stats.hunger ?? companion.stats.hunger, color: 'orange' as const, stat: 'hunger' },
-            ...conditionalStats,
-            { label: 'Energy', value: projectedState?.stats.energy ?? companion.stats.energy, color: 'violet' as const, stat: 'energy' },
-          ];
-          return (
-            <div className={cn("grid gap-2 sm:gap-4", allStats.length <= 3 ? "max-w-xs mx-auto" : "", allStats.length === 2 ? "grid-cols-2" : allStats.length === 3 ? "grid-cols-3" : allStats.length === 4 ? "grid-cols-4" : "grid-cols-5")}>
-              {allStats.map((s) => (
-                <StatIndicator
-                  key={s.stat}
-                  label={s.label}
-                  value={s.value}
-                  color={s.color}
-                  status={projectedState?.visibleStats.find(vs => vs.stat === s.stat)?.status}
+                  status={s.status}
                 />
               ))}
             </div>

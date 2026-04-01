@@ -481,6 +481,12 @@ export function getStatsNeedingAttention(
 // ─── Visible Stats Helper ─────────────────────────────────────────────────────
 
 /**
+ * Visibility threshold: stats at or above this value are hidden in the UI.
+ * Only stats below this threshold are displayed.
+ */
+export const STAT_VISIBILITY_THRESHOLD = 70;
+
+/**
  * Get the stats that should be visible for a given stage.
  * Eggs only show health, hygiene, happiness.
  * Baby/adult show all stats.
@@ -494,15 +500,18 @@ export function getVisibleStats(stage: BlobbiStage): (keyof BlobbiStats)[] {
 
 /**
  * Get visible stats with their values for display.
+ * Stats at or above STAT_VISIBILITY_THRESHOLD are filtered out.
  */
 export function getVisibleStatsWithValues(
   stage: BlobbiStage,
   stats: Partial<BlobbiStats>
 ): Array<{ stat: keyof BlobbiStats; value: number; status: 'critical' | 'warning' | 'normal' }> {
   const visibleStats = getVisibleStats(stage);
-  return visibleStats.map(stat => ({
-    stat,
-    value: stats[stat] ?? 100,
-    status: getStatStatus(stage, stat, stats[stat] ?? 100),
-  }));
+  return visibleStats
+    .map(stat => ({
+      stat,
+      value: stats[stat] ?? 100,
+      status: getStatStatus(stage, stat, stats[stat] ?? 100),
+    }))
+    .filter(entry => entry.value < STAT_VISIBILITY_THRESHOLD);
 }
