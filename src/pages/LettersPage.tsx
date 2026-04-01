@@ -19,7 +19,6 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
-import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
 import type { Letter } from '@/lib/letterTypes';
 
 type Tab = 'inbox' | 'sent';
@@ -44,11 +43,9 @@ export function LettersPage() {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
-  const [composing, setComposing] = useState(false);
-  const [replyToNpub, setReplyToNpub] = useState<string | undefined>(undefined);
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
 
-  useLayoutOptions({ showFAB: false, hasSubHeader: !!user, noOverscroll: composing });
+  useLayoutOptions({ showFAB: false, hasSubHeader: !!user });
 
   const { prefs } = useLetterPreferences();
   const followListData = useFollowList();
@@ -95,16 +92,7 @@ export function LettersPage() {
   const isLoading = tab === 'inbox' ? inboxLoading : sentLoading;
 
   return (
-    <main
-      className={composing ? 'relative h-screen overflow-hidden' : 'relative min-h-screen pb-16 sidebar:pb-0'}
-      style={composing ? { touchAction: 'none' } : undefined}
-    >
-      {composing && (
-        <ComposeLetterSheet
-          onClose={() => { setComposing(false); setReplyToNpub(undefined); }}
-          toPubkey={replyToNpub}
-        />
-      )}
+    <main className="relative min-h-screen pb-16 sidebar:pb-0">
       <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}
@@ -190,19 +178,18 @@ export function LettersPage() {
         onClose={() => setSelectedLetter(null)}
         onReply={(npub) => {
           setSelectedLetter(null);
-          setReplyToNpub(npub);
-          setComposing(true);
+          navigate(`/letters/compose?to=${npub}`);
         }}
       />
 
       {/* Compose FAB */}
       <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-            <FabButton onClick={() => setComposing(true)} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
+            <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
       </div>
       <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
         <div className="flex justify-end pr-4">
           <div className="pointer-events-auto">
-        <FabButton onClick={() => setComposing(true)} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
+        <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
 
           </div>
         </div>

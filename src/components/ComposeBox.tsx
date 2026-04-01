@@ -408,7 +408,7 @@ export function ComposeBox({
   const mockEvent = useMemo(() => {
     if (!user || !content) return null;
     
-    const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
+    const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
     const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
 
     // NIP-30: Add emoji tags for custom emojis referenced in content
@@ -709,7 +709,7 @@ export function ComposeBox({
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
 
     try {
-      const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
+      const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
       const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
 
       // NIP-27 mention p tags — extract nostr:npub1... from content

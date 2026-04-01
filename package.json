@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.2.5",
+  "version": "2.2.7",
   "type": "module",
   "scripts": {
     "dev": "npm i --silent && vite",
@@ -44,6 +44,7 @@
     "@fontsource/courier-prime": "^5.2.8",
     "@fontsource/creepster": "^5.2.7",
     "@fontsource/luckiest-guy": "^5.2.8",
+    "@fontsource/noto-sans-nushu": "^5.2.6",
     "@fontsource/pacifico": "^5.2.7",
     "@fontsource/permanent-marker": "^5.2.7",
     "@fontsource/pirata-one": "^5.2.8",

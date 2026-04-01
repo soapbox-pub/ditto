@@ -54,6 +54,7 @@ import { NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
+import { PostActionBar } from "@/components/PostActionBar";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
@@ -74,11 +75,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
+import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
-import { ZapDialog } from "@/components/ZapDialog";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -135,6 +136,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 20) return "Photo";
   if (kind === 4) return "Encrypted Message";
+  if (kind === 8211) return "Letter";
   if (kind === 6 || kind === 16) return "Repost";
   if (kind === 7) return "Reaction";
   if (kind === 9735) return "Zap";
@@ -156,7 +158,6 @@ import { Nip05Badge } from "@/components/Nip05Badge";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -165,7 +166,6 @@ import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
-import { canZap } from "@/lib/canZap";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
@@ -923,7 +923,6 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
-  const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
@@ -998,6 +997,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
   const isEncryptedDM = event.kind === 4;
+  const isLetter = event.kind === 8211;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -1023,6 +1023,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isDevKind &&
     !isZapstoreApp &&
     !isEncryptedDM &&
+    !isLetter &&
     !isVanish &&
     !isZap &&
     !isProfile;
@@ -1382,9 +1383,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   // Extract client from tags
   const clientTag = event.tags.find(([name]) => name === "client");
-
-  // Check if the current user can zap this event's author
-  const canZapAuthor = user && canZap(metadata);
 
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
@@ -2037,6 +2035,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ZapstoreAppContent event={event} />
             ) : isEncryptedDM ? (
               <EncryptedMessageContent event={event} />
+            ) : isLetter ? (
+              <EncryptedLetterContent event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||
@@ -2201,78 +2201,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </div>
           )}
 
-           {/* Action buttons — Ditto style: distributed across full width */}
-          <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
-            {/* Reply */}
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
-
-            {/* Repost */}
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Reposts"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            {/* React */}
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            {/* Zap */}
-            {canZapAuthor && (
-              <ZapDialog target={event}>
-                <button
-                  className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                  title="Zaps"
-                >
-                  <Zap className="size-5" />
-                  {stats?.zapAmount ? (
-                    <span className="text-sm tabular-nums">
-                      {formatNumber(stats.zapAmount)}
-                    </span>
-                  ) : null}
-                </button>
-              </ZapDialog>
-            )}
-
-            {/* Share */}
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            {/* More */}
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}

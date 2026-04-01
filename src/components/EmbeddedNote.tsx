@@ -9,6 +9,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
+import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { useEvent } from '@/hooks/useEvent';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
@@ -104,6 +105,11 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   // Kind 4 encrypted DMs get a compact card instead of rendering ciphertext
   if (event.kind === 4) {
     return <EncryptedMessageCompact event={event} className={className} />;
+  }
+
+  // Kind 8211 encrypted letters get a compact card
+  if (event.kind === 8211) {
+    return <EncryptedLetterCompact event={event} className={className} />;
   }
 
   // Profile badges (kind 10008/30008) get a compact badge row preview

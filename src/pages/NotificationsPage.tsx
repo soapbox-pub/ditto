@@ -36,7 +36,6 @@ import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
-import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
 import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
@@ -714,8 +713,6 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
 function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const navigate = useNavigate();
   const [showDetail, setShowDetail] = useState(false);
-  const [replyToNpub, setReplyToNpub] = useState<string | undefined>(undefined);
-  const [composing, setComposing] = useState(false);
 
   const letter = useMemo<Letter>(() => ({
     event: item.event,
@@ -727,12 +724,6 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
 
   return (
     <>
-      {composing && (
-        <ComposeLetterSheet
-          onClose={() => { setComposing(false); setReplyToNpub(undefined); }}
-          toPubkey={replyToNpub}
-        />
-      )}
       <NotificationWrapper isNew={isNew}>
         <div className="px-4 pt-3">
           <NotificationHeader
@@ -763,10 +754,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
             <Button
               variant="default"
               className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
-              onClick={() => {
-                setReplyToNpub(nip19.npubEncode(item.event.pubkey));
-                setComposing(true);
-              }}
+              onClick={() => navigate(`/letters/compose?to=${nip19.npubEncode(item.event.pubkey)}`)}
             >
               <InkPenIcon className="size-3.5" strokeWidth={2} />
               Reply
@@ -778,8 +766,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
           onClose={() => setShowDetail(false)}
           onReply={(npub) => {
             setShowDetail(false);
-            setReplyToNpub(npub);
-            setComposing(true);
+            navigate(`/letters/compose?to=${npub}`);
           }}
         />
       </NotificationWrapper>

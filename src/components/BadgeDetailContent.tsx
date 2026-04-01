@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Copy, Check, Users, Gift, Loader2, MessageCircle, Newspaper, MoreHorizontal, Zap } from 'lucide-react';
+import { Award, Check, Users, Gift, Loader2, MessageCircle, Newspaper } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
 
-import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RepostMenu } from '@/components/RepostMenu';
-import { ReactionButton } from '@/components/ReactionButton';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { ThreadedReplyList } from '@/components/ThreadedReplyList';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
@@ -25,19 +24,16 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePendingBadges } from '@/hooks/usePendingBadges';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useComments } from '@/hooks/useComments';
-import { useEventStats } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
-import { formatNumber } from '@/lib/formatNumber';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/components/BadgeContent';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
-import { ZapDialog } from '@/components/ZapDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
-import { canZap } from '@/lib/canZap';
+import { PostActionBar } from '@/components/PostActionBar';
 
 type DetailTab = 'awarded' | 'feed' | 'comments';
 
@@ -51,7 +47,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const acceptBadge = useAcceptBadge();
-  const [copied, setCopied] = useState(false);
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>('awarded');
@@ -70,11 +65,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { pendingBadges } = usePendingBadges(user?.pubkey);
   const pendingForUser = pendingBadges.find((p) => p.aTag === badgeATag);
   const isIssuer = user?.pubkey === event.pubkey;
-
-  // Stats for action bar
-  const { data: stats } = useEventStats(event.id, event);
-  const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
-  const canZapAuthor = user && canZap(metadata);
 
   const awardsQuery = useQuery({
     queryKey: ['badge-awards', badgeATag],
@@ -130,17 +120,6 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
       });
   }, [commentsData, muteItems]);
 
-  const commentCount = commentsData?.allComments.length ?? 0;
-
-  const handleCopyLink = useCallback(() => {
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
-    const naddr = nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
-    navigator.clipboard.writeText(`${window.location.origin}/${naddr}`);
-    setCopied(true);
-    toast({ title: 'Link copied!' });
-    setTimeout(() => setCopied(false), 2000);
-  }, [event, toast]);
-
   if (!badge) return null;
 
   const heroImage = badge.image
@@ -190,8 +169,8 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           </p>
         )}
 
-        {/* Stats row */}
-        <div className="flex items-center gap-3 mt-4 flex-wrap">
+        {/* Stats + Award to row */}
+        <div className="flex items-center justify-between gap-3 mt-4">
           {awardsQuery.isLoading ? (
             <Skeleton className="h-4 w-24" />
           ) : awardedPubkeys.length > 0 ? (
@@ -205,11 +184,21 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               No awards yet
             </span>
           )}
+          {isIssuer && (
+            <Button
+              variant="default"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
+              onClick={() => setAwardDialogOpen(true)}
+            >
+              <Gift className="size-3.5" />
+              Award to…
+            </Button>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-3">
-          {pendingForUser && (
+        {/* Accept Badge action */}
+        {pendingForUser && (
+          <div className="mt-3">
             <Button
               variant="default"
               size="sm"
@@ -224,85 +213,28 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               <Check className="size-4 mr-1.5" />
               Accept Badge
             </Button>
-          )}
-          {isIssuer && (
-            <Button variant="outline" size="sm" onClick={() => setAwardDialogOpen(true)}>
-              <Gift className="size-4 mr-1.5" />
-              Award to…
-            </Button>
-          )}
-          <Button variant="outline" size="icon" onClick={handleCopyLink}>
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-          </Button>
-          <button
-            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            title="More"
-            onClick={() => setMoreMenuOpen(true)}
-          >
-            <MoreHorizontal className="size-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* React / Repost bar */}
-      <div className="flex items-center gap-1 px-4 py-1 border-t border-b border-border">
-        <ReactionButton
-          eventId={event.id}
-          eventPubkey={event.pubkey}
-          eventKind={event.kind}
-          reactionCount={stats?.reactions}
-        />
-
-        <RepostMenu event={event}>
-          {(isReposted: boolean) => (
-            <button
-              className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
-              title={isReposted ? 'Undo repost' : 'Repost'}
-            >
-              <RepostIcon className="size-5" />
-              {repostTotal > 0 && (
-                <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-              )}
-            </button>
-          )}
-        </RepostMenu>
-
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Comments"
-          onClick={() => setActiveTab('comments')}
-        >
-          <MessageCircle className="size-5" />
-          {commentCount > 0 && (
-            <span className="text-sm tabular-nums">{formatNumber(commentCount)}</span>
-          )}
-        </button>
-
-        {canZapAuthor && (
-          <ZapDialog target={event}>
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-              title="Zap"
-            >
-              <Zap className="size-5" />
-              {stats?.zapAmount ? (
-                <span className="text-sm tabular-nums">
-                  {formatNumber(stats.zapAmount)}
-                </span>
-              ) : null}
-            </button>
-          </ZapDialog>
+          </div>
         )}
       </div>
 
+      {/* Action bar — matches PostDetailPage style */}
+      <PostActionBar
+        event={event}
+        replyLabel="Comments"
+        onReply={() => setActiveTab('comments')}
+        onMore={() => setMoreMenuOpen(true)}
+        className="px-4"
+      />
+
       {/* Tabs */}
-      <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
+      <SubHeaderBar pinned>
         <TabButton label="Awarded To" active={activeTab === 'awarded'} onClick={() => setActiveTab('awarded')} />
         <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
-      </div>
+      </SubHeaderBar>
 
       {/* Tab content */}
+      <div style={{ height: ARC_OVERHANG_PX }} />
       {activeTab === 'awarded' ? (
         <AwardedToTab
           awardedPubkeys={awardedPubkeys}

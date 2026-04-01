@@ -226,7 +226,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
       // Extract hashtags from caption
       const captionText = caption.trim();
-      const hashtagMatches = captionText.match(/#\w+/g);
+      const hashtagMatches = captionText.match(/#[\p{L}\p{N}_]+/gu);
       if (hashtagMatches) {
         for (const tag of hashtagMatches) {
           tags.push(['t', tag.slice(1).toLowerCase()]);

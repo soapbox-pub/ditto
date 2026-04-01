@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.2.7] - 2026-03-31
+
+### Fixed
+- Nushu script in encrypted letters now renders correctly on Android and iOS
+
+## [2.2.6] - 2026-03-31
+
+### Added
+- Encrypted letters now appear as interactive 3D envelopes with Nushu script -- flip and open them to reveal the secret writing inside
+- Zap receipts and profile metadata events now render in feeds and detail pages
+- Remote signer callback page for NIP-46 login flows (Amber, Primal)
+
+### Changed
+- Post action buttons extracted into a reusable PostActionBar component
+- Badge detail page streamlined with unified tab bar
+
+### Fixed
+- Hashtags now support accented and Unicode characters
+- Letter compose opens correctly from notifications and the letters page
+- Letter font picker loads fonts so each option previews in the correct typeface
+- Zap comment positioned inside the right column instead of floating with offset
+- Safe-area padding on pinned SubHeaderBar only applies when scrolled to top
+
 ## [2.2.5] - 2026-03-30
 
 ### Fixed
