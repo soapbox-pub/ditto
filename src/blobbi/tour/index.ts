@@ -43,4 +43,4 @@ export type {
 } from './hooks/useFirstHatchTourActivation';
 
 // ── First Hatch Tour - Components ──
-export { FirstHatchTourModal } from './components/FirstHatchTourModal';
+export { FirstHatchTourCard } from './components/FirstHatchTourCard';

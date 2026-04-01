@@ -90,7 +90,7 @@ import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reacti
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourModal } from '@/blobbi/tour';
+import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourCard } from '@/blobbi/tour';
 import { buildHatchPhrase, isValidHatchPost } from '@/blobbi/actions';
 import type { EggTourVisualState } from '@/blobbi/egg';
 
@@ -946,25 +946,29 @@ function BlobbiDashboard({
   // The required phrase for the first-hatch post
   const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
 
-  // Auto-advance from idle to egg_ready_hint, then to show_hatch_modal
+  // Auto-advance from idle -> egg_ready_hint -> show_hatch_modal (inline card)
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('idle')) {
-      // Advance immediately to egg_ready_hint
-      firstHatchTour.actions.advance();
+      firstHatchTour.actions.advance(); // -> egg_ready_hint
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
 
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('egg_ready_hint')) {
-      // Show the ready hint briefly, then move to the modal
+      // Show the ready hint wiggle briefly, then show the inline card
       const timer = setTimeout(() => {
-        firstHatchTour.actions.advance();
+        firstHatchTour.actions.advance(); // -> show_hatch_modal (inline card step)
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Whether the inline first-hatch card should be shown
+  const showFirstHatchCard = isFirstHatchTourActive && (
+    firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post')
+  );
 
   // Detect hatch post completion for the first-hatch tour
   const { user } = useCurrentUser();
@@ -1419,8 +1423,8 @@ function BlobbiDashboard({
       
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 sm:px-6">
-        {/* Floating Dashboard Controls */}
-        <BlobbiDashboardFloatingControls
+        {/* Floating Dashboard Controls - hidden during first-hatch tour */}
+        {!isFirstHatchTourActive && <BlobbiDashboardFloatingControls
           stage={companion.stage}
           onSetAsCompanion={handleSetAsCompanion}
           isCurrentCompanion={isCurrentCompanion}
@@ -1453,7 +1457,7 @@ function BlobbiDashboard({
           onDevOpenEditor={() => setShowDevEditor(true)}
           // DEV ONLY: Open emotion tester panel
           onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-        />
+        />}
         
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
@@ -1528,8 +1532,23 @@ function BlobbiDashboard({
         
 
         
-        {/* Inline Activity Area - inside padded container for proper spacing above bottom bar */}
-        {inlineActivity.type === 'music' && (
+        {/* First Hatch Tour: inline card below stats */}
+        {showFirstHatchCard && (
+          <div className="mt-6">
+            <FirstHatchTourCard
+              blobbiName={companion.name}
+              requiredPhrase={firstHatchPhrase}
+              postCompleted={!!tourPostFound}
+              onCreatePost={() => setShowPostModal(true)}
+              onContinue={() => {
+                firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Inline Activity Area - hidden during first-hatch tour */}
+        {!isFirstHatchTourActive && inlineActivity.type === 'music' && (
           <div className="mt-6">
             <InlineMusicPlayer
               selection={inlineActivity.selection}
@@ -1543,7 +1562,7 @@ function BlobbiDashboard({
           </div>
         )}
         
-        {inlineActivity.type === 'sing' && (
+        {!isFirstHatchTourActive && inlineActivity.type === 'sing' && (
           <div className="mt-6">
             <InlineSingCard
               onConfirm={handleConfirmSing}
@@ -1556,27 +1575,20 @@ function BlobbiDashboard({
         )}
       </div>
       
-      {/* Bottom Action Bar */}
-      <BlobbiBottomBar
-        onBlobbiesClick={() => setShowSelector(true)}
-        onMissionsClick={() => {
-          if (isFirstHatchTourActive) {
-            // During the first-hatch tour, open the tour modal instead
-            if (!firstHatchTour.isStep('show_hatch_modal') && !firstHatchTour.isStep('await_create_post')) {
-              firstHatchTour.actions.goTo('show_hatch_modal');
-            }
-          } else {
-            setShowMissionsModal(true);
-          }
-        }}
-        onActionsClick={() => setShowActionsModal(true)}
-        onShopClick={() => setShowShopModal(true)}
-        onInventoryClick={() => setShowInventoryModal(true)}
-        needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-        isInTaskProcess={isFirstHatchTourActive || isInTaskProcess}
-        remainingTasksCount={isFirstHatchTourActive ? (tourPostFound ? 0 : 1) : remainingTasksCount}
-        allTasksComplete={isFirstHatchTourActive ? !!tourPostFound : allTasksComplete}
-      />
+      {/* Bottom Action Bar - hidden during first-hatch tour */}
+      {!isFirstHatchTourActive && (
+        <BlobbiBottomBar
+          onBlobbiesClick={() => setShowSelector(true)}
+          onMissionsClick={() => setShowMissionsModal(true)}
+          onActionsClick={() => setShowActionsModal(true)}
+          onShopClick={() => setShowShopModal(true)}
+          onInventoryClick={() => setShowInventoryModal(true)}
+          needyBlobbiesCount={companions.filter(companionNeedsCare).length}
+          isInTaskProcess={isInTaskProcess}
+          remainingTasksCount={remainingTasksCount}
+          allTasksComplete={allTasksComplete}
+        />
+      )}
       
       {/* Blobbi Selector Modal */}
       <Dialog open={showSelector} onOpenChange={setShowSelector}>
@@ -1724,24 +1736,6 @@ function BlobbiDashboard({
         onSuccess={refetchCurrentTasks}
       />
       
-      {/* First Hatch Tour Modal */}
-      <FirstHatchTourModal
-        open={isFirstHatchTourActive && (firstHatchTour.isStep('show_hatch_modal') || firstHatchTour.isStep('await_create_post'))}
-        onOpenChange={(open) => {
-          if (!open && isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_modal')) {
-            // User dismissed the modal -- move to await_create_post so they can
-            // come back to it (the modal stays open for await_create_post too)
-            firstHatchTour.actions.advance();
-          }
-        }}
-        blobbiName={companion.name}
-        requiredPhrase={firstHatchPhrase}
-        postCompleted={!!tourPostFound}
-        onCreatePost={() => setShowPostModal(true)}
-        onContinue={() => {
-          firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-        }}
-      />
       
       {/* Blobbi Photo Modal - polaroid-style photo capture */}
       <BlobbiPhotoModal
