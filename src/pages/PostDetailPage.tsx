@@ -1184,18 +1184,24 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         }
       }
 
-      const buildNode = (ev: NostrEvent): ReplyNode => ({
-        event: ev,
-        children: (childrenMap.get(ev.id) ?? []).map(buildNode),
-      });
+      const buildNode = (ev: NostrEvent): ReplyNode => {
+        const firstChild = (childrenMap.get(ev.id) ?? [])[0];
+        return {
+          event: ev,
+          children: firstChild ? [buildNode(firstChild)] : [],
+        };
+      };
       return directReplies.map(buildNode);
     }
 
     // Kind 1111 or non-kind-1 root: use NIP-22 comment structure
-    const buildNode = (ev: NostrEvent): ReplyNode => ({
-      event: ev,
-      children: (commentsData?.getDirectReplies(ev.id) ?? []).map(buildNode),
-    });
+    const buildNode = (ev: NostrEvent): ReplyNode => {
+      const firstChild = (commentsData?.getDirectReplies(ev.id) ?? [])[0];
+      return {
+        event: ev,
+        children: firstChild ? [buildNode(firstChild)] : [],
+      };
+    };
 
     if (isComment) {
       const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
