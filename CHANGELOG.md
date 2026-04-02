@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.3.0] - 2026-04-02
+
+### Added
+- In-app article editor with a rich text toolbar, image uploads, auto-saving drafts, and a "My Articles" tab to manage drafts and published articles
+
+### Fixed
+- Custom emoji no longer stretch to fill their container
+- Mobile drawer now closes when tapping footer links like Changelog or Privacy
+- Logged-out users now default to the global tab on content feeds instead of seeing an empty follows tab
+
 ## [2.2.11] - 2026-04-02
 
 ### Fixed
