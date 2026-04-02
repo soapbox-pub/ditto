@@ -7,6 +7,7 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { NostrURI } from '@/lib/NostrURI';
+import { cn } from '@/lib/utils';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -110,33 +111,35 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
           )}
 
           {/* Content */}
-          <div className="p-3.5 space-y-2">
-            {/* Icon + name */}
-            <div className="flex items-center gap-2.5">
+          <div className="px-3.5 pb-3.5 space-y-2">
+            {/* App icon — overlaps the screenshot hero like a profile avatar */}
+            <div className={showThumbnail || previewLoading ? '-mt-7' : 'pt-3.5'}>
               {picture ? (
                 <img
                   src={picture}
                   alt={name}
-                  className="size-10 rounded-lg object-cover shrink-0"
+                  className="size-14 rounded-xl object-cover shrink-0 border-3 border-background shadow-sm"
                   loading="lazy"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Package className="size-5 text-primary/50" />
+                <div className="size-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border-3 border-background shadow-sm">
+                  <Package className="size-6 text-primary/50" />
                 </div>
               )}
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-[15px] leading-snug truncate">{name}</h3>
-                {websiteUrl && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                    <ExternalFavicon url={websiteUrl} size={12} />
-                    <span className="truncate">{displayDomain(websiteUrl)}</span>
-                  </div>
-                )}
-              </div>
+            </div>
+
+            {/* Name + domain */}
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[15px] leading-snug truncate">{name}</h3>
+              {websiteUrl && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                  <ExternalFavicon url={websiteUrl} size={12} />
+                  <span className="truncate">{displayDomain(websiteUrl)}</span>
+                </div>
+              )}
             </div>
 
             {/* Description */}
@@ -204,33 +207,27 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         )}
 
         {/* Content */}
-        <div className="p-4 space-y-3">
-          {/* Icon + name */}
-          <div className="flex items-center gap-3">
+        <div className="px-4 pb-4 space-y-3">
+          {/* App icon — overlaps the screenshot hero like a profile avatar */}
+          <div className={cn(
+            'flex items-end justify-between',
+            showThumbnail || previewLoading ? '-mt-10' : 'pt-4',
+          )}>
             {picture ? (
               <img
                 src={picture}
                 alt={name}
-                className="size-12 rounded-lg object-cover shrink-0"
+                className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background shadow-sm"
                 loading="lazy"
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
                 }}
               />
             ) : (
-              <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Package className="size-6 text-primary/50" />
+              <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border-4 border-background shadow-sm">
+                <Package className="size-8 text-primary/50" />
               </div>
             )}
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-semibold leading-snug truncate">{name}</h2>
-              {websiteUrl && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                  <ExternalFavicon url={websiteUrl} size={14} />
-                  <span className="truncate">{displayDomain(websiteUrl)}</span>
-                </div>
-              )}
-            </div>
             {websiteUrl && (
               <a
                 href={websiteUrl}
@@ -242,6 +239,17 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               >
                 <ExternalLink className="size-4" />
               </a>
+            )}
+          </div>
+
+          {/* Name + domain */}
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold leading-snug truncate">{name}</h2>
+            {websiteUrl && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                <ExternalFavicon url={websiteUrl} size={14} />
+                <span className="truncate">{displayDomain(websiteUrl)}</span>
+              </div>
             )}
           </div>
 
@@ -295,13 +303,13 @@ export function AppHandlerSkeleton() {
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
         <Skeleton className="aspect-[2/1] w-full" />
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-12 rounded-lg shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-3 w-24" />
-            </div>
+        <div className="px-4 pb-4 space-y-3">
+          <div className="-mt-10">
+            <Skeleton className="size-20 rounded-2xl border-4 border-background" />
+          </div>
+          <div className="space-y-1.5">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-24" />
           </div>
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-full" />
