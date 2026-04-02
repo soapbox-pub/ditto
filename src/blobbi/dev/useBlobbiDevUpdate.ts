@@ -140,10 +140,6 @@ export function useBlobbiDevUpdate({
         tagUpdates.generation = updates.generation.toString();
         changedFields.push('generation');
       }
-      if (updates.visibleToOthers !== undefined) {
-        tagUpdates.visible = updates.visibleToOthers ? 'true' : 'false';
-        changedFields.push('visible');
-      }
 
       // Always update last_interaction and last_decay_at
       tagUpdates.last_interaction = now.toString();

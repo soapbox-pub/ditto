@@ -45,20 +45,25 @@ interface ResolvedInventoryItem extends ShopItem {
   reason?: string;
 }
 
-export function BlobbiInventoryModal({
-  open,
-  onOpenChange,
+// ── Shared inventory content (used by both standalone modal and unified shop modal) ──
+
+interface BlobbiInventoryContentProps {
+  profile: BlobbonautProfile | null;
+  companion: BlobbiCompanion | null;
+  onUseItem?: (itemId: string, quantity: number) => void;
+  isUsingItem?: boolean;
+}
+
+export function BlobbiInventoryContent({
   profile,
   companion,
   onUseItem,
   isUsingItem = false,
-}: BlobbiInventoryModalProps) {
-  // State for use confirmation dialog
+}: BlobbiInventoryContentProps) {
   const [selectedItem, setSelectedItem] = useState<ResolvedInventoryItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showUseDialog, setShowUseDialog] = useState(false);
 
-  // Resolve storage items with their metadata and usability from the shop catalog
   const inventoryItems = useMemo((): ResolvedInventoryItem[] => {
     if (!profile) return [];
     const stage = companion?.stage ?? 'egg';
@@ -68,7 +73,6 @@ export function BlobbiInventoryModal({
       const item = getShopItemById(storageItem.itemId);
       if (!item) continue;
 
-      // Check if item can be used for current stage
       const usability = canUseItemForStage(storageItem.itemId, stage);
 
       result.push({
@@ -84,7 +88,6 @@ export function BlobbiInventoryModal({
 
   const isEmpty = inventoryItems.length === 0;
 
-  // Handlers for use dialog
   const handleSelectItem = (item: ResolvedInventoryItem) => {
     if (!item.canUse || isUsingItem) return;
     setSelectedItem(item);
@@ -95,7 +98,6 @@ export function BlobbiInventoryModal({
   const handleConfirmUse = () => {
     if (!selectedItem || !onUseItem || isUsingItem) return;
     onUseItem(selectedItem.itemId, quantity);
-    // Reset state
     setShowUseDialog(false);
     setSelectedItem(null);
     setQuantity(1);
@@ -109,7 +111,6 @@ export function BlobbiInventoryModal({
     }
   };
 
-  // Quantity controls
   const maxQuantity = selectedItem?.quantity ?? 1;
   const handleIncrease = () => setQuantity(q => Math.min(q + 1, maxQuantity));
   const handleDecrease = () => setQuantity(q => Math.max(q - 1, 1));
@@ -123,142 +124,117 @@ export function BlobbiInventoryModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
-        {/* Header - Sticky */}
-        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center shrink-0">
-                <Package className="size-4 sm:size-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-xl sm:text-2xl">Inventory</DialogTitle>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {isEmpty ? 'No items yet' : `${inventoryItems.length} ${inventoryItems.length === 1 ? 'item' : 'items'}`}
-                </p>
-              </div>
+    <>
+      <div className="px-4 sm:px-6 py-3 sm:py-4">
+        {isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">
+              <Package className="size-10 text-muted-foreground" />
             </div>
-            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
-              <X className="size-5" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
+            <h3 className="text-lg font-semibold mb-2">No Items Yet</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Visit the Shop tab to purchase items for your Blobbi. Items you buy will appear here.
+            </p>
           </div>
-        </DialogHeader>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-          {isEmpty ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">
-                <Package className="size-10 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">No Items Yet</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Visit the shop to purchase items for your Blobbi. Items you buy will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-2 sm:gap-3">
-              {inventoryItems.map(item => (
-                <div
-                  key={item.itemId}
-                  className={cn(
-                    "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border bg-card/60 backdrop-blur-sm transition-colors",
-                    item.canUse ? "hover:border-primary/30" : "opacity-70"
-                  )}
-                >
-                  {/* Top row on mobile: Icon + Name/Type + Quantity + Button */}
-                  <div className="flex items-center gap-3 sm:contents">
-                    {/* Item Icon */}
-                    <div className="relative shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
-                      <div className={cn(
-                        "relative size-10 sm:size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-2xl sm:text-3xl",
-                        !item.canUse && "grayscale"
-                      )}>
-                        {item.icon}
-                      </div>
+        ) : (
+          <div className="grid gap-2 sm:gap-3">
+            {inventoryItems.map(item => (
+              <div
+                key={item.itemId}
+                className={cn(
+                  "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border bg-card/60 backdrop-blur-sm transition-colors",
+                  item.canUse ? "hover:border-primary/30" : "opacity-70"
+                )}
+              >
+                {/* Top row on mobile: Icon + Name/Type + Quantity + Button */}
+                <div className="flex items-center gap-3 sm:contents">
+                  {/* Item Icon */}
+                  <div className="relative shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
+                    <div className={cn(
+                      "relative size-10 sm:size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-2xl sm:text-3xl",
+                      !item.canUse && "grayscale"
+                    )}>
+                      {item.icon}
                     </div>
-
-                    {/* Item Info - Name and Type */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                        <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
-                        <Badge variant="secondary" className="text-xs capitalize shrink-0 hidden sm:inline-flex">
-                          {item.type}
-                        </Badge>
-                      </div>
-                      {/* Effect preview - desktop only inline */}
-                      <div className="hidden sm:block">
-                        <ItemEffectDisplay effect={item.effect} variant="inline" />
-                      </div>
-                      {/* Show blocked reason - desktop only inline */}
-                      {!item.canUse && item.reason && (
-                        <p className="hidden sm:block text-xs text-amber-600 dark:text-amber-400 mt-1">
-                          {item.reason}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Quantity Badge */}
-                    <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 px-2 py-0.5 shrink-0 text-xs">
-                      ×{item.quantity}
-                    </Badge>
-
-                    {/* Use Button */}
-                    {onUseItem && (
-                      item.canUse ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handleSelectItem(item)}
-                          disabled={isUsingItem}
-                          className="shrink-0"
-                        >
-                          Use
-                        </Button>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                size="sm"
-                                disabled
-                                className="shrink-0"
-                              >
-                                Use
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{item.reason || 'Cannot use this item'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-                    )}
                   </div>
 
-                  {/* Mobile only: Effect preview and blocked reason below */}
-                  <div className="sm:hidden pl-13 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs capitalize">
+                  {/* Item Info - Name and Type */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+                      <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
+                      <Badge variant="secondary" className="text-xs capitalize shrink-0 hidden sm:inline-flex">
                         {item.type}
                       </Badge>
+                    </div>
+                    {/* Effect preview - desktop only inline */}
+                    <div className="hidden sm:block">
                       <ItemEffectDisplay effect={item.effect} variant="inline" />
                     </div>
-                    {/* Show blocked reason on mobile */}
+                    {/* Show blocked reason - desktop only inline */}
                     {!item.canUse && item.reason && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                      <p className="hidden sm:block text-xs text-amber-600 dark:text-amber-400 mt-1">
                         {item.reason}
                       </p>
                     )}
                   </div>
+
+                  {/* Quantity Badge */}
+                  <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 px-2 py-0.5 shrink-0 text-xs">
+                    ×{item.quantity}
+                  </Badge>
+
+                  {/* Use Button */}
+                  {onUseItem && (
+                    item.canUse ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleSelectItem(item)}
+                        disabled={isUsingItem}
+                        className="shrink-0"
+                      >
+                        Use
+                      </Button>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              size="sm"
+                              disabled
+                              className="shrink-0"
+                            >
+                              Use
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{item.reason || 'Cannot use this item'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
+
+                {/* Mobile only: Effect preview and blocked reason below */}
+                <div className="sm:hidden pl-13 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {item.type}
+                    </Badge>
+                    <ItemEffectDisplay effect={item.effect} variant="inline" />
+                  </div>
+                  {!item.canUse && item.reason && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      {item.reason}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Use Item Confirmation Dialog */}
       {selectedItem && companion && (
@@ -276,6 +252,49 @@ export function BlobbiInventoryModal({
           isUsing={isUsingItem}
         />
       )}
+    </>
+  );
+}
+
+// ── Standalone Inventory Modal (kept for backwards compatibility) ──
+
+export function BlobbiInventoryModal({
+  open,
+  onOpenChange,
+  profile,
+  companion,
+  onUseItem,
+  isUsingItem = false,
+}: BlobbiInventoryModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
+        {/* Header - Sticky */}
+        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center shrink-0">
+                <Package className="size-4 sm:size-5 text-primary" />
+              </div>
+              <DialogTitle className="text-xl sm:text-2xl">Inventory</DialogTitle>
+            </div>
+            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
+              <X className="size-5" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
+          </div>
+        </DialogHeader>
+
+        {/* Content - Scrollable */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <BlobbiInventoryContent
+            profile={profile}
+            companion={companion}
+            onUseItem={onUseItem}
+            isUsingItem={isUsingItem}
+          />
+        </div>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -309,15 +328,12 @@ function InventoryUseConfirmDialog({
   onConfirm,
   isUsing,
 }: InventoryUseConfirmDialogProps) {
-  // Calculate total effect for the selected quantity by simulating sequential application
-  // This matches the actual behavior when items are used (clamping at each step)
   const totalEffect = useMemo(() => {
     if (!item.effect) return null;
     
     const statKeys = ['hunger', 'happiness', 'energy', 'hygiene', 'health'] as const;
     const currentStats = { ...companion.stats };
     
-    // Apply effects N times in sequence with clamping at each step
     for (let i = 0; i < quantity; i++) {
       for (const stat of statKeys) {
         const delta = item.effect[stat];
@@ -327,7 +343,6 @@ function InventoryUseConfirmDialog({
       }
     }
     
-    // Calculate actual deltas (may be less than effect * quantity due to clamping)
     const result: Record<string, number> = {};
     for (const stat of statKeys) {
       const delta = (currentStats[stat] ?? 0) - (companion.stats[stat] ?? 0);
