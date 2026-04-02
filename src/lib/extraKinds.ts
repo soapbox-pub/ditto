@@ -128,8 +128,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'articles',
     addressable: true,
     section: 'feed',
-    blurb: 'Blog posts, essays, and guides. Write and publish from a dedicated editor.',
-    sites: [{ url: 'https://inkwell.shakespeare.wtf' }],
+    blurb: 'Blog posts, essays, and guides. Write and publish long-form articles.',
   },
   // Media
   {

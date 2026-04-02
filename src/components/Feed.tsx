@@ -108,10 +108,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { startSignup } = useOnboarding();
 
   // Kind-specific pages only support Follows + Global. Clamp any other
-  // persisted tab (e.g. 'ditto', 'communities') back to 'follows'.
-  const activeTab: FeedTab = kinds && rawActiveTab !== 'follows' && rawActiveTab !== 'global'
-    ? 'follows'
-    : rawActiveTab;
+  // persisted tab (e.g. 'ditto', 'communities') back to the appropriate default.
+  // Logged-out users must land on 'global' since 'follows' requires a user.
+  const activeTab: FeedTab = (() => {
+    if (!kinds) return rawActiveTab; // Home feed: no clamping
+    if (rawActiveTab === 'global') return 'global';
+    if (rawActiveTab === 'follows' && user) return 'follows';
+    return user ? 'follows' : 'global';
+  })();
 
   // Is the active tab a saved feed?
   const activeSavedFeed = useMemo(
