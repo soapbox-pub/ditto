@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import { FabButton } from '@/components/FabButton';
 import { toast } from '@/hooks/useToast';
@@ -517,50 +518,31 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   return (
     <div className="flex flex-col">
-      {/* Sticky header — hide tabs on mobile when in write mode to save vertical space */}
-      <div className="sticky top-0 z-20">
-        {isMobile && activeTab === 'write' ? (
-          <SubHeaderBar pinned className="relative !top-0" noArc>
-            <button
-              onClick={handleBack}
-              className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <ArrowLeft className="size-5" />
-            </button>
-            <span className="text-sm font-medium truncate py-2 px-2">
-              {isEditMode ? 'Edit Article' : (article.title || 'New Article')}
-            </span>
-            <span className="flex-1" />
-            <button
-              onClick={() => setActiveTab('drafts')}
-              className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              My Articles
-            </button>
-          </SubHeaderBar>
-        ) : (
-          <SubHeaderBar pinned className="relative !top-0">
-            <button
-              onClick={handleBack}
-              className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <ArrowLeft className="size-5" />
-            </button>
+      {/* Header — not sticky on mobile in write mode so it scrolls away with content */}
+      <div className={isMobile && activeTab === 'write' ? 'relative z-20' : 'sticky top-0 z-20'}>
+        <SubHeaderBar pinned className={isMobile && activeTab === 'write' ? 'relative !static' : 'relative !top-0'}>
+          <button
+            onClick={handleBack}
+            className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
 
-            <TabButton
-              label="New"
-              active={activeTab === 'write'}
-              onClick={() => setActiveTab('write')}
-            />
+          <TabButton
+            label="New"
+            active={activeTab === 'write'}
+            onClick={() => setActiveTab('write')}
+          />
 
-            <TabButton
-              label="My Articles"
-              active={activeTab === 'drafts'}
-              onClick={() => setActiveTab('drafts')}
-            />
-          </SubHeaderBar>
-        )}
+          <TabButton
+            label="My Articles"
+            active={activeTab === 'drafts'}
+            onClick={() => setActiveTab('drafts')}
+          />
+        </SubHeaderBar>
       </div>
+      {/* Spacer for the arc overhang */}
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       <input
         ref={fileInputRef}
