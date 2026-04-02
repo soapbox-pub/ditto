@@ -9,7 +9,7 @@ import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
 import type { ThemeConfig } from "@/themes";
-import { themePresets } from "@/themes";
+
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -285,19 +285,7 @@ export function NostrSync() {
       const updates = { ...current };
 
       if (encryptedSettings.theme) {
-        // Migrate legacy theme values ("black", "pink") from older encrypted settings
-        const remoteTheme = encryptedSettings.theme as string;
-        if (remoteTheme in themePresets) {
-          if (
-            current.theme !== "custom" ||
-            JSON.stringify(current.customTheme?.colors) !==
-              JSON.stringify(themePresets[remoteTheme].colors)
-          ) {
-            updates.theme = "custom";
-            updates.customTheme = { colors: themePresets[remoteTheme].colors };
-            changed = true;
-          }
-        } else if (encryptedSettings.theme !== current.theme) {
+        if (encryptedSettings.theme !== current.theme) {
           updates.theme = encryptedSettings.theme;
           changed = true;
         }

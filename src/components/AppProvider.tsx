@@ -1,7 +1,7 @@
 import { ReactNode, useLayoutEffect, useEffect, useRef } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
-import { builtinThemes, themePresets, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
+import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { AppConfigSchema } from '@/lib/schemas';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
@@ -45,13 +45,6 @@ export function AppProvider(props: AppProviderProps) {
               (result as Record<string, unknown>)[key] = fieldResult.data;
             }
           }
-        }
-
-        // Migrate legacy theme values ("black", "pink") to "custom" + customTheme
-        const legacyTheme = result.theme as string | undefined;
-        if (legacyTheme && legacyTheme in themePresets) {
-          result.theme = 'custom';
-          result.customTheme = { colors: themePresets[legacyTheme].colors };
         }
 
         // Migrate legacy blossomServers (string[]) to blossomServerMetadata
