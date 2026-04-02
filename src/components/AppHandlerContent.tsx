@@ -1,5 +1,5 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { ExternalLink, Package } from 'lucide-react';
+import { ExternalLink, GitFork, Package } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -165,19 +165,12 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 </div>
               )}
               {shakespeareUrl && (
-                <a
-                  href={shakespeareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <img
-                    src="https://shakespeare.diy/badge.svg"
-                    alt="Edit with Shakespeare"
-                    className="h-5 hover:opacity-80 transition-opacity"
-                  />
-                </a>
+                <Button asChild variant="secondary" size="sm" className="shrink-0 h-6 text-xs px-2" onClick={(e) => e.stopPropagation()}>
+                  <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer">
+                    Fork
+                    <GitFork className="size-3 ml-1" />
+                  </a>
+                </Button>
               )}
             </div>
           </div>
@@ -263,33 +256,25 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             </div>
           )}
 
-          {/* Edit with Shakespeare */}
-          {shakespeareUrl && (
-            <a
-              href={shakespeareUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src="https://shakespeare.diy/badge.svg"
-                alt="Edit with Shakespeare"
-                className="h-6 hover:opacity-80 transition-opacity"
-              />
-            </a>
-          )}
-
           {/* Actions */}
-          {websiteUrl && (
-            <div className="pt-1">
+          <div className="flex items-center gap-2 pt-1">
+            {websiteUrl && (
               <Button asChild size="sm" onClick={(e) => e.stopPropagation()}>
                 <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
                   Open App
                   <ExternalLink className="size-3 ml-1.5" />
                 </a>
               </Button>
-            </div>
-          )}
+            )}
+            {shakespeareUrl && (
+              <Button asChild variant="secondary" size="sm" onClick={(e) => e.stopPropagation()}>
+                <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer">
+                  Fork
+                  <GitFork className="size-3.5 ml-1.5" />
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

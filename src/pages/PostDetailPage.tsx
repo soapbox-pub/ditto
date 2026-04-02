@@ -12,6 +12,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Radio,
+  Package,
   Share2,
   Star,
   Zap,
@@ -51,7 +52,7 @@ import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
-import { NoteCard } from "@/components/NoteCard";
+import { EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -1937,6 +1938,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Main post — expanded Ditto-style view */}
       {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          {/* Kind action header for app handlers */}
+          {isAppHandler && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published an app" />
+          )}
+
           {/* Author row */}
           <div className="flex items-center gap-3">
             {author.isLoading ? (
