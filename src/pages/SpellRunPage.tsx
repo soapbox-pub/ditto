@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, Star, WandSparkles } from 'lucide-react';
+import { AlertCircle, Share2, Star, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
+import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
 import { isNostrUri, nostrUriToNip19, safeDecodeEventId } from '@/lib/sidebarItems';
 import { resolveSpell } from '@/lib/spellEngine';
@@ -110,6 +111,15 @@ export function SpellRunPage() {
     }
   }, [spellEvent, isInSidebar, matchingSidebarItem, addToSidebar, removeFromSidebar, toast]);
 
+  const handleShare = useCallback(async () => {
+    if (!spellEvent || !nevent) return;
+    const url = `${window.location.origin}/spells/run/${nevent}`;
+    const result = await shareOrCopy(url, spellName ?? 'Spell');
+    if (result === 'copied') {
+      toast({ title: 'Link copied to clipboard' });
+    }
+  }, [spellEvent, nevent, spellName, toast]);
+
   useSeoMeta({
     title: spellName ? `${spellName} | Spell Results` : 'Spell Results',
   });
@@ -137,6 +147,13 @@ export function SpellRunPage() {
           <div className="flex-1 min-w-0">
             <SpellContent event={spellEvent} />
           </div>
+          <button
+            className="shrink-0 size-8 flex items-center justify-center group"
+            onClick={handleShare}
+            title="Share spell"
+          >
+            <Share2 className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+          </button>
           <button
             className="shrink-0 size-8 flex items-center justify-center group"
             onClick={handleToggleSidebar}

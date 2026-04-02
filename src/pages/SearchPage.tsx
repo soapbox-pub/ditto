@@ -11,6 +11,7 @@ import {
   Loader2,
   Globe, Users, UserSearch,
   Clock, Flame, TrendingUp,
+  Share2,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
@@ -40,6 +41,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useToast } from '@/hooks/useToast';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 
@@ -51,6 +54,7 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
+import { shareOrCopy } from '@/lib/share';
 import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
@@ -349,9 +353,12 @@ export function SearchPage() {
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
   const profileTabsQuery = useProfileTabs(user?.pubkey);
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { toast } = useToast();
   const [savePopoverOpen, setSavePopoverOpen] = useState(false);
   const [saveFeedLabel, setSaveFeedLabel] = useState('');
   const [savedJustNow, setSavedJustNow] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const listPickerValue = useMatchedListId(authorPubkeys);
 
@@ -433,6 +440,31 @@ export function SearchPage() {
     setSaveFeedLabel('');
     setSavedJustNow(true);
     setTimeout(() => setSavedJustNow(false), 2000);
+  };
+
+  const handleShareSpell = async () => {
+    if (!saveFeedLabel.trim() || isSharing || !user) return;
+    setIsSharing(true);
+    try {
+      const tags = currentSpellTags.map(([t, ...rest]) =>
+        t === 'name' ? ['name', saveFeedLabel.trim()] :
+        t === 'alt' ? ['alt', `Spell: ${saveFeedLabel.trim()}`] :
+        [t, ...rest]
+      );
+      const event = await publishEvent({ kind: 777, content: '', tags, created_at: Math.floor(Date.now() / 1000) });
+      const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
+      const url = `${window.location.origin}/spells/run/${neventId}`;
+      const result = await shareOrCopy(url, saveFeedLabel.trim());
+      if (result === 'copied') {
+        toast({ title: 'Link copied to clipboard' });
+      }
+      setSavePopoverOpen(false);
+      setSaveFeedLabel('');
+    } catch (err) {
+      toast({ title: 'Failed to share spell', description: err instanceof Error ? err.message : undefined, variant: 'destructive' });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   // Resolve author pubkeys for the stream
@@ -540,6 +572,14 @@ export function SearchPage() {
                             loading={isPublishingTabs}
                           />
                         )}
+                        <SaveDestinationRow
+                          icon={<Share2 className="size-4 text-muted-foreground" />}
+                          label="Share"
+                          description="Publish and share a link"
+                          onClick={() => handleShareSpell()}
+                          disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs || isSharing}
+                          loading={isSharing}
+                        />
                       </div>
                     </>
                   )}
