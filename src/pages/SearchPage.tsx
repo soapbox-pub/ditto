@@ -51,7 +51,7 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
-import { buildSpellTags } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
@@ -398,17 +398,7 @@ export function SearchPage() {
       [t, ...rest]
     );
 
-    const spellEvent: NostrEvent = {
-      id: '',
-      pubkey: '',
-      created_at: Math.floor(Date.now() / 1000),
-      kind: 777,
-      tags,
-      content: '',
-      sig: '',
-    };
-
-    await addSavedFeed(saveFeedLabel.trim(), spellEvent);
+    await addSavedFeed(saveFeedLabel.trim(), buildUnsignedSpell(tags));
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
@@ -435,14 +425,9 @@ export function SearchPage() {
       sort: sort !== 'recent' ? sort : undefined,
     });
 
-    const spellEvent: NostrEvent = {
-      id: '', pubkey: '', created_at: Math.floor(Date.now() / 1000),
-      kind: 777, tags, content: '', sig: '',
-    };
-
     const existing = profileTabsQuery.data ?? { tabs: [] };
     await publishProfileTabs({
-      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), spell: spellEvent }],
+      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), spell: buildUnsignedSpell(tags) }],
     });
     setSavePopoverOpen(false);
     setSaveFeedLabel('');

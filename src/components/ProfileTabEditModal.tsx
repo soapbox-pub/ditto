@@ -30,7 +30,7 @@ import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { buildSpellTags } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
 import type { ProfileTab } from '@/lib/profileTabsEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -173,17 +173,7 @@ export function ProfileTabEditModal({
       search: query.trim() || undefined,
     });
 
-    const spellEvent: NostrEvent = {
-      id: '',
-      pubkey: '',
-      created_at: Math.floor(Date.now() / 1000),
-      kind: 777,
-      tags,
-      content: '',
-      sig: '',
-    };
-
-    await onSave({ label: label.trim(), spell: spellEvent });
+    await onSave({ label: label.trim(), spell: buildUnsignedSpell(tags) });
     onOpenChange(false);
   };
 

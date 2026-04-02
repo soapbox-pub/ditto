@@ -272,3 +272,17 @@ export function buildSpellTags(args: {
 
   return tags;
 }
+
+/** Build an unsigned kind:777 spell event from pre-built tags.
+ *  Useful when you need a spell event structure without signing. */
+export function buildUnsignedSpell(tags: string[][]): NostrEvent {
+  return {
+    id: '',
+    pubkey: '',
+    created_at: Math.floor(Date.now() / 1000),
+    kind: 777,
+    tags,
+    content: '',
+    sig: '',
+  };
+}

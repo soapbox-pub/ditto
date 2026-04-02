@@ -27,7 +27,7 @@ import {
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { buildSpellTags } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -145,18 +145,7 @@ export function FeedEditModal({
       search: search.trim() || undefined,
     });
 
-    // Build an unsigned spell event (will be signed by the caller or stored as-is)
-    const spellEvent: NostrEvent = {
-      id: '',
-      pubkey: '',
-      created_at: Math.floor(Date.now() / 1000),
-      kind: 777,
-      tags,
-      content: '',
-      sig: '',
-    };
-
-    await onSave(label.trim(), spellEvent);
+    await onSave(label.trim(), buildUnsignedSpell(tags));
     onOpenChange(false);
   };
 

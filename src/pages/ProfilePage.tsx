@@ -78,7 +78,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { buildSpellTags } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
 import type { ProfileTab, ProfileTabsData } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -1218,7 +1218,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     } : {};
     const def = coreDefs[label] ?? {};
     const tags = buildSpellTags({ name: label, ...def });
-    return { id: '', pubkey: '', created_at: Math.floor(Date.now() / 1000), kind: 777, tags, content: '', sig: '' };
+    return buildUnsignedSpell(tags);
   }, [pubkey]);
 
   const handleSaveTabEdit = async () => {
