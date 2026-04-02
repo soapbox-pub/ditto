@@ -6,8 +6,10 @@ import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
+import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef } from "./lib/extraKinds";
@@ -136,6 +138,8 @@ export function AppRouter() {
   return (
     <AudioPlayerProvider>
       <BrowserRouter>
+        <Toaster />
+        <VersionCheck />
         <MinimizedAudioBar />
         <AudioNavigationGuard />
         <DeepLinkHandler />
