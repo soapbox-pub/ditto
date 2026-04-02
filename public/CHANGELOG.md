@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.2.11] - 2026-04-02
+
+### Fixed
+- Fix crash caused by the "What's new" toast firing outside the router
+
 ## [2.2.10] - 2026-04-02
 
 ### Added
