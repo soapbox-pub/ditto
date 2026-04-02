@@ -1,8 +1,9 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { ExternalLink, Package } from 'lucide-react';
+import { ExternalLink, Globe, Package } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -228,18 +229,6 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 <Package className="size-8 text-primary/50" />
               </div>
             )}
-            {websiteUrl && (
-              <a
-                href={websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Open website"
-              >
-                <ExternalLink className="size-4" />
-              </a>
-            )}
           </div>
 
           {/* Name + domain */}
@@ -274,9 +263,18 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             </div>
           )}
 
-          {/* Edit with Shakespeare */}
-          {shakespeareUrl && (
-            <div className="flex items-center">
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-1">
+            {websiteUrl && (
+              <Button asChild size="sm" onClick={(e) => e.stopPropagation()}>
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
+                  <Globe className="size-4 mr-1.5" />
+                  Visit Website
+                  <ExternalLink className="size-3 ml-1.5 opacity-60" />
+                </a>
+              </Button>
+            )}
+            {shakespeareUrl && (
               <a
                 href={shakespeareUrl}
                 target="_blank"
@@ -286,11 +284,11 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 <img
                   src="https://shakespeare.diy/badge.svg"
                   alt="Edit with Shakespeare"
-                  className="h-6 hover:opacity-80 transition-opacity"
+                  className="h-8 hover:opacity-80 transition-opacity"
                 />
               </a>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
