@@ -5,12 +5,26 @@
  *
  * Layout:
  * 1. Sticky header with title, subtitle, legend help button, close
- * 2. Current Focus section (hatch / evolve) — card grid, primary
- * 3. Daily Bounties section — card grid, secondary
- * 4. Settings row — low emphasis toggle
+ * 2. Current Focus section (hatch / evolve) — collapsible, default open
+ * 3. Daily Bounties section — collapsible, default open
+ * 4. Settings row — low emphasis toggle (not collapsible)
+ *
+ * Both main sections use lightweight Radix Collapsible wrappers.
+ * Collapsed headers still show summary info (progress / coins).
  */
 
-import { Loader2, XCircle, AlertTriangle, Coins, X, Eye, Scroll, Compass, HelpCircle } from 'lucide-react';
+import {
+  Loader2,
+  XCircle,
+  AlertTriangle,
+  Coins,
+  X,
+  Eye,
+  Scroll,
+  Compass,
+  HelpCircle,
+  ChevronDown,
+} from 'lucide-react';
 import { formatCompactNumber, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +78,19 @@ interface BlobbiMissionsModalProps {
   availableStages?: ('egg' | 'baby' | 'adult')[];
   showMissionCard?: boolean;
   onToggleMissionCard?: (visible: boolean) => void;
+}
+
+// ─── Section Chevron ─────────────────────────────────────────────────────────
+
+function SectionChevron({ open }: { open: boolean }) {
+  return (
+    <ChevronDown
+      className={cn(
+        'size-4 text-muted-foreground/60 transition-transform duration-200',
+        open && 'rotate-180',
+      )}
+    />
+  );
 }
 
 // ─── Mission Type Legend ──────────────────────────────────────────────────────
@@ -122,9 +150,18 @@ interface DailyMissionsSectionProps {
   updateProfileEvent: (event: NostrEvent) => void;
   availableStages?: ('egg' | 'baby' | 'adult')[];
   disabled?: boolean;
+  defaultOpen?: boolean;
 }
 
-function DailyMissionsSection({ profile, updateProfileEvent, availableStages, disabled }: DailyMissionsSectionProps) {
+function DailyMissionsSection({
+  profile,
+  updateProfileEvent,
+  availableStages,
+  disabled,
+  defaultOpen = true,
+}: DailyMissionsSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
   const {
     missions,
     todayClaimedReward,
@@ -143,36 +180,53 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
 
   const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
 
-  return (
-    <section>
-      {/* Section header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Scroll className="size-4 text-amber-500 dark:text-amber-400" />
-          <h3 className="font-semibold text-sm">Daily Bounties</h3>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Coins className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
-          <span>
-            {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
-          </span>
-        </div>
-      </div>
+  const claimableCount = missions.filter((m) => m.completed && !m.claimed).length;
 
-      <DailyMissionsPanel
-        missions={missions}
-        onClaimReward={(id) => claimReward({ missionId: id })}
-        onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
-        todayCoins={todayClaimedReward}
-        disabled={disabled || isClaiming || isRerolling}
-        bonusAvailable={bonusAvailable}
-        bonusClaimed={bonusClaimed}
-        bonusReward={bonusReward}
-        noMissionsAvailable={noMissionsAvailable}
-        rerollsRemaining={rerollsRemaining}
-        isRerolling={isRerolling}
-      />
-    </section>
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      {/* Section header — tappable */}
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center justify-between py-1 group">
+          <div className="flex items-center gap-2">
+            <Scroll className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
+            <h3 className="font-semibold text-sm">Daily Bounties</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Summary pill — always visible */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Coins className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
+              <span className="tabular-nums">
+                {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
+              </span>
+              {claimableCount > 0 && (
+                <span className="size-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {claimableCount}
+                </span>
+              )}
+            </div>
+            <SectionChevron open={isOpen} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+        <div className="pt-3">
+          <DailyMissionsPanel
+            missions={missions}
+            onClaimReward={(id) => claimReward({ missionId: id })}
+            onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
+            todayCoins={todayClaimedReward}
+            disabled={disabled || isClaiming || isRerolling}
+            bonusAvailable={bonusAvailable}
+            bonusClaimed={bonusClaimed}
+            bonusReward={bonusReward}
+            noMissionsAvailable={noMissionsAvailable}
+            rerollsRemaining={rerollsRemaining}
+            isRerolling={isRerolling}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -254,6 +308,7 @@ interface CurrentFocusSectionProps {
   isCompleting: boolean;
   onStop: () => Promise<void>;
   isStopping: boolean;
+  defaultOpen?: boolean;
 }
 
 function CurrentFocusSection({
@@ -265,7 +320,9 @@ function CurrentFocusSection({
   isCompleting,
   onStop,
   isStopping,
+  defaultOpen = true,
 }: CurrentFocusSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
   const isIncubation = processType === 'incubation';
@@ -279,78 +336,89 @@ function CurrentFocusSection({
   const completeEmoji = isIncubation ? '🐣' : '✨';
   const stopLabel = isIncubation ? 'Stop Incubation' : 'Stop Evolution';
   const badgeLabel = isIncubation ? 'Hatch' : 'Evolve';
-  const category = isIncubation ? 'hatch' as const : 'evolve' as const;
+  const category = isIncubation ? ('hatch' as const) : ('evolve' as const);
 
   const completedCount = tasks.tasks.filter((t) => t.completed).length;
   const totalTasks = tasks.tasks.length;
 
   return (
-    <section>
-      {/* Section header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Badge
-            variant="secondary"
-            className={cn(
-              'text-xs font-semibold px-2 py-0.5',
-              isIncubation
-                ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-                : 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-            )}
-          >
-            {badgeLabel}
-          </Badge>
-          <span className="text-sm font-semibold">{title}</span>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      {/* Section header — tappable */}
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center justify-between py-1 group">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={cn(
+                'text-xs font-semibold px-2 py-0.5',
+                isIncubation
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+              )}
+            >
+              {badgeLabel}
+            </Badge>
+            <span className="text-sm font-semibold">{title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                'text-xs font-medium tabular-nums',
+                tasks.allCompleted
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {completedCount} / {totalTasks}
+            </span>
+            <SectionChevron open={isOpen} />
+          </div>
         </div>
-        <span
-          className={cn(
-            'text-xs font-medium tabular-nums',
-            tasks.allCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
-          )}
-        >
-          {completedCount} / {totalTasks}
-        </span>
-      </div>
+      </CollapsibleTrigger>
 
-      {/* Task card grid */}
-      <TasksPanel
-        tasks={tasks.tasks}
-        allCompleted={tasks.allCompleted}
-        isLoading={tasks.isLoading}
-        onOpenPostModal={onOpenPostModal}
-        onComplete={onComplete}
-        isCompleting={isCompleting}
-        emoji={emoji}
-        title={title}
-        description={description}
-        completeLabel={completeLabel}
-        completingLabel={completingLabel}
-        completeEmoji={completeEmoji}
-        category={category}
-      />
+      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+        <div className="pt-3">
+          {/* Task card grid */}
+          <TasksPanel
+            tasks={tasks.tasks}
+            allCompleted={tasks.allCompleted}
+            isLoading={tasks.isLoading}
+            onOpenPostModal={onOpenPostModal}
+            onComplete={onComplete}
+            isCompleting={isCompleting}
+            emoji={emoji}
+            title={title}
+            description={description}
+            completeLabel={completeLabel}
+            completingLabel={completingLabel}
+            completeEmoji={completeEmoji}
+            category={category}
+          />
 
-      {/* Stop process — low emphasis */}
-      <div className="mt-3 flex justify-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowStopConfirmation(true)}
-          disabled={isStopping || isCompleting}
-          className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-3"
-        >
-          {isStopping ? (
-            <>
-              <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-              Stopping...
-            </>
-          ) : (
-            <>
-              <XCircle className="size-3.5 mr-1.5" />
-              {stopLabel}
-            </>
-          )}
-        </Button>
-      </div>
+          {/* Stop process — low emphasis */}
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowStopConfirmation(true)}
+              disabled={isStopping || isCompleting}
+              className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-3"
+            >
+              {isStopping ? (
+                <>
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  Stopping...
+                </>
+              ) : (
+                <>
+                  <XCircle className="size-3.5 mr-1.5" />
+                  {stopLabel}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </CollapsibleContent>
 
       <StopConfirmationDialog
         open={showStopConfirmation}
@@ -360,7 +428,7 @@ function CurrentFocusSection({
         onConfirm={onStop}
         isPending={isStopping}
       />
-    </section>
+    </Collapsible>
   );
 }
 
@@ -429,7 +497,7 @@ export function BlobbiMissionsModal({
         </div>
 
         {/* ── Scrollable Content ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-4 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-4 space-y-5">
           {/* 1. Current Focus */}
           {hasActiveProcess ? (
             <>

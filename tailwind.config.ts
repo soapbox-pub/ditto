@@ -109,6 +109,14 @@ export default {
 			'highlight-fade': {
 				from: { backgroundColor: 'hsl(var(--primary) / 0.10)' },
 				to: { backgroundColor: 'transparent' }
+			},
+			'collapsible-down': {
+				from: { height: '0' },
+				to: { height: 'var(--radix-collapsible-content-height)' }
+			},
+			'collapsible-up': {
+				from: { height: 'var(--radix-collapsible-content-height)' },
+				to: { height: '0' }
 			}
 			},
 			animation: {
@@ -116,7 +124,9 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pending-glow': 'pending-glow 2.5s ease-in-out infinite',
 				'badge-spotlight': 'badge-spotlight 8s linear infinite',
-				'highlight-fade': 'highlight-fade 1.5s ease-out forwards'
+				'highlight-fade': 'highlight-fade 1.5s ease-out forwards',
+				'collapsible-down': 'collapsible-down 0.2s ease-out',
+				'collapsible-up': 'collapsible-up 0.2s ease-out'
 			}
 		}
 	},
