@@ -1793,7 +1793,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }, []);
 
   useLayoutOptions(pubkey ? {
-    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} onMediaClick={handleSidebarMediaClick} />,
+    rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
     hasSubHeader: true,
