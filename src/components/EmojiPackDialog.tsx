@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SortableList, SortableItem } from '@/components/SortableList';
@@ -92,12 +93,14 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         emojis.push({ id: nextEntryId(), shortcode: tag[1], url: tag[2] });
       }
     }
-    return { identifier, name, emojis };
+    const about = editEvent.tags.find(([n]) => n === 'about')?.[1] ?? '';
+    return { identifier, name, about, emojis };
   }, [editEvent]);
 
   // Form state
   const [identifier, setIdentifier] = useState(initialData?.identifier ?? '');
   const [name, setName] = useState(initialData?.name ?? '');
+  const [about, setAbout] = useState(initialData?.about ?? '');
   const [idTouched, setIdTouched] = useState(isEditMode);
   const [emojis, setEmojis] = useState<EmojiEntry[]>(initialData?.emojis ?? []);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -109,6 +112,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
   const resetForm = useCallback(() => {
     setIdentifier(initialData?.identifier ?? '');
     setName(initialData?.name ?? '');
+    setAbout(initialData?.about ?? '');
     setIdTouched(isEditMode);
     setEmojis((prev) => {
       for (const e of prev) {
@@ -335,7 +339,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         });
         if (fresh) {
           preservedTags = fresh.tags.filter(
-            ([n]) => n !== 'd' && n !== 'name' && n !== 'emoji',
+            ([n]) => n !== 'd' && n !== 'name' && n !== 'about' && n !== 'emoji',
           );
         }
       }
@@ -343,6 +347,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       const tags: string[][] = [
         ['d', resolvedId],
         ...(name.trim() ? [['name', name.trim()]] : []),
+        ...(about.trim() ? [['about', about.trim()]] : []),
         ...preservedTags,
         ...resolvedEmojis.map((e) => ['emoji', e.shortcode, e.url]),
       ];
@@ -377,7 +382,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, effectiveIdentifier, name, emojis, isEditMode, nostr, publishEvent, uploadFile, queryClient, toast, handleOpenChange]);
+  }, [user, effectiveIdentifier, name, about, emojis, isEditMode, nostr, publishEvent, uploadFile, queryClient, toast, handleOpenChange]);
 
   // Validation
   const pendingCount = emojis.filter((e) => e.file).length;
@@ -429,6 +434,20 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                   <p className="text-xs text-muted-foreground">Cannot be changed.</p>
                 )}
               </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label htmlFor="emoji-pack-about">Description</Label>
+              <Textarea
+                id="emoji-pack-about"
+                placeholder="What's in this emoji pack?"
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                disabled={isSubmitting}
+                className="min-h-[60px] resize-none text-sm"
+                rows={2}
+              />
             </div>
 
             {/* Drop zone for adding emojis */}
