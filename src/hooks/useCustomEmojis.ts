@@ -34,14 +34,16 @@ export function useCustomEmojis() {
       if (listEvents.length === 0) return [];
 
       const listEvent = listEvents[0];
-      const emojis: CustomEmoji[] = [];
-      const seen = new Set<string>();
 
-      // Step 2: Extract inline emoji tags
+      // Collect all emojis with their source pack identifier so we can
+      // detect shortcode collisions across packs and prefix them.
+      interface RawEmoji { shortcode: string; url: string; packId: string }
+      const raw: RawEmoji[] = [];
+
+      // Step 2: Extract inline emoji tags (no pack, so packId is empty)
       for (const tag of listEvent.tags) {
-        if (tag[0] === 'emoji' && tag[1] && tag[2] && !seen.has(tag[1])) {
-          seen.add(tag[1]);
-          emojis.push({ shortcode: tag[1], url: tag[2] });
+        if (tag[0] === 'emoji' && tag[1] && tag[2]) {
+          raw.push({ shortcode: tag[1], url: tag[2], packId: '' });
         }
       }
 
@@ -62,7 +64,6 @@ export function useCustomEmojis() {
       }
 
       if (packRefs.length > 0) {
-        // Build filters for all referenced packs
         const filters = packRefs.map((ref) => ({
           kinds: [30030 as number],
           authors: [ref.pubkey],
@@ -74,15 +75,51 @@ export function useCustomEmojis() {
           const packEvents = await nostr.query(filters, { signal });
 
           for (const packEvent of packEvents) {
+            const packId = packEvent.tags.find(([n]) => n === 'd')?.[1] ?? '';
             for (const tag of packEvent.tags) {
-              if (tag[0] === 'emoji' && tag[1] && tag[2] && !seen.has(tag[1])) {
-                seen.add(tag[1]);
-                emojis.push({ shortcode: tag[1], url: tag[2] });
+              if (tag[0] === 'emoji' && tag[1] && tag[2]) {
+                raw.push({ shortcode: tag[1], url: tag[2], packId });
               }
             }
           }
         } catch {
           // Timeout or relay error — return what we have from inline tags
+        }
+      }
+
+      // Step 4: Detect collisions and prefix with pack identifier.
+      // First pass: find shortcodes that appear with different URLs.
+      const byShortcode = new Map<string, RawEmoji[]>();
+      for (const entry of raw) {
+        const group = byShortcode.get(entry.shortcode);
+        if (group) {
+          group.push(entry);
+        } else {
+          byShortcode.set(entry.shortcode, [entry]);
+        }
+      }
+
+      const collisions = new Set<string>();
+      for (const [shortcode, group] of byShortcode) {
+        const uniqueUrls = new Set(group.map((e) => e.url));
+        if (uniqueUrls.size > 1) {
+          collisions.add(shortcode);
+        }
+      }
+
+      // Second pass: build final list. For collisions, prefix with packId.
+      // Deduplicate by final shortcode (first-seen wins after prefixing).
+      const emojis: CustomEmoji[] = [];
+      const seen = new Set<string>();
+
+      for (const entry of raw) {
+        const finalShortcode = collisions.has(entry.shortcode) && entry.packId
+          ? `${entry.packId}-${entry.shortcode}`
+          : entry.shortcode;
+
+        if (!seen.has(finalShortcode)) {
+          seen.add(finalShortcode);
+          emojis.push({ shortcode: finalShortcode, url: entry.url });
         }
       }
 
