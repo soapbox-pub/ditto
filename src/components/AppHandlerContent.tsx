@@ -1,5 +1,5 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { ExternalLink, GitFork, Package } from 'lucide-react';
+import { ExternalLink, GitFork, Package, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -89,6 +89,8 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 
   const [imgError, setImgError] = useState(false);
   const showThumbnail = thumbnailUrl && !imgError;
+
+  const [iframeOpen, setIframeOpen] = useState(false);
 
   if (compact) {
     return (
@@ -190,6 +192,56 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   }
 
   // Full detail view
+  if (iframeOpen && websiteUrl) {
+    return (
+      <div className="mt-3 -mx-4">
+        {/* Control bar */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/40">
+          {picture ? (
+            <img
+              src={picture}
+              alt={name}
+              className="size-6 rounded-md object-cover shrink-0"
+              loading="lazy"
+            />
+          ) : (
+            <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Package className="size-3.5 text-primary/50" />
+            </div>
+          )}
+          <span className="text-sm font-medium truncate">{name}</span>
+          <div className="ml-auto flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground">
+              <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="size-3 mr-1" />
+                Open externally
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setIframeOpen(false)}
+            >
+              <X className="size-4" />
+              <span className="sr-only">Close app</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Iframe */}
+        <iframe
+          src={websiteUrl}
+          title={name}
+          className="w-full border-0"
+          style={{ height: 'calc(100vh - 120px)' }}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+          allow="clipboard-read; clipboard-write"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
@@ -269,11 +321,8 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             {websiteUrl && (
-              <Button asChild size="sm">
-                <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                  Open App
-                  <ExternalLink className="size-3 ml-1.5" />
-                </a>
+              <Button size="sm" onClick={() => setIframeOpen(true)}>
+                Open App
               </Button>
             )}
             {shakespeareUrl && (
