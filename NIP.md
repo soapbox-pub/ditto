@@ -6,6 +6,7 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
+| 777   | Spell                | Portable Nostr relay query (saved feed / custom feed) |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -27,6 +28,91 @@ These event kinds were created by community contributors and are supported by Di
 | 16158 | Weather Station        | Weather station metadata (location, sensors, connectivity)       | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
 | 31124 | Blobbi Pet State       | Current state of a virtual Blobbi pet (addressable)              | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 37516 | Geocache               | Geocache listing for real-world treasure hunting                 | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
+
+---
+
+## Kind 777: Spell (NIP-A7)
+
+### Summary
+
+Regular (non-replaceable) event that encodes a Nostr relay query filter as a portable, shareable event. Spells function as saved feeds — users can publish, discover, and execute them across clients.
+
+See [NIP-A7](https://github.com/nostr-protocol/nips) for the full specification.
+
+### Event Structure
+
+```json
+{
+  "kind": 777,
+  "content": "Notes about Bitcoin from my contacts",
+  "tags": [
+    ["cmd", "REQ"],
+    ["name", "Bitcoin from contacts"],
+    ["alt", "Spell: Bitcoin from contacts"],
+    ["k", "1"],
+    ["authors", "$contacts"],
+    ["tag", "t", "bitcoin"],
+    ["since", "7d"],
+    ["limit", "50"],
+    ["media", "images"],
+    ["language", "en"],
+    ["sort", "trending"]
+  ]
+}
+```
+
+### Content
+
+The `content` field contains a human-readable description of the query in plain text. It MAY be an empty string.
+
+### Filter Tags
+
+| Tag       | Values                                  | Description                              |
+|-----------|-----------------------------------------|------------------------------------------|
+| `cmd`     | `REQ` or `COUNT`                        | Query command type (required)            |
+| `k`       | `<kind number>`                         | Kind filter — one tag per kind           |
+| `authors` | `<pubkey1>`, `<pubkey2>`, ...           | Author filter (supports `$me`, `$contacts`) |
+| `ids`     | `<id1>`, `<id2>`, ...                   | Event ID filter                          |
+| `tag`     | `<letter>`, `<val1>`, `<val2>`, ...     | Tag filter → `#<letter>` in NostrFilter  |
+| `limit`   | `<integer>`                             | Max results                              |
+| `since`   | `<timestamp>` or `<relative>`           | Start time (supports relative: `7d`, `2w`, `1mo`, `1y`) |
+| `until`   | `<timestamp>` or `<relative>`           | End time (same format as since)          |
+| `search`  | `<query string>`                        | NIP-50 full-text search                  |
+| `relays`  | `<wss://url1>`, `<wss://url2>`, ...     | Target relay URLs                        |
+
+### Client-Hint Tags
+
+These tags instruct clients how to build NIP-50 search extensions. They are NOT part of the NIP-01 filter — they are metadata that clients use to construct search strings and apply client-side filters.
+
+| Tag              | Values                                    | Description                                        |
+|------------------|-------------------------------------------|----------------------------------------------------|
+| `media`          | `images`, `videos`, `vines`, `none`       | Media type filter (omit for all)                   |
+| `language`       | ISO 639-1 code (e.g. `en`, `ja`)         | Language filter                                    |
+| `platform`       | `nostr`, `activitypub`, `atproto`        | Protocol filter (omit for `nostr`)                 |
+| `sort`           | `hot`, `trending`                         | Sort preference (omit for `recent`)                |
+| `include-replies`| `false`                                   | Exclude replies (omit to include)                  |
+
+Client-hint tags that use NIP-50 extensions (`media`, `language`, `platform`, `sort`) require a relay that supports these extensions (e.g. Ditto relay). Clients SHOULD route queries with these extensions to a compatible relay.
+
+### Metadata Tags
+
+| Tag              | Values     | Description                                    |
+|------------------|------------|------------------------------------------------|
+| `name`           | `<string>` | Human-readable spell name                      |
+| `alt`            | `<string>` | NIP-31 alternative text                        |
+| `t`              | `<topic>`  | Topic tag for categorization                   |
+| `close-on-eose`  | none       | Close subscription after EOSE                  |
+
+### Runtime Variables
+
+| Variable     | Resolves to                                           |
+|-------------|-------------------------------------------------------|
+| `$me`       | The executing user's pubkey                           |
+| `$contacts` | All pubkeys from the executing user's kind 3 contact list |
+
+### Relative Timestamps
+
+`since` and `until` support relative durations: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks), `mo` (months/30d), `y` (years/365d). `now` = current timestamp.
 
 ---
 

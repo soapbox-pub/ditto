@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
+import { buildSpellTags } from '@/lib/spellEngine';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
@@ -17,47 +18,6 @@ import type { ToolExecutorResult } from '@/lib/aiChatTools';
 function isValidHsl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
-}
-
-/** Build the kind:777 tags array from create_spell tool arguments. */
-function buildSpellTags(args: Record<string, unknown>): string[][] {
-  const tags: string[][] = [];
-
-  if (typeof args.name === 'string') tags.push(['name', args.name]);
-
-  const cmd = typeof args.cmd === 'string' ? args.cmd : 'REQ';
-  tags.push(['cmd', cmd]);
-
-  if (Array.isArray(args.kinds)) {
-    for (const k of args.kinds) {
-      if (typeof k === 'number') tags.push(['k', String(k)]);
-    }
-  }
-
-  if (Array.isArray(args.authors)) {
-    tags.push(['authors', ...(args.authors as string[])]);
-  }
-
-  if (Array.isArray(args.tag_filters)) {
-    for (const tf of args.tag_filters as Array<{ letter: string; values: string[] }>) {
-      if (tf.letter && Array.isArray(tf.values)) {
-        tags.push(['tag', tf.letter, ...tf.values]);
-      }
-    }
-  }
-
-  if (typeof args.since === 'string') tags.push(['since', args.since]);
-  if (typeof args.until === 'string') tags.push(['until', args.until]);
-  if (typeof args.limit === 'number') tags.push(['limit', String(args.limit)]);
-  if (typeof args.search === 'string') tags.push(['search', args.search]);
-
-  if (Array.isArray(args.relays) && args.relays.length > 0) {
-    tags.push(['relays', ...(args.relays as string[])]);
-  }
-
-  tags.push(['alt', `Spell: ${args.name ?? 'unnamed'}`]);
-
-  return tags;
 }
 
 // ─── Hook ───
@@ -331,7 +291,23 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'A spell name is required.' }) };
           }
 
-          const tags = buildSpellTags(args);
+          const tags = buildSpellTags({
+            name: typeof args.name === 'string' ? args.name : undefined,
+            cmd: typeof args.cmd === 'string' ? args.cmd : undefined,
+            kinds: Array.isArray(args.kinds) ? args.kinds.filter((k): k is number => typeof k === 'number') : undefined,
+            authors: Array.isArray(args.authors) ? args.authors as string[] : undefined,
+            tag_filters: Array.isArray(args.tag_filters) ? args.tag_filters as Array<{ letter: string; values: string[] }> : undefined,
+            since: typeof args.since === 'string' ? args.since : undefined,
+            until: typeof args.until === 'string' ? args.until : undefined,
+            limit: typeof args.limit === 'number' ? args.limit : undefined,
+            search: typeof args.search === 'string' ? args.search : undefined,
+            relays: Array.isArray(args.relays) ? args.relays as string[] : undefined,
+            media: typeof args.media === 'string' ? args.media : undefined,
+            language: typeof args.language === 'string' ? args.language : undefined,
+            platform: typeof args.platform === 'string' ? args.platform : undefined,
+            sort: typeof args.sort === 'string' ? args.sort : undefined,
+            includeReplies: typeof args.include_replies === 'boolean' ? args.include_replies : undefined,
+          });
           const content = typeof args.description === 'string' ? args.description : '';
 
           // Generate ephemeral keypair

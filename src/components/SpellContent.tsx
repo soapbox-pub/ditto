@@ -2,7 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Radio, Search, Terminal, Users, WandSparkles } from 'lucide-react';
+import { Clock, Globe, Image, Languages, MessageSquareOff, Radio, Search, SortDesc, Terminal, Users, Video, WandSparkles } from 'lucide-react';
 
 /** Parse a spell timestamp value into human-readable text. */
 function formatTimestamp(value: string): string {
@@ -55,6 +55,13 @@ export function SpellContent({ event }: SpellContentProps) {
   const relays = tags.find(([t]) => t === 'relays')?.slice(1) ?? [];
   const tagFilters = tags.filter(([t]) => t === 'tag');
   const closeOnEose = tags.some(([t]) => t === 'close-on-eose');
+
+  // Client-hint tags (NIP-50 extensions)
+  const media = tags.find(([t]) => t === 'media')?.[1];
+  const language = tags.find(([t]) => t === 'language')?.[1];
+  const platform = tags.find(([t]) => t === 'platform')?.[1];
+  const sort = tags.find(([t]) => t === 'sort')?.[1];
+  const includeReplies = tags.find(([t]) => t === 'include-replies')?.[1];
 
   return (
     <div className="space-y-3">
@@ -122,6 +129,36 @@ export function SpellContent({ event }: SpellContentProps) {
         {closeOnEose && (
           <Badge variant="outline" className="text-xs">
             one-shot
+          </Badge>
+        )}
+        {media && media !== 'all' && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            {media === 'images' ? <Image className="size-3" /> : media === 'videos' || media === 'vines' ? <Video className="size-3" /> : null}
+            {media}
+          </Badge>
+        )}
+        {language && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Languages className="size-3" />
+            {language}
+          </Badge>
+        )}
+        {platform && platform !== 'nostr' && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Globe className="size-3" />
+            {platform}
+          </Badge>
+        )}
+        {sort && sort !== 'recent' && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <SortDesc className="size-3" />
+            {sort}
+          </Badge>
+        )}
+        {includeReplies === 'false' && (
+          <Badge variant="outline" className="gap-1 text-xs">
+            <MessageSquareOff className="size-3" />
+            no replies
           </Badge>
         )}
       </div>

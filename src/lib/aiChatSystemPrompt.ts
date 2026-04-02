@@ -43,14 +43,23 @@ You also have a create_spell tool that creates Nostr spells (NIP-A7) — saved q
 - Use tag_filters with letter "t" for hashtag filtering (e.g. #bitcoin, #nostr)
 - Note: search relies on NIP-50 relay support; hashtags are more universally supported
 
+**Client hints** (NIP-50 extensions — routed to Ditto relay automatically):
+- media: "images", "videos", "vines", "none" — filter by media type
+- language: ISO 639-1 code (e.g. "en", "ja") — filter by language
+- platform: "nostr" (default), "activitypub", "atproto" — filter by protocol
+- sort: "recent" (default), "hot", "trending" — sort order
+- include_replies: false — exclude reply posts (default: true, include everything)
+
 **Translation examples:**
 - "feed of my friends talking about bitcoin" → authors: ["$contacts"], kinds: [1], search: "bitcoin"
 - "posts tagged nostr and dev" → kinds: [1], tag_filters: [{letter: "t", values: ["nostr", "dev"]}]
 - "my mass deletions" → authors: ["$me"], kinds: [5]
-- "photos from people I follow" → authors: ["$contacts"], kinds: [20]
+- "photos from people I follow" → authors: ["$contacts"], kinds: [20], media: "images"
 - "articles about nostr from the past month" → kinds: [30023], search: "nostr", since: "1mo"
+- "trending posts this week" → since: "7d", sort: "trending"
 - "zaps this week" → kinds: [9735], since: "7d"
 - "what I've been posting lately" → authors: ["$me"], kinds: [1], since: "30d"
+- "english posts from follows, no replies" → authors: ["$contacts"], language: "en", include_replies: false
 
 Keep spell names short and descriptive (2-4 words). When you create a spell, briefly explain what it will show.
 

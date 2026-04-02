@@ -139,8 +139,10 @@ Examples:
 - "friends talking about bitcoin" → authors: ["$contacts"], tag_filters: [{letter: "t", values: ["bitcoin"]}]
 - "my mass deletions" → authors: ["$me"], kinds: [5]
 - "popular zap receipts this week" → kinds: [9735], since: "7d"
-- "photos from people I follow" → authors: ["$contacts"], kinds: [20]
-- "articles mentioning nostr" → kinds: [30023], search: "nostr"`,
+- "photos from people I follow" → authors: ["$contacts"], kinds: [20], media: "images"
+- "trending posts this week" → since: "7d", sort: "trending"
+- "articles mentioning nostr" → kinds: [30023], search: "nostr"
+- "english posts from follows" → authors: ["$contacts"], language: "en"`,
       parameters: {
         type: 'object' as const,
         properties: {
@@ -199,6 +201,29 @@ Examples:
             type: 'array',
             items: { type: 'string' },
             description: 'Specific relay WebSocket URLs to query (e.g. ["wss://relay.damus.io"]). If omitted, uses the user\'s default relays.',
+          },
+          media: {
+            type: 'string',
+            description: 'Media filter. "images" = only posts with images, "videos" = only videos, "vines" = short-form video, "none" = text only. Omit for all content.',
+            enum: ['all', 'images', 'videos', 'vines', 'none'],
+          },
+          language: {
+            type: 'string',
+            description: 'Language filter (ISO 639-1 code, e.g. "en", "ja", "es"). Only returns posts in this language. Requires Ditto relay.',
+          },
+          platform: {
+            type: 'string',
+            description: 'Protocol filter. "nostr" = native Nostr only (default), "activitypub" = bridged from ActivityPub, "atproto" = bridged from AT Protocol.',
+            enum: ['nostr', 'activitypub', 'atproto'],
+          },
+          sort: {
+            type: 'string',
+            description: 'Sort order. "recent" = newest first (default), "hot" = trending recently, "trending" = most popular. Non-recent sorts require Ditto relay.',
+            enum: ['recent', 'hot', 'trending'],
+          },
+          include_replies: {
+            type: 'boolean',
+            description: 'Whether to include reply posts. Default true. Set false to exclude replies and show only top-level posts.',
           },
         },
         required: ['name'],
