@@ -289,6 +289,10 @@ function encodeEventId(event: NostrEvent): string {
       identifier: "",
     });
   }
+  // Include kind hint for spells so NIP19Page routes to SpellRunPage
+  if (event.kind === 777) {
+    return nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
+  }
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 

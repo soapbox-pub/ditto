@@ -332,7 +332,12 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const close = () => onOpenChange(false);
 
   const handleViewPostDetails = () => {
-    navigate(`/${nip19Id}`);
+    // For spells, use a nevent without kind hint so NIP19Page falls through
+    // to PostDetailPage instead of running the spell again.
+    const detailId = event.kind === 777
+      ? nip19.neventEncode({ id: event.id, author: event.pubkey })
+      : nip19Id;
+    navigate(`/${detailId}`);
     close();
   };
 
