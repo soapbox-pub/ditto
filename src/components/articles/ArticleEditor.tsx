@@ -68,7 +68,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const { user } = useCurrentUser();
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
-  const { drafts: relayDrafts, isLoading: isDraftsLoading, saveDraft: saveRelayDraft, deleteDraft: deleteRelayDraft, isDeleting } = useDrafts();
+  const { drafts: relayDrafts, isLoading: isDraftsLoading, saveDraft: saveRelayDraft, isSaving: isSyncingToRelay, deleteDraft: deleteRelayDraft, isDeleting } = useDrafts();
   const { articles: publishedArticles } = usePublishedArticles();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,31 +114,27 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     saveLocalDraft(data);
     setLocalDrafts(getLocalDrafts());
 
+    // Mark as saved immediately after the local write — the relay sync
+    // happens in the background and shouldn't leave the "unsaved" dot visible.
+    setLastSaved(new Date());
+    setHasUnsavedChanges(false);
+
     if (user) {
       try {
         await saveRelayDraft(data);
         if (!mountedRef.current) return;
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
         if (!silent) {
           toast({ title: 'Draft saved', description: 'Your article has been saved to Nostr relays.' });
         }
       } catch (error) {
         console.error('Failed to save draft to relay:', error);
         if (!mountedRef.current) return;
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
         if (!silent) {
           toast({ title: 'Draft saved locally', description: 'Could not sync to relays. Saved to your browser.', variant: 'destructive' });
         }
       }
-    } else {
-      if (!mountedRef.current) return;
-      setLastSaved(new Date());
-      setHasUnsavedChanges(false);
-      if (!silent) {
-        toast({ title: 'Draft saved', description: 'Your article has been saved locally.' });
-      }
+    } else if (!silent) {
+      toast({ title: 'Draft saved', description: 'Your article has been saved locally.' });
     }
   }, [user, saveRelayDraft]);
 
@@ -159,6 +155,13 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       }
     };
   }, [hasUnsavedChanges, persistDraft]);
+
+  /** Silently save the current draft on blur — uses the ref so it's always current. */
+  const handleBlurSave = useCallback(() => {
+    const current = articleRef.current;
+    if (!current.title && !current.content) return;
+    persistDraft(current, { silent: true });
+  }, [persistDraft]);
 
   // Reference to handlers for keyboard shortcuts
   const handlePublishRef = useRef<(() => void) | null>(null);
@@ -507,7 +510,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         Editing
       </span>
     ) : (
-      <span className="text-blue-600 dark:text-blue-400 text-sm">Editing</span>
+      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-sm">
+        <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
+        Editing
+      </span>
     )
   ) : hasUnsavedChanges ? (
     <span className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -515,7 +521,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       Unsaved
     </span>
   ) : lastSaved ? (
-    <span className="text-sm text-muted-foreground">Saved</span>
+    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+      <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
+      Saved
+    </span>
   ) : null;
 
   const totalDrafts = combinedDrafts.length;
@@ -621,6 +630,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
             type="text"
             value={article.title}
             onChange={(e) => updateArticle('title', e.target.value)}
+            onBlur={handleBlurSave}
             placeholder="Your article title..."
             className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
               isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
@@ -776,6 +786,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           <MilkdownEditor
             value={article.content}
             onChange={(value) => updateArticle('content', value || '')}
+            onBlur={handleBlurSave}
             onUploadImage={handleImageUpload}
             placeholder="Start writing your article..."
             className={`rounded-xl border border-border bg-card ${

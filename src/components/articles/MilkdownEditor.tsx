@@ -15,6 +15,7 @@ import { LinkDialog } from './LinkDialog';
 interface MilkdownEditorInnerProps {
   value: string;
   onChange: (markdown: string) => void;
+  onBlur?: () => void;
   onUploadImage?: (file: File) => Promise<string | null>;
   placeholder?: string;
   showToolbar?: boolean;
@@ -22,7 +23,7 @@ interface MilkdownEditorInnerProps {
   onToggleSource?: () => void;
 }
 
-function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, showToolbar = true, sourceMode, onToggleSource }: MilkdownEditorInnerProps) {
+function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placeholder, showToolbar = true, sourceMode, onToggleSource }: MilkdownEditorInnerProps) {
   const initialValueRef = useRef(value);
   const editorRef = useRef<Editor | null>(null);
   const lastExternalValue = useRef(value);
@@ -336,6 +337,7 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           className="w-full min-h-[250px] sm:min-h-[350px] p-3 bg-transparent font-mono text-sm resize-y outline-none"
           placeholder={placeholder}
           spellCheck={false}
@@ -343,6 +345,7 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
       ) : (
         <div
           className="milkdown-content"
+          onBlur={onBlur}
           style={placeholder ? { '--ph': `"${placeholder.replace(/"/g, '\\"')}"` } as React.CSSProperties : undefined}
         >
           <Milkdown />
@@ -361,13 +364,14 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
 interface MilkdownEditorProps {
   value: string;
   onChange: (markdown: string) => void;
+  onBlur?: () => void;
   onUploadImage?: (file: File) => Promise<string | null>;
   placeholder?: string;
   className?: string;
   showToolbar?: boolean;
 }
 
-export function MilkdownEditor({ value, onChange, onUploadImage, placeholder, className, showToolbar = true }: MilkdownEditorProps) {
+export function MilkdownEditor({ value, onChange, onBlur, onUploadImage, placeholder, className, showToolbar = true }: MilkdownEditorProps) {
   const [sourceMode, setSourceMode] = useState(false);
 
   return (
@@ -376,6 +380,7 @@ export function MilkdownEditor({ value, onChange, onUploadImage, placeholder, cl
         <MilkdownEditorInner
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           onUploadImage={onUploadImage}
           placeholder={placeholder}
           showToolbar={showToolbar}
