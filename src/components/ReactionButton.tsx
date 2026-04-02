@@ -186,7 +186,7 @@ export function ReactionButton({
           {filledHeart ? (
             <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
           ) : hasReacted && userReaction ? (
-            <RenderResolvedEmoji emoji={userReaction} className="size-5 leading-none translate-y-px" />
+            <RenderResolvedEmoji emoji={userReaction} className="h-5 w-5 object-contain leading-none translate-y-px" />
           ) : (
             <Heart className="size-5" />
           )}

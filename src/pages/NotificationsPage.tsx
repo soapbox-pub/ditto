@@ -469,7 +469,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
           actorPubkey={item.event.pubkey}
           icon={
             <span className="text-base leading-none size-4 flex items-center justify-center">
-              <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4" />
+              <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4 object-contain" />
             </span>
           }
           action={`reacted to your ${noun}`}
@@ -569,7 +569,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
         actors={group.actors}
         icon={
           <span className="text-base leading-none size-4 flex items-center justify-center">
-            <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4" />
+            <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4 object-contain" />
           </span>
         }
         action={`reacted to your ${noun}`}

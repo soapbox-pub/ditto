@@ -184,7 +184,7 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
             {/* Emoji group header */}
             <div className="flex items-center gap-2 px-4 py-2 bg-secondary/30 sticky top-0 z-[1]">
               {customUrl && customName ? (
-                <CustomEmojiImg name={customName} url={customUrl} className="inline-block h-6 w-6" />
+                <CustomEmojiImg name={customName} url={customUrl} className="inline-block h-6 w-6 object-contain" />
               ) : (
                 <span className="text-lg">{emoji}</span>
               )}

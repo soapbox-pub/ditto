@@ -1444,11 +1444,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <div className="flex items-center gap-3">
             {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
-            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
               <ReactionEmoji
                 content={event.content}
                 tags={event.tags}
-                className="text-xl leading-none"
+                className="h-6 w-6 object-contain"
               />
             </div>
 
@@ -2164,7 +2164,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                         <RenderResolvedEmoji
                           key={i}
                           emoji={emoji}
-                          className="h-4 w-4 leading-none"
+                          className="h-4 w-4 object-contain leading-none"
                         />
                       ))}
                     </span>
