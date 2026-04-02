@@ -13,13 +13,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useFollowList } from '@/hooks/useFollowActions';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { isNostrUri, nostrUriToNip19, safeDecodeEventId } from '@/lib/sidebarItems';
 import { resolveSpell } from '@/lib/spellEngine';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFollowList } from '@/hooks/useFollowActions';
 import NotFound from './NotFound';
 
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -59,7 +60,7 @@ export function SpellRunPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Resolve the spell into a filter
+  // Resolve the spell for error checking and cmd detection
   const resolved = useMemo(() => {
     if (!spellEvent) return null;
     try {
@@ -69,37 +70,14 @@ export function SpellRunPage() {
     }
   }, [spellEvent, user?.pubkey, contactPubkeys]);
 
-  const resolvedFilter = resolved && !('error' in resolved) ? resolved : null;
   const resolveError = resolved && 'error' in resolved ? resolved.error : null;
+  const cmd = resolved && !('error' in resolved) ? resolved.cmd : null;
 
-  // Execute the spell query
-  const { data: results, isLoading: isLoadingResults } = useQuery<NostrEvent[]>({
-    queryKey: ['spell-results', decoded?.id, JSON.stringify(resolvedFilter?.filter)],
-    queryFn: async ({ signal }) => {
-      if (!resolvedFilter) return [];
-
-      const store = resolvedFilter.relays.length > 0
-        ? nostr.group(resolvedFilter.relays)
-        : nostr;
-
-      const events = await store.query(
-        [resolvedFilter.filter],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) },
-      );
-
-      // Deduplicate (group queries can return the same event from multiple relays)
-      const seen = new Set<string>();
-      const unique = events.filter((e) => {
-        if (seen.has(e.id)) return false;
-        seen.add(e.id);
-        return true;
-      });
-
-      // Sort newest first — relay responses aren't guaranteed to be ordered
-      return unique.sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!resolvedFilter,
-    staleTime: 60 * 1000,
+  // Execute the spell via useStreamPosts (live streaming + initial batch)
+  const { posts, isLoading: isLoadingResults, newPostCount, flushStreamBuffer } = useStreamPosts('', {
+    includeReplies: true,
+    mediaType: 'all',
+    spell: spellEvent ?? undefined,
   });
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
@@ -146,9 +124,9 @@ export function SpellRunPage() {
         icon={<WandSparkles className="size-5 text-primary" />}
         backTo="/spells"
       >
-        {resolvedFilter && (
+        {cmd && (
           <Badge variant="secondary" className="text-xs font-mono shrink-0">
-            {resolvedFilter.cmd}
+            {cmd}
           </Badge>
         )}
       </PageHeader>
@@ -174,6 +152,16 @@ export function SpellRunPage() {
         </div>
       )}
 
+      {/* New posts pill */}
+      {newPostCount > 0 && (
+        <button
+          onClick={flushStreamBuffer}
+          className="w-full py-2 text-sm text-primary hover:bg-muted/50 border-b border-border transition-colors"
+        >
+          {newPostCount} new {newPostCount === 1 ? 'post' : 'posts'}
+        </button>
+      )}
+
       {/* Error states */}
       {resolveError && (
         <div className="p-4">
@@ -194,7 +182,7 @@ export function SpellRunPage() {
       )}
 
       {/* Loading states */}
-      {(isLoadingSpell || (isLoadingResults && !results)) && (
+      {(isLoadingSpell || (isLoadingResults && posts.length === 0)) && (
         <div className="divide-y divide-border">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="px-4 py-3">
@@ -215,11 +203,11 @@ export function SpellRunPage() {
       )}
 
       {/* COUNT results */}
-      {resolvedFilter?.cmd === 'COUNT' && results && (
+      {cmd === 'COUNT' && !isLoadingResults && (
         <div className="p-4">
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-4xl font-bold">{results.length}</p>
+              <p className="text-4xl font-bold">{posts.length}</p>
               <p className="text-sm text-muted-foreground mt-1">events found</p>
             </CardContent>
           </Card>
@@ -227,16 +215,16 @@ export function SpellRunPage() {
       )}
 
       {/* REQ results */}
-      {resolvedFilter?.cmd === 'REQ' && results && results.length > 0 && (
+      {cmd !== 'COUNT' && posts.length > 0 && (
         <div>
-          {results.map((event) => (
+          {posts.map((event) => (
             <NoteCard key={event.id} event={event} />
           ))}
         </div>
       )}
 
       {/* Empty state */}
-      {resolvedFilter && results && results.length === 0 && !isLoadingResults && (
+      {!isLoadingSpell && !isLoadingResults && posts.length === 0 && !resolveError && !spellError && spellEvent && (
         <div className="p-8 text-center">
           <Card className="border-dashed">
             <CardContent className="py-12 px-8">

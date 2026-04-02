@@ -1,17 +1,20 @@
 import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFeedSettings } from './useFeedSettings';
+import { useCurrentUser } from './useCurrentUser';
+import { useFollowList } from './useFollowActions';
 import { useMuteList } from './useMuteList';
 import { useContentFilters } from './useContentFilters';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { isEventMuted } from '@/lib/muteHelpers';
+import { resolveSpell } from '@/lib/spellEngine';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
 
-interface StreamPostsOptions {
+export interface StreamPostsOptions {
   includeReplies: boolean;
   mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
   language?: string;
@@ -29,6 +32,12 @@ interface StreamPostsOptions {
   authorPubkeys?: string[];
   /** NIP-50 sort preference. 'recent' = default (no sort: term). */
   sort?: 'recent' | 'hot' | 'trending';
+  /**
+   * When set, drives the entire stream from a kind:777 spell event.
+   * The spell is resolved internally (variables, timestamps, hints).
+   * All other options on this interface are ignored when spell is set.
+   */
+  spell?: NostrEvent;
 }
 
 /** Check if an event has imeta tags with image MIME types. */
@@ -136,8 +145,62 @@ function filterEvent(
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
+  const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
   const { muteItems } = useMuteList();
   const { shouldFilterEvent } = useContentFilters();
+
+  // ── Spell resolution ────────────────────────────────────────────────
+  // When a spell is provided, resolve it and derive effective options.
+  // All other option fields are ignored in spell mode.
+  const resolved = useMemo(() => {
+    if (!options.spell) return null;
+    try {
+      const contactPubkeys = followData?.pubkeys ?? [];
+      return resolveSpell(options.spell, user?.pubkey, contactPubkeys);
+    } catch {
+      return null;
+    }
+  }, [options.spell, user?.pubkey, followData?.pubkeys]);
+
+  // Derive effective options: spell-resolved values take priority
+  const effectiveQuery = resolved ? (resolved.filter.search ?? '') : query;
+  const effectiveOptions: StreamPostsOptions = useMemo(() => {
+    if (!resolved) return options;
+    const h = resolved.hints;
+    return {
+      includeReplies: h.includeReplies,
+      mediaType: h.mediaType,
+      language: h.language,
+      protocols: [h.platform],
+      kindsOverride: resolved.filter.kinds,
+      authorPubkeys: resolved.filter.authors,
+      sort: h.sort,
+    };
+  }, [resolved, options]);
+
+  // Whether the initial query should be routed exclusively to Ditto relays
+  // (spell uses NIP-50 extensions, or spell specifies since/until which need
+  // to be applied at query level).
+  const useDittoOnly = resolved?.needsDittoRelay ?? false;
+
+  // Extra filter fields from the spell (since, until, limit, tag filters)
+  const spellExtraFilter: Partial<NostrFilter> | undefined = useMemo(() => {
+    if (!resolved) return undefined;
+    const extra: Record<string, unknown> = {};
+    if (resolved.filter.since !== undefined) extra.since = resolved.filter.since;
+    if (resolved.filter.until !== undefined) extra.until = resolved.filter.until;
+    if (resolved.filter.limit !== undefined) extra.limit = resolved.filter.limit;
+    // Copy tag filters (#t, #e, #p, etc.)
+    for (const [key, val] of Object.entries(resolved.filter)) {
+      if (key.startsWith('#')) extra[key] = val;
+    }
+    return Object.keys(extra).length > 0 ? extra as Partial<NostrFilter> : undefined;
+  }, [resolved]);
+
+  // Stable key for the spell so the effect restarts when the spell changes
+  const spellKey = options.spell?.id ?? '';
+
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Buffer for streamed events — held separately until user scrolls back up
@@ -187,36 +250,39 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Resolve authorPubkeys: accept hex or npub-encoded entries
   const resolvedAuthorPubkeys = useMemo(() => {
-    if (!options.authorPubkeys || options.authorPubkeys.length === 0) return undefined;
-    const resolved: string[] = [];
-    for (const raw of options.authorPubkeys) {
+    if (!effectiveOptions.authorPubkeys || effectiveOptions.authorPubkeys.length === 0) return undefined;
+    const res: string[] = [];
+    for (const raw of effectiveOptions.authorPubkeys) {
       const t = raw.trim();
       if (/^[0-9a-f]{64}$/i.test(t)) {
-        resolved.push(t);
+        res.push(t);
       } else {
         try {
           const decoded = nip19.decode(t);
-          if (decoded.type === 'npub') resolved.push(decoded.data);
+          if (decoded.type === 'npub') res.push(decoded.data);
         } catch { /* ignore */ }
       }
     }
-    return resolved.length > 0 ? resolved : undefined;
-  }, [options.authorPubkeys]);
+    return res.length > 0 ? res : undefined;
+  }, [effectiveOptions.authorPubkeys]);
 
   // These mediaTypes query dedicated event kinds rather than filtering kind 1
-  const isDedicatedKindQuery = !options.kindsOverride && (options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos');
+  const isDedicatedKindQuery = !effectiveOptions.kindsOverride && (effectiveOptions.mediaType === 'vines' || effectiveOptions.mediaType === 'images' || effectiveOptions.mediaType === 'videos');
 
   const enabledKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...enabledKinds].sort().join(',');
 
   // Stable key for protocols so it can be a useEffect dependency
-  const protocolsKey = [...(options.protocols ?? ['nostr'])].sort().join(',');
+  const protocolsKey = [...(effectiveOptions.protocols ?? ['nostr'])].sort().join(',');
 
   // Stable key for kindsOverride
-  const kindsOverrideKey = options.kindsOverride ? [...options.kindsOverride].sort().join(',') : '';
+  const kindsOverrideKey = effectiveOptions.kindsOverride ? [...effectiveOptions.kindsOverride].sort().join(',') : '';
 
   // Stable key for authorPubkeys (follows list)
-  const authorPubkeysKey = options.authorPubkeys ? [...options.authorPubkeys].sort().join(',') : '';
+  const authorPubkeysKey = effectiveOptions.authorPubkeys ? [...effectiveOptions.authorPubkeys].sort().join(',') : '';
+
+  // Stable key for spell extra filter
+  const spellExtraFilterKey = spellExtraFilter ? JSON.stringify(spellExtraFilter) : '';
 
   useEffect(() => {
     const ac = new AbortController();
@@ -272,13 +338,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     // Build the kinds list based on mediaType (or override entirely)
     let kinds: number[];
-    if (options.kindsOverride && options.kindsOverride.length > 0) {
-      kinds = [...options.kindsOverride];
-    } else if (options.mediaType === 'vines') {
+    if (effectiveOptions.kindsOverride && effectiveOptions.kindsOverride.length > 0) {
+      kinds = [...effectiveOptions.kindsOverride];
+    } else if (effectiveOptions.mediaType === 'vines') {
       kinds = [22, 34236];           // shorts + vines
-    } else if (options.mediaType === 'videos') {
+    } else if (effectiveOptions.mediaType === 'videos') {
       kinds = [21, 22, ...enabledKinds.filter((k) => !isRepostKind(k))];
-    } else if (options.mediaType === 'images') {
+    } else if (effectiveOptions.mediaType === 'images') {
       kinds = [20, ...enabledKinds.filter((k) => !isRepostKind(k))];
     } else {
       kinds = enabledKinds.filter((k) => !isRepostKind(k));
@@ -293,39 +359,39 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // protocol:nostr = native Nostr only (no bridged events).
     // When bridged protocols are selected, omit protocol:nostr so the relay
     // returns both native and bridged events matching the selected protocols.
-    const protocols = options.protocols ?? ['nostr'];
+    const protocols = effectiveOptions.protocols ?? ['nostr'];
     const bridged = protocols.filter(p => p !== 'nostr');
     const searchParts: string[] = bridged.length > 0
       ? bridged.map(p => `protocol:${p}`)
       : ['protocol:nostr'];
     
-    if (query.trim()) {
-      searchParts.push(query.trim());
+    if (effectiveQuery.trim()) {
+      searchParts.push(effectiveQuery.trim());
     }
 
     // Add language filter (NIP-50 extension supported by Ditto)
-    if (options.language && options.language !== 'global') {
-      searchParts.push(`language:${options.language}`);
+    if (effectiveOptions.language && effectiveOptions.language !== 'global') {
+      searchParts.push(`language:${effectiveOptions.language}`);
     }
 
     // Add media filter (NIP-50 extension supported by Ditto)
     // Skip for dedicated-kind queries — kind selection already scopes them
     if (!isDedicatedKindQuery) {
-      if (options.mediaType === 'images') {
+      if (effectiveOptions.mediaType === 'images') {
         searchParts.push('media:true');
         searchParts.push('video:false');
-      } else if (options.mediaType === 'videos') {
+      } else if (effectiveOptions.mediaType === 'videos') {
         searchParts.push('video:true');
-      } else if (options.mediaType === 'none') {
+      } else if (effectiveOptions.mediaType === 'none') {
         searchParts.push('media:false');
       }
       // 'all' means no media filter
     }
 
     // Sort preference (NIP-50 extension)
-    if (options.sort === 'hot') {
+    if (effectiveOptions.sort === 'hot') {
       searchParts.push('sort:hot');
-    } else if (options.sort === 'trending') {
+    } else if (effectiveOptions.sort === 'trending') {
       searchParts.push('sort:trending');
     }
 
@@ -334,17 +400,33 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       initialFilter.search = searchParts.join(' ');
     }
 
+    // Merge spell-specific filter fields (since, until, limit, tag filters)
+    if (spellExtraFilter) {
+      Object.assign(initialFilter, spellExtraFilter);
+      // Also apply tag filters and author scope to the stream filter
+      for (const [key, val] of Object.entries(spellExtraFilter)) {
+        if (key.startsWith('#')) {
+          (streamFilter as Record<string, unknown>)[key] = val;
+        }
+      }
+    }
+
     // Author filter — scopes both the initial batch and streaming subscription.
     if (resolvedAuthorPubkeys && resolvedAuthorPubkeys.length > 0) {
       initialFilter.authors = resolvedAuthorPubkeys;
       streamFilter.authors = resolvedAuthorPubkeys;
     }
 
-    // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
+    // Determine relay routing for the initial query.
+    // When useDittoOnly is true (spell uses NIP-50 extensions), both the
+    // initial query and streaming go through Ditto relays exclusively.
+    const initialStore = useDittoOnly ? nostr.group(DITTO_RELAYS) : nostr;
+
+    // 1. Fetch initial batch with search filters
     (async () => {
       try {
-        const events = await nostr.query(
-          [{ ...initialFilter, limit: 40 }],
+        const events = await initialStore.query(
+          [{ ...initialFilter, limit: initialFilter.limit ?? 40 }],
           { signal: ac.signal },
         );
         for (const event of events) {
@@ -393,8 +475,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey; authorPubkeys is stabilized via authorPubkeysKey
-  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; effectiveOptions fields are stabilized via their respective keys; spellExtraFilter is stabilized via spellExtraFilterKey
+  }, [nostr, effectiveQuery, isDedicatedKindQuery, kindsKey, effectiveOptions.language, effectiveOptions.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, effectiveOptions.sort, useDittoOnly, spellExtraFilterKey, spellKey]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
@@ -407,9 +489,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       const authorSet = new Set(resolvedAuthorPubkeys);
       if (!authorSet.has(event.pubkey)) return false;
     }
-    return filterEvent(event, options, query);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
+    return filterEvent(event, effectiveOptions, effectiveQuery);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific option fields and stabilized keys for granular reactivity
+  }, [effectiveOptions.includeReplies, effectiveOptions.mediaType, protocolsKey, effectiveQuery, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
