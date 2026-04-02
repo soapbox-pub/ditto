@@ -1,5 +1,5 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { ExternalLink, Globe, Package } from 'lucide-react';
+import { ExternalLink, Package } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -263,32 +263,33 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             </div>
           )}
 
+          {/* Edit with Shakespeare */}
+          {shakespeareUrl && (
+            <a
+              href={shakespeareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src="https://shakespeare.diy/badge.svg"
+                alt="Edit with Shakespeare"
+                className="h-6 hover:opacity-80 transition-opacity"
+              />
+            </a>
+          )}
+
           {/* Actions */}
-          <div className="flex items-center gap-2 pt-1">
-            {websiteUrl && (
+          {websiteUrl && (
+            <div className="pt-1">
               <Button asChild size="sm" onClick={(e) => e.stopPropagation()}>
                 <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
-                  <Globe className="size-4 mr-1.5" />
-                  Visit Website
-                  <ExternalLink className="size-3 ml-1.5 opacity-60" />
+                  Open App
+                  <ExternalLink className="size-3 ml-1.5" />
                 </a>
               </Button>
-            )}
-            {shakespeareUrl && (
-              <a
-                href={shakespeareUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img
-                  src="https://shakespeare.diy/badge.svg"
-                  alt="Edit with Shakespeare"
-                  className="h-8 hover:opacity-80 transition-opacity"
-                />
-              </a>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
