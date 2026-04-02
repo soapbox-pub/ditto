@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.10] - 2026-04-02
+
+### Added
+- App cards for Nostr apps (NIP-89) now display in feeds and detail pages with hero images, icons, supported kinds, and quick-launch buttons
+- "What's new" toast appears after an app update with a changelog preview and link to the full changelog
+
+### Changed
+- Changelog page redesigned with a hero section for the latest release, collapsible older entries, and category icons inline with each item
+
+### Fixed
+- Compose box now fully resets to its collapsed state after posting, including poll options and media trays
+
 ## [2.2.9] - 2026-04-01
 
 ### Added
