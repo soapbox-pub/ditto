@@ -148,25 +148,35 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               <p className="text-sm text-muted-foreground line-clamp-2">{about}</p>
             )}
 
-            {/* Tags + actions */}
+            {/* Tags */}
+            {hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {hashtags.slice(0, 4).map((tag) => (
+                  <Link
+                    key={tag}
+                    to={`/t/${encodeURIComponent(tag)}`}
+                    className="text-xs text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
             <div className="flex items-center gap-2">
-              {hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-                  {hashtags.slice(0, 4).map((tag) => (
-                    <Link
-                      key={tag}
-                      to={`/t/${encodeURIComponent(tag)}`}
-                      className="text-xs text-primary hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      #{tag}
-                    </Link>
-                  ))}
-                </div>
+              {websiteUrl && (
+                <Button asChild size="sm" className="h-7 text-xs">
+                  <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                    Open App
+                    <ExternalLink className="size-3 ml-1.5" />
+                  </a>
+                </Button>
               )}
               {shakespeareUrl && (
-                <Button asChild variant="secondary" size="sm" className="shrink-0 h-6 text-xs px-2" onClick={(e) => e.stopPropagation()}>
-                  <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer">
+                <Button asChild variant="secondary" size="sm" className="h-7 text-xs">
+                  <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                     Fork
                     <GitFork className="size-3 ml-1" />
                   </a>
@@ -259,16 +269,16 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             {websiteUrl && (
-              <Button asChild size="sm" onClick={(e) => e.stopPropagation()}>
-                <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
+              <Button asChild size="sm">
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                   Open App
                   <ExternalLink className="size-3 ml-1.5" />
                 </a>
               </Button>
             )}
             {shakespeareUrl && (
-              <Button asChild variant="secondary" size="sm" onClick={(e) => e.stopPropagation()}>
-                <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer">
+              <Button asChild variant="secondary" size="sm">
+                <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                   Fork
                   <GitFork className="size-3.5 ml-1.5" />
                 </a>
