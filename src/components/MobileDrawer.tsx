@@ -319,7 +319,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </nav>
 
               <div className="px-2">
-                <LinkFooter />
+                <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
           ) : (
@@ -363,7 +363,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </nav>
 
               <div className="px-2">
-                <LinkFooter />
+                <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
           )}

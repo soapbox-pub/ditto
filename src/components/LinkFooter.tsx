@@ -1,7 +1,12 @@
 import { Link } from 'react-router-dom';
 
+interface LinkFooterProps {
+  /** Optional callback fired when an internal (React Router) link is clicked. */
+  onNavigate?: () => void;
+}
+
 /** Shared footer links used in both sidebars. */
-export function LinkFooter() {
+export function LinkFooter({ onNavigate }: LinkFooterProps) {
   return (
     <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
       <p className="text-xs text-muted-foreground">
@@ -23,7 +28,7 @@ export function LinkFooter() {
           Docs
         </a>
         {' · '}
-        <Link to="/privacy" className="text-primary hover:underline">
+        <Link to="/privacy" className="text-primary hover:underline" onClick={onNavigate}>
           Privacy
         </Link>
         {' · '}
@@ -36,7 +41,7 @@ export function LinkFooter() {
           Source
         </a>
         {' · '}
-        <Link to="/changelog" className="text-primary hover:underline">
+        <Link to="/changelog" className="text-primary hover:underline" onClick={onNavigate}>
           Changelog
         </Link>
         {' · '}
