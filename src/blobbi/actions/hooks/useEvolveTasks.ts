@@ -30,8 +30,8 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Kind for custom profile tabs / wall edit events */
-export const KIND_WALL_EDIT = 16769;
+/** Kind for custom profile tabs event */
+export const KIND_PROFILE_TABS = 16769;
 
 /** Required themes for evolve task */
 export const EVOLVE_REQUIRED_THEMES = 3;
@@ -165,9 +165,9 @@ export function useEvolveTasks(
           since: stateStartedAt,
           limit: 50, // Only need 1 valid evolve post
         },
-        // Custom profile tabs / wall edits after start
+        // Custom profile tabs after start
         {
-          kinds: [KIND_WALL_EDIT],
+          kinds: [KIND_PROFILE_TABS],
           authors: [pubkey],
           since: stateStartedAt,
           limit: 1, // Only need 1
@@ -197,8 +197,8 @@ export function useEvolveTasks(
         e.kind === KIND_SHORT_TEXT_NOTE && e.created_at >= stateStartedAt
       );
       
-      const wallEditEvents = events.filter(e => 
-        e.kind === KIND_WALL_EDIT && e.created_at >= stateStartedAt
+      const profileTabsEvents = events.filter(e => 
+        e.kind === KIND_PROFILE_TABS && e.created_at >= stateStartedAt
       );
       
       // Get latest profile after start
@@ -211,7 +211,7 @@ export function useEvolveTasks(
         themeEvents,
         colorMomentEvents,
         postEvents,
-        wallEditEvents,
+        profileTabsEvents,
         profileAfter,
       };
     },
@@ -288,10 +288,11 @@ export function useEvolveTasks(
   });
   
   // 5. Edit Profile once (PERSISTENT) — kind 0 profile metadata OR kind 16769 custom tabs
-  const wallEditCount = data?.wallEditEvents?.length ?? 0;
-  const hasProfileEdit = wallEditCount >= 1 || !!data?.profileAfter;
+  const hasTabsEdit = (data?.profileTabsEvents?.length ?? 0) >= 1;
+  const hasMetadataEdit = !!data?.profileAfter;
+  const hasProfileEdit = hasTabsEdit || hasMetadataEdit;
   tasks.push({
-    id: 'edit_wall',
+    id: 'edit_profile',
     name: 'Edit Your Profile',
     description: 'Update your profile info or customize your profile tabs',
     current: hasProfileEdit ? 1 : 0,
