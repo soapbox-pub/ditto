@@ -1,6 +1,7 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { ExternalLink, GitFork, Package, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,38 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { NostrURI } from '@/lib/NostrURI';
 import { cn } from '@/lib/utils';
+
+/** Hook that tracks the bounding rect of the closest `position: relative` ancestor (the center column). */
+function useColumnRect(active: boolean) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<{ left: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const el = anchorRef.current?.closest<HTMLElement>('.relative');
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setRect({ left: r.left, width: r.width });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    const el = anchorRef.current?.closest<HTMLElement>('.relative');
+    if (!el) return;
+
+    measure();
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [active, measure]);
+
+  return { anchorRef, rect };
+}
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -91,6 +124,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   const showThumbnail = thumbnailUrl && !imgError;
 
   const [iframeOpen, setIframeOpen] = useState(false);
+  const { anchorRef, rect } = useColumnRect(iframeOpen && !compact);
 
   if (compact) {
     return (
@@ -192,58 +226,60 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   }
 
   // Full detail view
-  if (iframeOpen && websiteUrl) {
-    return (
-      <div className="mt-3 -mx-4">
-        {/* Control bar */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/40">
-          {picture ? (
-            <img
-              src={picture}
-              alt={name}
-              className="size-6 rounded-md object-cover shrink-0"
-              loading="lazy"
-            />
-          ) : (
-            <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <Package className="size-3.5 text-primary/50" />
-            </div>
-          )}
-          <span className="text-sm font-medium truncate">{name}</span>
-          <div className="ml-auto flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground">
-              <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="size-3 mr-1" />
-                Open externally
-              </a>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 text-muted-foreground hover:text-foreground"
-              onClick={() => setIframeOpen(false)}
-            >
-              <X className="size-4" />
-              <span className="sr-only">Close app</span>
-            </Button>
+  const iframeOverlay = iframeOpen && websiteUrl && rect ? createPortal(
+    <div
+      className="fixed top-0 bottom-0 z-50 flex flex-col bg-background sidebar:border-l sidebar:border-r border-border"
+      style={{ left: rect.left, width: rect.width }}
+    >
+      {/* Control bar */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/40 shrink-0">
+        {picture ? (
+          <img
+            src={picture}
+            alt={name}
+            className="size-6 rounded-md object-cover shrink-0"
+            loading="lazy"
+          />
+        ) : (
+          <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <Package className="size-3.5 text-primary/50" />
           </div>
+        )}
+        <span className="text-sm font-medium truncate">{name}</span>
+        <div className="ml-auto flex items-center gap-1">
+          <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground">
+            <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3 mr-1" />
+              Open externally
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 text-muted-foreground hover:text-foreground"
+            onClick={() => setIframeOpen(false)}
+          >
+            <X className="size-4" />
+            <span className="sr-only">Close app</span>
+          </Button>
         </div>
-
-        {/* Iframe */}
-        <iframe
-          src={websiteUrl}
-          title={name}
-          className="w-full border-0"
-          style={{ height: 'calc(100vh - 120px)' }}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-          allow="clipboard-read; clipboard-write"
-        />
       </div>
-    );
-  }
+
+      {/* Iframe */}
+      <iframe
+        src={websiteUrl}
+        title={name}
+        className="flex-1 w-full border-0"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        allow="clipboard-read; clipboard-write"
+      />
+    </div>,
+    document.body,
+  ) : null;
 
   return (
-    <div className="mt-3">
+    <div ref={anchorRef} className="mt-3">
+      {iframeOverlay}
       <div className="rounded-xl border border-border overflow-hidden">
         {/* Screenshot hero — only shown while loading or when a thumbnail exists */}
         {(previewLoading || showThumbnail) && (
