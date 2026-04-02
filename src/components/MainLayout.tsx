@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { cn } from '@/lib/utils';
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
@@ -108,6 +109,9 @@ function MainLayoutInner() {
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
+  // Mounts the keyboard detector globally so the `keyboard-visible` class
+  // on <html> is always up-to-date for CSS-only consumers (Dialog, AlertDialog).
+  useKeyboardVisible();
 
   return (
     <DrawerContext.Provider value={openDrawer}>

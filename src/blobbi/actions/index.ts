@@ -71,7 +71,7 @@ export {
   useEvolveTasks,
   getEvolveInteractionCount,
   isValidEvolvePost,
-  KIND_WALL_EDIT,
+  KIND_PROFILE_TABS,
   EVOLVE_REQUIRED_THEMES,
   EVOLVE_REQUIRED_COLOR_MOMENTS,
   EVOLVE_REQUIRED_POSTS,
