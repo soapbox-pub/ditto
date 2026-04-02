@@ -1017,11 +1017,15 @@ function BlobbiDashboard({
     staleTime: 3000,
   });
 
-  // When the post is found during show_hatch_card, advance to glowing
+  // When the post is found during show_hatch_card, show the completed state
+  // for 2 seconds so the user sees the checkmark, then auto-advance to glowing.
   useEffect(() => {
     if (!tourPostFound || !isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('show_hatch_card')) {
-      firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+      const timer = setTimeout(() => {
+        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
 
