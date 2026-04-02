@@ -42,7 +42,12 @@ export function useResolveTabFilter(
       const queryFilter: NostrFilter | null = pointer
         ? pointer.type === 'e'
           ? { ids: [pointer.id], limit: 1 }
-          : { kinds: [pointer.kind], authors: [pointer.pubkey], '#d': [pointer.dTag], limit: 1 }
+          // Only include '#d' filter for addressable events (kinds 30000-39999).
+          // Replaceable events like kind 3 (contact list) don't have d tags,
+          // and filtering by '#d' would return zero results.
+          : pointer.kind >= 30000 && pointer.kind < 40000
+            ? { kinds: [pointer.kind], authors: [pointer.pubkey], '#d': [pointer.dTag], limit: 1 }
+            : { kinds: [pointer.kind], authors: [pointer.pubkey], limit: 1 }
         : null;
 
       return {
