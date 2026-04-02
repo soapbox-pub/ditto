@@ -35,10 +35,12 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
   const [selectedTextForLink, setSelectedTextForLink] = useState<string>('');
   const selectionRef = useRef<{ from: number; to: number } | null>(null);
 
-  // Keep ref updated
+  // Keep refs in sync so Milkdown remounts (e.g. source mode toggle) use
+  // the latest value rather than the stale value captured on first render.
   useEffect(() => {
+    initialValueRef.current = value;
     onUploadImageRef.current = onUploadImage;
-  }, [onUploadImage]);
+  }, [value, onUploadImage]);
 
   const { get } = useEditor((root) => {
     const editor = Editor.make()
@@ -147,13 +149,17 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
   }, [get]);
 
   // Handle external value changes (e.g., loading a draft).
-  // Skip when in source mode — the <textarea> owns the value and the
-  // ProseMirror editorView context isn't mounted, so replaceAll would throw.
+  // In source mode, just keep lastExternalValue in sync so the guard works
+  // correctly when switching back. When not in source mode, push the new
+  // value into the Milkdown editor via replaceAll.
   useEffect(() => {
-    if (sourceMode) return;
+    if (sourceMode) {
+      // Track textarea changes so we don't needlessly replaceAll on switch-back
+      lastExternalValue.current = value;
+      return;
+    }
     const editor = get();
     if (editor && value !== lastExternalValue.current) {
-      // Only update if the value changed externally (not from user typing)
       try {
         editor.action(replaceAll(value));
       } catch {
