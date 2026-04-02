@@ -63,6 +63,7 @@ export function useDeleteEvent() {
       queryClient.invalidateQueries({ queryKey: ['profile-likes-infinite'] });
       queryClient.invalidateQueries({ queryKey: ['replies'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['published-articles'] });
     },
   });
 }

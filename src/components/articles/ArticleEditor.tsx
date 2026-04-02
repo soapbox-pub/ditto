@@ -334,6 +334,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const doPublish = useCallback(() => {
     if (!user) return;
 
+    const newSlug = article.slug || slugify(article.title, { lower: true, strict: true });
+
     // Use original published_at when editing, current time for new articles
     const publishedAtTimestamp =
       isEditMode && originalPublishedAt
@@ -341,7 +343,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         : Math.floor(Date.now() / 1000);
 
     const tags: string[][] = [
-      ['d', article.slug || slugify(article.title, { lower: true, strict: true })],
+      ['d', newSlug],
       ['title', article.title],
       ['published_at', publishedAtTimestamp.toString()],
     ];
@@ -368,6 +370,30 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         onSuccess: async () => {
           setIsPublished(true);
           setHasUnsavedChanges(false);
+
+          // If the slug changed during edit, delete the old addressable event
+          // so it doesn't appear as a duplicate in My Articles.
+          if (isEditMode && originalSlug && originalSlug !== newSlug) {
+            try {
+              // Query the old event to get its ID for a thorough deletion
+              const oldEvents = await nostr.query([
+                { kinds: [30023], authors: [user.pubkey], '#d': [originalSlug], limit: 1 },
+              ]);
+
+              const deletionTags: string[][] = [
+                ['a', `30023:${user.pubkey}:${originalSlug}`],
+                ['k', '30023'],
+              ];
+              // Include the e-tag if we found the old event
+              if (oldEvents.length > 0) {
+                deletionTags.unshift(['e', oldEvents[0].id]);
+              }
+
+              publishEvent({ kind: 5, content: '', tags: deletionTags });
+            } catch (error) {
+              console.error('Failed to delete old article slug:', error);
+            }
+          }
 
           // Remove draft after publishing
           if (article.slug) {
@@ -402,9 +428,11 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   }, [
     user,
     article,
+    nostr,
     publishEvent,
     deleteRelayDraft,
     isEditMode,
+    originalSlug,
     originalPublishedAt,
     navigate,
   ]);
