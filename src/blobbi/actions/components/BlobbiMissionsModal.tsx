@@ -1,16 +1,16 @@
 // src/blobbi/actions/components/BlobbiMissionsModal.tsx
 
 /**
- * Missions modal for Blobbi — "Guild Quest Board" redesign.
+ * Missions modal for Blobbi — card-grid quest board.
  *
  * Layout:
- * 1. Sticky header with title + subtitle
- * 2. Current Focus section (hatch / evolve tasks) — primary visual focus
- * 3. Daily Missions section — secondary bounties
- * 4. Settings row — low emphasis toggle at footer
+ * 1. Sticky header with title, subtitle, legend help button, close
+ * 2. Current Focus section (hatch / evolve) — card grid, primary
+ * 3. Daily Bounties section — card grid, secondary
+ * 4. Settings row — low emphasis toggle
  */
 
-import { Loader2, XCircle, AlertTriangle, Coins, X, Eye, Scroll, Compass } from 'lucide-react';
+import { Loader2, XCircle, AlertTriangle, Coins, X, Eye, Scroll, Compass, HelpCircle } from 'lucide-react';
 import { formatCompactNumber, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,40 +46,73 @@ import { useRerollMission } from '../hooks/useRerollMission';
 interface BlobbiMissionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current companion being viewed */
   companion: BlobbiCompanion;
-  /** Current Blobbonaut profile (required for coin updates) */
   profile: BlobbonautProfile | null;
-  /** Callback to update profile in query cache after claiming */
   updateProfileEvent: (event: NostrEvent) => void;
-  /** Hatch tasks result from useHatchTasks */
   hatchTasks: HatchTasksResult;
-  /** Evolve tasks result from useEvolveTasks */
   evolveTasks: EvolveTasksResult;
-  /** Called when user clicks "Create Post" action in tasks */
   onOpenPostModal: () => void;
-  /** Called when all hatch tasks are complete and user clicks "Hatch" */
   onHatch: () => void;
-  /** Whether hatching is in progress */
   isHatching: boolean;
-  /** Called when all evolve tasks are complete and user clicks "Evolve" */
   onEvolve: () => void;
-  /** Whether evolving is in progress */
   isEvolving: boolean;
-  /** Called when user confirms stopping incubation */
   onStopIncubation: () => Promise<void>;
-  /** Whether stop incubation is in progress */
   isStoppingIncubation: boolean;
-  /** Called when user confirms stopping evolution */
   onStopEvolution: () => Promise<void>;
-  /** Whether stop evolution is in progress */
   isStoppingEvolution: boolean;
-  /** Available Blobbi stages across all user's companions (for mission filtering) */
   availableStages?: ('egg' | 'baby' | 'adult')[];
-  /** Whether the inline mission surface card on the main page is visible */
   showMissionCard?: boolean;
-  /** Toggle the inline mission surface card visibility */
   onToggleMissionCard?: (visible: boolean) => void;
+}
+
+// ─── Mission Type Legend ──────────────────────────────────────────────────────
+
+function MissionTypeLegend() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="rounded-full p-1.5 opacity-50 hover:opacity-100 hover:bg-muted transition-all"
+          aria-label="Mission types legend"
+        >
+          <HelpCircle className="size-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="w-56 p-3">
+        <p className="text-xs font-semibold mb-2">Mission Types</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+              <Scroll className="size-3 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium">Daily Bounty</p>
+              <p className="text-[10px] text-muted-foreground">Resets every day</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-sky-500/15 flex items-center justify-center shrink-0">
+              <span className="text-xs">🥚</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium">Hatch Task</p>
+              <p className="text-[10px] text-muted-foreground">Egg progression</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
+              <span className="text-xs">🐣</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium">Evolve Task</p>
+              <p className="text-[10px] text-muted-foreground">Baby progression</p>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ─── Daily Missions Section ───────────────────────────────────────────────────
@@ -125,7 +159,6 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
         </div>
       </div>
 
-      {/* Mission list */}
       <DailyMissionsPanel
         missions={missions}
         onClaimReward={(id) => claimReward({ missionId: id })}
@@ -246,36 +279,40 @@ function CurrentFocusSection({
   const completeEmoji = isIncubation ? '🐣' : '✨';
   const stopLabel = isIncubation ? 'Stop Incubation' : 'Stop Evolution';
   const badgeLabel = isIncubation ? 'Hatch' : 'Evolve';
+  const category = isIncubation ? 'hatch' as const : 'evolve' as const;
 
   const completedCount = tasks.tasks.filter((t) => t.completed).length;
   const totalTasks = tasks.tasks.length;
 
   return (
     <section>
-      {/* Section header with badge + progress counter */}
+      {/* Section header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className={cn(
-            'text-xs font-semibold px-2 py-0.5',
-            isIncubation
-              ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-              : 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-          )}>
+          <Badge
+            variant="secondary"
+            className={cn(
+              'text-xs font-semibold px-2 py-0.5',
+              isIncubation
+                ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                : 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+            )}
+          >
             {badgeLabel}
           </Badge>
           <span className="text-sm font-semibold">{title}</span>
         </div>
-        <span className={cn(
-          'text-xs font-medium tabular-nums',
-          tasks.allCompleted
-            ? 'text-emerald-600 dark:text-emerald-400'
-            : 'text-muted-foreground',
-        )}>
+        <span
+          className={cn(
+            'text-xs font-medium tabular-nums',
+            tasks.allCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+          )}
+        >
           {completedCount} / {totalTasks}
         </span>
       </div>
 
-      {/* Task list */}
+      {/* Task card grid */}
       <TasksPanel
         tasks={tasks.tasks}
         allCompleted={tasks.allCompleted}
@@ -289,9 +326,10 @@ function CurrentFocusSection({
         completeLabel={completeLabel}
         completingLabel={completingLabel}
         completeEmoji={completeEmoji}
+        category={category}
       />
 
-      {/* Stop process — low-emphasis */}
+      {/* Stop process — low emphasis */}
       <div className="mt-3 flex justify-center">
         <Button
           variant="ghost"
@@ -332,9 +370,7 @@ function EmptyFocusState() {
   return (
     <div className="py-6 text-center">
       <Compass className="size-5 text-muted-foreground/50 mx-auto mb-2" />
-      <p className="text-sm text-muted-foreground">
-        No active progression right now
-      </p>
+      <p className="text-sm text-muted-foreground">No active progression right now</p>
     </div>
   );
 }
@@ -382,16 +418,19 @@ export function BlobbiMissionsModal({
                 Quests & bounties for {companion.name}
               </p>
             </div>
-            <DialogClose className="rounded-full p-1.5 -mr-1.5 opacity-60 hover:opacity-100 hover:bg-muted transition-all shrink-0">
-              <X className="size-4" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <MissionTypeLegend />
+              <DialogClose className="rounded-full p-1.5 opacity-60 hover:opacity-100 hover:bg-muted transition-all">
+                <X className="size-4" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
+            </div>
           </div>
         </div>
 
         {/* ── Scrollable Content ── */}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-4 space-y-6">
-          {/* 1. Current Focus — primary section */}
+          {/* 1. Current Focus */}
           {hasActiveProcess ? (
             <>
               {isIncubating && isEgg ? (
@@ -425,7 +464,7 @@ export function BlobbiMissionsModal({
           {/* Divider */}
           <div className="h-px bg-border/60" />
 
-          {/* 2. Daily Missions — secondary section */}
+          {/* 2. Daily Bounties */}
           <DailyMissionsSection
             profile={profile}
             updateProfileEvent={updateProfileEvent}
@@ -433,12 +472,15 @@ export function BlobbiMissionsModal({
             disabled={isProcessBusy}
           />
 
-          {/* 3. Settings row — low emphasis footer toggle */}
+          {/* 3. Settings */}
           {onToggleMissionCard !== undefined && showMissionCard !== undefined && (
             <>
               <div className="h-px bg-border/40" />
               <div className="flex items-center justify-between py-1">
-                <Label htmlFor="mission-card-toggle" className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <Label
+                  htmlFor="mission-card-toggle"
+                  className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer"
+                >
                   <Eye className="size-3.5" />
                   Show mission card on main page
                 </Label>

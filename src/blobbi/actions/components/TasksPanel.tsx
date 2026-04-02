@@ -1,22 +1,38 @@
 // src/blobbi/actions/components/TasksPanel.tsx
 
 /**
- * Task list for hatch / evolve quests.
+ * Card-grid presentation for hatch / evolve tasks.
  *
- * Redesigned to be flat and lightweight — no nested Card chrome.
- * Each task is a minimal row with a clear status indicator.
- * The CTA button anchors the bottom of the list when all tasks are done.
+ * Each task is a compact card in a 2-column grid.
+ * Tapping a card expands it inline (full row) to reveal details.
+ * Only one card is expanded at a time.
  */
 
-import { ExternalLink, Check, Loader2, ChevronRight, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Palette,
+  Droplets,
+  MessageSquare,
+  Heart,
+  UserPen,
+  Activity,
+  Loader2,
+  HelpCircle,
+} from 'lucide-react';
 import { openUrl } from '@/lib/downloadFile';
 
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
 
 import type { HatchTask } from '../hooks/useHatchTasks';
+import type { MissionCategory } from './ExpandableMissionCard';
+import {
+  ExpandableMissionCard,
+  MissionDescription,
+  MissionProgress,
+  MissionAction,
+  DynamicHint,
+} from './ExpandableMissionCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,146 +40,41 @@ interface TasksPanelProps {
   tasks: HatchTask[];
   allCompleted: boolean;
   isLoading: boolean;
-  /** Called when user clicks "Create Post" action */
   onOpenPostModal: () => void;
-  /** Called when all tasks are complete and user clicks the complete button */
   onComplete: () => void;
-  /** Whether completion is in progress */
   isCompleting?: boolean;
-  /** Emoji to show in header */
   emoji: string;
-  /** Title for the tasks panel */
   title: string;
-  /** Description for the tasks panel */
   description: string;
-  /** Label for the complete button */
   completeLabel: string;
-  /** Label while completing */
   completingLabel: string;
-  /** Emoji for complete button */
   completeEmoji: string;
+  /** Mission category for styling the cards */
+  category?: MissionCategory;
 }
 
-// ─── Task Row ─────────────────────────────────────────────────────────────────
+// ─── Task Icon Mapping ────────────────────────────────────────────────────────
 
-interface TaskRowProps {
-  task: HatchTask;
-  onOpenPostModal: () => void;
-}
+/** Map task ids to lucide icons. Falls back to a generic icon. */
+function TaskIcon({ taskId }: { taskId: string }) {
+  const iconClass = 'size-5';
 
-function TaskRow({ task, onOpenPostModal }: TaskRowProps) {
-  const navigate = useNavigate();
-  const isDynamic = task.type === 'dynamic';
-
-  const handleAction = () => {
-    if (!task.action || !task.actionTarget) return;
-
-    switch (task.action) {
-      case 'navigate':
-        navigate(task.actionTarget);
-        break;
-      case 'external_link':
-        openUrl(task.actionTarget);
-        break;
-      case 'open_modal':
-        if (task.actionTarget === 'blobbi_post') {
-          onOpenPostModal();
-        }
-        break;
-    }
-  };
-
-  const progress =
-    task.required > 1
-      ? Math.round((task.current / task.required) * 100)
-      : task.completed
-        ? 100
-        : 0;
-
-  return (
-    <div
-      className={cn(
-        'flex items-start gap-3 p-3 rounded-xl transition-colors',
-        task.completed
-          ? 'bg-emerald-500/5'
-          : isDynamic
-            ? 'bg-amber-500/5'
-            : 'bg-muted/40',
-      )}
-    >
-      {/* Status indicator — small circle */}
-      <div
-        className={cn(
-          'size-7 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-          task.completed
-            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-            : isDynamic
-              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-              : 'bg-muted text-muted-foreground',
-        )}
-      >
-        {task.completed ? (
-          <Check className="size-3.5" />
-        ) : isDynamic ? (
-          <AlertCircle className="size-3.5" />
-        ) : task.required > 1 ? (
-          <span className="text-[10px] font-semibold tabular-nums">
-            {task.current}/{task.required}
-          </span>
-        ) : (
-          <span className="size-2 rounded-full bg-current opacity-30" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span
-            className={cn(
-              'text-sm font-medium leading-tight',
-              task.completed && 'text-emerald-600 dark:text-emerald-400',
-              isDynamic && !task.completed && 'text-amber-600 dark:text-amber-400',
-            )}
-          >
-            {task.name}
-          </span>
-          {isDynamic && !task.completed && (
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 dark:text-amber-400">
-              Live
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground leading-snug">{task.description}</p>
-
-        {/* Progress bar for multi-step non-dynamic tasks */}
-        {task.required > 1 && !task.completed && !isDynamic && (
-          <Progress value={progress} className="h-1 mt-2" />
-        )}
-
-        {/* Dynamic stat hint */}
-        {isDynamic && !task.completed && (
-          <p className="text-[11px] text-amber-600/70 dark:text-amber-400/70 mt-1">
-            Lowest stat: {task.current}% (need {task.required}%+)
-          </p>
-        )}
-
-        {/* Inline action link */}
-        {task.action && task.actionLabel && !task.completed && (
-          <button
-            onClick={handleAction}
-            className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary hover:underline"
-          >
-            {task.actionLabel}
-            {task.action === 'external_link' ? (
-              <ExternalLink className="size-3" />
-            ) : (
-              <ChevronRight className="size-3" />
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
+  switch (taskId) {
+    case 'create_themes':
+      return <Palette className={iconClass} />;
+    case 'color_moments':
+      return <Droplets className={iconClass} />;
+    case 'create_posts':
+      return <MessageSquare className={iconClass} />;
+    case 'interactions':
+      return <Heart className={iconClass} />;
+    case 'edit_profile':
+      return <UserPen className={iconClass} />;
+    case 'maintain_stats':
+      return <Activity className={iconClass} />;
+    default:
+      return <HelpCircle className={iconClass} />;
+  }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -178,7 +89,15 @@ export function TasksPanel({
   completeLabel,
   completingLabel,
   completeEmoji,
+  category = 'hatch',
 }: TasksPanelProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleToggle = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -188,33 +107,91 @@ export function TasksPanel({
   }
 
   return (
-    <div className="space-y-2">
-      {tasks.map((task) => (
-        <TaskRow key={task.id} task={task} onOpenPostModal={onOpenPostModal} />
-      ))}
+    <div className="space-y-3">
+      {/* Card grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {tasks.map((task) => {
+          const isDynamic = task.type === 'dynamic';
+          const progress =
+            task.required > 0 ? task.current / task.required : task.completed ? 1 : 0;
 
-      {/* CTA — anchors at the bottom when all tasks are done */}
+          const handleAction = () => {
+            if (!task.action || !task.actionTarget) return;
+            switch (task.action) {
+              case 'navigate':
+                navigate(task.actionTarget);
+                break;
+              case 'external_link':
+                openUrl(task.actionTarget);
+                break;
+              case 'open_modal':
+                if (task.actionTarget === 'blobbi_post') onOpenPostModal();
+                break;
+            }
+          };
+
+          return (
+            <ExpandableMissionCard
+              key={task.id}
+              id={task.id}
+              category={category}
+              icon={<TaskIcon taskId={task.id} />}
+              title={task.name}
+              completed={task.completed}
+              progress={Math.min(progress, 1)}
+              isExpanded={expandedId === task.id}
+              onToggle={handleToggle}
+            >
+              {/* Expanded content */}
+              <MissionDescription>{task.description}</MissionDescription>
+
+              {/* Progress bar for multi-step tasks */}
+              {task.required > 1 && !isDynamic && (
+                <MissionProgress
+                  current={task.current}
+                  required={task.required}
+                  completed={task.completed}
+                />
+              )}
+
+              {/* Dynamic stat hint */}
+              {isDynamic && !task.completed && (
+                <DynamicHint current={task.current} required={task.required} />
+              )}
+
+              {/* Action link */}
+              {task.action && task.actionLabel && !task.completed && (
+                <MissionAction
+                  label={task.actionLabel}
+                  type={task.action}
+                  onClick={handleAction}
+                />
+              )}
+            </ExpandableMissionCard>
+          );
+        })}
+      </div>
+
+      {/* CTA button when all tasks are done */}
       {allCompleted && (
-        <div className="pt-3">
-          <Button
-            onClick={onComplete}
-            disabled={isCompleting}
-            size="lg"
-            className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
-          >
-            {isCompleting ? (
-              <>
-                <Loader2 className="size-5 animate-spin" />
-                {completingLabel}
-              </>
-            ) : (
-              <>
-                <span className="text-lg">{completeEmoji}</span>
-                {completeLabel}
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          onClick={onComplete}
+          disabled={isCompleting}
+          size="lg"
+          className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
+        >
+          {isCompleting ? (
+            <>
+              <Loader2 className="size-5 animate-spin" />
+              {completingLabel}
+            </>
+          ) : (
+            <>
+              <span className="text-lg">{completeEmoji}</span>
+              {completeLabel}
+            </>
+          )}
+        </Button>
       )}
     </div>
   );
