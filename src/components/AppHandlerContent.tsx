@@ -111,7 +111,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
           )}
 
           {/* Content */}
-          <div className="px-3.5 pb-3.5 space-y-2">
+          <div className="relative z-10 px-3.5 pb-3.5 space-y-2">
             {/* App icon — overlaps the screenshot hero like a profile avatar */}
             <div className={showThumbnail || previewLoading ? '-mt-7' : 'pt-3.5'}>
               {picture ? (
@@ -207,7 +207,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         )}
 
         {/* Content */}
-        <div className="px-4 pb-4 space-y-3">
+        <div className="relative z-10 px-4 pb-4 space-y-3">
           {/* App icon — overlaps the screenshot hero like a profile avatar */}
           <div className={cn(
             'flex items-end justify-between',
