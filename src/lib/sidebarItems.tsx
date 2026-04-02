@@ -34,7 +34,6 @@ import {
   Sparkles,
   TrendingUp,
   User,
-  WandSparkles,
 } from "lucide-react";
 import { nip19 } from 'nostr-tools';
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -152,7 +151,6 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
-  { id: "spells", label: "Spells", path: "/spells", icon: WandSparkles },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },
@@ -275,17 +273,18 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
-  // Nostr URI items: active when pathname matches /<nip19> or /spells/run/<nevent>
+  // Nostr URI items: active when pathname matches /<nip19>
   if (isNostrUri(id)) {
     const nip19Id = nostrUriToNip19(id);
     if (pathname === `/${nip19Id}`) return true;
 
-    // Spell events navigate to /spells/run/<nevent> — match by event ID
-    if (pathname.startsWith('/spells/run/')) {
-      const sidebarEventId = safeDecodeEventId(nip19Id);
-      const pathNevent = pathname.slice('/spells/run/'.length);
-      const pathEventId = safeDecodeEventId(pathNevent);
-      return !!(sidebarEventId && pathEventId && sidebarEventId === pathEventId);
+    // Different nevent encodings of the same event may produce different
+    // bech32 strings (different relay hints). Compare by decoded event ID.
+    const sidebarEventId = safeDecodeEventId(nip19Id);
+    if (sidebarEventId && pathname.startsWith('/')) {
+      const pathSegment = pathname.slice(1);
+      const pathEventId = safeDecodeEventId(pathSegment);
+      if (pathEventId && sidebarEventId === pathEventId) return true;
     }
 
     return false;

@@ -26,7 +26,8 @@ import NotFound from './NotFound';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export function SpellRunPage() {
-  const { nevent } = useParams<{ nevent: string }>();
+  const params = useParams<{ nevent?: string; nip19?: string }>();
+  const nevent = params.nevent ?? params.nip19;
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -107,7 +108,7 @@ export function SpellRunPage() {
 
   const handleShare = useCallback(async () => {
     if (!spellEvent || !nevent) return;
-    const url = `${window.location.origin}/spells/run/${nevent}`;
+    const url = `${window.location.origin}/${nevent}`;
     const result = await shareOrCopy(url, spellName ?? 'Spell');
     if (result === 'copied') {
       toast({ title: 'Link copied to clipboard' });
@@ -126,7 +127,7 @@ export function SpellRunPage() {
       <PageHeader
         title={spellName ?? 'Spell Results'}
         icon={<WandSparkles className="size-5 text-primary" />}
-        backTo="/spells"
+        backTo="/search?tab=feeds"
       >
         {cmd && (
           <Badge variant="secondary" className="text-xs font-mono shrink-0">

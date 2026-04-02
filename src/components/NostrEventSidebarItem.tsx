@@ -97,12 +97,9 @@ function EventSidebarContent({ decoded, nip19Id, linkClassName, active, editing,
 
   // Use fetched kind when available, fall back to decoded kind
   const resolvedKind = data?.kind ?? decoded.kind ?? 1;
-  const isSpell = resolvedKind === 777;
   const Icon = resolveKindIcon(resolvedKind);
 
-  const path = isSpell && decoded.eventId
-    ? `/spells/run/${nip19.neventEncode({ id: decoded.eventId, author: decoded.pubkey || undefined, relays: decoded.relays })}`
-    : `/${nip19Id}`;
+  const path = `/${nip19Id}`;
 
   return (
     <Link

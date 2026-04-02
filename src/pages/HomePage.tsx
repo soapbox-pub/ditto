@@ -14,7 +14,6 @@ const PAGE_LOADERS: Record<string, React.LazyExoticComponent<React.ComponentType
   'bookmarks': lazy(() => import('./BookmarksPage').then(m => ({ default: m.BookmarksPage }))),
   'settings': lazy(() => import('./SettingsPage').then(m => ({ default: m.SettingsPage }))),
   'ai-chat': lazy(() => import('./AIChatPage').then(m => ({ default: m.AIChatPage }))),
-  'spells': lazy(() => import('./SpellsFeedPage').then(m => ({ default: m.SpellsFeedPage }))),
   'events': lazy(() => import('./EventsFeedPage').then(m => ({ default: m.EventsFeedPage }))),
   'photos': lazy(() => import('./PhotosFeedPage').then(m => ({ default: m.PhotosFeedPage }))),
   'videos': lazy(() => import('./VideosFeedPage').then(m => ({ default: m.VideosFeedPage }))),

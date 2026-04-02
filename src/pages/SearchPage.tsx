@@ -62,9 +62,9 @@ import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
-type TabType = 'posts' | 'accounts';
+type TabType = 'posts' | 'accounts' | 'feeds';
 
-const VALID_TABS: TabType[] = ['posts', 'accounts'];
+const VALID_TABS: TabType[] = ['posts', 'accounts', 'feeds'];
 
 function parseTab(value: string | null): TabType {
   return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
@@ -453,7 +453,7 @@ export function SearchPage() {
       );
       const event = await publishEvent({ kind: 777, content: '', tags, created_at: Math.floor(Date.now() / 1000) });
       const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
-      const url = `${window.location.origin}/spells/run/${neventId}`;
+      const url = `${window.location.origin}/${neventId}`;
       const result = await shareOrCopy(url, saveFeedLabel.trim());
       if (result === 'copied') {
         toast({ title: 'Link copied to clipboard' });
@@ -485,10 +485,29 @@ export function SearchPage() {
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
 
+  // Feeds tab: stream kind:777 spell events with From + Sort filters only
+  const {
+    posts: feedSpells,
+    isLoading: feedsLoading,
+    newPostCount: feedsNewCount,
+    flushStreamBuffer: flushFeedsBuffer,
+    flushedIds: feedsFlushedIds,
+  } = useStreamPosts(activeTab === 'feeds' ? debouncedSearchQuery : '', {
+    includeReplies: true,
+    mediaType: 'all',
+    kindsOverride: [777],
+    authorPubkeys: activeTab === 'feeds' ? streamAuthorPubkeys : undefined,
+    sort: activeTab === 'feeds' ? sort : 'recent',
+  });
+
   const handleRefresh = useCallback(async () => {
-    flushStreamBuffer();
+    if (activeTab === 'feeds') {
+      flushFeedsBuffer();
+    } else {
+      flushStreamBuffer();
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [flushStreamBuffer]);
+  }, [activeTab, flushStreamBuffer, flushFeedsBuffer]);
 
   return (
     <main className="flex-1 min-w-0">
@@ -496,6 +515,7 @@ export function SearchPage() {
       <SubHeaderBar>
         <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
+        <TabButton label="Feeds" active={activeTab === 'feeds'} onClick={() => setActiveTab('feeds')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
@@ -588,8 +608,8 @@ export function SearchPage() {
             </div>
           )}
 
-          {/* Filter popover (posts tab only) */}
-          {activeTab === 'posts' && (
+          {/* Filter popover (posts and feeds tabs) */}
+          {(activeTab === 'posts' || activeTab === 'feeds') && (
             <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -709,89 +729,95 @@ export function SearchPage() {
                     ))}
                   </div>
                 </div>
-                <Separator />
 
-                {/* Media + Protocol */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
-                    <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
-                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="images">Images</SelectItem>
-                        <SelectItem value="videos">Videos</SelectItem>
-                        <SelectItem value="vines">Shorts</SelectItem>
-                        <SelectItem value="none">No media</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
-                    <Select value={platform} onValueChange={(v) => setPlatform(v)}>
-                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nostr">Nostr</SelectItem>
-                        <SelectItem value="activitypub">Mastodon</SelectItem>
-                        <SelectItem value="atproto">Bluesky</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                {/* Posts-only filters */}
+                {activeTab === 'posts' && (
+                  <>
+                    <Separator />
 
-                {/* Language + Kind */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
-                    <Select value={language} onValueChange={(v) => setLanguage(v)}>
-                      <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="global">Global</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
-                    <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
-                  </div>
-                </div>
+                    {/* Media + Protocol */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
+                        <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
+                          <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="images">Images</SelectItem>
+                            <SelectItem value="videos">Videos</SelectItem>
+                            <SelectItem value="vines">Shorts</SelectItem>
+                            <SelectItem value="none">No media</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
+                        <Select value={platform} onValueChange={(v) => setPlatform(v)}>
+                          <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="nostr">Nostr</SelectItem>
+                            <SelectItem value="activitypub">Mastodon</SelectItem>
+                            <SelectItem value="atproto">Bluesky</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                {kindFilter === 'custom' && (
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="e.g. 1, 30023"
-                    value={customKindText}
-                    onChange={(e) => setCustomKindText(e.target.value)}
-                    className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
-                  />
+                    {/* Language + Kind */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
+                        <Select value={language} onValueChange={(v) => setLanguage(v)}>
+                          <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="global">Global</SelectItem>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="es">Spanish</SelectItem>
+                            <SelectItem value="fr">French</SelectItem>
+                            <SelectItem value="de">German</SelectItem>
+                            <SelectItem value="ja">Japanese</SelectItem>
+                            <SelectItem value="zh">Chinese</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
+                        <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
+                      </div>
+                    </div>
+
+                    {kindFilter === 'custom' && (
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 1, 30023"
+                        value={customKindText}
+                        onChange={(e) => setCustomKindText(e.target.value)}
+                        className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
+                      />
+                    )}
+
+                    {/* Include replies toggle */}
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Include replies</span>
+                      <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
+                    </div>
+                  </>
                 )}
-
-                {/* Include replies toggle */}
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Include replies</span>
-                  <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
-                </div>
               </PopoverContent>
             </Popover>
           )}
         </div>
 
-        {/* Active filter summary chips (posts tab only) */}
-        {activeTab === 'posts' && activeFilterLabels.length > 0 && (
+        {/* Active filter summary chips (posts and feeds tabs) */}
+        {(activeTab === 'posts' || activeTab === 'feeds') && activeFilterLabels.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {activeFilterLabels.map((label) => (
               <Badge key={label} variant="secondary" className="text-xs font-normal">
@@ -911,6 +937,47 @@ export function SearchPage() {
                 <FollowsList />
               )}
             </div>
+          </>
+        )}
+
+        {/* ─── Feeds Tab ─── */}
+        {activeTab === 'feeds' && (
+          <>
+            {feedsNewCount > 0 && (
+              <div
+                className={cn(
+                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
+                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
+                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
+                )}
+                style={{ marginBottom: '-3rem' }}
+              >
+                <button
+                  onClick={() => {
+                    flushFeedsBuffer();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  {feedsNewCount} new feed{feedsNewCount !== 1 ? 's' : ''}
+                </button>
+              </div>
+            )}
+            {feedsLoading && feedSpells.length === 0 ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            ) : feedSpells.length > 0 ? (
+              <div>
+                {feedSpells.map((event) => (
+                  <NoteCard key={event.id} event={event} highlight={feedsFlushedIds.has(event.id)} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message={debouncedSearchQuery.trim() ? 'No feeds found matching your search.' : 'No feeds found. Check back soon!'} />
+            )}
           </>
         )}
       </PullToRefresh>

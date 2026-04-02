@@ -2,11 +2,14 @@ import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { lazy } from 'react';
 import NotFound from './NotFound';
 import { ProfilePage } from './ProfilePage';
 import { PostDetailPage, AddrPostDetailPage, PostDetailShell, PostDetailSkeleton } from './PostDetailPage';
 import { ListDetailPage } from './ListDetailPage';
-import type { AddressPointer } from 'nostr-tools/nip19';
+import type { AddressPointer, EventPointer } from 'nostr-tools/nip19';
+
+const SpellRunPage = lazy(() => import('./SpellRunPage').then(m => ({ default: m.SpellRunPage })));
 
 const HEX_64_RE = /^[0-9a-f]{64}$/;
 
@@ -107,7 +110,10 @@ export function NIP19Page() {
       return <PostDetailPage eventId={decoded.data as string} />;
 
     case 'nevent': {
-      const neventData = decoded.data as { id: string; relays?: string[]; author?: string };
+      const neventData = decoded.data as EventPointer;
+      if (neventData.kind === 777) {
+        return <SpellRunPage />;
+      }
       return <PostDetailPage eventId={neventData.id} relays={neventData.relays} authorHint={neventData.author} />;
     }
 

@@ -37,11 +37,11 @@ export function SpellContent({ event }: SpellContentProps) {
   const navigate = useNavigate();
   const { tags } = event;
 
-  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
+  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
 
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/spells/run/${neventId}`);
+    navigate(`/${neventId}`);
   };
 
   const name = tags.find(([t]) => t === 'name')?.[1];
