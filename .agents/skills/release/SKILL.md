@@ -108,6 +108,7 @@ Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading
 - Use present tense ("Add dark mode toggle", not "Added dark mode toggle")
 - Focus on what the user sees/experiences, not internal implementation details
 - Use the current date in YYYY-MM-DD format
+- **Never use Nostr protocol jargon.** NIP numbers (e.g., "NIP-89", "NIP-17"), kind numbers (e.g., "kind 30078"), and other protocol-level references must not appear in the changelog. Describe the feature in plain language from the user's perspective. For example, write "App cards for Nostr apps" instead of "App cards for Nostr apps (NIP-89)". The changelog audience is end users, not protocol developers.
 - **Collapse related work into one entry.** If a feature was added and then fixed/tweaked across multiple commits in the same release, present the finished result as a single "Added" entry. Never list something as "Added" and then also list fixes for that same thing -- the user sees the end product, not the development history.
 - **Omit purely internal changes.** CI fixes, build pipeline tweaks, developer tooling, and infrastructure changes should be omitted from the changelog entirely unless they have a direct, visible impact on the user experience. The changelog is for users, not developers.
 - **Compare the actual code between versions** to understand what really changed, rather than just reading commit messages. Commit messages may over- or under-represent the significance of changes.
