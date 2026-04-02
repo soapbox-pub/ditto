@@ -5,7 +5,6 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
@@ -63,6 +62,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const isOwnPack = user?.pubkey === event.pubkey;
 
@@ -140,8 +140,8 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
 
   if (!pack) return null;
 
-  const showEmojis = pack.emojis.slice(0, PREVIEW_LIMIT);
-  const remaining = pack.emojis.length - PREVIEW_LIMIT;
+  const showEmojis = expanded ? pack.emojis : pack.emojis.slice(0, PREVIEW_LIMIT);
+  const remaining = expanded ? 0 : pack.emojis.length - PREVIEW_LIMIT;
 
   return (
     <div className="mt-3 space-y-3">
@@ -155,12 +155,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
           />
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-[15px] truncate">{pack.name}</h3>
-            <Badge variant="secondary" className="text-[10px] shrink-0">
-              {pack.emojis.length} emoji{pack.emojis.length !== 1 ? 's' : ''}
-            </Badge>
-          </div>
+          <h3 className="font-semibold text-[15px] truncate">{pack.name}</h3>
           {pack.about && (
             <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{pack.about}</p>
           )}
@@ -187,9 +182,13 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
               </div>
             ))}
             {remaining > 0 && (
-              <div className="flex items-center justify-center size-8 rounded bg-muted text-muted-foreground text-xs font-medium">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                className="flex items-center justify-center size-8 rounded bg-muted text-muted-foreground text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+              >
                 +{remaining}
-              </div>
+              </button>
             )}
           </div>
         </div>

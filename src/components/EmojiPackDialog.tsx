@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { Smile, Upload, Loader2, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Smile, Upload, Loader2, X } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SortableList, SortableItem } from '@/components/SortableList';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -250,15 +251,9 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     });
   }, []);
 
-  /** Move an emoji entry up or down. */
-  const moveEmoji = useCallback((index: number, direction: -1 | 1) => {
-    setEmojis((prev) => {
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
-      const updated = [...prev];
-      [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-      return updated;
-    });
+  /** Reorder emojis after a drag completes (from SortableList). */
+  const handleReorder = useCallback((reordered: EmojiEntry[]) => {
+    setEmojis(reordered);
   }, []);
 
   /** Upload all pending files, then publish the emoji pack event. */
@@ -477,60 +472,50 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                   {emojis.length} emoji{emojis.length !== 1 ? 's' : ''}
                 </span>
                 <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
-                  {emojis.map((emoji, index) => (
-                    <div
-                      key={emoji.id}
-                      className="flex items-center gap-2 px-2 py-1.5 bg-background"
-                    >
-                      {/* Move up/down */}
-                      <div className="flex flex-col shrink-0 -my-1">
-                        <button
-                          type="button"
-                          className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-0 p-0 h-3"
-                          disabled={index === 0 || isSubmitting}
-                          onClick={() => moveEmoji(index, -1)}
-                          aria-label="Move up"
-                        >
-                          <ChevronUp className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-0 p-0 h-3"
-                          disabled={index === emojis.length - 1 || isSubmitting}
-                          onClick={() => moveEmoji(index, 1)}
-                          aria-label="Move down"
-                        >
-                          <ChevronDown className="size-3.5" />
-                        </button>
-                      </div>
-                      <div className="size-8 shrink-0 rounded-md overflow-hidden bg-secondary/30 flex items-center justify-center">
-                        <img
-                          src={emoji.url}
-                          alt={emoji.shortcode}
-                          className="size-8 object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          value={emoji.shortcode}
-                          onChange={(e) => updateShortcode(emoji.id, e.target.value)}
-                          className="h-7 text-xs font-mono px-1.5 border-none shadow-none focus-visible:ring-1"
-                          placeholder="shortcode"
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeEmoji(emoji.id)}
-                        disabled={isSubmitting}
+                  <SortableList
+                    items={emojis}
+                    getItemId={(emoji) => emoji.id}
+                    onReorder={handleReorder}
+                    renderItem={(emoji) => (
+                      <SortableItem
+                        key={emoji.id}
+                        id={emoji.id}
+                        enabled={!isSubmitting}
+                        className="items-center bg-background"
+                        draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
+                        gripClassName="w-7"
                       >
-                        <X className="size-3.5" />
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-2 pr-2 py-1.5">
+                          <div className="size-8 shrink-0 rounded-md overflow-hidden bg-secondary/30 flex items-center justify-center">
+                            <img
+                              src={emoji.url}
+                              alt={emoji.shortcode}
+                              className="size-8 object-contain"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Input
+                              value={emoji.shortcode}
+                              onChange={(e) => updateShortcode(emoji.id, e.target.value)}
+                              className="h-7 text-xs font-mono px-1.5 border-none shadow-none focus-visible:ring-1"
+                              placeholder="shortcode"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeEmoji(emoji.id)}
+                            disabled={isSubmitting}
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        </div>
+                      </SortableItem>
+                    )}
+                  />
                 </div>
               </div>
             )}
