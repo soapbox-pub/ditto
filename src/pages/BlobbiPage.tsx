@@ -1064,6 +1064,20 @@ function BlobbiDashboard({
     }
   }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
 
+  // DEV ONLY: Build tour dev actions for the state editor
+  const tourDevActions = useMemo(() => ({
+    skipPostRequirement: () => {
+      if (firstHatchTour.isStep('show_hatch_card')) {
+        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+      }
+    },
+    resetTour: () => {
+      firstHatchTour.actions.reset();
+    },
+    currentStepId: firstHatchTour.state.currentStepId,
+    isCompleted: firstHatchTour.state.isCompleted,
+  }), [firstHatchTour]);
+
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1801,6 +1815,7 @@ function BlobbiDashboard({
           companion={companion}
           onApply={onDevEditorApply}
           isUpdating={isDevUpdating}
+          tourDevActions={tourDevActions}
         />
       )}
       
