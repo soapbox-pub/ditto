@@ -49,6 +49,16 @@ function isValidShortcode(s: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(s);
 }
 
+/** Convert a title into a URL-safe slug for the identifier. */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 let entryCounter = 0;
 function nextEntryId(): string {
   return `entry-${++entryCounter}-${Date.now()}`;
@@ -88,6 +98,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
   // Form state
   const [identifier, setIdentifier] = useState(initialData?.identifier ?? '');
   const [name, setName] = useState(initialData?.name ?? '');
+  const [idTouched, setIdTouched] = useState(isEditMode);
   const [emojis, setEmojis] = useState<EmojiEntry[]>(initialData?.emojis ?? []);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -99,15 +110,30 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
   const isUploading = uploadingCount > 0;
 
+  const effectiveIdentifier = idTouched ? identifier : slugify(name);
+
   const resetForm = useCallback(() => {
     setIdentifier(initialData?.identifier ?? '');
     setName(initialData?.name ?? '');
+    setIdTouched(isEditMode);
     setEmojis(initialData?.emojis ?? []);
     setIsDragOver(false);
     setUploadingCount(0);
     setDragIndex(null);
     setDragOverIndex(null);
-  }, [initialData]);
+  }, [initialData, isEditMode]);
+
+  const handleNameChange = useCallback((value: string) => {
+    setName(value);
+    if (!idTouched) {
+      setIdentifier(slugify(value));
+    }
+  }, [idTouched]);
+
+  const handleIdChange = useCallback((value: string) => {
+    setIdTouched(true);
+    setIdentifier(value);
+  }, []);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     if (!nextOpen) resetForm();
@@ -302,7 +328,8 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
   /** Publish the emoji pack. */
   const handlePublish = useCallback(async () => {
-    if (!user || !identifier.trim() || emojis.length === 0) return;
+    const resolvedId = effectiveIdentifier.trim();
+    if (!user || !resolvedId || emojis.length === 0) return;
 
     // Validate all shortcodes
     const invalid = emojis.find((e) => !isValidShortcode(e.shortcode));
@@ -336,7 +363,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         const fresh = await fetchFreshEvent(nostr, {
           kinds: [30030],
           authors: [user.pubkey],
-          '#d': [identifier.trim()],
+          '#d': [resolvedId],
         });
         if (fresh) {
           // Keep tags that aren't d, name, or emoji
@@ -347,7 +374,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       }
 
       const tags: string[][] = [
-        ['d', identifier.trim()],
+        ['d', resolvedId],
         ...(name.trim() ? [['name', name.trim()]] : []),
         ...preservedTags,
         ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
@@ -365,7 +392,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
       toast({
         title: isEditMode ? 'Emoji pack updated!' : 'Emoji pack created!',
-        description: `"${name.trim() || identifier.trim()}" with ${emojis.length} emoji${emojis.length !== 1 ? 's' : ''}.`,
+        description: `"${name.trim() || resolvedId}" with ${emojis.length} emoji${emojis.length !== 1 ? 's' : ''}.`,
       });
 
       handleOpenChange(false);
@@ -376,11 +403,11 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         variant: 'destructive',
       });
     }
-  }, [user, identifier, name, emojis, isEditMode, nostr, publishEvent, queryClient, toast, handleOpenChange]);
+  }, [user, effectiveIdentifier, name, emojis, isEditMode, nostr, publishEvent, queryClient, toast, handleOpenChange]);
 
   // Validation
   const hasValidEmojis = emojis.length > 0 && emojis.every((e) => !e.uploading && e.url && e.shortcode);
-  const canPublish = identifier.trim() && hasValidEmojis && !isPublishing && !isUploading;
+  const canPublish = effectiveIdentifier.trim() && hasValidEmojis && !isPublishing && !isUploading;
 
   if (!user) return null;
 
@@ -395,39 +422,37 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
           <DialogDescription>
             {isEditMode
               ? 'Update your custom emoji set. Drag and drop images to add more emojis.'
-              : 'Create a NIP-30 custom emoji set. Drag and drop images or a folder to populate it.'}
+              : 'Create a custom emoji set. Drag and drop images or a folder to populate it.'}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh]">
           <div className="px-5 pb-5 space-y-4">
-            {/* Identifier (d-tag) */}
-            <div className="space-y-1.5">
-              <Label htmlFor="emoji-pack-identifier">Identifier (d-tag) *</Label>
-              <Input
-                id="emoji-pack-identifier"
-                placeholder="e.g. blobcats"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                disabled={isEditMode}
-                className={isEditMode ? 'font-mono text-sm text-muted-foreground' : 'font-mono text-sm'}
-              />
-              <p className="text-xs text-muted-foreground">
-                {isEditMode
-                  ? 'The identifier cannot be changed after creation.'
-                  : 'A unique identifier for this emoji pack. Cannot be changed later.'}
-              </p>
-            </div>
-
-            {/* Pack name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="emoji-pack-name">Pack Name</Label>
-              <Input
-                id="emoji-pack-name"
-                placeholder="e.g. Blobcats"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+            {/* Title & ID side-by-side */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="emoji-pack-name">Title</Label>
+                <Input
+                  id="emoji-pack-name"
+                  placeholder="e.g. Blobcats"
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="emoji-pack-identifier">ID *</Label>
+                <Input
+                  id="emoji-pack-identifier"
+                  placeholder="e.g. blobcats"
+                  value={idTouched ? identifier : effectiveIdentifier}
+                  onChange={(e) => handleIdChange(e.target.value)}
+                  disabled={isEditMode}
+                  className={`font-mono text-sm ${isEditMode ? 'text-muted-foreground' : ''}`}
+                />
+                {isEditMode && (
+                  <p className="text-xs text-muted-foreground">Cannot be changed.</p>
+                )}
+              </div>
             </div>
 
             {/* Drop zone for adding emojis */}
