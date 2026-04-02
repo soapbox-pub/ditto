@@ -30,8 +30,8 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Kind for wall edit events */
-export const KIND_WALL_EDIT = 16769;
+/** Kind for custom profile tabs event */
+export const KIND_PROFILE_TABS = 16769;
 
 /** Required themes for evolve task */
 export const EVOLVE_REQUIRED_THEMES = 3;
@@ -117,7 +117,7 @@ export function isValidEvolvePost(event: NostrEvent, blobbiName: string): boolea
  * 2. Create 3 Color Moments (kind 3367)
  * 3. Create 1 Evolve Post (kind 1) - lighter than hatch, evolve-specific
  * 4. Interact 21 times (tracked via companion.tasks cache)
- * 5. Edit Wall once (kind 16769)
+ * 5. Edit Profile once (kind 0 profile metadata OR kind 16769 custom tabs)
  * 
  * DYNAMIC TASK (stat-based, NEVER cached):
  * 6. Maintain All Stats >= 80
@@ -165,14 +165,14 @@ export function useEvolveTasks(
           since: stateStartedAt,
           limit: 50, // Only need 1 valid evolve post
         },
-        // Wall edits after start
+        // Custom profile tabs after start
         {
-          kinds: [KIND_WALL_EDIT],
+          kinds: [KIND_PROFILE_TABS],
           authors: [pubkey],
           since: stateStartedAt,
           limit: 1, // Only need 1
         },
-        // Profile metadata after start (for Blobbi shape check)
+        // Profile metadata after start (for Blobbi shape check + profile edit mission)
         {
           kinds: [KIND_PROFILE_METADATA],
           authors: [pubkey],
@@ -197,8 +197,8 @@ export function useEvolveTasks(
         e.kind === KIND_SHORT_TEXT_NOTE && e.created_at >= stateStartedAt
       );
       
-      const wallEditEvents = events.filter(e => 
-        e.kind === KIND_WALL_EDIT && e.created_at >= stateStartedAt
+      const profileTabsEvents = events.filter(e => 
+        e.kind === KIND_PROFILE_TABS && e.created_at >= stateStartedAt
       );
       
       // Get latest profile after start
@@ -211,7 +211,7 @@ export function useEvolveTasks(
         themeEvents,
         colorMomentEvents,
         postEvents,
-        wallEditEvents,
+        profileTabsEvents,
         profileAfter,
       };
     },
@@ -287,20 +287,21 @@ export function useEvolveTasks(
     // No action - just interact with Blobbi
   });
   
-  // 5. Edit Wall once (PERSISTENT)
-  const wallEditCount = data?.wallEditEvents?.length ?? 0;
-  const hasWallEdit = wallEditCount >= 1;
+  // 5. Edit Profile once (PERSISTENT) — kind 0 profile metadata OR kind 16769 custom tabs
+  const hasTabsEdit = (data?.profileTabsEvents?.length ?? 0) >= 1;
+  const hasMetadataEdit = !!data?.profileAfter;
+  const hasProfileEdit = hasTabsEdit || hasMetadataEdit;
   tasks.push({
-    id: 'edit_wall',
-    name: 'Edit Your Wall',
-    description: 'Customize your profile wall',
-    current: hasWallEdit ? 1 : 0,
+    id: 'edit_profile',
+    name: 'Edit Your Profile',
+    description: 'Update your profile info or customize your profile tabs',
+    current: hasProfileEdit ? 1 : 0,
     required: 1,
-    completed: hasWallEdit,
+    completed: hasProfileEdit,
     type: 'persistent',
     action: 'navigate',
     actionTarget: '/settings/profile',
-    actionLabel: 'Edit Wall',
+    actionLabel: 'Edit Profile',
   });
   
   // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
