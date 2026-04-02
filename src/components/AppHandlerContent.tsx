@@ -1,12 +1,12 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { ExternalLink, Package } from 'lucide-react';
-import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { NostrURI } from '@/lib/NostrURI';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -58,8 +58,8 @@ function getShakespeareUrl(tags: string[][]): string | undefined {
     if (!parts || parts[0] !== '30617' || parts.length < 3) continue;
     const pubkey = parts[1];
     const identifier = parts.slice(2).join(':');
-    const naddr = nip19.naddrEncode({ kind: 30617, pubkey, identifier });
-    return `https://shakespeare.diy/clone?url=${encodeURIComponent(`nostr://${naddr}`)}`;
+    const nostrUri = new NostrURI({ pubkey, identifier }).toString();
+    return `https://shakespeare.diy/clone?url=${encodeURIComponent(nostrUri)}`;
   }
   return undefined;
 }
