@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, Share2, Star, WandSparkles } from 'lucide-react';
+import { AlertCircle, BookmarkPlus, Share2, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -13,12 +13,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
 import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
-import { isNostrUri, nostrUriToNip19, safeDecodeEventId } from '@/lib/sidebarItems';
 import { resolveSpell } from '@/lib/spellEngine';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
@@ -83,33 +82,28 @@ export function SpellRunPage() {
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
 
-  // Sidebar integration — compare by decoded event ID to handle different nevent encodings
-  const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+  // Home feed tab integration — toggle saving this spell as a home feed tab
+  const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
   const { toast } = useToast();
 
-  /** Find the existing sidebar entry that references this event (if any), by decoded event ID. */
-  const matchingSidebarItem = useMemo(() => {
+  /** Find an existing saved feed that uses the same spell event (by event ID). */
+  const matchingSavedFeed = useMemo(() => {
     if (!spellEvent) return undefined;
-    return orderedItems.find((item) => {
-      if (!isNostrUri(item)) return false;
-      const itemEventId = safeDecodeEventId(nostrUriToNip19(item));
-      return itemEventId === spellEvent.id;
-    });
-  }, [orderedItems, spellEvent]);
+    return savedFeeds.find((f) => f.spell?.id === spellEvent.id);
+  }, [savedFeeds, spellEvent]);
 
-  const isInSidebar = !!matchingSidebarItem;
+  const isSaved = !!matchingSavedFeed;
 
-  const handleToggleSidebar = useCallback(() => {
+  const handleToggleSaved = useCallback(async () => {
     if (!spellEvent) return;
-    if (isInSidebar && matchingSidebarItem) {
-      removeFromSidebar(matchingSidebarItem);
-      toast({ title: 'Removed from sidebar' });
+    if (isSaved && matchingSavedFeed) {
+      await removeSavedFeed(matchingSavedFeed.id);
+      toast({ title: 'Removed from home feed' });
     } else {
-      const nostrUri = `nostr:${nip19.neventEncode({ id: spellEvent.id, author: spellEvent.pubkey, kind: spellEvent.kind })}`;
-      addToSidebar(nostrUri);
-      toast({ title: 'Added to sidebar' });
+      await addSavedFeed(spellName ?? 'Spell', spellEvent);
+      toast({ title: 'Added to home feed' });
     }
-  }, [spellEvent, isInSidebar, matchingSidebarItem, addToSidebar, removeFromSidebar, toast]);
+  }, [spellEvent, isSaved, matchingSavedFeed, spellName, addSavedFeed, removeSavedFeed, toast]);
 
   const handleShare = useCallback(async () => {
     if (!spellEvent || !nevent) return;
@@ -156,14 +150,14 @@ export function SpellRunPage() {
           </button>
           <button
             className="shrink-0 size-8 flex items-center justify-center group"
-            onClick={handleToggleSidebar}
-            title={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            onClick={handleToggleSaved}
+            title={isSaved ? 'Remove from home feed' : 'Add to home feed'}
           >
-            <Star className={cn(
+            <BookmarkPlus className={cn(
               'size-4 transition-colors',
-              isInSidebar
+              isSaved
                 ? 'fill-primary text-primary'
-                : 'text-muted-foreground group-hover:fill-primary group-hover:text-primary',
+                : 'text-muted-foreground group-hover:text-primary',
             )} />
           </button>
         </div>
