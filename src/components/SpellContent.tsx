@@ -1,6 +1,4 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { nip19 } from 'nostr-tools';
-import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Globe, Image, Languages, MessageSquareOff, Radio, Search, SortDesc, Terminal, Users, Video, WandSparkles } from 'lucide-react';
 import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
@@ -35,20 +33,18 @@ function formatTimestamp(value: string): string {
   return value;
 }
 
+/** Friendly display name for tag filter letters. */
+function tagFilterLabel(letter: string): string {
+  if (letter === 't') return 'Hashtags';
+  return `#${letter}`;
+}
+
 interface SpellContentProps {
   event: NostrEvent;
 }
 
 export function SpellContent({ event }: SpellContentProps) {
-  const navigate = useNavigate();
   const { tags } = event;
-
-  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
-
-  const handleRun = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigate(`/${neventId}`);
-  };
 
   const name = tags.find(([t]) => t === 'name')?.[1];
   const cmd = tags.find(([t]) => t === 'cmd')?.[1];
@@ -71,16 +67,12 @@ export function SpellContent({ event }: SpellContentProps) {
 
   return (
     <div className="space-y-3">
-      {/* Spell name — clickable to run the spell */}
+      {/* Spell name */}
       {name && (
-        <button
-          type="button"
-          onClick={handleRun}
-          className="flex items-center gap-2 group cursor-pointer"
-        >
-          <WandSparkles className="size-4 text-primary shrink-0 group-hover:scale-110 transition-transform" />
-          <span className="font-semibold text-sm group-hover:text-primary transition-colors">{name}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <WandSparkles className="size-4 text-primary shrink-0" />
+          <span className="font-semibold text-sm">{name}</span>
+        </div>
       )}
 
       {/* Description from content */}
@@ -91,7 +83,7 @@ export function SpellContent({ event }: SpellContentProps) {
       {/* Badge row */}
       <div className="flex flex-wrap gap-1.5">
         {cmd && (
-          <Badge variant="secondary" className="gap-1 text-xs font-mono">
+          <Badge variant="outline" className="gap-1 text-xs">
             <Terminal className="size-3" />
             {cmd}
           </Badge>
@@ -104,7 +96,7 @@ export function SpellContent({ event }: SpellContentProps) {
         {authors
           .filter((a) => a.startsWith('$'))
           .map((a) => (
-            <Badge key={a} variant="secondary" className="gap-1 text-xs">
+            <Badge key={a} variant="outline" className="gap-1 text-xs">
               <Users className="size-3" />
               {a}
             </Badge>
@@ -128,8 +120,8 @@ export function SpellContent({ event }: SpellContentProps) {
           </Badge>
         )}
         {limit && (
-          <Badge variant="outline" className="text-xs font-mono">
-            limit:{limit}
+          <Badge variant="outline" className="text-xs">
+            limit: {limit}
           </Badge>
         )}
         {closeOnEose && (
@@ -137,6 +129,11 @@ export function SpellContent({ event }: SpellContentProps) {
             one-shot
           </Badge>
         )}
+        {tagFilters.map(([, letter, ...values], i) => (
+          <Badge key={i} variant="outline" className="text-xs">
+            {tagFilterLabel(letter)}: {values.join(', ')}
+          </Badge>
+        ))}
         {media && media !== 'all' && (
           <Badge variant="secondary" className="gap-1 text-xs">
             {media === 'images' ? <Image className="size-3" /> : media === 'videos' || media === 'vines' ? <Video className="size-3" /> : null}
@@ -168,17 +165,6 @@ export function SpellContent({ event }: SpellContentProps) {
           </Badge>
         )}
       </div>
-
-      {/* Tag filters */}
-      {tagFilters.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tagFilters.map(([, letter, ...values], i) => (
-            <Badge key={i} variant="secondary" className="text-xs font-mono">
-              #{letter}: {values.join(', ')}
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Target relays */}
       {relays.length > 0 && (
