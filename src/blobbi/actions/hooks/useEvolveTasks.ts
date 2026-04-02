@@ -30,7 +30,7 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Kind for wall edit events */
+/** Kind for custom profile tabs / wall edit events */
 export const KIND_WALL_EDIT = 16769;
 
 /** Required themes for evolve task */
@@ -117,7 +117,7 @@ export function isValidEvolvePost(event: NostrEvent, blobbiName: string): boolea
  * 2. Create 3 Color Moments (kind 3367)
  * 3. Create 1 Evolve Post (kind 1) - lighter than hatch, evolve-specific
  * 4. Interact 21 times (tracked via companion.tasks cache)
- * 5. Edit Wall once (kind 16769)
+ * 5. Edit Profile once (kind 0 profile metadata OR kind 16769 custom tabs)
  * 
  * DYNAMIC TASK (stat-based, NEVER cached):
  * 6. Maintain All Stats >= 80
@@ -165,14 +165,14 @@ export function useEvolveTasks(
           since: stateStartedAt,
           limit: 50, // Only need 1 valid evolve post
         },
-        // Wall edits after start
+        // Custom profile tabs / wall edits after start
         {
           kinds: [KIND_WALL_EDIT],
           authors: [pubkey],
           since: stateStartedAt,
           limit: 1, // Only need 1
         },
-        // Profile metadata after start (for Blobbi shape check)
+        // Profile metadata after start (for Blobbi shape check + profile edit mission)
         {
           kinds: [KIND_PROFILE_METADATA],
           authors: [pubkey],
@@ -287,20 +287,20 @@ export function useEvolveTasks(
     // No action - just interact with Blobbi
   });
   
-  // 5. Edit Wall once (PERSISTENT)
+  // 5. Edit Profile once (PERSISTENT) — kind 0 profile metadata OR kind 16769 custom tabs
   const wallEditCount = data?.wallEditEvents?.length ?? 0;
-  const hasWallEdit = wallEditCount >= 1;
+  const hasProfileEdit = wallEditCount >= 1 || !!data?.profileAfter;
   tasks.push({
     id: 'edit_wall',
-    name: 'Edit Your Wall',
-    description: 'Customize your profile wall',
-    current: hasWallEdit ? 1 : 0,
+    name: 'Edit Your Profile',
+    description: 'Update your profile info or customize your profile tabs',
+    current: hasProfileEdit ? 1 : 0,
     required: 1,
-    completed: hasWallEdit,
+    completed: hasProfileEdit,
     type: 'persistent',
     action: 'navigate',
     actionTarget: '/settings/profile',
-    actionLabel: 'Edit Wall',
+    actionLabel: 'Edit Profile',
   });
   
   // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
