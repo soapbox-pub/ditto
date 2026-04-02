@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink, Settings2 } from 'lucide-react';
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
 // Note: AlertTriangle kept for stat warning indicators
@@ -80,6 +80,7 @@ import {
   type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
+  useDailyMissions,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
@@ -88,6 +89,15 @@ import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import { MissionSurfaceCard } from '@/blobbi/ui/components/MissionSurfaceCard';
+import { ActionBarEditor } from '@/blobbi/ui/components/ActionBarEditor';
+import {
+  type ActionBarPreferences,
+  type BarItemId,
+  getVisibleSlots,
+  loadPreferences,
+  savePreferences,
+} from '@/blobbi/ui/lib/action-bar-preferences';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourCard } from '@/blobbi/tour';
@@ -876,6 +886,17 @@ function BlobbiDashboard({
   const [showMissionsModal, setShowMissionsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showBarEditor, setShowBarEditor] = useState(false);
+  
+  // ─── Action Bar Preferences ───
+  const [barPrefs, setBarPrefs] = useState<ActionBarPreferences>(loadPreferences);
+  const handleBarPrefsUpdate = useCallback((prefs: ActionBarPreferences) => {
+    setBarPrefs(prefs);
+    savePreferences(prefs);
+  }, []);
+  
+  // ─── Daily Missions (for surface card) ───
+  const dailyMissions = useDailyMissions({ availableStages });
   
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
@@ -1528,7 +1549,7 @@ function BlobbiDashboard({
               className="size-48 sm:size-56"
             />
             {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <div className="absolute bottom-14 inset-x-0 flex items-center justify-center pointer-events-none select-none">
                 <span className="text-4xl animate-bounce drop-shadow-lg">👆</span>
               </div>
             )}
@@ -1612,6 +1633,19 @@ function BlobbiDashboard({
       </div>
       )}
       
+      {/* Mission Surface Card - hidden during first-hatch tour */}
+      {!isFirstHatchTourActive && (
+        <div className="px-4 sm:px-6 mt-3">
+          <MissionSurfaceCard
+            tasks={taskProcess.tasks}
+            isInTaskProcess={taskProcess.config.isActive}
+            processType={taskProcess.config.type}
+            dailyMissions={dailyMissions.missions}
+            onViewAll={() => setShowMissionsModal(true)}
+          />
+        </div>
+      )}
+      
       {/* Bottom Action Bar - hidden during first-hatch tour */}
       {!isFirstHatchTourActive && (
         <BlobbiBottomBar
@@ -1645,8 +1679,18 @@ function BlobbiDashboard({
           onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
           onDevOpenEditor={() => setShowDevEditor(true)}
           onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
+          barPreferences={barPrefs}
+          onEditBar={() => setShowBarEditor(true)}
         />
       )}
+      
+      {/* Action Bar Editor */}
+      <ActionBarEditor
+        open={showBarEditor}
+        onOpenChange={setShowBarEditor}
+        preferences={barPrefs}
+        onUpdate={handleBarPrefsUpdate}
+      />
       
       {/* Blobbi Selector Modal */}
       <Dialog open={showSelector} onOpenChange={setShowSelector}>
@@ -2185,11 +2229,17 @@ interface BlobbiBottomBarProps {
   hideEvolveButton?: boolean;
   isIncubationAction?: boolean;
   isEvolutionAction?: boolean;
+  // ── Action bar preferences ──
+  barPreferences: ActionBarPreferences;
+  onEditBar: () => void;
   // ── Dev-only actions ──
   onDevInstantTransition?: () => void;
   onDevOpenEditor?: () => void;
   onDevOpenEmotionPanel?: () => void;
 }
+
+/** Handler map keyed by BarItemId so the bar can generically call the right action */
+type BarItemHandlers = Record<BarItemId, () => void>;
 
 function BlobbiBottomBar({
   onBlobbiesClick,
@@ -2212,20 +2262,70 @@ function BlobbiBottomBar({
   hideEvolveButton = false,
   isIncubationAction = false,
   isEvolutionAction = false,
+  // Bar preferences
+  barPreferences,
+  onEditBar,
   // Dev-only props
   onDevInstantTransition,
   onDevOpenEditor,
   onDevOpenEmotionPanel,
 }: BlobbiBottomBarProps) {
   // Determine what to show on missions badge:
-  // - If all tasks complete during active process: show "!"
-  // - If tasks remaining during active process: show count
-  // - Otherwise: no badge
-  // Works for BOTH incubating (hatch) and evolving processes
   const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
 
   const canBeCompanion = stage !== 'egg';
   const showEvolveButton = stage !== 'adult' && !hideEvolveButton;
+  
+  // Handler map for customizable items
+  const handlers: BarItemHandlers = useMemo(() => ({
+    blobbies: onBlobbiesClick,
+    missions: onMissionsClick,
+    items: onShopClick,
+    take_photo: onTakePhoto,
+    set_companion: onSetAsCompanion,
+  }), [onBlobbiesClick, onMissionsClick, onShopClick, onTakePhoto, onSetAsCompanion]);
+  
+  // Icon map for customizable items
+  const iconMap: Record<BarItemId, React.ReactNode> = useMemo(() => ({
+    blobbies: <Egg className="size-4" />,
+    missions: <Target className="size-4" />,
+    items: <Package className="size-4" />,
+    take_photo: <Camera className="size-4" />,
+    set_companion: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
+  }), [isCurrentCompanion]);
+  
+  // Label map
+  const labelMap: Record<BarItemId, string> = {
+    blobbies: 'Blobbies',
+    missions: 'Missions',
+    items: 'Items',
+    take_photo: 'Photo',
+    set_companion: isCurrentCompanion ? 'Companion' : 'Companion',
+  };
+  
+  // Badge map
+  const badgeMap: Record<BarItemId, { badge?: number | string; variant?: 'default' | 'warning' | 'success' }> = useMemo(() => ({
+    blobbies: {
+      badge: needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined,
+      variant: needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' as const : 'default' as const,
+    },
+    missions: {
+      badge: missionsBadge,
+      variant: allTasksComplete ? 'success' as const : 'default' as const,
+    },
+    items: {},
+    take_photo: {},
+    set_companion: {},
+  }), [needyBlobbiesCount, missionsBadge, allTasksComplete]);
+  
+  // Visible custom slots from preferences
+  const visibleSlots = getVisibleSlots(barPreferences);
+  
+  // Split into left group (before center) and right group (after center)
+  // Distribute: first half to left, rest to right
+  const halfIdx = Math.ceil(visibleSlots.length / 2);
+  const leftSlots = visibleSlots.slice(0, halfIdx);
+  const rightSlots = visibleSlots.slice(halfIdx);
   
   return (
     <div className="mt-6 pt-2">
@@ -2234,23 +2334,20 @@ function BlobbiBottomBar({
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
           {/* Left Group - aligned to end (closer to center) */}
           <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton 
-              onClick={onBlobbiesClick} 
-              icon={<Egg className="size-4" />} 
-              label="Blobbies" 
-              badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
-              badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
-            />
-            <BottomBarButton 
-              onClick={onMissionsClick} 
-              icon={<Target className="size-4" />} 
-              label="Missions" 
-              badge={missionsBadge}
-              badgeVariant={allTasksComplete ? 'success' : 'default'}
-            />
+            {leftSlots.map((slot) => (
+              <BottomBarButton
+                key={slot.id}
+                onClick={handlers[slot.id]}
+                icon={iconMap[slot.id]}
+                label={labelMap[slot.id]}
+                badge={badgeMap[slot.id].badge}
+                badgeVariant={badgeMap[slot.id].variant}
+                highlighted={slot.highlighted}
+              />
+            ))}
           </div>
           
-          {/* Center Action Button */}
+          {/* Center Action Button (fixed) */}
           <button
             onClick={onActionsClick}
             className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
@@ -2260,9 +2357,19 @@ function BlobbiBottomBar({
           
           {/* Right Group - aligned to start (closer to center) */}
           <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton onClick={onShopClick} icon={<Package className="size-4" />} label="Items" />
+            {rightSlots.map((slot) => (
+              <BottomBarButton
+                key={slot.id}
+                onClick={handlers[slot.id]}
+                icon={iconMap[slot.id]}
+                label={labelMap[slot.id]}
+                badge={badgeMap[slot.id].badge}
+                badgeVariant={badgeMap[slot.id].variant}
+                highlighted={slot.highlighted}
+              />
+            ))}
 
-            {/* 3-dots menu */}
+            {/* More dropdown (fixed) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -2273,6 +2380,15 @@ function BlobbiBottomBar({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end">
+                {/* Items promoted from bar into More */}
+                <DropdownMenuItem onClick={onShopClick}>
+                  <Package className="size-4 mr-2" />
+                  Items
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onMissionsClick}>
+                  <Target className="size-4 mr-2" />
+                  Missions
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onTakePhoto}>
                   <Camera className="size-4 mr-2" />
                   Take a Photo
@@ -2294,6 +2410,11 @@ function BlobbiBottomBar({
                     <ExternalLink className="size-4 mr-2" />
                     View Blobbi
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onEditBar}>
+                  <Settings2 className="size-4 mr-2" />
+                  Edit action bar
                 </DropdownMenuItem>
                 {/* DEV ONLY: Developer tools */}
                 {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
@@ -2338,9 +2459,11 @@ interface BottomBarButtonProps {
   badge?: number | string;
   /** Badge color variant */
   badgeVariant?: 'default' | 'warning' | 'success';
+  /** Show subtle highlight ring around this button */
+  highlighted?: boolean;
 }
 
-function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default' }: BottomBarButtonProps) {
+function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default', highlighted }: BottomBarButtonProps) {
   // Determine if badge should show
   const showBadge = badge !== undefined && (typeof badge === 'string' || badge > 0);
   
@@ -2354,7 +2477,10 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]"
+      className={cn(
+        "flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]",
+        highlighted && "ring-1 ring-primary/30 bg-accent/30",
+      )}
     >
       <div className="relative">
         {icon}
