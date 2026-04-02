@@ -9,6 +9,9 @@ import { useEffect, useState } from 'react';
  *
  * A threshold of 0.75 (75%) is used — if the visible area is less than 75% of
  * the layout viewport, we assume the keyboard is open.
+ *
+ * Also toggles a `keyboard-visible` class on `<html>` so pure-CSS components
+ * (e.g. Dialog, AlertDialog) can react to keyboard state without a hook.
  */
 export function useKeyboardVisible(): boolean {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -21,13 +24,18 @@ export function useKeyboardVisible(): boolean {
 
     const check = () => {
       const ratio = vv.height / window.innerHeight;
-      setIsKeyboardVisible(ratio < THRESHOLD);
+      const visible = ratio < THRESHOLD;
+      setIsKeyboardVisible(visible);
+      document.documentElement.classList.toggle('keyboard-visible', visible);
     };
 
     vv.addEventListener('resize', check);
     check();
 
-    return () => vv.removeEventListener('resize', check);
+    return () => {
+      vv.removeEventListener('resize', check);
+      document.documentElement.classList.remove('keyboard-visible');
+    };
   }, []);
 
   return isKeyboardVisible;

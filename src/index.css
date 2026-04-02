@@ -55,6 +55,13 @@
     bottom: calc(1.5rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
+  /* When the virtual keyboard is open, push dialogs toward the top of the
+     viewport so they aren't hidden behind the keyboard. */
+  .keyboard-visible .dialog-keyboard-aware {
+    top: 2rem !important;
+    transform: translateX(-50%) !important;
+  }
+
   /* Position above mobile bottom nav + safe area + arc overhang (28px) */
   .bottom-mobile-nav {
     bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px));
