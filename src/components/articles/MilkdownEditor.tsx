@@ -146,15 +146,23 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, show
     return () => dom.removeEventListener('blur', check);
   }, [get]);
 
-  // Handle external value changes (e.g., loading a draft)
+  // Handle external value changes (e.g., loading a draft).
+  // Skip when in source mode — the <textarea> owns the value and the
+  // ProseMirror editorView context isn't mounted, so replaceAll would throw.
   useEffect(() => {
+    if (sourceMode) return;
     const editor = get();
     if (editor && value !== lastExternalValue.current) {
       // Only update if the value changed externally (not from user typing)
-      editor.action(replaceAll(value));
+      try {
+        editor.action(replaceAll(value));
+      } catch {
+        // editorView may not be ready yet (e.g. first render); ignore
+        return;
+      }
       lastExternalValue.current = value;
     }
-  }, [value, get]);
+  }, [value, get, sourceMode]);
 
   // Handle link dialog open
   const handleLinkButtonClick = useCallback(() => {
