@@ -3,6 +3,12 @@ import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Globe, Image, Languages, MessageSquareOff, Radio, Search, SortDesc, Terminal, Users, Video, WandSparkles } from 'lucide-react';
+import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+
+/** Map from kind number string to friendly label like "Posts (1)". */
+const KIND_LABEL_MAP: Map<string, string> = new Map(
+  buildKindOptions().map((o) => [o.value, o.label]),
+);
 
 /** Parse a spell timestamp value into human-readable text. */
 function formatTimestamp(value: string): string {
@@ -91,8 +97,8 @@ export function SpellContent({ event }: SpellContentProps) {
           </Badge>
         )}
         {kinds.map((k) => (
-          <Badge key={k} variant="outline" className="text-xs font-mono">
-            kind:{k}
+          <Badge key={k} variant="outline" className="text-xs">
+            {KIND_LABEL_MAP.get(k) ?? `Kind ${k}`}
           </Badge>
         ))}
         {authors
