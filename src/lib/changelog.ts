@@ -11,6 +11,14 @@ interface ChangelogEntry {
   }[];
 }
 
+/** Apply basic typographic transformations to a changelog item string. */
+function prettify(text: string): string {
+  return text
+    .replace(/ -- /g, ' \u2014 ')  // space-dash-dash-space → em dash
+    .replace(/(\w)--(\w)/g, '$1\u2013$2') // word--word → en dash
+    .replace(/ (\S+)$/, '\u00A0$1'); // prevent orphaned last word
+}
+
 /**
  * Parse a Keep a Changelog formatted markdown string into structured data.
  * @see https://keepachangelog.com/
@@ -43,10 +51,10 @@ function parseChangelog(markdown: string): ChangelogEntry[] {
     if (itemMatch && current) {
       const section = current.sections[current.sections.length - 1];
       if (section) {
-        section.items.push(itemMatch[1]);
+        section.items.push(prettify(itemMatch[1]));
       } else {
         // Item without a category heading — treat as "Changed"
-        current.sections.push({ category: 'Changed', items: [itemMatch[1]] });
+        current.sections.push({ category: 'Changed', items: [prettify(itemMatch[1])] });
       }
       continue;
     }
@@ -58,10 +66,10 @@ function parseChangelog(markdown: string): ChangelogEntry[] {
       const section = current.sections[current.sections.length - 1];
       if (section) {
         // Append to last item or add new item
-        section.items.push(trimmed);
+        section.items.push(prettify(trimmed));
       } else {
         // Freeform text under version with no category — store in a generic section
-        current.sections.push({ category: 'Changed', items: [trimmed] });
+        current.sections.push({ category: 'Changed', items: [prettify(trimmed)] });
       }
     }
   }

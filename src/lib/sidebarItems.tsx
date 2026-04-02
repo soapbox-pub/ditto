@@ -26,6 +26,7 @@ import {
   Egg,
   Repeat2,
   Scroll,
+  ScrollText,
   Search,
   Settings,
   Smile,
@@ -133,6 +134,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText },
   {
     id: "letters",
     label: "Letters",
