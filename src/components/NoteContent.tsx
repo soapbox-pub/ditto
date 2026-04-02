@@ -545,7 +545,7 @@ export function NoteContent({
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 align-text-bottom' : undefined))}</span>;
+            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined))}</span>;
           case 'image-embed': {
             if (disableEmbeds) {
               // In preview contexts (e.g. triple-dot menu), replace image URLs

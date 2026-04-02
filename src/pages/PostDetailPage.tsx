@@ -12,6 +12,8 @@ import {
   MessageCircle,
   MoreHorizontal,
   Radio,
+  Package,
+  Rocket,
   Share2,
   Star,
   Zap,
@@ -51,7 +53,7 @@ import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
-import { NoteCard } from "@/components/NoteCard";
+import { EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -83,6 +85,7 @@ import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
@@ -133,6 +136,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === 31990) return "App";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 20) return "Photo";
@@ -998,6 +1002,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isVanish = event.kind === VANISH_KIND;
@@ -1025,6 +1030,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isCommunity &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
     !isVanish &&
@@ -1438,11 +1444,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <div className="flex items-center gap-3">
             {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
-            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+            <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
               <ReactionEmoji
                 content={event.content}
                 tags={event.tags}
-                className="text-xl leading-none"
+                className="h-6 w-6 object-contain"
               />
             </div>
 
@@ -1933,6 +1939,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Main post — expanded Ditto-style view */}
       {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          {/* Kind action header for app handlers */}
+          {isAppHandler && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published an app" />
+          )}
+          {isNsite && (
+            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action="deployed an" noun="nsite" nounRoute="/development" />
+          )}
+
           {/* Author row */}
           <div className="flex items-center gap-3">
             {author.isLoading ? (
@@ -2044,6 +2058,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isAppHandler ? (
+              <AppHandlerContent event={event} />
             ) : isEncryptedDM ? (
               <EncryptedMessageContent event={event} />
             ) : isLetter ? (
@@ -2148,7 +2164,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                         <RenderResolvedEmoji
                           key={i}
                           emoji={emoji}
-                          className="h-4 w-4 leading-none"
+                          className="h-4 w-4 object-contain leading-none"
                         />
                       ))}
                     </span>

@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.3.0] - 2026-04-02
+
+### Added
+- In-app article editor with a rich text toolbar, image uploads, auto-saving drafts, and a "My Articles" tab to manage drafts and published articles
+
+### Fixed
+- Custom emoji no longer stretch to fill their container
+- Mobile drawer now closes when tapping footer links like Changelog or Privacy
+- Logged-out users now default to the global tab on content feeds instead of seeing an empty follows tab
+
+## [2.2.11] - 2026-04-02
+
+### Fixed
+- Fix crash caused by the "What's new" toast firing outside the router
+
+## [2.2.10] - 2026-04-02
+
+### Added
+- App cards for Nostr apps now display in feeds and detail pages with hero images, icons, and quick-launch buttons
+- "What's new" toast appears after an app update with a changelog preview and link to the full changelog
+
+### Changed
+- Changelog page redesigned with a hero section for the latest release, collapsible older entries, and category icons inline with each item
+
+### Fixed
+- Compose box now fully resets to its collapsed state after posting, including poll options and media trays
+
 ## [2.2.9] - 2026-04-01
 
 ### Added
@@ -36,7 +63,7 @@
 ### Added
 - Encrypted letters now appear as interactive 3D envelopes with Nushu script -- flip and open them to reveal the secret writing inside
 - Zap receipts and profile metadata events now render in feeds and detail pages
-- Remote signer callback page for NIP-46 login flows (Amber, Primal)
+- Remote signer callback page for login flows with Amber, Primal, and other signing apps
 
 ### Changed
 - Post action buttons extracted into a reusable PostActionBar component
@@ -91,11 +118,11 @@
 ## [2.2.2] - 2026-03-29
 
 ### Added
-- Dedicated photo upload flow for sharing photos as NIP-68 kind 20 events
+- Dedicated photo upload flow for sharing photos
 - Pull-to-refresh on all feed pages
 - 3D tilt effect on badge images -- hover over badges to see them pop
 - Multi-select badge awarding with indicators for already-sent badges
-- Badge list recovery dialog for restoring kind 10008 profile badge lists
+- Badge list recovery dialog for restoring profile badge lists
 - Compact badge row preview in embedded profile badges events
 - Custom emoji usage tracking so your most-used custom emojis appear in the quick-react bar
 - Release notes now included in Zapstore publishing
@@ -114,7 +141,7 @@
 - Double-tap reactions now properly show the emoji on the post
 - Emoji shortcode autocomplete text and highlight colors
 - Profile skeleton no longer flickers for brand-new users with no metadata
-- Addressable event routing now works correctly for replaceable events (kind 10000-19999)
+- Event links now route correctly for all event types
 - Badge notifications are now clickable
 - Custom profile tab form no longer retains fields from a previously edited tab
 - Double line under profile tabs in edit mode
@@ -141,10 +168,10 @@
 - Blobbi shop and inventory system with items that affect your pet's stats
 - Daily missions with reroll, care streaks, and stage-based rewards
 - Immersive full-screen divines experience on both mobile and desktop with floating controls
-- NIP-11 relay information panel on the network settings page
+- Relay information panel on the network settings page
 - Link preview cards now display inside quoted posts instead of raw URLs
 - Nsec paste guard warns you before accidentally pasting private keys outside the login field
-- Remote signer UX improvements for Amber and NIP-46 users on Android
+- Remote signer UX improvements for Amber users on Android
 - Badge awards now trigger push notifications
 - Badges display in profile bio section with a "Give badge" option in the profile menu
 

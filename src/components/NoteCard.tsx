@@ -74,6 +74,7 @@ import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
@@ -306,6 +307,7 @@ export const NoteCard = memo(function NoteCard({
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isVanish = event.kind === 62;
@@ -336,6 +338,7 @@ export const NoteCard = memo(function NoteCard({
     !isAudioKind &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
     !isVanish &&
@@ -532,6 +535,8 @@ export const NoteCard = memo(function NoteCard({
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
+        ) : isAppHandler ? (
+          <AppHandlerContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
@@ -789,11 +794,11 @@ export const NoteCard = memo(function NoteCard({
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
               {/* Reaction emoji bubble instead of avatar */}
-              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0">
+              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-lg leading-none">
                 <ReactionEmoji
                   content={event.content}
                   tags={event.tags}
-                  className="text-lg leading-none"
+                  className="h-5 w-5 object-contain"
                 />
               </div>
               {threaded && (
@@ -870,11 +875,11 @@ export const NoteCard = memo(function NoteCard({
       >
         <div className="flex items-center gap-3">
           {/* Large reaction emoji */}
-          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0">
+          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
             <ReactionEmoji
               content={event.content}
               tags={event.tags}
-              className="text-xl leading-none"
+              className="h-6 w-6 object-contain"
             />
           </div>
 
@@ -1999,6 +2004,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
         : "streamed",
   },
   32267: {
+    icon: Package,
+    action: "published an app",
+  },
+  31990: {
     icon: Package,
     action: "published an app",
   },

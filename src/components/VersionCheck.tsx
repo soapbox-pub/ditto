@@ -19,8 +19,11 @@ async function fetchChangelogExcerpt(version: string): Promise<string | undefine
     const entry = entries.find((e) => e.version === version) ?? entries[0];
     if (!entry) return undefined;
 
-    // Return the first item from the first section.
-    return entry.sections[0]?.items[0];
+    // Return a truncated first item from the first section.
+    const item = entry.sections[0]?.items[0];
+    if (!item) return undefined;
+    if (item.length <= 60) return item;
+    return item.slice(0, 60).trimEnd() + '…';
   } catch {
     return undefined;
   }

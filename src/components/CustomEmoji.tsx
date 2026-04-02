@@ -15,7 +15,7 @@ interface CustomEmojiImgProps {
 /**
  * Renders a single custom emoji as an inline image.
  */
-export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] align-text-bottom' }: CustomEmojiImgProps) {
+export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom' }: CustomEmojiImgProps) {
   return (
     <img
       src={url}
@@ -52,7 +52,7 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
     const url = getCustomEmojiUrl(emoji, tags);
     if (url) {
       const name = emoji.slice(1, -1);
-      return <CustomEmojiImg name={name} url={url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-text-bottom'} />;
+      return <CustomEmojiImg name={name} url={url} className={className ?? 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom'} />;
     }
   }
 
@@ -70,7 +70,7 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
  */
 export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji; className?: string }) {
   if (emoji.url && emoji.name) {
-    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-middle'} />;
+    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] object-contain align-middle'} />;
   }
   return <span className={cn('inline-block leading-none', className)}>{emoji.content}</span>;
 }

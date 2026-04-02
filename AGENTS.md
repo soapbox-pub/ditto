@@ -716,6 +716,43 @@ await publishEvent({ kind: 10003, content: freshEvent?.content ?? '', tags: newT
 
 This applies to all list-type hooks (bookmarks, pins, interests, follow sets, badges, etc.). See `useFollowActions` and `useMuteList` for complete examples.
 
+### D-Tag Collision Prevention for Addressable Events
+
+Addressable events (kind 30000-39999) are identified by `pubkey + kind + d-tag`. Publishing an event with the same d-tag as an existing one **silently replaces** it. This is by design for intentional updates (edit flows), but dangerous when creating *new* content with user-derived d-tags (slugs from titles, user-entered identifiers, etc.).
+
+#### When to Check for Collisions
+
+**Must check before publishing** when the d-tag is derived from user input (slugified titles, user-entered identifiers, etc.). **No check needed** when the d-tag is a `crypto.randomUUID()`, a canonical format with embedded pubkey prefix, or intentionally the same as an existing event (edit/update flows).
+
+#### Implementation Pattern
+
+Before publishing a **new** addressable event with a user-derived d-tag, query for an existing event with that d-tag. If one exists, block the publish and tell the user to change the identifier.
+
+```typescript
+// Before publishing a new addressable event:
+const slug = slugify(title, { lower: true, strict: true });
+
+const existing = await nostr.query([
+  { kinds: [30023], authors: [user.pubkey], '#d': [slug], limit: 1 },
+]);
+
+if (existing.length > 0) {
+  toast({
+    title: 'Slug already in use',
+    description: 'Change the slug or edit the existing item.',
+    variant: 'destructive',
+  });
+  return;
+}
+
+// Safe to publish
+publishEvent({ kind: 30023, content, tags: [['d', slug], ...otherTags] });
+```
+
+**Skip the check in edit mode** -- when the user explicitly loaded an existing event to update, overwriting is the intended behavior.
+
+Prefer UUID or canonical formats when the d-tag doesn't need to be human-readable. Only use slugified input when the d-tag will appear in URLs or needs to be meaningful to users, and always add a collision check.
+
 ### Nostr Login
 
 To enable login with Nostr, simply use the `LoginArea` component already included in this project.
