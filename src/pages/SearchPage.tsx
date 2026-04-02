@@ -417,22 +417,32 @@ export function SearchPage() {
 
   const handleSaveProfileTab = async () => {
     if (!saveFeedLabel.trim() || isPublishingTabs || !user) return;
-    // Profile tabs still use TabFilter format (will be migrated to spells in Step 4)
-    const profileTabFilter: Record<string, unknown> = {};
-    if (debouncedSearchQuery.trim()) profileTabFilter.search = debouncedSearchQuery.trim();
-    if (kindsOverride && kindsOverride.length > 0) profileTabFilter.kinds = kindsOverride;
-    if (authorScope === 'follows') profileTabFilter.authors = ['$follows'];
-    else if (authorScope === 'people' && authorPubkeys.length > 0) profileTabFilter.authors = authorPubkeys;
-    if (!includeReplies) profileTabFilter.includeReplies = false;
-    if (mediaType !== 'all') profileTabFilter.mediaType = mediaType;
-    if (language !== 'global') profileTabFilter.language = language;
-    if (platform !== 'nostr') profileTabFilter.platform = platform;
-    if (sort !== 'recent') profileTabFilter.sort = sort;
 
-    const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
+    // Build authors array
+    let profileAuthors: string[] | undefined;
+    if (authorScope === 'follows') profileAuthors = ['$contacts'];
+    else if (authorScope === 'people' && authorPubkeys.length > 0) profileAuthors = authorPubkeys;
+
+    const tags = buildSpellTags({
+      name: saveFeedLabel.trim(),
+      kinds: kindsOverride && kindsOverride.length > 0 ? kindsOverride : undefined,
+      authors: profileAuthors,
+      search: debouncedSearchQuery.trim() || undefined,
+      includeReplies: includeReplies ? undefined : false,
+      media: mediaType !== 'all' ? mediaType : undefined,
+      language: language !== 'global' ? language : undefined,
+      platform: platform !== 'nostr' ? platform : undefined,
+      sort: sort !== 'recent' ? sort : undefined,
+    });
+
+    const spellEvent: NostrEvent = {
+      id: '', pubkey: '', created_at: Math.floor(Date.now() / 1000),
+      kind: 777, tags, content: '', sig: '',
+    };
+
+    const existing = profileTabsQuery.data ?? { tabs: [] };
     await publishProfileTabs({
-      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: profileTabFilter }],
-      vars: existing.vars,
+      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), spell: spellEvent }],
     });
     setSavePopoverOpen(false);
     setSaveFeedLabel('');

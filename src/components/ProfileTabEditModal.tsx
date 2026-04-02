@@ -2,10 +2,7 @@
  * ProfileTabEditModal
  *
  * Modal for adding or editing a custom profile tab (kind 16769).
- * Opens with an optional existing tab to edit; otherwise creates a new one.
- *
- * Streamlined for profile tabs: only Search Query, Author Scope (Me / Contacts / People / Global),
- * and multi-select Kind picker.
+ * Produces a kind:777 spell event from the UI state.
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
@@ -33,7 +30,9 @@ import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import type { ProfileTab, TabFilter } from '@/lib/profileTabsEvent';
+import { buildSpellTags } from '@/lib/spellEngine';
+import type { ProfileTab } from '@/lib/profileTabsEvent';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 
 interface ProfileTabEditModalProps {
@@ -52,41 +51,34 @@ interface ProfileTabEditModalProps {
 
 type ProfileAuthorScope = 'me' | 'contacts' | 'people' | 'global';
 
-/** Map from simplified scope to filter fields (excluding people's authors which are stored separately). */
-function scopeToFilter(scope: ProfileAuthorScope, ownerPubkey: string, peoplePubkeys: string[]): Partial<TabFilter> {
-  switch (scope) {
-    case 'me':
-      return { authors: [ownerPubkey] };
-    case 'contacts':
-      // Uses $follows variable — handled at event level via var tags
-      return { authors: ['$follows'] };
-    case 'people':
-      return peoplePubkeys.length > 0 ? { authors: peoplePubkeys } : {};
-    case 'global':
-      return {};
-  }
-}
-
-/** Derive the simplified scope from a TabFilter. */
-function filterToScope(filter: TabFilter, ownerPubkey: string): ProfileAuthorScope {
-  const authors = Array.isArray(filter.authors) ? filter.authors as string[] : [];
+/** Derive the author scope from a spell event's tags. */
+function spellToScope(spell: NostrEvent | undefined, ownerPubkey: string): ProfileAuthorScope {
+  if (!spell) return 'me';
+  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
   if (authors.length === 1 && authors[0] === ownerPubkey) return 'me';
-  if (authors.includes('$follows')) return 'contacts';
-  if (authors.length > 0) return 'people'; // has specific authors → people scope
+  if (authors.includes('$me')) return 'me';
+  if (authors.includes('$contacts')) return 'contacts';
+  if (authors.length > 0) return 'people';
   return 'global';
 }
 
-/** Extract people pubkeys from a TabFilter (non-variable, non-owner pubkeys). */
-function filterToPeoplePubkeys(filter: TabFilter, ownerPubkey: string): string[] {
-  const authors = Array.isArray(filter.authors) ? filter.authors as string[] : [];
-  if (authors.includes('$follows')) return [];
-  if (authors.length === 1 && authors[0] === ownerPubkey) return [];
+/** Extract explicit author pubkeys from a spell event (excluding variables and owner). */
+function spellToPeoplePubkeys(spell: NostrEvent | undefined, ownerPubkey: string): string[] {
+  if (!spell) return [];
+  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
   return authors.filter((a) => a !== ownerPubkey && !a.startsWith('$'));
 }
 
-/** Serialize selected kind values into a kinds array for the filter. */
-function serializeSelectedKinds(kinds: string[]): number[] {
-  return kinds.map(Number).filter((n) => !isNaN(n) && n > 0);
+/** Extract kinds from a spell event's k tags. */
+function spellToKinds(spell: NostrEvent | undefined): string[] {
+  if (!spell) return [];
+  return spell.tags.filter(([t]) => t === 'k').map(([, v]) => v);
+}
+
+/** Extract search query from a spell event. */
+function spellToSearch(spell: NostrEvent | undefined): string {
+  if (!spell) return '';
+  return spell.tags.find(([t]) => t === 'search')?.[1] ?? '';
 }
 
 // ─── Author Scope Options ─────────────────────────────────────────────────────
@@ -113,24 +105,11 @@ export function ProfileTabEditModal({
   const { data: followPacks = [] } = useFollowPacks();
   const isNew = !tab;
 
-  const initialFilter = useMemo<TabFilter>(() => {
-    if (tab) return tab.filter;
-    return { authors: [ownerPubkey] };
-  }, [tab, ownerPubkey]);
-
   const [label, setLabel] = useState(tab?.label ?? '');
-  const [query, setQuery] = useState(
-    typeof initialFilter.search === 'string' ? initialFilter.search : '',
-  );
-  const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(
-    filterToScope(initialFilter, ownerPubkey),
-  );
-  const [peoplePubkeys, setPeoplePubkeys] = useState<string[]>(
-    filterToPeoplePubkeys(initialFilter, ownerPubkey),
-  );
-  const [selectedKinds, setSelectedKinds] = useState<string[]>(
-    parseSelectedKinds(initialFilter),
-  );
+  const [query, setQuery] = useState(() => spellToSearch(tab?.spell));
+  const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(() => spellToScope(tab?.spell, ownerPubkey));
+  const [peoplePubkeys, setPeoplePubkeys] = useState<string[]>(() => spellToPeoplePubkeys(tab?.spell, ownerPubkey));
+  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellToKinds(tab?.spell));
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const listPickerValue = useMatchedListId(peoplePubkeys);
@@ -156,36 +135,49 @@ export function ProfileTabEditModal({
   }, []);
 
   // Reset form state whenever the modal opens or the tab being edited changes.
-  // This runs as an effect rather than inside onOpenChange because the Dialog
-  // does not fire onOpenChange when opened programmatically via the `open` prop.
   useEffect(() => {
     if (open) {
-      const f = tab ? tab.filter : { authors: [ownerPubkey] };
       setLabel(tab?.label ?? '');
-      setQuery(typeof f.search === 'string' ? f.search : '');
-      setAuthorScope(filterToScope(f, ownerPubkey));
-      setPeoplePubkeys(filterToPeoplePubkeys(f, ownerPubkey));
-      setSelectedKinds(parseSelectedKinds(f));
+      setQuery(spellToSearch(tab?.spell));
+      setAuthorScope(spellToScope(tab?.spell, ownerPubkey));
+      setPeoplePubkeys(spellToPeoplePubkeys(tab?.spell, ownerPubkey));
+      setSelectedKinds(spellToKinds(tab?.spell));
     }
   }, [open, tab, ownerPubkey]);
 
   const handleSave = async () => {
     if (!label.trim() || isPending) return;
 
-    const filter: TabFilter = {
-      ...scopeToFilter(authorScope, ownerPubkey, peoplePubkeys),
+    // Build authors array based on scope
+    let authors: string[] | undefined;
+    if (authorScope === 'me') {
+      authors = ['$me'];
+    } else if (authorScope === 'contacts') {
+      authors = ['$contacts'];
+    } else if (authorScope === 'people' && peoplePubkeys.length > 0) {
+      authors = peoplePubkeys;
+    }
+
+    const kinds = selectedKinds.map(Number).filter((n) => !isNaN(n) && n > 0);
+
+    const tags = buildSpellTags({
+      name: label.trim(),
+      kinds: kinds.length > 0 ? kinds : undefined,
+      authors,
+      search: query.trim() || undefined,
+    });
+
+    const spellEvent: NostrEvent = {
+      id: '',
+      pubkey: '',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 777,
+      tags,
+      content: '',
+      sig: '',
     };
 
-    if (query.trim()) {
-      filter.search = query.trim();
-    }
-
-    const kinds = serializeSelectedKinds(selectedKinds);
-    if (kinds.length > 0) {
-      filter.kinds = kinds;
-    }
-
-    await onSave({ label: label.trim(), filter });
+    await onSave({ label: label.trim(), spell: spellEvent });
     onOpenChange(false);
   };
 
