@@ -115,7 +115,7 @@ const KIND_LABELS: Record<number, string> = {
   30817: 'a custom NIP',
   31922: 'a calendar event',
   31923: 'a calendar event',
-  31990: 'an app handler',
+  31990: 'an app',
   32267: 'an app',
   34139: 'a playlist',
   34236: 'a divine',
@@ -230,14 +230,14 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     return { text: siteName ? `${siteName} nsite` : 'an nsite', icon };
   }
 
-  // NIP-89 app handlers: name lives in JSON content, not in tags
+  // NIP-89 apps: name lives in JSON content, not in tags
   if (event.kind === 31990) {
     try {
       const meta = JSON.parse(event.content);
       const appName = meta?.name || event.tags.find(([n]) => n === 'name')?.[1];
       if (appName) return { text: `${appName} app`, icon };
     } catch { /* fall through */ }
-    return { text: 'an app handler', icon };
+    return { text: 'an app', icon };
   }
 
   // Extract a title-like string from tags

@@ -548,7 +548,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   30008: 'profile badges',
   30817: 'repository issue',
   32267: 'app',
-  31990: 'app handler',
+  31990: 'app',
   30063: 'release',
 };
 

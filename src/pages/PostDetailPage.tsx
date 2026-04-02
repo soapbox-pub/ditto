@@ -134,7 +134,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
-  if (kind === 31990) return "App Handler";
+  if (kind === 31990) return "App";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 20) return "Photo";
