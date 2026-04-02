@@ -15,6 +15,7 @@ import {
   HardDrive,
   Trash2,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import slugify from 'slugify';
 import { useNostr } from '@nostrify/react';
@@ -43,6 +44,8 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDrafts, type Draft } from '@/hooks/useDrafts';
 import { usePublishedArticles } from '@/hooks/usePublishedArticles';
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { saveDraft as saveLocalDraft, deleteDraftBySlug, deleteLocalDraftById, getLocalDrafts } from '@/lib/localDrafts';
 import type { ArticleFields } from '@/lib/articleHelpers';
 import { MilkdownEditor } from './MilkdownEditor';
@@ -82,6 +85,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const [originalPublishedAt, setOriginalPublishedAt] = useState<number | null>(
     initialData?.publishedAt ?? null,
   );
+  const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const keyboardVisible = useKeyboardVisible();
+  const isMobile = useIsMobile();
 
   const [article, setArticle] = useState<ArticleData>({
     title: initialData?.title || '',
@@ -511,28 +517,49 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   return (
     <div className="flex flex-col">
-      {/* Sticky header */}
+      {/* Sticky header — hide tabs on mobile when in write mode to save vertical space */}
       <div className="sticky top-0 z-20">
-        <SubHeaderBar pinned className="relative !top-0">
-          <button
-            onClick={handleBack}
-            className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
+        {isMobile && activeTab === 'write' ? (
+          <SubHeaderBar pinned className="relative !top-0" noArc>
+            <button
+              onClick={handleBack}
+              className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
+            <span className="text-sm font-medium truncate py-2 px-2">
+              {isEditMode ? 'Edit Article' : (article.title || 'New Article')}
+            </span>
+            <span className="flex-1" />
+            <button
+              onClick={() => setActiveTab('drafts')}
+              className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              My Articles
+            </button>
+          </SubHeaderBar>
+        ) : (
+          <SubHeaderBar pinned className="relative !top-0">
+            <button
+              onClick={handleBack}
+              className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ArrowLeft className="size-5" />
+            </button>
 
-          <TabButton
-            label="New"
-            active={activeTab === 'write'}
-            onClick={() => setActiveTab('write')}
-          />
+            <TabButton
+              label="New"
+              active={activeTab === 'write'}
+              onClick={() => setActiveTab('write')}
+            />
 
-          <TabButton
-            label="My Articles"
-            active={activeTab === 'drafts'}
-            onClick={() => setActiveTab('drafts')}
-          />
-        </SubHeaderBar>
+            <TabButton
+              label="My Articles"
+              active={activeTab === 'drafts'}
+              onClick={() => setActiveTab('drafts')}
+            />
+          </SubHeaderBar>
+        )}
       </div>
 
       <input
@@ -544,133 +571,220 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       />
       {/* ── New article tab ──────────────────────────────────────── */}
       {activeTab === 'write' && (
-        <div className="px-4 py-6 pb-24 space-y-6">
-          {/* Header Image */}
-          {article.image ? (
-            <div className="relative rounded-xl overflow-hidden group">
-              <img
-                src={article.image}
-                alt="Header"
-                className="w-full h-48 sm:h-64 object-cover"
-              />
-              {/* Desktop: centered overlay on hover */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <Button
-                  variant="secondary"
-                  size="sm"
+        <div className={`px-4 pb-24 space-y-4 sm:space-y-6 ${keyboardVisible ? 'py-2' : 'py-4 sm:py-6'}`}>
+          {/* Header Image — hide when keyboard is visible on mobile */}
+          {!(isMobile && keyboardVisible) && (
+            <>
+              {article.image ? (
+                <div className="relative rounded-xl overflow-hidden group">
+                  <img
+                    src={article.image}
+                    alt="Header"
+                    className="w-full h-48 sm:h-64 object-cover"
+                  />
+                  {/* Desktop: centered overlay on hover */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Image className="w-4 h-4 mr-2" />
+                      )}
+                      Change Image
+                    </Button>
+                  </div>
+                  {/* Mobile: persistent corner button */}
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
+                  className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
                 >
                   {isUploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
                   ) : (
-                    <Image className="w-4 h-4 mr-2" />
+                    <Image className="w-8 h-8 mb-2" />
                   )}
-                  Change Image
-                </Button>
-              </div>
-              {/* Mobile: persistent corner button */}
-              <Button
-                variant="secondary"
-                size="icon"
-                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Image className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
-            >
-              {isUploading ? (
-                <Loader2 className="w-8 h-8 animate-spin mb-2" />
-              ) : (
-                <Image className="w-8 h-8 mb-2" />
+                  <span className="text-sm">Add a header image</span>
+                </button>
               )}
-              <span className="text-sm">Add a header image</span>
-            </button>
+            </>
           )}
 
-          {/* Title */}
+          {/* Title — always visible, slightly smaller when keyboard is up on mobile */}
           <input
             type="text"
             value={article.title}
             onChange={(e) => updateArticle('title', e.target.value)}
             placeholder="Your article title..."
-            className="w-full text-3xl sm:text-4xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+            className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
+              isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
+            }`}
           />
 
-          {/* Metadata — inline between title and body */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
-              <Textarea
-                id="summary"
-                value={article.summary}
-                onChange={(e) => updateArticle('summary', e.target.value)}
-                placeholder="A brief description of your article..."
-                rows={2}
-                className="resize-none"
-              />
-            </div>
+          {/* Metadata — collapsible on mobile, always expanded on desktop */}
+          {isMobile ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setMetadataExpanded((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${metadataExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                <span>Details</span>
+                {(article.summary || article.tags.length > 0) && (
+                  <span className="text-muted-foreground/60">
+                    ({[article.summary && 'summary', article.tags.length > 0 && `${article.tags.length} tags`].filter(Boolean).join(', ')})
+                  </span>
+                )}
+              </button>
+              {metadataExpanded && (
+                <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="summary" className="text-muted-foreground text-xs">Summary</Label>
+                    <Textarea
+                      id="summary"
+                      value={article.summary}
+                      onChange={(e) => updateArticle('summary', e.target.value)}
+                      placeholder="A brief description of your article..."
+                      rows={2}
+                      className="resize-none text-sm"
+                    />
+                  </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="space-y-1.5 flex-1">
-                <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
-                <Input
-                  id="slug"
-                  value={article.slug}
-                  onChange={(e) => {
-                    slugManuallyEdited.current = true;
-                    updateArticle('slug', e.target.value);
-                  }}
-                  placeholder="article-url-slug"
-                  className="h-8 font-mono text-xs"
+                  <div className="space-y-1.5">
+                    <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
+                    <Input
+                      id="slug"
+                      value={article.slug}
+                      onChange={(e) => {
+                        slugManuallyEdited.current = true;
+                        updateArticle('slug', e.target.value);
+                      }}
+                      placeholder="article-url-slug"
+                      className="h-8 font-mono text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
+                      <Hash className="w-3 h-3 shrink-0" />
+                      Tags
+                    </Label>
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' && (e.preventDefault(), handleAddTag())
+                        }
+                        placeholder="Add a tag..."
+                        className="h-8 text-xs flex-1"
+                      />
+                      <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                        <span className="text-base leading-none">+</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {article.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {article.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1 px-2 py-0.5 text-xs">
+                          #{tag}
+                          <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
+                <Textarea
+                  id="summary"
+                  value={article.summary}
+                  onChange={(e) => updateArticle('summary', e.target.value)}
+                  placeholder="A brief description of your article..."
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
-              <div className="space-y-1.5 flex-1">
-                <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
-                  <Hash className="w-3 h-3 shrink-0" />
-                  Tags
-                </Label>
-                <div className="flex gap-1.5">
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="space-y-1.5 flex-1">
+                  <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
                   <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === 'Enter' && (e.preventDefault(), handleAddTag())
-                    }
-                    placeholder="Add a tag..."
-                    className="h-8 text-xs flex-1"
+                    id="slug"
+                    value={article.slug}
+                    onChange={(e) => {
+                      slugManuallyEdited.current = true;
+                      updateArticle('slug', e.target.value);
+                    }}
+                    placeholder="article-url-slug"
+                    className="h-8 font-mono text-xs"
                   />
-                  <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
-                    <span className="text-base leading-none">+</span>
-                  </Button>
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
+                    <Hash className="w-3 h-3 shrink-0" />
+                    Tags
+                  </Label>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) =>
+                        e.key === 'Enter' && (e.preventDefault(), handleAddTag())
+                      }
+                      placeholder="Add a tag..."
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                      <span className="text-base leading-none">+</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {article.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {article.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
-                    #{tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
+              {article.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {article.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
+                      #{tag}
+                      <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Editor */}
           <MilkdownEditor
@@ -678,32 +792,36 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
             onChange={(value) => updateArticle('content', value || '')}
             onUploadImage={handleImageUpload}
             placeholder="Start writing your article..."
-            className="rounded-xl border border-border bg-card min-h-[250px] sm:min-h-[400px]"
+            className={`rounded-xl border border-border bg-card ${
+              isMobile && keyboardVisible ? 'min-h-[150px]' : 'min-h-[250px] sm:min-h-[400px]'
+            }`}
           />
 
-          {/* Stats + Save */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-              <span className="shrink-0">{wordCount} words</span>
-              <span>·</span>
-              <span className="shrink-0">{readingTime} min read</span>
-              {statusLabel && (
-                <>
-                  <span>·</span>
-                  {statusLabel}
-                </>
-              )}
+          {/* Stats + Save — hide when keyboard is visible on mobile */}
+          {!(isMobile && keyboardVisible) && (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                <span className="shrink-0">{wordCount} words</span>
+                <span>·</span>
+                <span className="shrink-0">{readingTime} min read</span>
+                {statusLabel && (
+                  <>
+                    <span>·</span>
+                    {statusLabel}
+                  </>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveDraft}
+                className="rounded-full gap-1.5 shrink-0"
+              >
+                <Save className="size-3.5" />
+                Save Draft
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveDraft}
-              className="rounded-full gap-1.5 shrink-0"
-            >
-              <Save className="size-3.5" />
-              Save Draft
-            </Button>
-          </div>
+          )}
         </div>
       )}
 
@@ -816,18 +934,20 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         </div>
       )}
 
-      {/* Publish FAB — mobile: fixed bottom right */}
-      <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-        <FabButton
-          onClick={handlePublish}
-          disabled={isPublishing || !user}
-          title={isEditMode ? 'Update article' : 'Publish article'}
-          icon={isPublishing
-            ? <Loader2 size={18} className="animate-spin" />
-            : <Send strokeWidth={3} size={18} />
-          }
-        />
-      </div>
+      {/* Publish FAB — mobile: fixed bottom right, hidden when keyboard is up */}
+      {!keyboardVisible && (
+        <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
+          <FabButton
+            onClick={handlePublish}
+            disabled={isPublishing || !user}
+            title={isEditMode ? 'Update article' : 'Publish article'}
+            icon={isPublishing
+              ? <Loader2 size={18} className="animate-spin" />
+              : <Send strokeWidth={3} size={18} />
+            }
+          />
+        </div>
+      )}
       {/* Publish FAB — desktop: sticky within column */}
       <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
         <div className="flex justify-end pr-4">
