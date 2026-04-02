@@ -62,12 +62,6 @@ export function useSavedFeeds() {
     await persist(savedFeeds.filter((f) => f.id !== id));
   };
 
-  /** Rename a saved feed. */
-  const renameSavedFeed = async (id: string, label: string): Promise<void> => {
-    if (!user) throw new Error('Must be logged in to rename feeds');
-    await persist(savedFeeds.map((f) => f.id === id ? { ...f, label: label.trim() } : f));
-  };
-
   /** Update a saved feed's label and/or spell. */
   const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'spell'>>): Promise<void> => {
     if (!user) throw new Error('Must be logged in to update feeds');
@@ -81,7 +75,6 @@ export function useSavedFeeds() {
     isLoading,
     addSavedFeed,
     removeSavedFeed,
-    renameSavedFeed,
     updateSavedFeed,
     isPending: updateSettings.isPending,
   };

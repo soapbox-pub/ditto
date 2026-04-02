@@ -1,14 +1,7 @@
 /**
- * SavedFeedFiltersEditor
- *
- * A controlled component that renders filter controls for a standard
- * NIP-01 filter object (TabFilter). Used on the Search page filter
- * popover and in the Settings > Feed saved-feed edit panel.
- *
- * Edits the following filter fields:
- * - `kinds` (array of kind numbers)
- * - `authors` (array of pubkeys)
- * - `search` (NIP-50 search string)
+ * Shared filter sub-components used by FeedEditModal, ProfileTabEditModal,
+ * ContentSettings, and the Search page. Includes MultiKindPicker, ScopeToggle,
+ * AuthorChip, AuthorFilterDropdown, and ListPackPicker.
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {

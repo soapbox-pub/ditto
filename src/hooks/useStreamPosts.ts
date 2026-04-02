@@ -72,21 +72,14 @@ function filterEvent(
   const protocols = options.protocols ?? ['nostr'];
   if (!protocols.includes('nostr') || protocols.length > 1) {
     const proxyTag = event.tags.find(([name]) => name === 'proxy');
-    if (protocols.includes('nostr') && !protocols.some(p => p !== 'nostr')) {
-      // nostr only: reject events with a proxy tag
-      if (proxyTag) return false;
-    } else {
-      // bridged protocol selected: only keep events that have a matching proxy tag
-      // and optionally native nostr events if 'nostr' is also in protocols
-      const hasProxy = !!proxyTag;
-      const isNative = !hasProxy;
-      if (isNative && !protocols.includes('nostr')) return false;
-      if (hasProxy) {
-        // proxy tag format: ['proxy', '<uri>', '<protocol>']
-        const proxyProtocol = proxyTag?.[2]?.toLowerCase();
-        const wantedBridged = protocols.filter(p => p !== 'nostr');
-        if (!wantedBridged.some(p => proxyProtocol?.includes(p))) return false;
-      }
+    const hasProxy = !!proxyTag;
+    const isNative = !hasProxy;
+    if (isNative && !protocols.includes('nostr')) return false;
+    if (hasProxy) {
+      // proxy tag format: ['proxy', '<uri>', '<protocol>']
+      const proxyProtocol = proxyTag?.[2]?.toLowerCase();
+      const wantedBridged = protocols.filter(p => p !== 'nostr');
+      if (!wantedBridged.some(p => proxyProtocol?.includes(p))) return false;
     }
   }
 
@@ -418,8 +411,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
 
     // Determine relay routing for the initial query.
-    // When useDittoOnly is true (spell uses NIP-50 extensions), both the
-    // initial query and streaming go through Ditto relays exclusively.
+    // Ditto relays are required when the NIP-50 search string contains
+    // extensions like `language:`, `protocol:`, `media:`, or `sort:` that
+    // standard relays don't support. When the query has none of these
+    // extensions the user's own relays are appropriate.
     const initialStore = useDittoOnly ? nostr.group(DITTO_RELAYS) : nostr;
 
     // 1. Fetch initial batch with search filters
