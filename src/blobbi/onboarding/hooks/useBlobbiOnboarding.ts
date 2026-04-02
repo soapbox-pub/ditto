@@ -456,17 +456,18 @@ export function useBlobbiOnboarding({
       
       updateCompanionEvent(eggEvent);
       
-      // 2. Update profile: deduct coins, add to has, mark onboarding done
+      // 2. Update profile: deduct coins, add to has list
       // NOTE: We do NOT set current_companion here because the adopted Blobbi
       // is still an egg. The companion mechanic only becomes available after hatching.
       // Eggs should never be auto-assigned as the floating companion.
+      // NOTE: blobbi_onboarding_done is NOT set here — adoption alone does not
+      // complete onboarding. It is set when the first-hatch tour finishes.
       const newCoins = coins - BLOBBI_ADOPTION_COST;
       const newHas = [...profile.has, preview.d];
       
       const profileUpdates: Record<string, string | string[]> = {
         coins: newCoins.toString(),
         has: newHas,
-        blobbi_onboarding_done: 'true',
       };
       
       const updatedProfileTags = updateBlobbonautTags(profile.allTags, profileUpdates);

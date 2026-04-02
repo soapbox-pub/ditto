@@ -1071,10 +1071,28 @@ function BlobbiDashboard({
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('egg_hatching')) {
-      // Execute the actual hatch mutation, then complete the tour
+      // Execute the actual hatch mutation, mark onboarding complete on the
+      // profile event, then complete the tour's local state.
       const doHatch = async () => {
         try {
           await onHatch();
+
+          // Persist blobbi_onboarding_done to the Blobbonaut profile (authoritative)
+          if (profile) {
+            try {
+              const updatedTags = updateBlobbonautTags(profile.allTags, {
+                blobbi_onboarding_done: 'true',
+              });
+              const event = await publishEvent({
+                kind: KIND_BLOBBONAUT_PROFILE,
+                content: '',
+                tags: updatedTags,
+              });
+              updateProfileEvent(event);
+            } catch (e) {
+              console.error('[FirstHatchTour] Failed to persist onboarding completion to profile:', e);
+            }
+          }
         } finally {
           firstHatchTour.actions.complete();
         }
@@ -1082,7 +1100,7 @@ function BlobbiDashboard({
       const timer = setTimeout(doHatch, 1200);
       return () => clearTimeout(timer);
     }
-  }, [isFirstHatchTourActive, firstHatchTour, onHatch]);
+  }, [isFirstHatchTourActive, firstHatchTour, onHatch, profile, publishEvent, updateProfileEvent]);
 
   // Derive tourVisualState for the egg visual
   const tourVisualState = useMemo((): EggTourVisualState => {
