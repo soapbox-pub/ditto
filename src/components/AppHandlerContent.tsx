@@ -118,7 +118,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 <img
                   src={picture}
                   alt={name}
-                  className="size-14 rounded-xl object-cover shrink-0 border-3 border-background shadow-sm"
+                  className="size-14 rounded-xl object-cover shrink-0 border-3 border-background bg-background shadow-sm"
                   loading="lazy"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
@@ -217,7 +217,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               <img
                 src={picture}
                 alt={name}
-                className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background shadow-sm"
+                className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background bg-background shadow-sm"
                 loading="lazy"
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
