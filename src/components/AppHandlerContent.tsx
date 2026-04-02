@@ -1,5 +1,5 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
-import { ExternalLink, Globe, Package } from 'lucide-react';
+import { ExternalLink, Package } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -92,24 +92,22 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
     return (
       <div className="mt-2">
         <div className="rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
-          {/* Screenshot hero */}
-          <div className="relative aspect-video bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-            {previewLoading ? (
-              <Skeleton className="absolute inset-0" />
-            ) : showThumbnail ? (
-              <img
-                src={thumbnailUrl}
-                alt={name}
-                className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground/40">
-                <Globe className="size-8" />
-              </div>
-            )}
-          </div>
+          {/* Screenshot hero — only shown while loading or when a thumbnail exists */}
+          {(previewLoading || showThumbnail) && (
+            <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
+              {previewLoading ? (
+                <Skeleton className="absolute inset-0" />
+              ) : (
+                <img
+                  src={thumbnailUrl}
+                  alt={name}
+                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                  onError={() => setImgError(true)}
+                />
+              )}
+            </div>
+          )}
 
           {/* Content */}
           <div className="p-3.5 space-y-2">
@@ -188,24 +186,22 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   return (
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
-        {/* Screenshot hero */}
-        <div className="relative aspect-video bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-          {previewLoading ? (
-            <Skeleton className="absolute inset-0" />
-          ) : showThumbnail ? (
-            <img
-              src={thumbnailUrl}
-              alt={name}
-              className="size-full object-cover"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground/40">
-              <Globe className="size-10" />
-            </div>
-          )}
-        </div>
+        {/* Screenshot hero — only shown while loading or when a thumbnail exists */}
+        {(previewLoading || showThumbnail) && (
+          <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
+            {previewLoading ? (
+              <Skeleton className="absolute inset-0" />
+            ) : (
+              <img
+                src={thumbnailUrl}
+                alt={name}
+                className="size-full object-cover"
+                loading="lazy"
+                onError={() => setImgError(true)}
+              />
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="p-4 space-y-3">
@@ -298,7 +294,7 @@ export function AppHandlerSkeleton() {
   return (
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
-        <Skeleton className="aspect-video w-full" />
+        <Skeleton className="aspect-[2/1] w-full" />
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <Skeleton className="size-12 rounded-lg shrink-0" />
