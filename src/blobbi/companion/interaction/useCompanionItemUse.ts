@@ -82,7 +82,6 @@ export const CATEGORY_TO_ACTION: Record<ShopItemCategory, InventoryAction | null
   toy: 'play',
   medicine: 'medicine',
   hygiene: 'clean',
-  accessory: null, // Accessories are cosmetic, not usable
 };
 
 /**

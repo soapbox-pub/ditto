@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, Loader2, RefreshCw, Check, Target, ShoppingBag, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Egg, Moon, Sun, Loader2, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
 // Note: AlertTriangle kept for stat warning indicators
@@ -2140,7 +2140,7 @@ function BlobbiBottomBar({
           
           {/* Right Group - aligned to start (closer to center) */}
           <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
+            <BottomBarButton onClick={onShopClick} icon={<Package className="size-4" />} label="Items" />
 
             {/* 3-dots menu */}
             <DropdownMenu>

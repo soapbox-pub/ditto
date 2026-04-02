@@ -12,7 +12,6 @@ import {
 import { Input } from '@/components/ui/input';
 
 import type { ShopItem } from '../types/shop.types';
-import { ItemEffectDisplay } from './ItemEffectDisplay';
 import { formatCompactNumber } from '@/lib/utils';
 
 interface BlobbiPurchaseDialogProps {
@@ -150,13 +149,6 @@ export function BlobbiPurchaseDialog({
             )}
           </div>
 
-          {/* Effects Summary */}
-          {item.effect && Object.keys(item.effect).length > 0 && (
-            <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
-              <h4 className="text-sm font-medium mb-2">Effects per item</h4>
-              <ItemEffectDisplay effect={item.effect} variant="grid" />
-            </div>
-          )}
         </div>
 
         <DialogFooter>
