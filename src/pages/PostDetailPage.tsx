@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   Radio,
   Package,
+  Rocket,
   Share2,
   Star,
   Zap,
@@ -1941,6 +1942,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Kind action header for app handlers */}
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action="published an app" />
+          )}
+          {isNsite && (
+            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action="deployed an" noun="nsite" nounRoute="/development" />
           )}
 
           {/* Author row */}
