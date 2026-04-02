@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.2.9] - 2026-04-01
+
+### Added
+- Emoji pack creator and editor with drag-and-drop image upload, auto-generated identifiers, and description field
+- Blobbi companions now appear in feeds and post detail pages
+
+### Changed
+- Blobbi shop redesigned with a tile layout and instant buy -- no more categories or accessory tabs
+- Emoji packs without any valid emojis are now hidden from feeds
+- Custom emoji shortcode collisions across packs are automatically resolved with pack-prefixed names
+
 ## [2.2.8] - 2026-04-01
 
 ### Added
