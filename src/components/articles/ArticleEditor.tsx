@@ -83,6 +83,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [isEditMode, setIsEditMode] = useState(editMode);
+  const [originalSlug, setOriginalSlug] = useState<string | null>(
+    editMode && initialData?.slug ? initialData.slug : null,
+  );
   const [originalPublishedAt, setOriginalPublishedAt] = useState<number | null>(
     initialData?.publishedAt ?? null,
   );
@@ -235,6 +238,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     });
     slugManuallyEdited.current = !!item.slug;
     setIsEditMode(isPublishedArticle);
+    setOriginalSlug(isPublishedArticle ? item.slug : null);
     setOriginalPublishedAt(item.publishedAt ?? null);
     setHasUnsavedChanges(false);
     setActiveTab('write');
@@ -433,10 +437,11 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       return;
     }
 
-    // In edit mode we're intentionally overwriting, so skip the collision check
-    if (!isEditMode) {
-      const slug = article.slug || slugify(article.title, { lower: true, strict: true });
-
+    // Collision check: only block when the slug would overwrite a *different*
+    // published article. When editing an existing article with the same slug
+    // we're intentionally updating it, so skip the check.
+    const slug = article.slug || slugify(article.title, { lower: true, strict: true });
+    if (slug !== originalSlug) {
       try {
         const existing = await nostr.query([
           { kinds: [30023], authors: [user.pubkey], '#d': [slug], limit: 1 },
@@ -456,7 +461,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     }
 
     doPublish();
-  }, [user, article, isEditMode, nostr, doPublish]);
+  }, [user, article, originalSlug, nostr, doPublish]);
 
   // Set refs for keyboard shortcuts
   handlePublishRef.current = handlePublish;
