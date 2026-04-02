@@ -16,6 +16,7 @@ import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
 import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
+import { VersionCheck } from "@/components/VersionCheck";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
@@ -184,6 +185,7 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
+                  <VersionCheck />
                     <NWCProvider>
                     <DMProvider config={dmConfig}>
                       <EmotionDevProvider>
