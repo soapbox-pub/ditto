@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { Smile, Upload, Loader2, X, GripVertical } from 'lucide-react';
+import { Smile, Upload, Loader2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -103,10 +103,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag state for reordering
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
   const effectiveIdentifier = idTouched ? identifier : slugify(name);
 
   const resetForm = useCallback(() => {
@@ -114,7 +110,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     setName(initialData?.name ?? '');
     setIdTouched(isEditMode);
     setEmojis((prev) => {
-      // Revoke any remaining blob URLs to avoid memory leaks
       for (const e of prev) {
         if (e.file) URL.revokeObjectURL(e.url);
       }
@@ -122,8 +117,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     });
     setIsDragOver(false);
     setIsSubmitting(false);
-    setDragIndex(null);
-    setDragOverIndex(null);
   }, [initialData, isEditMode]);
 
   const handleNameChange = useCallback((value: string) => {
@@ -170,7 +163,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     const files: File[] = [];
 
     if (items) {
-      // Check for directory entries via webkitGetAsEntry
       const entries: FileSystemEntry[] = [];
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.();
@@ -183,7 +175,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       }
 
       if (entries.length > 0) {
-        // Recursively read all files from directory entries
         const readAllEntries = async (dirEntries: FileSystemEntry[]): Promise<File[]> => {
           const allFiles: File[] = [];
 
@@ -215,7 +206,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       }
     }
 
-    // Fallback: use plain files list
     for (let i = 0; i < e.dataTransfer.files.length; i++) {
       files.push(e.dataTransfer.files[i]);
     }
@@ -241,7 +231,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       files.push(fileList[i]);
     }
     addFiles(files);
-    // Reset input so the same files can be re-selected
     e.target.value = '';
   }, [addFiles]);
 
@@ -261,41 +250,15 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     });
   }, []);
 
-  /** Row-level drag-and-drop reorder handlers. */
-  const handleRowDragStart = useCallback((e: React.DragEvent, index: number) => {
-    setDragIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-  }, []);
-
-  const handleRowDragOver = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  }, []);
-
-  const handleRowDrop = useCallback((e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dragIndex === null || dragIndex === toIndex) {
-      setDragIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
+  /** Move an emoji entry up or down. */
+  const moveEmoji = useCallback((index: number, direction: -1 | 1) => {
     setEmojis((prev) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
       const updated = [...prev];
-      const [moved] = updated.splice(dragIndex, 1);
-      updated.splice(toIndex, 0, moved);
+      [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
       return updated;
     });
-    setDragIndex(null);
-    setDragOverIndex(null);
-  }, [dragIndex]);
-
-  const handleRowDragEnd = useCallback(() => {
-    setDragIndex(null);
-    setDragOverIndex(null);
   }, []);
 
   /** Upload all pending files, then publish the emoji pack event. */
@@ -349,7 +312,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
           }
         }
 
-        // Check if any uploads failed
         const failedCount = pendingEntries.length - uploadResults.size;
         if (failedCount > 0) {
           toast({
@@ -511,57 +473,52 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
             {/* Emoji list */}
             {emojis.length > 0 && (
               <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {emojis.length} emoji{emojis.length !== 1 ? 's' : ''}
-                    {pendingCount > 0 && (
-                      <span className="text-muted-foreground/60">
-                        {' '}({pendingCount} to upload)
-                      </span>
-                    )}
-                  </span>
-                  {emojis.length > 1 && (
-                    <span className="text-[10px] text-muted-foreground/60">
-                      Drag to reorder
-                    </span>
-                  )}
-                </div>
+                <span className="text-xs text-muted-foreground">
+                  {emojis.length} emoji{emojis.length !== 1 ? 's' : ''}
+                </span>
                 <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
                   {emojis.map((emoji, index) => (
                     <div
                       key={emoji.id}
-                      draggable={!isSubmitting}
-                      onDragStart={(e) => handleRowDragStart(e, index)}
-                      onDragOver={(e) => handleRowDragOver(e, index)}
-                      onDrop={(e) => handleRowDrop(e, index)}
-                      onDragEnd={handleRowDragEnd}
-                      className={`flex items-center gap-2 px-2 py-1.5 bg-background transition-colors ${
-                        dragIndex === index ? 'opacity-40' : ''
-                      } ${dragOverIndex === index && dragIndex !== null && dragIndex !== index ? 'bg-primary/5' : ''}`}
+                      className="flex items-center gap-2 px-2 py-1.5 bg-background"
                     >
-                      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0">
-                        <GripVertical className="size-3.5" />
+                      {/* Move up/down */}
+                      <div className="flex flex-col shrink-0 -my-1">
+                        <button
+                          type="button"
+                          className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-0 p-0 h-3"
+                          disabled={index === 0 || isSubmitting}
+                          onClick={() => moveEmoji(index, -1)}
+                          aria-label="Move up"
+                        >
+                          <ChevronUp className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-0 p-0 h-3"
+                          disabled={index === emojis.length - 1 || isSubmitting}
+                          onClick={() => moveEmoji(index, 1)}
+                          aria-label="Move down"
+                        >
+                          <ChevronDown className="size-3.5" />
+                        </button>
                       </div>
                       <div className="size-8 shrink-0 rounded-md overflow-hidden bg-secondary/30 flex items-center justify-center">
                         <img
                           src={emoji.url}
-                          alt={`:${emoji.shortcode}:`}
+                          alt={emoji.shortcode}
                           className="size-8 object-contain"
                           loading="lazy"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground text-xs select-none">:</span>
-                          <Input
-                            value={emoji.shortcode}
-                            onChange={(e) => updateShortcode(emoji.id, e.target.value)}
-                            className="h-7 text-xs font-mono px-1 border-none shadow-none focus-visible:ring-1"
-                            placeholder="shortcode"
-                            disabled={isSubmitting}
-                          />
-                          <span className="text-muted-foreground text-xs select-none">:</span>
-                        </div>
+                        <Input
+                          value={emoji.shortcode}
+                          onChange={(e) => updateShortcode(emoji.id, e.target.value)}
+                          className="h-7 text-xs font-mono px-1.5 border-none shadow-none focus-visible:ring-1"
+                          placeholder="shortcode"
+                          disabled={isSubmitting}
+                        />
                       </div>
                       <Button
                         variant="ghost"
