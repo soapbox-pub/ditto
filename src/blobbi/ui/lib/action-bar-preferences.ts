@@ -44,8 +44,11 @@ export interface ActionBarPreferences {
 /** Max visible customizable items (Main Action + More are fixed) */
 export const MAX_VISIBLE_SLOTS = 3;
 
-/** localStorage key */
+/** localStorage key for bar slot preferences */
 export const STORAGE_KEY = 'blobbi:action-bar-prefs';
+
+/** localStorage key for inline mission surface card visibility */
+export const MISSION_CARD_STORAGE_KEY = 'blobbi:mission-card-visible';
 
 /** Human-readable labels */
 export const BAR_ITEM_LABELS: Record<BarItemId, string> = {
@@ -208,4 +211,41 @@ export function savePreferences(prefs: ActionBarPreferences): void {
   } catch {
     // Silently fail (quota, SSR, etc.)
   }
+}
+
+// ─── Mission Surface Card Visibility ──────────────────────────────────────────
+
+/**
+ * Load the inline mission card visibility preference.
+ * Defaults to `true` (visible).
+ */
+export function loadMissionCardVisible(): boolean {
+  try {
+    const raw = localStorage.getItem(MISSION_CARD_STORAGE_KEY);
+    if (raw === null) return true;
+    return raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Save the inline mission card visibility preference.
+ */
+export function saveMissionCardVisible(visible: boolean): void {
+  try {
+    localStorage.setItem(MISSION_CARD_STORAGE_KEY, String(visible));
+  } catch {
+    // Silently fail
+  }
+}
+
+// ─── Visible-in-bar Set Helper ────────────────────────────────────────────────
+
+/**
+ * Return the set of BarItemIds currently visible in the bottom bar.
+ * Used by the More dropdown to skip items that are already in the bar.
+ */
+export function getVisibleBarIds(prefs: ActionBarPreferences): Set<BarItemId> {
+  return new Set(prefs.slots.filter((s) => s.visible).map((s) => s.id));
 }

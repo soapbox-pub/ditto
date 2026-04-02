@@ -95,8 +95,11 @@ import {
   type ActionBarPreferences,
   type BarItemId,
   getVisibleSlots,
+  getVisibleBarIds,
   loadPreferences,
   savePreferences,
+  loadMissionCardVisible,
+  saveMissionCardVisible,
 } from '@/blobbi/ui/lib/action-bar-preferences';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
@@ -895,6 +898,13 @@ function BlobbiDashboard({
     savePreferences(prefs);
   }, []);
   
+  // ─── Mission Surface Card Visibility ───
+  const [missionCardVisible, setMissionCardVisible] = useState(loadMissionCardVisible);
+  const handleToggleMissionCard = useCallback((visible: boolean) => {
+    setMissionCardVisible(visible);
+    saveMissionCardVisible(visible);
+  }, []);
+  
   // ─── Daily Missions (for surface card) ───
   const dailyMissions = useDailyMissions({ availableStages });
   
@@ -1633,8 +1643,8 @@ function BlobbiDashboard({
       </div>
       )}
       
-      {/* Mission Surface Card - hidden during first-hatch tour */}
-      {!isFirstHatchTourActive && (
+      {/* Mission Surface Card - hidden during first-hatch tour or when user dismissed */}
+      {!isFirstHatchTourActive && missionCardVisible && (
         <div className="px-4 sm:px-6 mt-3">
           <MissionSurfaceCard
             tasks={taskProcess.tasks}
@@ -1642,6 +1652,7 @@ function BlobbiDashboard({
             processType={taskProcess.config.type}
             dailyMissions={dailyMissions.missions}
             onViewAll={() => setShowMissionsModal(true)}
+            onHide={() => handleToggleMissionCard(false)}
           />
         </div>
       )}
@@ -1803,6 +1814,8 @@ function BlobbiDashboard({
         onStopEvolution={handleStopEvolution}
         isStoppingEvolution={isStoppingEvolution}
         availableStages={availableStages}
+        showMissionCard={missionCardVisible}
+        onToggleMissionCard={handleToggleMissionCard}
       />
       
       {/* Shop & Inventory Modal (unified) */}
@@ -2321,6 +2334,9 @@ function BlobbiBottomBar({
   // Visible custom slots from preferences
   const visibleSlots = getVisibleSlots(barPreferences);
   
+  // Set of item IDs currently visible in the bar (used to skip duplicates in More)
+  const visibleBarIds = useMemo(() => getVisibleBarIds(barPreferences), [barPreferences]);
+  
   // Split into left group (before center) and right group (after center)
   // Distribute: first half to left, rest to right
   const halfIdx = Math.ceil(visibleSlots.length / 2);
@@ -2380,20 +2396,32 @@ function BlobbiBottomBar({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end">
-                {/* Items promoted from bar into More */}
-                <DropdownMenuItem onClick={onShopClick}>
-                  <Package className="size-4 mr-2" />
-                  Items
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onMissionsClick}>
-                  <Target className="size-4 mr-2" />
-                  Missions
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onTakePhoto}>
-                  <Camera className="size-4 mr-2" />
-                  Take a Photo
-                </DropdownMenuItem>
-                {canBeCompanion && (
+                {/* Show items in More only when they're NOT already visible in the bar */}
+                {!visibleBarIds.has('blobbies') && (
+                  <DropdownMenuItem onClick={onBlobbiesClick}>
+                    <Egg className="size-4 mr-2" />
+                    Blobbies
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('items') && (
+                  <DropdownMenuItem onClick={onShopClick}>
+                    <Package className="size-4 mr-2" />
+                    Items
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('missions') && (
+                  <DropdownMenuItem onClick={onMissionsClick}>
+                    <Target className="size-4 mr-2" />
+                    Missions
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('take_photo') && (
+                  <DropdownMenuItem onClick={onTakePhoto}>
+                    <Camera className="size-4 mr-2" />
+                    Take a Photo
+                  </DropdownMenuItem>
+                )}
+                {canBeCompanion && !visibleBarIds.has('set_companion') && (
                   <DropdownMenuItem onClick={onSetAsCompanion} disabled={isUpdatingCompanion}>
                     <Footprints className={cn('size-4 mr-2', isCurrentCompanion && 'text-green-500')} />
                     {isCurrentCompanion ? 'Current Companion' : 'Set as Companion'}

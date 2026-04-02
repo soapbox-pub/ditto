@@ -9,10 +9,12 @@
  * - Evolve tasks when evolving (baby stage)
  */
 
-import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X, ChevronDown } from 'lucide-react';
+import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X, ChevronDown, Eye } from 'lucide-react';
 import { formatCompactNumber, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -72,6 +74,10 @@ interface BlobbiMissionsModalProps {
   isStoppingEvolution: boolean;
   /** Available Blobbi stages across all user's companions (for mission filtering) */
   availableStages?: ('egg' | 'baby' | 'adult')[];
+  /** Whether the inline mission surface card on the main page is visible */
+  showMissionCard?: boolean;
+  /** Toggle the inline mission surface card visibility */
+  onToggleMissionCard?: (visible: boolean) => void;
 }
 
 // ─── Daily Missions Section ───────────────────────────────────────────────────
@@ -367,6 +373,8 @@ export function BlobbiMissionsModal({
   onStopEvolution,
   isStoppingEvolution,
   availableStages,
+  showMissionCard,
+  onToggleMissionCard,
 }: BlobbiMissionsModalProps) {
   const isIncubating = companion.state === 'incubating';
   const isEvolvingState = companion.state === 'evolving';
@@ -439,6 +447,21 @@ export function BlobbiMissionsModal({
                 />
               ) : null}
             </>
+          )}
+
+          {/* Mission Card Visibility Toggle */}
+          {onToggleMissionCard !== undefined && showMissionCard !== undefined && (
+            <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
+              <Label htmlFor="mission-card-toggle" className="flex items-center gap-2 text-sm cursor-pointer">
+                <Eye className="size-4 text-muted-foreground" />
+                Show mission card on main page
+              </Label>
+              <Switch
+                id="mission-card-toggle"
+                checked={showMissionCard}
+                onCheckedChange={onToggleMissionCard}
+              />
+            </div>
           )}
         </div>
       </DialogContent>

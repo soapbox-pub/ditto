@@ -21,6 +21,7 @@ import {
   Sparkles,
   Coins,
   CircleDot,
+  X,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +68,8 @@ interface MissionSurfaceCardProps {
   dailyMissions: DailyMission[];
   /** Called when user taps "View all" */
   onViewAll: () => void;
+  /** Called when user dismisses the card */
+  onHide?: () => void;
   /** Additional className */
   className?: string;
 }
@@ -124,6 +127,7 @@ export function MissionSurfaceCard({
   processType,
   dailyMissions,
   onViewAll,
+  onHide,
   className,
 }: MissionSurfaceCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -249,6 +253,19 @@ export function MissionSurfaceCard({
                 />
               ))}
             </div>
+          )}
+          {/* Dismiss button */}
+          {onHide && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onHide();
+              }}
+              className="shrink-0 p-0.5 -m-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              title="Hide mission card"
+            >
+              <X className="size-3.5" />
+            </button>
           )}
         </div>
 
