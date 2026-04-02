@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.3.1] - 2026-04-02
+
+### Changed
+- Drafts now save instantly to your device and sync to relays in the background, with a cloud sync indicator so you always know the status
+
+### Fixed
+- Dialogs stay visible above the keyboard on mobile instead of getting hidden behind it
+- Editing an existing article no longer incorrectly warns about a duplicate slug
+- Switching between rich text and markdown source mode no longer clears your content
+- Fix crash when editing in markdown source mode
+
 ## [2.3.0] - 2026-04-02
 
 ### Added
