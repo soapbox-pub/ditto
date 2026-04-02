@@ -93,6 +93,8 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   if (event.kind === 37381 && event.tags.some(([n, v]) => n === 't' && v === 'unlisted')) return true;
   // Hidden treasures (kind 37516)
   if (event.kind === 37516 && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) return true;
+  // Emoji packs (kind 30030) without at least one valid emoji tag
+  if (event.kind === 30030 && !event.tags.some(([n, sc, url]) => n === 'emoji' && sc && url)) return true;
   return false;
 }
 
