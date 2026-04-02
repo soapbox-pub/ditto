@@ -55,8 +55,8 @@ type ProfileAuthorScope = 'me' | 'contacts' | 'people' | 'global';
 function spellToScope(spell: NostrEvent | undefined, ownerPubkey: string): ProfileAuthorScope {
   if (!spell) return 'me';
   const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
-  if (authors.length === 1 && authors[0] === ownerPubkey) return 'me';
-  if (authors.includes('$me')) return 'me';
+  // Detect "me" scope: either the literal owner pubkey or the $me variable
+  if (authors.length === 1 && (authors[0] === ownerPubkey || authors[0] === '$me')) return 'me';
   if (authors.includes('$contacts')) return 'contacts';
   if (authors.length > 0) return 'people';
   return 'global';
@@ -151,8 +151,14 @@ export function ProfileTabEditModal({
     // Build authors array based on scope
     let authors: string[] | undefined;
     if (authorScope === 'me') {
-      authors = ['$me'];
+      // Use the literal owner pubkey so the tab works correctly for visitors
+      // (spell engine's $me would resolve to the viewer, not the profile owner)
+      authors = [ownerPubkey];
     } else if (authorScope === 'contacts') {
+      // $contacts resolves to the viewer's follow list, which is intentional:
+      // "show posts from people I follow" changes per viewer.
+      // To show the owner's contacts instead, the owner's follow list pubkeys
+      // would need to be embedded directly (future enhancement).
       authors = ['$contacts'];
     } else if (authorScope === 'people' && peoplePubkeys.length > 0) {
       authors = peoplePubkeys;
