@@ -56,7 +56,6 @@ function resolveValues(
       return [userPubkey];
     }
     if (v === '$contacts') {
-      if (contactPubkeys.length === 0) throw new Error('Cannot resolve $contacts: no contacts found');
       return contactPubkeys;
     }
     return [v];
