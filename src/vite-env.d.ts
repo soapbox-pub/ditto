@@ -15,10 +15,6 @@ interface ImportMetaEnv {
   readonly COMMIT_SHA: string;
   /** Git tag for the current commit (e.g., "v2.0.0"). Empty string if untagged (pre-release build). */
   readonly COMMIT_TAG: string;
+  /** Build-time configuration injected from ditto.json as a JSON string. `"null"` when no config file was provided. */
+  readonly DITTO_CONFIG: string;
 }
-
-/**
- * Build-time configuration injected by Vite from ditto.json.
- * `null` when no config file was provided at build time.
- */
-declare const __DITTO_CONFIG__: Partial<import('@/contexts/AppContext').AppConfig> | null;

@@ -23,6 +23,7 @@ import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
+import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -150,14 +151,29 @@ const hardcodedConfig: AppConfig = {
 };
 
 /**
+ * Parse and validate build-time ditto.json overrides from the env string.
+ * Returns an empty object when no config file was provided or validation fails.
+ */
+function parseDittoConfig(): DittoConfig {
+  try {
+    const json = JSON.parse(import.meta.env.DITTO_CONFIG);
+    if (!json) return {};
+    return DittoConfigSchema.parse(json);
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Merge hardcoded defaults with build-time ditto.json overrides.
+ * Deep-merges feedSettings so a partial override doesn't erase defaults.
  * Precedence (handled by AppProvider): user localStorage > build-time > hardcoded.
  */
+const dittoConfig = parseDittoConfig();
 const defaultConfig: AppConfig = {
   ...hardcodedConfig,
-  ...(typeof __DITTO_CONFIG__ !== "undefined" && __DITTO_CONFIG__
-    ? __DITTO_CONFIG__
-    : {}),
+  ...dittoConfig,
+  feedSettings: { ...hardcodedConfig.feedSettings, ...dittoConfig.feedSettings },
 };
 
 export function App() {
