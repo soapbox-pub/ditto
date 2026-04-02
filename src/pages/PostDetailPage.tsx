@@ -34,6 +34,7 @@ import {
   ReactionEmoji,
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
+const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { FollowPackContent } from "@/components/FollowPackContent";
@@ -141,6 +142,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 7) return "Reaction";
   if (kind === 9735) return "Zap";
   if (kind === 0) return "Profile";
+  if (kind === 31124) return "Blobbi";
   return "Post Details";
 }
 
@@ -1001,6 +1003,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
+  const isBlobbiState = event.kind === 31124;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1026,7 +1029,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isVanish &&
     !isZap &&
-    !isProfile;
+    !isProfile &&
+    !isBlobbiState;
 
   const videos = useMemo(
     () => (isTextNote ? extractVideoUrls(event.content) : []),
@@ -2044,6 +2048,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedMessageContent event={event} />
             ) : isLetter ? (
               <EncryptedLetterContent event={event} />
+            ) : isBlobbiState ? (
+              <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+                <BlobbiStateCard event={event} />
+              </Suspense>
             ) : isVine ||
               isPoll ||
               isGeocache ||

@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Camera,
+  Egg,
   FileCode,
   FileText,
   GitBranch,
@@ -24,6 +25,7 @@ import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 import {
   MusicPlaylistContent,
   MusicTrackContent,
@@ -309,6 +311,7 @@ export const NoteCard = memo(function NoteCard({
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
+  const isBlobbiState = event.kind === 31124;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -337,7 +340,8 @@ export const NoteCard = memo(function NoteCard({
     !isLetter &&
     !isVanish &&
     !isZap &&
-    !isProfile;
+    !isProfile &&
+    !isBlobbiState;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(
@@ -534,6 +538,10 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedLetterContent event={event} compact />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
+        ) : isBlobbiState ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <BlobbiStateCard event={event} />
+          </Suspense>
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -2033,6 +2041,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   9735: {
     icon: Zap,
     action: "zapped",
+  },
+  31124: {
+    icon: Egg,
+    action: "updated their",
+    noun: "Blobbi",
+    nounRoute: "/blobbi",
   },
 };
 

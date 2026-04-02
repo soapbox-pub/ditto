@@ -182,6 +182,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludePodcastTrailers: z.boolean().optional(),
   showDevelopment: z.boolean().optional(),
   feedIncludeDevelopment: z.boolean().optional(),
+  feedIncludeBlobbi: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */

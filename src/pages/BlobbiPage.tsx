@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
+import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
 // TODO: Re-import when features are implemented: Footprints, PictureInPicture2
 // Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
 // Note: Sparkles kept for BlobbiBottomBar center action button
@@ -842,6 +844,13 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
+  // Build naddr for linking to the Blobbi's detail page
+  const blobbiNaddr = useMemo(() => nip19.naddrEncode({
+    kind: KIND_BLOBBI_STATE,
+    pubkey: companion.event.pubkey,
+    identifier: companion.d,
+  }), [companion.event.pubkey, companion.d]);
+  
   // Derive available stages from all companions (for daily mission filtering)
   const availableStages = useMemo(() => {
     const stages = new Set<'egg' | 'baby' | 'adult'>();
@@ -1346,6 +1355,7 @@ function BlobbiDashboard({
         {/* Floating Dashboard Controls */}
         <BlobbiDashboardFloatingControls
           stage={companion.stage}
+          blobbiNaddr={blobbiNaddr}
           onSetAsCompanion={handleSetAsCompanion}
           isCurrentCompanion={isCurrentCompanion}
           isUpdatingCompanion={isUpdatingCompanion}
@@ -1731,6 +1741,8 @@ interface FloatingActionDef {
 
 interface BlobbiDashboardFloatingControlsProps {
   stage: 'egg' | 'baby' | 'adult';
+  /** NIP-19 naddr identifier for linking to the Blobbi's detail page */
+  blobbiNaddr: string;
   onBack?: () => void;
   onSetAsCompanion: () => void;
   /** Whether this Blobbi is currently set as the user's companion */
@@ -1794,6 +1806,7 @@ function getEvolveTooltip(
  */
 function BlobbiDashboardFloatingControls({
   stage,
+  blobbiNaddr,
   onBack,
   onSetAsCompanion,
   isCurrentCompanion,
@@ -1856,6 +1869,9 @@ function BlobbiDashboardFloatingControls({
     },
   ];
 
+  // Build view URL for the Blobbi's detail page
+  const blobbiViewUrl = `/${blobbiNaddr}`;
+
   // Evolve/Hatch/Incubation button (emphasized, at the bottom of right cluster)
   // Icon and tooltip are stage-aware and action-state-aware
   const evolveButton: FloatingActionDef = {
@@ -1896,6 +1912,34 @@ function BlobbiDashboardFloatingControls({
           </QuickActionButton>
         ))}
         
+        {/* 3-dots menu with additional actions */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-10 rounded-full bg-background/80 backdrop-blur-sm border-border/60 hover:bg-accent transition-all shadow-sm"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>More</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent side="left" align="start">
+            <DropdownMenuItem asChild>
+              <Link to={blobbiViewUrl}>
+                <ExternalLink className="size-4 mr-2" />
+                View Blobbi
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Evolve/Hatch button with accent styling */}
         {/* Adults can't evolve further, so hide the button */}
         {/* Also hide when explicitly requested (e.g., during incubation) */}
