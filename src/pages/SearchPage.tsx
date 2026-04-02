@@ -51,7 +51,8 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
-import type { TabFilter } from '@/contexts/AppContext';
+import { buildSpellTags } from '@/lib/spellEngine';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
@@ -357,32 +358,57 @@ export function SearchPage() {
   // 'people' scope with explicit authors = user-specific; not eligible for profile tab
   const isAuthorSpecific = authorScope === 'people' && authorPubkeys.length > 0;
 
-  // Build a standard NIP-01 TabFilter from the current search state
-  const currentFilter = useMemo<TabFilter>(() => {
-    const filter: TabFilter = {};
-    if (debouncedSearchQuery.trim()) filter.search = debouncedSearchQuery.trim();
-    if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
-    if (authorScope === 'follows') filter.authors = ['$follows'];
-    else if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
-    // Persist NIP-50 extension filters so saved feeds can replay them
-    if (!includeReplies) filter.includeReplies = false;
-    if (mediaType !== 'all') filter.mediaType = mediaType;
-    if (language !== 'global') filter.language = language;
-    if (platform !== 'nostr') filter.platform = platform;
-    if (sort !== 'recent') filter.sort = sort;
-    return filter;
-  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, includeReplies, mediaType, language, platform, sort]);
+  // Build spell tags from the current search state
+  const currentSpellTags = useMemo(() => {
+    let authors: string[] | undefined;
+    if (authorScope === 'follows') authors = ['$contacts'];
+    else if (authorScope === 'people' && authorPubkeys.length > 0) authors = authorPubkeys;
 
-  const alreadySaved = savedFeeds.some(
-    (f) => JSON.stringify(f.filter) === JSON.stringify(currentFilter),
-  );
+    return buildSpellTags({
+      name: saveFeedLabel.trim() || 'Search',
+      kinds: kindsOverride && kindsOverride.length > 0 ? kindsOverride : undefined,
+      authors,
+      search: debouncedSearchQuery.trim() || undefined,
+      includeReplies: includeReplies ? undefined : false,
+      media: mediaType !== 'all' ? mediaType : undefined,
+      language: language !== 'global' ? language : undefined,
+      platform: platform !== 'nostr' ? platform : undefined,
+      sort: sort !== 'recent' ? sort : undefined,
+    });
+  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, includeReplies, mediaType, language, platform, sort, saveFeedLabel]);
+
+  // Stable fingerprint for dedup (ignore name/alt tags which vary with the label input)
+  const currentSpellFingerprint = useMemo(() => {
+    const filterTags = currentSpellTags.filter(([t]) => t !== 'name' && t !== 'alt');
+    return JSON.stringify(filterTags);
+  }, [currentSpellTags]);
+
+  const alreadySaved = savedFeeds.some((f) => {
+    const feedFilterTags = (f.spell?.tags ?? []).filter(([t]: string[]) => t !== 'name' && t !== 'alt');
+    return JSON.stringify(feedFilterTags) === currentSpellFingerprint;
+  });
 
   const handleSaveFeed = async () => {
     if (!saveFeedLabel.trim() || isSavingFeed) return;
-    const varsToSave = authorScope === 'follows' && user
-      ? [{ name: '$follows', tagName: 'p', pointer: `a:3:${user.pubkey}:` }]
-      : [];
-    await addSavedFeed(saveFeedLabel, currentFilter, varsToSave);
+
+    // Update name tag with the actual label
+    const tags = currentSpellTags.map(([t, ...rest]) =>
+      t === 'name' ? ['name', saveFeedLabel.trim()] :
+      t === 'alt' ? ['alt', `Spell: ${saveFeedLabel.trim()}`] :
+      [t, ...rest]
+    );
+
+    const spellEvent: NostrEvent = {
+      id: '',
+      pubkey: '',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 777,
+      tags,
+      content: '',
+      sig: '',
+    };
+
+    await addSavedFeed(saveFeedLabel.trim(), spellEvent);
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
@@ -391,9 +417,21 @@ export function SearchPage() {
 
   const handleSaveProfileTab = async () => {
     if (!saveFeedLabel.trim() || isPublishingTabs || !user) return;
+    // Profile tabs still use TabFilter format (will be migrated to spells in Step 4)
+    const profileTabFilter: Record<string, unknown> = {};
+    if (debouncedSearchQuery.trim()) profileTabFilter.search = debouncedSearchQuery.trim();
+    if (kindsOverride && kindsOverride.length > 0) profileTabFilter.kinds = kindsOverride;
+    if (authorScope === 'follows') profileTabFilter.authors = ['$follows'];
+    else if (authorScope === 'people' && authorPubkeys.length > 0) profileTabFilter.authors = authorPubkeys;
+    if (!includeReplies) profileTabFilter.includeReplies = false;
+    if (mediaType !== 'all') profileTabFilter.mediaType = mediaType;
+    if (language !== 'global') profileTabFilter.language = language;
+    if (platform !== 'nostr') profileTabFilter.platform = platform;
+    if (sort !== 'recent') profileTabFilter.sort = sort;
+
     const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
     await publishProfileTabs({
-      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: currentFilter }],
+      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: profileTabFilter }],
       vars: existing.vars,
     });
     setSavePopoverOpen(false);

@@ -27,7 +27,8 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 import { cn } from '@/lib/utils';
-import type { TabFilter } from '@/contexts/AppContext';
+/** A standard NIP-01 filter object that may contain variable placeholders. */
+type TabFilter = Record<string, unknown>;
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 import type { UserList } from '@/hooks/useUserLists';
 import type { FollowPack } from '@/hooks/useFollowPacks';

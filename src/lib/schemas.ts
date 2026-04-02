@@ -180,21 +180,21 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBlobbi: z.boolean().optional(),
 });
 
-/** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
-export const TabFilterSchema = z.record(z.string(), z.unknown());
-
-/** Schema for a variable definition. */
-export const TabVarDefSchema = z.object({
-  name: z.string(),
-  tagName: z.string(),
-  pointer: z.string(),
+/** Minimal schema for a signed Nostr event (used inside SavedFeed). */
+const NostrEventSchema = z.object({
+  id: z.string(),
+  pubkey: z.string(),
+  created_at: z.number(),
+  kind: z.number(),
+  tags: z.array(z.array(z.string())),
+  content: z.string(),
+  sig: z.string(),
 });
 
 export const SavedFeedSchema = z.object({
   id: z.string(),
   label: z.string(),
-  filter: TabFilterSchema,
-  vars: z.array(TabVarDefSchema).default([]),
+  spell: NostrEventSchema,
   createdAt: z.number(),
 });
 

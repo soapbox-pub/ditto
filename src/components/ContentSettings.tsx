@@ -29,7 +29,8 @@ import { buildKindOptions } from '@/lib/feedFilterUtils';
 import { genUserName } from '@/lib/genUserName';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
-import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { SavedFeed, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
@@ -748,14 +749,14 @@ function SavedFeedsSection() {
 
   const feedTabs = savedFeeds;
 
-  const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
-    await addSavedFeed(label, filter, vars);
+  const handleAddFeed = async (label: string, spell: NostrEvent) => {
+    await addSavedFeed(label, spell);
     toast({ title: `"${label}" added to home feed tabs` });
   };
 
-  const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
+  const handleEditFeed = async (label: string, spell: NostrEvent) => {
     if (!editingFeed) return;
-    await updateSavedFeed(editingFeed.id, { label, filter, vars });
+    await updateSavedFeed(editingFeed.id, { label, spell });
     toast({ title: 'Feed updated' });
     setEditingFeed(null);
   };
@@ -810,7 +811,7 @@ function SavedFeedsSection() {
         open={editingFeed !== null}
         onOpenChange={(o) => { if (!o) setEditingFeed(null); }}
         initialLabel={editingFeed?.label}
-        initialFilter={editingFeed?.filter}
+        initialSpell={editingFeed?.spell}
         onSave={handleEditFeed}
         isPending={isPending}
       />
@@ -831,11 +832,12 @@ function SavedFeedRow({
   onRemove: () => void;
   isPending: boolean;
 }) {
-  const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
-  const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
-  const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
+  const tags = feed.spell?.tags ?? [];
+  const search = tags.find(([t]) => t === 'search')?.[1] ?? '';
+  const authors = tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
+  const kinds = tags.filter(([t]) => t === 'k').map(([, v]) => parseInt(v)).filter((n) => !isNaN(n));
 
-  const scopeLabel = authors.includes('$follows')
+  const scopeLabel = authors.includes('$contacts')
     ? 'Follows'
     : authors.length > 0
       ? `${authors.length} author${authors.length > 1 ? 's' : ''}`

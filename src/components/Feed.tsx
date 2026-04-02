@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -14,29 +14,43 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { DITTO_RELAYS } from '@/lib/appRelays';
+import { useInfiniteHotFeed } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
-import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
-import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
+
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
+
+/** Curated kinds for the logged-out homepage: unique Ditto content types. */
+const LANDING_KINDS = [
+  36767, // Themes
+  37381, // Magic Decks
+  3367,  // Color Moments
+  37516, // Treasures
+  7516,  // Treasures (Found Logs)
+  30030, // Emoji Packs
+  30009, // Badge Definitions
+  10008, // Profile Badges
+  30008, // Profile Badges (legacy)
+];
+
+/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
+const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -59,7 +73,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
-  const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('ditto:showGlobalFeed');
@@ -135,17 +148,21 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
   );
 
-  // Curated Ditto feed: latest content from the curator's follow list.
-  const topQuery = useCuratedDittoFeed(
-    curatorFollowList,
+  // "Hot" sorted feed query (used when logged out on the home page, or on the Ditto tab)
+  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
+  // separate filter with a MIME-type tag constraint.
+  const topQuery = useInfiniteHotFeed(
+    LANDING_KINDS,
     useTopFeedForLoggedOut || !!useDittoTab,
+    undefined,
+    [LANDING_WEBXDC_FILTER],
   );
 
   // Unify the two query shapes behind a single interface
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useDittoQuery ? ['ditto-curated-feed'] : ['feed', activeTab],
+    () => useDittoQuery ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
     [useDittoQuery, activeTab],
   );
 
@@ -185,25 +202,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const seen = new Set<string>();
 
     if (useDittoQuery) {
-      // Deduplicate and filter each page independently, then diversify
-      // page-by-page so earlier pages never change when new pages arrive.
-      const dedupedPages = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
-        .map((page) =>
-          page
-            .filter((event) => {
-              if (seen.has(event.id)) return false;
-              seen.add(event.id);
-              if (shouldHideFeedEvent(event)) return false;
-              if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-              return true;
-            })
-            .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
-        );
-
-      // Reorder for content-type diversity: cap any single type at 20%
-      // per page and enforce a minimum gap of 4 positions between same-type
-      // items, with gap state carrying across page boundaries.
-      return diversifyFeedPages(dedupedPages);
+      return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
+        .flat()
+        .filter((event) => {
+          if (seen.has(event.id)) return false;
+          seen.add(event.id);
+          if (shouldHideFeedEvent(event)) return false;
+          if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+          return true;
+        })
+        .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
     }
 
     return (rawData.pages as unknown as { items: FeedItem[] }[])
@@ -218,9 +226,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       });
   }, [rawData?.pages, muteItems, useDittoQuery]);
 
-  // Show skeletons while loading, but not if the curator list query errored
-  // (that would leave logged-out users staring at infinite skeletons).
-  const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
+  const showSkeleton = isPending || (isLoading && !rawData);
 
   // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
   // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.
@@ -354,59 +360,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 }
 
-/** Renders a saved search feed using useStreamPosts (live streaming). */
+/** Renders a saved search feed using useStreamPosts with a spell event. */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-  const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
+  const { ref: scrollRef } = useInView({ threshold: 0, rootMargin: '400px' });
 
-  // Resolve variable placeholders ($follows etc.) the same way profile tabs do
-  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
-    feed.filter,
-    feed.vars ?? [],
-    user?.pubkey ?? '',
-  );
-
-  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
-  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
-
-  // Extract NIP-50 extension fields saved by the search page (stored on the raw filter, not NostrFilter)
-  const f = feed.filter;
-  const includeReplies = f.includeReplies !== false;
-  const mediaType = (['all', 'images', 'videos', 'vines', 'none'] as const).includes(f.mediaType as 'all')
-    ? (f.mediaType as 'all' | 'images' | 'videos' | 'vines' | 'none')
-    : 'all';
-  const language = typeof f.language === 'string' ? f.language : undefined;
-  const platform = typeof f.platform === 'string' ? f.platform : 'nostr';
-  const protocols = useMemo(() => [platform], [platform]);
-  const sort = (['recent', 'hot', 'trending'] as const).includes(f.sort as 'recent')
-    ? (f.sort as 'recent' | 'hot' | 'trending')
-    : undefined;
-
-  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies,
-    mediaType,
-    language,
-    protocols,
-    sort,
-    kindsOverride,
-    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
+  const { posts, isLoading, newPostCount, flushStreamBuffer } = useStreamPosts('', {
+    includeReplies: true,
+    mediaType: 'all',
+    spell: feed.spell,
   });
 
-  const isLoading = isResolving || isStreamLoading;
-
-  // useStreamPosts doesn't use TanStack Query, so refresh by invalidating the
-  // resolution query and letting the stream reconnect via remount.
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
-  }, [queryClient]);
-
-  // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
-  // but we still wire the ref for future pagination support
-  useEffect(() => {
-    // intentionally empty — useStreamPosts handles its own streaming
-  }, [inView]);
+    flushStreamBuffer();
+  }, [flushStreamBuffer]);
 
   if (isLoading && posts.length === 0) {
     return (
@@ -429,6 +395,14 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
+        {newPostCount > 0 && (
+          <button
+            onClick={flushStreamBuffer}
+            className="w-full py-2 text-sm text-primary hover:bg-muted/50 border-b border-border transition-colors"
+          >
+            {newPostCount} new {newPostCount === 1 ? 'post' : 'posts'}
+          </button>
+        )}
         {posts.map((event) => (
           <NoteCard key={event.id} event={event} />
         ))}
