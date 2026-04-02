@@ -106,8 +106,14 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  /** Save draft to relay (with localStorage fallback). Shared by manual save + auto-save. */
+  /** Save draft to relay (with localStorage fallback). Shared by manual save + auto-save.
+   *  Always saves locally first so the draft appears immediately in "My Articles",
+   *  then syncs to the relay in the background. */
   const persistDraft = useCallback(async (data: ArticleData, { silent }: { silent?: boolean } = {}) => {
+    // Always persist locally so the draft is visible immediately
+    saveLocalDraft(data);
+    setLocalDrafts(getLocalDrafts());
+
     if (user) {
       try {
         await saveRelayDraft(data);
@@ -119,7 +125,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         }
       } catch (error) {
         console.error('Failed to save draft to relay:', error);
-        saveLocalDraft(data);
         if (!mountedRef.current) return;
         setLastSaved(new Date());
         setHasUnsavedChanges(false);
@@ -128,7 +133,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         }
       }
     } else {
-      saveLocalDraft(data);
       if (!mountedRef.current) return;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
