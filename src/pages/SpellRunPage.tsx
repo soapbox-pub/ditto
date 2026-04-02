@@ -127,7 +127,7 @@ export function SpellRunPage() {
       <PageHeader
         title={spellName ?? 'Spell Results'}
         icon={<WandSparkles className="size-5 text-primary" />}
-        backTo="/search?tab=feeds"
+        backTo="/discover"
       >
         {cmd && (
           <Badge variant="secondary" className="text-xs font-mono shrink-0">

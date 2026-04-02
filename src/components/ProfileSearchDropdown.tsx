@@ -142,7 +142,7 @@ export function ProfileSearchDropdown({
     inputRef.current?.blur();
 
     if (!enableTextSearch) return;
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    navigate(`/discover?tab=posts&q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
   // Total selectable items: navItems + identifier? + URL comment? + country?(top) + profiles + country?(bottom) + wikipedia? + archive?

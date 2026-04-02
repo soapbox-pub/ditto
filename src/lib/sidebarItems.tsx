@@ -111,7 +111,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     icon: Bell,
     requiresAuth: true,
   },
-  { id: "search", label: "Discover", path: "/search", icon: Compass },
+  { id: "search", label: "Discover", path: "/discover", icon: Compass },
   { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
   {
     id: "bookmarks",

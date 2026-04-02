@@ -2,6 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useAppContext } from '@/hooks/useAppContext';
 import {
   SlidersHorizontal,
+  Compass,
   Search as SearchIcon,
   UserRoundCheck,
   User,
@@ -62,12 +63,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
-type TabType = 'posts' | 'accounts' | 'feeds';
+type TabType = 'feeds' | 'posts' | 'accounts';
 
-const VALID_TABS: TabType[] = ['posts', 'accounts', 'feeds'];
+const VALID_TABS: TabType[] = ['feeds', 'posts', 'accounts'];
 
 function parseTab(value: string | null): TabType {
-  return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
+  return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'feeds';
 }
 
 const VALID_AUTHOR_SCOPES = ['anyone', 'follows', 'people'] as const;
@@ -97,8 +98,8 @@ export function SearchPage() {
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Search | ${config.appName}`,
-    description: 'Search Nostr',
+    title: `Discover | ${config.appName}`,
+    description: 'Discover feeds, posts, and accounts on Nostr',
   });
 
   useLayoutOptions({ hasSubHeader: true });
@@ -204,7 +205,7 @@ export function SearchPage() {
   const setActiveTab = useCallback((tab: TabType) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (tab === 'posts') {
+      if (tab === 'feeds') {
         next.delete('tab');
       } else {
         next.set('tab', tab);
@@ -511,11 +512,11 @@ export function SearchPage() {
 
   return (
     <main className="flex-1 min-w-0">
-      <PageHeader title="Search" icon={<SearchIcon className="size-5" />} />
+      <PageHeader title="Discover" icon={<Compass className="size-5" />} />
       <SubHeaderBar>
+        <TabButton label="Feeds" active={activeTab === 'feeds'} onClick={() => setActiveTab('feeds')} />
         <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
-        <TabButton label="Feeds" active={activeTab === 'feeds'} onClick={() => setActiveTab('feeds')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 

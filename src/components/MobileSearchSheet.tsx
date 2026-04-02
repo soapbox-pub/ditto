@@ -186,7 +186,7 @@ export function MobileSearchSheet({ hidden, onClose, dorkMode, onToggleDork }: M
     if (!query.trim()) return;
 
     handleClose();
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    navigate(`/discover?tab=posts&q=${encodeURIComponent(query.trim())}`);
   }, [query, navigate, handleClose]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

@@ -161,7 +161,8 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/search" element={<SearchPage />} />
+            <Route path="/discover" element={<SearchPage />} />
+            <Route path="/search" element={<Navigate to="/discover" replace />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />
              <Route path="/t/:tag" element={<HashtagPage />} />
