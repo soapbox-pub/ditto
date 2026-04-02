@@ -80,7 +80,6 @@ export function LinkDialog({ open, onOpenChange, selectedText, onSubmit }: LinkD
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                type="url"
                 autoFocus={hasSelectedText}
               />
             </div>

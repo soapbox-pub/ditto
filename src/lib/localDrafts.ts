@@ -49,6 +49,22 @@ export function deleteDraftBySlug(slug: string): void {
   }
 }
 
+/** Delete a draft by id from localStorage. Returns the remaining drafts. */
+export function deleteLocalDraftById(id: string): Draft[] {
+  try {
+    const stored = localStorage.getItem(DRAFTS_KEY);
+    if (!stored) return [];
+
+    const drafts: Draft[] = JSON.parse(stored);
+    const filtered = drafts.filter(d => d.id !== id);
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(filtered));
+    return filtered;
+  } catch (error) {
+    console.error('Failed to delete draft:', error);
+    return [];
+  }
+}
+
 /** Get all local drafts. */
 export function getLocalDrafts(): Draft[] {
   try {

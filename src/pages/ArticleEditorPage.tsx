@@ -9,6 +9,7 @@ import { ArticleEditor, type ArticleData } from '@/components/articles/ArticleEd
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getLocalDrafts } from '@/lib/localDrafts';
+import { parseArticleEvent } from '@/lib/articleHelpers';
 
 /** Thin page wrapper for /articles/new and /articles/edit/:naddr */
 export function ArticleEditorPage() {
@@ -25,25 +26,26 @@ export function ArticleEditorPage() {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(!!naddrParam || !!draftSlug);
 
-  // Load draft from relay or localStorage if ?draft=<slug>
+  // Load draft from relay (NIP-37 kind 31234, encrypted) or localStorage if ?draft=<slug>
   useEffect(() => {
     if (!draftSlug) return;
 
-    // Try relay draft first if logged in, then fall back to localStorage
     const loadDraft = async () => {
-      if (user) {
+      if (user?.signer.nip44) {
         try {
           const events = await nostr.query([
-            { kinds: [30024], authors: [user.pubkey], '#d': [draftSlug], limit: 1 },
+            { kinds: [31234], authors: [user.pubkey], '#d': [draftSlug], limit: 1 },
           ]);
-          if (events.length > 0) {
-            const event = events[0];
-            const getTag = (name: string) => event.tags.find((t) => t[0] === name)?.[1] || '';
-            const getTags = (name: string) => event.tags.filter((t) => t[0] === name).map((t) => t[1]);
+          if (events.length > 0 && events[0].content.trim()) {
+            const decrypted = await user.signer.nip44.decrypt(user.pubkey, events[0].content);
+            const inner = JSON.parse(decrypted) as Record<string, unknown>;
+            const tags = (inner.tags ?? []) as string[][];
+            const getTag = (name: string) => tags.find(t => t[0] === name)?.[1] || '';
+            const getTags = (name: string) => tags.filter(t => t[0] === name).map(t => t[1]);
             setInitialData({
               title: getTag('title'),
               summary: getTag('summary'),
-              content: event.content,
+              content: (inner.content as string) || '',
               image: getTag('image'),
               tags: getTags('t'),
               slug: getTag('d'),
@@ -93,6 +95,12 @@ export function ArticleEditorPage() {
 
     const addr = decoded.data;
 
+    // Only allow editing your own articles
+    if (user && addr.pubkey !== user.pubkey) {
+      setLoading(false);
+      return;
+    }
+
     nostr
       .query([
         {
@@ -104,26 +112,7 @@ export function ArticleEditorPage() {
       ])
       .then((events) => {
         if (events.length > 0) {
-          const event = events[0];
-          const getTag = (name: string) =>
-            event.tags.find((t) => t[0] === name)?.[1] || '';
-          const getTags = (name: string) =>
-            event.tags.filter((t) => t[0] === name).map((t) => t[1]);
-
-          const publishedAtTag = getTag('published_at');
-          const publishedAt = publishedAtTag
-            ? parseInt(publishedAtTag) * 1000
-            : event.created_at * 1000;
-
-          setInitialData({
-            title: getTag('title'),
-            summary: getTag('summary'),
-            content: event.content,
-            image: getTag('image'),
-            tags: getTags('t'),
-            slug: getTag('d'),
-            publishedAt,
-          });
+          setInitialData(parseArticleEvent(events[0]));
           setEditMode(true);
         }
       })
@@ -133,7 +122,7 @@ export function ArticleEditorPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [naddrParam, nostr]);
+  }, [naddrParam, nostr, user]);
 
   if (loading) {
     return (

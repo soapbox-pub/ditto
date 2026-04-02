@@ -16,16 +16,19 @@ interface MilkdownEditorInnerProps {
   value: string;
   onChange: (markdown: string) => void;
   onUploadImage?: (file: File) => Promise<string | null>;
-  onImageButtonClick?: () => void;
   placeholder?: string;
   showToolbar?: boolean;
+  sourceMode?: boolean;
+  onToggleSource?: () => void;
 }
 
-function MilkdownEditorInner({ value, onChange, onUploadImage, onImageButtonClick, placeholder, showToolbar = true }: MilkdownEditorInnerProps) {
+function MilkdownEditorInner({ value, onChange, onUploadImage, placeholder, showToolbar = true, sourceMode, onToggleSource }: MilkdownEditorInnerProps) {
   const initialValueRef = useRef(value);
   const editorRef = useRef<Editor | null>(null);
   const lastExternalValue = useRef(value);
   const onUploadImageRef = useRef(onUploadImage);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Link dialog state
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -121,6 +124,28 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, onImageButtonClic
     editorRef.current = get() ?? null;
   }, [get]);
 
+  // Toggle `has-content` class on blur so CSS can hide the placeholder
+  // when the editor has real content (including trailing whitespace that
+  // ProseMirror collapses out of the DOM).
+  useEffect(() => {
+    const editor = get();
+    if (!editor) return;
+    let dom: HTMLElement;
+    try {
+      dom = editor.ctx.get(editorViewCtx).dom;
+    } catch {
+      return;
+    }
+    const check = () => {
+      const hasContent = !!lastExternalValue.current.replace(/\n/g, '');
+      dom.classList.toggle('has-content', hasContent);
+    };
+    // Set initial state
+    check();
+    dom.addEventListener('blur', check);
+    return () => dom.removeEventListener('blur', check);
+  }, [get]);
+
   // Handle external value changes (e.g., loading a draft)
   useEffect(() => {
     const editor = get();
@@ -130,20 +155,6 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, onImageButtonClic
       lastExternalValue.current = value;
     }
   }, [value, get]);
-
-  // Add placeholder support
-  useEffect(() => {
-    const editor = get();
-    if (editor && placeholder) {
-      try {
-        const view = editor.ctx.get(editorViewCtx);
-        const editorDom = view.dom;
-        editorDom.setAttribute('data-placeholder', placeholder);
-      } catch {
-        // Editor not ready yet
-      }
-    }
-  }, [get, placeholder]);
 
   // Handle link dialog open
   const handleLinkButtonClick = useCallback(() => {
@@ -198,6 +209,39 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, onImageButtonClic
     } catch (error) {
       console.error('Failed to insert link:', error);
     }
+  }, [get]);
+
+  // Handle image upload via file picker + ProseMirror insertion
+  const handleImageButtonClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleImageFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadImageRef.current) return;
+
+    const url = await onUploadImageRef.current(file);
+    if (!url) return;
+
+    const editor = get();
+    if (!editor) return;
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const { state, dispatch } = view;
+      const { schema } = state;
+      const node = schema.nodes.image.createAndFill({ src: url, alt: file.name });
+      if (node) {
+        const { from } = state.selection;
+        dispatch(state.tr.insert(from, node));
+        view.focus();
+      }
+    } catch (error) {
+      console.error('Failed to insert image:', error);
+    }
+
+    // Reset so the same file can be re-selected
+    e.target.value = '';
   }, [get]);
 
   // Handle toolbar commands
@@ -262,12 +306,34 @@ function MilkdownEditorInner({ value, onChange, onUploadImage, onImageButtonClic
       {showToolbar && (
         <MilkdownToolbar
           onCommand={handleCommand}
-          onImageUpload={onImageButtonClick}
+          onImageUpload={onUploadImage ? handleImageButtonClick : undefined}
+          sourceMode={sourceMode}
+          onToggleSource={onToggleSource}
         />
       )}
-      <div className="milkdown-content">
-        <Milkdown />
-      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageFileChange}
+        className="hidden"
+      />
+      {sourceMode ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full min-h-[250px] sm:min-h-[350px] p-3 bg-transparent font-mono text-sm resize-y outline-none"
+          placeholder={placeholder}
+          spellCheck={false}
+        />
+      ) : (
+        <div
+          className="milkdown-content"
+          style={placeholder ? { '--ph': `"${placeholder.replace(/"/g, '\\"')}"` } as React.CSSProperties : undefined}
+        >
+          <Milkdown />
+        </div>
+      )}
       <LinkDialog
         open={linkDialogOpen}
         onOpenChange={setLinkDialogOpen}
@@ -282,13 +348,14 @@ interface MilkdownEditorProps {
   value: string;
   onChange: (markdown: string) => void;
   onUploadImage?: (file: File) => Promise<string | null>;
-  onImageButtonClick?: () => void;
   placeholder?: string;
   className?: string;
   showToolbar?: boolean;
 }
 
-export function MilkdownEditor({ value, onChange, onUploadImage, onImageButtonClick, placeholder, className, showToolbar = true }: MilkdownEditorProps) {
+export function MilkdownEditor({ value, onChange, onUploadImage, placeholder, className, showToolbar = true }: MilkdownEditorProps) {
+  const [sourceMode, setSourceMode] = useState(false);
+
   return (
     <div className={`milkdown-editor ${className || ''}`}>
       <MilkdownProvider>
@@ -296,9 +363,10 @@ export function MilkdownEditor({ value, onChange, onUploadImage, onImageButtonCl
           value={value}
           onChange={onChange}
           onUploadImage={onUploadImage}
-          onImageButtonClick={onImageButtonClick}
           placeholder={placeholder}
           showToolbar={showToolbar}
+          sourceMode={sourceMode}
+          onToggleSource={() => setSourceMode((s) => !s)}
         />
       </MilkdownProvider>
     </div>

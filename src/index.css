@@ -501,7 +501,7 @@
 }
 
 .milkdown-editor .editor {
-  @apply outline-none min-h-[400px] p-4;
+  @apply outline-none min-h-[400px] p-3;
   font-size: 1.125rem;
   line-height: 1.75;
 }
@@ -550,7 +550,7 @@
 
 /* Block elements */
 .milkdown-editor p {
-  @apply my-3;
+  @apply my-1.5;
 }
 
 .milkdown-editor blockquote {
@@ -629,11 +629,7 @@
   @apply bg-muted/30;
 }
 
-/* Placeholder */
-.milkdown-editor .ProseMirror p.is-editor-empty:first-child::before {
-  @apply text-muted-foreground pointer-events-none float-left h-0;
-  content: attr(data-placeholder);
-}
+
 
 /* Upload placeholder */
 .milkdown-upload-placeholder {
@@ -645,11 +641,13 @@
   @apply w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin;
 }
 
-/* Milkdown content area */
-.milkdown-editor .milkdown-content {
-  @apply p-4;
+/* Placeholder — only when unfocused AND content is empty. */
+.milkdown-editor .ProseMirror:not(:focus):not(.has-content) > p:first-child::before {
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+  content: var(--ph, '');
 }
 
+/* Milkdown content area */
 .milkdown-editor .milkdown-content .ProseMirror {
   @apply min-h-[350px];
 }

@@ -13,6 +13,8 @@ import {
   Image,
   Minus,
   HelpCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,6 +66,9 @@ function MarkdownHelpPopover() {
   );
 }
 
+const hasPointerFine = typeof window !== 'undefined'
+  && window.matchMedia('(pointer: fine)').matches;
+
 interface ToolbarButtonProps {
   icon: React.ReactNode;
   label: string;
@@ -73,20 +78,27 @@ interface ToolbarButtonProps {
 }
 
 function ToolbarButton({ icon, label, shortcut, onClick, active }: ToolbarButtonProps) {
+  const button = (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        "h-8 w-8 text-muted-foreground hover:text-foreground",
+        active && "bg-muted text-foreground"
+      )}
+    >
+      {icon}
+    </Button>
+  );
+
+  if (!hasPointerFine) return button;
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClick}
-          className={cn(
-            "h-8 w-8 text-muted-foreground hover:text-foreground",
-            active && "bg-muted text-foreground"
-          )}
-        >
-          {icon}
-        </Button>
+        {button}
       </TooltipTrigger>
       <TooltipContent>
         <span>{label}</span>
@@ -99,101 +111,123 @@ function ToolbarButton({ icon, label, shortcut, onClick, active }: ToolbarButton
 interface MilkdownToolbarProps {
   onCommand: (command: string) => void;
   onImageUpload?: () => void;
+  sourceMode?: boolean;
+  onToggleSource?: () => void;
   className?: string;
 }
 
-export function MilkdownToolbar({ onCommand, onImageUpload, className }: MilkdownToolbarProps) {
+export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggleSource, className }: MilkdownToolbarProps) {
   return (
     <div className={cn(
-      "flex items-center gap-0.5 p-1.5 border-b border-border bg-card/50 flex-wrap",
+      "flex items-center gap-0.5 p-1.5 border-b border-border bg-card/95 backdrop-blur-sm flex-wrap sticky top-0 z-10 rounded-t-xl",
       className
     )}>
-      {/* Text formatting */}
-      <ToolbarButton
-        icon={<Bold className="h-4 w-4" />}
-        label="Bold"
-        shortcut="Ctrl+B"
-        onClick={() => onCommand('toggleBold')}
-      />
-      <ToolbarButton
-        icon={<Italic className="h-4 w-4" />}
-        label="Italic"
-        shortcut="Ctrl+I"
-        onClick={() => onCommand('toggleItalic')}
-      />
-      <ToolbarButton
-        icon={<Strikethrough className="h-4 w-4" />}
-        label="Strikethrough"
-        onClick={() => onCommand('toggleStrikethrough')}
-      />
-      <ToolbarButton
-        icon={<Code className="h-4 w-4" />}
-        label="Inline Code"
-        onClick={() => onCommand('toggleInlineCode')}
-      />
+      {!sourceMode && (
+        <>
+          {/* Text formatting */}
+          <ToolbarButton
+            icon={<Bold className="h-4 w-4" />}
+            label="Bold"
+            shortcut="Ctrl+B"
+            onClick={() => onCommand('toggleBold')}
+          />
+          <ToolbarButton
+            icon={<Italic className="h-4 w-4" />}
+            label="Italic"
+            shortcut="Ctrl+I"
+            onClick={() => onCommand('toggleItalic')}
+          />
+          <ToolbarButton
+            icon={<Strikethrough className="h-4 w-4" />}
+            label="Strikethrough"
+            onClick={() => onCommand('toggleStrikethrough')}
+          />
+          <ToolbarButton
+            icon={<Code className="h-4 w-4" />}
+            label="Inline Code"
+            onClick={() => onCommand('toggleInlineCode')}
+          />
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Headings */}
-      <ToolbarButton
-        icon={<Heading1 className="h-4 w-4" />}
-        label="Heading 1"
-        onClick={() => onCommand('heading1')}
-      />
-      <ToolbarButton
-        icon={<Heading2 className="h-4 w-4" />}
-        label="Heading 2"
-        onClick={() => onCommand('heading2')}
-      />
-      <ToolbarButton
-        icon={<Heading3 className="h-4 w-4" />}
-        label="Heading 3"
-        onClick={() => onCommand('heading3')}
-      />
+          {/* Headings */}
+          <ToolbarButton
+            icon={<Heading1 className="h-4 w-4" />}
+            label="Heading 1"
+            onClick={() => onCommand('heading1')}
+          />
+          <ToolbarButton
+            icon={<Heading2 className="h-4 w-4" />}
+            label="Heading 2"
+            onClick={() => onCommand('heading2')}
+          />
+          <ToolbarButton
+            icon={<Heading3 className="h-4 w-4" />}
+            label="Heading 3"
+            onClick={() => onCommand('heading3')}
+          />
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Lists */}
-      <ToolbarButton
-        icon={<List className="h-4 w-4" />}
-        label="Bullet List"
-        onClick={() => onCommand('bulletList')}
-      />
-      <ToolbarButton
-        icon={<ListOrdered className="h-4 w-4" />}
-        label="Numbered List"
-        onClick={() => onCommand('orderedList')}
-      />
-      <ToolbarButton
-        icon={<Quote className="h-4 w-4" />}
-        label="Blockquote"
-        onClick={() => onCommand('blockquote')}
-      />
+          {/* Lists */}
+          <ToolbarButton
+            icon={<List className="h-4 w-4" />}
+            label="Bullet List"
+            onClick={() => onCommand('bulletList')}
+          />
+          <ToolbarButton
+            icon={<ListOrdered className="h-4 w-4" />}
+            label="Numbered List"
+            onClick={() => onCommand('orderedList')}
+          />
+          <ToolbarButton
+            icon={<Quote className="h-4 w-4" />}
+            label="Blockquote"
+            onClick={() => onCommand('blockquote')}
+          />
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+          <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Links and media */}
-      <ToolbarButton
-        icon={<Link className="h-4 w-4" />}
-        label="Insert Link"
-        onClick={() => onCommand('link')}
-      />
-      {onImageUpload && (
+          {/* Links and media */}
+          <ToolbarButton
+            icon={<Link className="h-4 w-4" />}
+            label="Insert Link"
+            onClick={() => onCommand('link')}
+          />
+          {onImageUpload && (
+            <ToolbarButton
+              icon={<Image className="h-4 w-4" />}
+              label="Insert Image"
+              onClick={onImageUpload}
+            />
+          )}
+          <ToolbarButton
+            icon={<Minus className="h-4 w-4" />}
+            label="Horizontal Rule"
+            onClick={() => onCommand('hr')}
+          />
+
+          <Separator orientation="vertical" className="mx-1 h-6" />
+
+          <MarkdownHelpPopover />
+        </>
+      )}
+
+      {sourceMode && (
+        <>
+          <span className="text-xs text-muted-foreground px-1.5">Markdown Source</span>
+          <span className="flex-1" />
+        </>
+      )}
+
+      {onToggleSource && (
         <ToolbarButton
-          icon={<Image className="h-4 w-4" />}
-          label="Insert Image"
-          onClick={onImageUpload}
+          icon={sourceMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          label={sourceMode ? 'Rich text editor' : 'Markdown source'}
+          active={sourceMode}
+          onClick={onToggleSource}
         />
       )}
-      <ToolbarButton
-        icon={<Minus className="h-4 w-4" />}
-        label="Horizontal Rule"
-        onClick={() => onCommand('hr')}
-      />
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      <MarkdownHelpPopover />
     </div>
   );
 }

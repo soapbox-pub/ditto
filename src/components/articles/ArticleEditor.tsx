@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import slugify from 'slugify';
+import { useNostr } from '@nostrify/react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,17 +43,11 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDrafts, type Draft } from '@/hooks/useDrafts';
 import { usePublishedArticles } from '@/hooks/usePublishedArticles';
-import { saveDraft as saveLocalDraft, deleteDraftBySlug, getLocalDrafts } from '@/lib/localDrafts';
+import { saveDraft as saveLocalDraft, deleteDraftBySlug, deleteLocalDraftById, getLocalDrafts } from '@/lib/localDrafts';
+import type { ArticleFields } from '@/lib/articleHelpers';
 import { MilkdownEditor } from './MilkdownEditor';
 
-export interface ArticleData {
-  title: string;
-  summary: string;
-  content: string;
-  image: string;
-  tags: string[];
-  slug: string;
-}
+export type ArticleData = ArticleFields;
 
 interface ArticleEditorProps {
   /** Pre-filled data for editing an existing article or loading a draft. */
@@ -65,6 +60,7 @@ type EditorTab = 'write' | 'drafts';
 
 export function ArticleEditor({ initialData, editMode = false }: ArticleEditorProps) {
   const navigate = useNavigate();
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -72,15 +68,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const { articles: publishedArticles } = usePublishedArticles();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inlineImageInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<EditorTab>('write');
   const [localDrafts, setLocalDrafts] = useState<Draft[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; slug: string; isLocal: boolean } | null>(null);
-  const [wordCount, setWordCount] = useState(0);
-  const [_charCount, setCharCount] = useState(0);
-  const [readingTime, setReadingTime] = useState(0);
   const [tagInput, setTagInput] = useState('');
+  const slugManuallyEdited = useRef(!!initialData?.slug);
   const [isPublished, setIsPublished] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -99,31 +92,62 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     slug: initialData?.slug || '',
   });
 
-  // Auto-save every 30 seconds if there are changes
-  useEffect(() => {
-    if (hasUnsavedChanges && article.content.length > 0) {
-      autoSaveTimeoutRef.current = setTimeout(async () => {
-        if (user) {
-          try {
-            await saveRelayDraft(article);
-          } catch {
-            // Fallback to local
-            saveLocalDraft(article);
-          }
-        } else {
-          saveLocalDraft(article);
-        }
+  // Keep a ref to the latest article data so the auto-save timer doesn't
+  // need `article` in its dependency array (which would reset it on every keystroke).
+  const articleRef = useRef(article);
+  articleRef.current = article;
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
+  /** Save draft to relay (with localStorage fallback). Shared by manual save + auto-save. */
+  const persistDraft = useCallback(async (data: ArticleData, { silent }: { silent?: boolean } = {}) => {
+    if (user) {
+      try {
+        await saveRelayDraft(data);
+        if (!mountedRef.current) return;
         setLastSaved(new Date());
         setHasUnsavedChanges(false);
-      }, 30000);
+        if (!silent) {
+          toast({ title: 'Draft saved', description: 'Your article has been saved to Nostr relays.' });
+        }
+      } catch (error) {
+        console.error('Failed to save draft to relay:', error);
+        saveLocalDraft(data);
+        if (!mountedRef.current) return;
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+        if (!silent) {
+          toast({ title: 'Draft saved locally', description: 'Could not sync to relays. Saved to your browser.', variant: 'destructive' });
+        }
+      }
+    } else {
+      saveLocalDraft(data);
+      if (!mountedRef.current) return;
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      if (!silent) {
+        toast({ title: 'Draft saved', description: 'Your article has been saved locally.' });
+      }
     }
+  }, [user, saveRelayDraft]);
+
+  // Auto-save 30s after the first unsaved change. The timer starts once and
+  // is only reset when `hasUnsavedChanges` transitions, not on every keystroke.
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      const current = articleRef.current;
+      if (current.content.length === 0) return;
+      persistDraft(current, { silent: true });
+    }, 30000);
 
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [hasUnsavedChanges, article, user, saveRelayDraft]);
+  }, [hasUnsavedChanges, persistDraft]);
 
   // Reference to handlers for keyboard shortcuts
   const handlePublishRef = useRef<(() => void) | null>(null);
@@ -143,9 +167,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges, article.title, article.content]);
 
-  // Auto-generate slug from title
+  // Auto-generate slug from title (skip if user manually edited the slug)
   useEffect(() => {
-    if (article.title && !initialData?.slug) {
+    if (article.title && !slugManuallyEdited.current) {
       const newSlug = slugify(article.title, {
         lower: true,
         strict: true,
@@ -153,18 +177,11 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       });
       setArticle((prev) => ({ ...prev, slug: newSlug }));
     }
-  }, [article.title, initialData?.slug]);
+  }, [article.title]);
 
-  // Calculate stats
-  useEffect(() => {
-    const words = article.content.trim().split(/\s+/).filter(Boolean).length;
-    const chars = article.content.length;
-    const minutes = Math.ceil(words / 200);
-
-    setWordCount(words);
-    setCharCount(chars);
-    setReadingTime(minutes);
-  }, [article.content]);
+  // Derived stats
+  const wordCount = useMemo(() => article.content.trim().split(/\s+/).filter(Boolean).length, [article.content]);
+  const readingTime = Math.ceil(wordCount / 200);
 
   // Load local drafts when drafts tab is shown
   useEffect(() => {
@@ -174,7 +191,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   }, [activeTab]);
 
   // Combine relay and local drafts, avoiding duplicates by slug
-  const combinedDrafts = (() => {
+  const combinedDrafts = useMemo(() => {
     const drafts: (Draft & { isLocal: boolean })[] = [];
     const seenSlugs = new Set<string>();
 
@@ -190,43 +207,28 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     }
 
     return drafts.sort((a, b) => b.updatedAt - a.updatedAt);
-  })();
+  }, [relayDrafts, localDrafts]);
 
-  const handleLoadDraft = useCallback((draft: Draft & { isLocal: boolean }) => {
+  /** Load a draft or published article into the editor. */
+  const handleLoadItem = useCallback((item: ArticleData & { publishedAt?: number }, isPublishedArticle: boolean) => {
     setArticle({
-      title: draft.title,
-      summary: draft.summary,
-      content: draft.content,
-      image: draft.image,
-      tags: draft.tags,
-      slug: draft.slug,
+      title: item.title,
+      summary: item.summary,
+      content: item.content,
+      image: item.image,
+      tags: item.tags,
+      slug: item.slug,
     });
-    setIsEditMode(false);
-    setOriginalPublishedAt(null);
+    slugManuallyEdited.current = !!item.slug;
+    setIsEditMode(isPublishedArticle);
+    setOriginalPublishedAt(item.publishedAt ?? null);
     setHasUnsavedChanges(false);
     setActiveTab('write');
     toast({
-      title: 'Draft loaded',
-      description: 'Your draft has been loaded into the editor.',
-    });
-  }, []);
-
-  const handleLoadArticle = useCallback((articleData: { title: string; summary: string; content: string; image: string; tags: string[]; slug: string; publishedAt: number }) => {
-    setArticle({
-      title: articleData.title,
-      summary: articleData.summary,
-      content: articleData.content,
-      image: articleData.image,
-      tags: articleData.tags,
-      slug: articleData.slug,
-    });
-    setIsEditMode(true);
-    setOriginalPublishedAt(articleData.publishedAt);
-    setHasUnsavedChanges(false);
-    setActiveTab('write');
-    toast({
-      title: 'Article loaded for editing',
-      description: 'Make changes and publish to update your article.',
+      title: isPublishedArticle ? 'Article loaded for editing' : 'Draft loaded',
+      description: isPublishedArticle
+        ? 'Make changes and publish to update your article.'
+        : 'Your draft has been loaded into the editor.',
     });
   }, []);
 
@@ -234,17 +236,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     if (!deleteTarget) return;
 
     if (deleteTarget.isLocal) {
-      try {
-        const stored = localStorage.getItem('article-drafts');
-        if (stored) {
-          const drafts: Draft[] = JSON.parse(stored);
-          const filtered = drafts.filter((d) => d.id !== deleteTarget.id);
-          localStorage.setItem('article-drafts', JSON.stringify(filtered));
-          setLocalDrafts(filtered);
-        }
-      } catch (error) {
-        console.error('Failed to delete local draft:', error);
-      }
+      setLocalDrafts(deleteLocalDraftById(deleteTarget.id));
       toast({ title: 'Draft deleted', description: 'Removed from your browser.' });
     } else {
       try {
@@ -316,84 +308,13 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     [handleImageUpload, updateArticle],
   );
 
-  const handleInlineImageButtonClick = useCallback(() => {
-    inlineImageInputRef.current?.click();
-  }, []);
-
-  const handleInlineImageUpload = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const url = await handleImageUpload(file);
-      if (url) {
-        const imageMarkdown = `![${file.name}](${url})`;
-        updateArticle('content', article.content + '\n' + imageMarkdown + '\n');
-      }
-      e.target.value = '';
-    },
-    [handleImageUpload, updateArticle, article.content],
-  );
-
   const handleSaveDraft = useCallback(async () => {
-    if (user) {
-      try {
-        await saveRelayDraft(article);
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
-        toast({
-          title: 'Draft saved',
-          description: 'Your article has been saved to Nostr relays.',
-        });
-      } catch (error) {
-        console.error('Failed to save draft to relay:', error);
-        saveLocalDraft(article);
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
-        toast({
-          title: 'Draft saved locally',
-          description: 'Could not sync to relays. Saved to your browser.',
-          variant: 'destructive',
-        });
-      }
-    } else {
-      saveLocalDraft(article);
-      setLastSaved(new Date());
-      setHasUnsavedChanges(false);
-      toast({
-        title: 'Draft saved',
-        description: 'Your article has been saved locally.',
-      });
-    }
-  }, [article, user, saveRelayDraft]);
+    await persistDraft(article);
+  }, [article, persistDraft]);
 
-  const handlePublish = useCallback(() => {
-    if (!user) {
-      toast({
-        title: 'Login required',
-        description: 'Please login to publish your article.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!article.title.trim()) {
-      toast({
-        title: 'Title required',
-        description: 'Please add a title to your article.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!article.content.trim()) {
-      toast({
-        title: 'Content required',
-        description: 'Please write some content for your article.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  /** Perform the actual publish (called directly or after overwrite confirmation). */
+  const doPublish = useCallback(() => {
+    if (!user) return;
 
     // Use original published_at when editing, current time for new articles
     const publishedAtTimestamp =
@@ -470,6 +391,59 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     navigate,
   ]);
 
+  const handlePublish = useCallback(async () => {
+    if (!user) {
+      toast({
+        title: 'Login required',
+        description: 'Please login to publish your article.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!article.title.trim()) {
+      toast({
+        title: 'Title required',
+        description: 'Please add a title to your article.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!article.content.trim()) {
+      toast({
+        title: 'Content required',
+        description: 'Please write some content for your article.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // In edit mode we're intentionally overwriting, so skip the collision check
+    if (!isEditMode) {
+      const slug = article.slug || slugify(article.title, { lower: true, strict: true });
+
+      try {
+        const existing = await nostr.query([
+          { kinds: [30023], authors: [user.pubkey], '#d': [slug], limit: 1 },
+        ]);
+
+        if (existing.length > 0) {
+          toast({
+            title: 'Slug already in use',
+            description: 'You already have a published article with this slug. Change the slug or edit the existing article from My Articles.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } catch {
+        // If the check fails (e.g. relay timeout), proceed anyway
+      }
+    }
+
+    doPublish();
+  }, [user, article, isEditMode, nostr, doPublish]);
+
   // Set refs for keyboard shortcuts
   handlePublishRef.current = handlePublish;
   handleSaveDraftRef.current = handleSaveDraft;
@@ -510,15 +484,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     setShowLeaveDialog(false);
     navigate('/articles');
   }, [handleSaveDraft, navigate]);
-
-  // Sync editMode prop with internal state
-  useEffect(() => {
-    setIsEditMode(editMode);
-  }, [editMode]);
-
-  useEffect(() => {
-    setOriginalPublishedAt(initialData?.publishedAt ?? null);
-  }, [initialData?.publishedAt]);
 
   const statusLabel = isPublished ? (
     <span className="text-green-600 dark:text-green-400 text-sm">
@@ -577,17 +542,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         onChange={handleHeaderImageUpload}
         className="hidden"
       />
-      <input
-        ref={inlineImageInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleInlineImageUpload}
-        className="hidden"
-      />
-
       {/* ── New article tab ──────────────────────────────────────── */}
       {activeTab === 'write' && (
-        <div className="px-4 py-6 space-y-6">
+        <div className="px-4 py-6 pb-24 space-y-6">
           {/* Header Image */}
           {article.image ? (
             <div className="relative rounded-xl overflow-hidden group">
@@ -596,7 +553,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 alt="Header"
                 className="w-full h-48 sm:h-64 object-cover"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+              {/* Desktop: centered overlay on hover */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -611,6 +569,20 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                   Change Image
                 </Button>
               </div>
+              {/* Mobile: persistent corner button */}
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Image className="w-4 h-4" />
+                )}
+              </Button>
             </div>
           ) : (
             <button
@@ -650,23 +622,26 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="space-y-2 flex-1">
-                <Label htmlFor="slug" className="text-muted-foreground text-sm">URL Slug</Label>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="space-y-1.5 flex-1">
+                <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
                 <Input
                   id="slug"
                   value={article.slug}
-                  onChange={(e) => updateArticle('slug', e.target.value)}
+                  onChange={(e) => {
+                    slugManuallyEdited.current = true;
+                    updateArticle('slug', e.target.value);
+                  }}
                   placeholder="article-url-slug"
-                  className="font-mono text-sm"
+                  className="h-8 font-mono text-xs"
                 />
               </div>
-              <div className="space-y-2 flex-1">
-                <Label className="text-muted-foreground text-sm flex items-center gap-1.5">
-                  <Hash className="w-3.5 h-3.5" />
+              <div className="space-y-1.5 flex-1">
+                <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
+                  <Hash className="w-3 h-3 shrink-0" />
                   Tags
                 </Label>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <Input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
@@ -674,10 +649,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                       e.key === 'Enter' && (e.preventDefault(), handleAddTag())
                     }
                     placeholder="Add a tag..."
-                    className="flex-1"
+                    className="h-8 text-xs flex-1"
                   />
-                  <Button type="button" variant="secondary" size="sm" onClick={handleAddTag}>
-                    Add
+                  <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                    <span className="text-base leading-none">+</span>
                   </Button>
                 </div>
               </div>
@@ -702,9 +677,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
             value={article.content}
             onChange={(value) => updateArticle('content', value || '')}
             onUploadImage={handleImageUpload}
-            onImageButtonClick={handleInlineImageButtonClick}
             placeholder="Start writing your article..."
-            className="rounded-xl overflow-hidden border border-border bg-card min-h-[400px]"
+            className="rounded-xl border border-border bg-card min-h-[250px] sm:min-h-[400px]"
           />
 
           {/* Stats + Save */}
@@ -761,7 +735,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={draft.id}
                       className="group p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadDraft(draft)}
+                      onClick={() => handleLoadItem(draft, false)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -814,7 +788,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={pub.id}
                       className="group p-4 rounded-xl border border-border hover:border-green-500/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadArticle(pub)}
+                      onClick={() => handleLoadItem(pub, true)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">

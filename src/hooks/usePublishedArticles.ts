@@ -3,37 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
+import { parseArticleEvent, type ArticleFields } from '@/lib/articleHelpers';
 
-export interface PublishedArticle {
+export interface PublishedArticle extends ArticleFields {
   id: string;
   eventId: string;
-  title: string;
-  summary: string;
-  content: string;
-  image: string;
-  tags: string[];
-  slug: string;
   publishedAt: number;
   updatedAt: number;
 }
 
 function eventToArticle(event: NostrEvent): PublishedArticle {
-  const getTag = (name: string) => event.tags.find(t => t[0] === name)?.[1] || '';
-  const getTags = (name: string) => event.tags.filter(t => t[0] === name).map(t => t[1]);
-
-  const publishedAtTag = getTag('published_at');
-  const publishedAt = publishedAtTag ? parseInt(publishedAtTag) * 1000 : event.created_at * 1000;
-
+  const parsed = parseArticleEvent(event);
   return {
+    ...parsed,
     id: event.id,
     eventId: event.id,
-    title: getTag('title'),
-    summary: getTag('summary'),
-    content: event.content,
-    image: getTag('image'),
-    tags: getTags('t'),
-    slug: getTag('d'),
-    publishedAt,
     updatedAt: event.created_at * 1000,
   };
 }
@@ -50,7 +34,7 @@ export function usePublishedArticles() {
       }
 
       const events = await nostr.query(
-        [{ kinds: [30023], authors: [user.pubkey] }],
+        [{ kinds: [30023], authors: [user.pubkey], limit: 100 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
