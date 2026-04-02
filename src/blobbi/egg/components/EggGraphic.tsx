@@ -223,16 +223,18 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   }, [shouldAutoWiggle]);
 
   // Tour: whether the egg should show crack overlay
-  const tourShowCrack = tourVisualState !== 'idle' && tourVisualState !== 'opening' && tourVisualState !== 'hatching';
+  // The crack stays visible during 'opening' so the shell fades out WITH its cracks intact.
+  // Only 'idle' and 'hatching' (shell already gone) hide the crack.
+  const tourShowCrack = tourVisualState !== 'idle' && tourVisualState !== 'hatching';
 
   // Tour: crack intensity level (0 = small center crack, 1-3 = progressively expanding)
   // Level 0: small central crack (show_hatch_card, glowing_waiting_click)
   // Level 1: crack expands left/right with small branches (crack_stage_1)
   // Level 2: crack expands further toward edges, more branches (crack_stage_2)
-  // Level 3: crack reaches near shell edges, about to split (crack_stage_3)
+  // Level 3: crack reaches near shell edges, about to split (crack_stage_3, opening)
   const tourCrackLevel = tourVisualState === 'crack_stage_1' ? 1
     : tourVisualState === 'crack_stage_2' ? 2
-    : tourVisualState === 'crack_stage_3' ? 3
+    : (tourVisualState === 'crack_stage_3' || tourVisualState === 'opening') ? 3
     : 0;
 
   // Divine color constants
@@ -558,8 +560,9 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             // Warmth effect only when animated AND warm
             animated && actualWarmth > 60 && 'animate-egg-warmth',
             // Cracking overrides other animations (legacy prop or tour crack stages)
-            (cracking || tourCrackLevel >= 1) && 'animate-egg-crack',
-            // Opening/hatching: fade out the egg shell
+            // During 'opening' the shell runs its own open animation, so suppress the shake
+            (cracking || (tourCrackLevel >= 1 && tourVisualState !== 'opening')) && 'animate-egg-crack',
+            // Opening/hatching: fade out the egg shell (crack overlay stays inside and fades with it)
             tourVisualState === 'opening' && 'animate-egg-tour-open',
             tourVisualState === 'hatching' && 'opacity-0',
           )}

@@ -1528,8 +1528,8 @@ function BlobbiDashboard({
               className="size-48 sm:size-56"
             />
             {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
-              <div className="absolute bottom-2 right-8 animate-bounce text-2xl pointer-events-none select-none">
-                👆
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                <span className="text-4xl animate-bounce drop-shadow-lg">👆</span>
               </div>
             )}
           </div>
