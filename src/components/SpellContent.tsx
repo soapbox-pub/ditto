@@ -35,7 +35,7 @@ function formatTimestamp(value: string): string {
 
 /** Friendly display name for tag filter letters. */
 function tagFilterLabel(letter: string): string {
-  if (letter === 't') return 'Hashtags';
+  if (letter === 't') return '#';
   return `#${letter}`;
 }
 
