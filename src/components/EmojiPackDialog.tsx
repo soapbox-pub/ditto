@@ -26,17 +26,16 @@ interface EmojiEntry {
   /** Client-side key for React list rendering. */
   id: string;
   shortcode: string;
+  /** Display URL -- either a remote Blossom URL (for already-uploaded emojis) or a local blob URL (for pending files). */
   url: string;
-  /** True while this entry's image is still uploading. */
-  uploading?: boolean;
+  /** When set, this file still needs to be uploaded on submit. */
+  file?: File;
 }
 
 /** Convert a filename to a shortcode (alphanumeric, hyphens, underscores only). */
 function filenameToShortcode(filename: string): string {
-  // Remove extension
   const dotIndex = filename.lastIndexOf('.');
   const base = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
-  // Replace non-allowed characters with underscores, collapse runs, trim edges
   return base
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .replace(/_+/g, '_')
@@ -74,7 +73,7 @@ interface EmojiPackDialogProps {
 export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDialogProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
+  const { mutateAsync: publishEvent } = useNostrPublish();
   const { mutateAsync: uploadFile } = useUploadFile();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -101,14 +100,12 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
   const [idTouched, setIdTouched] = useState(isEditMode);
   const [emojis, setEmojis] = useState<EmojiEntry[]>(initialData?.emojis ?? []);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadingCount, setUploadingCount] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag state for reordering
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  const isUploading = uploadingCount > 0;
 
   const effectiveIdentifier = idTouched ? identifier : slugify(name);
 
@@ -116,9 +113,15 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     setIdentifier(initialData?.identifier ?? '');
     setName(initialData?.name ?? '');
     setIdTouched(isEditMode);
-    setEmojis(initialData?.emojis ?? []);
+    setEmojis((prev) => {
+      // Revoke any remaining blob URLs to avoid memory leaks
+      for (const e of prev) {
+        if (e.file) URL.revokeObjectURL(e.url);
+      }
+      return initialData?.emojis ?? [];
+    });
     setIsDragOver(false);
-    setUploadingCount(0);
+    setIsSubmitting(false);
     setDragIndex(null);
     setDragOverIndex(null);
   }, [initialData, isEditMode]);
@@ -140,57 +143,23 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     onOpenChange(nextOpen);
   }, [onOpenChange, resetForm]);
 
-  /** Upload a single file and add it to the emoji list. */
-  const uploadAndAddEmoji = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    const shortcode = filenameToShortcode(file.name);
-    if (!shortcode) return;
-
-    const entryId = nextEntryId();
-
-    // Create a local preview immediately
-    const previewUrl = URL.createObjectURL(file);
-    const placeholderEntry: EmojiEntry = {
-      id: entryId,
-      shortcode,
-      url: previewUrl,
-      uploading: true,
-    };
-
-    setEmojis((prev) => [...prev, placeholderEntry]);
-    setUploadingCount((c) => c + 1);
-
-    try {
-      const [[, url]] = await uploadFile(file);
-      setEmojis((prev) =>
-        prev.map((e) =>
-          e.id === entryId ? { ...e, url, uploading: false } : e,
-        ),
-      );
-    } catch {
-      // Remove the failed entry
-      setEmojis((prev) => prev.filter((e) => e.id !== entryId));
-      toast({
-        title: 'Upload failed',
-        description: `Failed to upload ${file.name}`,
-        variant: 'destructive',
-      });
-    } finally {
-      URL.revokeObjectURL(previewUrl);
-      setUploadingCount((c) => c - 1);
-    }
-  }, [uploadFile, toast]);
-
-  /** Process multiple files from drop or file input. */
-  const handleFiles = useCallback(async (files: File[]) => {
+  /** Add image files to the emoji list as local previews (no upload yet). */
+  const addFiles = useCallback((files: File[]) => {
     const imageFiles = files.filter((f) => f.type.startsWith('image/'));
     if (imageFiles.length === 0) {
       toast({ title: 'No images', description: 'No image files found.', variant: 'destructive' });
       return;
     }
-    // Upload all in parallel
-    await Promise.allSettled(imageFiles.map(uploadAndAddEmoji));
-  }, [uploadAndAddEmoji, toast]);
+
+    const newEntries: EmojiEntry[] = imageFiles.map((file) => ({
+      id: nextEntryId(),
+      shortcode: filenameToShortcode(file.name),
+      url: URL.createObjectURL(file),
+      file,
+    }));
+
+    setEmojis((prev) => [...prev, ...newEntries]);
+  }, [toast]);
 
   /** Handle drop zone events. */
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -215,7 +184,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
       if (entries.length > 0) {
         // Recursively read all files from directory entries
-        const readAllEntries = async (entries: FileSystemEntry[]): Promise<File[]> => {
+        const readAllEntries = async (dirEntries: FileSystemEntry[]): Promise<File[]> => {
           const allFiles: File[] = [];
 
           const readEntry = (entry: FileSystemEntry): Promise<void> => {
@@ -227,8 +196,8 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                 }, () => resolve());
               } else if (entry.isDirectory) {
                 const dirReader = (entry as FileSystemDirectoryEntry).createReader();
-                dirReader.readEntries(async (dirEntries) => {
-                  await Promise.all(dirEntries.map(readEntry));
+                dirReader.readEntries(async (childEntries) => {
+                  await Promise.all(childEntries.map(readEntry));
                   resolve();
                 }, () => resolve());
               } else {
@@ -237,11 +206,11 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
             });
           };
 
-          await Promise.all(entries.map(readEntry));
+          await Promise.all(dirEntries.map(readEntry));
           return allFiles;
         };
 
-        readAllEntries(entries).then(handleFiles);
+        readAllEntries(entries).then(addFiles);
         return;
       }
     }
@@ -250,8 +219,8 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     for (let i = 0; i < e.dataTransfer.files.length; i++) {
       files.push(e.dataTransfer.files[i]);
     }
-    handleFiles(files);
-  }, [handleFiles]);
+    addFiles(files);
+  }, [addFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -271,10 +240,10 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     for (let i = 0; i < fileList.length; i++) {
       files.push(fileList[i]);
     }
-    handleFiles(files);
+    addFiles(files);
     // Reset input so the same files can be re-selected
     e.target.value = '';
-  }, [handleFiles]);
+  }, [addFiles]);
 
   /** Update a single emoji's shortcode. */
   const updateShortcode = useCallback((id: string, newShortcode: string) => {
@@ -285,14 +254,17 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
   /** Remove an emoji entry. */
   const removeEmoji = useCallback((id: string) => {
-    setEmojis((prev) => prev.filter((e) => e.id !== id));
+    setEmojis((prev) => {
+      const removed = prev.find((e) => e.id === id);
+      if (removed?.file) URL.revokeObjectURL(removed.url);
+      return prev.filter((e) => e.id !== id);
+    });
   }, []);
 
   /** Row-level drag-and-drop reorder handlers. */
   const handleRowDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    // Set minimal drag data so the browser shows a drag ghost
     e.dataTransfer.setData('text/plain', String(index));
   }, []);
 
@@ -326,7 +298,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
     setDragOverIndex(null);
   }, []);
 
-  /** Publish the emoji pack. */
+  /** Upload all pending files, then publish the emoji pack event. */
   const handlePublish = useCallback(async () => {
     const resolvedId = effectiveIdentifier.trim();
     if (!user || !resolvedId || emojis.length === 0) return;
@@ -356,7 +328,46 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
       seen.add(e.shortcode);
     }
 
+    setIsSubmitting(true);
+
     try {
+      // Upload all pending files in parallel
+      const pendingEntries = emojis.filter((e) => e.file);
+      const uploadResults = new Map<string, string>();
+
+      if (pendingEntries.length > 0) {
+        const results = await Promise.allSettled(
+          pendingEntries.map(async (entry) => {
+            const [[, url]] = await uploadFile(entry.file!);
+            return { id: entry.id, url };
+          }),
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            uploadResults.set(result.value.id, result.value.url);
+          }
+        }
+
+        // Check if any uploads failed
+        const failedCount = pendingEntries.length - uploadResults.size;
+        if (failedCount > 0) {
+          toast({
+            title: 'Some uploads failed',
+            description: `${failedCount} file${failedCount !== 1 ? 's' : ''} failed to upload. Please try again.`,
+            variant: 'destructive',
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Build the final emoji list with resolved URLs
+      const resolvedEmojis = emojis.map((e) => ({
+        shortcode: e.shortcode,
+        url: uploadResults.get(e.id) ?? e.url,
+      }));
+
       // For edit mode, fetch fresh event to preserve any tags we don't manage
       let preservedTags: string[][] = [];
       if (isEditMode) {
@@ -366,7 +377,6 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
           '#d': [resolvedId],
         });
         if (fresh) {
-          // Keep tags that aren't d, name, or emoji
           preservedTags = fresh.tags.filter(
             ([n]) => n !== 'd' && n !== 'name' && n !== 'emoji',
           );
@@ -377,7 +387,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         ['d', resolvedId],
         ...(name.trim() ? [['name', name.trim()]] : []),
         ...preservedTags,
-        ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
+        ...resolvedEmojis.map((e) => ['emoji', e.shortcode, e.url]),
       ];
 
       await publishEvent({
@@ -386,13 +396,18 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         tags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
 
+      // Clean up blob URLs
+      for (const e of emojis) {
+        if (e.file) URL.revokeObjectURL(e.url);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
       queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
 
       toast({
         title: isEditMode ? 'Emoji pack updated!' : 'Emoji pack created!',
-        description: `"${name.trim() || resolvedId}" with ${emojis.length} emoji${emojis.length !== 1 ? 's' : ''}.`,
+        description: `"${name.trim() || resolvedId}" with ${resolvedEmojis.length} emoji${resolvedEmojis.length !== 1 ? 's' : ''}.`,
       });
 
       handleOpenChange(false);
@@ -402,12 +417,15 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         description: 'Could not publish the emoji pack. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [user, effectiveIdentifier, name, emojis, isEditMode, nostr, publishEvent, queryClient, toast, handleOpenChange]);
+  }, [user, effectiveIdentifier, name, emojis, isEditMode, nostr, publishEvent, uploadFile, queryClient, toast, handleOpenChange]);
 
   // Validation
-  const hasValidEmojis = emojis.length > 0 && emojis.every((e) => !e.uploading && e.url && e.shortcode);
-  const canPublish = effectiveIdentifier.trim() && hasValidEmojis && !isPublishing && !isUploading;
+  const pendingCount = emojis.filter((e) => e.file).length;
+  const hasValidEmojis = emojis.length > 0 && emojis.every((e) => e.shortcode);
+  const canPublish = effectiveIdentifier.trim() && hasValidEmojis && !isSubmitting;
 
   if (!user) return null;
 
@@ -437,6 +455,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                   placeholder="e.g. Blobcats"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-1.5">
@@ -446,7 +465,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                   placeholder="e.g. blobcats"
                   value={idTouched ? identifier : effectiveIdentifier}
                   onChange={(e) => handleIdChange(e.target.value)}
-                  disabled={isEditMode}
+                  disabled={isEditMode || isSubmitting}
                   className={`font-mono text-sm ${isEditMode ? 'text-muted-foreground' : ''}`}
                 />
                 {isEditMode && (
@@ -461,33 +480,26 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !isSubmitting && fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+                onKeyDown={(e) => { if (!isSubmitting && (e.key === 'Enter' || e.key === ' ')) fileInputRef.current?.click(); }}
                 className={`relative flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl transition-colors cursor-pointer overflow-hidden ${
                   isDragOver
                     ? 'border-primary bg-primary/5'
                     : 'border-border bg-secondary/5 hover:bg-secondary/10'
-                } ${emojis.length > 0 ? 'h-20' : 'h-28'}`}
+                } ${emojis.length > 0 ? 'h-20' : 'h-28'} ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`}
               >
-                {isUploading ? (
-                  <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                    <Loader2 className="size-5 animate-spin" />
-                    <span className="text-xs">Uploading {uploadingCount} file{uploadingCount !== 1 ? 's' : ''}...</span>
+                <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Upload className="size-4 opacity-50" />
+                    <FolderOpen className="size-4 opacity-50" />
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Upload className="size-4 opacity-50" />
-                      <FolderOpen className="size-4 opacity-50" />
-                    </div>
-                    <span className="text-xs text-center px-4">
-                      Drop images or a folder here, or click to browse
-                    </span>
-                  </div>
-                )}
+                  <span className="text-xs text-center px-4">
+                    Drop images or a folder here, or click to browse
+                  </span>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -505,6 +517,11 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
                     {emojis.length} emoji{emojis.length !== 1 ? 's' : ''}
+                    {pendingCount > 0 && (
+                      <span className="text-muted-foreground/60">
+                        {' '}({pendingCount} to upload)
+                      </span>
+                    )}
                   </span>
                   {emojis.length > 1 && (
                     <span className="text-[10px] text-muted-foreground/60">
@@ -516,7 +533,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                   {emojis.map((emoji, index) => (
                     <div
                       key={emoji.id}
-                      draggable
+                      draggable={!isSubmitting}
                       onDragStart={(e) => handleRowDragStart(e, index)}
                       onDragOver={(e) => handleRowDragOver(e, index)}
                       onDrop={(e) => handleRowDrop(e, index)}
@@ -529,16 +546,12 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                         <GripVertical className="size-3.5" />
                       </div>
                       <div className="size-8 shrink-0 rounded-md overflow-hidden bg-secondary/30 flex items-center justify-center">
-                        {emoji.uploading ? (
-                          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                        ) : (
-                          <img
-                            src={emoji.url}
-                            alt={`:${emoji.shortcode}:`}
-                            className="size-8 object-contain"
-                            loading="lazy"
-                          />
-                        )}
+                        <img
+                          src={emoji.url}
+                          alt={`:${emoji.shortcode}:`}
+                          className="size-8 object-contain"
+                          loading="lazy"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
@@ -548,6 +561,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                             onChange={(e) => updateShortcode(emoji.id, e.target.value)}
                             className="h-7 text-xs font-mono px-1 border-none shadow-none focus-visible:ring-1"
                             placeholder="shortcode"
+                            disabled={isSubmitting}
                           />
                           <span className="text-muted-foreground text-xs select-none">:</span>
                         </div>
@@ -557,6 +571,7 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                         size="icon"
                         className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
                         onClick={() => removeEmoji(emoji.id)}
+                        disabled={isSubmitting}
                       >
                         <X className="size-3.5" />
                       </Button>
@@ -572,8 +587,8 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
               disabled={!canPublish}
               className="w-full gap-2"
             >
-              {isPublishing ? (
-                <><Loader2 className="size-4 animate-spin" /> Publishing...</>
+              {isSubmitting ? (
+                <><Loader2 className="size-4 animate-spin" /> {pendingCount > 0 ? `Uploading ${pendingCount} file${pendingCount !== 1 ? 's' : ''}...` : 'Publishing...'}</>
               ) : (
                 <><Smile className="size-4" /> {isEditMode ? 'Update Emoji Pack' : 'Create Emoji Pack'}</>
               )}
