@@ -15,11 +15,13 @@
  * 2. The user has exactly 1 Blobbi.
  * 3. That Blobbi is in the egg stage.
  * 4. No Blobbi is in baby or adult stage.
- * 5. The tour has not been completed yet.
+ * 5. The tour has not been completed yet (checked via profile tag
+ *    AND localStorage fallback).
  *
- * Rule 5 is checked inside the tour hook itself (start() is a no-op
- * if completed), but we also read `state.isCompleted` here to avoid
- * unnecessary re-renders and to surface a clean `shouldActivate` boolean.
+ * Completion is authoritative from the Blobbonaut profile event
+ * (`blobbi_onboarding_done` tag). localStorage (`blobbi:tour:first-hatch`)
+ * is a secondary signal for in-progress UI state and as a fallback
+ * when the profile hasn't been updated yet.
  * ────────────────────────────────────────────────────────────────
  */
 
@@ -36,8 +38,14 @@ export interface FirstHatchTourActivationInput {
   companions: BlobbiCompanion[];
   /** Whether the companions list is still loading */
   isLoading: boolean;
-  /** The tour hook result */
+  /** The tour hook result (localStorage-based state machine) */
   tour: UseFirstHatchTourResult;
+  /**
+   * Whether onboarding is already marked complete in the Blobbonaut profile
+   * event (`blobbi_onboarding_done` tag). This is the authoritative source.
+   * When true, the tour will not activate regardless of localStorage state.
+   */
+  profileOnboardingDone?: boolean;
 }
 
 export interface FirstHatchTourActivationResult {
@@ -67,6 +75,7 @@ export interface FirstHatchTourActivationResult {
  *   companions,
  *   isLoading: companionsLoading,
  *   tour,
+ *   profileOnboardingDone: profile?.onboardingDone,
  * });
  * ```
  */
@@ -74,6 +83,7 @@ export function useFirstHatchTourActivation({
   companions,
   isLoading,
   tour,
+  profileOnboardingDone = false,
 }: FirstHatchTourActivationInput): FirstHatchTourActivationResult {
   // ── Precondition evaluation ──
 
@@ -83,8 +93,9 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // Already completed -- nothing to do
-    if (tour.state.isCompleted) {
+    // Already completed — profile tag is the authoritative source,
+    // localStorage is a secondary fallback
+    if (profileOnboardingDone || tour.state.isCompleted) {
       return { shouldActivate: false, isEligible: false };
     }
 
@@ -115,7 +126,7 @@ export function useFirstHatchTourActivation({
     const activate = !tour.state.isActive;
 
     return { shouldActivate: activate, isEligible: eligible };
-  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive]);
+  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive, profileOnboardingDone]);
 
   // ── Auto-start effect ──
   // When all preconditions are met and the tour hasn't started yet,

@@ -976,6 +976,7 @@ function BlobbiDashboard({
     companions,
     isLoading: false, // companions are already loaded at this point
     tour: firstHatchTour,
+    profileOnboardingDone: profile?.onboardingDone,
   });
   const isFirstHatchTourActive = firstHatchTour.state.isActive;
 

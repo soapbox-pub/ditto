@@ -466,7 +466,7 @@ export function useBlobbiOnboarding({
       const profileUpdates: Record<string, string | string[]> = {
         coins: newCoins.toString(),
         has: newHas,
-        onboarding_done: 'true',
+        blobbi_onboarding_done: 'true',
       };
       
       const updatedProfileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
