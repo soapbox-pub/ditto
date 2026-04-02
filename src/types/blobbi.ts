@@ -149,10 +149,6 @@ export interface Blobbi extends BlobbiVisualTraits {
   generation?: number;
   careStreak?: number;
 
-  /**
-   * Visibility / social.
-   */
-  visibleToOthers?: boolean;
   crossoverApp?: string | null;
   themeVariant?: string;
 
@@ -215,7 +211,6 @@ export function createDefaultBlobbi(overrides: Partial<Blobbi> = {}): Blobbi {
     generation: overrides.generation ?? 1,
     careStreak: overrides.careStreak ?? 0,
 
-    visibleToOthers: overrides.visibleToOthers ?? true,
     crossoverApp: overrides.crossoverApp ?? null,
     themeVariant: overrides.themeVariant,
     tags: overrides.tags ?? [],

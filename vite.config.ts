@@ -136,7 +136,7 @@ export default defineConfig(() => {
     ...(publicDir ? [mergePublicDir(publicDir)] : []),
   ],
   define: {
-    __DITTO_CONFIG__: JSON.stringify(dittoConfig ?? null),
+    'import.meta.env.DITTO_CONFIG': JSON.stringify(JSON.stringify(dittoConfig ?? null)),
     'import.meta.env.VERSION': JSON.stringify(pkg.version),
     'import.meta.env.BUILD_DATE': JSON.stringify(new Date().toISOString()),
     'import.meta.env.COMMIT_SHA': JSON.stringify(getCommitSha()),

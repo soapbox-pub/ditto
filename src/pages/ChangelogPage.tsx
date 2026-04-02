@@ -1,43 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Bug, CalendarDays, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert, Tag } from 'lucide-react';
+import { Bug, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { parseChangelog } from '@/lib/changelog';
-import type { ChangelogCategory } from '@/lib/changelog';
+import type { ChangelogCategory, ChangelogEntry } from '@/lib/changelog';
 
 const GITLAB_REPO = 'https://gitlab.com/soapbox-pub/ditto';
 
-/** Per-category badge color + icon. */
-const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; className: string }> = {
-  Added: {
-    icon: Plus,
-    className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  },
-  Changed: {
-    icon: RefreshCw,
-    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  },
-  Deprecated: {
-    icon: Package,
-    className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  },
-  Removed: {
-    icon: Minus,
-    className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-  },
-  Fixed: {
-    icon: Bug,
-    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  },
-  Security: {
-    icon: ShieldAlert,
-    className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
-  },
+/** Per-category icon + color used as inline list bullets. */
+const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; colorClass: string }> = {
+  Added:      { icon: Plus,        colorClass: 'text-emerald-600 dark:text-emerald-400' },
+  Changed:    { icon: RefreshCw,   colorClass: 'text-blue-600 dark:text-blue-400' },
+  Deprecated: { icon: Package,     colorClass: 'text-orange-600 dark:text-orange-400' },
+  Removed:    { icon: Minus,       colorClass: 'text-red-600 dark:text-red-400' },
+  Fixed:      { icon: Bug,         colorClass: 'text-amber-600 dark:text-amber-400' },
+  Security:   { icon: ShieldAlert, colorClass: 'text-purple-600 dark:text-purple-400' },
 };
 
 /** Format "2026-03-26" as a readable date string. */
@@ -92,59 +74,186 @@ export function ChangelogPage() {
           <>
             {isPreRelease && latestVersion && <PreReleaseBanner latestVersion={latestVersion} />}
 
-            {entries.map((entry) => (
-              <div key={entry.version} className="rounded-2xl border border-border overflow-hidden">
-                {/* Version header */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
-                  <Tag className="size-4 text-primary shrink-0" />
-                  <a
-                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-sm hover:underline"
-                  >
-                    v{entry.version}
-                  </a>
-                  <a
-                    href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
-                  >
-                    <CalendarDays className="size-3.5" />
-                    <span>{formatDate(entry.date)}</span>
-                  </a>
+            <LatestRelease entry={entries[0]} />
+
+            {entries.length > 1 && (
+              <>
+                <div className="flex items-center gap-3 pt-4 pb-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Past releases</span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Sections */}
-                <div className="divide-y divide-border">
-                  {entry.sections.map((section) => {
-                    const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
-                    const Icon = style.icon;
-
-                    return (
-                      <div key={section.category} className="px-4 py-3 space-y-2">
-                        <Badge variant="secondary" className={`gap-1 text-[10px] px-1.5 py-0 ${style.className}`}>
-                          <Icon className="size-3" />
-                          {section.category}
-                        </Badge>
-                        <ul className="space-y-1">
-                          {section.items.map((item, i) => (
-                            <li key={i} className="text-sm text-foreground/90 pl-3 relative before:absolute before:left-0 before:top-[0.6em] before:size-1 before:rounded-full before:bg-muted-foreground/40">
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                {entries.slice(1).map((entry) => (
+                  <ChangelogEntryCard key={entry.version} entry={entry} />
+                ))}
+              </>
+            )}
           </>
         )}
       </div>
     </main>
+  );
+}
+
+/** Hero treatment for the most recent release — no card, centered version + date. */
+function LatestRelease({ entry }: { entry: ChangelogEntry }) {
+  const contentRef = useRef<HTMLUListElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > ENTRY_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <div className="pt-2 pb-1 px-4">
+      {/* Big centered version + date */}
+      <a
+        href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block text-center text-2xl font-bold tracking-tight hover:underline"
+      >
+        v{entry.version}
+      </a>
+      <a
+        href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
+      >
+        {formatDate(entry.date)}
+      </a>
+
+      {/* Items */}
+      <div className="relative mt-4">
+        <ul
+          ref={contentRef}
+          style={!expanded && overflows ? { maxHeight: ENTRY_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+          className="space-y-2.5"
+        >
+          {entry.sections.flatMap((section) => {
+            const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
+            const Icon = style.icon;
+
+            return section.items.map((item, i) => (
+              <li key={`${section.category}-${i}`} className="flex gap-2 text-base text-foreground/90">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Icon className={`size-4 shrink-0 mt-1 cursor-default ${style.colorClass}`} />
+                  </TooltipTrigger>
+                  <TooltipContent side="left">{section.category}</TooltipContent>
+                </Tooltip>
+                <span>{item}</span>
+              </li>
+            ));
+          })}
+        </ul>
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      {overflows && (
+        <button
+          className="w-full text-sm text-primary hover:underline mt-1"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+
+    </div>
+  );
+}
+
+const ENTRY_MAX_HEIGHT = 240; // px — entries taller than this get a "Read more" button
+
+/** A single changelog release card with truncation for long entries. */
+function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
+  const contentRef = useRef<HTMLUListElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > ENTRY_MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden">
+      {/* Version header */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <a
+          href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-sm hover:underline"
+        >
+          v{entry.version}
+        </a>
+        <a
+          href={`${GITLAB_REPO}/-/releases/v${entry.version}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+        >
+          <span>{formatDate(entry.date)}</span>
+        </a>
+      </div>
+
+      {/* Items */}
+      <div className="relative">
+        <ul
+          ref={contentRef}
+          style={!expanded && overflows ? { maxHeight: ENTRY_MAX_HEIGHT, overflow: 'hidden' } : undefined}
+          className="px-4 py-3 space-y-2.5"
+        >
+          {entry.sections.flatMap((section) => {
+            const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
+            const Icon = style.icon;
+
+            return section.items.map((item, i) => (
+              <li key={`${section.category}-${i}`} className="flex gap-2 text-sm text-foreground/90">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Icon className={`size-3.5 shrink-0 mt-[3px] cursor-default ${style.colorClass}`} />
+                  </TooltipTrigger>
+                  <TooltipContent side="left">{section.category}</TooltipContent>
+                </Tooltip>
+                <span>{item}</span>
+              </li>
+            ));
+          })}
+        </ul>
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      {overflows && (
+        <button
+           className="w-full text-sm text-primary hover:underline py-2"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -186,7 +295,7 @@ function ChangelogSkeleton() {
     <div className="space-y-4 pt-1">
       {[1, 2].map((i) => (
         <div key={i} className="rounded-2xl border border-border overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3 bg-secondary/30">
+      <div className="flex items-center gap-3 px-4 py-3">
             <Skeleton className="size-4 rounded" />
             <Skeleton className="h-4 w-16" />
             <div className="ml-auto flex items-center gap-1.5">

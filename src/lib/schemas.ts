@@ -8,11 +8,6 @@ import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
 
-/**
- * Accepts current theme values as well as legacy values ("black", "pink")
- * from older configs. Consumers should migrate legacy values to "custom".
- */
-export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'black', 'pink']);
 
 /** HSL value string like "258 70% 55%" */
 const HslValue = z.string().regex(/^\d/);
@@ -182,6 +177,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludePodcastTrailers: z.boolean().optional(),
   showDevelopment: z.boolean().optional(),
   feedIncludeDevelopment: z.boolean().optional(),
+  feedIncludeBlobbi: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -207,10 +203,8 @@ export const SavedFeedSchema = z.object({
 /**
  * Zod schema for the full AppConfig stored in localStorage.
  *
- * Uses compat sub-schemas (ThemeSchemaCompat, ThemeConfigCompatSchema) so
- * legacy values parse successfully. Migration from legacy theme values
- * ("black", "pink") to "custom" + customTheme is handled downstream by
- * the AppProvider deserializer.
+ * Uses ThemeConfigCompatSchema for the customTheme field so legacy
+ * 19-token color objects still parse successfully.
  */
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
@@ -219,7 +213,7 @@ export const AppConfigSchema = z.object({
   clientName: z.string().optional(),
   client: z.string().optional(),
   magicMouse: z.boolean().optional(),
-  theme: ThemeSchemaCompat,
+  theme: ThemeSchema,
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean(),
   themes: ThemesConfigSchema.optional(),
@@ -297,7 +291,7 @@ export const ContentFilterSchema = z.object({
  * Uses looseObject to preserve unknown keys from newer app versions.
  */
 export const EncryptedSettingsSchema = z.looseObject({
-  theme: ThemeSchemaCompat.optional(),
+  theme: ThemeSchema.optional(),
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean().optional(),
   useAppRelays: z.boolean().optional(),

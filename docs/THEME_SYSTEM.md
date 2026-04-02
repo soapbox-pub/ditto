@@ -60,7 +60,7 @@ const builtinThemes = {
 };
 ```
 
-Self-hosters can override these at build time via `ditto.json` (injected through `__DITTO_CONFIG__` in `vite.config.ts`), or at runtime via the `ThemesConfig` in `AppConfig.themes`.
+Self-hosters can override these at build time via `ditto.json` (injected through `import.meta.env.DITTO_CONFIG` in `vite.config.ts`), or at runtime via the `ThemesConfig` in `AppConfig.themes`.
 
 ### ThemeConfig
 

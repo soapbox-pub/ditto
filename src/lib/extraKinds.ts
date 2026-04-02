@@ -461,6 +461,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  // Blobbi (feed-only — dedicated page at /blobbi)
+  {
+    kind: 31124,
+    id: 'blobbi',
+    feedKey: 'feedIncludeBlobbi',
+    label: 'Blobbi',
+    description: 'Blobbi virtual pet updates',
+    addressable: true,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
+  },
   // Development
   {
     kind: 30617,

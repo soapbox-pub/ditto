@@ -1,178 +1,364 @@
-import { useState } from 'react';
-import { ShoppingBag, Utensils, Gamepad2, Heart, Droplets, Palette, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ShoppingBag, Package, Loader2, X } from 'lucide-react';
 
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-import { BlobbiShopItemRow } from './BlobbiShopItemRow';
-import { BlobbiPurchaseDialog } from './BlobbiPurchaseDialog';
-
-import type { ShopItem, ShopItemCategory } from '../types/shop.types';
-import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
-import { getShopItemsByType } from '../lib/blobbi-shop-items';
+import type { ShopItem } from '../types/shop.types';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
+import { getLiveShopItems, getShopItemById } from '../lib/blobbi-shop-items';
 import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
+import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { cn, formatCompactNumber } from '@/lib/utils';
+
+type TopTab = 'items' | 'shop';
+
+/** Resolved inventory item with shop metadata and usability info */
+interface ResolvedInventoryItem extends ShopItem {
+  itemId: string;
+  quantity: number;
+  canUse: boolean;
+  reason?: string;
+}
 
 interface BlobbiShopModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: BlobbonautProfile | null;
+  /** Initial tab to open on. Defaults to "items". */
+  initialTab?: TopTab;
+  // ── Inventory props (passed through) ──
+  companion: BlobbiCompanion | null;
+  onUseItem?: (itemId: string, quantity: number) => void;
+  isUsingItem?: boolean;
 }
 
-const CATEGORIES: Array<{
-  type: ShopItemCategory;
-  label: string;
-  icon: React.ReactNode;
-}> = [
-  { type: 'food', label: 'Food', icon: <Utensils className="size-4" /> },
-  { type: 'toy', label: 'Toys', icon: <Gamepad2 className="size-4" /> },
-  { type: 'medicine', label: 'Medicine', icon: <Heart className="size-4" /> },
-  { type: 'hygiene', label: 'Hygiene', icon: <Droplets className="size-4" /> },
-  { type: 'accessory', label: 'Accessories', icon: <Palette className="size-4" /> },
-];
-
-export function BlobbiShopModal({ open, onOpenChange, profile }: BlobbiShopModalProps) {
-  const [activeCategory, setActiveCategory] = useState<ShopItemCategory>('food');
-  const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
-  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+export function BlobbiShopModal({
+  open,
+  onOpenChange,
+  profile,
+  initialTab = 'items',
+  companion,
+  onUseItem,
+  isUsingItem,
+}: BlobbiShopModalProps) {
+  const [topTab, setTopTab] = useState<TopTab>(initialTab);
 
   const { mutate: purchaseItem, isPending: isPurchasing } = useBlobbiPurchaseItem(profile);
+  const [purchasingItemId, setPurchasingItemId] = useState<string | null>(null);
 
   const availableCoins = profile?.coins ?? 0;
-  const items = getShopItemsByType(activeCategory);
+  const allItems = getLiveShopItems();
 
-  const handlePurchaseClick = (item: ShopItem) => {
-    setSelectedItem(item);
-    setShowPurchaseDialog(true);
+  // Reset to initialTab when modal re-opens
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setTopTab(initialTab);
+    }
+    onOpenChange(isOpen);
   };
 
-  const handlePurchase = (quantity: number) => {
-    if (!selectedItem) return;
-
+  // Instant purchase — one tap = one item
+  const handleBuyItem = (item: ShopItem) => {
+    if (isPurchasing || availableCoins < item.price) return;
+    setPurchasingItemId(item.id);
     purchaseItem(
-      {
-        itemId: selectedItem.id,
-        price: selectedItem.price,
-        quantity,
-      },
-      {
-        onSuccess: () => {
-          setShowPurchaseDialog(false);
-          setSelectedItem(null);
-        },
-      }
+      { itemId: item.id, price: item.price, quantity: 1 },
+      { onSettled: () => setPurchasingItemId(null) },
     );
   };
 
+  const effectivePurchasingId = isPurchasing ? purchasingItemId : null;
+
+  // ── Inventory items resolution ──
+  const inventoryItems = useMemo((): ResolvedInventoryItem[] => {
+    if (!profile) return [];
+    const stage = companion?.stage ?? 'egg';
+
+    const result: ResolvedInventoryItem[] = [];
+    for (const storageItem of profile.storage) {
+      const item = getShopItemById(storageItem.itemId);
+      if (!item) continue;
+
+      const usability = canUseItemForStage(storageItem.itemId, stage);
+
+      result.push({
+        ...item,
+        itemId: storageItem.itemId,
+        quantity: storageItem.quantity,
+        canUse: usability.canUse,
+        reason: usability.reason,
+      });
+    }
+    return result;
+  }, [profile, companion?.stage]);
+
+  // ── Inventory use item handler ──
+  const [usingItemId, setUsingItemId] = useState<string | null>(null);
+
+  const handleUseItem = (item: ResolvedInventoryItem) => {
+    if (!item.canUse || isUsingItem || !onUseItem) return;
+    setUsingItemId(item.itemId);
+    onUseItem(item.itemId, 1);
+  };
+
+  // Clear usingItemId when isUsingItem goes false
+  const effectiveUsingItemId = isUsingItem ? usingItemId : null;
+
+  const inventoryEmpty = inventoryItems.length === 0;
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
-          {/* Header - Sticky */}
-          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
-                  <ShoppingBag className="size-4 sm:size-5 text-primary" />
-                </div>
-                <DialogTitle className="text-xl sm:text-2xl truncate">Blobbi Shop</DialogTitle>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-sm sm:text-base px-3 sm:px-4 py-1">
-                  {formatCompactNumber(availableCoins)} coins
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl [&>button:last-child]:hidden">
+
+          {/* Tab Bar (replaces header) */}
+          <div className="flex items-center border-b bg-muted/30">
+            {/* Tabs */}
+            <button
+              onClick={() => setTopTab('items')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium transition-colors relative',
+                topTab === 'items'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/70'
+              )}
+            >
+              <Package className="size-4" />
+              Items
+              {!inventoryEmpty && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-4">
+                  {inventoryItems.reduce((sum, i) => sum + i.quantity, 0)}
                 </Badge>
-                <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                  <X className="size-5" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
-              </div>
-            </div>
-          </DialogHeader>
+              )}
+              {topTab === 'items' && (
+                <span className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setTopTab('shop')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium transition-colors relative',
+                topTab === 'shop'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground/70'
+              )}
+            >
+              <ShoppingBag className="size-4" />
+              Shop
+              {topTab === 'shop' && (
+                <span className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
 
-          {/* Category Tabs - Part of sticky header area */}
-          <div className="sticky top-[60px] sm:top-[72px] z-10 bg-background px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b">
-            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              {CATEGORIES.map(category => {
-                const isActive = activeCategory === category.type;
-                const itemCount = getShopItemsByType(category.type).length;
-
-                  return (
-                    <button
-                      key={category.type}
-                      onClick={() => setActiveCategory(category.type)}
-                      className={cn(
-                        'flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all whitespace-nowrap',
-                        'border text-sm sm:text-base',
-                        isActive
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                      )}
-                    >
-                      {category.icon}
-                      <span className="font-medium hidden xs:inline">{category.label}</span>
-                      <Badge variant="secondary" className="ml-0.5 sm:ml-1 text-xs">
-                        {itemCount}
-                      </Badge>
-                    </button>
-                  );
-              })}
+            {/* Coin badge + Close */}
+            <div className="flex items-center gap-1.5 pr-3 pl-2">
+              <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 text-xs px-2 py-0.5">
+                <span className="mr-1">🪙</span>{formatCompactNumber(availableCoins)}
+              </Badge>
+              <DialogClose className="rounded-full p-1 opacity-60 hover:opacity-100 transition-opacity">
+                <X className="size-4" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
             </div>
           </div>
 
-          {/* Scrollable Content Area */}
+          {/* Scrollable Content */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {/* Accessories Coming Soon Banner */}
-            {activeCategory === 'accessory' && (
-              <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="size-12 sm:size-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-2xl sm:text-3xl relative shrink-0">
-                    🎨
-                    <div className="absolute -top-1 -right-1 text-base sm:text-xl">✨</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold mb-1">Accessories Coming Soon!</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Get ready to customize your Blobbi's appearance with amazing accessories and cosmetic items.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {topTab === 'shop' ? (
+              <ShopGrid
+                items={allItems}
+                availableCoins={availableCoins}
+                onBuy={handleBuyItem}
+                purchasingItemId={effectivePurchasingId}
+              />
+            ) : (
+              <ItemsGrid
+                items={inventoryItems}
+                onUseItem={handleUseItem}
+                isUsingItem={isUsingItem}
+                usingItemId={effectiveUsingItemId}
+                onGoToShop={() => setTopTab('shop')}
+              />
             )}
-
-            {/* Items List */}
-            <div className="px-4 sm:px-6 py-3 sm:py-4">
-              <div className="space-y-2">
-                {items.map(item => (
-                  <BlobbiShopItemRow
-                    key={item.id}
-                    item={item}
-                    availableCoins={availableCoins}
-                    onPurchaseClick={handlePurchaseClick}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Purchase Dialog */}
-      {selectedItem && (
-        <BlobbiPurchaseDialog
-          open={showPurchaseDialog}
-          onOpenChange={setShowPurchaseDialog}
-          item={selectedItem}
-          availableCoins={availableCoins}
-          onPurchase={handlePurchase}
-          isPurchasing={isPurchasing}
-        />
-      )}
     </>
+  );
+}
+
+// ─── Shop Grid (tile layout, all items, cost in button) ───────────────────────
+
+interface ShopGridProps {
+  items: ShopItem[];
+  availableCoins: number;
+  onBuy: (item: ShopItem) => void;
+  purchasingItemId: string | null;
+}
+
+function ShopGrid({ items, availableCoins, onBuy, purchasingItemId }: ShopGridProps) {
+  return (
+    <div className="p-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {items.map(item => {
+          const isDisabled = item.status === 'disabled';
+          const isAffordable = !isDisabled && availableCoins >= item.price;
+          const isBuying = purchasingItemId === item.id;
+
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center',
+                'bg-card/60 backdrop-blur-sm',
+                isDisabled && 'opacity-50',
+                !isDisabled && !isAffordable && 'opacity-70',
+              )}
+            >
+              {/* Icon */}
+              <div className="text-3xl leading-none mt-1">{item.icon}</div>
+
+              {/* Name */}
+              <span className="text-xs font-medium truncate w-full">{item.name}</span>
+
+              {/* Buy button with integrated cost */}
+              <button
+                onClick={() => onBuy(item)}
+                disabled={isDisabled || !isAffordable || !!purchasingItemId}
+                className={cn(
+                  'w-full rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
+                  isDisabled
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : isAffordable
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 active:scale-95 transition-transform'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                )}
+              >
+                {isDisabled ? (
+                  'Soon'
+                ) : isBuying ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="size-3 animate-spin" />
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1">
+                    <span>🪙</span> {formatCompactNumber(item.price)}
+                  </span>
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Items Grid (inventory, tile layout) ──────────────────────────────────────
+
+interface ItemsGridProps {
+  items: ResolvedInventoryItem[];
+  onUseItem: (item: ResolvedInventoryItem) => void;
+  isUsingItem?: boolean;
+  usingItemId: string | null;
+  onGoToShop: () => void;
+}
+
+function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop }: ItemsGridProps) {
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="size-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+          <Package className="size-8 text-muted-foreground/60" />
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          No items yet. Visit the shop to stock up!
+        </p>
+        <Button variant="outline" size="sm" onClick={onGoToShop} className="gap-2">
+          <ShoppingBag className="size-3.5" />
+          Browse Shop
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {items.map(item => {
+          const isThisUsing = isUsingItem && usingItemId === item.itemId;
+
+          return (
+            <div
+              key={item.itemId}
+              className={cn(
+                'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center relative',
+                'bg-card/60 backdrop-blur-sm',
+                item.canUse ? 'hover:border-primary/40 hover:bg-accent/40' : 'opacity-60',
+              )}
+            >
+              {/* Quantity badge */}
+              <Badge
+                className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0"
+              >
+                {item.quantity}
+              </Badge>
+
+              {/* Icon */}
+              <div className={cn('text-3xl leading-none mt-1', !item.canUse && 'grayscale')}>{item.icon}</div>
+
+              {/* Name */}
+              <span className="text-xs font-medium truncate w-full">{item.name}</span>
+
+              {/* Use button */}
+              {item.canUse ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-xs"
+                  onClick={() => onUseItem(item)}
+                  disabled={isUsingItem}
+                >
+                  {isThisUsing ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    'Use'
+                  )}
+                </Button>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-full">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-7 text-xs"
+                        disabled
+                      >
+                        Use
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{item.reason || 'Cannot use this item'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

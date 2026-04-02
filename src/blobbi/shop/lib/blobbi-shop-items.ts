@@ -177,39 +177,6 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     status: 'live',
   },
 
-  // ─── Accessory Items (Disabled) ─────────────────────────────────────────────
-  {
-    id: 'acc_hat',
-    name: 'Party Hat',
-    type: 'accessory',
-    price: 75,
-    icon: '🎩',
-    status: 'disabled',
-  },
-  {
-    id: 'acc_glasses',
-    name: 'Cool Glasses',
-    type: 'accessory',
-    price: 60,
-    icon: '🕶️',
-    status: 'disabled',
-  },
-  {
-    id: 'acc_bow',
-    name: 'Bow Tie',
-    type: 'accessory',
-    price: 50,
-    icon: '🎀',
-    status: 'disabled',
-  },
-  {
-    id: 'acc_crown',
-    name: 'Crown',
-    type: 'accessory',
-    price: 100,
-    icon: '👑',
-    status: 'disabled',
-  },
 ];
 
 /**
@@ -237,7 +204,7 @@ export function getLiveShopItems(): ShopItem[] {
  * Get all shop item categories with their counts
  */
 export function getShopCategories(): Array<{ type: ShopItemCategory; count: number; label: string }> {
-  const categories: ShopItemCategory[] = ['food', 'toy', 'medicine', 'hygiene', 'accessory'];
+  const categories: ShopItemCategory[] = ['food', 'toy', 'medicine', 'hygiene'];
   
   return categories.map(type => ({
     type,

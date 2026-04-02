@@ -148,6 +148,8 @@ export interface FeedSettings {
   feedIncludeProfileBadges: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
+  feedIncludeBlobbi: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

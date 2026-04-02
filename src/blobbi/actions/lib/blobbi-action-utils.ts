@@ -217,11 +217,6 @@ export function canUseItemForStage(
     return { canUse: true };
   }
 
-  // Accessories are disabled
-  if (shopItem.type === 'accessory') {
-    return { canUse: false, reason: 'Accessories are not usable yet' };
-  }
-
   return { canUse: true };
 }
 

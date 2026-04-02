@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Egg, Moon, Sun, Eye, EyeOff, Loader2, RefreshCw, Check, Info, Target, ShoppingBag, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater } from 'lucide-react';
-// TODO: Re-import when features are implemented: Footprints, PictureInPicture2
-// Note: Eye/EyeOff kept for BlobbiSelectorCard visibility badge display
+import { nip19 } from 'nostr-tools';
+import { Egg, Moon, Sun, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
 // Note: AlertTriangle kept for stat warning indicators
@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
@@ -43,7 +43,7 @@ import {
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
-import { BlobbiInventoryModal } from '@/blobbi/shop/components/BlobbiInventoryModal';
+
 import {
   BlobbiActionsModal, 
   BlobbiActionInventoryModal,
@@ -847,6 +847,13 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
+  // Build naddr for linking to the Blobbi's detail page
+  const blobbiNaddr = useMemo(() => nip19.naddrEncode({
+    kind: KIND_BLOBBI_STATE,
+    pubkey: companion.event.pubkey,
+    identifier: companion.d,
+  }), [companion.event.pubkey, companion.d]);
+  
   // Derive available stages from all companions (for daily mission filtering)
   const availableStages = useMemo(() => {
     const stages = new Set<'egg' | 'baby' | 'adult'>();
@@ -868,8 +875,6 @@ function BlobbiDashboard({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showMissionsModal, setShowMissionsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
-  const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   
   // DEV ONLY: Emotion panel state
@@ -1449,8 +1454,8 @@ function BlobbiDashboard({
     setActionOverrideEmotion(getActionEmotion(action as ActionType));
     try {
       await onUseItem(itemId, action, quantity);
-      // Close the inventory modal on success
-      setShowInventoryModal(false);
+      // Close the shop modal on success (inventory is a tab within it)
+      setShowShopModal(false);
     } finally {
       setUsingItemId(null);
       // Clear action emotion after a brief delay for visual feedback
@@ -1473,41 +1478,6 @@ function BlobbiDashboard({
       
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 sm:px-6">
-        {/* Floating Dashboard Controls - hidden during first-hatch tour */}
-        {!isFirstHatchTourActive && <BlobbiDashboardFloatingControls
-          stage={companion.stage}
-          onSetAsCompanion={handleSetAsCompanion}
-          isCurrentCompanion={isCurrentCompanion}
-          isUpdatingCompanion={isUpdatingCompanion}
-          onTakePhoto={() => setShowPhotoModal(true)}
-          onOpenPiP={() => console.log('TODO: open PiP')}
-          onEvolve={
-            // For eggs not yet incubating: show incubation dialog
-            // For eggs incubating with all tasks complete: hatch action handled in HatchTasksPanel
-            // For baby not yet evolving: show evolution dialog
-            // For baby evolving with all tasks complete: evolve action handled in MissionsModal
-            canStartIncubation
-              ? () => setShowIncubationDialog(true)
-              : canStartEvolution
-                ? () => setShowEvolutionDialog(true)
-                : isEgg
-                  ? onHatch
-                  : onEvolve
-          }
-          isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
-          onInfo={() => setShowInfoModal(true)}
-          // Hide button when actively incubating, evolving, or during first-hatch tour
-          hideEvolveButton={isIncubating || isEvolvingState || isFirstHatchTourActive}
-          // When canStartIncubation or canStartEvolution is true, the button triggers the respective dialog
-          isIncubationAction={canStartIncubation}
-          isEvolutionAction={canStartEvolution}
-          // DEV ONLY: Instant stage transition (bypasses tasks)
-          onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
-          // DEV ONLY: Open state editor modal
-          onDevOpenEditor={() => setShowDevEditor(true)}
-          // DEV ONLY: Open emotion tester panel
-          onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-        />}
         
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
@@ -1521,7 +1491,6 @@ function BlobbiDashboard({
         
         {/* Main Blobbi Visual */}
         {isActiveFloatingCompanion ? (
-          // Show message when Blobbi is active as floating companion
           <div className="flex flex-col items-center justify-center size-48 sm:size-56 text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground text-sm">
@@ -1530,7 +1499,6 @@ function BlobbiDashboard({
           </div>
         ) : (
           <div className="relative transition-all duration-500">
-            {/* Subtle glow effect behind the egg */}
             <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
             
             <BlobbiStageVisual
@@ -1545,7 +1513,6 @@ function BlobbiDashboard({
               onTourEggClick={handleTourEggClick}
               className="size-48 sm:size-56"
             />
-            {/* Fake pointer hint during glowing_waiting_click */}
             {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
               <div className="absolute bottom-2 right-8 animate-bounce text-2xl pointer-events-none select-none">
                 👆
@@ -1553,7 +1520,6 @@ function BlobbiDashboard({
             )}
           </div>
         )}
-        
       </div>
       
       {/* First Hatch Tour: inline card directly below egg (above stats) */}
@@ -1639,11 +1605,32 @@ function BlobbiDashboard({
           onMissionsClick={() => setShowMissionsModal(true)}
           onActionsClick={() => setShowActionsModal(true)}
           onShopClick={() => setShowShopModal(true)}
-          onInventoryClick={() => setShowInventoryModal(true)}
           needyBlobbiesCount={companions.filter(companionNeedsCare).length}
           isInTaskProcess={isInTaskProcess}
           remainingTasksCount={remainingTasksCount}
           allTasksComplete={allTasksComplete}
+          stage={companion.stage}
+          blobbiNaddr={blobbiNaddr}
+          onSetAsCompanion={handleSetAsCompanion}
+          isCurrentCompanion={isCurrentCompanion}
+          isUpdatingCompanion={isUpdatingCompanion}
+          onTakePhoto={() => setShowPhotoModal(true)}
+          onEvolve={
+            canStartIncubation
+              ? () => setShowIncubationDialog(true)
+              : canStartEvolution
+                ? () => setShowEvolutionDialog(true)
+                : isEgg
+                  ? onHatch
+                  : onEvolve
+          }
+          isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
+          hideEvolveButton={isIncubating || isEvolvingState || isFirstHatchTourActive}
+          isIncubationAction={canStartIncubation}
+          isEvolutionAction={canStartEvolution}
+          onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+          onDevOpenEditor={() => setShowDevEditor(true)}
+          onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
         />
       )}
       
@@ -1760,28 +1747,14 @@ function BlobbiDashboard({
         availableStages={availableStages}
       />
       
-      {/* Shop Modal */}
+      {/* Shop & Inventory Modal (unified) */}
       <BlobbiShopModal
         open={showShopModal}
         onOpenChange={setShowShopModal}
         profile={profile}
-      />
-      
-      {/* Inventory Modal */}
-      <BlobbiInventoryModal
-        open={showInventoryModal}
-        onOpenChange={setShowInventoryModal}
-        profile={profile}
         companion={companion}
         onUseItem={handleUseItemFromInventory}
         isUsingItem={isUsingItem}
-      />
-      
-      {/* Blobbi Info Modal */}
-      <BlobbiInfoModal
-        open={showInfoModal}
-        onOpenChange={setShowInfoModal}
-        companion={companion}
       />
       
       {/* Blobbi Post Modal - for hatch or evolve task */}
@@ -1842,91 +1815,6 @@ function BlobbiDashboard({
   );
 }
 
-// ─── Quick Action Button ──────────────────────────────────────────────────────
-
-interface QuickActionButtonProps {
-  children: React.ReactNode;
-  tooltip: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-}
-
-function QuickActionButton({ children, tooltip, onClick, disabled, loading }: QuickActionButtonProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onClick}
-          disabled={disabled}
-          className="size-10 rounded-full bg-background/80 backdrop-blur-sm border-border hover:bg-accent hover:border-border transition-all shadow-sm"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="left">
-        <p>{tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-// ─── Dashboard Floating Controls ──────────────────────────────────────────────
-
-/** Button definition for floating action buttons */
-interface FloatingActionDef {
-  id: string;
-  icon: React.ReactNode;
-  tooltip: string;
-  onClick: () => void;
-  variant?: 'default' | 'accent';
-  disabled?: boolean;
-}
-
-interface BlobbiDashboardFloatingControlsProps {
-  stage: 'egg' | 'baby' | 'adult';
-  onBack?: () => void;
-  onSetAsCompanion: () => void;
-  /** Whether this Blobbi is currently set as the user's companion */
-  isCurrentCompanion: boolean;
-  /** Whether the companion update is in progress */
-  isUpdatingCompanion?: boolean;
-  onTakePhoto: () => void;
-  onOpenPiP: () => void;
-  onEvolve: () => void;
-  /** Whether a stage transition is in progress (hatch or evolve) */
-  isTransitioning?: boolean;
-  onInfo: () => void;
-  /** Whether to hide the evolve/hatch button (e.g., when incubating or evolving) */
-  hideEvolveButton?: boolean;
-  /** Whether the button should show incubation action (for eggs not yet incubating) */
-  isIncubationAction?: boolean;
-  /** Whether the button should show evolution action (for babies not yet evolving) */
-  isEvolutionAction?: boolean;
-  /** DEV ONLY: Instant stage transition callback (bypasses tasks) */
-  onDevInstantTransition?: () => void;
-  /** DEV ONLY: Open state editor callback */
-  onDevOpenEditor?: () => void;
-  /** DEV ONLY: Open emotion tester callback */
-  onDevOpenEmotionPanel?: () => void;
-}
-
-/**
- * Get the appropriate icon for the evolve/hatch button based on stage and incubation state.
- * - egg stage (not incubating): Egg icon (start incubation action)
- * - egg stage (incubating): Egg icon (hatching action)
- * - baby/adult stages: Sparkles icon (evolution/transformation)
- */
-function getEvolveIcon(stage: 'egg' | 'baby' | 'adult', _isIncubationAction?: boolean): React.ReactNode {
-  if (stage === 'egg') {
-    return <Egg className="size-4" />;
-  }
-  // Sparkles communicates magical transformation, fitting the Blobbi theme
-  return <Sparkles className="size-4" />;
-}
-
 /**
  * Get the appropriate tooltip for the evolve/hatch button based on stage and action state.
  */
@@ -1942,186 +1830,6 @@ function getEvolveTooltip(
     return isEvolutionAction ? 'Start Evolution' : 'Evolve';
   }
   return 'Evolve';
-}
-
-/**
- * Floating action controls for the Blobbi dashboard.
- * Renders top-left and top-right button clusters.
- */
-function BlobbiDashboardFloatingControls({
-  stage,
-  onBack,
-  onSetAsCompanion,
-  isCurrentCompanion,
-  isUpdatingCompanion = false,
-  onTakePhoto,
-  onOpenPiP: _onOpenPiP, // TODO: Re-enable when PiP feature is implemented
-  onEvolve,
-  isTransitioning = false,
-  onInfo,
-  hideEvolveButton = false,
-  isIncubationAction = false,
-  isEvolutionAction = false,
-  onDevInstantTransition,
-  onDevOpenEditor,
-  onDevOpenEmotionPanel,
-}: BlobbiDashboardFloatingControlsProps) {
-  // Left-side buttons
-  const leftButtons: FloatingActionDef[] = [
-    ...(onBack ? [{
-      id: 'back',
-      icon: <ArrowLeft className="size-4" />,
-      tooltip: 'Go Back',
-      onClick: onBack,
-    }] : []),
-  ];
-
-  // Check if this Blobbi can be set as companion (eggs cannot)
-  const canBeCompanion = stage !== 'egg';
-  
-  // Right-side buttons (top cluster)
-  const rightButtons: FloatingActionDef[] = [
-    // Only show "Set as companion" for baby/adult (eggs cannot be companions)
-    ...(canBeCompanion ? [{
-      id: 'set-companion',
-      icon: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
-      tooltip: isCurrentCompanion 
-        ? 'Current Companion' 
-        : 'Set as Companion',
-      onClick: onSetAsCompanion,
-      disabled: isUpdatingCompanion,
-    }] : []),
-    {
-      id: 'photo',
-      icon: <Camera className="size-4" />,
-      tooltip: 'Take a Photo',
-      onClick: onTakePhoto,
-    },
-    // TODO: Re-enable when PiP feature is implemented
-    // {
-    //   id: 'pip',
-    //   icon: <PictureInPicture2 className="size-4" />,
-    //   tooltip: 'Open PiP',
-    //   onClick: onOpenPiP,
-    // },
-    {
-      id: 'info',
-      icon: <Info className="size-4" />,
-      tooltip: 'Blobbi Info',
-      onClick: onInfo,
-    },
-  ];
-
-  // Evolve/Hatch/Incubation button (emphasized, at the bottom of right cluster)
-  // Icon and tooltip are stage-aware and action-state-aware
-  const evolveButton: FloatingActionDef = {
-    id: 'evolve',
-    icon: getEvolveIcon(stage, isIncubationAction),
-    tooltip: getEvolveTooltip(stage, isIncubationAction, isEvolutionAction),
-    onClick: onEvolve,
-    variant: 'accent',
-  };
-
-  return (
-    <>
-      {/* Left-side floating buttons */}
-      {leftButtons.length > 0 && (
-        <div className="absolute top-28 sm:top-32 left-4 sm:left-6 flex flex-col gap-2 z-20">
-          {leftButtons.map((btn) => (
-            <QuickActionButton
-              key={btn.id}
-              tooltip={btn.tooltip}
-              onClick={btn.onClick}
-            >
-              {btn.icon}
-            </QuickActionButton>
-          ))}
-        </div>
-      )}
-
-      {/* Right-side floating buttons */}
-      <div className="absolute top-28 sm:top-32 right-4 sm:right-6 flex flex-col gap-2 z-20">
-        {rightButtons.map((btn) => (
-          <QuickActionButton
-            key={btn.id}
-            tooltip={btn.tooltip}
-            onClick={btn.onClick}
-            disabled={btn.disabled}
-          >
-            {btn.icon}
-          </QuickActionButton>
-        ))}
-        
-        {/* Evolve/Hatch button with accent styling */}
-        {/* Adults can't evolve further, so hide the button */}
-        {/* Also hide when explicitly requested (e.g., during incubation) */}
-        {stage !== 'adult' && !hideEvolveButton && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={evolveButton.onClick}
-                disabled={isTransitioning}
-                className="size-10 rounded-full bg-primary/10 backdrop-blur-sm border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-all shadow-sm text-primary disabled:opacity-50"
-              >
-                {isTransitioning ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  evolveButton.icon
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>{isTransitioning ? 'Transitioning...' : evolveButton.tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        
-        {/* DEV ONLY: Developer tools dropdown */}
-        {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-10 rounded-full bg-amber-500/10 backdrop-blur-sm border-dashed border-amber-500/50 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all shadow-sm text-amber-600 dark:text-amber-400"
-                  >
-                    <Wrench className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p className="text-amber-600 dark:text-amber-400">Dev Tools</p>
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent side="left" align="start">
-              {stage !== 'adult' && onDevInstantTransition && (
-                <DropdownMenuItem onClick={onDevInstantTransition} disabled={isTransitioning}>
-                  {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
-                  {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
-                </DropdownMenuItem>
-              )}
-              {onDevOpenEditor && (
-                <DropdownMenuItem onClick={onDevOpenEditor}>
-                  <Wrench className="size-4 mr-2" />
-                  State Editor
-                </DropdownMenuItem>
-              )}
-              {onDevOpenEmotionPanel && (
-                <DropdownMenuItem onClick={onDevOpenEmotionPanel}>
-                  <Theater className="size-4 mr-2" />
-                  Emotion Tester
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-    </>
-  );
 }
 
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
@@ -2347,19 +2055,6 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanio
                 </>
               )}
             </Badge>
-            <Badge variant="outline" className="text-xs">
-              {companion.visibleToOthers ? (
-                <>
-                  <Eye className="size-3 mr-1" />
-                  Visible
-                </>
-              ) : (
-                <>
-                  <EyeOff className="size-3 mr-1" />
-                  Hidden
-                </>
-              )}
-            </Badge>
           </div>
         </div>
       </div>
@@ -2455,7 +2150,6 @@ interface BlobbiBottomBarProps {
   onMissionsClick: () => void;
   onActionsClick: () => void;
   onShopClick: () => void;
-  onInventoryClick: () => void;
   /** Number of Blobbies that need care (any stat below threshold) */
   needyBlobbiesCount?: number;
   /** Whether the current Blobbi is in an active task process (incubating or evolving) */
@@ -2464,6 +2158,22 @@ interface BlobbiBottomBarProps {
   remainingTasksCount?: number;
   /** Whether all tasks are complete (show "!" badge) */
   allTasksComplete?: boolean;
+  // ── 3-dots menu actions ──
+  stage: 'egg' | 'baby' | 'adult';
+  blobbiNaddr: string;
+  onSetAsCompanion: () => void;
+  isCurrentCompanion: boolean;
+  isUpdatingCompanion?: boolean;
+  onTakePhoto: () => void;
+  onEvolve: () => void;
+  isTransitioning?: boolean;
+  hideEvolveButton?: boolean;
+  isIncubationAction?: boolean;
+  isEvolutionAction?: boolean;
+  // ── Dev-only actions ──
+  onDevInstantTransition?: () => void;
+  onDevOpenEditor?: () => void;
+  onDevOpenEmotionPanel?: () => void;
 }
 
 function BlobbiBottomBar({
@@ -2471,11 +2181,26 @@ function BlobbiBottomBar({
   onMissionsClick,
   onActionsClick,
   onShopClick,
-  onInventoryClick,
   needyBlobbiesCount,
   isInTaskProcess,
   remainingTasksCount,
   allTasksComplete,
+  // 3-dots menu props
+  stage,
+  blobbiNaddr,
+  onSetAsCompanion,
+  isCurrentCompanion,
+  isUpdatingCompanion = false,
+  onTakePhoto,
+  onEvolve,
+  isTransitioning = false,
+  hideEvolveButton = false,
+  isIncubationAction = false,
+  isEvolutionAction = false,
+  // Dev-only props
+  onDevInstantTransition,
+  onDevOpenEditor,
+  onDevOpenEmotionPanel,
 }: BlobbiBottomBarProps) {
   // Determine what to show on missions badge:
   // - If all tasks complete during active process: show "!"
@@ -2483,6 +2208,9 @@ function BlobbiBottomBar({
   // - Otherwise: no badge
   // Works for BOTH incubating (hatch) and evolving processes
   const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
+
+  const canBeCompanion = stage !== 'egg';
+  const showEvolveButton = stage !== 'adult' && !hideEvolveButton;
   
   return (
     <div className="mt-6 pt-2">
@@ -2517,8 +2245,67 @@ function BlobbiBottomBar({
           
           {/* Right Group - aligned to start (closer to center) */}
           <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton onClick={onShopClick} icon={<ShoppingBag className="size-4" />} label="Shop" />
-            <BottomBarButton onClick={onInventoryClick} icon={<Package className="size-4" />} label="Inventory" />
+            <BottomBarButton onClick={onShopClick} icon={<Package className="size-4" />} label="Items" />
+
+            {/* 3-dots menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]"
+                >
+                  <MoreHorizontal className="size-4" />
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[48px] sm:max-w-none">More</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="end">
+                <DropdownMenuItem onClick={onTakePhoto}>
+                  <Camera className="size-4 mr-2" />
+                  Take a Photo
+                </DropdownMenuItem>
+                {canBeCompanion && (
+                  <DropdownMenuItem onClick={onSetAsCompanion} disabled={isUpdatingCompanion}>
+                    <Footprints className={cn('size-4 mr-2', isCurrentCompanion && 'text-green-500')} />
+                    {isCurrentCompanion ? 'Current Companion' : 'Set as Companion'}
+                  </DropdownMenuItem>
+                )}
+                {showEvolveButton && (
+                  <DropdownMenuItem onClick={onEvolve} disabled={isTransitioning}>
+                    {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
+                    {getEvolveTooltip(stage, isIncubationAction, isEvolutionAction)}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link to={`/${blobbiNaddr}`}>
+                    <ExternalLink className="size-4 mr-2" />
+                    View Blobbi
+                  </Link>
+                </DropdownMenuItem>
+                {/* DEV ONLY: Developer tools */}
+                {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {stage !== 'adult' && onDevInstantTransition && (
+                      <DropdownMenuItem onClick={onDevInstantTransition} disabled={isTransitioning} className="text-amber-600 dark:text-amber-400">
+                        {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
+                        {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
+                      </DropdownMenuItem>
+                    )}
+                    {onDevOpenEditor && (
+                      <DropdownMenuItem onClick={onDevOpenEditor} className="text-amber-600 dark:text-amber-400">
+                        <Wrench className="size-4 mr-2" />
+                        State Editor
+                      </DropdownMenuItem>
+                    )}
+                    {onDevOpenEmotionPanel && (
+                      <DropdownMenuItem onClick={onDevOpenEmotionPanel} className="text-amber-600 dark:text-amber-400">
+                        <Theater className="size-4 mr-2" />
+                        Emotion Tester
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -2570,83 +2357,6 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
   );
 }
 
-// ─── Blobbi Info Modal ────────────────────────────────────────────────────────
 
-interface BlobbiInfoModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  companion: BlobbiCompanion;
-}
-
-function BlobbiInfoModal({ open, onOpenChange, companion }: BlobbiInfoModalProps) {
-  const isSleeping = companion.state === 'sleeping';
-  
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
-        {/* Header - Sticky */}
-        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
-          <div className="flex items-start justify-between gap-4">
-            <DialogTitle style={{ color: companion.visualTraits.baseColor }}>
-              {companion.name}
-            </DialogTitle>
-            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
-              <X className="size-5" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
-          </div>
-        </DialogHeader>
-        {/* Content - Scrollable */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-4">
-          {/* Blobbi Visual */}
-          <div className="flex justify-center">
-            <BlobbiStageVisual
-              companion={companion}
-              size="md"
-              animated={!isSleeping}
-            />
-          </div>
-          
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">Stage</p>
-              <p className="font-medium capitalize">{companion.stage}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">State</p>
-              <p className="font-medium capitalize">{companion.state}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">Generation</p>
-              <p className="font-medium">{companion.generation ?? 1}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">Experience</p>
-              <p className="font-medium">{companion.experience ?? 0}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">Care Streak</p>
-              <p className="font-medium">{companion.careStreak ?? 0} days</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-muted-foreground text-xs">Visibility</p>
-              <p className="font-medium">{companion.visibleToOthers ? 'Public' : 'Private'}</p>
-            </div>
-          </div>
-          
-          {/* Legacy Notice */}
-          {companion.isLegacy && (
-            <div className="px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                This pet uses a legacy format and will be upgraded on next interaction.
-              </p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 

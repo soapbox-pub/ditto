@@ -253,8 +253,6 @@ export interface BlobbiCompanion {
   lastDecayAt: number | undefined;
   /** Stats (0-100) */
   stats: Partial<BlobbiStats>;
-  /** Whether the Blobbi is publicly visible */
-  visibleToOthers: boolean;
   /** Generation number */
   generation: number | undefined;
   /** Breeding eligibility */
@@ -939,7 +937,6 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
       hygiene: parseNumericTag(tags, 'hygiene'),
       energy: parseNumericTag(tags, 'energy'),
     },
-    visibleToOthers: parseBooleanTag(tags, 'visible_to_others', true),
     generation: parseNumericTag(tags, 'generation'),
     breedingReady: parseBooleanTag(tags, 'breeding_ready', false),
     experience: parseNumericTag(tags, 'experience'),
@@ -1036,7 +1033,6 @@ export function buildEggTags(
     ['stage', 'egg'],
     ['state', 'active'],
     ['seed', seed],
-    ['visible_to_others', 'true'],
     ['generation', '1'],
     ['breeding_ready', 'false'],
     ['experience', '0'],
@@ -1084,7 +1080,7 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   // Progression tags
   'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
   // Social/flag tags
-  'visible_to_others', 'breeding_ready',
+  'breeding_ready',
   // Task system tags (removed after stage transitions)
   'state_started_at', 'task', 'task_completed',
   // Evolution tags (adult only)
@@ -1463,7 +1459,7 @@ export function buildMigrationTags(
     // Progression tags
     'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
     // Social/flag tags
-    'visible_to_others', 'generation', 'breeding_ready',
+    'generation', 'breeding_ready',
     // Personality tags (preserve if they exist, do NOT generate)
     'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
     // Evolution tags

@@ -34,7 +34,7 @@ export type TagCategory =
   | 'state'            // Lifecycle state (stage, state, timestamps)
   | 'progression'      // Progress tracking (experience, care_streak)
   | 'task'             // Task system (task, task_completed, state_started_at)
-  | 'social'           // Social flags (visible_to_others, breeding_ready)
+  | 'social'           // Social flags (breeding_ready)
   | 'evolution'        // Evolution-specific (adult_type)
   | 'extension';       // Extension tags (theme, crossover_app)
 
@@ -509,19 +509,6 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // SOCIAL / FLAG TAGS
   // ═══════════════════════════════════════════════════════════════════════════
-  {
-    tag: 'visible_to_others',
-    description: 'Whether the Blobbi is publicly visible to other users',
-    category: 'social',
-    required: false,
-    stages: ['egg', 'baby', 'adult'],
-    persistent: true,
-    source: 'user',
-    regenerable: false,
-    format: 'true | false',
-    defaultValue: 'true',
-    notes: 'User preference. Persists across stages.',
-  },
   {
     tag: 'breeding_ready',
     description: 'Whether the Blobbi is eligible for breeding',

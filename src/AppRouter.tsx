@@ -22,6 +22,9 @@ const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => (
 // Lazy-loaded compose modal (pulls in emoji-mart ~620K)
 const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
 
+// Lazy-loaded emoji pack dialog
+const EmojiPackDialog = lazy(() => import("@/components/EmojiPackDialog").then(m => ({ default: m.EmojiPackDialog })));
+
 // HomePage eagerly imported all page components; now lazy-loaded
 const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
 
@@ -95,6 +98,26 @@ function PollsFeedPage() {
       {composeOpen && (
         <Suspense fallback={null}>
           <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
+        </Suspense>
+      )}
+    </>
+  );
+}
+
+/** Emoji feed page with a FAB that opens the emoji pack creation dialog. */
+function EmojiFeedPage() {
+  const [composeOpen, setComposeOpen] = useState(false);
+  return (
+    <>
+      <KindFeedPage
+        kind={emojisDef.kind}
+        title={emojisDef.label}
+        icon={sidebarItemIcon("emojis", "size-5")}
+        onFabClick={() => setComposeOpen(true)}
+      />
+      {composeOpen && (
+        <Suspense fallback={null}>
+          <EmojiPackDialog open={composeOpen} onOpenChange={setComposeOpen} />
         </Suspense>
       )}
     </>
@@ -204,16 +227,7 @@ export function AppRouter() {
                 />
               }
             />
-            <Route
-              path="/emojis"
-              element={
-                <KindFeedPage
-                  kind={emojisDef.kind}
-                  title={emojisDef.label}
-                  icon={sidebarItemIcon("emojis", "size-5")}
-                />
-              }
-            />
+            <Route path="/emojis" element={<EmojiFeedPage />} />
             <Route
               path="/development"
               element={

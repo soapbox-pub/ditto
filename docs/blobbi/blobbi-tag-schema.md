@@ -127,7 +127,6 @@ User preferences and computed flags.
 
 | Tag | Required | Stages | Persistent | Source | Format | Default | Description |
 |-----|----------|--------|------------|--------|--------|---------|-------------|
-| `visible_to_others` | No | egg, baby, adult | Yes | user | `true\|false` | true | Public visibility |
 | `breeding_ready` | No | egg, baby, adult | Yes | computed | `true\|false` | false | Breeding eligibility |
 
 ### 10. Evolution Tags
@@ -192,7 +191,7 @@ These tags are from legacy versions and MUST be removed when republishing events
 - All visual tags (colors, pattern, size)
 - All personality tags (if present)
 - All progression tags (`experience`, `care_streak`)
-- All social tags (`visible_to_others`, `breeding_ready`)
+- All social tags (`breeding_ready`)
 - All extension tags (`theme`, `crossover_app`)
 
 ### Evolve (baby → adult)

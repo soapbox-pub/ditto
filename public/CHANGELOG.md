@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.2.9] - 2026-04-01
+
+### Added
+- Emoji pack creator and editor with drag-and-drop image upload, auto-generated identifiers, and description field
+- Blobbi companions now appear in feeds and post detail pages
+
+### Changed
+- Blobbi shop redesigned with a tile layout and instant buy -- no more categories or accessory tabs
+- Emoji packs without any valid emojis are now hidden from feeds
+- Custom emoji shortcode collisions across packs are automatically resolved with pack-prefixed names
+
+## [2.2.8] - 2026-04-01
+
+### Added
+- Full threaded reply trees on post detail pages with collapsible deep branches and "Show X more replies" for sibling threads
+- Broadcast button in the Event JSON dialog to re-publish any event to your relays
+
+### Changed
+- My Badges tab overhauled with drag-and-drop reordering, a scrollable list, and a showcase-style carousel for pending badges
+- Encrypted letter envelopes now show the mailing side first (sender and recipient), then flip to reveal the wax seal
+- Blobbi companions are more expressive -- richer status reactions, sleeping visuals, and body effects like dirt and hunger cues
+
+### Fixed
+- Notification dot not clearing after marking notifications as read
+- Followers/following modal staying open after navigating to a profile
+
 ## [2.2.7] - 2026-03-31
 
 ### Fixed

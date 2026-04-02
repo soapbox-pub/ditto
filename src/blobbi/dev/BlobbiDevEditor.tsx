@@ -58,8 +58,6 @@ export interface BlobbiDevUpdates {
   breedingReady?: boolean;
   /** Generation number */
   generation?: number;
-  /** Visibility to others */
-  visibleToOthers?: boolean;
 }
 
 // ─── Stat Presets ─────────────────────────────────────────────────────────────
@@ -189,7 +187,6 @@ export function BlobbiDevEditor({
   const [careStreak, setCareStreak] = useState(companion.careStreak ?? 0);
   const [breedingReady, setBreedingReady] = useState(companion.breedingReady);
   const [generation, setGeneration] = useState(companion.generation ?? 1);
-  const [visibleToOthers, setVisibleToOthers] = useState(companion.visibleToOthers);
 
   // Reset state when companion changes or modal opens
   const resetToCompanion = useCallback(() => {
@@ -207,7 +204,6 @@ export function BlobbiDevEditor({
     setCareStreak(companion.careStreak ?? 0);
     setBreedingReady(companion.breedingReady);
     setGeneration(companion.generation ?? 1);
-    setVisibleToOthers(companion.visibleToOthers);
   }, [companion]);
 
   // Check if there are any changes
@@ -224,10 +220,9 @@ export function BlobbiDevEditor({
       experience !== (companion.experience ?? 0) ||
       careStreak !== (companion.careStreak ?? 0) ||
       breedingReady !== companion.breedingReady ||
-      generation !== (companion.generation ?? 1) ||
-      visibleToOthers !== companion.visibleToOthers
+      generation !== (companion.generation ?? 1)
     );
-  }, [stage, state, adultType, stats, experience, careStreak, breedingReady, generation, visibleToOthers, companion]);
+  }, [stage, state, adultType, stats, experience, careStreak, breedingReady, generation, companion]);
 
   // Apply preset
   const applyPreset = useCallback((preset: StatPreset) => {
@@ -270,11 +265,10 @@ export function BlobbiDevEditor({
     if (careStreak !== (companion.careStreak ?? 0)) updates.careStreak = careStreak;
     if (breedingReady !== companion.breedingReady) updates.breedingReady = breedingReady;
     if (generation !== (companion.generation ?? 1)) updates.generation = generation;
-    if (visibleToOthers !== companion.visibleToOthers) updates.visibleToOthers = visibleToOthers;
 
     await onApply(updates);
     onClose();
-  }, [stage, state, adultType, stats, experience, careStreak, breedingReady, generation, visibleToOthers, companion, onApply, onClose]);
+  }, [stage, state, adultType, stats, experience, careStreak, breedingReady, generation, companion, onApply, onClose]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -531,13 +525,6 @@ export function BlobbiDevEditor({
                 <Switch
                   checked={breedingReady}
                   onCheckedChange={setBreedingReady}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Visible to Others</Label>
-                <Switch
-                  checked={visibleToOthers}
-                  onCheckedChange={setVisibleToOthers}
                 />
               </div>
             </div>

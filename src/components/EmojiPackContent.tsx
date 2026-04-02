@@ -1,15 +1,16 @@
-import { useMemo, useState, useCallback } from 'react';
-import { Plus, Check, Loader2 } from 'lucide-react';
+import { useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { Plus, Check, Loader2, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+
+const EmojiPackDialog = lazy(() => import('@/components/EmojiPackDialog').then(m => ({ default: m.EmojiPackDialog })));
 
 /** Maximum emojis to show in the preview grid before truncating. */
 const PREVIEW_LIMIT = 24;
@@ -60,6 +61,10 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const isOwnPack = user?.pubkey === event.pubkey;
 
   // Fetch the user's kind 10030 emoji list to check if this pack is already added
   const emojiListQuery = useQuery({
@@ -135,8 +140,8 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
 
   if (!pack) return null;
 
-  const showEmojis = pack.emojis.slice(0, PREVIEW_LIMIT);
-  const remaining = pack.emojis.length - PREVIEW_LIMIT;
+  const showEmojis = expanded ? pack.emojis : pack.emojis.slice(0, PREVIEW_LIMIT);
+  const remaining = expanded ? 0 : pack.emojis.length - PREVIEW_LIMIT;
 
   return (
     <div className="mt-3 space-y-3">
@@ -150,12 +155,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
           />
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-[15px] truncate">{pack.name}</h3>
-            <Badge variant="secondary" className="text-[10px] shrink-0">
-              {pack.emojis.length} emoji{pack.emojis.length !== 1 ? 's' : ''}
-            </Badge>
-          </div>
+          <h3 className="font-semibold text-[15px] truncate">{pack.name}</h3>
           {pack.about && (
             <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{pack.about}</p>
           )}
@@ -182,9 +182,13 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
               </div>
             ))}
             {remaining > 0 && (
-              <div className="flex items-center justify-center size-8 rounded bg-muted text-muted-foreground text-xs font-medium">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                className="flex items-center justify-center size-8 rounded bg-muted text-muted-foreground text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+              >
                 +{remaining}
-              </div>
+              </button>
             )}
           </div>
         </div>
@@ -213,7 +217,25 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             {isAdded ? 'Added' : 'Add to Collection'}
           </Button>
         )}
+        {isOwnPack && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
+        )}
       </div>
+
+      {/* Edit dialog (lazy loaded) */}
+      {editOpen && (
+        <Suspense fallback={null}>
+          <EmojiPackDialog open={editOpen} onOpenChange={setEditOpen} editEvent={event} />
+        </Suspense>
+      )}
     </div>
   );
 }

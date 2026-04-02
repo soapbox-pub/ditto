@@ -66,7 +66,6 @@ const CATEGORY_TO_PRIMARY_STAT: Record<ShopItemCategory, (keyof BlobbiStats)[]> 
   toy: ['happiness'],
   hygiene: ['hygiene'],
   medicine: ['health'],
-  accessory: [], // Accessories don't address needs
 };
 
 // ─── Need Detection Functions ─────────────────────────────────────────────────

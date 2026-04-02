@@ -1086,6 +1086,7 @@ const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
   30063: 'Release',
   15128: 'Nsite',
   35128: 'Nsite',
+  31124: 'Blobbi',
 };
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
