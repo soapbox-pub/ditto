@@ -83,6 +83,7 @@ import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
@@ -133,6 +134,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === 31990) return "App Handler";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
   if (kind === 20) return "Photo";
@@ -998,6 +1000,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isVanish = event.kind === VANISH_KIND;
@@ -1025,6 +1028,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isCommunity &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
     !isVanish &&
@@ -2044,6 +2048,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isAppHandler ? (
+              <AppHandlerContent event={event} />
             ) : isEncryptedDM ? (
               <EncryptedMessageContent event={event} />
             ) : isLetter ? (

@@ -479,7 +479,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'development',
     showKey: 'showDevelopment',
     feedKey: 'feedIncludeDevelopment',
-    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267],
+    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267, 31990],
     label: 'Development',
     description: 'Git repos, patches, PRs, nsites, apps, and custom NIPs',
     route: 'development',
@@ -548,6 +548,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   30008: 'profile badges',
   30817: 'repository issue',
   32267: 'app',
+  31990: 'app handler',
   30063: 'release',
 };
 

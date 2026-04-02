@@ -74,6 +74,7 @@ import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Badge } from "@/components/ui/badge";
@@ -306,6 +307,7 @@ export const NoteCard = memo(function NoteCard({
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isVanish = event.kind === 62;
@@ -336,6 +338,7 @@ export const NoteCard = memo(function NoteCard({
     !isAudioKind &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
     !isVanish &&
@@ -532,6 +535,8 @@ export const NoteCard = memo(function NoteCard({
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
           <ZapstoreAppContent event={event} compact />
+        ) : isAppHandler ? (
+          <AppHandlerContent event={event} compact />
         ) : isEncryptedDM ? (
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
@@ -1999,6 +2004,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
         : "streamed",
   },
   32267: {
+    icon: Package,
+    action: "published an app",
+  },
+  31990: {
     icon: Package,
     action: "published an app",
   },
