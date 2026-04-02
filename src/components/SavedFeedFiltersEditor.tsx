@@ -12,23 +12,19 @@
  */
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
-  Globe, UserSearch,
   ChevronDown, ChevronUp,
   Hash, Search as SearchIcon,
   X, Check, User,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
-import { useFollowPacks } from '@/hooks/useFollowPacks';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
-/** A standard NIP-01 filter object that may contain variable placeholders. */
-type TabFilter = Record<string, unknown>;
+
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 import type { UserList } from '@/hooks/useUserLists';
 import type { FollowPack } from '@/hooks/useFollowPacks';
@@ -45,11 +41,40 @@ type KindOption = {
 
 // ─── Kind options (built once) ───────────────────────────────────────────────
 
-import { buildKindOptions } from '@/lib/feedFilterUtils';
+export function buildKindOptions(): KindOption[] {
+  const options: KindOption[] = [];
+  for (const def of EXTRA_KINDS) {
+    if (def.subKinds) {
+      for (const sub of def.subKinds) {
+        options.push({
+          value: String(sub.kind),
+          label: `${sub.label} (${sub.kind})`,
+          description: sub.description,
+          parentId: def.id,
+          icon: CONTENT_KIND_ICONS[def.id],
+        });
+      }
+    } else {
+      options.push({
+        value: String(def.kind),
+        label: `${def.label} (${def.kind})`,
+        description: def.description,
+        parentId: def.id,
+        icon: CONTENT_KIND_ICONS[def.id],
+      });
+    }
+  }
+  const seen = new Set<string>();
+  return options.filter((o) => {
+    if (seen.has(o.value)) return false;
+    seen.add(o.value);
+    return true;
+  });
+}
 
 // ─── useScrollCarets ─────────────────────────────────────────────────────────
 
-function useScrollCarets() {
+export function useScrollCarets() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
@@ -502,9 +527,6 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
   );
 }
 
-// ─── parseSelectedKinds ───────────────────────────────────────────────────────
-
-
 
 // ─── AuthorChip ───────────────────────────────────────────────────────────────
 
@@ -548,210 +570,4 @@ export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, 
   );
 }
 
-// ─── Helper: parse kinds from filter ──────────────────────────────────────────
 
-/** Get the kindFilter string representation from a TabFilter's kinds array. */
-function kindsToKindFilter(filter: TabFilter): string {
-  const kinds = filter.kinds;
-  if (!Array.isArray(kinds) || kinds.length === 0) return 'all';
-  return kinds.map(String).join(',');
-}
-
-/** Get the author scope from a TabFilter. */
-function getAuthorScope(filter: TabFilter): 'anyone' | 'people' {
-  const authors = filter.authors;
-  if (Array.isArray(authors) && authors.length > 0) return 'people';
-  return 'anyone';
-}
-
-// ─── SavedFeedFiltersEditor ───────────────────────────────────────────────────
-
-interface SavedFeedFiltersEditorProps {
-  /** Current filter values */
-  value: TabFilter;
-  /** Called on every field change with the updated filter */
-  onChange: (filter: TabFilter) => void;
-  /** When true, the query input is shown at the top (default: true) */
-  showQuery?: boolean;
-  /** Hide the From / author scope section (e.g. profile tabs where author is implicit) */
-  hideFrom?: boolean;
-  /** Optional: pre-built kind options (pass to avoid rebuilding) */
-  kindOptions?: KindOption[];
-}
-
-export function SavedFeedFiltersEditor({
-  value,
-  onChange,
-  showQuery = true,
-  hideFrom = false,
-  kindOptions: kindOptionsProp,
-}: SavedFeedFiltersEditorProps) {
-  const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
-  const { lists } = useUserLists();
-  const { data: followPacks = [] } = useFollowPacks();
-
-  const listPickerValue = useMatchedListId(
-    Array.isArray(value.authors) ? (value.authors as string[]) : [],
-  );
-
-  const search = typeof value.search === 'string' ? value.search : '';
-  const authorPubkeys = useMemo(() => Array.isArray(value.authors) ? (value.authors as string[]) : [], [value.authors]);
-  // Local scope state so clicking "People" immediately shows the panel,
-  // even before any authors have been added. Initialised from the filter value.
-  const [authorScope, setAuthorScopeState] = useState<'anyone' | 'people'>(
-    () => getAuthorScope(value),
-  );
-  const kindFilter = kindsToKindFilter(value);
-  const [customKindText, setCustomKindText] = useState('');
-
-  const addAuthor = useCallback((pubkey: string, _label: string) => {
-    const next = authorPubkeys.includes(pubkey) ? authorPubkeys : [...authorPubkeys, pubkey];
-    setAuthorScopeState('people');
-    onChange({ ...value, authors: next });
-  }, [authorPubkeys, onChange, value]);
-
-  const removeAuthor = useCallback((pubkey: string) => {
-    const next = authorPubkeys.filter((p) => p !== pubkey);
-    const updated = { ...value };
-    if (next.length > 0) {
-      updated.authors = next;
-    } else {
-      delete updated.authors;
-    }
-    onChange(updated);
-  }, [authorPubkeys, onChange, value]);
-
-  const setAuthorScope = useCallback((scope: 'anyone' | 'people') => {
-    setAuthorScopeState(scope);
-    if (scope === 'anyone') {
-      const updated = { ...value };
-      delete updated.authors;
-      onChange(updated);
-    }
-  }, [onChange, value]);
-
-  const handleKindChange = useCallback((v: string) => {
-    const updated = { ...value };
-    if (v === 'all') {
-      delete updated.kinds;
-      setCustomKindText('');
-    } else if (v === 'custom') {
-      setCustomKindText(Array.isArray(value.kinds) ? (value.kinds as number[]).join(', ') : '');
-    } else {
-      updated.kinds = [parseInt(v, 10)];
-      setCustomKindText('');
-    }
-    onChange(updated);
-  }, [onChange, value]);
-
-  const handleCustomKindChange = useCallback((text: string) => {
-    setCustomKindText(text);
-    const kinds = text.split(/[\s,]+/).map(Number).filter((n) => !isNaN(n) && n > 0);
-    if (kinds.length > 0) {
-      onChange({ ...value, kinds });
-    }
-  }, [onChange, value]);
-
-  const handleSearchChange = useCallback((newSearch: string) => {
-    const updated = { ...value };
-    if (newSearch.trim()) {
-      updated.search = newSearch;
-    } else {
-      delete updated.search;
-    }
-    onChange(updated);
-  }, [onChange, value]);
-
-  return (
-    <div className="space-y-3">
-      {/* Query */}
-      {showQuery && (
-        <>
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
-            <Input
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="e.g. bitcoin"
-              className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-base md:text-sm"
-            />
-          </div>
-          <Separator />
-        </>
-      )}
-
-      {/* Author scope */}
-      {!hideFrom && (
-        <>
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              {([
-                ['anyone', 'Anyone', Globe],
-                ['people', 'People', UserSearch],
-              ] as const).map(([scope, label, Icon]) => (
-                <button
-                  key={scope}
-                  onClick={() => setAuthorScope(scope)}
-                  className={cn(
-                    'flex-1 py-1.5 flex items-center justify-center gap-1 text-xs font-medium transition-colors',
-                    authorScope === scope
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  {label}
-                </button>
-              ))}
-            </div>
-            {authorScope === 'people' && (
-              <div className="space-y-1.5">
-                {authorPubkeys.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {authorPubkeys.map((pk) => (
-                      <AuthorChip key={pk} pubkey={pk} onRemove={() => removeAuthor(pk)} />
-                    ))}
-                  </div>
-                )}
-                <AuthorFilterDropdown onCommit={addAuthor} />
-                <ListPackPicker
-                  lists={lists}
-                  followPacks={followPacks}
-                  value={listPickerValue}
-                  onSelectPubkeys={(pubkeys) => {
-                    const updated = { ...value };
-                    if (pubkeys.length > 0) {
-                      updated.authors = pubkeys;
-                    } else {
-                      delete updated.authors;
-                    }
-                    onChange(updated);
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          <Separator />
-        </>
-      )}
-
-      {/* Kind */}
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
-        <KindPicker value={kindFilter} options={kindOptions} onChange={handleKindChange} />
-      </div>
-
-      {kindFilter === 'custom' && (
-        <Input
-          type="text"
-          inputMode="numeric"
-          placeholder="e.g. 1, 30023"
-          value={customKindText}
-          onChange={(e) => handleCustomKindChange(e.target.value)}
-          className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
-        />
-      )}
-    </div>
-  );
-}
