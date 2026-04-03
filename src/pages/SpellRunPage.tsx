@@ -18,7 +18,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
 import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
-import { resolveSpell } from '@/lib/spellEngine';
+import { resolveSpell, spellFingerprint } from '@/lib/spellEngine';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import NotFound from './NotFound';
@@ -87,10 +87,11 @@ export function SpellRunPage() {
   const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
   const { toast } = useToast();
 
-  /** Find an existing saved feed that uses the same spell event (by event ID). */
+  /** Find an existing saved feed whose spell has the same semantic filter. */
   const matchingSavedFeed = useMemo(() => {
     if (!spellEvent) return undefined;
-    return savedFeeds.find((f) => f.spell?.id === spellEvent.id);
+    const fp = spellFingerprint(spellEvent);
+    return savedFeeds.find((f) => spellFingerprint(f.spell) === fp);
   }, [savedFeeds, spellEvent]);
 
   const isSaved = !!matchingSavedFeed;

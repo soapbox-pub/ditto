@@ -56,8 +56,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
 import { shareOrCopy } from '@/lib/share';
-import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { buildSpellTags, buildUnsignedSpell, spellFingerprint } from '@/lib/spellEngine';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
@@ -386,15 +385,12 @@ export function SearchPage() {
   }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, includeReplies, mediaType, language, platform, sort, saveFeedLabel]);
 
   // Stable fingerprint for dedup (ignore name/alt tags which vary with the label input)
-  const currentSpellFingerprint = useMemo(() => {
-    const filterTags = currentSpellTags.filter(([t]) => t !== 'name' && t !== 'alt');
-    return JSON.stringify(filterTags);
-  }, [currentSpellTags]);
+  const currentSpellFP = useMemo(
+    () => spellFingerprint(buildUnsignedSpell(currentSpellTags)),
+    [currentSpellTags],
+  );
 
-  const alreadySaved = savedFeeds.some((f) => {
-    const feedFilterTags = (f.spell?.tags ?? []).filter(([t]: string[]) => t !== 'name' && t !== 'alt');
-    return JSON.stringify(feedFilterTags) === currentSpellFingerprint;
-  });
+  const alreadySaved = savedFeeds.some((f) => spellFingerprint(f.spell) === currentSpellFP);
 
   const handleSaveFeed = async () => {
     if (!saveFeedLabel.trim() || isSavingFeed) return;

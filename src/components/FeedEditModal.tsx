@@ -27,7 +27,7 @@ import {
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell, spellAuthors, spellAuthorPubkeys, spellKinds, spellSearch } from '@/lib/spellEngine';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,32 +48,11 @@ interface FeedEditModalProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Derive the author scope from a spell event's tags. */
-function spellToScope(spell: NostrEvent | undefined): AuthorScope {
-  if (!spell) return 'anyone';
-  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
+/** Derive the author scope from a spell draft's authors array. */
+function draftToScope(authors: string[]): AuthorScope {
   if (authors.includes('$contacts')) return 'follows';
   if (authors.length > 0) return 'people';
   return 'anyone';
-}
-
-/** Extract explicit author pubkeys from a spell event (excluding variables). */
-function spellToAuthorPubkeys(spell: NostrEvent | undefined): string[] {
-  if (!spell) return [];
-  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
-  return authors.filter((a) => !a.startsWith('$'));
-}
-
-/** Extract kinds from a spell event's k tags. */
-function spellToKinds(spell: NostrEvent | undefined): string[] {
-  if (!spell) return [];
-  return spell.tags.filter(([t]) => t === 'k').map(([, v]) => v);
-}
-
-/** Extract search query from a spell event. */
-function spellToSearch(spell: NostrEvent | undefined): string {
-  if (!spell) return '';
-  return spell.tags.find(([t]) => t === 'search')?.[1] ?? '';
 }
 
 const FEED_SCOPE_OPTIONS: ScopeOption<AuthorScope>[] = [
@@ -98,19 +77,19 @@ export function FeedEditModal({
   const { data: followPacks = [] } = useFollowPacks();
 
   const [label, setLabel] = useState(() => initialLabel ?? '');
-  const [authorScope, setAuthorScope] = useState<AuthorScope>(() => spellToScope(initialSpell));
-  const [authorPubkeys, setAuthorPubkeys] = useState<string[]>(() => spellToAuthorPubkeys(initialSpell));
-  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellToKinds(initialSpell));
-  const [search, setSearch] = useState(() => spellToSearch(initialSpell));
+  const [authorScope, setAuthorScope] = useState<AuthorScope>(() => draftToScope(spellAuthors(initialSpell)));
+  const [authorPubkeys, setAuthorPubkeys] = useState<string[]>(() => spellAuthorPubkeys(initialSpell));
+  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellKinds(initialSpell));
+  const [search, setSearch] = useState(() => spellSearch(initialSpell));
 
   // Reset all state when the modal opens
   const handleOpenChange = (o: boolean) => {
     if (o) {
       setLabel(initialLabel ?? '');
-      setAuthorScope(spellToScope(initialSpell));
-      setAuthorPubkeys(spellToAuthorPubkeys(initialSpell));
-      setSelectedKinds(spellToKinds(initialSpell));
-      setSearch(spellToSearch(initialSpell));
+      setAuthorScope(draftToScope(spellAuthors(initialSpell)));
+      setAuthorPubkeys(spellAuthorPubkeys(initialSpell));
+      setSelectedKinds(spellKinds(initialSpell));
+      setSearch(spellSearch(initialSpell));
     }
     onOpenChange(o);
   };

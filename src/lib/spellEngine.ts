@@ -285,3 +285,51 @@ export function buildUnsignedSpell(tags: string[][]): NostrEvent {
     sig: '',
   };
 }
+
+// ─── Spell Tag Parsers ───────────────────────────────────────────────────────
+//
+// Shared helpers for reading common fields out of a spell event's tags.
+// Used by feed/tab edit modals to seed form state from an existing spell.
+
+/** Extract the raw `authors` tag values. May contain `$me`, `$contacts`, or hex pubkeys. */
+export function spellAuthors(spell: NostrEvent | undefined): string[] {
+  return spell?.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
+}
+
+/** Extract kind numbers from `k` tags as string values. */
+export function spellKinds(spell: NostrEvent | undefined): string[] {
+  if (!spell) return [];
+  return spell.tags.filter(([t]) => t === 'k').map(([, v]) => v);
+}
+
+/** Extract the `search` tag value. */
+export function spellSearch(spell: NostrEvent | undefined): string {
+  return spell?.tags.find(([t]) => t === 'search')?.[1] ?? '';
+}
+
+/**
+ * Extract explicit author pubkeys, filtering out runtime variables
+ * (`$me`, `$contacts`) and optionally a specific pubkey (e.g. profile owner).
+ */
+export function spellAuthorPubkeys(spell: NostrEvent | undefined, excludePubkey?: string): string[] {
+  return spellAuthors(spell).filter((a) => {
+    if (a.startsWith('$')) return false;
+    if (excludePubkey && a === excludePubkey) return false;
+    return true;
+  });
+}
+
+/**
+ * Stable semantic fingerprint for a spell event.
+ * Two spells with the same fingerprint represent the same query regardless
+ * of name, alt text, or event identity (id/pubkey/sig).
+ */
+export function spellFingerprint(spell: NostrEvent | undefined): string {
+  if (!spell) return '';
+  const METADATA_TAGS = new Set(['name', 'alt']);
+  const filterTags = spell.tags
+    .filter(([t]) => !METADATA_TAGS.has(t))
+    .map((tag) => tag.join('\x00'))
+    .sort();
+  return filterTags.join('\n');
+}

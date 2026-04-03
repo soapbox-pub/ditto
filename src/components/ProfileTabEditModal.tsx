@@ -30,9 +30,8 @@ import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell, spellAuthors, spellAuthorPubkeys, spellKinds, spellSearch } from '@/lib/spellEngine';
 import type { ProfileTab } from '@/lib/profileTabsEvent';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 
 interface ProfileTabEditModalProps {
@@ -51,34 +50,13 @@ interface ProfileTabEditModalProps {
 
 type ProfileAuthorScope = 'me' | 'contacts' | 'people' | 'global';
 
-/** Derive the author scope from a spell event's tags. */
-function spellToScope(spell: NostrEvent | undefined, ownerPubkey: string): ProfileAuthorScope {
-  if (!spell) return 'me';
-  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
+/** Derive the profile-specific author scope from a spell draft's authors array. */
+function draftToProfileScope(authors: string[], ownerPubkey: string): ProfileAuthorScope {
   // Detect "me" scope: either the literal owner pubkey or the $me variable
   if (authors.length === 1 && (authors[0] === ownerPubkey || authors[0] === '$me')) return 'me';
   if (authors.includes('$contacts')) return 'contacts';
   if (authors.length > 0) return 'people';
   return 'global';
-}
-
-/** Extract explicit author pubkeys from a spell event (excluding variables and owner). */
-function spellToPeoplePubkeys(spell: NostrEvent | undefined, ownerPubkey: string): string[] {
-  if (!spell) return [];
-  const authors = spell.tags.find(([t]) => t === 'authors')?.slice(1) ?? [];
-  return authors.filter((a) => a !== ownerPubkey && !a.startsWith('$'));
-}
-
-/** Extract kinds from a spell event's k tags. */
-function spellToKinds(spell: NostrEvent | undefined): string[] {
-  if (!spell) return [];
-  return spell.tags.filter(([t]) => t === 'k').map(([, v]) => v);
-}
-
-/** Extract search query from a spell event. */
-function spellToSearch(spell: NostrEvent | undefined): string {
-  if (!spell) return '';
-  return spell.tags.find(([t]) => t === 'search')?.[1] ?? '';
 }
 
 // ─── Author Scope Options ─────────────────────────────────────────────────────
@@ -106,10 +84,10 @@ export function ProfileTabEditModal({
   const isNew = !tab;
 
   const [label, setLabel] = useState(tab?.label ?? '');
-  const [query, setQuery] = useState(() => spellToSearch(tab?.spell));
-  const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(() => spellToScope(tab?.spell, ownerPubkey));
-  const [peoplePubkeys, setPeoplePubkeys] = useState<string[]>(() => spellToPeoplePubkeys(tab?.spell, ownerPubkey));
-  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellToKinds(tab?.spell));
+  const [query, setQuery] = useState(() => spellSearch(tab?.spell));
+  const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(() => draftToProfileScope(spellAuthors(tab?.spell), ownerPubkey));
+  const [peoplePubkeys, setPeoplePubkeys] = useState<string[]>(() => spellAuthorPubkeys(tab?.spell, ownerPubkey));
+  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellKinds(tab?.spell));
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const listPickerValue = useMatchedListId(peoplePubkeys);
@@ -138,10 +116,10 @@ export function ProfileTabEditModal({
   useEffect(() => {
     if (open) {
       setLabel(tab?.label ?? '');
-      setQuery(spellToSearch(tab?.spell));
-      setAuthorScope(spellToScope(tab?.spell, ownerPubkey));
-      setPeoplePubkeys(spellToPeoplePubkeys(tab?.spell, ownerPubkey));
-      setSelectedKinds(spellToKinds(tab?.spell));
+      setQuery(spellSearch(tab?.spell));
+      setAuthorScope(draftToProfileScope(spellAuthors(tab?.spell), ownerPubkey));
+      setPeoplePubkeys(spellAuthorPubkeys(tab?.spell, ownerPubkey));
+      setSelectedKinds(spellKinds(tab?.spell));
     }
   }, [open, tab, ownerPubkey]);
 
