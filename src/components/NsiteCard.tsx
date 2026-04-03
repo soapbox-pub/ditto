@@ -1,8 +1,11 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { ExternalLink, FileText, Globe, Server } from "lucide-react";
+import { ExternalLink, FileText, Globe, Play, Server } from "lucide-react";
 import { nip19 } from "nostr-tools";
+import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { ExternalFavicon } from "@/components/ExternalFavicon";
+import { NsitePreviewDialog } from "@/components/NsitePreviewDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
 import { cn } from "@/lib/utils";
@@ -51,90 +54,125 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
 
+	const [previewOpen, setPreviewOpen] = useState(false);
+
 	if (isLoading) {
 		return <NsiteCardSkeleton />;
 	}
 
 	return (
-		<a
-			href={siteUrl}
-			target="_blank"
-			rel="noopener noreferrer"
+		<>
+		<div
 			className={cn(
-				"group block mt-2 rounded-2xl border border-border overflow-hidden",
+				"group mt-2 rounded-2xl border border-border overflow-hidden",
 				"hover:bg-secondary/40 transition-colors",
 			)}
 			onClick={(e) => e.stopPropagation()}
 		>
-			{/* Link preview thumbnail */}
-			{image && (
-				<div className="w-full overflow-hidden bg-muted">
-					<img
-						src={image}
-						alt=""
-						className="w-full h-[180px] object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-						loading="lazy"
-						onError={(e) => {
-							(e.currentTarget.parentElement as HTMLElement).style.display = "none";
-						}}
-					/>
-				</div>
-			)}
-
-			<div className="px-3.5 py-2.5 space-y-1.5">
-				{/* Title with favicon */}
-				<div className="flex items-center gap-2 min-w-0">
-					<ExternalFavicon url={siteUrl} size={16} className="shrink-0" />
-					<p className="text-sm font-semibold leading-snug line-clamp-2">
-						{previewTitle || displayName}
-					</p>
-				</div>
-
-				{/* Description — prefer event description (it's curated), fall back to OEmbed author */}
-				{(description || preview?.author_name) && (
-					<p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-						{description || preview?.author_name}
-					</p>
+			{/* Link preview thumbnail — clicking navigates to the site */}
+			<a
+				href={siteUrl}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="block"
+				onClick={(e) => e.stopPropagation()}
+			>
+				{image && (
+					<div className="w-full overflow-hidden bg-muted">
+						<img
+							src={image}
+							alt=""
+							className="w-full h-[180px] object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+							loading="lazy"
+							onError={(e) => {
+								(e.currentTarget.parentElement as HTMLElement).style.display = "none";
+							}}
+						/>
+					</div>
 				)}
 
-				{/* Deployment stats + source link */}
-				<div className="flex items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
-					{pathTags.length > 0 && (
-						<span className="inline-flex items-center gap-1">
-							<FileText className="size-3" />
-							{pathTags.length} {pathTags.length === 1 ? "file" : "files"}
-						</span>
+				<div className="px-3.5 pt-2.5 pb-1.5 space-y-1.5">
+					{/* Title with favicon */}
+					<div className="flex items-center gap-2 min-w-0">
+						<ExternalFavicon url={siteUrl} size={16} className="shrink-0" />
+						<p className="text-sm font-semibold leading-snug line-clamp-2">
+							{previewTitle || displayName}
+						</p>
+					</div>
+
+					{/* Description — prefer event description (it's curated), fall back to OEmbed author */}
+					{(description || preview?.author_name) && (
+						<p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+							{description || preview?.author_name}
+						</p>
 					)}
-					{serverTags.length > 0 && (
-						<span className="inline-flex items-center gap-1">
-							<Server className="size-3" />
-							{serverTags.length} {serverTags.length === 1 ? "server" : "servers"}
-						</span>
+
+					{/* Deployment stats */}
+					{(pathTags.length > 0 || serverTags.length > 0) && (
+						<div className="flex items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
+							{pathTags.length > 0 && (
+								<span className="inline-flex items-center gap-1">
+									<FileText className="size-3" />
+									{pathTags.length} {pathTags.length === 1 ? "file" : "files"}
+								</span>
+							)}
+							{serverTags.length > 0 && (
+								<span className="inline-flex items-center gap-1">
+									<Server className="size-3" />
+									{serverTags.length} {serverTags.length === 1 ? "server" : "servers"}
+								</span>
+							)}
+						</div>
 					)}
-					{sourceUrl && (
+				</div>
+			</a>
+
+			{/* Action row */}
+			<div className="px-3.5 pb-2.5 flex items-center gap-2">
+				<Button
+					size="sm"
+					className="h-7 text-xs"
+					onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
+				>
+					<Play className="size-3 mr-1" />
+					Run
+				</Button>
+				{sourceUrl ? (
+					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
 						<a
 							href={sourceUrl}
 							target="_blank"
 							rel="noopener noreferrer"
-							className={cn(
-								"ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full",
-								"hover:bg-primary/10 hover:text-primary transition-colors",
-							)}
 							onClick={(e) => e.stopPropagation()}
 						>
-							<Globe className="size-3" />
-							<span>Source</span>
+							<Globe className="size-3 mr-1" />
+							Source
 						</a>
-					)}
-					{!sourceUrl && (
-						<span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
-							<ExternalLink className="size-3" />
-							<span>Visit</span>
-						</span>
-					)}
-				</div>
+					</Button>
+				) : (
+					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
+						<a
+							href={siteUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<ExternalLink className="size-3 mr-1" />
+							Visit
+						</a>
+					</Button>
+				)}
 			</div>
-		</a>
+		</div>
+
+		<NsitePreviewDialog
+			nsiteUrl={siteUrl}
+			appName={previewTitle || displayName || "nsite"}
+			appPicture={undefined}
+			open={previewOpen}
+			onOpenChange={setPreviewOpen}
+		/>
+		</>
 	);
 }
 
