@@ -419,11 +419,19 @@ export function useNotifications(): NotificationData {
       // match because useHasUnreadNotifications uses a 4-element key
       // ['notifications-unread', pubkey, kindsKey, authorsKey] and setQueryData
       // requires an exact match (which silently misses the real cache entry).
+      //
+      // NOTE: We intentionally do NOT call invalidateQueries here. Invalidation
+      // triggers an immediate refetch whose queryFn closure may still hold the
+      // old notificationsCursor (from a render before the settings cache update
+      // propagates). That stale refetch re-queries the relay with the old
+      // `since` value, finds the same "unread" events, returns `true`, and
+      // overwrites the `false` we just set — causing the dot to reappear.
+      // The 60-second poll (or real-time subscription) will naturally
+      // re-evaluate once the cursor has fully propagated.
       queryClient.setQueriesData<boolean>(
         { queryKey: ['notifications-unread', user.pubkey] },
         false,
       );
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
       optimisticCursor.current = null;
