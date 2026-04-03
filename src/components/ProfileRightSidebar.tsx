@@ -28,6 +28,9 @@ import { WeatherStationCard } from '@/components/WeatherStationCard';
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
 
+/** Maximum number of media tiles shown in the sidebar. */
+const SIDEBAR_MEDIA_LIMIT = 9;
+
 /** Simple email regex for display purposes. */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -492,13 +495,13 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   const { config } = useAppContext();
   const { nostr } = useNostr();
 
-  // Fetch media-native events directly using a kind whitelist (no search extension).
-  const { data: sidebarEvents, isPending: mediaLoading } = useQuery({
+  // Primary query: media-native kinds (kind 20, 21, 22, etc.) — no search extension needed.
+  const { data: primaryEvents, isPending: primaryLoading } = useQuery({
     queryKey: ['sidebar-media', pubkey ?? ''],
     queryFn: async ({ signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const events = await nostr.query(
-        [{ kinds: SIDEBAR_MEDIA_KINDS, authors: [pubkey!], limit: 20 }],
+        [{ kinds: SIDEBAR_MEDIA_KINDS, authors: [pubkey!], limit: SIDEBAR_MEDIA_LIMIT }],
         { signal: querySignal },
       );
       const now = Math.floor(Date.now() / 1000);
@@ -508,10 +511,39 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
     staleTime: 30_000,
   });
 
-  const media = useMemo(
-    () => extractMedia(sidebarEvents ?? [], config.contentWarningPolicy),
-    [sidebarEvents, config.contentWarningPolicy],
+  // Derive media items from primary events so we know how many slots remain.
+  const primaryMedia = useMemo(
+    () => extractMedia(primaryEvents ?? [], config.contentWarningPolicy),
+    [primaryEvents, config.contentWarningPolicy],
   );
+
+  // Fallback query: kind 1 with search:media:true, only when the primary result has fewer than
+  // SIDEBAR_MEDIA_LIMIT items and the primary query has finished loading.
+  const needsFallback = !primaryLoading && primaryMedia.length < SIDEBAR_MEDIA_LIMIT;
+  const { data: fallbackEvents, isPending: fallbackLoading } = useQuery({
+    queryKey: ['sidebar-media-fallback', pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const events = await nostr.query(
+        [{ kinds: [1], authors: [pubkey!], search: 'media:true', limit: SIDEBAR_MEDIA_LIMIT } as { kinds: number[]; authors: string[]; search: string; limit: number }],
+        { signal: querySignal },
+      );
+      const now = Math.floor(Date.now() / 1000);
+      return events.filter((e) => e.created_at <= now).sort((a, b) => b.created_at - a.created_at);
+    },
+    enabled: !!pubkey && needsFallback,
+    staleTime: 30_000,
+  });
+
+  // Merge: kind 20 (primary) first, then kind 1 fallback to fill remaining slots.
+  const media = useMemo(() => {
+    if (primaryMedia.length >= SIDEBAR_MEDIA_LIMIT) return primaryMedia;
+    const fallbackMedia = extractMedia(fallbackEvents ?? [], config.contentWarningPolicy);
+    const remaining = SIDEBAR_MEDIA_LIMIT - primaryMedia.length;
+    return [...primaryMedia, ...fallbackMedia.slice(0, remaining)];
+  }, [primaryMedia, fallbackEvents, config.contentWarningPolicy]);
+
+  const mediaLoading = primaryLoading || (needsFallback && fallbackLoading);
 
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
