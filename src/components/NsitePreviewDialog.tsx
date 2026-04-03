@@ -4,6 +4,7 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 /** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
 const PREVIEW_DOMAIN = 'local-shakespeare.dev';
@@ -241,11 +242,12 @@ export function NsitePreviewDialog({ nsiteUrl, appName, open, onOpenChange }: Ns
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={
+        className={cn(
+          'p-0 flex flex-col gap-0 [&>button:last-of-type]:hidden',
           isFullscreen
-            ? 'fixed inset-0 max-w-none w-screen h-screen rounded-none p-0 flex flex-col gap-0 [&>button]:hidden'
-            : 'max-w-4xl w-full h-[80vh] p-0 flex flex-col gap-0'
-        }
+            ? 'fixed inset-0 max-w-none w-screen h-screen rounded-none'
+            : 'max-w-4xl w-full h-[80vh]',
+        )}
       >
         <VisuallyHidden>
           <DialogTitle>{appName} — Preview</DialogTitle>
