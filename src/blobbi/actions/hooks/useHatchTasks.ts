@@ -34,10 +34,10 @@ export const KIND_SHORT_TEXT_NOTE = 1;
 export const HATCH_REQUIRED_INTERACTIONS = 7;
 
 /** Required hashtags for the Blobbi post (excludes Blobbi name, which is dynamic) */
-export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi', 'ditto', 'nostr'];
+export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi'];
 
-/** Prefix text for Blobbi hatch post */
-export const BLOBBI_POST_PREFIX = 'Hello Nostr! Posting to hatch';
+/** Prefix text for Blobbi hatch post (the Blobbi name is appended after this) */
+export const BLOBBI_POST_PREFIX = 'Posting to hatch';
 
 // Legacy export for backwards compatibility
 export const REQUIRED_INTERACTIONS = HATCH_REQUIRED_INTERACTIONS;
@@ -111,15 +111,27 @@ export interface HatchTasksResult {
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
 /**
+ * Build the required phrase for a hatch post.
+ * Format: "Posting to hatch {CapitalizedName} #blobbi"
+ */
+export function buildHatchPhrase(blobbiName: string): string {
+  const capitalized = blobbiName.charAt(0).toUpperCase() + blobbiName.slice(1);
+  return `${BLOBBI_POST_PREFIX} ${capitalized} #blobbi`;
+}
+
+/**
  * Check if a post is a valid Blobbi hatch post.
- * Must contain the required prefix and all required hashtags including the Blobbi name.
+ * The post must contain the required phrase: "Posting to hatch {Name} #blobbi"
+ * The user may add extra text before or after it.
  * 
  * @param event - The Nostr event to validate
- * @param blobbiName - The Blobbi's name (will be sanitized and checked as hashtag)
+ * @param blobbiName - The Blobbi's name
  */
 export function isValidHatchPost(event: NostrEvent, blobbiName: string): boolean {
-  // Check content starts with prefix
-  if (!event.content.startsWith(BLOBBI_POST_PREFIX)) {
+  const phrase = buildHatchPhrase(blobbiName);
+
+  // The phrase must appear somewhere in the content
+  if (!event.content.includes(phrase)) {
     return false;
   }
   
@@ -128,18 +140,12 @@ export function isValidHatchPost(event: NostrEvent, blobbiName: string): boolean
     .filter(tag => tag[0] === 't')
     .map(tag => tag[1]?.toLowerCase());
   
-  // All required hashtags must be present
+  // All required hashtags must be present as t tags
   const hasRequiredHashtags = BLOBBI_POST_REQUIRED_HASHTAGS.every(required => 
     hashtags.includes(required.toLowerCase())
   );
   
-  if (!hasRequiredHashtags) {
-    return false;
-  }
-  
-  // Blobbi name hashtag must also be present
-  const blobbiHashtag = sanitizeToHashtag(blobbiName);
-  return hashtags.includes(blobbiHashtag);
+  return hasRequiredHashtags;
 }
 
 // Legacy function name for backwards compatibility

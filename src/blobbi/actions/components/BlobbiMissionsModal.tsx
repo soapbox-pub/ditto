@@ -1,19 +1,39 @@
 // src/blobbi/actions/components/BlobbiMissionsModal.tsx
 
 /**
- * Missions modal for Blobbi.
- * 
- * Shows:
- * - Daily missions (always visible, separate reward system)
- * - Incubation tasks when the current Blobbi is incubating (egg stage)
- * - Evolve tasks when evolving (baby stage)
+ * Missions modal for Blobbi — card-grid quest board.
+ *
+ * Layout:
+ * 1. Sticky header with title, subtitle, legend help button, close
+ * 2. Current Focus section (hatch / evolve) — collapsible, default open
+ * 3. Daily Bounties section — collapsible, default open
+ * 4. Settings row — low emphasis toggle (not collapsible)
+ *
+ * Both main sections use lightweight Radix Collapsible wrappers.
+ * Collapsed headers still show summary info (progress / coins).
  */
 
-import { Target, Loader2, XCircle, AlertTriangle, Calendar, Coins, X, ChevronDown } from 'lucide-react';
+import {
+  Loader2,
+  XCircle,
+  AlertTriangle,
+  Coins,
+  X,
+  Eye,
+  Scroll,
+  Compass,
+  HelpCircle,
+  ChevronDown,
+} from 'lucide-react';
 import { formatCompactNumber, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +44,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useState } from 'react';
 
 import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
@@ -42,36 +61,86 @@ import { useRerollMission } from '../hooks/useRerollMission';
 interface BlobbiMissionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current companion being viewed */
   companion: BlobbiCompanion;
-  /** Current Blobbonaut profile (required for coin updates) */
   profile: BlobbonautProfile | null;
-  /** Callback to update profile in query cache after claiming */
   updateProfileEvent: (event: NostrEvent) => void;
-  /** Hatch tasks result from useHatchTasks */
   hatchTasks: HatchTasksResult;
-  /** Evolve tasks result from useEvolveTasks */
   evolveTasks: EvolveTasksResult;
-  /** Called when user clicks "Create Post" action in tasks */
   onOpenPostModal: () => void;
-  /** Called when all hatch tasks are complete and user clicks "Hatch" */
   onHatch: () => void;
-  /** Whether hatching is in progress */
   isHatching: boolean;
-  /** Called when all evolve tasks are complete and user clicks "Evolve" */
   onEvolve: () => void;
-  /** Whether evolving is in progress */
   isEvolving: boolean;
-  /** Called when user confirms stopping incubation */
   onStopIncubation: () => Promise<void>;
-  /** Whether stop incubation is in progress */
   isStoppingIncubation: boolean;
-  /** Called when user confirms stopping evolution */
   onStopEvolution: () => Promise<void>;
-  /** Whether stop evolution is in progress */
   isStoppingEvolution: boolean;
-  /** Available Blobbi stages across all user's companions (for mission filtering) */
   availableStages?: ('egg' | 'baby' | 'adult')[];
+  showMissionCard?: boolean;
+  onToggleMissionCard?: (visible: boolean) => void;
+}
+
+// ─── Section Chevron ─────────────────────────────────────────────────────────
+
+function SectionChevron({ open }: { open: boolean }) {
+  return (
+    <ChevronDown
+      className={cn(
+        'size-4 text-muted-foreground/60 transition-transform duration-200',
+        open && 'rotate-180',
+      )}
+    />
+  );
+}
+
+// ─── Mission Type Legend ──────────────────────────────────────────────────────
+
+function MissionTypeLegend() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="rounded-full p-1.5 opacity-50 hover:opacity-100 hover:bg-muted transition-all"
+          aria-label="Mission types legend"
+        >
+          <HelpCircle className="size-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="w-56 p-3">
+        <p className="text-xs font-semibold mb-2">Mission Types</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+              <Scroll className="size-3 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium">Daily Bounty</p>
+              <p className="text-[10px] text-muted-foreground">Resets every day</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-sky-500/15 flex items-center justify-center shrink-0">
+              <span className="text-xs">🥚</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium">Hatch Task</p>
+              <p className="text-[10px] text-muted-foreground">Egg progression</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
+              <span className="text-xs">🐣</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium">Evolve Task</p>
+              <p className="text-[10px] text-muted-foreground">Baby progression</p>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ─── Daily Missions Section ───────────────────────────────────────────────────
@@ -79,14 +148,20 @@ interface BlobbiMissionsModalProps {
 interface DailyMissionsSectionProps {
   profile: BlobbonautProfile | null;
   updateProfileEvent: (event: NostrEvent) => void;
-  /** Available Blobbi stages the user has */
   availableStages?: ('egg' | 'baby' | 'adult')[];
   disabled?: boolean;
   defaultOpen?: boolean;
 }
 
-function DailyMissionsSection({ profile, updateProfileEvent, availableStages, disabled, defaultOpen = true }: DailyMissionsSectionProps) {
+function DailyMissionsSection({
+  profile,
+  updateProfileEvent,
+  availableStages,
+  disabled,
+  defaultOpen = true,
+}: DailyMissionsSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
   const {
     missions,
     todayClaimedReward,
@@ -100,58 +175,56 @@ function DailyMissionsSection({ profile, updateProfileEvent, availableStages, di
 
   const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
     profile,
-    updateProfileEvent
+    updateProfileEvent,
   );
 
   const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
 
-  const handleClaimReward = (missionId: string) => {
-    claimReward({ missionId });
-  };
-
-  const handleRerollMission = (missionId: string) => {
-    rerollMission({ missionId, availableStages });
-  };
+  const claimableCount = missions.filter((m) => m.completed && !m.claimed).length;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="overflow-hidden">
-      {/* Section header - Clickable */}
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      {/* Section header — tappable */}
       <CollapsibleTrigger className="w-full">
-        <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+        <div className="flex items-center justify-between py-1 group">
           <div className="flex items-center gap-2">
-            <Calendar className="size-4 text-primary shrink-0" />
-            <h3 className="font-semibold text-sm">Daily Missions</h3>
+            <Scroll className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
+            <h3 className="font-semibold text-sm">Daily Bounties</h3>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Coins className="size-3 shrink-0" />
-              <span className="whitespace-nowrap">
+            {/* Summary pill — always visible */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Coins className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
+              <span className="tabular-nums">
                 {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
               </span>
+              {claimableCount > 0 && (
+                <span className="size-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {claimableCount}
+                </span>
+              )}
             </div>
-            <ChevronDown className={cn(
-              "size-4 text-muted-foreground transition-transform duration-200",
-              isOpen && "rotate-180"
-            )} />
+            <SectionChevron open={isOpen} />
           </div>
         </div>
       </CollapsibleTrigger>
 
-      {/* Mission list */}
-      <CollapsibleContent className="pt-3">
-        <DailyMissionsPanel
-          missions={missions}
-          onClaimReward={handleClaimReward}
-          onRerollMission={handleRerollMission}
-          todayCoins={todayClaimedReward}
-          disabled={disabled || isClaiming || isRerolling}
-          bonusAvailable={bonusAvailable}
-          bonusClaimed={bonusClaimed}
-          bonusReward={bonusReward}
-          noMissionsAvailable={noMissionsAvailable}
-          rerollsRemaining={rerollsRemaining}
-          isRerolling={isRerolling}
-        />
+      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+        <div className="pt-3">
+          <DailyMissionsPanel
+            missions={missions}
+            onClaimReward={(id) => claimReward({ missionId: id })}
+            onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
+            todayCoins={todayClaimedReward}
+            disabled={disabled || isClaiming || isRerolling}
+            bonusAvailable={bonusAvailable}
+            bonusClaimed={bonusClaimed}
+            bonusReward={bonusReward}
+            noMissionsAvailable={noMissionsAvailable}
+            rerollsRemaining={rerollsRemaining}
+            isRerolling={isRerolling}
+          />
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -224,9 +297,9 @@ function StopConfirmationDialog({
   );
 }
 
-// ─── Process Content (Incubation or Evolution) ────────────────────────────────
+// ─── Current Focus Section (Hatch / Evolve) ──────────────────────────────────
 
-interface ProcessContentProps {
+interface CurrentFocusSectionProps {
   companion: BlobbiCompanion;
   tasks: HatchTasksResult | EvolveTasksResult;
   processType: 'incubation' | 'evolution';
@@ -238,7 +311,7 @@ interface ProcessContentProps {
   defaultOpen?: boolean;
 }
 
-function ProcessContent({
+function CurrentFocusSection({
   companion,
   tasks,
   processType,
@@ -248,93 +321,98 @@ function ProcessContent({
   onStop,
   isStopping,
   defaultOpen = true,
-}: ProcessContentProps) {
+}: CurrentFocusSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
   const isIncubation = processType === 'incubation';
-  const emoji = isIncubation ? '🥚' : '🐣';
   const title = isIncubation ? 'Hatch Tasks' : 'Evolve Tasks';
-  const description = isIncubation
-    ? 'Complete these tasks to hatch your Blobbi'
-    : 'Complete these tasks to evolve your Blobbi';
   const completeLabel = isIncubation ? 'Hatch Your Blobbi!' : 'Evolve Your Blobbi!';
   const completingLabel = isIncubation ? 'Hatching...' : 'Evolving...';
   const completeEmoji = isIncubation ? '🐣' : '✨';
   const stopLabel = isIncubation ? 'Stop Incubation' : 'Stop Evolution';
+  const badgeLabel = isIncubation ? 'Hatch' : 'Evolve';
+  const category = isIncubation ? ('hatch' as const) : ('evolve' as const);
 
-  const completedCount = tasks.tasks.filter(t => t.completed).length;
+  const completedCount = tasks.tasks.filter((t) => t.completed).length;
   const totalTasks = tasks.tasks.length;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="overflow-hidden">
-      {/* Section header - Clickable */}
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      {/* Section header — tappable */}
       <CollapsibleTrigger className="w-full">
-        <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+        <div className="flex items-center justify-between py-1 group">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{emoji}</span>
-            <h3 className="font-semibold text-sm">{title}</h3>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'text-xs font-semibold px-2 py-0.5',
+                isIncubation
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+              )}
+            >
+              {badgeLabel}
+            </Badge>
+            <span className="text-sm font-semibold">{title}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={cn(
-              "text-xs font-medium px-2 py-0.5 rounded-full",
-              tasks.allCompleted 
-                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                : "bg-muted text-muted-foreground"
-            )}>
-              {completedCount}/{totalTasks}
+            <span
+              className={cn(
+                'text-xs font-medium tabular-nums',
+                tasks.allCompleted
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {completedCount} / {totalTasks}
             </span>
-            <ChevronDown className={cn(
-              "size-4 text-muted-foreground transition-transform duration-200",
-              isOpen && "rotate-180"
-            )} />
+            <SectionChevron open={isOpen} />
           </div>
         </div>
       </CollapsibleTrigger>
 
-      {/* Tasks content */}
-      <CollapsibleContent className="pt-3">
-        {/* Tasks Panel */}
-        <TasksPanel
-          tasks={tasks.tasks}
-          allCompleted={tasks.allCompleted}
-          isLoading={tasks.isLoading}
-          onOpenPostModal={onOpenPostModal}
-          onComplete={onComplete}
-          isCompleting={isCompleting}
-          emoji={emoji}
-          title={title}
-          description={description}
-          completeLabel={completeLabel}
-          completingLabel={completingLabel}
-          completeEmoji={completeEmoji}
-        />
+      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+        <div className="pt-3">
+          {/* Task card grid */}
+          <TasksPanel
+            tasks={tasks.tasks}
+            allCompleted={tasks.allCompleted}
+            isLoading={tasks.isLoading}
+            onOpenPostModal={onOpenPostModal}
+            onComplete={onComplete}
+            isCompleting={isCompleting}
+            completeLabel={completeLabel}
+            completingLabel={completingLabel}
+            completeEmoji={completeEmoji}
+            category={category}
+          />
 
-        {/* Stop Process Button */}
-        <div className="mt-6 pt-4 border-t border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowStopConfirmation(true)}
-            disabled={isStopping || isCompleting}
-            className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            {isStopping ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Stopping...
-              </>
-            ) : (
-              <>
-                <XCircle className="size-4 mr-2" />
-                {stopLabel}
-              </>
-            )}
-          </Button>
+          {/* Stop process — low emphasis */}
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowStopConfirmation(true)}
+              disabled={isStopping || isCompleting}
+              className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-3"
+            >
+              {isStopping ? (
+                <>
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  Stopping...
+                </>
+              ) : (
+                <>
+                  <XCircle className="size-3.5 mr-1.5" />
+                  {stopLabel}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CollapsibleContent>
 
-      {/* Stop Confirmation Dialog */}
       <StopConfirmationDialog
         open={showStopConfirmation}
         onOpenChange={setShowStopConfirmation}
@@ -344,6 +422,17 @@ function ProcessContent({
         isPending={isStopping}
       />
     </Collapsible>
+  );
+}
+
+// ─── Empty Focus State ────────────────────────────────────────────────────────
+
+function EmptyFocusState() {
+  return (
+    <div className="py-6 text-center">
+      <Compass className="size-5 text-muted-foreground/50 mx-auto mb-2" />
+      <p className="text-sm text-muted-foreground">No active progression right now</p>
+    </div>
   );
 }
 
@@ -367,54 +456,46 @@ export function BlobbiMissionsModal({
   onStopEvolution,
   isStoppingEvolution,
   availableStages,
+  showMissionCard,
+  onToggleMissionCard,
 }: BlobbiMissionsModalProps) {
   const isIncubating = companion.state === 'incubating';
   const isEvolvingState = companion.state === 'evolving';
   const isEgg = companion.stage === 'egg';
   const isBaby = companion.stage === 'baby';
 
-  // Check if there's an active hatch/evolve process
   const hasActiveProcess = (isIncubating && isEgg) || (isEvolvingState && isBaby);
   const isProcessBusy = isHatching || isEvolving || isStoppingIncubation || isStoppingEvolution;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
-        {/* Header - Sticky */}
-        <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Target className="size-5 shrink-0" />
-                Missions
-              </DialogTitle>
-              <DialogDescription className="break-words">
-                Complete missions to earn rewards for {companion.name}
-              </DialogDescription>
+        {/* ── Sticky Header ── */}
+        <div className="sticky top-0 z-10 bg-background px-4 sm:px-5 pt-4 pb-3 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold tracking-tight">Missions</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Quests & bounties for {companion.name}
+              </p>
             </div>
-            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
-              <X className="size-5" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <MissionTypeLegend />
+              <DialogClose className="rounded-full p-1.5 opacity-60 hover:opacity-100 hover:bg-muted transition-all">
+                <X className="size-4" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
+            </div>
           </div>
-        </DialogHeader>
+        </div>
 
-        {/* Content - Scrollable */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-3 sm:py-4 space-y-4">
-          {/* Daily Missions Section - Always visible, expanded by default */}
-          <DailyMissionsSection 
-            profile={profile}
-            updateProfileEvent={updateProfileEvent}
-            availableStages={availableStages}
-            disabled={isProcessBusy}
-            defaultOpen={true}
-          />
-
-          {/* Hatch/Evolve Process Section - Only when active, expanded by default */}
-          {hasActiveProcess && (
+        {/* ── Scrollable Content ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-4 space-y-5">
+          {/* 1. Current Focus */}
+          {hasActiveProcess ? (
             <>
               {isIncubating && isEgg ? (
-                <ProcessContent
+                <CurrentFocusSection
                   companion={companion}
                   tasks={hatchTasks}
                   processType="incubation"
@@ -423,10 +504,9 @@ export function BlobbiMissionsModal({
                   isCompleting={isHatching}
                   onStop={onStopIncubation}
                   isStopping={isStoppingIncubation}
-                  defaultOpen={true}
                 />
               ) : isEvolvingState && isBaby ? (
-                <ProcessContent
+                <CurrentFocusSection
                   companion={companion}
                   tasks={evolveTasks}
                   processType="evolution"
@@ -435,9 +515,42 @@ export function BlobbiMissionsModal({
                   isCompleting={isEvolving}
                   onStop={onStopEvolution}
                   isStopping={isStoppingEvolution}
-                  defaultOpen={true}
                 />
               ) : null}
+            </>
+          ) : (
+            <EmptyFocusState />
+          )}
+
+          {/* Divider */}
+          <div className="h-px bg-border/60" />
+
+          {/* 2. Daily Bounties */}
+          <DailyMissionsSection
+            profile={profile}
+            updateProfileEvent={updateProfileEvent}
+            availableStages={availableStages}
+            disabled={isProcessBusy}
+          />
+
+          {/* 3. Settings */}
+          {onToggleMissionCard !== undefined && showMissionCard !== undefined && (
+            <>
+              <div className="h-px bg-border/40" />
+              <div className="flex items-center justify-between py-1">
+                <Label
+                  htmlFor="mission-card-toggle"
+                  className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer"
+                >
+                  <Eye className="size-3.5" />
+                  Show mission card on main page
+                </Label>
+                <Switch
+                  id="mission-card-toggle"
+                  checked={showMissionCard}
+                  onCheckedChange={onToggleMissionCard}
+                />
+              </div>
             </>
           )}
         </div>

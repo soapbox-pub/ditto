@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { EggVisualBlobbi } from '../types/egg.types';
 import { isValidBaseColor, isValidSecondaryColor } from '../lib/blobbi-egg-validation';
 import { SpecialMarkRenderer, SpecialMarkFallback } from './SpecialMarkRenderer';
@@ -25,6 +25,29 @@ export interface EggStatusEffects {
   happy?: boolean;
 }
 
+/**
+ * Tour visual states that the egg can display.
+ * Driven by the tour orchestration layer, not by EggGraphic itself.
+ *
+ * - idle: no tour effects
+ * - show_hatch_card: initial crack visible + auto-wiggle every 2.5s
+ * - glowing_waiting_click: enhanced glow + auto-wiggle, waiting for tap
+ * - crack_stage_1: crack expands (click 1)
+ * - crack_stage_2: crack expands more (click 2)
+ * - crack_stage_3: final crack (click 3)
+ * - opening: shell splits open
+ * - hatching: bright light + reveal
+ */
+export type EggTourVisualState =
+  | 'idle'
+  | 'show_hatch_card'
+  | 'glowing_waiting_click'
+  | 'crack_stage_1'
+  | 'crack_stage_2'
+  | 'crack_stage_3'
+  | 'opening'
+  | 'hatching';
+
 interface EggGraphicProps {
   blobbi?: EggVisualBlobbi; // Visual blobbi object for visual properties
   sizeVariant?: 'tiny' | 'small' | 'medium' | 'large'; // Internal scaling only, NOT layout size
@@ -36,6 +59,10 @@ interface EggGraphicProps {
   forceInlineSvg?: boolean; // New prop to guarantee inline SVG
   /** Status effects for egg-stage visual feedback */
   statusEffects?: EggStatusEffects;
+  /** Tour visual state - driven externally by the tour orchestration layer */
+  tourVisualState?: EggTourVisualState;
+  /** Callback when the egg is clicked during an interactive tour step */
+  onTourEggClick?: () => void;
 }
 
 /**
@@ -114,6 +141,8 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   warmth = 50,
   forceInlineSvg: _forceInlineSvg = false,
   statusEffects,
+  tourVisualState = 'idle',
+  onTourEggClick,
 }) => {
   // sizeVariant controls ONLY internal scaling/details, NOT layout dimensions
   // Parent container controls actual rendered width/height via slot
@@ -152,13 +181,61 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   const [isTapWiggling, setIsTapWiggling] = useState(false);
 
   const handleEggClick = useCallback(() => {
+    // Tour interactive steps: forward click to tour controller
+    if (onTourEggClick && (tourVisualState === 'glowing_waiting_click' || tourVisualState === 'crack_stage_1' || tourVisualState === 'crack_stage_2' || tourVisualState === 'crack_stage_3')) {
+      setIsTapWiggling(true);
+      onTourEggClick();
+      return;
+    }
     if (isTapWiggling || cracking) return; // Don't re-trigger during animation or cracking
     setIsTapWiggling(true);
-  }, [isTapWiggling, cracking]);
+  }, [isTapWiggling, cracking, onTourEggClick, tourVisualState]);
 
   const handleWiggleEnd = useCallback(() => {
     setIsTapWiggling(false);
   }, []);
+
+  // Tour: auto-wiggle effect for show_hatch_card and glowing_waiting_click states
+  const shouldAutoWiggle = tourVisualState === 'show_hatch_card' || tourVisualState === 'glowing_waiting_click';
+  const autoWiggleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!shouldAutoWiggle) {
+      if (autoWiggleTimerRef.current) {
+        clearInterval(autoWiggleTimerRef.current);
+        autoWiggleTimerRef.current = null;
+      }
+      return;
+    }
+    // Trigger an immediate wiggle, then repeat every 2.5s
+    setIsTapWiggling(true);
+    autoWiggleTimerRef.current = setInterval(() => {
+      setIsTapWiggling((prev) => {
+        if (!prev) return true;
+        return prev;
+      });
+    }, 2500);
+    return () => {
+      if (autoWiggleTimerRef.current) {
+        clearInterval(autoWiggleTimerRef.current);
+        autoWiggleTimerRef.current = null;
+      }
+    };
+  }, [shouldAutoWiggle]);
+
+  // Tour: whether the egg should show crack overlay
+  // The crack stays visible during 'opening' so the shell fades out WITH its cracks intact.
+  // Only 'idle' and 'hatching' (shell already gone) hide the crack.
+  const tourShowCrack = tourVisualState !== 'idle' && tourVisualState !== 'hatching';
+
+  // Tour: crack intensity level (0 = small center crack, 1-3 = progressively expanding)
+  // Level 0: small central crack (show_hatch_card, glowing_waiting_click)
+  // Level 1: crack expands left/right with small branches (crack_stage_1)
+  // Level 2: crack expands further toward edges, more branches (crack_stage_2)
+  // Level 3: crack reaches near shell edges, about to split (crack_stage_3, opening)
+  const tourCrackLevel = tourVisualState === 'crack_stage_1' ? 1
+    : tourVisualState === 'crack_stage_2' ? 2
+    : (tourVisualState === 'crack_stage_3' || tourVisualState === 'opening') ? 3
+    : 0;
 
   // Divine color constants
   const DIVINE_PRIMARY_GREEN = '#55C4A2';
@@ -440,18 +517,32 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
         }}
       >
         {/* Glow effect based on warmth - relative sizing */}
-        <div
-          className={cn(
-            'absolute rounded-full blur-xl transition-all duration-1000',
-            animated && 'animate-pulse'
-          )}
-          style={{
-            width: '120%',
-            height: '120%',
-            background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
-            zIndex: 0,
-          }}
-        />
+        {(() => {
+          const isGlowingTour = tourVisualState === 'glowing_waiting_click'
+            || tourVisualState === 'crack_stage_1' || tourVisualState === 'crack_stage_2'
+            || tourVisualState === 'crack_stage_3';
+          const isHatchLight = tourVisualState === 'opening' || tourVisualState === 'hatching';
+          return (
+            <div
+              className={cn(
+                'absolute rounded-full blur-xl transition-all duration-1000',
+                animated && !isGlowingTour && !isHatchLight && 'animate-pulse',
+                isGlowingTour && 'animate-egg-tour-glow',
+                isHatchLight && 'animate-egg-tour-glow',
+              )}
+              style={{
+                width: isHatchLight ? '200%' : isGlowingTour ? '150%' : '120%',
+                height: isHatchLight ? '200%' : isGlowingTour ? '150%' : '120%',
+                background: isHatchLight
+                  ? `radial-gradient(circle, #fff 0%, ${glowColor} 40%, transparent 70%)`
+                  : isGlowingTour
+                    ? `radial-gradient(circle, ${glowColor} 0%, ${glowColor}80 30%, transparent 70%)`
+                    : `radial-gradient(circle, ${glowColor} 0%, transparent 70%)`,
+                zIndex: 0,
+              }}
+            />
+          );
+        })()}
 
         {/* Main egg shape - uses percentage-based sizing */}
         <div
@@ -468,8 +559,12 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
             !isTapWiggling && reaction === 'singing' && 'animate-egg-bounce',
             // Warmth effect only when animated AND warm
             animated && actualWarmth > 60 && 'animate-egg-warmth',
-            // Cracking overrides other animations
-            cracking && 'animate-egg-crack'
+            // Cracking overrides other animations (legacy prop or tour crack stages)
+            // During 'opening' the shell runs its own open animation, so suppress the shake
+            (cracking || (tourCrackLevel >= 1 && tourVisualState !== 'opening')) && 'animate-egg-crack',
+            // Opening/hatching: fade out the egg shell (crack overlay stays inside and fades with it)
+            tourVisualState === 'opening' && 'animate-egg-tour-open',
+            tourVisualState === 'hatching' && 'opacity-0',
           )}
           style={{
             width: '80%',
@@ -480,7 +575,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               inset -0.5em -0.5em 1em ${shadow}33,
               inset 0.5em 0.5em 1em ${highlight}26
             `,
-            filter: cracking ? 'brightness(1.1)' : 'brightness(1)',
+            filter: (cracking || tourCrackLevel >= 1) ? 'brightness(1.1)' : 'brightness(1)',
           }}
         >
           {/* Highlight on the egg - uses color variants instead of white */}
@@ -538,133 +633,181 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
               renderLegacySpecialMark(effectiveSpecialMark)
             ))}
 
-          {/* Crack pattern based on docs/aprovado.svg when cracking is true */}
-          {cracking && (
-            <svg
-              className="absolute inset-0 pointer-events-none w-full h-full"
-              viewBox="0 0 120 125"
-              preserveAspectRatio="xMidYMid meet"
-              style={{
-                height: '100%',
-              }}
-            >
-              {/* Main horizontal crack (adapted from aprovado.svg) */}
-              <path
-                d="M10 62
-                   L20 60
-                   L30 64
-                   L40 59
-                   L50 65
-                   L60 58
-                   L70 66
-                   L80 57
-                   L90 67
-                   L100 59
-                   L110 65"
-                stroke="rgba(0, 0, 0, 0.6)"
-                strokeWidth="2"
-                fill="none"
-                strokeLinecap="round"
-              />
+          {/* Crack pattern - stage-specific paths that grow outward from center */}
+          {(cracking || tourShowCrack) && (() => {
+            // Legacy cracking shows full crack; tour uses progressive stage-specific paths
+            const level = cracking ? 3 : tourCrackLevel;
+            return (
+              <svg
+                className="absolute inset-0 pointer-events-none w-full h-full transition-opacity duration-300"
+                viewBox="0 0 120 125"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ height: '100%' }}
+              >
+                {/*
+                  Stage-specific crack paths.
+                  Each level has its OWN distinct paths that expand outward from the egg center.
+                  The crack grows from a small central cluster to full-width fracture.
 
-              {/* Secondary cracks (adapted from aprovado.svg) */}
-              <path
-                d="M30 64 L28 70"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M50 65 L53 71"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M60 58 L57 52"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M80 57 L82 50"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M90 67 L95 72"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M100 59 L97 53"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M110 65 L113 69"
-                stroke="rgba(0, 0, 0, 0.4)"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
+                  Viewbox center is roughly (60, 62).
+                  Level 0: tiny central crack (~3-4 small connected segments near center)
+                  Level 1: extends left/right from center, first branches
+                  Level 2: reaches further toward edges, more fracture detail
+                  Level 3: crack reaches near shell edges, dense branching
+                */}
 
-              {/* Additional micro-cracks for detail */}
-              <path
-                d="M40 59 L38 55"
-                stroke="rgba(0, 0, 0, 0.25)"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M70 66 L73 70"
-                stroke="rgba(0, 0, 0, 0.25)"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M20 60 L18 56"
-                stroke="rgba(0, 0, 0, 0.2)"
-                strokeWidth="0.6"
-                strokeLinecap="round"
-              />
+                {/* ── Level 0: Small central crack ── */}
+                {/* A few short connected segments clustered around the center of the egg */}
+                {level === 0 && (<>
+                  {/* Main tiny crack: ~15px wide, centered */}
+                  <path
+                    d="M53 63 L57 60 L63 64 L67 61"
+                    stroke="rgba(0, 0, 0, 0.5)"
+                    strokeWidth="1.2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Tiny upward branch from center */}
+                  <path
+                    d="M57 60 L56 57"
+                    stroke="rgba(0, 0, 0, 0.35)"
+                    strokeWidth="0.8"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  {/* Tiny downward branch */}
+                  <path
+                    d="M63 64 L65 67"
+                    stroke="rgba(0, 0, 0, 0.35)"
+                    strokeWidth="0.8"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  {/* Subtle highlight alongside main crack */}
+                  <path
+                    d="M54 64 L58 61 L64 65"
+                    stroke="rgba(255, 255, 255, 0.12)"
+                    strokeWidth="0.6"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                </>)}
 
-              {/* Crack highlights for depth (following the main crack pattern) */}
-              <path
-                d="M10 63
-                   L20 61
-                   L30 65
-                   L40 60
-                   L50 66
-                   L60 59
-                   L70 67
-                   L80 58
-                   L90 68
-                   L100 60
-                   L110 66"
-                stroke="rgba(255, 255, 255, 0.15)"
-                strokeWidth="0.8"
-                fill="none"
-                strokeLinecap="round"
-              />
+                {/* ── Level 1: Medium crack expanding from center ── */}
+                {/* Crack extends ~30px wide, first real branches appear */}
+                {level === 1 && (<>
+                  {/* Main crack: wider than level 0, extends left and right */}
+                  <path
+                    d="M42 61 L48 64 L53 60 L60 65 L67 59 L73 63 L78 60"
+                    stroke="rgba(0, 0, 0, 0.55)"
+                    strokeWidth="1.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Highlight */}
+                  <path
+                    d="M43 62 L49 65 L54 61 L61 66 L68 60 L74 64"
+                    stroke="rgba(255, 255, 255, 0.12)"
+                    strokeWidth="0.6"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  {/* Branch: upward left */}
+                  <path d="M48 64 L46 69" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  {/* Branch: upward from center-right */}
+                  <path d="M67 59 L65 54" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  {/* Branch: downward right */}
+                  <path d="M73 63 L76 68" stroke="rgba(0, 0, 0, 0.35)" strokeWidth="0.9" strokeLinecap="round" />
+                  {/* Small micro-branch */}
+                  <path d="M53 60 L51 56" stroke="rgba(0, 0, 0, 0.3)" strokeWidth="0.7" strokeLinecap="round" />
+                </>)}
 
-              {/* Secondary crack highlights */}
-              <path
-                d="M30 65 L28 71"
-                stroke="rgba(255, 255, 255, 0.1)"
-                strokeWidth="0.4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M60 59 L57 53"
-                stroke="rgba(255, 255, 255, 0.1)"
-                strokeWidth="0.4"
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
+                {/* ── Level 2: Larger crack reaching toward sides ── */}
+                {/* Crack extends ~60px wide, more branching detail */}
+                {level === 2 && (<>
+                  {/* Main crack: extends well toward both sides */}
+                  <path
+                    d="M30 63 L37 60 L44 65 L52 59 L60 64 L68 58 L76 63 L83 59 L90 64"
+                    stroke="rgba(0, 0, 0, 0.6)"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Highlight */}
+                  <path
+                    d="M31 64 L38 61 L45 66 L53 60 L61 65 L69 59 L77 64 L84 60"
+                    stroke="rgba(255, 255, 255, 0.12)"
+                    strokeWidth="0.7"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  {/* Branches: left side */}
+                  <path d="M37 60 L34 55" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.1" strokeLinecap="round" />
+                  <path d="M44 65 L41 71" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  {/* Branches: center */}
+                  <path d="M52 59 L50 53" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  <path d="M60 64 L63 70" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  {/* Branches: right side */}
+                  <path d="M68 58 L66 52" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.1" strokeLinecap="round" />
+                  <path d="M76 63 L79 69" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1" strokeLinecap="round" />
+                  <path d="M83 59 L86 54" stroke="rgba(0, 0, 0, 0.35)" strokeWidth="0.9" strokeLinecap="round" />
+                  {/* Micro-cracks */}
+                  <path d="M50 53 L48 50" stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.7" strokeLinecap="round" />
+                  <path d="M63 70 L66 73" stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.7" strokeLinecap="round" />
+                </>)}
+
+                {/* ── Level 3: Full crack reaching shell edges ── */}
+                {/* Crack spans nearly the full width, dense fracture network */}
+                {level >= 3 && (<>
+                  {/* Main crack: nearly full width of egg */}
+                  <path
+                    d="M15 62 L23 59 L32 64 L40 58 L50 65 L60 57 L70 64 L80 58 L88 63 L96 59 L105 64"
+                    stroke="rgba(0, 0, 0, 0.65)"
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Highlight */}
+                  <path
+                    d="M16 63 L24 60 L33 65 L41 59 L51 66 L61 58 L71 65 L81 59 L89 64 L97 60"
+                    stroke="rgba(255, 255, 255, 0.13)"
+                    strokeWidth="0.8"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  {/* Heavy branches: left region */}
+                  <path d="M23 59 L19 53" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M32 64 L28 72" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M28 72 L25 76" stroke="rgba(0, 0, 0, 0.3)" strokeWidth="0.9" strokeLinecap="round" />
+                  {/* Heavy branches: center-left */}
+                  <path d="M40 58 L37 51" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M50 65 L47 73" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M37 51 L35 47" stroke="rgba(0, 0, 0, 0.3)" strokeWidth="0.8" strokeLinecap="round" />
+                  {/* Heavy branches: center */}
+                  <path d="M60 57 L58 50" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M60 57 L63 68" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1.1" strokeLinecap="round" />
+                  {/* Heavy branches: center-right */}
+                  <path d="M70 64 L73 71" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M80 58 L83 50" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M83 50 L86 46" stroke="rgba(0, 0, 0, 0.3)" strokeWidth="0.8" strokeLinecap="round" />
+                  {/* Heavy branches: right region */}
+                  <path d="M88 63 L91 70" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M96 59 L99 52" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M105 64 L109 70" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="1.1" strokeLinecap="round" />
+                  {/* Micro-cracks (tertiary detail) */}
+                  <path d="M47 73 L44 77" stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.7" strokeLinecap="round" />
+                  <path d="M73 71 L76 75" stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.7" strokeLinecap="round" />
+                  <path d="M58 50 L55 46" stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.7" strokeLinecap="round" />
+                  <path d="M19 53 L17 49" stroke="rgba(0, 0, 0, 0.2)" strokeWidth="0.6" strokeLinecap="round" />
+                  <path d="M99 52 L102 48" stroke="rgba(0, 0, 0, 0.2)" strokeWidth="0.6" strokeLinecap="round" />
+                </>)}
+              </svg>
+            );
+          })()}
 
           {/* Title display for special eggs */}
           {blobbi?.title && (

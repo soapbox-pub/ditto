@@ -976,7 +976,8 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     event,
     d,
     currentCompanion: getTagValue(tags, 'current_companion'),
-    onboardingDone: parseBooleanTag(tags, 'onboarding_done', false),
+    onboardingDone: parseBooleanTag(tags, 'blobbi_onboarding_done', false)
+      || parseBooleanTag(tags, 'onboarding_done', false),
     name: getTagValue(tags, 'name'),
     has: getTagValues(tags, 'has'),
     coins: parseNumericTag(tags, 'coins') ?? 0,
@@ -996,7 +997,7 @@ export function buildBlobbonautTags(pubkey: string): string[][] {
   return [
     ['d', getCanonicalBlobbonautD(pubkey)],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['onboarding_done', 'false'],
+    ['blobbi_onboarding_done', 'false'],
     ['pettingLevel', '0'],
   ];
 }
@@ -1138,7 +1139,7 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  * These tags are controlled by the application and may be overwritten.
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
-  'd', 'b', 'name', 'current_companion', 'onboarding_done', 'has', 'storage',
+  'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'onboarding_done', 'has', 'storage',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',
@@ -1365,17 +1366,44 @@ export function profileNeedsPettingLevelNormalization(profile: BlobbonautProfile
 }
 
 /**
- * Build updated tags for normalizing a profile to include pettingLevel.
- * Preserves all existing tags and adds pettingLevel: 0 if missing.
+ * Check if a profile uses the legacy `onboarding_done` tag instead of the
+ * new `blobbi_onboarding_done` tag. Returns true if migration is needed.
+ */
+export function profileNeedsOnboardingTagMigration(profile: BlobbonautProfile): boolean {
+  const hasNewTag = profile.allTags.some(([name]) => name === 'blobbi_onboarding_done');
+  const hasOldTag = profile.allTags.some(([name]) => name === 'onboarding_done');
+  // Needs migration if: has old tag but not the new one
+  return !hasNewTag && hasOldTag;
+}
+
+/**
+ * Build updated tags for normalizing a profile.
+ * Handles:
+ * - Adding pettingLevel: 0 if missing
+ * - Migrating onboarding_done → blobbi_onboarding_done
+ *
+ * Preserves all existing tags except the ones being migrated.
  */
 export function buildNormalizedProfileTags(profile: BlobbonautProfile): string[][] {
-  if (!profileNeedsPettingLevelNormalization(profile)) {
-    return profile.allTags;
+  let tags = profile.allTags;
+  let changed = false;
+
+  // Normalize pettingLevel
+  if (profileNeedsPettingLevelNormalization(profile)) {
+    tags = updateBlobbonautTags(tags, { pettingLevel: '0' });
+    changed = true;
   }
-  
-  return updateBlobbonautTags(profile.allTags, {
-    pettingLevel: '0',
-  });
+
+  // Migrate onboarding_done → blobbi_onboarding_done
+  if (profileNeedsOnboardingTagMigration(profile)) {
+    const oldValue = tags.find(([name]) => name === 'onboarding_done')?.[1] ?? 'false';
+    // Remove old tag, add new tag
+    tags = tags.filter(([name]) => name !== 'onboarding_done');
+    tags = updateBlobbonautTags(tags, { blobbi_onboarding_done: oldValue });
+    changed = true;
+  }
+
+  return changed ? tags : profile.allTags;
 }
 
 // ─── Query Helpers ────────────────────────────────────────────────────────────

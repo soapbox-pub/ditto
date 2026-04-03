@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 
-import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects } from './BlobbiEggVisual';
+import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects, type EggTourVisualState } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
@@ -50,6 +50,10 @@ export interface BlobbiStageVisualProps {
    * Status-reaction body effects are already in the recipe.
    */
   bodyEffects?: BodyEffectsSpec;
+  /** Tour visual state for egg stage - driven by the tour orchestration layer */
+  tourVisualState?: EggTourVisualState;
+  /** Callback when the egg is clicked during an interactive tour step */
+  onTourEggClick?: () => void;
   className?: string;
 }
 
@@ -74,6 +78,8 @@ export function BlobbiStageVisual({
   recipeLabel,
   emotion = 'neutral',
   bodyEffects,
+  tourVisualState,
+  onTourEggClick,
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -109,6 +115,8 @@ export function BlobbiStageVisual({
           animated={animated}
           reaction={effectiveReaction}
           statusEffects={eggStatusEffects}
+          tourVisualState={tourVisualState}
+          onTourEggClick={onTourEggClick}
           className="size-full"
         />
         <FloatingMusicNotes active={showMusicNotes} />

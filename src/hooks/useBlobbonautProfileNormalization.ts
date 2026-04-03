@@ -17,6 +17,7 @@ import { useNostrPublish } from './useNostrPublish';
 import {
   KIND_BLOBBONAUT_PROFILE,
   profileNeedsPettingLevelNormalization,
+  profileNeedsOnboardingTagMigration,
   buildNormalizedProfileTags,
   isLegacyBlobbonautKind,
   type BlobbonautProfile,
@@ -55,9 +56,10 @@ export function useBlobbonautProfileNormalization({
     // Check what normalization is needed
     const needsTagNormalization = profileNeedsPettingLevelNormalization(profile);
     const needsKindMigration = isLegacyBlobbonautKind(profile.event);
+    const needsOnboardingMigration = profileNeedsOnboardingTagMigration(profile);
     
     // If no normalization needed, mark as seen and return
-    if (!needsTagNormalization && !needsKindMigration) {
+    if (!needsTagNormalization && !needsKindMigration && !needsOnboardingMigration) {
       normalizedEventIds.current.add(profile.event.id);
       return;
     }
@@ -68,6 +70,7 @@ export function useBlobbonautProfileNormalization({
     const reasons: string[] = [];
     if (needsTagNormalization) reasons.push('missing pettingLevel');
     if (needsKindMigration) reasons.push('legacy kind 31125 → 11125');
+    if (needsOnboardingMigration) reasons.push('onboarding_done → blobbi_onboarding_done');
     
     console.log(`[ProfileNormalization] Profile needs normalization: ${reasons.join(', ')}`);
     

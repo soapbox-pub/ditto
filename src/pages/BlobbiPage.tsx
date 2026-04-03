@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, Loader2, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, ArrowLeft, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink, Settings2 } from 'lucide-react';
 // Note: Sparkles kept for BlobbiBottomBar center action button
 // Note: Plus kept for AdoptAnotherBlobbiCard
 // Note: AlertTriangle kept for stat warning indicators
@@ -80,6 +80,7 @@ import {
   type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
+  useDailyMissions,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
@@ -88,6 +89,23 @@ import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import { MissionSurfaceCard } from '@/blobbi/ui/components/MissionSurfaceCard';
+import { ActionBarEditor } from '@/blobbi/ui/components/ActionBarEditor';
+import {
+  type ActionBarPreferences,
+  type BarItemId,
+  getVisibleSlots,
+  getVisibleBarIds,
+  loadPreferences,
+  savePreferences,
+  loadMissionCardVisible,
+  saveMissionCardVisible,
+} from '@/blobbi/ui/lib/action-bar-preferences';
+import { useQuery } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourCard } from '@/blobbi/tour';
+import { buildHatchPhrase, isValidHatchPost } from '@/blobbi/actions';
+import type { EggTourVisualState } from '@/blobbi/egg';
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -871,6 +889,24 @@ function BlobbiDashboard({
   const [showMissionsModal, setShowMissionsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showBarEditor, setShowBarEditor] = useState(false);
+  
+  // ─── Action Bar Preferences ───
+  const [barPrefs, setBarPrefs] = useState<ActionBarPreferences>(loadPreferences);
+  const handleBarPrefsUpdate = useCallback((prefs: ActionBarPreferences) => {
+    setBarPrefs(prefs);
+    savePreferences(prefs);
+  }, []);
+  
+  // ─── Mission Surface Card Visibility ───
+  const [missionCardVisible, setMissionCardVisible] = useState(loadMissionCardVisible);
+  const handleToggleMissionCard = useCallback((visible: boolean) => {
+    setMissionCardVisible(visible);
+    saveMissionCardVisible(visible);
+  }, []);
+  
+  // ─── Daily Missions (for surface card) ───
+  const dailyMissions = useDailyMissions({ availableStages });
   
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
@@ -934,6 +970,168 @@ function BlobbiDashboard({
   const [showIncubationDialog, setShowIncubationDialog] = useState(false);
   const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
+  // ─── First Hatch Tour ───
+  const firstHatchTour = useFirstHatchTour();
+  useFirstHatchTourActivation({
+    companions,
+    isLoading: false, // companions are already loaded at this point
+    tour: firstHatchTour,
+    profileOnboardingDone: profile?.onboardingDone,
+  });
+  const isFirstHatchTourActive = firstHatchTour.state.isActive;
+
+  // The required phrase for the first-hatch post
+  const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
+
+  // Auto-advance from idle -> show_hatch_card (immediately)
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('idle')) {
+      firstHatchTour.actions.advance(); // -> show_hatch_card
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Show the inline first-hatch card for all pre-hatch steps
+  const showFirstHatchCard = isFirstHatchTourActive && firstHatchTour.isAnyStep(
+    'show_hatch_card', 'egg_glowing_waiting_click',
+    'egg_crack_stage_1', 'egg_crack_stage_2', 'egg_crack_stage_3',
+  );
+
+  // Detect hatch post completion for the first-hatch tour
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const tourAwaitingPost = isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_card');
+
+  const { data: tourPostFound } = useQuery({
+    queryKey: ['first-hatch-tour-post', user?.pubkey, companion.name],
+    queryFn: async () => {
+      if (!user?.pubkey) return false;
+      const events = await nostr.query([{
+        kinds: [1],
+        authors: [user.pubkey],
+        limit: 20,
+      }]);
+      return events.some(e => isValidHatchPost(e, companion.name));
+    },
+    enabled: tourAwaitingPost && !!user?.pubkey,
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+
+  // When the post is found during show_hatch_card, show the completed state
+  // for 2 seconds so the user sees the checkmark, then auto-advance to glowing.
+  useEffect(() => {
+    if (!tourPostFound || !isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('show_hatch_card')) {
+      const timer = setTimeout(() => {
+        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
+
+  // Fake pointer hint: after 10s on glowing_waiting_click, show hint; repeat every 5s
+  const [showClickHint, setShowClickHint] = useState(false);
+  useEffect(() => {
+    if (!isFirstHatchTourActive || !firstHatchTour.isStep('egg_glowing_waiting_click')) {
+      setShowClickHint(false);
+      return;
+    }
+    const initial = setTimeout(() => setShowClickHint(true), 10000);
+    const repeat = setInterval(() => setShowClickHint(true), 5000);
+    return () => { clearTimeout(initial); clearInterval(repeat); };
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Handle egg click during the tour (advance crack stages)
+  const handleTourEggClick = useCallback(() => {
+    if (!isFirstHatchTourActive) return;
+    setShowClickHint(false);
+    if (firstHatchTour.isStep('egg_glowing_waiting_click')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_1
+    } else if (firstHatchTour.isStep('egg_crack_stage_1')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_2
+    } else if (firstHatchTour.isStep('egg_crack_stage_2')) {
+      firstHatchTour.actions.advance(); // -> egg_crack_stage_3
+    } else if (firstHatchTour.isStep('egg_crack_stage_3')) {
+      firstHatchTour.actions.advance(); // -> egg_opening
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  // Auto-advance for opening -> hatching -> complete (with hatch mutation)
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('egg_opening')) {
+      const timer = setTimeout(() => {
+        firstHatchTour.actions.advance(); // -> egg_hatching
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstHatchTourActive, firstHatchTour]);
+
+  useEffect(() => {
+    if (!isFirstHatchTourActive) return;
+    if (firstHatchTour.isStep('egg_hatching')) {
+      // Execute the actual hatch mutation, mark onboarding complete on the
+      // profile event, then complete the tour's local state.
+      const doHatch = async () => {
+        try {
+          await onHatch();
+
+          // Persist blobbi_onboarding_done to the Blobbonaut profile (authoritative)
+          if (profile) {
+            try {
+              const updatedTags = updateBlobbonautTags(profile.allTags, {
+                blobbi_onboarding_done: 'true',
+              });
+              const event = await publishEvent({
+                kind: KIND_BLOBBONAUT_PROFILE,
+                content: '',
+                tags: updatedTags,
+              });
+              updateProfileEvent(event);
+            } catch (e) {
+              console.error('[FirstHatchTour] Failed to persist onboarding completion to profile:', e);
+            }
+          }
+        } finally {
+          firstHatchTour.actions.complete();
+        }
+      };
+      const timer = setTimeout(doHatch, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstHatchTourActive, firstHatchTour, onHatch, profile, publishEvent, updateProfileEvent]);
+
+  // Derive tourVisualState for the egg visual
+  const tourVisualState = useMemo((): EggTourVisualState => {
+    if (!isFirstHatchTourActive) return 'idle';
+    const step = firstHatchTour.state.currentStepId;
+    switch (step) {
+      case 'show_hatch_card': return 'show_hatch_card';
+      case 'egg_glowing_waiting_click': return 'glowing_waiting_click';
+      case 'egg_crack_stage_1': return 'crack_stage_1';
+      case 'egg_crack_stage_2': return 'crack_stage_2';
+      case 'egg_crack_stage_3': return 'crack_stage_3';
+      case 'egg_opening': return 'opening';
+      case 'egg_hatching': return 'hatching';
+      default: return 'idle';
+    }
+  }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
+
+  // DEV ONLY: Build tour dev actions for the state editor
+  const tourDevActions = useMemo(() => ({
+    skipPostRequirement: () => {
+      if (firstHatchTour.isStep('show_hatch_card')) {
+        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
+      }
+    },
+    resetTour: () => {
+      firstHatchTour.actions.reset();
+    },
+    currentStepId: firstHatchTour.state.currentStepId,
+    isCompleted: firstHatchTour.state.isCompleted,
+  }), [firstHatchTour]);
+
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1348,8 +1546,6 @@ function BlobbiDashboard({
       
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 sm:px-6">
-        {/* Floating Dashboard Controls */}
-        <BlobbiDashboardFloatingControls />
         
         {/* Blobbi Name */}
         <div className="flex items-center gap-2 mb-6">
@@ -1363,7 +1559,6 @@ function BlobbiDashboard({
         
         {/* Main Blobbi Visual */}
         {isActiveFloatingCompanion ? (
-          // Show message when Blobbi is active as floating companion
           <div className="flex flex-col items-center justify-center size-48 sm:size-56 text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground text-sm">
@@ -1372,7 +1567,6 @@ function BlobbiDashboard({
           </div>
         ) : (
           <div className="relative transition-all duration-500">
-            {/* Subtle glow effect behind the egg */}
             <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
             
             <BlobbiStageVisual
@@ -1383,15 +1577,34 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-
+              tourVisualState={tourVisualState}
+              onTourEggClick={handleTourEggClick}
               className="size-48 sm:size-56"
             />
+            {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
+              <div className="absolute bottom-14 inset-x-0 flex items-center justify-center pointer-events-none select-none">
+                <span className="text-4xl animate-bounce drop-shadow-lg">👆</span>
+              </div>
+            )}
           </div>
         )}
-        
       </div>
       
-      {/* Stats Section */}
+      {/* First Hatch Tour: inline card directly below egg (above stats) */}
+      {showFirstHatchCard && (
+        <div className="px-4 sm:px-6 mt-2">
+          <FirstHatchTourCard
+            blobbiName={companion.name}
+            requiredPhrase={firstHatchPhrase}
+            postCompleted={!!tourPostFound || !firstHatchTour.isStep('show_hatch_card')}
+            onCreatePost={() => setShowPostModal(true)}
+            currentStep={firstHatchTour.state.currentStepId}
+          />
+        </div>
+      )}
+
+      {/* Stats Section - hidden during first-hatch tour */}
+      {!isFirstHatchTourActive && (
       <div className="px-4 sm:px-6">
         {/* Stats Grid - shows projected decay state */}
         {/* Only stats below the visibility threshold are shown (centralized in getVisibleStatsWithValues) */}
@@ -1421,9 +1634,7 @@ function BlobbiDashboard({
           );
         })()}
         
-
-        
-        {/* Inline Activity Area - inside padded container for proper spacing above bottom bar */}
+        {/* Inline Activity Area */}
         {inlineActivity.type === 'music' && (
           <div className="mt-6">
             <InlineMusicPlayer
@@ -1450,39 +1661,66 @@ function BlobbiDashboard({
           </div>
         )}
       </div>
+      )}
       
-      {/* Bottom Action Bar */}
-      <BlobbiBottomBar
-        onBlobbiesClick={() => setShowSelector(true)}
-        onMissionsClick={() => setShowMissionsModal(true)}
-        onActionsClick={() => setShowActionsModal(true)}
-        onShopClick={() => setShowShopModal(true)}
-        needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-        isInTaskProcess={isInTaskProcess}
-        remainingTasksCount={remainingTasksCount}
-        allTasksComplete={allTasksComplete}
-        stage={companion.stage}
-        blobbiNaddr={blobbiNaddr}
-        onSetAsCompanion={handleSetAsCompanion}
-        isCurrentCompanion={isCurrentCompanion}
-        isUpdatingCompanion={isUpdatingCompanion}
-        onTakePhoto={() => setShowPhotoModal(true)}
-        onEvolve={
-          canStartIncubation
-            ? () => setShowIncubationDialog(true)
-            : canStartEvolution
-              ? () => setShowEvolutionDialog(true)
-              : isEgg
-                ? onHatch
-                : onEvolve
-        }
-        isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
-        hideEvolveButton={isIncubating || isEvolvingState}
-        isIncubationAction={canStartIncubation}
-        isEvolutionAction={canStartEvolution}
-        onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
-        onDevOpenEditor={() => setShowDevEditor(true)}
-        onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
+      {/* Mission Surface Card - hidden during first-hatch tour or when user dismissed */}
+      {!isFirstHatchTourActive && missionCardVisible && (
+        <div className="px-4 sm:px-6 mt-3">
+          <MissionSurfaceCard
+            tasks={taskProcess.tasks}
+            isInTaskProcess={taskProcess.config.isActive}
+            processType={taskProcess.config.type}
+            dailyMissions={dailyMissions.missions}
+            onViewAll={() => setShowMissionsModal(true)}
+            onHide={() => handleToggleMissionCard(false)}
+          />
+        </div>
+      )}
+      
+      {/* Bottom Action Bar - hidden during first-hatch tour */}
+      {!isFirstHatchTourActive && (
+        <BlobbiBottomBar
+          onBlobbiesClick={() => setShowSelector(true)}
+          onMissionsClick={() => setShowMissionsModal(true)}
+          onActionsClick={() => setShowActionsModal(true)}
+          onShopClick={() => setShowShopModal(true)}
+          needyBlobbiesCount={companions.filter(companionNeedsCare).length}
+          isInTaskProcess={isInTaskProcess}
+          remainingTasksCount={remainingTasksCount}
+          allTasksComplete={allTasksComplete}
+          stage={companion.stage}
+          blobbiNaddr={blobbiNaddr}
+          onSetAsCompanion={handleSetAsCompanion}
+          isCurrentCompanion={isCurrentCompanion}
+          isUpdatingCompanion={isUpdatingCompanion}
+          onTakePhoto={() => setShowPhotoModal(true)}
+          onEvolve={
+            canStartIncubation
+              ? () => setShowIncubationDialog(true)
+              : canStartEvolution
+                ? () => setShowEvolutionDialog(true)
+                : isEgg
+                  ? onHatch
+                  : onEvolve
+          }
+          isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
+          hideEvolveButton={isIncubating || isEvolvingState || isFirstHatchTourActive}
+          isIncubationAction={canStartIncubation}
+          isEvolutionAction={canStartEvolution}
+          onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+          onDevOpenEditor={() => setShowDevEditor(true)}
+          onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
+          barPreferences={barPrefs}
+          onEditBar={() => setShowBarEditor(true)}
+        />
+      )}
+      
+      {/* Action Bar Editor */}
+      <ActionBarEditor
+        open={showBarEditor}
+        onOpenChange={setShowBarEditor}
+        preferences={barPrefs}
+        onUpdate={handleBarPrefsUpdate}
       />
       
       {/* Blobbi Selector Modal */}
@@ -1596,6 +1834,8 @@ function BlobbiDashboard({
         onStopEvolution={handleStopEvolution}
         isStoppingEvolution={isStoppingEvolution}
         availableStages={availableStages}
+        showMissionCard={missionCardVisible}
+        onToggleMissionCard={handleToggleMissionCard}
       />
       
       {/* Shop & Inventory Modal (unified) */}
@@ -1616,6 +1856,7 @@ function BlobbiDashboard({
         process={isEvolvingState ? 'evolve' : 'hatch'}
         onSuccess={refetchCurrentTasks}
       />
+      
       
       {/* Blobbi Photo Modal - polaroid-style photo capture */}
       <BlobbiPhotoModal
@@ -1651,6 +1892,7 @@ function BlobbiDashboard({
           companion={companion}
           onApply={onDevEditorApply}
           isUpdating={isDevUpdating}
+          tourDevActions={tourDevActions}
         />
       )}
       
@@ -1664,39 +1906,6 @@ function BlobbiDashboard({
     </DashboardShell>
   );
 }
-
-// ─── Quick Action Button ──────────────────────────────────────────────────────
-
-interface QuickActionButtonProps {
-  children: React.ReactNode;
-  tooltip: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-}
-
-function QuickActionButton({ children, tooltip, onClick, disabled, loading }: QuickActionButtonProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onClick}
-          disabled={disabled}
-          className="size-10 rounded-full bg-background/80 backdrop-blur-sm border-border hover:bg-accent hover:border-border transition-all shadow-sm"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="left">
-        <p>{tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-// ─── Dashboard Floating Controls ──────────────────────────────────────────────
 
 /**
  * Get the appropriate tooltip for the evolve/hatch button based on stage and action state.
@@ -1713,18 +1922,6 @@ function getEvolveTooltip(
     return isEvolutionAction ? 'Start Evolution' : 'Evolve';
   }
   return 'Evolve';
-}
-
-/** Floating back button for the Blobbi dashboard. */
-function BlobbiDashboardFloatingControls({ onBack }: { onBack?: () => void }) {
-  if (!onBack) return null;
-  return (
-    <div className="absolute top-28 sm:top-32 left-4 sm:left-6 flex flex-col gap-2 z-20">
-      <QuickActionButton tooltip="Go Back" onClick={onBack}>
-        <ArrowLeft className="size-4" />
-      </QuickActionButton>
-    </div>
-  );
 }
 
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
@@ -2065,11 +2262,17 @@ interface BlobbiBottomBarProps {
   hideEvolveButton?: boolean;
   isIncubationAction?: boolean;
   isEvolutionAction?: boolean;
+  // ── Action bar preferences ──
+  barPreferences: ActionBarPreferences;
+  onEditBar: () => void;
   // ── Dev-only actions ──
   onDevInstantTransition?: () => void;
   onDevOpenEditor?: () => void;
   onDevOpenEmotionPanel?: () => void;
 }
+
+/** Handler map keyed by BarItemId so the bar can generically call the right action */
+type BarItemHandlers = Record<BarItemId, () => void>;
 
 function BlobbiBottomBar({
   onBlobbiesClick,
@@ -2092,20 +2295,73 @@ function BlobbiBottomBar({
   hideEvolveButton = false,
   isIncubationAction = false,
   isEvolutionAction = false,
+  // Bar preferences
+  barPreferences,
+  onEditBar,
   // Dev-only props
   onDevInstantTransition,
   onDevOpenEditor,
   onDevOpenEmotionPanel,
 }: BlobbiBottomBarProps) {
   // Determine what to show on missions badge:
-  // - If all tasks complete during active process: show "!"
-  // - If tasks remaining during active process: show count
-  // - Otherwise: no badge
-  // Works for BOTH incubating (hatch) and evolving processes
   const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
 
   const canBeCompanion = stage !== 'egg';
   const showEvolveButton = stage !== 'adult' && !hideEvolveButton;
+  
+  // Handler map for customizable items
+  const handlers: BarItemHandlers = useMemo(() => ({
+    blobbies: onBlobbiesClick,
+    missions: onMissionsClick,
+    items: onShopClick,
+    take_photo: onTakePhoto,
+    set_companion: onSetAsCompanion,
+  }), [onBlobbiesClick, onMissionsClick, onShopClick, onTakePhoto, onSetAsCompanion]);
+  
+  // Icon map for customizable items
+  const iconMap: Record<BarItemId, React.ReactNode> = useMemo(() => ({
+    blobbies: <Egg className="size-4" />,
+    missions: <Target className="size-4" />,
+    items: <Package className="size-4" />,
+    take_photo: <Camera className="size-4" />,
+    set_companion: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
+  }), [isCurrentCompanion]);
+  
+  // Label map
+  const labelMap: Record<BarItemId, string> = {
+    blobbies: 'Blobbies',
+    missions: 'Missions',
+    items: 'Items',
+    take_photo: 'Photo',
+    set_companion: isCurrentCompanion ? 'Companion' : 'Companion',
+  };
+  
+  // Badge map
+  const badgeMap: Record<BarItemId, { badge?: number | string; variant?: 'default' | 'warning' | 'success' }> = useMemo(() => ({
+    blobbies: {
+      badge: needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined,
+      variant: needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' as const : 'default' as const,
+    },
+    missions: {
+      badge: missionsBadge,
+      variant: allTasksComplete ? 'success' as const : 'default' as const,
+    },
+    items: {},
+    take_photo: {},
+    set_companion: {},
+  }), [needyBlobbiesCount, missionsBadge, allTasksComplete]);
+  
+  // Visible custom slots from preferences
+  const visibleSlots = getVisibleSlots(barPreferences);
+  
+  // Set of item IDs currently visible in the bar (used to skip duplicates in More)
+  const visibleBarIds = useMemo(() => getVisibleBarIds(barPreferences), [barPreferences]);
+  
+  // Split into left group (before center) and right group (after center)
+  // Distribute: first half to left, rest to right
+  const halfIdx = Math.ceil(visibleSlots.length / 2);
+  const leftSlots = visibleSlots.slice(0, halfIdx);
+  const rightSlots = visibleSlots.slice(halfIdx);
   
   return (
     <div className="mt-6 pt-2">
@@ -2114,23 +2370,20 @@ function BlobbiBottomBar({
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
           {/* Left Group - aligned to end (closer to center) */}
           <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton 
-              onClick={onBlobbiesClick} 
-              icon={<Egg className="size-4" />} 
-              label="Blobbies" 
-              badge={needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined}
-              badgeVariant={needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' : 'default'}
-            />
-            <BottomBarButton 
-              onClick={onMissionsClick} 
-              icon={<Target className="size-4" />} 
-              label="Missions" 
-              badge={missionsBadge}
-              badgeVariant={allTasksComplete ? 'success' : 'default'}
-            />
+            {leftSlots.map((slot) => (
+              <BottomBarButton
+                key={slot.id}
+                onClick={handlers[slot.id]}
+                icon={iconMap[slot.id]}
+                label={labelMap[slot.id]}
+                badge={badgeMap[slot.id].badge}
+                badgeVariant={badgeMap[slot.id].variant}
+                highlighted={slot.highlighted}
+              />
+            ))}
           </div>
           
-          {/* Center Action Button */}
+          {/* Center Action Button (fixed) */}
           <button
             onClick={onActionsClick}
             className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
@@ -2140,9 +2393,19 @@ function BlobbiBottomBar({
           
           {/* Right Group - aligned to start (closer to center) */}
           <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            <BottomBarButton onClick={onShopClick} icon={<Package className="size-4" />} label="Items" />
+            {rightSlots.map((slot) => (
+              <BottomBarButton
+                key={slot.id}
+                onClick={handlers[slot.id]}
+                icon={iconMap[slot.id]}
+                label={labelMap[slot.id]}
+                badge={badgeMap[slot.id].badge}
+                badgeVariant={badgeMap[slot.id].variant}
+                highlighted={slot.highlighted}
+              />
+            ))}
 
-            {/* 3-dots menu */}
+            {/* More dropdown (fixed) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -2153,11 +2416,32 @@ function BlobbiBottomBar({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end">
-                <DropdownMenuItem onClick={onTakePhoto}>
-                  <Camera className="size-4 mr-2" />
-                  Take a Photo
-                </DropdownMenuItem>
-                {canBeCompanion && (
+                {/* Show items in More only when they're NOT already visible in the bar */}
+                {!visibleBarIds.has('blobbies') && (
+                  <DropdownMenuItem onClick={onBlobbiesClick}>
+                    <Egg className="size-4 mr-2" />
+                    Blobbies
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('items') && (
+                  <DropdownMenuItem onClick={onShopClick}>
+                    <Package className="size-4 mr-2" />
+                    Items
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('missions') && (
+                  <DropdownMenuItem onClick={onMissionsClick}>
+                    <Target className="size-4 mr-2" />
+                    Missions
+                  </DropdownMenuItem>
+                )}
+                {!visibleBarIds.has('take_photo') && (
+                  <DropdownMenuItem onClick={onTakePhoto}>
+                    <Camera className="size-4 mr-2" />
+                    Take a Photo
+                  </DropdownMenuItem>
+                )}
+                {canBeCompanion && !visibleBarIds.has('set_companion') && (
                   <DropdownMenuItem onClick={onSetAsCompanion} disabled={isUpdatingCompanion}>
                     <Footprints className={cn('size-4 mr-2', isCurrentCompanion && 'text-green-500')} />
                     {isCurrentCompanion ? 'Current Companion' : 'Set as Companion'}
@@ -2174,6 +2458,11 @@ function BlobbiBottomBar({
                     <ExternalLink className="size-4 mr-2" />
                     View Blobbi
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onEditBar}>
+                  <Settings2 className="size-4 mr-2" />
+                  Edit action bar
                 </DropdownMenuItem>
                 {/* DEV ONLY: Developer tools */}
                 {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
@@ -2218,9 +2507,11 @@ interface BottomBarButtonProps {
   badge?: number | string;
   /** Badge color variant */
   badgeVariant?: 'default' | 'warning' | 'success';
+  /** Show subtle highlight ring around this button */
+  highlighted?: boolean;
 }
 
-function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default' }: BottomBarButtonProps) {
+function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default', highlighted }: BottomBarButtonProps) {
   // Determine if badge should show
   const showBadge = badge !== undefined && (typeof badge === 'string' || badge > 0);
   
@@ -2234,7 +2525,10 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]"
+      className={cn(
+        "flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]",
+        highlighted && "ring-1 ring-primary/30 bg-accent/30",
+      )}
     >
       <div className="relative">
         {icon}

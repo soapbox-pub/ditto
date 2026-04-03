@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { Egg, Baby, Sparkles, Loader2, RotateCcw, Zap, Heart, Utensils, Droplets, Activity, Battery, Moon, Sun } from 'lucide-react';
+import { Egg, Baby, Sparkles, Loader2, RotateCcw, Zap, Heart, Utensils, Droplets, Activity, Battery, Moon, Sun, RefreshCw, SkipForward } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +27,18 @@ import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** Tour dev actions for the first-hatch tour */
+interface FirstHatchTourDevActions {
+  /** Skip the post requirement: advance from show_hatch_card to egg_glowing_waiting_click */
+  skipPostRequirement: () => void;
+  /** Reset the entire first-hatch tour so it can be tested again from scratch */
+  resetTour: () => void;
+  /** Current tour step id, or null if not active */
+  currentStepId: string | null;
+  /** Whether the tour has been completed */
+  isCompleted: boolean;
+}
+
 interface BlobbiDevEditorProps {
   /** Whether the editor modal is open */
   isOpen: boolean;
@@ -38,6 +50,8 @@ interface BlobbiDevEditorProps {
   onApply: (updates: BlobbiDevUpdates) => Promise<void>;
   /** Whether an update is in progress */
   isUpdating?: boolean;
+  /** Optional: first-hatch tour dev actions (only passed when tour system is available) */
+  tourDevActions?: FirstHatchTourDevActions;
 }
 
 /** Updates that can be applied to a Blobbi */
@@ -170,6 +184,7 @@ export function BlobbiDevEditor({
   companion,
   onApply,
   isUpdating = false,
+  tourDevActions,
 }: BlobbiDevEditorProps) {
   // ─── Local State ───
   // Initialize from companion values
@@ -527,8 +542,82 @@ export function BlobbiDevEditor({
                   onCheckedChange={setBreedingReady}
                 />
               </div>
-            </div>
+             </div>
           </div>
+
+          {/* ─── First-Hatch Tour Controls ─── */}
+          {tourDevActions && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">First-Hatch Tour</Label>
+                  <Badge variant="outline" className="text-xs">
+                    {tourDevActions.isCompleted
+                      ? 'Completed'
+                      : tourDevActions.currentStepId
+                        ? tourDevActions.currentStepId
+                        : 'Not started'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Test the first-hatch tour flow without needing to create a real post.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {/* A. Skip Post Requirement */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      tourDevActions.skipPostRequirement();
+                    }}
+                    disabled={tourDevActions.currentStepId !== 'show_hatch_card'}
+                    className="gap-2 text-xs"
+                    title="Advance from show_hatch_card to egg_glowing_waiting_click (skips post check)"
+                  >
+                    <SkipForward className="size-3.5" />
+                    Skip Post
+                  </Button>
+
+                  {/* B. Restart First-Hatch Tour */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      tourDevActions.resetTour();
+                    }}
+                    className="gap-2 text-xs"
+                    title="Reset the entire first-hatch tour state so it can be tested again"
+                  >
+                    <RefreshCw className="size-3.5" />
+                    Restart Tour
+                  </Button>
+
+                  {/* C. Reset Blobbi to Egg */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setStage('egg');
+                      setState('active');
+                      tourDevActions.resetTour();
+                    }}
+                    disabled={companion.stage === 'egg'}
+                    className="gap-2 text-xs"
+                    title="Set stage to egg AND reset the tour — apply changes to test from scratch"
+                  >
+                    <Egg className="size-3.5" />
+                    Reset to Egg + Tour
+                  </Button>
+                </div>
+                {companion.stage !== 'egg' && stage === 'egg' && (
+                  <p className="text-xs text-amber-500">
+                    Stage will change to egg. Click "Apply Changes" to publish, then the tour will auto-start.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
