@@ -66,18 +66,20 @@ export function SpellContent({ event }: SpellContentProps) {
   const includeReplies = tags.find(([t]) => t === 'include-replies')?.[1];
 
   return (
-    <div className="space-y-3">
-      {/* Spell name */}
+    <div className="mt-2">
+      {/* Title */}
       {name && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-2">
           <WandSparkles className="size-4 text-primary shrink-0" />
-          <span className="font-semibold text-sm">{name}</span>
+          <span className="text-[15px] font-semibold leading-snug">{name}</span>
         </div>
       )}
 
       {/* Description from content */}
       {event.content && (
-        <p className="text-sm text-muted-foreground">{event.content}</p>
+        <p className="text-[15px] leading-relaxed text-foreground/90 line-clamp-3 mb-3">
+          {event.content}
+        </p>
       )}
 
       {/* Badge row */}
@@ -164,20 +166,13 @@ export function SpellContent({ event }: SpellContentProps) {
             no replies
           </Badge>
         )}
+        {relays.map((r) => (
+          <Badge key={r} variant="outline" className="gap-1 text-xs">
+            <Radio className="size-3" />
+            {r.replace('wss://', '')}
+          </Badge>
+        ))}
       </div>
-
-      {/* Target relays */}
-      {relays.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {relays.map((r) => (
-            <Badge key={r} variant="outline" className="gap-1 text-xs">
-              <Radio className="size-3" />
-              {r.replace('wss://', '')}
-            </Badge>
-          ))}
-        </div>
-      )}
-
     </div>
   );
 }

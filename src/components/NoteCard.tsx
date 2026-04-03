@@ -16,13 +16,12 @@ import {
   Radio,
   Share2,
   SmilePlus,
-  PartyPopper,
   Sparkles,
   Users,
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
@@ -98,13 +97,14 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
-import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
+import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
+import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
+import { getParentEventHints, getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { impactLight } from "@/lib/haptics";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
-import { publishedAtAction } from "@/lib/publishedAtAction";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 
@@ -116,113 +116,6 @@ function ProfileCardContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       <ProfileCard pubkey={event.pubkey} metadata={metadata} showNip05={false} />
-    </div>
-  );
-}
-
-/* ──── Shared activity card shell for reaction / repost / zap / poll vote ──── */
-
-interface ActivityCardProps {
-  /** The round element in the left column (icon bubble or avatar). */
-  icon: ReactNode;
-  /** The actor row content (avatar + name + label + timestamp). */
-  actorRow: ReactNode;
-  /** Optional extra content below the actor row (zap message, vote label, etc.). */
-  children?: ReactNode;
-  /** Threaded mode: connector line below icon, no bottom border. */
-  threaded?: boolean;
-  /** Last item in thread — no connector line, has bottom border. */
-  threadedLast?: boolean;
-  /** Custom connector line class. */
-  threadedLineClassName?: string;
-  className?: string;
-  onClick?: React.MouseEventHandler;
-  onAuxClick?: React.MouseEventHandler;
-}
-
-export function ActivityCard({
-  icon,
-  actorRow,
-  children,
-  threaded,
-  threadedLast,
-  threadedLineClassName,
-  className,
-  onClick,
-  onAuxClick,
-}: ActivityCardProps) {
-  const isThreaded = threaded || threadedLast;
-  return (
-    <article
-      className={cn(
-        "px-4 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-        isThreaded
-          ? cn("pt-3", threaded ? "pb-0" : "pb-3 border-b border-border")
-          : "py-3 border-b border-border",
-        className,
-      )}
-      onClick={onClick}
-      onAuxClick={onAuxClick}
-    >
-      <div className="flex gap-3">
-        <div className="flex flex-col items-center">
-          {icon}
-          {threaded && (
-            <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-          )}
-        </div>
-        <div className={cn("flex-1 min-w-0", isThreaded ? "min-h-10 flex flex-col justify-center" : "", threaded && "pb-3")}>
-          {actorRow}
-          {children}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/** Reusable actor row: small avatar + display name + action label + timestamp. */
-export interface ActorRowProps {
-  pubkey: string;
-  profileUrl: string;
-  avatarShape: Parameters<typeof Avatar>[0]['shape'];
-  picture?: string;
-  displayName: string;
-  authorEvent?: NostrEvent;
-  isLoading?: boolean;
-  label: string;
-  /** Extra inline elements after the label (e.g. zap amount). */
-  extra?: ReactNode;
-  /** Formatted timestamp string (e.g. timeAgo or full date). */
-  timestampLabel: string;
-}
-
-export function ActorRow({ pubkey, profileUrl, avatarShape, picture, displayName, authorEvent, isLoading, label, extra, timestampLabel }: ActorRowProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2">
-        <Skeleton className="size-6 rounded-full shrink-0" />
-        <Skeleton className="h-3.5 w-20" />
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <ProfileHoverCard pubkey={pubkey} asChild>
-        <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Avatar shape={avatarShape} className="size-6">
-            <AvatarImage src={picture} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </Link>
-      </ProfileHoverCard>
-      <ProfileHoverCard pubkey={pubkey} asChild>
-        <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-          {authorEvent ? <EmojifiedText tags={authorEvent.tags}>{displayName}</EmojifiedText> : displayName}
-        </Link>
-      </ProfileHoverCard>
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      {extra}
-      <span className="text-xs text-muted-foreground ml-auto shrink-0">{timestampLabel}</span>
     </div>
   );
 }
@@ -332,8 +225,6 @@ export const NoteCard = memo(function NoteCard({
   const zapSenderName = getDisplayName(zapSenderMeta, zapSenderPubkey);
   const zapSenderUrl = useProfileUrl(zapSenderPubkey, zapSenderMeta);
 
-  const pollVoteLabel = usePollVoteLabel(event);
-
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -364,9 +255,7 @@ export const NoteCard = memo(function NoteCard({
       target.closest("[data-radix-dialog-content]") ||
       target.closest("[data-vaul-drawer]") ||
       target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]') ||
-      target.closest("button") ||
-      target.closest("a")
+      target.closest('[data-testid="zap-modal"]')
     ) {
       return;
     }
@@ -381,9 +270,7 @@ export const NoteCard = memo(function NoteCard({
       target.closest("[data-radix-dialog-content]") ||
       target.closest("[data-vaul-drawer]") ||
       target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]') ||
-      target.closest("button") ||
-      target.closest("a")
+      target.closest('[data-testid="zap-modal"]')
     ) {
       return;
     }
@@ -410,7 +297,6 @@ export const NoteCard = memo(function NoteCard({
   const isProfileBadges = event.kind === 10008 || event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
-  const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
@@ -456,7 +342,6 @@ export const NoteCard = memo(function NoteCard({
     !isEmojiPack &&
     !isBadge &&
     !isReaction &&
-    !isPollVote &&
     !isRepost &&
     !isPhoto &&
     !isVideo &&
@@ -514,12 +399,11 @@ export const NoteCard = memo(function NoteCard({
     return [parentAuthor];
   }, [event.tags, isTextNote, isReply, event.pubkey]);
 
-  // Extract the parent event ID + relay/author hints for reply hover card preview
-  const parentHints = useMemo(() => {
+  // Extract the parent event ID for reply hover card preview
+  const parentEventId = useMemo(() => {
     if (!isReply) return undefined;
-    return getParentEventHints(event);
+    return getParentEventId(event);
   }, [event, isReply]);
-  const parentEventId = parentHints?.id;
 
   // Kind 34236 specific
   const imeta = useMemo(
@@ -561,12 +445,7 @@ export const NoteCard = memo(function NoteCard({
       {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
       {isComment && <CommentContext event={event} />}
       {isReply && (
-        <ReplyContext
-          pubkeys={replyToPubkeys}
-          parentEventId={parentEventId}
-          parentRelayHint={parentHints?.relayHint}
-          parentAuthorHint={parentHints?.authorHint}
-        />
+        <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
@@ -641,23 +520,11 @@ export const NoteCard = memo(function NoteCard({
         ) : isSpell ? (
           <SpellContent event={event} />
         ) : isZapstoreApp ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
-            <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreAppContent event={event} compact />
-            </div>
-          </div>
+          <ZapstoreAppContent event={event} compact />
         ) : isZapstoreRelease ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
-            <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreReleaseContent event={event} compact />
-            </div>
-          </div>
+          <ZapstoreReleaseContent event={event} compact />
         ) : isZapstoreAsset ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
-            <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreAssetContent event={event} compact />
-            </div>
-          </div>
+          <ZapstoreAssetContent event={event} compact />
         ) : isAppHandler ? (
           <AppHandlerContent event={event} compact />
         ) : isEncryptedDM ? (
@@ -897,107 +764,399 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
-  // ── Reaction layout (kind 7) ──
+  // ── Reaction layout (kind 7) — compact activity-style card ──
   if (isReaction) {
-    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
-    return (
-      <ActivityCard
-        icon={
-          <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
-            <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
+    // Threaded reaction (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Reaction emoji bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-lg leading-none">
+                <ReactionEmoji
+                  content={event.content}
+                  tags={event.tags}
+                  className="h-5 w-5 object-contain"
+                />
+              </div>
+              {threaded && (
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex items-center min-h-10",
+                threaded && "pb-3",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-semibold text-sm hover:underline truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
           </div>
-        }
-        actorRow={
-          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reacted" timestampLabel={timeAgo(event.created_at)} />
-        }
-        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
-        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
-      />
+        </article>
+      );
+    }
+
+    // Normal reaction card (standalone or in feed)
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Large reaction emoji */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
+            <ReactionEmoji
+              content={event.content}
+              tags={event.tags}
+              className="h-6 w-6 object-contain"
+            />
+          </div>
+
+          {/* Author + "reacted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-semibold text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>
+                        {displayName}
+                      </EmojifiedText>
+                    ) : (
+                      displayName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reacted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
     );
   }
 
-  // ── Repost layout (kind 6 / 16) ──
+  // ── Repost layout (kind 6 / 16) — compact activity-style card ──
   if (isRepost) {
-    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
+    // Threaded repost (used in AncestorThread with connector line)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {/* Repost icon bubble instead of avatar */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
+                <RepostIcon className="size-5 text-accent" />
+              </div>
+              {threaded && (
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 min-w-0 flex items-center min-h-10",
+                threaded && "pb-3",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {author.isLoading ? (
+                  <Skeleton className="size-6 rounded-full shrink-0" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Avatar shape={avatarShape} className="size-6">
+                        <AvatarImage
+                          src={metadata?.picture}
+                          alt={displayName}
+                        />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          {displayName[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                {author.isLoading ? (
+                  <Skeleton className="h-3.5 w-20" />
+                ) : (
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link
+                      to={profileUrl}
+                      className="font-semibold text-sm hover:underline truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {author.data?.event ? (
+                        <EmojifiedText tags={author.data.event.tags}>
+                          {displayName}
+                        </EmojifiedText>
+                      ) : (
+                        displayName
+                      )}
+                    </Link>
+                  </ProfileHoverCard>
+                )}
+                <span className="text-sm text-muted-foreground">reposted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // Normal repost card (standalone or in feed)
     return (
-      <ActivityCard
-        icon={
-          <div className={cn("flex items-center justify-center rounded-full bg-accent/10 shrink-0", iconSize)}>
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex items-center gap-3">
+          {/* Repost icon */}
+          <div className="flex items-center justify-center size-11 rounded-full bg-accent/10 shrink-0">
             <RepostIcon className="size-5 text-accent" />
           </div>
-        }
-        actorRow={
-          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reposted" timestampLabel={timeAgo(event.created_at)} />
-        }
-        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
-        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
-      />
+
+          {/* Author + "reposted" label */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {author.isLoading ? (
+              <>
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              <>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-semibold text-sm hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>
+                        {displayName}
+                      </EmojifiedText>
+                    ) : (
+                      displayName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">reposted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  {timeAgo(event.created_at)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </article>
     );
   }
 
-  // ── Zap receipt layout (kind 9735) ──
+  // ── Zap receipt layout (kind 9735) — mirrors reaction layout exactly ──
   if (isZap) {
     const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
     const zapMessage = extractZapMessage(event);
-    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
-    return (
-      <ActivityCard
-        icon={
-          <div className={cn("flex items-center justify-center rounded-full bg-amber-500/10 shrink-0", iconSize)}>
-            <Zap className="size-5 text-amber-500 fill-amber-500" />
-          </div>
-        }
-        actorRow={
-          <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture}
-            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading} label="zapped" timestampLabel={timeAgo(event.created_at)}
-            extra={zapAmountSats > 0 ? (
+
+    const zapActorRow = (
+      <div className="flex items-center gap-2">
+        {zapSender.isLoading ? (
+          <>
+            <Skeleton className="size-6 rounded-full shrink-0" />
+            <Skeleton className="h-3.5 w-20" />
+          </>
+        ) : (
+          <>
+            {zapSenderPubkey && (
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link to={zapSenderUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Avatar shape={zapSenderShape} className="size-6">
+                    <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{zapSenderName[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
+            )}
+            {zapSenderPubkey && (
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link to={zapSenderUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                  {zapSender.data?.event ? <EmojifiedText tags={zapSender.data.event.tags}>{zapSenderName}</EmojifiedText> : zapSenderName}
+                </Link>
+              </ProfileHoverCard>
+            )}
+            <span className="text-sm text-muted-foreground shrink-0">zapped</span>
+            {zapAmountSats > 0 && (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
               </span>
-            ) : undefined}
-          />
-        }
-        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
-        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
-      >
-        {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
-      </ActivityCard>
-    );
-  }
-
-  // ── Poll vote layout (kind 1018) ──
-  if (isPollVote) {
-    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
-    return (
-      <ActivityCard
-        icon={
-          <ProfileHoverCard pubkey={event.pubkey} asChild>
-            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar shape={avatarShape} className={iconSize}>
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
-              </Avatar>
-            </Link>
-          </ProfileHoverCard>
-        }
-        actorRow={
-          <div className="flex items-center gap-1.5">
-            <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
-              </Link>
-            </ProfileHoverCard>
-            <span className="text-sm text-muted-foreground shrink-0">voted</span>
+            )}
             <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+          </>
+        )}
+      </div>
+    );
+
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+                <Zap className="size-5 text-amber-500 fill-amber-500" />
+              </div>
+              {threaded && <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />}
+            </div>
+            <div className={cn("flex-1 min-w-0 flex flex-col justify-center min-h-10", threaded && "pb-3")}>
+              {zapActorRow}
+              {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
+            </div>
           </div>
-        }
-        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
-        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
+        </article>
+      );
+    }
+
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
       >
-        {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
-      </ActivityCard>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/10 shrink-0">
+            <Zap className="size-5 text-amber-500 fill-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col">
+            {zapActorRow}
+            {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
+          </div>
+        </div>
+      </article>
     );
   }
 
@@ -1017,7 +1176,7 @@ export const NoteCard = memo(function NoteCard({
                   ? isLive ? "text-primary" : "text-muted-foreground"
                   : cfg.iconClassName
               }
-              action={typeof cfg.action === "function" ? cfg.action(event) : cfg.action}
+              action={typeof cfg.action === "function" ? cfg.action(event.tags, event) : cfg.action}
               noun={cfg.noun}
               nounRoute={cfg.nounRoute}
             />
@@ -1036,29 +1195,39 @@ export const NoteCard = memo(function NoteCard({
         onAuxClick={handleAuxClick}
       >
         {threadedKindHeader}
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            {avatarElement}
-            {threaded && (
-              <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-            )}
-          </div>
-          <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-            {authorInfo}
+        {isFollowPack || isSpell ? (
+          <div className={cn("min-w-0", threaded && "pb-3")}>
             {contentBlock}
+            <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
             {actionButtons}
-            <NoteMoreMenu
-              event={event}
-              open={moreMenuOpen}
-              onOpenChange={setMoreMenuOpen}
-            />
-            <ReplyComposeModal
-              event={event}
-              open={replyOpen}
-              onOpenChange={setReplyOpen}
-            />
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              {authorInfo}
+              {contentBlock}
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </div>
+          </div>
+        )}
       </article>
     );
   }
@@ -1101,7 +1270,7 @@ export const NoteCard = memo(function NoteCard({
               }
               action={
                 typeof cfg.action === "function"
-                  ? cfg.action(event)
+                  ? cfg.action(event.tags, event)
                   : cfg.action
               }
               noun={cfg.noun}
@@ -1111,29 +1280,46 @@ export const NoteCard = memo(function NoteCard({
         })()
       )}
 
-      {/* Header: avatar + name/handle stacked */}
-      <div className="flex items-center gap-3">
-        {avatarElement}
-        {authorInfo}
-        {isColor && <ColorMomentEyeButton event={event} />}
-      </div>
-
-      {contentBlock}
-
-      {/* Action buttons — hidden in compact/embed mode */}
-      {!compact && (
+      {/* For follow packs / lists / spells: content-first layout with subtle author attribution */}
+      {isFollowPack || isSpell ? (
         <>
-          {actionButtons}
-          <NoteMoreMenu
-            event={event}
-            open={moreMenuOpen}
-            onOpenChange={setMoreMenuOpen}
-          />
-          <ReplyComposeModal
-            event={event}
-            open={replyOpen}
-            onOpenChange={setReplyOpen}
-          />
+          {contentBlock}
+          <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Header: avatar + name/handle stacked */}
+          <div className="flex items-center gap-3">
+            {avatarElement}
+            {authorInfo}
+            {isColor && <ColorMomentEyeButton event={event} />}
+          </div>
+
+          {contentBlock}
+
+          {/* Action buttons — hidden in compact/embed mode */}
+          {!compact && (
+            <>
+              {actionButtons}
+              <NoteMoreMenu
+                event={event}
+                open={moreMenuOpen}
+                onOpenChange={setMoreMenuOpen}
+              />
+              <ReplyComposeModal
+                event={event}
+                open={replyOpen}
+                onOpenChange={setReplyOpen}
+              />
+            </>
+          )}
         </>
       )}
     </article>
@@ -1634,6 +1820,52 @@ function StreamContent({ event }: { event: NostrEvent }) {
   );
 }
 
+/** Subtle author attribution line for follow pack / list cards. */
+function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt: number }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = getDisplayName(metadata, pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+      {author.isLoading ? (
+        <>
+          <Skeleton className="size-4 rounded-full shrink-0" />
+          <Skeleton className="h-3 w-20" />
+        </>
+      ) : (
+        <>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={avatarShape} className="size-4">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[7px]">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+          <ProfileHoverCard pubkey={pubkey} asChild>
+            <Link
+              to={profileUrl}
+              className="hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+              ) : displayName}
+            </Link>
+          </ProfileHoverCard>
+          <span className="shrink-0">·</span>
+          <span className="shrink-0">{timeAgo(createdAt)}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 export interface EventActionHeaderProps {
   /** Pubkey of the person performing the action. */
   pubkey: string;
@@ -1653,8 +1885,8 @@ export interface EventActionHeaderProps {
 interface KindHeaderConfig {
   icon: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
-  /** Static action string, or a function that computes it from the event. */
-  action: string | ((event: NostrEvent) => string);
+  /** Static action string, or a function that computes it from the event's tags (and optionally the full event). */
+  action: string | ((tags: string[][], event?: NostrEvent) => string);
   noun?: string;
   nounRoute?: string;
 }
@@ -1679,7 +1911,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   37516: {
     icon: ChestIcon,
-    action: (event) => publishedAtAction(event, { created: "hid a", updated: "updated a", fallback: "hid a" }),
+    action: "hid a",
     noun: "treasure",
     nounRoute: "/treasures",
   },
@@ -1691,73 +1923,73 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   37381: {
     icon: CardsIcon,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    action: "shared a",
     noun: "deck",
     nounRoute: "/decks",
   },
   36767: {
     icon: Sparkles,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    action: "shared a",
     noun: "theme",
     nounRoute: "/themes",
   },
   16767: {
     icon: Sparkles,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "updated their" }),
+    action: "updated their",
     noun: "theme",
     nounRoute: "/themes",
   },
   30030: {
     icon: SmilePlus,
-    action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
+    action: "shared an",
     noun: "emoji pack",
     nounRoute: "/emojis",
   },
   30009: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "created a" }),
+    action: "created a",
     noun: "badge",
     nounRoute: "/badges",
   },
   10008: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: "updated their",
     noun: "badges",
     nounRoute: "/badges",
   },
   30008: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: "updated their",
     noun: "badges",
     nounRoute: "/badges",
   },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below
-    action: (event) =>
-      getEffectiveStreamStatus(event) === "live"
+    action: (_tags, event) =>
+      event && getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
   },
   32267: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" }),
+    action: "published an app",
   },
   30063: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a Zapstore release", updated: "updated a Zapstore release", fallback: "published a Zapstore release" }),
+    action: "published a release",
   },
   3063: {
     icon: Package,
-    action: "published a Zapstore asset",
+    action: "published an asset",
   },
   31990: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" }),
+    action: "published an app",
   },
   30617: {
     icon: GitBranch,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    action: "shared a",
     noun: "repository",
     nounRoute: "/development",
   },
@@ -1775,19 +2007,19 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   30817: {
     icon: FileCode,
-    action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
+    action: "proposed a",
     noun: "NIP",
     nounRoute: "/development",
   },
   15128: {
     icon: Rocket,
-    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
+    action: "deployed an",
     noun: "nsite",
     nounRoute: "/development",
   },
   35128: {
     icon: Rocket,
-    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
+    action: "deployed an",
     noun: "nsite",
     nounRoute: "/development",
   },
@@ -1797,21 +2029,9 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31124: {
     icon: Egg,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: "updated their",
     noun: "Blobbi",
     nounRoute: "/blobbi",
-  },
-  39089: {
-    icon: PartyPopper,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "follow pack",
-    nounRoute: "/packs",
-  },
-  30000: {
-    icon: PartyPopper,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "follow set",
-    nounRoute: "/packs",
   },
 };
 
