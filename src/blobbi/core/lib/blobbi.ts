@@ -96,6 +96,21 @@ export function getDaysDifference(dayA: string, dayB: string): number {
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
 export type BlobbiState = 'active' | 'sleeping' | 'hibernating' | 'incubating' | 'evolving';
 
+// ─── Content Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Generate the canonical `content` string for a Blobbi event at a given stage.
+ *
+ * Format: "{name} is an egg Blobbi." / "{name} is a baby Blobbi."
+ *
+ * Use this whenever publishing or republishing a Kind 31124 event so the
+ * content field is never left empty or inconsistent.
+ */
+export function generateBlobbiContent(name: string, stage: BlobbiStage): string {
+  const article = stage === 'egg' ? 'an' : 'a';
+  return `${name} is ${article} ${stage} Blobbi.`;
+}
+
 export interface BlobbiStats {
   hunger: number;
   happiness: number;

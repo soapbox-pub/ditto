@@ -259,13 +259,14 @@ export function useFirstEggExperience({
 
         updateCompanionEvent(eggEvent);
 
-        // Update profile: add to has[], NO coin deduction for first egg
+        // Update profile: add to has[] + set current_companion, NO coin deduction for first egg
         // Use profile from latest state or build minimal tags
         const currentProfile = profile;
         if (currentProfile) {
           const newHas = [...currentProfile.has, preview.d];
           const updatedProfileTags = updateBlobbonautTags(currentProfile.allTags, {
             has: newHas,
+            current_companion: preview.d,
           });
 
           const profileEvent = await publishEvent({
@@ -284,6 +285,7 @@ export function useFirstEggExperience({
             ['name', name],
             ['coins', INITIAL_BLOBBONAUT_COINS.toString()],
             ['has', preview.d],
+            ['current_companion', preview.d],
           ];
 
           const profileEvent = await publishEvent({

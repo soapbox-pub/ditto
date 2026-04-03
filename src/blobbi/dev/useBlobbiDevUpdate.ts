@@ -15,7 +15,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { BlobbiCompanion, BlobbiStage } from '@/blobbi/core/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString, generateBlobbiContent } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,17 +32,6 @@ interface DevUpdateResult {
   previousStage: BlobbiStage;
   newStage: BlobbiStage;
   changedFields: string[];
-}
-
-// ─── Content Helper ───────────────────────────────────────────────────────────
-
-/**
- * Generate the content string for a Blobbi at a given stage.
- * Format: "{name} is a {stage} Blobbi."
- */
-function generateBlobbiContent(name: string, stage: BlobbiStage): string {
-  const article = stage === 'egg' ? 'an' : 'a';
-  return `${name} is ${article} ${stage} Blobbi.`;
 }
 
 // ─── Hook Implementation ──────────────────────────────────────────────────────

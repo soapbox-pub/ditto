@@ -36,6 +36,7 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
+  generateBlobbiContent,
   type BlobbiCompanion,
   type BlobbonautProfile,
 } from '@/blobbi/core/lib/blobbi';
@@ -989,7 +990,8 @@ function BlobbiDashboard({
   const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
   // ─── First Hatch Tour ───
-  const firstHatchTour = useFirstHatchTour();
+  const { user } = useCurrentUser();
+  const firstHatchTour = useFirstHatchTour({ pubkey: user?.pubkey });
   useFirstHatchTourActivation({
     companions,
     isLoading: false, // companions are already loaded at this point
@@ -1065,8 +1067,12 @@ function BlobbiDashboard({
     }
   }, [isFirstHatchTourActive, firstHatchTour, onHatch]);
 
-  // Show reveal overlay when tour reaches the 'reveal' step
-  const showRevealOverlay = isFirstHatchTourActive && firstHatchTour.isStep('reveal');
+  // Show reveal overlay when tour reaches the 'reveal' step AND the companion
+  // data has been updated to reflect the hatched baby. This avoids rendering
+  // the overlay with stale egg data while the cache is still updating.
+  const showRevealOverlay = isFirstHatchTourActive
+    && firstHatchTour.isStep('reveal')
+    && companion.stage !== 'egg';
 
   // State for reveal naming
   const [isNamingBlobbi, setIsNamingBlobbi] = useState(false);
@@ -1098,14 +1104,15 @@ function BlobbiDashboard({
   const handleRevealNameConfirm = useCallback(async (newName: string) => {
     setIsNamingBlobbi(true);
     try {
-      // Update the Blobbi event with the new name
+      // Update the Blobbi event with the new name and correct content
       if (companion) {
         const updatedTags = updateBlobbiTags(companion.allTags, {
           name: newName,
         });
+        const content = generateBlobbiContent(newName, companion.stage);
         const event = await publishEvent({
           kind: KIND_BLOBBI_STATE,
-          content: '',
+          content,
           tags: updatedTags,
         });
         updateCompanionEvent(event);

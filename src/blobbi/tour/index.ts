@@ -37,7 +37,7 @@ export type {
 
 // ── First Hatch Tour - Hooks ──
 export { useFirstHatchTour } from './hooks/useFirstHatchTour';
-export type { UseFirstHatchTourResult } from './hooks/useFirstHatchTour';
+export type { UseFirstHatchTourOptions, UseFirstHatchTourResult } from './hooks/useFirstHatchTour';
 
 export { useFirstHatchTourActivation } from './hooks/useFirstHatchTourActivation';
 export type {

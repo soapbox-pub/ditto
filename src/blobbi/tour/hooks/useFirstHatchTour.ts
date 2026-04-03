@@ -41,13 +41,17 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+/** Base prefix for the user-scoped localStorage key */
+const STORAGE_KEY_PREFIX = 'blobbi:tour:first-hatch';
+
 /**
- * localStorage key for the first hatch tour state.
- * Not user-scoped because onboarding state is device-local and the tour
- * is inherently tied to "first ever egg on this device". If multi-user
- * support on the same device becomes a concern, scope by pubkey.
+ * Build the user-scoped localStorage key for the first hatch tour.
+ * Falls back to a global key when no pubkey is available yet.
  */
-const STORAGE_KEY = 'blobbi:tour:first-hatch';
+function getStorageKey(pubkey: string | undefined): string {
+  if (pubkey) return `${STORAGE_KEY_PREFIX}:${pubkey}`;
+  return STORAGE_KEY_PREFIX;
+}
 
 /** Pre-computed lookup: stepId -> index */
 const STEP_INDEX_MAP = new Map<FirstHatchTourStepId, number>(
@@ -80,12 +84,24 @@ export interface UseFirstHatchTourResult {
   currentStepDef: (typeof FIRST_HATCH_TOUR_STEPS)[number] | null;
 }
 
+// ─── Hook Options ─────────────────────────────────────────────────────────────
+
+export interface UseFirstHatchTourOptions {
+  /**
+   * The current user's pubkey. Used to scope the localStorage key so
+   * that different users on the same device get independent tour state.
+   * When undefined (not yet logged in), a global fallback key is used.
+   */
+  pubkey: string | undefined;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useFirstHatchTour(): UseFirstHatchTourResult {
-  // ── Persisted state ──
+export function useFirstHatchTour({ pubkey }: UseFirstHatchTourOptions): UseFirstHatchTourResult {
+  // ── Persisted state (user-scoped) ──
+  const storageKey = getStorageKey(pubkey);
   const [persisted, setPersisted] = useLocalStorage<FirstHatchTourPersistedState>(
-    STORAGE_KEY,
+    storageKey,
     FIRST_HATCH_TOUR_DEFAULT_STATE,
   );
 

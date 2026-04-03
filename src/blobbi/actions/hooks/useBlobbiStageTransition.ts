@@ -24,23 +24,11 @@ import {
   KIND_BLOBBI_STATE,
   STAT_MAX,
   updateBlobbiTags,
+  generateBlobbiContent,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@/blobbi/core/lib/blobbi-tag-schema';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
-
-// ─── Content Helpers ──────────────────────────────────────────────────────────
-
-/**
- * Generate the content string for a Blobbi at a given stage.
- * Format: "{name} is a {stage} Blobbi."
- * 
- * Uses correct grammar: "an egg" vs "a baby/adult"
- */
-function generateBlobbiContent(name: string, stage: BlobbiStage): string {
-  const article = stage === 'egg' ? 'an' : 'a';
-  return `${name} is ${article} ${stage} Blobbi.`;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
