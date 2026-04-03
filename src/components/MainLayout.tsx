@@ -135,7 +135,7 @@ function MainLayoutInner() {
               being hidden. This depends on MobileTopBar having a transparent /
               semi-transparent background — a solid top bar would obscure the
               content underneath. Only active below the sidebar breakpoint. */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          <div className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
             <Outlet />
 
             {/* Desktop FAB — sticky within the feed column so it stays

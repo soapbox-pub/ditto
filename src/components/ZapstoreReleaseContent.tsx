@@ -308,7 +308,7 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
 
   if (compact) {
     return (
-      <div className="mt-2 space-y-2.5">
+      <div className="space-y-2.5">
         {/* Header: icon + app name + version */}
         <div className="flex items-start gap-3">
           {appIcon ? (
@@ -367,7 +367,7 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
 
   // Full detail view
   return (
-    <div className="mt-3 space-y-4">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start gap-4">
         {appIcon ? (
@@ -488,7 +488,7 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
 /** Skeleton loading state for ZapstoreReleaseContent. */
 export function ZapstoreReleaseSkeleton() {
   return (
-    <div className="mt-3 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-start gap-4">
         <Skeleton className="size-14 rounded-2xl shrink-0" />
         <div className="flex-1 space-y-2">
@@ -554,7 +554,7 @@ export function ZapstoreAssetContent({ event, compact }: ZapstoreAssetContentPro
 
   if (compact) {
     return (
-      <div className="mt-2 space-y-2">
+      <div className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <PlatformIcon mime={mime} className="size-5 text-primary" />
@@ -581,7 +581,7 @@ export function ZapstoreAssetContent({ event, compact }: ZapstoreAssetContentPro
   }
 
   return (
-    <div className="mt-3 space-y-4">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start gap-4">
         <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -694,7 +694,7 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
 /** Skeleton for ZapstoreAssetContent. */
 export function ZapstoreAssetSkeleton() {
   return (
-    <div className="mt-3 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-start gap-4">
         <Skeleton className="size-14 rounded-2xl shrink-0" />
         <div className="flex-1 space-y-2">

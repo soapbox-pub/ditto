@@ -546,10 +546,10 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   35128: 'nsite',
   30008: 'profile badges',
   30817: 'repository issue',
-  32267: 'app',
+  32267: 'Zapstore app',
   31990: 'app',
-  30063: 'release',
-  3063: 'asset',
+  30063: 'Zapstore release',
+  3063: 'Zapstore asset',
 };
 
 /**

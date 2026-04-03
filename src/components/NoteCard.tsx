@@ -539,11 +539,23 @@ export const NoteCard = memo(function NoteCard({
         ) : isNsite ? (
           <NsiteCard event={event} />
         ) : isZapstoreApp ? (
-          <ZapstoreAppContent event={event} compact />
+          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+            <div className="px-3.5 pb-3.5 pt-3">
+              <ZapstoreAppContent event={event} compact />
+            </div>
+          </div>
         ) : isZapstoreRelease ? (
-          <ZapstoreReleaseContent event={event} compact />
+          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+            <div className="px-3.5 pb-3.5 pt-3">
+              <ZapstoreReleaseContent event={event} compact />
+            </div>
+          </div>
         ) : isZapstoreAsset ? (
-          <ZapstoreAssetContent event={event} compact />
+          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+            <div className="px-3.5 pb-3.5 pt-3">
+              <ZapstoreAssetContent event={event} compact />
+            </div>
+          </div>
         ) : isAppHandler ? (
           <AppHandlerContent event={event} compact />
         ) : isEncryptedDM ? (
@@ -2014,15 +2026,15 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   32267: {
     icon: Package,
-    action: "published an app",
+    action: "published a Zapstore app",
   },
   30063: {
     icon: Package,
-    action: "published a release",
+    action: "published a Zapstore release",
   },
   3063: {
     icon: Package,
-    action: "published an asset",
+    action: "published a Zapstore asset",
   },
   31990: {
     icon: Package,

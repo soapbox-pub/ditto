@@ -1,12 +1,11 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { ExternalLink, GitFork, Package } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { NostrURI } from '@/lib/NostrURI';
 import { cn } from '@/lib/utils';
 
@@ -79,42 +78,32 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   const name = metadata.name || getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
   const about = metadata.about;
   const picture = metadata.picture;
+  const banner = metadata.banner;
   const websiteUrl = getWebsiteUrl(event.tags, metadata);
   const hashtags = getAllTags(event.tags, 't');
 
   const shakespeareUrl = useMemo(() => getShakespeareUrl(event.tags), [event.tags]);
 
-  const { data: preview, isLoading: previewLoading } = useLinkPreview(websiteUrl ?? null);
-  const thumbnailUrl = preview?.thumbnail_url;
-
-  const [imgError, setImgError] = useState(false);
-  const showThumbnail = thumbnailUrl && !imgError;
-
   if (compact) {
     return (
       <div className="mt-2">
         <div className="rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
-          {/* Screenshot hero — only shown while loading or when a thumbnail exists */}
-          {(previewLoading || showThumbnail) && (
+          {/* Banner hero */}
+          {banner && (
             <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-              {previewLoading ? (
-                <Skeleton className="absolute inset-0" />
-              ) : (
-                <img
-                  src={thumbnailUrl}
-                  alt={name}
-                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                  onError={() => setImgError(true)}
-                />
-              )}
+              <img
+                src={banner}
+                alt=""
+                className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+              />
             </div>
           )}
 
           {/* Content */}
-          <div className="relative z-10 px-3.5 pb-3.5 space-y-2">
-            {/* App icon — overlaps the screenshot hero like a profile avatar */}
-            <div className={showThumbnail || previewLoading ? '-mt-7' : 'pt-3.5'}>
+          <div className="relative px-3.5 pb-3.5 space-y-2">
+            {/* App icon — overlaps the banner hero like a profile avatar */}
+            <div className={banner ? '-mt-7' : 'pt-3.5'}>
               {picture ? (
                 <img
                   src={picture}
@@ -193,29 +182,24 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   return (
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
-        {/* Screenshot hero — only shown while loading or when a thumbnail exists */}
-        {(previewLoading || showThumbnail) && (
+        {/* Banner hero */}
+        {banner && (
           <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-            {previewLoading ? (
-              <Skeleton className="absolute inset-0" />
-            ) : (
-              <img
-                src={thumbnailUrl}
-                alt={name}
-                className="size-full object-cover"
-                loading="lazy"
-                onError={() => setImgError(true)}
-              />
-            )}
+            <img
+              src={banner}
+              alt=""
+              className="size-full object-cover"
+              loading="lazy"
+            />
           </div>
         )}
 
         {/* Content */}
-        <div className="relative z-10 px-4 pb-4 space-y-3">
-          {/* App icon — overlaps the screenshot hero like a profile avatar */}
+        <div className="relative px-4 pb-4 space-y-3">
+          {/* App icon — overlaps the banner hero like a profile avatar */}
           <div className={cn(
             'flex items-end justify-between',
-            showThumbnail || previewLoading ? '-mt-10' : 'pt-4',
+            banner ? '-mt-10' : 'pt-4',
           )}>
             {picture ? (
               <img

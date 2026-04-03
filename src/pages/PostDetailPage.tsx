@@ -136,9 +136,9 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
-  if (kind === 32267) return "App Details";
-  if (kind === 30063) return "Release";
-  if (kind === 3063) return "Asset";
+  if (kind === 32267) return "Zapstore App";
+  if (kind === 30063) return "Zapstore Release";
+  if (kind === 3063) return "Zapstore Asset";
   if (kind === 31990) return "App";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
@@ -1950,6 +1950,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action="published an app" />
           )}
+          {isZapstoreApp && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore app" />
+          )}
+          {isZapstoreRelease && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore release" />
+          )}
+          {isZapstoreAsset && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore asset" />
+          )}
           {isNsite && (
             <EventActionHeader pubkey={event.pubkey} icon={Rocket} action="deployed an" noun="nsite" nounRoute="/development" />
           )}
@@ -2064,15 +2073,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <NsiteCard event={event} />
               </div>
             ) : isZapstoreApp ? (
-              <ZapstoreAppContent event={event} />
+              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+                <ZapstoreAppContent event={event} />
+              </div>
             ) : isZapstoreRelease ? (
-              <Suspense fallback={<ZapstoreReleaseSkeleton />}>
-                <ZapstoreReleaseContent event={event} />
-              </Suspense>
+              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+                <Suspense fallback={<ZapstoreReleaseSkeleton />}>
+                  <ZapstoreReleaseContent event={event} />
+                </Suspense>
+              </div>
             ) : isZapstoreAsset ? (
-              <Suspense fallback={<ZapstoreAssetSkeleton />}>
-                <ZapstoreAssetContent event={event} />
-              </Suspense>
+              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+                <Suspense fallback={<ZapstoreAssetSkeleton />}>
+                  <ZapstoreAssetContent event={event} />
+                </Suspense>
+              </div>
             ) : isAppHandler ? (
               <AppHandlerContent event={event} />
             ) : isEncryptedDM ? (

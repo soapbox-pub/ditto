@@ -255,7 +255,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
 
   if (compact) {
     return (
-      <div className="mt-2 space-y-2.5">
+      <div className="space-y-2.5">
         {/* Header: icon + name + summary */}
         <div className="flex items-start gap-3">
           {icon ? (
@@ -326,7 +326,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
 
   // Full detail view
   return (
-    <div className="mt-3 space-y-4">
+    <div className="space-y-4">
       {/* Header: icon + name + summary */}
       <div className="flex items-start gap-4">
         {icon ? (
