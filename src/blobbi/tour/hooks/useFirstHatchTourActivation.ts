@@ -83,7 +83,7 @@ export function useFirstHatchTourActivation({
   companions,
   isLoading,
   tour,
-  profileOnboardingDone = false,
+  profileOnboardingDone: _profileOnboardingDone = false,
 }: FirstHatchTourActivationInput): FirstHatchTourActivationResult {
   // ── Precondition evaluation ──
 
@@ -93,9 +93,8 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // Already completed — profile tag is the authoritative source,
-    // localStorage is a secondary fallback
-    if (profileOnboardingDone || tour.state.isCompleted) {
+    // localStorage tour already completed — this is always authoritative
+    if (tour.state.isCompleted) {
       return { shouldActivate: false, isEligible: false };
     }
 
@@ -120,13 +119,36 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
+    // ── TEMPORARY MIGRATION SAFEGUARD ──────────────────────────────
+    // Some older accounts had `onboarding_done` migrated to
+    // `blobbi_onboarding_done=true` before the first-hatch tour
+    // existed, so they never experienced it. When the user is in the
+    // exact single-egg/no-evolved-companions state (all checks above
+    // passed), we intentionally ignore `profileOnboardingDone` so
+    // those accounts can still enter the tour.
+    //
+    // This is safe because:
+    //   - The localStorage `tour.state.isCompleted` check above
+    //     already prevents re-triggering for users who HAVE finished
+    //     the tour.
+    //   - The egg-stage + single-companion guard means this only
+    //     fires for users who genuinely haven't hatched yet.
+    //
+    // TODO: Replace `blobbi_onboarding_done` with a dedicated
+    // `blobbi_first_hatch_tour_done` tag so onboarding completion
+    // and tour completion are tracked independently. Once that tag
+    // is in place, remove this safeguard and gate activation on the
+    // new tag instead.
+    // ───────────────────────────────────────────────────────────────
+    // (profileOnboardingDone is intentionally NOT checked here)
+
     // All preconditions met
     const eligible = true;
     // Only activate if the tour is not already running
     const activate = !tour.state.isActive;
 
     return { shouldActivate: activate, isEligible: eligible };
-  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive, profileOnboardingDone]);
+  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive]);
 
   // ── Auto-start effect ──
   // When all preconditions are met and the tour hasn't started yet,
