@@ -123,61 +123,6 @@ export function BlobbiRevealOverlay({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-      {/* Light rays behind the Blobbi */}
-      {!reducedMotion && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-          {/* Radial glow */}
-          <div
-            className={cn(
-              'absolute size-[500px] rounded-full',
-              'bg-gradient-radial from-amber-300/30 via-amber-200/10 to-transparent',
-              'transition-transform duration-1000 ease-out',
-              isVisible ? 'scale-100' : 'scale-50',
-            )}
-            style={{
-              background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.1) 35%, transparent 70%)',
-            }}
-          />
-
-          {/* Rotating rays */}
-          <div
-            className={cn(
-              'absolute size-[600px]',
-              isVisible ? 'animate-spin-slow' : '',
-            )}
-            style={{ animationDuration: '20s' }}
-          >
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute top-1/2 left-1/2 h-[300px] w-[2px] -translate-x-1/2 origin-top"
-                style={{
-                  transform: `translateX(-50%) rotate(${i * 45}deg)`,
-                  background: 'linear-gradient(to bottom, rgba(251,191,36,0.4), transparent)',
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Floating particles */}
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'absolute size-1.5 rounded-full bg-amber-300/60',
-                'animate-float-particle',
-              )}
-              style={{
-                left: `${20 + Math.random() * 60}%`,
-                top: `${20 + Math.random() * 60}%`,
-                animationDelay: `${i * 0.3}s`,
-                animationDuration: `${2 + Math.random() * 2}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Center content */}
       <div
         ref={contentRef}
@@ -200,16 +145,73 @@ export function BlobbiRevealOverlay({
           <Sparkles className="size-5" />
         </div>
 
-        {/* Blobbi visual */}
+        {/* Blobbi visual — rays/glow are positioned relative to this container
+            so the composition is always centered on the Blobbi itself */}
         <div className={cn(
+          'relative flex items-center justify-center',
           'transition-all duration-700 delay-200',
           isVisible ? 'translate-y-0 scale-100' : 'translate-y-4 scale-90',
         )}>
+          {/* Light rays + glow (centered on the Blobbi) */}
+          {!reducedMotion && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-visible">
+              {/* Radial glow */}
+              <div
+                className={cn(
+                  'absolute size-[500px] rounded-full',
+                  'transition-transform duration-1000 ease-out',
+                  isVisible ? 'scale-100' : 'scale-50',
+                )}
+                style={{
+                  background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.1) 35%, transparent 70%)',
+                }}
+              />
+
+              {/* Rotating rays */}
+              <div
+                className={cn(
+                  'absolute size-[600px]',
+                  isVisible ? 'animate-spin-slow' : '',
+                )}
+                style={{ animationDuration: '20s' }}
+              >
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-1/2 left-1/2 h-[300px] w-[2px] -translate-x-1/2 origin-top"
+                    style={{
+                      transform: `translateX(-50%) rotate(${i * 45}deg)`,
+                      background: 'linear-gradient(to bottom, rgba(251,191,36,0.4), transparent)',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Floating particles */}
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'absolute size-1.5 rounded-full bg-amber-300/60',
+                    'animate-float-particle',
+                  )}
+                  style={{
+                    left: `${20 + Math.random() * 60}%`,
+                    top: `${20 + Math.random() * 60}%`,
+                    animationDelay: `${i * 0.3}s`,
+                    animationDuration: `${2 + Math.random() * 2}s`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* The actual Blobbi */}
           <BlobbiStageVisual
             companion={companion}
             size="lg"
             animated
-            className="size-48 sm:size-56 drop-shadow-[0_0_30px_rgba(251,191,36,0.3)]"
+            className="relative z-10 size-48 sm:size-56 drop-shadow-[0_0_30px_rgba(251,191,36,0.3)]"
           />
         </div>
 

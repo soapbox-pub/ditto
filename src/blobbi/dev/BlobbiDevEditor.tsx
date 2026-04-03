@@ -29,9 +29,9 @@ import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
 
 /** Tour dev actions for the first-hatch tour */
 interface FirstHatchTourDevActions {
-  /** Skip the current step (for dev testing) */
-  skipPostRequirement: () => void;
-  /** Reset the tour in-memory state AND the profile tags so it can be tested again */
+  /** Jump from idle directly to egg_glowing_waiting_click (skip the auto-advance) */
+  skipToEggGlow: () => void;
+  /** Reset in-memory tour state AND Kind 11125 profile tags so the tour can re-activate */
   resetTour: () => Promise<void>;
   /** Current tour step id, or null if not active */
   currentStepId: string | null;
@@ -561,25 +561,25 @@ export function BlobbiDevEditor({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Test the first-hatch tour flow without needing to create a real post.
+                  Test the first-hatch tour. Profile tag <code>blobbi_first_hatch_tour_done</code> is the persisted signal.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {/* A. Skip Post Requirement */}
+                  {/* A. Skip idle → egg glow */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      tourDevActions.skipPostRequirement();
+                      tourDevActions.skipToEggGlow();
                     }}
                     disabled={tourDevActions.currentStepId !== 'idle'}
                     className="gap-2 text-xs"
-                    title="Skip to egg_glowing_waiting_click (skips idle)"
+                    title="Jump from idle to egg_glowing_waiting_click"
                   >
                     <SkipForward className="size-3.5" />
-                    Skip Post
+                    Skip to Glow
                   </Button>
 
-                  {/* B. Restart First-Hatch Tour (resets profile tags + in-memory state) */}
+                  {/* B. Restart tour (resets profile tags + in-memory state) */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -587,24 +587,24 @@ export function BlobbiDevEditor({
                       void tourDevActions.resetTour();
                     }}
                     className="gap-2 text-xs"
-                    title="Reset first-hatch tour: clears profile tags and in-memory state"
+                    title="Reset profile tags + in-memory state so the tour can re-activate"
                   >
                     <RefreshCw className="size-3.5" />
                     Restart Tour
                   </Button>
 
-                  {/* C. Reset Blobbi to Egg */}
+                  {/* C. Reset Blobbi to egg + restart tour */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       setStage('egg');
                       setState('active');
-                      tourDevActions.resetTour();
+                      void tourDevActions.resetTour();
                     }}
                     disabled={companion.stage === 'egg'}
                     className="gap-2 text-xs"
-                    title="Set stage to egg AND reset the tour — apply changes to test from scratch"
+                    title="Set stage to egg + reset tour tags — click Apply to publish, then tour auto-starts"
                   >
                     <Egg className="size-3.5" />
                     Reset to Egg + Tour

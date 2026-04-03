@@ -773,6 +773,7 @@ function BlobbiContent() {
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
+      companionsFetching={companionFetching}
       // DEV ONLY: State editor props
       showDevEditor={showDevEditor}
       setShowDevEditor={setShowDevEditor}
@@ -837,6 +838,8 @@ interface BlobbiDashboardProps {
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
+  /** Whether companion data is still being fetched from relays */
+  companionsFetching: boolean;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
   setShowDevEditor: (show: boolean) => void;
@@ -870,6 +873,7 @@ function BlobbiDashboard({
   invalidateCompanion,
   setStoredSelectedD,
   ensureCanonicalBeforeAction,
+  companionsFetching,
   // DEV ONLY
   showDevEditor,
   setShowDevEditor,
@@ -993,7 +997,7 @@ function BlobbiDashboard({
   const firstHatchTour = useFirstHatchTour();
   useFirstHatchTourActivation({
     companions,
-    isLoading: false,
+    isLoading: companionsFetching,
     tour: firstHatchTour,
     profileFirstHatchTourDone: profile?.firstHatchTourDone,
   });
@@ -1177,8 +1181,7 @@ function BlobbiDashboard({
   }, [firstHatchTour, profile, publishEvent, updateProfileEvent, invalidateProfile]);
 
   const tourDevActions = useMemo(() => ({
-    skipPostRequirement: () => {
-      // No post requirement anymore - skip to glowing
+    skipToEggGlow: () => {
       if (firstHatchTour.isStep('idle')) {
         firstHatchTour.actions.goTo('egg_glowing_waiting_click');
       }
