@@ -165,13 +165,13 @@ export function NsiteCard({ event }: NsiteCardProps) {
 			</div>
 		</div>
 
-		<NsitePreviewDialog
-			nsiteUrl={siteUrl}
-			appName={previewTitle || displayName || "nsite"}
-			appPicture={undefined}
-			open={previewOpen}
-			onOpenChange={setPreviewOpen}
-		/>
+	<NsitePreviewDialog
+		event={event}
+		appName={previewTitle || displayName || "nsite"}
+		appPicture={undefined}
+		open={previewOpen}
+		onOpenChange={setPreviewOpen}
+	/>
 		</>
 	);
 }

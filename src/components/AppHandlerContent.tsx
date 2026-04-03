@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { NsitePreviewDialog } from '@/components/NsitePreviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAddrEvent } from '@/hooks/useEvent';
 import { NostrURI } from '@/lib/NostrURI';
 import { cn } from '@/lib/utils';
 
@@ -66,20 +67,12 @@ function getShakespeareUrl(tags: string[][]): string | undefined {
   return undefined;
 }
 
-/** Encode a 32-byte hex pubkey as a base36 string (50 chars, zero-padded). */
-function hexToBase36(hex: string): string {
-  let n = 0n;
-  for (let i = 0; i < hex.length; i++) {
-    n = n * 16n + BigInt(parseInt(hex[i], 16));
-  }
-  return n.toString(36).padStart(50, '0');
-}
 
 interface NsiteRef {
-  /** The nsite.lol gateway URL used for proxying (e.g. https://<b36><dtag>.nsite.lol). */
-  gatewayUrl: string;
-  /** The bare nsite name shown in the address bar (e.g. "<b36><dtag>"). */
-  name: string;
+  /** The author pubkey (hex) of the kind 35128 event. */
+  pubkey: string;
+  /** The d-tag identifier of the kind 35128 event. */
+  identifier: string;
 }
 
 /**
@@ -92,10 +85,9 @@ function getNsiteRef(tags: string[][]): NsiteRef | undefined {
     const parts = tag[1]?.split(':');
     if (!parts || parts[0] !== '35128' || parts.length < 3) continue;
     const pubkey = parts[1];
-    const dTag = parts.slice(2).join(':');
-    if (!pubkey || !dTag) continue;
-    const name = `${hexToBase36(pubkey)}${dTag}`;
-    return { gatewayUrl: `https://${name}.nsite.lol`, name };
+    const identifier = parts.slice(2).join(':');
+    if (!pubkey || !identifier) continue;
+    return { pubkey, identifier };
   }
   return undefined;
 }
@@ -120,6 +112,11 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   const shakespeareUrl = useMemo(() => getShakespeareUrl(event.tags), [event.tags]);
   const nsiteRef = useMemo(() => getNsiteRef(event.tags), [event.tags]);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Fetch the actual nsite event so we can serve files directly from Blossom.
+  const { data: nsiteEvent } = useAddrEvent(
+    nsiteRef ? { kind: 35128, pubkey: nsiteRef.pubkey, identifier: nsiteRef.identifier } : undefined,
+  );
 
   if (compact) {
     return (
@@ -197,6 +194,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 <Button
                   size="sm"
                   className="h-7 text-xs"
+                  disabled={!nsiteEvent}
                   onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
                 >
                   <Play className="size-3 mr-1" />
@@ -224,9 +222,9 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         </div>
       </div>
 
-      {nsiteRef && (
+      {nsiteRef && nsiteEvent && (
          <NsitePreviewDialog
-           nsiteUrl={nsiteRef.gatewayUrl}
+           event={nsiteEvent}
            appName={name}
            appPicture={picture}
            open={previewOpen}
@@ -314,6 +312,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             {nsiteRef && (
               <Button
                 size="sm"
+                disabled={!nsiteEvent}
                 onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
               >
                 <Play className="size-3.5 mr-1.5" />
@@ -340,9 +339,9 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         </div>
       </div>
 
-      {nsiteRef && (
+      {nsiteRef && nsiteEvent && (
         <NsitePreviewDialog
-          nsiteUrl={nsiteRef.gatewayUrl}
+          event={nsiteEvent}
           appName={name}
           appPicture={picture}
           open={previewOpen}

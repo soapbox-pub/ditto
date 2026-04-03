@@ -1,9 +1,12 @@
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useCenterColumn } from '@/contexts/LayoutContext';
+import { useAppContext } from '@/hooks/useAppContext';
+import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 
 interface Rect { left: number; top: number; width: number; height: number }
 
@@ -66,9 +69,95 @@ interface JSONRPCResponse {
   id: number;
 }
 
+/**
+ * Build the path→sha256 manifest from a nsite event's `path` tags.
+ * Each path tag has the format: ["path", "/file/path", "<sha256>"]
+ */
+function buildManifest(event: NostrEvent): Map<string, string> {
+  const manifest = new Map<string, string>();
+  for (const tag of event.tags) {
+    if (tag[0] === 'path' && tag[1] && tag[2]) {
+      manifest.set(tag[1], tag[2]);
+    }
+  }
+  return manifest;
+}
+
+/**
+ * Resolve the Blossom servers for a nsite event.
+ * Prefers the `server` tags on the event; falls back to the provided app servers.
+ */
+function resolveServers(event: NostrEvent, appServers: string[]): string[] {
+  const eventServers = event.tags
+    .filter(([name]) => name === 'server')
+    .map(([, url]) => url)
+    .filter((url) => {
+      try { new URL(url); return true; } catch { return false; }
+    });
+
+  return eventServers.length > 0 ? eventServers : appServers;
+}
+
+/**
+ * Fetch a blob from the given sha256 by trying each Blossom server in order.
+ * Returns a Response from the first server that responds successfully, or
+ * throws if all servers fail.
+ */
+async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Response> {
+  let lastError: unknown;
+  for (const server of servers) {
+    const base = server.replace(/\/+$/, '');
+    const url = `${base}/${sha256}`;
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError ?? new Error(`Failed to fetch blob ${sha256} from all servers`);
+}
+
+/**
+ * Guess a MIME type from a file path extension.
+ * Falls back to 'application/octet-stream' for unknown extensions.
+ */
+function guessMimeType(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    html: 'text/html',
+    htm: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript',
+    mjs: 'application/javascript',
+    json: 'application/json',
+    svg: 'image/svg+xml',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    ico: 'image/x-icon',
+    woff: 'font/woff',
+    woff2: 'font/woff2',
+    ttf: 'font/ttf',
+    otf: 'font/otf',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mp3: 'audio/mpeg',
+    ogg: 'audio/ogg',
+    wav: 'audio/wav',
+    wasm: 'application/wasm',
+    xml: 'application/xml',
+    txt: 'text/plain',
+    md: 'text/markdown',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+
 interface NsitePreviewDialogProps {
-  /** The nsite.lol gateway URL used for proxying (e.g. https://<b36><dtag>.nsite.lol). */
-  nsiteUrl: string;
+  /** The nsite event (kind 15128 or 35128) containing path and server tags. */
+  event: NostrEvent;
   /** Display name for the app. */
   appName: string;
   /** Optional app icon URL. */
@@ -82,30 +171,47 @@ interface NsitePreviewDialogProps {
  * a sandboxed iframe, using the Shakespeare iframe-fetch-client protocol over
  * local-shakespeare.dev.
  *
+ * Instead of proxying requests through an nsite gateway, this component serves
+ * files directly from Blossom servers using the manifest data embedded in the
+ * nsite event's `path` tags. Each path tag maps a file path to its sha256 hash,
+ * which is used to construct a Blossom content-addressed URL.
+ *
  * The panel is portaled into the center column DOM element (via CenterColumnContext)
- * and uses `position: absolute; inset: 0` to fill it exactly — no viewport
- * math or responsive inset hacks required.
+ * and uses `position: fixed` to fill the viewport column area.
  *
  * The parent window intercepts JSON-RPC `fetch` requests from the iframe and
- * proxies them to the live nsite URL, so the SPA can run without needing CORS
- * headers on the origin server.
+ * serves them directly from Blossom, so the SPA can run without any gateway dependency.
  */
-export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
+export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
+  const { config } = useAppContext();
 
   // Derive a stable iframe origin from the session id and preview domain
   const iframeOrigin = `https://${sessionIdRef.current}.${PREVIEW_DOMAIN}`;
   const iframeSrc = `${iframeOrigin}/`;
+
+  // Build the manifest and server list from the event (memoised per event identity)
+  const manifest = useRef<Map<string, string>>(new Map());
+  const servers = useRef<string[]>([]);
+
+  useEffect(() => {
+    manifest.current = buildManifest(event);
+    const appServers = getEffectiveBlossomServers(
+      config.blossomServerMetadata,
+      config.useAppBlossomServers ?? true,
+    );
+    servers.current = resolveServers(event, appServers.length > 0 ? appServers : APP_BLOSSOM_SERVERS.servers);
+  }, [event, config.blossomServerMetadata, config.useAppBlossomServers]);
 
   /** Send a JSON-RPC response back to the iframe. */
   const sendResponse = useCallback((message: JSONRPCResponse) => {
     iframeRef.current?.contentWindow?.postMessage(message, iframeOrigin);
   }, [iframeOrigin]);
 
-  /** Handle a fetch request from the iframe by proxying it to the nsite. */
+  /** Handle a fetch request from the iframe by serving files directly from Blossom. */
   const handleFetch = useCallback(async (request: JSONRPCFetchRequest) => {
     const { params, id } = request;
     const { request: fetchRequest } = params;
@@ -123,17 +229,35 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
         return;
       }
 
-      // Build the proxied URL: replace the iframe origin with the nsite origin
-      const nsiteBase = new URL(nsiteUrl);
-      const proxyUrl = `${nsiteBase.origin}${requestedUrl.pathname}${requestedUrl.search}`;
+      // Strip query string from path for manifest lookup
+      const requestedPath = requestedUrl.pathname;
 
-      const res = await fetch(proxyUrl, {
-        method: fetchRequest.method,
-        headers: fetchRequest.headers,
-        body: fetchRequest.body ?? undefined,
-        // Don't follow redirects automatically so we can handle them
-        redirect: 'follow',
-      });
+      // Look up the sha256 for this path in the manifest.
+      // If not found, fall back to /index.html (SPA client-side routing).
+      let sha256 = manifest.current.get(requestedPath);
+      let servingPath = requestedPath;
+
+      if (!sha256) {
+        sha256 = manifest.current.get('/index.html');
+        servingPath = '/index.html';
+      }
+
+      if (!sha256) {
+        sendResponse({
+          jsonrpc: '2.0',
+          result: {
+            status: 404,
+            statusText: 'Not Found',
+            headers: { 'Content-Type': 'text/plain' },
+            body: btoa('Not Found'),
+          },
+          id,
+        });
+        return;
+      }
+
+      // Fetch the blob from Blossom, trying each server in order
+      const res = await fetchFromBlossom(sha256, servers.current);
 
       // Read as ArrayBuffer → base64 so binary assets work correctly
       const buffer = await res.arrayBuffer();
@@ -144,27 +268,27 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
       }
       const bodyBase64 = btoa(binary);
 
+      // Determine the content type. Prefer the response header from Blossom,
+      // but fall back to a guess based on the file extension since Blossom
+      // may return a generic content-type for all blobs.
+      const blossomContentType = res.headers.get('content-type')?.split(';')[0].trim();
+      const contentType = (blossomContentType && blossomContentType !== 'application/octet-stream')
+        ? blossomContentType
+        : guessMimeType(servingPath);
+
       // The iframe-fetch-client (main.js) checks headers with Title-Case keys
-      // (e.g. "Content-Type"), but the browser's fetch() API normalizes all
-      // header names to lowercase. Re-key everything to Title-Case so the
-      // client can find what it needs.
-      const toTitleCase = (s: string) =>
-        s.replace(/(^|-)([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase());
-      const responseHeaders: Record<string, string> = {};
-      res.headers.forEach((value, key) => {
-        const titleKey = toTitleCase(key);
-        // main.js does an exact equality check against "text/html" — strip any
-        // charset or other parameters (e.g. "text/html; charset=UTF-8" → "text/html")
-        responseHeaders[titleKey] = titleKey === 'Content-Type'
-          ? value.split(';')[0].trim()
-          : value;
-      });
+      // (e.g. "Content-Type"), and does an exact equality check against "text/html"
+      // for routing decisions.
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': contentType,
+        'Content-Length': String(bytes.byteLength),
+      };
 
       sendResponse({
         jsonrpc: '2.0',
         result: {
-          status: res.status,
-          statusText: res.statusText,
+          status: 200,
+          statusText: 'OK',
           headers: responseHeaders,
           body: bodyBase64,
         },
@@ -177,9 +301,9 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
         id,
       });
     }
-  }, [iframeOrigin, nsiteUrl, sendResponse]);
+  }, [iframeOrigin, sendResponse]);
 
-  /** Handle navigation state updates from the iframe (no-op: we no longer track path). */
+  /** Handle navigation state updates from the iframe (no-op). */
   const handleNavigationState = useCallback((_params: {
     currentUrl: string;
     canGoBack: boolean;
