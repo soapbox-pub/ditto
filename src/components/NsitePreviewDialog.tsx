@@ -44,8 +44,10 @@ interface JSONRPCResponse {
 }
 
 interface NsitePreviewDialogProps {
-  /** The nsite URL to preview (e.g. https://abc.nsite.lol). */
+  /** The nsite.lol gateway URL used for proxying (e.g. https://<b36><dtag>.nsite.lol). */
   nsiteUrl: string;
+  /** The bare nsite identifier shown in the address bar (e.g. "<b36><dtag>"). */
+  nsiteName: string;
   /** Display name for the app. */
   appName: string;
   open: boolean;
@@ -60,7 +62,7 @@ interface NsitePreviewDialogProps {
  * proxies them to the live nsite URL, so the SPA can run without needing CORS
  * headers on the origin server.
  */
-export function NsitePreviewDialog({ nsiteUrl, appName, open, onOpenChange }: NsitePreviewDialogProps) {
+export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenChange }: NsitePreviewDialogProps) {
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentPath, setCurrentPath] = useState('/');
@@ -229,16 +231,9 @@ export function NsitePreviewDialog({ nsiteUrl, appName, open, onOpenChange }: Ns
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
 
-  // Derive the display URL shown in the address bar as nsite://<subdomain><path>
-  const displayUrl = (() => {
-    try {
-      const { hostname } = new URL(nsiteUrl);
-      const path = currentPath === '/' ? '' : currentPath;
-      return `nsite://${hostname}${path}`;
-    } catch {
-      return nsiteUrl;
-    }
-  })();
+  // Display URL shown in the address bar: nsite://<name><path>
+  const path = currentPath === '/' ? '' : currentPath;
+  const displayUrl = `nsite://${nsiteName}${path}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

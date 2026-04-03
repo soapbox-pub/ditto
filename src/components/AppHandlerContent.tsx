@@ -75,12 +75,18 @@ function hexToBase36(hex: string): string {
   return n.toString(36).padStart(50, '0');
 }
 
+interface NsiteRef {
+  /** The nsite.lol gateway URL used for proxying (e.g. https://<b36><dtag>.nsite.lol). */
+  gatewayUrl: string;
+  /** The bare nsite name shown in the address bar (e.g. "<b36><dtag>"). */
+  name: string;
+}
+
 /**
- * Get the nsite preview URL from a kind 35128 `a` tag, if present.
+ * Extract nsite info from a kind 35128 `a` tag, if present.
  * The `a` tag value format is `"35128:<pubkey>:<d-tag>"`.
- * Returns the nsite.lol gateway URL for the referenced nsite.
  */
-function getNsitePreviewUrl(tags: string[][]): string | undefined {
+function getNsiteRef(tags: string[][]): NsiteRef | undefined {
   for (const tag of tags) {
     if (tag[0] !== 'a') continue;
     const parts = tag[1]?.split(':');
@@ -88,8 +94,8 @@ function getNsitePreviewUrl(tags: string[][]): string | undefined {
     const pubkey = parts[1];
     const dTag = parts.slice(2).join(':');
     if (!pubkey || !dTag) continue;
-    const pubkeyB36 = hexToBase36(pubkey);
-    return `https://${pubkeyB36}${dTag}.nsite.lol`;
+    const name = `${hexToBase36(pubkey)}${dTag}`;
+    return { gatewayUrl: `https://${name}.nsite.lol`, name };
   }
   return undefined;
 }
@@ -112,7 +118,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   const hashtags = getAllTags(event.tags, 't');
 
   const shakespeareUrl = useMemo(() => getShakespeareUrl(event.tags), [event.tags]);
-  const nsitePreviewUrl = useMemo(() => getNsitePreviewUrl(event.tags), [event.tags]);
+  const nsiteRef = useMemo(() => getNsiteRef(event.tags), [event.tags]);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   if (compact) {
@@ -187,7 +193,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {nsitePreviewUrl && (
+              {nsiteRef && (
                 <Button
                   size="sm"
                   className="h-7 text-xs"
@@ -198,7 +204,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 </Button>
               )}
               {websiteUrl && (
-                <Button asChild size="sm" variant={nsitePreviewUrl ? 'secondary' : 'default'} className="h-7 text-xs">
+                <Button asChild size="sm" variant={nsiteRef ? 'secondary' : 'default'} className="h-7 text-xs">
                   <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                     Open App
                     <ExternalLink className="size-3 ml-1.5" />
@@ -218,16 +224,17 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         </div>
       </div>
 
-      {nsitePreviewUrl && (
-        <NsitePreviewDialog
-          nsiteUrl={nsitePreviewUrl}
-          appName={name}
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-        />
-      )}
-      </>
-    );
+      {nsiteRef && (
+         <NsitePreviewDialog
+           nsiteUrl={nsiteRef.gatewayUrl}
+           nsiteName={nsiteRef.name}
+           appName={name}
+           open={previewOpen}
+           onOpenChange={setPreviewOpen}
+         />
+       )}
+       </>
+     );
   }
 
   // Full detail view
@@ -304,7 +311,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
-            {nsitePreviewUrl && (
+            {nsiteRef && (
               <Button
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
@@ -314,7 +321,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               </Button>
             )}
             {websiteUrl && (
-              <Button asChild size="sm" variant={nsitePreviewUrl ? 'secondary' : 'default'}>
+              <Button asChild size="sm" variant={nsiteRef ? 'secondary' : 'default'}>
                 <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                   Open App
                   <ExternalLink className="size-3 ml-1.5" />
@@ -333,9 +340,10 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         </div>
       </div>
 
-      {nsitePreviewUrl && (
+      {nsiteRef && (
         <NsitePreviewDialog
-          nsiteUrl={nsitePreviewUrl}
+          nsiteUrl={nsiteRef.gatewayUrl}
+          nsiteName={nsiteRef.name}
           appName={name}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
