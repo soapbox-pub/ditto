@@ -29,7 +29,7 @@ import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
 
 /** Tour dev actions for the first-hatch tour */
 interface FirstHatchTourDevActions {
-  /** Skip the post requirement: advance from show_hatch_card to egg_glowing_waiting_click */
+  /** Skip the current step (for dev testing) */
   skipPostRequirement: () => void;
   /** Reset the entire first-hatch tour so it can be tested again from scratch */
   resetTour: () => void;
@@ -571,9 +571,9 @@ export function BlobbiDevEditor({
                     onClick={() => {
                       tourDevActions.skipPostRequirement();
                     }}
-                    disabled={tourDevActions.currentStepId !== 'show_hatch_card'}
+                    disabled={tourDevActions.currentStepId !== 'idle'}
                     className="gap-2 text-xs"
-                    title="Advance from show_hatch_card to egg_glowing_waiting_click (skips post check)"
+                    title="Skip to egg_glowing_waiting_click (skips idle)"
                   >
                     <SkipForward className="size-3.5" />
                     Skip Post

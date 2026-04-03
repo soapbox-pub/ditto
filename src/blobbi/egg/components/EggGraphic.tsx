@@ -30,7 +30,6 @@ export interface EggStatusEffects {
  * Driven by the tour orchestration layer, not by EggGraphic itself.
  *
  * - idle: no tour effects
- * - show_hatch_card: initial crack visible + auto-wiggle every 2.5s
  * - glowing_waiting_click: enhanced glow + auto-wiggle, waiting for tap
  * - crack_stage_1: crack expands (click 1)
  * - crack_stage_2: crack expands more (click 2)
@@ -40,7 +39,6 @@ export interface EggStatusEffects {
  */
 export type EggTourVisualState =
   | 'idle'
-  | 'show_hatch_card'
   | 'glowing_waiting_click'
   | 'crack_stage_1'
   | 'crack_stage_2'
@@ -195,8 +193,8 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
     setIsTapWiggling(false);
   }, []);
 
-  // Tour: auto-wiggle effect for show_hatch_card and glowing_waiting_click states
-  const shouldAutoWiggle = tourVisualState === 'show_hatch_card' || tourVisualState === 'glowing_waiting_click';
+  // Tour: auto-wiggle effect for glowing_waiting_click state
+  const shouldAutoWiggle = tourVisualState === 'glowing_waiting_click';
   const autoWiggleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (!shouldAutoWiggle) {
@@ -228,7 +226,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
   const tourShowCrack = tourVisualState !== 'idle' && tourVisualState !== 'hatching';
 
   // Tour: crack intensity level (0 = small center crack, 1-3 = progressively expanding)
-  // Level 0: small central crack (show_hatch_card, glowing_waiting_click)
+  // Level 0: small central crack (glowing_waiting_click)
   // Level 1: crack expands left/right with small branches (crack_stage_1)
   // Level 2: crack expands further toward edges, more branches (crack_stage_2)
   // Level 3: crack reaches near shell edges, about to split (crack_stage_3, opening)

@@ -15,13 +15,13 @@
  * 2. The user has exactly 1 Blobbi.
  * 3. That Blobbi is in the egg stage.
  * 4. No Blobbi is in baby or adult stage.
- * 5. The tour has not been completed yet (checked via profile tag
- *    AND localStorage fallback).
+ * 5. The tour has not been completed yet (localStorage).
+ * 6. The `blobbi_first_hatch_tour_done` profile tag is not set to true.
  *
- * Completion is authoritative from the Blobbonaut profile event
- * (`blobbi_onboarding_done` tag). localStorage (`blobbi:tour:first-hatch`)
- * is a secondary signal for in-progress UI state and as a fallback
- * when the profile hasn't been updated yet.
+ * MIGRATION NOTE: `blobbi_onboarding_done` is intentionally ignored
+ * when the user is in the single-egg state. This ensures old accounts
+ * that were migrated before the hatch tour existed can still experience
+ * it. The `blobbi_first_hatch_tour_done` tag is the authoritative signal.
  * ────────────────────────────────────────────────────────────────
  */
 
@@ -41,9 +41,14 @@ export interface FirstHatchTourActivationInput {
   /** The tour hook result (localStorage-based state machine) */
   tour: UseFirstHatchTourResult;
   /**
-   * Whether onboarding is already marked complete in the Blobbonaut profile
-   * event (`blobbi_onboarding_done` tag). This is the authoritative source.
-   * When true, the tour will not activate regardless of localStorage state.
+   * Whether the first hatch tour is already marked complete in the
+   * Blobbonaut profile event (`blobbi_first_hatch_tour_done` tag).
+   * This is the authoritative, future-proof signal.
+   */
+  profileFirstHatchTourDone?: boolean;
+  /**
+   * @deprecated Use profileFirstHatchTourDone instead.
+   * Kept for backwards compatibility during migration.
    */
   profileOnboardingDone?: boolean;
 }
@@ -75,7 +80,7 @@ export interface FirstHatchTourActivationResult {
  *   companions,
  *   isLoading: companionsLoading,
  *   tour,
- *   profileOnboardingDone: profile?.onboardingDone,
+ *   profileFirstHatchTourDone: profile?.firstHatchTourDone,
  * });
  * ```
  */
@@ -83,6 +88,7 @@ export function useFirstHatchTourActivation({
   companions,
   isLoading,
   tour,
+  profileFirstHatchTourDone = false,
   profileOnboardingDone: _profileOnboardingDone = false,
 }: FirstHatchTourActivationInput): FirstHatchTourActivationResult {
   // ── Precondition evaluation ──
@@ -93,8 +99,13 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // localStorage tour already completed — this is always authoritative
+    // localStorage tour already completed — always authoritative
     if (tour.state.isCompleted) {
+      return { shouldActivate: false, isEligible: false };
+    }
+
+    // Dedicated profile tag marks first hatch tour done
+    if (profileFirstHatchTourDone) {
       return { shouldActivate: false, isEligible: false };
     }
 
@@ -111,7 +122,7 @@ export function useFirstHatchTourActivation({
     }
 
     // No baby or adult companions (redundant given length === 1 + stage === 'egg',
-    // but kept explicit for clarity and future-proofing if rules change)
+    // but kept explicit for clarity and future-proofing)
     const hasBabyOrAdult = companions.some(
       (c) => c.stage === 'baby' || c.stage === 'adult',
     );
@@ -119,28 +130,13 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // ── TEMPORARY MIGRATION SAFEGUARD ──────────────────────────────
-    // Some older accounts had `onboarding_done` migrated to
-    // `blobbi_onboarding_done=true` before the first-hatch tour
-    // existed, so they never experienced it. When the user is in the
-    // exact single-egg/no-evolved-companions state (all checks above
-    // passed), we intentionally ignore `profileOnboardingDone` so
-    // those accounts can still enter the tour.
-    //
-    // This is safe because:
-    //   - The localStorage `tour.state.isCompleted` check above
-    //     already prevents re-triggering for users who HAVE finished
-    //     the tour.
-    //   - The egg-stage + single-companion guard means this only
-    //     fires for users who genuinely haven't hatched yet.
-    //
-    // TODO: Replace `blobbi_onboarding_done` with a dedicated
-    // `blobbi_first_hatch_tour_done` tag so onboarding completion
-    // and tour completion are tracked independently. Once that tag
-    // is in place, remove this safeguard and gate activation on the
-    // new tag instead.
+    // ── MIGRATION SAFEGUARD ────────────────────────────────────────
+    // `blobbi_onboarding_done` is intentionally NOT checked here.
+    // Old accounts may have this tag set from before the hatch tour
+    // existed. The single-egg + localStorage check is sufficient.
+    // The new `blobbi_first_hatch_tour_done` tag is the dedicated
+    // signal and is checked above.
     // ───────────────────────────────────────────────────────────────
-    // (profileOnboardingDone is intentionally NOT checked here)
 
     // All preconditions met
     const eligible = true;
@@ -148,12 +144,9 @@ export function useFirstHatchTourActivation({
     const activate = !tour.state.isActive;
 
     return { shouldActivate: activate, isEligible: eligible };
-  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive]);
+  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive, profileFirstHatchTourDone]);
 
   // ── Auto-start effect ──
-  // When all preconditions are met and the tour hasn't started yet,
-  // start it. This fires once and then `shouldActivate` flips to false
-  // because `tour.state.isActive` becomes true.
   useEffect(() => {
     if (shouldActivate) {
       tour.actions.start();

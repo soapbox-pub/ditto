@@ -117,6 +117,14 @@ export default {
 			'collapsible-up': {
 				from: { height: 'var(--radix-collapsible-content-height)' },
 				to: { height: '0' }
+			},
+			'spin-slow': {
+				from: { transform: 'rotate(0deg)' },
+				to: { transform: 'rotate(360deg)' }
+			},
+			'float-particle': {
+				'0%, 100%': { transform: 'translateY(0) scale(1)', opacity: '0.6' },
+				'50%': { transform: 'translateY(-20px) scale(1.2)', opacity: '1' }
 			}
 			},
 			animation: {
@@ -126,7 +134,9 @@ export default {
 				'badge-spotlight': 'badge-spotlight 8s linear infinite',
 				'highlight-fade': 'highlight-fade 1.5s ease-out forwards',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
-				'collapsible-up': 'collapsible-up 0.2s ease-out'
+				'collapsible-up': 'collapsible-up 0.2s ease-out',
+				'spin-slow': 'spin-slow 20s linear infinite',
+				'float-particle': 'float-particle 3s ease-in-out infinite'
 			}
 		}
 	},

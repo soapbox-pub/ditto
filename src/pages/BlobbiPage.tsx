@@ -101,10 +101,7 @@ import {
   loadMissionCardVisible,
   saveMissionCardVisible,
 } from '@/blobbi/ui/lib/action-bar-preferences';
-import { useQuery } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
-import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourCard } from '@/blobbi/tour';
-import { buildHatchPhrase, isValidHatchPost } from '@/blobbi/actions';
+import { useFirstHatchTour, useFirstHatchTourActivation, useFirstEggExperience, BlobbiRevealOverlay } from '@/blobbi/tour';
 import type { EggTourVisualState } from '@/blobbi/egg';
 
 /**
@@ -250,18 +247,30 @@ function BlobbiContent() {
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
+  // Combine loading/fetching states
+  const companionLoading = collectionLoading;
+  const companionFetching = collectionFetching;
+  const invalidateCompanion = invalidateCollection;
+  
+  // ─── First Egg Experience ────────────────────────────────────────────────────
+  // Handles auto profile + egg creation for brand-new users.
+  // This replaces the old BlobbiOnboardingFlow for first-time users.
+  const firstEggExperience = useFirstEggExperience({
+    profile,
+    profileLoading,
+    companions,
+    companionsLoading: companionLoading || (companionFetching && companions.length === 0),
+    updateProfileEvent,
+    updateCompanionEvent,
+    invalidateProfile,
+    invalidateCompanion: invalidateCollection,
+    setStoredSelectedD,
+  });
+  
   // STEP 6: Selection Priority
-  // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
-  // 2) first item from profile.has that exists in companionsByD - DEFAULT ONLY, never persisted
-  // 3) undefined (show selector)
-  //
-  // CRITICAL: Default selection must NEVER overwrite localStorage.
-  // User selection persists only via handleSelectBlobbi, not via this computed value.
   const selectedD = useMemo(() => {
     if (!profile) return undefined;
     
-    // Priority 1: localStorage selection (if it exists in loaded collection)
-    // USER SELECTION ALWAYS WINS - this is the authoritative source
     if (storedSelectedD && companionsByD[storedSelectedD]) {
       if (DEBUG_BLOBBI) {
         console.log('[BlobbiPage] selectedD: using localStorage selection:', storedSelectedD);
@@ -269,33 +278,20 @@ function BlobbiContent() {
       return storedSelectedD;
     }
     
-    // Priority 2: First item from profile.has that exists in companionsByD
-    // This is a DEFAULT - it should NOT be persisted to localStorage
     for (const d of profile.has) {
       if (companionsByD[d]) {
         if (DEBUG_BLOBBI) {
-          console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
-            '(storedSelectedD was:', storedSelectedD, 
-            storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+          console.log('[BlobbiPage] selectedD: using default from profile.has:', d);
         }
         return d;
       }
     }
     
-    // Priority 3: No valid selection
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
   }, [profile, storedSelectedD, companionsByD]);
-  
-  // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
-  // This prevents the default selection from overwriting user selections during:
-  // - WebSocket updates
-  // - Query refetches  
-  // - Race conditions where storedSelectedD is not yet in companionsByD
-  //
-  // User selections are only persisted via handleSelectBlobbi (line ~232).
   
   // Get the selected companion from the collection
   const companion = selectedD ? companionsByD[selectedD] ?? null : null;
@@ -312,11 +308,6 @@ function BlobbiContent() {
       });
     }
   }, [selectedD, companion]);
-  
-  // Combine loading/fetching states
-  const companionLoading = collectionLoading;
-  const companionFetching = collectionFetching;
-  const invalidateCompanion = invalidateCollection;
   
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   
@@ -564,10 +555,37 @@ function BlobbiContent() {
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE B: No profile exists ───
-  // Show profile creation onboarding
+  // ─── CASE B & C: First egg experience is active (creating profile / egg) ───
+  // The useFirstEggExperience hook handles auto-creating profile + first egg.
+  // While it's working, show a loading state.
+  if (firstEggExperience.state.isActive && firstEggExperience.state.step !== 'ready') {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: first egg experience -', firstEggExperience.state.step);
+    return (
+      <DashboardShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8">
+          <div className="relative">
+            <div className="size-28 rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-yellow-500/5 flex items-center justify-center shadow-lg">
+              <Egg className="size-14 text-amber-500 animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-2 max-w-sm">
+            <h2 className="text-xl font-bold">
+              {firstEggExperience.state.step === 'creating_profile'
+                ? 'Setting up your profile...'
+                : 'Preparing your first egg...'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              This will only take a moment.
+            </p>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
+  
+  // ─── CASE B2: No profile and first egg experience is idle (error case) ───
   if (!profile) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: profile creation onboarding');
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: profile creation onboarding (fallback)');
     return (
       <DashboardShell>
         <BlobbiOnboardingFlow
@@ -582,10 +600,10 @@ function BlobbiContent() {
     );
   }
   
-  // ─── CASE C: Profile exists but has no pets (empty has[] and no current_companion) ───
-  // Show adoption onboarding
+  // ─── CASE C2: Profile exists but has no pets and experience is idle ───
+  // This only happens when the auto-create fails or for subsequent adopts
   if (!dList || dList.length === 0) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: adoption onboarding (profile exists, no pets)');
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: adoption onboarding (fallback)');
     return (
       <DashboardShell>
         <BlobbiOnboardingFlow
@@ -976,59 +994,18 @@ function BlobbiDashboard({
     companions,
     isLoading: false, // companions are already loaded at this point
     tour: firstHatchTour,
+    profileFirstHatchTourDone: profile?.firstHatchTourDone,
     profileOnboardingDone: profile?.onboardingDone,
   });
   const isFirstHatchTourActive = firstHatchTour.state.isActive;
 
-  // The required phrase for the first-hatch post
-  const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
-
-  // Auto-advance from idle -> show_hatch_card (immediately)
+  // Auto-advance from idle -> egg_glowing_waiting_click (immediately)
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('idle')) {
-      firstHatchTour.actions.advance(); // -> show_hatch_card
+      firstHatchTour.actions.advance(); // -> egg_glowing_waiting_click
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
-
-  // Show the inline first-hatch card for all pre-hatch steps
-  const showFirstHatchCard = isFirstHatchTourActive && firstHatchTour.isAnyStep(
-    'show_hatch_card', 'egg_glowing_waiting_click',
-    'egg_crack_stage_1', 'egg_crack_stage_2', 'egg_crack_stage_3',
-  );
-
-  // Detect hatch post completion for the first-hatch tour
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const tourAwaitingPost = isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_card');
-
-  const { data: tourPostFound } = useQuery({
-    queryKey: ['first-hatch-tour-post', user?.pubkey, companion.name],
-    queryFn: async () => {
-      if (!user?.pubkey) return false;
-      const events = await nostr.query([{
-        kinds: [1],
-        authors: [user.pubkey],
-        limit: 20,
-      }]);
-      return events.some(e => isValidHatchPost(e, companion.name));
-    },
-    enabled: tourAwaitingPost && !!user?.pubkey,
-    refetchInterval: 5000,
-    staleTime: 3000,
-  });
-
-  // When the post is found during show_hatch_card, show the completed state
-  // for 2 seconds so the user sees the checkmark, then auto-advance to glowing.
-  useEffect(() => {
-    if (!tourPostFound || !isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('show_hatch_card')) {
-      const timer = setTimeout(() => {
-        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
 
   // Fake pointer hint: after 10s on glowing_waiting_click, show hint; repeat every 5s
   const [showClickHint, setShowClickHint] = useState(false);
@@ -1057,7 +1034,7 @@ function BlobbiDashboard({
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
 
-  // Auto-advance for opening -> hatching -> complete (with hatch mutation)
+  // Auto-advance for opening -> hatching (with hatch mutation + reveal)
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('egg_opening')) {
@@ -1068,46 +1045,97 @@ function BlobbiDashboard({
     }
   }, [isFirstHatchTourActive, firstHatchTour]);
 
+  // When we reach egg_hatching, execute the actual hatch mutation then
+  // advance to the reveal step (NOT complete — reveal overlay handles completion)
   useEffect(() => {
     if (!isFirstHatchTourActive) return;
     if (firstHatchTour.isStep('egg_hatching')) {
-      // Execute the actual hatch mutation, mark onboarding complete on the
-      // profile event, then complete the tour's local state.
       const doHatch = async () => {
         try {
           await onHatch();
-
-          // Persist blobbi_onboarding_done to the Blobbonaut profile (authoritative)
-          if (profile) {
-            try {
-              const updatedTags = updateBlobbonautTags(profile.allTags, {
-                blobbi_onboarding_done: 'true',
-              });
-              const event = await publishEvent({
-                kind: KIND_BLOBBONAUT_PROFILE,
-                content: '',
-                tags: updatedTags,
-              });
-              updateProfileEvent(event);
-            } catch (e) {
-              console.error('[FirstHatchTour] Failed to persist onboarding completion to profile:', e);
-            }
-          }
-        } finally {
-          firstHatchTour.actions.complete();
+        } catch (e) {
+          console.error('[FirstHatchTour] Hatch mutation failed:', e);
         }
+        // Advance to reveal step regardless of success/failure
+        // (the user should still see the naming overlay)
+        firstHatchTour.actions.advance(); // -> reveal
       };
       const timer = setTimeout(doHatch, 1200);
       return () => clearTimeout(timer);
     }
-  }, [isFirstHatchTourActive, firstHatchTour, onHatch, profile, publishEvent, updateProfileEvent]);
+  }, [isFirstHatchTourActive, firstHatchTour, onHatch]);
+
+  // Show reveal overlay when tour reaches the 'reveal' step
+  const showRevealOverlay = isFirstHatchTourActive && firstHatchTour.isStep('reveal');
+
+  // State for reveal naming
+  const [isNamingBlobbi, setIsNamingBlobbi] = useState(false);
+
+  // Complete the tour: persist to profile + complete localStorage state
+  const completeFirstHatchTour = useCallback(async () => {
+    // Persist both blobbi_onboarding_done and blobbi_first_hatch_tour_done
+    if (profile) {
+      try {
+        const updatedTags = updateBlobbonautTags(profile.allTags, {
+          blobbi_onboarding_done: 'true',
+          blobbi_first_hatch_tour_done: 'true',
+        });
+        const event = await publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: updatedTags,
+        });
+        updateProfileEvent(event);
+      } catch (e) {
+        console.error('[FirstHatchTour] Failed to persist completion to profile:', e);
+      }
+    }
+
+    firstHatchTour.actions.complete();
+  }, [profile, publishEvent, updateProfileEvent, firstHatchTour]);
+
+  // Handle naming from the reveal overlay
+  const handleRevealNameConfirm = useCallback(async (newName: string) => {
+    setIsNamingBlobbi(true);
+    try {
+      // Update the Blobbi event with the new name
+      if (companion) {
+        const updatedTags = updateBlobbiTags(companion.allTags, {
+          name: newName,
+        });
+        const event = await publishEvent({
+          kind: KIND_BLOBBI_STATE,
+          content: '',
+          tags: updatedTags,
+        });
+        updateCompanionEvent(event);
+        invalidateCompanion();
+      }
+
+      // Complete the tour and mark on profile
+      await completeFirstHatchTour();
+    } catch (e) {
+      console.error('[FirstHatchTour] Failed to rename:', e);
+      toast({
+        title: 'Failed to save name',
+        description: e instanceof Error ? e.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsNamingBlobbi(false);
+    }
+  }, [companion, publishEvent, updateCompanionEvent, invalidateCompanion, completeFirstHatchTour]);
+
+  // Handle dismiss (skip naming) from reveal overlay
+  const handleRevealDismiss = useCallback(async () => {
+    await completeFirstHatchTour();
+  }, [completeFirstHatchTour]);
 
   // Derive tourVisualState for the egg visual
   const tourVisualState = useMemo((): EggTourVisualState => {
     if (!isFirstHatchTourActive) return 'idle';
     const step = firstHatchTour.state.currentStepId;
     switch (step) {
-      case 'show_hatch_card': return 'show_hatch_card';
       case 'egg_glowing_waiting_click': return 'glowing_waiting_click';
       case 'egg_crack_stage_1': return 'crack_stage_1';
       case 'egg_crack_stage_2': return 'crack_stage_2';
@@ -1121,7 +1149,8 @@ function BlobbiDashboard({
   // DEV ONLY: Build tour dev actions for the state editor
   const tourDevActions = useMemo(() => ({
     skipPostRequirement: () => {
-      if (firstHatchTour.isStep('show_hatch_card')) {
+      // No post requirement anymore - skip to glowing
+      if (firstHatchTour.isStep('idle')) {
         firstHatchTour.actions.goTo('egg_glowing_waiting_click');
       }
     },
@@ -1590,17 +1619,32 @@ function BlobbiDashboard({
         )}
       </div>
       
-      {/* First Hatch Tour: inline card directly below egg (above stats) */}
-      {showFirstHatchCard && (
+      {/* First Hatch Tour: tap hint below egg during click steps */}
+      {isFirstHatchTourActive && firstHatchTour.isAnyStep(
+        'egg_glowing_waiting_click',
+        'egg_crack_stage_1', 'egg_crack_stage_2', 'egg_crack_stage_3',
+      ) && (
         <div className="px-4 sm:px-6 mt-2">
-          <FirstHatchTourCard
-            blobbiName={companion.name}
-            requiredPhrase={firstHatchPhrase}
-            postCompleted={!!tourPostFound || !firstHatchTour.isStep('show_hatch_card')}
-            onCreatePost={() => setShowPostModal(true)}
-            currentStep={firstHatchTour.state.currentStepId}
-          />
+          <div className="w-full max-w-sm mx-auto text-center space-y-2">
+            <h3 className="text-lg font-semibold">
+              Tap {companion.name} to hatch!
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Tap the egg to help {companion.name} break free.
+            </p>
+          </div>
         </div>
+      )}
+
+      {/* Reveal Overlay: shown after hatching for naming */}
+      {showRevealOverlay && (
+        <BlobbiRevealOverlay
+          companion={companion}
+          open={showRevealOverlay}
+          onDismiss={handleRevealDismiss}
+          onNameConfirm={handleRevealNameConfirm}
+          isNaming={isNamingBlobbi}
+        />
       )}
 
       {/* Stats Section - hidden during first-hatch tour */}

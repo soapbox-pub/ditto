@@ -1,0 +1,260 @@
+/**
+ * BlobbiRevealOverlay - Full-screen celebration overlay shown after hatching.
+ *
+ * Features:
+ * - Darkened backdrop
+ * - Newly hatched Blobbi in the center with light rays + particles
+ * - Naming input so the user can rename immediately
+ * - Click outside or press Escape to dismiss
+ *
+ * This component is reusable for future reveals:
+ * "Blobbi evolved", "Blobbi hatched", "special reward", etc.
+ */
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Sparkles } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { cn } from '@/lib/utils';
+
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface BlobbiRevealOverlayProps {
+  /** The companion to reveal (should be in baby stage after hatching) */
+  companion: BlobbiCompanion;
+  /** Whether the overlay is visible */
+  open: boolean;
+  /** Called when the overlay is dismissed (click outside or confirm) */
+  onDismiss: () => void;
+  /** Called when user confirms a name */
+  onNameConfirm: (name: string) => Promise<void>;
+  /** Whether the name update is in progress */
+  isNaming?: boolean;
+  /** Whether to respect reduced-motion preferences */
+  reducedMotion?: boolean;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function BlobbiRevealOverlay({
+  companion,
+  open,
+  onDismiss,
+  onNameConfirm,
+  isNaming = false,
+  reducedMotion = false,
+}: BlobbiRevealOverlayProps) {
+  const [name, setName] = useState(companion.name === 'Egg' ? '' : companion.name);
+  const [isVisible, setIsVisible] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Animate in
+  useEffect(() => {
+    if (open) {
+      // Small delay for the animation to feel intentional
+      const timer = setTimeout(() => setIsVisible(true), 50);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
+    }
+  }, [open]);
+
+  // Focus the input when overlay opens
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]);
+
+  // Handle backdrop click
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+      onDismiss();
+    }
+  }, [onDismiss]);
+
+  // Handle escape key
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDismiss();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [open, onDismiss]);
+
+  const handleConfirm = async () => {
+    const trimmed = name.trim();
+    if (trimmed.length > 0) {
+      await onNameConfirm(trimmed);
+    } else {
+      // If empty, just dismiss without renaming
+      onDismiss();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isNaming) {
+      e.preventDefault();
+      handleConfirm();
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center',
+        'transition-opacity duration-500',
+        isVisible ? 'opacity-100' : 'opacity-0',
+      )}
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Your Blobbi has hatched!"
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+      {/* Light rays behind the Blobbi */}
+      {!reducedMotion && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+          {/* Radial glow */}
+          <div
+            className={cn(
+              'absolute size-[500px] rounded-full',
+              'bg-gradient-radial from-amber-300/30 via-amber-200/10 to-transparent',
+              'transition-transform duration-1000 ease-out',
+              isVisible ? 'scale-100' : 'scale-50',
+            )}
+            style={{
+              background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.1) 35%, transparent 70%)',
+            }}
+          />
+
+          {/* Rotating rays */}
+          <div
+            className={cn(
+              'absolute size-[600px]',
+              isVisible ? 'animate-spin-slow' : '',
+            )}
+            style={{ animationDuration: '20s' }}
+          >
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute top-1/2 left-1/2 h-[300px] w-[2px] -translate-x-1/2 origin-top"
+                style={{
+                  transform: `translateX(-50%) rotate(${i * 45}deg)`,
+                  background: 'linear-gradient(to bottom, rgba(251,191,36,0.4), transparent)',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Floating particles */}
+          {[...Array(12)].map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'absolute size-1.5 rounded-full bg-amber-300/60',
+                'animate-float-particle',
+              )}
+              style={{
+                left: `${20 + Math.random() * 60}%`,
+                top: `${20 + Math.random() * 60}%`,
+                animationDelay: `${i * 0.3}s`,
+                animationDuration: `${2 + Math.random() * 2}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Center content */}
+      <div
+        ref={contentRef}
+        className={cn(
+          'relative flex flex-col items-center gap-6 z-10 px-6 max-w-sm w-full',
+          'transition-all duration-700 ease-out',
+          isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-95',
+        )}
+      >
+        {/* Celebration header */}
+        <div className={cn(
+          'flex items-center gap-2 text-amber-300',
+          'transition-opacity duration-500 delay-300',
+          isVisible ? 'opacity-100' : 'opacity-0',
+        )}>
+          <Sparkles className="size-5" />
+          <span className="text-lg font-semibold tracking-wide uppercase">
+            Hatched!
+          </span>
+          <Sparkles className="size-5" />
+        </div>
+
+        {/* Blobbi visual */}
+        <div className={cn(
+          'transition-all duration-700 delay-200',
+          isVisible ? 'translate-y-0 scale-100' : 'translate-y-4 scale-90',
+        )}>
+          <BlobbiStageVisual
+            companion={companion}
+            size="lg"
+            animated
+            className="size-48 sm:size-56 drop-shadow-[0_0_30px_rgba(251,191,36,0.3)]"
+          />
+        </div>
+
+        {/* Naming section */}
+        <div className={cn(
+          'w-full space-y-4 transition-all duration-500 delay-500',
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+        )}>
+          <div className="text-center">
+            <p className="text-white/80 text-sm">
+              Give your new Blobbi a name
+            </p>
+          </div>
+
+          <Input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter a name..."
+            maxLength={32}
+            disabled={isNaming}
+            className="text-center font-medium text-lg bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-amber-400/50 focus:ring-amber-400/20"
+          />
+
+          <div className="flex gap-3">
+            <Button
+              variant="ghost"
+              className="flex-1 text-white/60 hover:text-white hover:bg-white/10"
+              onClick={onDismiss}
+              disabled={isNaming}
+            >
+              Skip
+            </Button>
+            <Button
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+              onClick={handleConfirm}
+              disabled={isNaming || name.trim().length === 0}
+            >
+              {isNaming ? 'Saving...' : 'Confirm'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
