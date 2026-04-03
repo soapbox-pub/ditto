@@ -1,6 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { ExternalLink, FileText, Globe, Play, Server } from "lucide-react";
-import { nip19 } from "nostr-tools";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,33 +7,16 @@ import { ExternalFavicon } from "@/components/ExternalFavicon";
 import { NsitePreviewDialog } from "@/components/NsitePreviewDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
+import { getNsiteSubdomain } from "@/lib/nsiteSubdomain";
 import { cn } from "@/lib/utils";
 
 interface NsiteCardProps {
 	event: NostrEvent;
 }
 
-/** Encode a 32-byte hex pubkey as a base36 string (50 chars, zero-padded). */
-function hexToBase36(hex: string): string {
-	let n = 0n;
-	for (let i = 0; i < hex.length; i++) {
-		n = n * 16n + BigInt(parseInt(hex[i], 16));
-	}
-	const b36 = n.toString(36);
-	return b36.padStart(50, "0");
-}
-
 /** Build the nsite.lol gateway URL for an nsite event. */
 function getNsiteUrl(event: NostrEvent): string {
-	const dTag = event.tags.find(([n]) => n === "d")?.[1];
-
-	if (event.kind === 35128 && dTag) {
-		const pubkeyB36 = hexToBase36(event.pubkey);
-		return `https://${pubkeyB36}${dTag}.nsite.lol`;
-	}
-
-	const npub = nip19.npubEncode(event.pubkey);
-	return `https://${npub}.nsite.lol`;
+	return `https://${getNsiteSubdomain(event)}.nsite.lol`;
 }
 
 /** Renders an nsite deployment card with a rich link preview. */

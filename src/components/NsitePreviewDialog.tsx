@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 
 interface Rect { left: number; top: number; width: number; height: number }
 
@@ -34,11 +35,6 @@ function useElementRect(el: HTMLElement | null): Rect | null {
 
 /** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
 const PREVIEW_DOMAIN = 'local-shakespeare.dev';
-
-/** A stable session ID for the iframe origin (one per component mount). */
-function makeSessionId(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 interface JSONRPCFetchRequest {
   jsonrpc: '2.0';
@@ -183,14 +179,14 @@ interface NsitePreviewDialogProps {
  * serves them directly from Blossom, so the SPA can run without any gateway dependency.
  */
 export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
-  const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
 
-  // Derive a stable iframe origin from the session id and preview domain
-  const iframeOrigin = `https://${sessionIdRef.current}.${PREVIEW_DOMAIN}`;
+  // Derive the iframe origin from the NIP-5A canonical subdomain for this event
+  const subdomain = getNsiteSubdomain(event);
+  const iframeOrigin = `https://${subdomain}.${PREVIEW_DOMAIN}`;
   const iframeSrc = `${iframeOrigin}/`;
 
   // Build the manifest and server list from the event (memoised per event identity)
@@ -326,13 +322,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     return () => window.removeEventListener('message', handleMessage);
   }, [iframeOrigin, handleFetch, handleNavigationState]);
 
-  // Reset state when panel opens/closes
-  useEffect(() => {
-    if (open) {
-      // Generate a fresh session id each time the panel opens
-      sessionIdRef.current = makeSessionId();
-    }
-  }, [open]);
+
 
   if (!open || !centerColumn || !columnRect) return null;
 
@@ -385,7 +375,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       {/* iframe */}
       <div className="flex-1 min-h-0 bg-background">
         <iframe
-          key={`${sessionIdRef.current}-${open}`}
+          key={`${subdomain}-${open}`}
           ref={iframeRef}
           src={iframeSrc}
           className="w-full h-full border-0"
