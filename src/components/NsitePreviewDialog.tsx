@@ -268,13 +268,11 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       }
       const bodyBase64 = btoa(binary);
 
-      // Determine the content type. Prefer the response header from Blossom,
-      // but fall back to a guess based on the file extension since Blossom
-      // may return a generic content-type for all blobs.
-      const blossomContentType = res.headers.get('content-type')?.split(';')[0].trim();
-      const contentType = (blossomContentType && blossomContentType !== 'application/octet-stream')
-        ? blossomContentType
-        : guessMimeType(servingPath);
+      // Always determine content type from the file extension.
+      // Blossom servers commonly return incorrect types (e.g. text/plain for .js
+      // files), which causes browsers to reject module scripts. The file path from
+      // the manifest is authoritative for the correct MIME type.
+      const contentType = guessMimeType(servingPath);
 
       // The iframe-fetch-client (main.js) checks headers with Title-Case keys
       // (e.g. "Content-Type"), and does an exact equality check against "text/html"
