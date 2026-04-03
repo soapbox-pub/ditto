@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, X } from 'lucide-react';
+import { Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useCenterColumn } from '@/contexts/LayoutContext';
@@ -45,10 +45,10 @@ interface JSONRPCResponse {
 interface NsitePreviewDialogProps {
   /** The nsite.lol gateway URL used for proxying (e.g. https://<b36><dtag>.nsite.lol). */
   nsiteUrl: string;
-  /** The bare nsite identifier shown in the address bar (e.g. "<b36><dtag>"). */
-  nsiteName: string;
   /** Display name for the app. */
   appName: string;
+  /** Optional app icon URL. */
+  appPicture?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -66,10 +66,9 @@ interface NsitePreviewDialogProps {
  * proxies them to the live nsite URL, so the SPA can run without needing CORS
  * headers on the origin server.
  */
-export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenChange }: NsitePreviewDialogProps) {
+export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [currentPath, setCurrentPath] = useState('/');
   const centerColumn = useCenterColumn();
 
   // Derive a stable iframe origin from the session id and preview domain
@@ -155,13 +154,13 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
     }
   }, [iframeOrigin, nsiteUrl, sendResponse]);
 
-  /** Handle navigation state updates from the iframe. */
-  const handleNavigationState = useCallback((params: {
+  /** Handle navigation state updates from the iframe (no-op: we no longer track path). */
+  const handleNavigationState = useCallback((_params: {
     currentUrl: string;
     canGoBack: boolean;
     canGoForward: boolean;
   }) => {
-    setCurrentPath(params.currentUrl);
+    // intentionally empty
   }, []);
 
   // Listen for messages from the iframe
@@ -183,15 +182,10 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
   // Reset state when panel opens/closes
   useEffect(() => {
     if (open) {
-      setCurrentPath('/');
       // Generate a fresh session id each time the panel opens
       sessionIdRef.current = makeSessionId();
     }
   }, [open]);
-
-  // Display URL shown in the nav bar: nsite://<name><path>
-  const path = currentPath === '/' ? '' : currentPath;
-  const displayUrl = `nsite://${nsiteName}${path}`;
 
   if (!open || !centerColumn) return null;
 
@@ -199,23 +193,21 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
     <div className="absolute inset-0 z-50 flex flex-col bg-background">
       {/* Nav bar */}
       <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
-        {/* Address bar */}
-        <div className="flex-1 min-w-0">
-          <div className="h-7 bg-background border rounded-md flex items-center px-2.5 text-xs text-muted-foreground font-mono truncate select-none">
-            {displayUrl}
-          </div>
+        {/* App icon + name */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {appPicture ? (
+            <img
+              src={appPicture}
+              alt={appName}
+              className="size-6 rounded-md object-cover shrink-0"
+            />
+          ) : (
+            <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Package className="size-3.5 text-primary/50" />
+            </div>
+          )}
+          <span className="text-sm font-medium truncate">{appName}</span>
         </div>
-
-        {/* Open in new tab */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 shrink-0"
-          onClick={() => window.open(nsiteUrl, '_blank', 'noopener,noreferrer')}
-          title="Open in new tab"
-        >
-          <ExternalLink className="size-3.5" />
-        </Button>
 
         {/* Close */}
         <Button

@@ -227,8 +227,8 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
       {nsiteRef && (
          <NsitePreviewDialog
            nsiteUrl={nsiteRef.gatewayUrl}
-           nsiteName={nsiteRef.name}
            appName={name}
+           appPicture={picture}
            open={previewOpen}
            onOpenChange={setPreviewOpen}
          />
@@ -343,8 +343,8 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
       {nsiteRef && (
         <NsitePreviewDialog
           nsiteUrl={nsiteRef.gatewayUrl}
-          nsiteName={nsiteRef.name}
           appName={name}
+          appPicture={picture}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
         />
