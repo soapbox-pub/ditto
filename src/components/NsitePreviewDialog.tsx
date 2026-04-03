@@ -229,11 +229,12 @@ export function NsitePreviewDialog({ nsiteUrl, appName, open, onOpenChange }: Ns
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
 
-  // Derive the display URL shown in the address bar
+  // Derive the display URL shown in the address bar as nsite://<subdomain><path>
   const displayUrl = (() => {
     try {
-      const base = new URL(nsiteUrl);
-      return `${base.hostname}${currentPath === '/' ? '' : currentPath}`;
+      const { hostname } = new URL(nsiteUrl);
+      const path = currentPath === '/' ? '' : currentPath;
+      return `nsite://${hostname}${path}`;
     } catch {
       return nsiteUrl;
     }
