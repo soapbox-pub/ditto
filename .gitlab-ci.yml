@@ -54,7 +54,6 @@ deploy-nsite:
       --relays "wss://relay.ditto.pub,wss://relay.nsite.lol,wss://relay.dreamith.to,wss://relay.primal.net"
       --servers "https://blossom.primal.net,https://blossom.ditto.pub,https://blossom.dreamith.to"
       --fallback "/index.html"
-      --publish-server-list
       --use-fallback-relays
       --use-fallback-servers
 
@@ -203,6 +202,8 @@ publish-zapstore:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   variables:
     SIGN_WITH: $ZAPSTORE_BUNKER_URL
+    RELAY_URLS: "wss://relay.zapstore.dev,wss://relay.ditto.pub"
+    BLOSSOM_URL: "https://blossom.ditto.pub"
   script:
     - go install github.com/zapstore/zsp@latest
 
