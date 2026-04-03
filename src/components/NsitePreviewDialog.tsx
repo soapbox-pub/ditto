@@ -115,9 +115,20 @@ export function NsitePreviewDialog({ nsiteUrl, appName, open, onOpenChange }: Ns
       }
       const bodyBase64 = btoa(binary);
 
+      // The iframe-fetch-client (main.js) checks headers with Title-Case keys
+      // (e.g. "Content-Type"), but the browser's fetch() API normalizes all
+      // header names to lowercase. Re-key everything to Title-Case so the
+      // client can find what it needs.
+      const toTitleCase = (s: string) =>
+        s.replace(/(^|-)([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase());
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
+        const titleKey = toTitleCase(key);
+        // main.js does an exact equality check against "text/html" — strip any
+        // charset or other parameters (e.g. "text/html; charset=UTF-8" → "text/html")
+        responseHeaders[titleKey] = titleKey === 'Content-Type'
+          ? value.split(';')[0].trim()
+          : value;
       });
 
       sendResponse({
