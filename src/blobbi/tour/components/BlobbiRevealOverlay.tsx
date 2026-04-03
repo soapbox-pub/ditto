@@ -152,13 +152,13 @@ export function BlobbiRevealOverlay({
           'transition-all duration-700 delay-200',
           isVisible ? 'translate-y-0 scale-100' : 'translate-y-4 scale-90',
         )}>
-          {/* Light rays + glow (centered on the Blobbi) */}
+          {/* Light rays + glow + particles (centered on the Blobbi) */}
           {!reducedMotion && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-visible">
-              {/* Radial glow */}
+            <>
+              {/* Radial glow — anchored to Blobbi center */}
               <div
                 className={cn(
-                  'absolute size-[500px] rounded-full',
+                  'absolute size-[500px] rounded-full pointer-events-none',
                   'transition-transform duration-1000 ease-out',
                   isVisible ? 'scale-100' : 'scale-50',
                 )}
@@ -167,10 +167,10 @@ export function BlobbiRevealOverlay({
                 }}
               />
 
-              {/* Rotating rays */}
+              {/* Rotating rays — anchored to Blobbi center */}
               <div
                 className={cn(
-                  'absolute size-[600px]',
+                  'absolute size-[600px] pointer-events-none',
                   isVisible ? 'animate-spin-slow' : '',
                 )}
                 style={{ animationDuration: '20s' }}
@@ -187,23 +187,25 @@ export function BlobbiRevealOverlay({
                 ))}
               </div>
 
-              {/* Floating particles */}
-              {[...Array(12)].map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'absolute size-1.5 rounded-full bg-amber-300/60',
-                    'animate-float-particle',
-                  )}
-                  style={{
-                    left: `${20 + Math.random() * 60}%`,
-                    top: `${20 + Math.random() * 60}%`,
-                    animationDelay: `${i * 0.3}s`,
-                    animationDuration: `${2 + Math.random() * 2}s`,
-                  }}
-                />
-              ))}
-            </div>
+              {/* Floating particles — explicit 500px field so percentages spread wide */}
+              <div className="absolute size-[500px] pointer-events-none">
+                {[...Array(12)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'absolute size-1.5 rounded-full bg-amber-300/60',
+                      'animate-float-particle',
+                    )}
+                    style={{
+                      left: `${10 + Math.random() * 80}%`,
+                      top: `${10 + Math.random() * 80}%`,
+                      animationDelay: `${i * 0.3}s`,
+                      animationDuration: `${2 + Math.random() * 2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           {/* The actual Blobbi */}

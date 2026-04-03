@@ -773,7 +773,7 @@ function BlobbiContent() {
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
-      companionsFetching={companionFetching}
+      companionsReady={!companionLoading}
       // DEV ONLY: State editor props
       showDevEditor={showDevEditor}
       setShowDevEditor={setShowDevEditor}
@@ -838,8 +838,8 @@ interface BlobbiDashboardProps {
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
-  /** Whether companion data is still being fetched from relays */
-  companionsFetching: boolean;
+  /** Whether the initial companion data load has completed (not background refetches) */
+  companionsReady: boolean;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
   setShowDevEditor: (show: boolean) => void;
@@ -873,7 +873,7 @@ function BlobbiDashboard({
   invalidateCompanion,
   setStoredSelectedD,
   ensureCanonicalBeforeAction,
-  companionsFetching,
+  companionsReady,
   // DEV ONLY
   showDevEditor,
   setShowDevEditor,
@@ -997,7 +997,7 @@ function BlobbiDashboard({
   const firstHatchTour = useFirstHatchTour();
   useFirstHatchTourActivation({
     companions,
-    isLoading: companionsFetching,
+    companionsReady,
     tour: firstHatchTour,
     profileFirstHatchTourDone: profile?.firstHatchTourDone,
   });

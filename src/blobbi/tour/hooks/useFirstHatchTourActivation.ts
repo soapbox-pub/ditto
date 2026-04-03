@@ -39,8 +39,13 @@ import type { UseFirstHatchTourResult } from './useFirstHatchTour';
 export interface FirstHatchTourActivationInput {
   /** The full list of the user's Blobbi companions */
   companions: BlobbiCompanion[];
-  /** Whether the companions list is still loading */
-  isLoading: boolean;
+  /**
+   * Whether the companion data has been resolved at least once and is
+   * ready for activation evaluation. When false, the hook defers all
+   * evaluation. This should reflect initial data readiness, not
+   * background refetch activity.
+   */
+  companionsReady: boolean;
   /** The tour hook result (in-memory state machine) */
   tour: UseFirstHatchTourResult;
   /**
@@ -76,7 +81,7 @@ export interface FirstHatchTourActivationResult {
  * const tour = useFirstHatchTour();
  * const activation = useFirstHatchTourActivation({
  *   companions,
- *   isLoading: companionsLoading,
+ *   companionsReady: !companionsLoading,
  *   tour,
  *   profileFirstHatchTourDone: profile?.firstHatchTourDone,
  * });
@@ -84,15 +89,15 @@ export interface FirstHatchTourActivationResult {
  */
 export function useFirstHatchTourActivation({
   companions,
-  isLoading,
+  companionsReady,
   tour,
   profileFirstHatchTourDone = false,
 }: FirstHatchTourActivationInput): FirstHatchTourActivationResult {
   // ── Precondition evaluation ──
 
   const { shouldActivate, isEligible } = useMemo(() => {
-    // Can't evaluate until data is loaded
-    if (isLoading) {
+    // Defer until companion data has been resolved at least once
+    if (!companionsReady) {
       return { shouldActivate: false, isEligible: false };
     }
 
@@ -129,7 +134,7 @@ export function useFirstHatchTourActivation({
 
     // All preconditions met — activate
     return { shouldActivate: true, isEligible: true };
-  }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive, profileFirstHatchTourDone]);
+  }, [companionsReady, companions, tour.state.isCompleted, tour.state.isActive, profileFirstHatchTourDone]);
 
   // ── Auto-start effect ──
   useEffect(() => {
