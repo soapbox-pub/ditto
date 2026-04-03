@@ -211,7 +211,8 @@ export const AppConfigSchema = z.object({
   appId: z.string().optional(),
   homePage: z.string().optional(),
   clientName: z.string().optional(),
-  client: z.string().optional(),
+  /** NIP-19 naddr1 string for the kind 31990 handler event. */
+  client: z.string().startsWith('naddr1').optional(),
   magicMouse: z.boolean().optional(),
   theme: ThemeSchema,
   customTheme: ThemeConfigCompatSchema.optional(),

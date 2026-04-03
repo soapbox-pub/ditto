@@ -188,7 +188,7 @@ export interface AppConfig {
   homePage: string;
   /** Display name used in the NIP-89 "client" tag. Falls back to `appName` when not set. */
   clientName?: string;
-  /** NIP-89 addr (`31990:<pubkey>:<d-tag>`) identifying this client's handler event. Included as the third element of the "client" tag. */
+  /** NIP-19 `naddr1…` identifying this client's kind 31990 handler event. Decoded at publish time to produce the `31990:<pubkey>:<d-tag>` addr and relay hint for the "client" tag per NIP-89. */
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
