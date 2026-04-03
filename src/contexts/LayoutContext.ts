@@ -112,6 +112,17 @@ export class LayoutStore {
 
 export const LayoutStoreContext = createContext<LayoutStore | null>(null);
 
+/**
+ * Provides the center column DOM element so components deep in the tree can
+ * portal overlays into it (e.g. the nsite preview panel).
+ */
+export const CenterColumnContext = createContext<HTMLElement | null>(null);
+
+/** Hook to get the center column DOM element. Returns null until the layout has mounted. */
+export function useCenterColumn(): HTMLElement | null {
+  return useContext(CenterColumnContext);
+}
+
 /** Context for exposing the scroll-direction hidden state to child components (MobileTopBar, SubHeaderBar). */
 export const NavHiddenContext = createContext<boolean>(false);
 

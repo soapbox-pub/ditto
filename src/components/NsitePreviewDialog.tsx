@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ExternalLink, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useCenterColumn } from '@/contexts/LayoutContext';
 
 /** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
 const PREVIEW_DOMAIN = 'local-shakespeare.dev';
@@ -57,9 +58,9 @@ interface NsitePreviewDialogProps {
  * a sandboxed iframe, using the Shakespeare iframe-fetch-client protocol over
  * local-shakespeare.dev.
  *
- * The panel uses `position: fixed` with responsive left/right insets that
- * mirror the sidebar widths so it overlays exactly the center column on all
- * screen sizes.
+ * The panel is portaled into the center column DOM element (via CenterColumnContext)
+ * and uses `position: absolute; inset: 0` to fill it exactly — no viewport
+ * math or responsive inset hacks required.
  *
  * The parent window intercepts JSON-RPC `fetch` requests from the iframe and
  * proxies them to the live nsite URL, so the SPA can run without needing CORS
@@ -69,6 +70,7 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentPath, setCurrentPath] = useState('/');
+  const centerColumn = useCenterColumn();
 
   // Derive a stable iframe origin from the session id and preview domain
   const iframeOrigin = `https://${sessionIdRef.current}.${PREVIEW_DOMAIN}`;
@@ -191,24 +193,10 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
   const path = currentPath === '/' ? '' : currentPath;
   const displayUrl = `nsite://${nsiteName}${path}`;
 
-  if (!open) return null;
+  if (!open || !centerColumn) return null;
 
   return createPortal(
-    <div
-      className={[
-        // Cover the full viewport, then carve out the sidebars with insets
-        'fixed inset-0 z-50 flex flex-col',
-        'bg-background',
-        // Left sidebar appears at the "sidebar" breakpoint (900px), w-[300px]
-        // Right sidebar appears at xl (1280px), also w-[300px]
-        // The whole wrapper is max-w-[1200px] mx-auto, so on very wide screens
-        // the sidebars don't reach the viewport edges — but using the sidebar
-        // widths as insets is the closest static approximation and matches the
-        // visual center column on all common screen sizes.
-        'sidebar:left-[300px]',
-        'xl:right-[300px]',
-      ].join(' ')}
-    >
+    <div className="absolute inset-0 z-50 flex flex-col bg-background">
       {/* Nav bar */}
       <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
         {/* Address bar */}
@@ -253,6 +241,6 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
         />
       </div>
     </div>,
-    document.body,
+    centerColumn,
   );
 }

@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo, useCallback } from 'react';
+import { Suspense, useState, useMemo, useCallback, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
@@ -8,7 +8,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
@@ -106,9 +106,12 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const centerColumnRef = useRef<HTMLDivElement>(null);
+  const [centerColumnEl, setCenterColumnEl] = useState<HTMLElement | null>(null);
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
   return (
+    <CenterColumnContext.Provider value={centerColumnEl}>
     <DrawerContext.Provider value={openDrawer}>
     <NavHiddenContext.Provider value={navHidden}>
       {/* Magic Mouse fire particle overlay */}
@@ -135,7 +138,10 @@ function MainLayoutInner() {
               being hidden. This depends on MobileTopBar having a transparent /
               semi-transparent background — a solid top bar would obscure the
               content underneath. Only active below the sidebar breakpoint. */}
-          <div className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}>
+          <div
+            ref={(el) => { centerColumnRef.current = el; setCenterColumnEl(el); }}
+            className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
+          >
             <Outlet />
 
             {/* Desktop FAB — sticky within the feed column so it stays
@@ -174,6 +180,7 @@ function MainLayoutInner() {
       )}
     </NavHiddenContext.Provider>
     </DrawerContext.Provider>
+    </CenterColumnContext.Provider>
   );
 }
 
