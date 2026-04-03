@@ -249,7 +249,9 @@ export const NoteCard = memo(function NoteCard({
       target.closest("[data-radix-dialog-content]") ||
       target.closest("[data-vaul-drawer]") ||
       target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]')
+      target.closest('[data-testid="zap-modal"]') ||
+      target.closest("button") ||
+      target.closest("a")
     ) {
       return;
     }
@@ -264,7 +266,9 @@ export const NoteCard = memo(function NoteCard({
       target.closest("[data-radix-dialog-content]") ||
       target.closest("[data-vaul-drawer]") ||
       target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]')
+      target.closest('[data-testid="zap-modal"]') ||
+      target.closest("button") ||
+      target.closest("a")
     ) {
       return;
     }

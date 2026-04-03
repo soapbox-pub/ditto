@@ -214,14 +214,20 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
 
   if (!open || !centerColumn || !columnRect) return null;
 
+  // If the user has scrolled down, columnRect.top is negative (the column top
+  // is above the viewport). Clamp to 0 so the panel always starts at the
+  // viewport top edge and never grows taller than the viewport.
+  const panelTop = Math.max(0, columnRect.top);
+  const panelHeight = window.innerHeight - panelTop;
+
   return createPortal(
     <div
       className="fixed z-50 flex flex-col bg-background"
       style={{
         left: columnRect.left,
-        top: columnRect.top,
+        top: panelTop,
         width: columnRect.width,
-        height: window.innerHeight - columnRect.top,
+        height: panelHeight,
       }}
     >
       {/* Nav bar */}

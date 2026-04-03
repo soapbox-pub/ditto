@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useMemo } from 'react';
+import Markdown from 'react-markdown';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,13 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { openUrl } from '@/lib/downloadFile';
+
+/** Sanitize schema allowing only the subset needed for a CHANGELOG. */
+const CHANGELOG_SANITIZE_SCHEMA = {
+  ...defaultSchema,
+  tagNames: ['h1', 'h2', 'h3', 'ul', 'ol', 'li', 'p', 'strong', 'em', 'code', 'br'] as string[],
+  attributes: {},
+};
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -355,11 +364,20 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
           </div>
         </div>
 
-        {/* Release notes (truncated) */}
+        {/* Release notes — rendered as Markdown, clamped to 4 lines */}
         {releaseNotes && (
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">
-            {releaseNotes}
-          </p>
+          <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed text-muted-foreground line-clamp-4
+            [&_h1]:text-sm [&_h1]:font-semibold
+            [&_h2]:text-sm [&_h2]:font-semibold
+            [&_h3]:text-sm [&_h3]:font-semibold
+            [&_ul]:pl-4 [&_ul]:list-disc
+            [&_ol]:pl-4 [&_ol]:list-decimal
+            [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+            [&_p]:my-0 [&_li]:my-0 [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0">
+            <Markdown rehypePlugins={[[rehypeSanitize, CHANGELOG_SANITIZE_SCHEMA]]}>
+              {releaseNotes}
+            </Markdown>
+          </div>
         )}
       </div>
     );
@@ -440,9 +458,20 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Release Notes
           </p>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-            {releaseNotes}
-          </p>
+          <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed
+            [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1
+            [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1
+            [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1
+            [&_ul]:my-1 [&_ul]:pl-4 [&_ul]:list-disc
+            [&_ol]:my-1 [&_ol]:pl-4 [&_ol]:list-decimal
+            [&_li]:my-0.5
+            [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+            [&_p]:my-1
+            first:[&>*]:mt-0">
+            <Markdown rehypePlugins={[[rehypeSanitize, CHANGELOG_SANITIZE_SCHEMA]]}>
+              {releaseNotes}
+            </Markdown>
+          </div>
         </div>
       )}
 
