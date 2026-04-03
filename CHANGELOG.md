@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.4.0] - 2026-04-02
+
+### Added
+- First-hatch tour: a guided experience for hatching your very first Blobbi egg, with progressive crack animations, an inline card flow, and a reveal moment
+- Customizable bottom bar: rearrange or hide any item in the navigation bar to make Ditto feel like yours
+- Mission surface card in the feed that surfaces your active quests at a glance
+
+### Changed
+- Missions redesigned as a quest board with collapsible cards and a lighter aesthetic
+- "Edit Profile" mission now completes when you update any profile field, not just wall-specific edits
+- Media tab on profiles now shows only photos, videos, and other media -- not plain text posts
+- Blobbi onboarding state now syncs to your profile so it follows you across devices
+
+### Fixed
+- Notification dot no longer reappears after you've already marked notifications as read
+- Dialogs no longer fly up when the mobile keyboard opens
+
 ## [2.3.1] - 2026-04-02
 
 ### Changed
