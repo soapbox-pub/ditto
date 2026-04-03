@@ -1408,6 +1408,24 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Extract client from tags
   const clientTag = event.tags.find(([name]) => name === "client");
 
+  // Parse NIP-89 client tag: ["client", name, "kind:pubkey:d-tag", relayHint?]
+  const clientNaddr = (() => {
+    const addr = clientTag?.[2];
+    if (!addr) return null;
+    const parts = addr.split(":");
+    if (parts.length < 3) return null;
+    const [kindStr, pubkey, ...rest] = parts;
+    const kind = parseInt(kindStr, 10);
+    if (isNaN(kind) || !pubkey) return null;
+    const identifier = rest.join(":");
+    const relays = clientTag?.[3] ? [clientTag[3]] : undefined;
+    try {
+      return nip19.naddrEncode({ kind, pubkey, identifier, relays });
+    } catch {
+      return null;
+    }
+  })();
+
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
     setInteractionsOpen(true);
@@ -2215,35 +2233,22 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 </button>
               ) : null}
               <span className="ml-auto shrink-0 flex items-center gap-1.5">
-                {clientTag?.[1] &&
-                  (() => {
-                    const clientValue = clientTag[1];
-                    let isHostname = false;
-                    try {
-                      const url = new URL(`https://${clientValue}`);
-                      isHostname = url.hostname === clientValue;
-                    } catch {
-                      isHostname = false;
-                    }
-                    return (
-                      <>
-                        {isHostname ? (
-                          <a
-                            href={`https://${clientValue}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {clientValue}
-                          </a>
-                        ) : (
-                          <span>{clientValue}</span>
-                        )}
-                        <span>·</span>
-                      </>
-                    );
-                  })()}
+                {clientTag?.[1] && (
+                  <>
+                    {clientNaddr ? (
+                      <Link
+                        to={`/${clientNaddr}`}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {clientTag[1]}
+                      </Link>
+                    ) : (
+                      <span>{clientTag[1]}</span>
+                    )}
+                    <span>·</span>
+                  </>
+                )}
                 <span>{formatFullDate(event.created_at)}</span>
               </span>
             </div>
@@ -2254,7 +2259,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
               {clientTag?.[1] && (
                 <>
-                  <span>{clientTag?.[1]}</span>
+                  {clientNaddr ? (
+                    <Link
+                      to={`/${clientNaddr}`}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {clientTag[1]}
+                    </Link>
+                  ) : (
+                    <span>{clientTag[1]}</span>
+                  )}
                   <span>·</span>
                 </>
               )}

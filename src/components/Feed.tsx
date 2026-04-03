@@ -47,6 +47,7 @@ const LANDING_KINDS = [
   30009, // Badge Definitions
   10008, // Profile Badges
   30008, // Profile Badges (legacy)
+  31124, // Blobbi
 ];
 
 /** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
