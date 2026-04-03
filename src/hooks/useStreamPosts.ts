@@ -207,6 +207,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [flushedIds, setFlushedIds] = useState<Set<string>>(new Set());
   const flushedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Pagination state for "load more" (infinite scroll)
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  // Stash the filter + store used by the initial query so loadMore can reuse it
+  const paginationRef = useRef<{
+    filter: NostrFilter;
+    store: { query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]> };
+    knownIds: Set<string>;
+    eventMap: Map<string, NostrEvent>;
+  } | null>(null);
+
   /** Merge buffered events into the main list and mark them as flushed. */
   const doFlush = useCallback(() => {
     if (streamBufferRef.current.length === 0) return;
@@ -226,6 +237,59 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Clean up timer on unmount
   useEffect(() => () => clearTimeout(flushedTimerRef.current), []);
+
+  /** Fetch the next page of older events (cursor-based pagination). */
+  const loadMore = useCallback(async () => {
+    const ctx = paginationRef.current;
+    if (!ctx || isLoadingMore || !hasMore) return;
+
+    // Find the oldest event timestamp for the cursor
+    const oldest = allEvents.length > 0
+      ? Math.min(...allEvents.map((e) => e.created_at))
+      : undefined;
+    if (oldest === undefined) return;
+
+    setIsLoadingMore(true);
+    try {
+      const PAGE_SIZE = ctx.filter.limit ?? 40;
+      const events = await ctx.store.query(
+        [{ ...ctx.filter, until: oldest - 1, limit: PAGE_SIZE }],
+        { signal: AbortSignal.timeout(8000) },
+      );
+
+      if (events.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+
+      if (events.length > 0) {
+        const now = Math.floor(Date.now() / 1000);
+        setAllEvents((prev) => {
+          const merged = [...prev];
+          for (const event of events) {
+            if (event.created_at > now) continue;
+
+            let dedupeKey: string;
+            if (event.kind >= 30000 && event.kind < 40000) {
+              const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+              dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
+            } else {
+              dedupeKey = event.id;
+            }
+
+            if (ctx.knownIds.has(dedupeKey)) continue;
+            ctx.knownIds.add(dedupeKey);
+            ctx.eventMap.set(dedupeKey, event);
+            merged.push(event);
+          }
+          return merged.sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+    } catch {
+      // timeout — don't break the UI
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [allEvents, isLoadingMore, hasMore]);
 
   // Monitor scroll position — only buffer when user is scrolled down
   useEffect(() => {
@@ -283,7 +347,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     setAllEvents([]);
     setIsLoading(true);
+    setHasMore(true);
+    setIsLoadingMore(false);
     initialLoadDoneRef.current = false;
+    paginationRef.current = null;
     streamBufferRef.current = [];
     setStreamBufferCount(0);
 
@@ -417,15 +484,23 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // extensions the user's own relays are appropriate.
     const initialStore = useDittoOnly ? nostr.group(DITTO_RELAYS) : nostr;
 
+    // Stash for loadMore pagination
+    paginationRef.current = { filter: initialFilter, store: initialStore, knownIds, eventMap };
+
+    const PAGE_SIZE = initialFilter.limit ?? 40;
+
     // 1. Fetch initial batch with search filters
     (async () => {
       try {
         const events = await initialStore.query(
-          [{ ...initialFilter, limit: initialFilter.limit ?? 40 }],
+          [{ ...initialFilter, limit: PAGE_SIZE }],
           { signal: ac.signal },
         );
         for (const event of events) {
           addEvent(event, false);
+        }
+        if (alive && events.length < PAGE_SIZE) {
+          setHasMore(false);
         }
       } catch {
         // abort expected
@@ -501,5 +576,5 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamBufferCount, matchesFilters]);
 
-  return { posts, isLoading, newPostCount: filteredNewPostCount, flushStreamBuffer, flushedIds };
+  return { posts, isLoading, newPostCount: filteredNewPostCount, flushStreamBuffer, flushedIds, loadMore, hasMore, isLoadingMore };
 }

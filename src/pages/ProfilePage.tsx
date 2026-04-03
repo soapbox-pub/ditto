@@ -3043,11 +3043,19 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
 function ProfileSavedFeedContent({ feed }: { feed: ProfileTab }) {
-  const { posts, isLoading, newPostCount, flushStreamBuffer } = useStreamPosts('', {
+  const { posts, isLoading, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
     includeReplies: true,
     mediaType: 'all',
     spell: feed.spell,
   });
+
+  const { ref: spellScrollRef, inView: spellInView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (spellInView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [spellInView, hasMore, isLoadingMore, loadMore]);
 
   if (isLoading && posts.length === 0) {
     return (
@@ -3089,6 +3097,15 @@ function ProfileSavedFeedContent({ feed }: { feed: ProfileTab }) {
       {posts.map((event) => (
         <NoteCard key={event.id} event={event} />
       ))}
+      {hasMore && (
+        <div ref={spellScrollRef} className="py-4">
+          {isLoadingMore && (
+            <div className="flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

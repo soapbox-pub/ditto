@@ -362,13 +362,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
 /** Renders a saved search feed using useStreamPosts with a spell event. */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
-  const { ref: scrollRef } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  const { posts, isLoading, newPostCount, flushStreamBuffer } = useStreamPosts('', {
+  const { posts, isLoading, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
     includeReplies: true,
     mediaType: 'all',
     spell: feed.spell,
   });
+
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (inView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [inView, hasMore, isLoadingMore, loadMore]);
 
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
@@ -406,7 +412,15 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
         {posts.map((event) => (
           <NoteCard key={event.id} event={event} />
         ))}
-        <div ref={scrollRef} className="py-2" />
+        {hasMore && (
+          <div ref={scrollRef} className="py-4">
+            {isLoadingMore && (
+              <div className="flex justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </PullToRefresh>
   );

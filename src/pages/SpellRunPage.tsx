@@ -1,10 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { useParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, BookmarkPlus, Share2, WandSparkles } from 'lucide-react';
+import { AlertCircle, BookmarkPlus, Loader2, Share2, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -75,11 +76,19 @@ export function SpellRunPage() {
   const cmd = resolved && !('error' in resolved) ? resolved.cmd : null;
 
   // Execute the spell via useStreamPosts (live streaming + initial batch)
-  const { posts, isLoading: isLoadingResults, newPostCount, flushStreamBuffer } = useStreamPosts('', {
+  const { posts, isLoading: isLoadingResults, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
     includeReplies: true,
     mediaType: 'all',
     spell: spellEvent ?? undefined,
   });
+
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (inView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [inView, hasMore, isLoadingMore, loadMore]);
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
 
@@ -233,6 +242,15 @@ export function SpellRunPage() {
           {posts.map((event) => (
             <NoteCard key={event.id} event={event} />
           ))}
+          {hasMore && (
+            <div ref={scrollRef} className="py-4">
+              {isLoadingMore && (
+                <div className="flex justify-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
