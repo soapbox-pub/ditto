@@ -15,13 +15,16 @@
  * 2. The user has exactly 1 Blobbi.
  * 3. That Blobbi is in the egg stage.
  * 4. No Blobbi is in baby or adult stage.
- * 5. The tour has not been completed yet (localStorage).
- * 6. The `blobbi_first_hatch_tour_done` profile tag is not set to true.
+ * 5. The `blobbi_first_hatch_tour_done` profile tag is NOT true.
+ * 6. The tour is not already active or completed this session.
+ *
+ * Persistence: The Kind 11125 profile tag `blobbi_first_hatch_tour_done`
+ * is the sole authoritative persisted signal. No localStorage is used.
  *
  * MIGRATION NOTE: `blobbi_onboarding_done` is intentionally ignored
  * when the user is in the single-egg state. This ensures old accounts
  * that were migrated before the hatch tour existed can still experience
- * it. The `blobbi_first_hatch_tour_done` tag is the authoritative signal.
+ * it. The `blobbi_first_hatch_tour_done` tag is the dedicated signal.
  * ────────────────────────────────────────────────────────────────
  */
 
@@ -38,19 +41,14 @@ export interface FirstHatchTourActivationInput {
   companions: BlobbiCompanion[];
   /** Whether the companions list is still loading */
   isLoading: boolean;
-  /** The tour hook result (localStorage-based state machine) */
+  /** The tour hook result (in-memory state machine) */
   tour: UseFirstHatchTourResult;
   /**
    * Whether the first hatch tour is already marked complete in the
    * Blobbonaut profile event (`blobbi_first_hatch_tour_done` tag).
-   * This is the authoritative, future-proof signal.
+   * This is the sole authoritative persisted signal.
    */
   profileFirstHatchTourDone?: boolean;
-  /**
-   * @deprecated Use profileFirstHatchTourDone instead.
-   * Kept for backwards compatibility during migration.
-   */
-  profileOnboardingDone?: boolean;
 }
 
 export interface FirstHatchTourActivationResult {
@@ -58,7 +56,7 @@ export interface FirstHatchTourActivationResult {
    * Whether all preconditions for activating the tour are met right now.
    * This is a derived boolean -- it does NOT mean the tour IS active,
    * just that it SHOULD be activated. The tour may already be active
-   * from a previous render or a persisted state.
+   * from a previous render.
    */
   shouldActivate: boolean;
   /**
@@ -89,7 +87,6 @@ export function useFirstHatchTourActivation({
   isLoading,
   tour,
   profileFirstHatchTourDone = false,
-  profileOnboardingDone: _profileOnboardingDone = false,
 }: FirstHatchTourActivationInput): FirstHatchTourActivationResult {
   // ── Precondition evaluation ──
 
@@ -99,13 +96,13 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // localStorage tour already completed — always authoritative
-    if (tour.state.isCompleted) {
+    // Profile tag is the sole persisted completion signal
+    if (profileFirstHatchTourDone) {
       return { shouldActivate: false, isEligible: false };
     }
 
-    // Dedicated profile tag marks first hatch tour done
-    if (profileFirstHatchTourDone) {
+    // Tour already completed or active this session — don't re-activate
+    if (tour.state.isCompleted || tour.state.isActive) {
       return { shouldActivate: false, isEligible: false };
     }
 
@@ -130,20 +127,8 @@ export function useFirstHatchTourActivation({
       return { shouldActivate: false, isEligible: false };
     }
 
-    // ── MIGRATION SAFEGUARD ────────────────────────────────────────
-    // `blobbi_onboarding_done` is intentionally NOT checked here.
-    // Old accounts may have this tag set from before the hatch tour
-    // existed. The single-egg + localStorage check is sufficient.
-    // The new `blobbi_first_hatch_tour_done` tag is the dedicated
-    // signal and is checked above.
-    // ───────────────────────────────────────────────────────────────
-
-    // All preconditions met
-    const eligible = true;
-    // Only activate if the tour is not already running
-    const activate = !tour.state.isActive;
-
-    return { shouldActivate: activate, isEligible: eligible };
+    // All preconditions met — activate
+    return { shouldActivate: true, isEligible: true };
   }, [isLoading, companions, tour.state.isCompleted, tour.state.isActive, profileFirstHatchTourDone]);
 
   // ── Auto-start effect ──

@@ -5,7 +5,7 @@
  * The tour system is designed to be:
  * - Easy to extend with new tours (define steps + config)
  * - Easy to reorder steps (change the STEPS array)
- * - Persistent across page refreshes (localStorage)
+ * - In-memory session state (profile tags are the persisted truth)
  * - Decoupled from rendering (UI reads state, doesn't own it)
  */
 
@@ -29,19 +29,6 @@ export interface TourStepDef<StepId extends string = string> {
 }
 
 /**
- * Persisted state for a tour.
- * Stored in localStorage so tours survive refresh / close / return.
- */
-export interface TourPersistedState<StepId extends string = string> {
-  /** Current step id, or null when the tour is not yet started */
-  currentStepId: StepId | null;
-  /** Whether the tour has been completed */
-  completed: boolean;
-  /** Unix ms timestamp of last state change (for debugging / analytics) */
-  updatedAt: number;
-}
-
-/**
  * Full runtime state exposed by a tour hook.
  */
 export interface TourState<StepId extends string = string> {
@@ -55,7 +42,7 @@ export interface TourState<StepId extends string = string> {
   totalSteps: number;
   /** Whether the current step is the last one before completion */
   isLastStep: boolean;
-  /** Whether the tour has been completed (persisted) */
+  /** Whether the tour has been completed (this session) */
   isCompleted: boolean;
   /** Progress as a fraction 0..1 */
   progress: number;
@@ -73,7 +60,7 @@ export interface TourActions<StepId extends string = string> {
   goTo: (stepId: StepId) => void;
   /** Mark the tour as completed and reset to idle. */
   complete: () => void;
-  /** Reset the tour entirely (clears persisted state). For dev/testing. */
+  /** Reset the tour entirely (clears in-memory state). For dev/testing. */
   reset: () => void;
 }
 
@@ -124,17 +111,3 @@ export const FIRST_HATCH_TOUR_STEPS: TourStepDef<FirstHatchTourStepId>[] = [
   { id: 'reveal' },
   { id: 'complete' },
 ];
-
-/**
- * Persisted state shape for the first hatch tour.
- */
-export type FirstHatchTourPersistedState = TourPersistedState<FirstHatchTourStepId>;
-
-/**
- * Default persisted state for a brand-new first hatch tour.
- */
-export const FIRST_HATCH_TOUR_DEFAULT_STATE: FirstHatchTourPersistedState = {
-  currentStepId: null,
-  completed: false,
-  updatedAt: 0,
-};

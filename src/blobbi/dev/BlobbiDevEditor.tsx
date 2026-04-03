@@ -31,11 +31,11 @@ import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
 interface FirstHatchTourDevActions {
   /** Skip the current step (for dev testing) */
   skipPostRequirement: () => void;
-  /** Reset the entire first-hatch tour so it can be tested again from scratch */
-  resetTour: () => void;
+  /** Reset the tour in-memory state AND the profile tags so it can be tested again */
+  resetTour: () => Promise<void>;
   /** Current tour step id, or null if not active */
   currentStepId: string | null;
-  /** Whether the tour has been completed */
+  /** Whether the tour has been completed (this session) */
   isCompleted: boolean;
 }
 
@@ -579,15 +579,15 @@ export function BlobbiDevEditor({
                     Skip Post
                   </Button>
 
-                  {/* B. Restart First-Hatch Tour */}
+                  {/* B. Restart First-Hatch Tour (resets profile tags + in-memory state) */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      tourDevActions.resetTour();
+                      void tourDevActions.resetTour();
                     }}
                     className="gap-2 text-xs"
-                    title="Reset the entire first-hatch tour state so it can be tested again"
+                    title="Reset first-hatch tour: clears profile tags and in-memory state"
                   >
                     <RefreshCw className="size-3.5" />
                     Restart Tour

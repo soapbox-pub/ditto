@@ -990,14 +990,12 @@ function BlobbiDashboard({
   const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
   // ─── First Hatch Tour ───
-  const { user } = useCurrentUser();
-  const firstHatchTour = useFirstHatchTour({ pubkey: user?.pubkey });
+  const firstHatchTour = useFirstHatchTour();
   useFirstHatchTourActivation({
     companions,
-    isLoading: false, // companions are already loaded at this point
+    isLoading: false,
     tour: firstHatchTour,
     profileFirstHatchTourDone: profile?.firstHatchTourDone,
-    profileOnboardingDone: profile?.onboardingDone,
   });
   const isFirstHatchTourActive = firstHatchTour.state.isActive;
 
@@ -1077,7 +1075,7 @@ function BlobbiDashboard({
   // State for reveal naming
   const [isNamingBlobbi, setIsNamingBlobbi] = useState(false);
 
-  // Complete the tour: persist to profile + complete localStorage state
+  // Complete the tour: persist to profile + complete in-memory session state
   const completeFirstHatchTour = useCallback(async () => {
     // Persist both blobbi_onboarding_done and blobbi_first_hatch_tour_done
     if (profile) {
@@ -1154,6 +1152,30 @@ function BlobbiDashboard({
   }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
 
   // DEV ONLY: Build tour dev actions for the state editor
+  const resetTourWithProfile = useCallback(async () => {
+    // Reset in-memory tour state
+    firstHatchTour.actions.reset();
+
+    // Reset the profile tag so the tour can re-activate
+    if (profile) {
+      try {
+        const updatedTags = updateBlobbonautTags(profile.allTags, {
+          blobbi_first_hatch_tour_done: 'false',
+          blobbi_onboarding_done: 'false',
+        });
+        const event = await publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: updatedTags,
+        });
+        updateProfileEvent(event);
+        invalidateProfile();
+      } catch (e) {
+        console.error('[DevReset] Failed to reset tour profile tags:', e);
+      }
+    }
+  }, [firstHatchTour, profile, publishEvent, updateProfileEvent, invalidateProfile]);
+
   const tourDevActions = useMemo(() => ({
     skipPostRequirement: () => {
       // No post requirement anymore - skip to glowing
@@ -1161,12 +1183,10 @@ function BlobbiDashboard({
         firstHatchTour.actions.goTo('egg_glowing_waiting_click');
       }
     },
-    resetTour: () => {
-      firstHatchTour.actions.reset();
-    },
+    resetTour: resetTourWithProfile,
     currentStepId: firstHatchTour.state.currentStepId,
     isCompleted: firstHatchTour.state.isCompleted,
-  }), [firstHatchTour]);
+  }), [firstHatchTour, resetTourWithProfile]);
 
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
