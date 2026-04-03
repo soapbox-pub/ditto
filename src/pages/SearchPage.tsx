@@ -62,9 +62,9 @@ import { PageHeader } from '@/components/PageHeader';
 import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
-type TabType = 'feeds' | 'posts' | 'accounts';
+type TabType = 'feeds' | 'packs' | 'posts' | 'accounts';
 
-const VALID_TABS: TabType[] = ['feeds', 'posts', 'accounts'];
+const VALID_TABS: TabType[] = ['feeds', 'packs', 'posts', 'accounts'];
 
 function parseTab(value: string | null): TabType {
   return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'feeds';
@@ -497,20 +497,38 @@ export function SearchPage() {
     sort: activeTab === 'feeds' ? sort : 'recent',
   });
 
+  // Packs tab: stream kind:39089 follow packs + kind:30000 follow sets
+  const {
+    posts: packEvents,
+    isLoading: packsLoading,
+    newPostCount: packsNewCount,
+    flushStreamBuffer: flushPacksBuffer,
+    flushedIds: packsFlushedIds,
+  } = useStreamPosts(activeTab === 'packs' ? debouncedSearchQuery : '', {
+    includeReplies: true,
+    mediaType: 'all',
+    kindsOverride: [39089, 30000],
+    authorPubkeys: activeTab === 'packs' ? streamAuthorPubkeys : undefined,
+    sort: activeTab === 'packs' ? sort : 'recent',
+  });
+
   const handleRefresh = useCallback(async () => {
     if (activeTab === 'feeds') {
       flushFeedsBuffer();
+    } else if (activeTab === 'packs') {
+      flushPacksBuffer();
     } else {
       flushStreamBuffer();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab, flushStreamBuffer, flushFeedsBuffer]);
+  }, [activeTab, flushStreamBuffer, flushFeedsBuffer, flushPacksBuffer]);
 
   return (
     <main className="flex-1 min-w-0">
       <PageHeader title="Discover" icon={<Compass className="size-5" />} />
       <SubHeaderBar>
         <TabButton label="Feeds" active={activeTab === 'feeds'} onClick={() => setActiveTab('feeds')} />
+        <TabButton label="Packs" active={activeTab === 'packs'} onClick={() => setActiveTab('packs')} />
         <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
       </SubHeaderBar>
@@ -605,8 +623,8 @@ export function SearchPage() {
             </div>
           )}
 
-          {/* Filter popover (posts and feeds tabs) */}
-          {(activeTab === 'posts' || activeTab === 'feeds') && (
+          {/* Filter popover (posts, feeds, and packs tabs) */}
+          {(activeTab === 'posts' || activeTab === 'feeds' || activeTab === 'packs') && (
             <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -813,8 +831,8 @@ export function SearchPage() {
           )}
         </div>
 
-        {/* Active filter summary chips (posts and feeds tabs) */}
-        {(activeTab === 'posts' || activeTab === 'feeds') && activeFilterLabels.length > 0 && (
+        {/* Active filter summary chips (posts, feeds, and packs tabs) */}
+        {(activeTab === 'posts' || activeTab === 'feeds' || activeTab === 'packs') && activeFilterLabels.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {activeFilterLabels.map((label) => (
               <Badge key={label} variant="secondary" className="text-xs font-normal">
@@ -934,6 +952,47 @@ export function SearchPage() {
                 <FollowsList />
               )}
             </div>
+          </>
+        )}
+
+        {/* ─── Packs Tab ─── */}
+        {activeTab === 'packs' && (
+          <>
+            {packsNewCount > 0 && (
+              <div
+                className={cn(
+                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
+                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
+                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
+                )}
+                style={{ marginBottom: '-3rem' }}
+              >
+                <button
+                  onClick={() => {
+                    flushPacksBuffer();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  {packsNewCount} new pack{packsNewCount !== 1 ? 's' : ''}
+                </button>
+              </div>
+            )}
+            {packsLoading && packEvents.length === 0 ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            ) : packEvents.length > 0 ? (
+              <div>
+                {packEvents.map((event) => (
+                  <NoteCard key={event.id} event={event} highlight={packsFlushedIds.has(event.id)} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message={debouncedSearchQuery.trim() ? 'No packs found matching your search.' : 'No follow packs found. Check back soon!'} />
+            )}
           </>
         )}
 
