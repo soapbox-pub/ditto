@@ -108,6 +108,7 @@ const KIND_LABELS: Record<number, string> = {
   30030: 'an emoji pack',
   30054: 'a podcast episode',
   30055: 'a podcast trailer',
+  3063: 'an asset',
   30063: 'a release',
   30311: 'a stream',
   30315: 'a status',
@@ -155,6 +156,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30030: SmilePlus,
   30054: Podcast,
   30055: Podcast,
+  3063: Package,
   30063: Package,
   30311: Radio,
   30617: GitBranch,
@@ -216,6 +218,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
 const KIND_POSTFIXES: Partial<Record<number, string>> = {
   32267: 'on Zapstore',
   30063: 'release',
+  3063: 'asset',
 };
 
 /** Get a display name for an event based on its kind and tags. */

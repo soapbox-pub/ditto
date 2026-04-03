@@ -78,6 +78,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30030: 'emoji pack',
   30054: 'podcast episode',
   30055: 'podcast trailer',
+  3063: 'asset',
   30063: 'release',
   30311: 'stream',
   30315: 'status',

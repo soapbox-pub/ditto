@@ -478,7 +478,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'development',
     showKey: 'showDevelopment',
     feedKey: 'feedIncludeDevelopment',
-    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267, 31990],
+    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267, 30063, 31990],
     label: 'Development',
     description: 'Git repos, patches, PRs, nsites, apps, and custom NIPs',
     route: 'development',
@@ -549,6 +549,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   32267: 'app',
   31990: 'app',
   30063: 'release',
+  3063: 'asset',
 };
 
 /**

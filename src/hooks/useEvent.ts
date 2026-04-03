@@ -4,7 +4,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 
 /** Kinds whose canonical home is the Zapstore relay. */
-const ZAPSTORE_KINDS = [32267, 30063];
+const ZAPSTORE_KINDS = [32267, 30063, 3063];
 
 /**
  * Extract write relay URLs from a NIP-65 (kind 10002) relay list event.

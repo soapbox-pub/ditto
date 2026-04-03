@@ -85,6 +85,7 @@ import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
@@ -136,6 +137,8 @@ function shellTitleForKind(kind?: number): string {
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "App Details";
+  if (kind === 30063) return "Release";
+  if (kind === 3063) return "Asset";
   if (kind === 31990) return "App";
   if (kind === 15128 || kind === 35128) return "Nsite";
   if (kind === VANISH_KIND) return "Request to Vanish";
@@ -1002,6 +1005,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
+  const isZapstoreRelease = event.kind === 30063;
+  const isZapstoreAsset = event.kind === 3063;
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
@@ -1030,6 +1035,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isCommunity &&
     !isDevKind &&
     !isZapstoreApp &&
+    !isZapstoreRelease &&
+    !isZapstoreAsset &&
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
@@ -2058,6 +2065,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreApp ? (
               <ZapstoreAppContent event={event} />
+            ) : isZapstoreRelease ? (
+              <Suspense fallback={<ZapstoreReleaseSkeleton />}>
+                <ZapstoreReleaseContent event={event} />
+              </Suspense>
+            ) : isZapstoreAsset ? (
+              <Suspense fallback={<ZapstoreAssetSkeleton />}>
+                <ZapstoreAssetContent event={event} />
+              </Suspense>
             ) : isAppHandler ? (
               <AppHandlerContent event={event} />
             ) : isEncryptedDM ? (

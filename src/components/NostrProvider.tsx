@@ -109,8 +109,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           .filter(r => r.read)
           .map(r => r.url);
 
-        // Include zapstore relay for kind 32267 (apps) and 30063 (releases)
-        const ZAPSTORE_KINDS = [32267, 30063];
+        // Include zapstore relay for kind 32267 (apps), 30063 (releases), and 3063 (assets)
+        const ZAPSTORE_KINDS = [32267, 30063, 3063];
         if (filters.every((f) => f?.kinds?.every((k) => ZAPSTORE_KINDS.includes(k)))) {
           return new Map([ZAPSTORE_RELAY, ...readRelays].map(url => [url, filters]));
         }
