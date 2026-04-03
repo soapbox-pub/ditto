@@ -21,6 +21,83 @@ import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
+// ─── Particle Layout ──────────────────────────────────────────────────────────
+
+/**
+ * Pre-computed particle positions for the reveal effect.
+ *
+ * Particles are placed in polar coordinates (angle + radius from center)
+ * and converted to percentage offsets within a 500px field. This produces
+ * a radial distribution that complements the ray/glow composition instead
+ * of a uniform square scatter.
+ *
+ * Layout strategy:
+ * - 3 concentric rings at different radii (inner, mid, outer)
+ * - Particles staggered across rings so they don't align with the 8 rays
+ * - Varied sizes and animation timing per ring for depth
+ * - Deterministic: no Math.random() in render, stable across re-renders
+ */
+interface ParticleDef {
+  /** X offset as percentage of the 500px field (0–100) */
+  x: number;
+  /** Y offset as percentage of the 500px field (0–100) */
+  y: number;
+  /** Particle diameter in px */
+  size: number;
+  /** Animation delay in seconds */
+  delay: number;
+  /** Animation duration in seconds */
+  duration: number;
+  /** Opacity 0–1 */
+  opacity: number;
+}
+
+/**
+ * Convert polar coordinates (angle in degrees, radius as 0–50 percent of field)
+ * to x/y percentages within a square field centered at 50%/50%.
+ */
+function polar(angleDeg: number, radiusPct: number): { x: number; y: number } {
+  const rad = (angleDeg * Math.PI) / 180;
+  return {
+    x: 50 + radiusPct * Math.cos(rad),
+    y: 50 + radiusPct * Math.sin(rad),
+  };
+}
+
+/**
+ * The 8 rays are at 0°, 45°, 90°, … 315°. Particles are offset from
+ * those angles so they sit *between* rays, not on top of them.
+ */
+const REVEAL_PARTICLES: ParticleDef[] = (() => {
+  const particles: ParticleDef[] = [];
+
+  // Inner ring — 4 particles, small, fast, bright
+  // Angles offset ~22° from rays so they sit in the gaps
+  for (let i = 0; i < 4; i++) {
+    const angle = 22 + i * 90; // 22°, 112°, 202°, 292°
+    const { x, y } = polar(angle, 18);
+    particles.push({ x, y, size: 3, delay: i * 0.4, duration: 2.2, opacity: 0.7 });
+  }
+
+  // Mid ring — 5 particles, medium, moderate speed
+  // Staggered at ~36° increments starting at 10°
+  for (let i = 0; i < 5; i++) {
+    const angle = 10 + i * 72; // 10°, 82°, 154°, 226°, 298°
+    const { x, y } = polar(angle, 30);
+    particles.push({ x, y, size: 4, delay: 0.2 + i * 0.35, duration: 2.8, opacity: 0.55 });
+  }
+
+  // Outer ring — 6 particles, larger, slower, subtler
+  // Distributed at 60° increments starting at 35°
+  for (let i = 0; i < 6; i++) {
+    const angle = 35 + i * 60; // 35°, 95°, 155°, 215°, 275°, 335°
+    const { x, y } = polar(angle, 42);
+    particles.push({ x, y, size: 5, delay: 0.1 + i * 0.3, duration: 3.4, opacity: 0.4 });
+  }
+
+  return particles;
+})();
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface BlobbiRevealOverlayProps {
@@ -187,20 +264,20 @@ export function BlobbiRevealOverlay({
                 ))}
               </div>
 
-              {/* Floating particles — explicit 500px field so percentages spread wide */}
+              {/* Floating particles — radially distributed across a 500px field */}
               <div className="absolute size-[500px] pointer-events-none">
-                {[...Array(12)].map((_, i) => (
+                {REVEAL_PARTICLES.map((p, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      'absolute size-1.5 rounded-full bg-amber-300/60',
-                      'animate-float-particle',
-                    )}
+                    className="absolute rounded-full bg-amber-300 animate-float-particle"
                     style={{
-                      left: `${10 + Math.random() * 80}%`,
-                      top: `${10 + Math.random() * 80}%`,
-                      animationDelay: `${i * 0.3}s`,
-                      animationDuration: `${2 + Math.random() * 2}s`,
+                      left: `${p.x}%`,
+                      top: `${p.y}%`,
+                      width: p.size,
+                      height: p.size,
+                      opacity: p.opacity,
+                      animationDelay: `${p.delay}s`,
+                      animationDuration: `${p.duration}s`,
                     }}
                   />
                 ))}
