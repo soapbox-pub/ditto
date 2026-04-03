@@ -37,6 +37,7 @@ import { KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/Saved
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useFeed, type FeedItem } from '@/hooks/useFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
@@ -59,7 +60,9 @@ import { shareOrCopy } from '@/lib/share';
 import { buildSpellTags, buildUnsignedSpell, spellFingerprint } from '@/lib/spellEngine';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
-import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
+import { isRepostKind, parseRepostContent, shouldHideFeedEvent } from '@/lib/feedUtils';
+import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteList } from '@/hooks/useMuteList';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'feeds' | 'packs' | 'posts' | 'accounts';
@@ -497,31 +500,19 @@ export function SearchPage() {
     sort: activeTab === 'feeds' ? sort : 'recent',
   });
 
-  // Packs tab: stream kind:39089 follow packs + kind:30000 follow sets
-  const {
-    posts: packEvents,
-    isLoading: packsLoading,
-    newPostCount: packsNewCount,
-    flushStreamBuffer: flushPacksBuffer,
-    flushedIds: packsFlushedIds,
-  } = useStreamPosts(activeTab === 'packs' ? debouncedSearchQuery : '', {
-    includeReplies: true,
-    mediaType: 'all',
-    kindsOverride: [39089, 30000],
-    authorPubkeys: activeTab === 'packs' ? streamAuthorPubkeys : undefined,
-    sort: activeTab === 'packs' ? sort : 'recent',
-  });
+  // Packs tab: use useFeed to get full events with all tags (including image)
+  const packsFeedQuery = useFeed('global', { kinds: [39089, 30000] });
 
   const handleRefresh = useCallback(async () => {
     if (activeTab === 'feeds') {
       flushFeedsBuffer();
     } else if (activeTab === 'packs') {
-      flushPacksBuffer();
+      packsFeedQuery.refetch();
     } else {
       flushStreamBuffer();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab, flushStreamBuffer, flushFeedsBuffer, flushPacksBuffer]);
+  }, [activeTab, flushStreamBuffer, flushFeedsBuffer, packsFeedQuery]);
 
   return (
     <main className="flex-1 min-w-0">
@@ -957,43 +948,7 @@ export function SearchPage() {
 
         {/* ─── Packs Tab ─── */}
         {activeTab === 'packs' && (
-          <>
-            {packsNewCount > 0 && (
-              <div
-                className={cn(
-                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-                )}
-                style={{ marginBottom: '-3rem' }}
-              >
-                <button
-                  onClick={() => {
-                    flushPacksBuffer();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  {packsNewCount} new pack{packsNewCount !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-            {packsLoading && packEvents.length === 0 ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <PostSkeleton key={i} />
-                ))}
-              </div>
-            ) : packEvents.length > 0 ? (
-              <div>
-                {packEvents.map((event) => (
-                  <NoteCard key={event.id} event={event} highlight={packsFlushedIds.has(event.id)} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState message={debouncedSearchQuery.trim() ? 'No packs found matching your search.' : 'No follow packs found. Check back soon!'} />
-            )}
-          </>
+          <PacksTabContent query={packsFeedQuery} />
         )}
 
         {/* ─── Feeds Tab ─── */}
@@ -1176,6 +1131,72 @@ function FollowItem({ pubkey }: { pubkey: string }) {
         )}
       </div>
     </Link>
+  );
+}
+
+/** Renders the Packs tab using useFeed (same query path as /packs page). */
+function PacksTabContent({ query }: { query: ReturnType<typeof useFeed> }) {
+  const { muteItems } = useMuteList();
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  const { data: rawData, isPending, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const packItems = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    return (rawData.pages as unknown as { items: FeedItem[] }[])
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        if (shouldHideFeedEvent(item.event)) return false;
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        return true;
+      });
+  }, [rawData?.pages, muteItems]);
+
+  const showSkeleton = isPending || (isLoading && !rawData);
+
+  if (showSkeleton) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <PostSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (packItems.length === 0) {
+    return <EmptyState message="No follow packs found. Check back soon!" />;
+  }
+
+  return (
+    <div>
+      {packItems.map((item) => (
+        <NoteCard
+          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          event={item.event}
+          repostedBy={item.repostedBy}
+        />
+      ))}
+      {hasNextPage && (
+        <div ref={scrollRef} className="py-4">
+          {isFetchingNextPage && (
+            <div className="flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
