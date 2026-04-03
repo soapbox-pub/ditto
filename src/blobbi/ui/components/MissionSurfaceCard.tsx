@@ -131,7 +131,6 @@ export function MissionSurfaceCard({
   className,
 }: MissionSurfaceCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [direction, setDirection] = useState<'left' | 'right'>('right');
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Build card list: tasks first (priority), then daily
@@ -158,7 +157,6 @@ export function MissionSurfaceCard({
     }
 
     timerRef.current = setInterval(() => {
-      setDirection('right');
       setIsAnimating(true);
       setTimeout(() => {
         setActiveIndex((prev) => (prev + 1) % cards.length);
@@ -176,14 +174,12 @@ export function MissionSurfaceCard({
     if (cards.length <= 1) return;
     // Reset auto-rotate timer
     if (timerRef.current) clearInterval(timerRef.current);
-    setDirection('right');
     setIsAnimating(true);
     setTimeout(() => {
       setActiveIndex((prev) => (prev + 1) % cards.length);
       setIsAnimating(false);
       // Restart timer
       timerRef.current = setInterval(() => {
-        setDirection('right');
         setIsAnimating(true);
         setTimeout(() => {
           setActiveIndex((prev) => (prev + 1) % cards.length);
@@ -222,7 +218,7 @@ export function MissionSurfaceCard({
           'w-full text-left rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm',
           'px-3.5 py-2.5 transition-all duration-200',
           'hover:bg-accent/40 active:scale-[0.99]',
-          isAnimating && direction === 'right' && 'opacity-0 translate-x-2',
+          isAnimating && 'opacity-0 translate-x-2',
           !isAnimating && 'opacity-100 translate-x-0',
         )}
       >

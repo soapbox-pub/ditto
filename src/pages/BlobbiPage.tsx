@@ -1598,9 +1598,6 @@ function BlobbiDashboard({
             requiredPhrase={firstHatchPhrase}
             postCompleted={!!tourPostFound || !firstHatchTour.isStep('show_hatch_card')}
             onCreatePost={() => setShowPostModal(true)}
-            onContinue={() => {
-              firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-            }}
             currentStep={firstHatchTour.state.currentStepId}
           />
         </div>

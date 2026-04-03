@@ -43,9 +43,6 @@ interface TasksPanelProps {
   onOpenPostModal: () => void;
   onComplete: () => void;
   isCompleting?: boolean;
-  emoji: string;
-  title: string;
-  description: string;
   completeLabel: string;
   completingLabel: string;
   completeEmoji: string;

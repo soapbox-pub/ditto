@@ -326,11 +326,7 @@ function CurrentFocusSection({
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
 
   const isIncubation = processType === 'incubation';
-  const emoji = isIncubation ? '🥚' : '🐣';
   const title = isIncubation ? 'Hatch Tasks' : 'Evolve Tasks';
-  const description = isIncubation
-    ? 'Complete these tasks to hatch your Blobbi'
-    : 'Complete these tasks to evolve your Blobbi';
   const completeLabel = isIncubation ? 'Hatch Your Blobbi!' : 'Evolve Your Blobbi!';
   const completingLabel = isIncubation ? 'Hatching...' : 'Evolving...';
   const completeEmoji = isIncubation ? '🐣' : '✨';
@@ -386,9 +382,6 @@ function CurrentFocusSection({
             onOpenPostModal={onOpenPostModal}
             onComplete={onComplete}
             isCompleting={isCompleting}
-            emoji={emoji}
-            title={title}
-            description={description}
             completeLabel={completeLabel}
             completingLabel={completingLabel}
             completeEmoji={completeEmoji}

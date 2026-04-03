@@ -27,8 +27,6 @@ interface FirstHatchTourCardProps {
   postCompleted: boolean;
   /** Open the post composer */
   onCreatePost: () => void;
-  /** Advance the tour after post completion (only used during show_hatch_card) */
-  onContinue: () => void;
   /** Current tour step id for adaptive messaging */
   currentStep: FirstHatchTourStepId | null;
 }
@@ -40,7 +38,6 @@ export function FirstHatchTourCard({
   requiredPhrase,
   postCompleted,
   onCreatePost,
-  onContinue: _onContinue,
   currentStep,
 }: FirstHatchTourCardProps) {
   const capitalizedName = blobbiName.charAt(0).toUpperCase() + blobbiName.slice(1);
