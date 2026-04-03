@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ExternalLink, Maximize2, Minimize2, RefreshCw, X } from 'lucide-react';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { createPortal } from 'react-dom';
+import { ExternalLink, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 
 /** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
 const PREVIEW_DOMAIN = 'local-shakespeare.dev';
@@ -55,8 +53,13 @@ interface NsitePreviewDialogProps {
 }
 
 /**
- * An in-app preview dialog that loads an nsite in a sandboxed iframe,
- * using the Shakespeare iframe-fetch-client protocol over local-shakespeare.dev.
+ * An in-app preview panel that covers the center column and loads an nsite in
+ * a sandboxed iframe, using the Shakespeare iframe-fetch-client protocol over
+ * local-shakespeare.dev.
+ *
+ * The panel uses `position: fixed` with responsive left/right insets that
+ * mirror the sidebar widths so it overlays exactly the center column on all
+ * screen sizes.
  *
  * The parent window intercepts JSON-RPC `fetch` requests from the iframe and
  * proxies them to the live nsite URL, so the SPA can run without needing CORS
@@ -66,9 +69,6 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentPath, setCurrentPath] = useState('/');
-  const [history, setHistory] = useState<string[]>(['/']);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Derive a stable iframe origin from the session id and preview domain
   const iframeOrigin = `https://${sessionIdRef.current}.${PREVIEW_DOMAIN}`;
@@ -159,17 +159,8 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
     canGoBack: boolean;
     canGoForward: boolean;
   }) => {
-    const path = params.currentUrl;
-    setCurrentPath(path);
-    setHistory((prev) => {
-      if (path !== prev[historyIndex]) {
-        const next = [...prev.slice(0, historyIndex + 1), path];
-        setHistoryIndex(next.length - 1);
-        return next;
-      }
-      return prev;
-    });
-  }, [historyIndex]);
+    setCurrentPath(params.currentUrl);
+  }, []);
 
   // Listen for messages from the iframe
   useEffect(() => {
@@ -187,154 +178,81 @@ export function NsitePreviewDialog({ nsiteUrl, nsiteName, appName, open, onOpenC
     return () => window.removeEventListener('message', handleMessage);
   }, [iframeOrigin, handleFetch, handleNavigationState]);
 
-  const sendNavCommand = useCallback((method: string, params?: Record<string, unknown>) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      { jsonrpc: '2.0', method, params: params ?? {}, id: Date.now() },
-      iframeOrigin,
-    );
-  }, [iframeOrigin]);
-
-  const handleBack = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCurrentPath(history[newIndex]);
-      sendNavCommand('navigate', { url: history[newIndex] });
-    }
-  };
-
-  const handleForward = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setCurrentPath(history[newIndex]);
-      sendNavCommand('navigate', { url: history[newIndex] });
-    }
-  };
-
-  const handleRefresh = () => {
-    sendNavCommand('refresh');
-  };
-
-  // Reset state when dialog opens/closes
+  // Reset state when panel opens/closes
   useEffect(() => {
     if (open) {
       setCurrentPath('/');
-      setHistory(['/']);
-      setHistoryIndex(0);
-      setIsFullscreen(false);
-      // Generate a fresh session id each time the dialog opens
+      // Generate a fresh session id each time the panel opens
       sessionIdRef.current = makeSessionId();
     }
   }, [open]);
 
-  const canGoBack = historyIndex > 0;
-  const canGoForward = historyIndex < history.length - 1;
-
-  // Display URL shown in the address bar: nsite://<name><path>
+  // Display URL shown in the nav bar: nsite://<name><path>
   const path = currentPath === '/' ? '' : currentPath;
   const displayUrl = `nsite://${nsiteName}${path}`;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          'p-0 flex flex-col gap-0 [&>button:last-of-type]:hidden',
-          isFullscreen
-            ? 'fixed inset-0 max-w-none w-screen h-screen rounded-none'
-            : 'max-w-4xl w-full h-[80vh]',
-        )}
-      >
-        <VisuallyHidden>
-          <DialogTitle>{appName} — Preview</DialogTitle>
-        </VisuallyHidden>
+  if (!open) return null;
 
-        {/* Browser chrome toolbar */}
-        <div className="h-11 flex items-center gap-1.5 px-2 border-b bg-muted/30 shrink-0 rounded-t-lg">
-          {/* Back / Forward / Refresh */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={handleBack}
-            disabled={!canGoBack}
-            title="Back"
-          >
-            <ArrowLeft className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={handleForward}
-            disabled={!canGoForward}
-            title="Forward"
-          >
-            <ArrowRight className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={handleRefresh}
-            title="Refresh"
-          >
-            <RefreshCw className="size-3.5" />
-          </Button>
-
-          {/* Address bar */}
-          <div className="flex-1 mx-1">
-            <div className="h-7 bg-background border rounded-md flex items-center px-2.5 text-xs text-muted-foreground font-mono truncate select-none">
-              {displayUrl}
-            </div>
+  return createPortal(
+    <div
+      className={[
+        // Cover the full viewport, then carve out the sidebars with insets
+        'fixed inset-0 z-50 flex flex-col',
+        'bg-background',
+        // Left sidebar appears at the "sidebar" breakpoint (900px), w-[300px]
+        // Right sidebar appears at xl (1280px), also w-[300px]
+        // The whole wrapper is max-w-[1200px] mx-auto, so on very wide screens
+        // the sidebars don't reach the viewport edges — but using the sidebar
+        // widths as insets is the closest static approximation and matches the
+        // visual center column on all common screen sizes.
+        'sidebar:left-[300px]',
+        'xl:right-[300px]',
+      ].join(' ')}
+    >
+      {/* Nav bar */}
+      <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
+        {/* Address bar */}
+        <div className="flex-1 min-w-0">
+          <div className="h-7 bg-background border rounded-md flex items-center px-2.5 text-xs text-muted-foreground font-mono truncate select-none">
+            {displayUrl}
           </div>
-
-          {/* Open in new tab */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => window.open(nsiteUrl, '_blank', 'noopener,noreferrer')}
-            title="Open in new tab"
-          >
-            <ExternalLink className="size-3.5" />
-          </Button>
-
-          {/* Fullscreen toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => setIsFullscreen((f) => !f)}
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </Button>
-
-          {/* Close */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onOpenChange(false)}
-            title="Close"
-          >
-            <X className="size-3.5" />
-          </Button>
         </div>
 
-        {/* iframe */}
-        <div className="flex-1 min-h-0 bg-background">
-          <iframe
-            key={`${sessionIdRef.current}-${open}`}
-            ref={iframeRef}
-            src={iframeSrc}
-            className="w-full h-full border-0"
-            title={`${appName} preview`}
-            sandbox="allow-scripts allow-same-origin allow-forms"
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Open in new tab */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 shrink-0"
+          onClick={() => window.open(nsiteUrl, '_blank', 'noopener,noreferrer')}
+          title="Open in new tab"
+        >
+          <ExternalLink className="size-3.5" />
+        </Button>
+
+        {/* Close */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 shrink-0"
+          onClick={() => onOpenChange(false)}
+          title="Close"
+        >
+          <X className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* iframe */}
+      <div className="flex-1 min-h-0 bg-background">
+        <iframe
+          key={`${sessionIdRef.current}-${open}`}
+          ref={iframeRef}
+          src={iframeSrc}
+          className="w-full h-full border-0"
+          title={`${appName} preview`}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      </div>
+    </div>,
+    document.body,
   );
 }
