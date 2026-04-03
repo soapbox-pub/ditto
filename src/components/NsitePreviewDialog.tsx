@@ -1,9 +1,33 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useCenterColumn } from '@/contexts/LayoutContext';
+
+interface Rect { left: number; top: number; width: number; height: number }
+
+/** Track the viewport-relative bounding rect of an element, updating on resize. */
+function useElementRect(el: HTMLElement | null): Rect | null {
+  const [rect, setRect] = useState<Rect | null>(null);
+
+  useEffect(() => {
+    if (!el) { setRect(null); return; }
+
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [el]);
+
+  return rect;
+}
 
 /** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
 const PREVIEW_DOMAIN = 'local-shakespeare.dev';
@@ -70,6 +94,7 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
   const sessionIdRef = useRef<string>(makeSessionId());
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const centerColumn = useCenterColumn();
+  const columnRect = useElementRect(open ? centerColumn : null);
 
   // Derive a stable iframe origin from the session id and preview domain
   const iframeOrigin = `https://${sessionIdRef.current}.${PREVIEW_DOMAIN}`;
@@ -187,10 +212,18 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
     }
   }, [open]);
 
-  if (!open || !centerColumn) return null;
+  if (!open || !centerColumn || !columnRect) return null;
 
   return createPortal(
-    <div className="absolute inset-0 z-50 flex flex-col bg-background">
+    <div
+      className="fixed z-50 flex flex-col bg-background"
+      style={{
+        left: columnRect.left,
+        top: columnRect.top,
+        width: columnRect.width,
+        height: window.innerHeight - columnRect.top,
+      }}
+    >
       {/* Nav bar */}
       <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
         {/* App icon + name */}
@@ -233,6 +266,6 @@ export function NsitePreviewDialog({ nsiteUrl, appName, appPicture, open, onOpen
         />
       </div>
     </div>,
-    centerColumn,
+    document.body,
   );
 }
