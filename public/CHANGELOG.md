@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.1] - 2026-04-02
+
+### Added
+- Rich cards for Zapstore app releases and assets -- see download links, version info, platform badges, and hashes right in your feed
+
+### Fixed
+- First-hatch tour now shows for accounts that were onboarded before the tour existed, so no one misses the hatching moment
+
 ## [2.4.0] - 2026-04-02
 
 ### Added
