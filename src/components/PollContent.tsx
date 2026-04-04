@@ -210,19 +210,6 @@ export function PollContent({ event }: { event: NostrEvent }) {
     setVotersModalOpen(true);
   };
 
-  // Get the label for the modal
-  const modalOptionLabel = useMemo(() => {
-    if (votersModalOptionId === null) return 'All voters';
-    return options.find((o) => o.id === votersModalOptionId)?.label ?? 'Voters';
-  }, [votersModalOptionId, options]);
-
-  // Get the voters to display in the modal
-  const modalVoters = useMemo(() => {
-    if (!votes) return [];
-    if (votersModalOptionId === null) return votes;
-    return getVotersForOption(votes, votersModalOptionId, pollType);
-  }, [votes, votersModalOptionId, pollType]);
-
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       {/* Question */}
@@ -334,10 +321,10 @@ export function PollContent({ event }: { event: NostrEvent }) {
       <PollVotersModal
         open={votersModalOpen}
         onOpenChange={setVotersModalOpen}
-        title={modalOptionLabel}
-        voters={modalVoters}
+        allVotes={votes ?? []}
         options={options}
         pollType={pollType}
+        initialOptionId={votersModalOptionId}
         authorsMap={authorsMap}
       />
     </div>
@@ -349,14 +336,21 @@ export function PollContent({ event }: { event: NostrEvent }) {
 interface PollVotersModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
-  voters: NostrEvent[];
+  allVotes: NostrEvent[];
   options: PollOption[];
   pollType: string;
+  initialOptionId?: string | null;
   authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
 }
 
-function PollVotersModal({ open, onOpenChange, title, voters, options, pollType, authorsMap }: PollVotersModalProps) {
+function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
+  const [activeFilter, setActiveFilter] = useState<string | null>(initialOptionId ?? null);
+
+  // Sync filter when modal opens with a specific option
+  useMemo(() => {
+    if (open) setActiveFilter(initialOptionId ?? null);
+  }, [open, initialOptionId]);
+
   // Build a map from option ID to label for display
   const optionLabelMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -366,12 +360,21 @@ function PollVotersModal({ open, onOpenChange, title, voters, options, pollType,
     return map;
   }, [options]);
 
+  // Filter voters based on active filter
+  const filteredVoters = useMemo(() => {
+    if (activeFilter === null) return allVotes;
+    return getVotersForOption(allVotes, activeFilter, pollType);
+  }, [allVotes, activeFilter, pollType]);
+
+  // Tally per option for the count badges
+  const tally = useMemo(() => tallyVotes(allVotes, pollType), [allVotes, pollType]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Voters</DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
@@ -380,15 +383,77 @@ function PollVotersModal({ open, onOpenChange, title, voters, options, pollType,
           </button>
         </div>
 
-        {/* Content */}
+        {/* Option filter bars — scrollable when more than 3 */}
+        <ScrollArea className={cn('px-4', options.length > 2 && 'max-h-[120px]')}>
+          <div className="space-y-1.5">
+            {/* "All" bar */}
+            <button
+              onClick={() => setActiveFilter(null)}
+              className={cn(
+                'relative w-full overflow-hidden rounded-lg border transition-colors text-left',
+                activeFilter === null ? 'border-primary' : 'border-border hover:border-muted-foreground/40',
+              )}
+            >
+              <div
+                className={cn(
+                  'absolute inset-0 transition-all duration-500',
+                  activeFilter === null ? 'bg-primary/15' : 'bg-secondary/40',
+                )}
+                style={{ width: '100%' }}
+              />
+              <div className="relative flex items-center justify-between px-3 py-2">
+                <span className={cn('text-sm', activeFilter === null && 'font-semibold')}>All</span>
+                <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
+                  {allVotes.length}
+                </span>
+              </div>
+            </button>
+
+            {/* Per-option bars */}
+            {options.map((opt) => {
+              const count = tally.get(opt.id) ?? 0;
+              const pct = allVotes.length > 0 ? Math.round((count / allVotes.length) * 100) : 0;
+              const isActive = activeFilter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setActiveFilter(opt.id)}
+                  className={cn(
+                    'relative w-full overflow-hidden rounded-lg border transition-colors text-left',
+                    isActive ? 'border-primary' : 'border-border hover:border-muted-foreground/40',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'absolute inset-0 transition-all duration-500',
+                      isActive ? 'bg-primary/15' : 'bg-secondary/40',
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                  <div className="relative flex items-center justify-between px-3 py-2">
+                    <span className={cn('text-sm break-words min-w-0', isActive && 'font-semibold')}>{opt.label}</span>
+                    <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
+                      {count}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        {/* Primary accent divider — only when scrollbox is active */}
+        {options.length > 2 && <div className="mx-4 h-1 bg-primary rounded-full" />}
+
+        {/* Voter list */}
         <ScrollArea className="max-h-[60vh]">
-          {voters.length === 0 ? (
+          {filteredVoters.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               No votes yet
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {voters.map((vote) => (
+              {filteredVoters.map((vote) => (
                 <VoterRow
                   key={vote.id}
                   vote={vote}
