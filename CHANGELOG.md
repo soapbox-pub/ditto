@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.1] - 2026-04-03
+
+### Fixed
+- Lightbox now reliably appears above all content, not just when opened from photo galleries
+
 ## [2.5.0] - 2026-04-03
 
 ### Added
