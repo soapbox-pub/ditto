@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.5.2] - 2026-04-04
+
+### Added
+- See who voted on each poll option -- tap the vote count to open a voters list with avatar stacks and per-option filter tabs
+- Poll votes now appear as activity cards in feeds and on detail pages
+
+### Fixed
+- Threads and replies load more reliably by following relay and author hints when fetching parent events
+
 ## [2.5.1] - 2026-04-03
 
 ### Fixed
