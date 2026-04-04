@@ -17,6 +17,7 @@ import { useMemo, memo, type RefObject } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
+import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
@@ -248,7 +249,15 @@ export function BlobbiCompanionVisual({
           )}
           style={{ transformOrigin: 'center bottom' }}
         >
-          {(companion.stage === 'baby' || companion.stage === 'adult') && (
+          {companion.stage === 'egg' ? (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <BlobbiStageVisual
+              companion={companion as any}
+              size="sm"
+              animated={false}
+              className="size-full"
+            />
+          ) : (
             <MemoizedBlobbiVisual
               stage={companion.stage}
               blobbi={blobbi}

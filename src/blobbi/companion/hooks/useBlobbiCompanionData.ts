@@ -80,9 +80,6 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
     
     if (!blobbi) return null;
     
-    // Only baby and adult can be companions
-    if (blobbi.stage === 'egg') return null;
-    
     // Use projected stats if available, otherwise fall back to base stats
     const stats = projectedState?.stats ?? blobbi.stats;
     

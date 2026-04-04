@@ -526,7 +526,7 @@ export function BlobbiHatchingCeremony({
         setTimeout(() => {
           setPhase('complete');
           onComplete?.();
-        }, 1200);
+        }, 2200);
       }, 600);
     } catch (error) {
       console.error('[HatchingCeremony] Naming failed:', error);
@@ -539,7 +539,7 @@ export function BlobbiHatchingCeremony({
       setTimeout(() => {
         setPhase('complete');
         onComplete?.();
-      }, 1200);
+      }, 2200);
     } finally {
       setIsNaming(false);
     }
@@ -653,7 +653,7 @@ export function BlobbiHatchingCeremony({
       {showFlash && (
         <div
           className="absolute inset-0 bg-white animate-onboard-screen-flash pointer-events-none"
-          style={{ zIndex: 60 }}
+          style={{ zIndex: 80 }}
         />
       )}
 
@@ -951,8 +951,8 @@ export function BlobbiHatchingCeremony({
         <div
           className="absolute inset-0 bg-white pointer-events-none"
           style={{
-            zIndex: 70,
-            animation: 'blobbi-fade-to-white 1.2s ease-in forwards',
+            zIndex: 90,
+            animation: 'blobbi-fade-to-white 2s ease-in forwards',
           }}
         />
       )}
