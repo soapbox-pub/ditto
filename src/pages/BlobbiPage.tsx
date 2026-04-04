@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, MoreHorizontal, Droplets, Heart, Zap } from 'lucide-react';
@@ -29,6 +29,7 @@ import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
 import {
@@ -54,9 +55,6 @@ import {
   InlineMusicPlayer,
   InlineSingCard,
   BlobbiPostModal,
-  StartIncubationDialog,
-  StartEvolutionDialog,
-  TasksPanel,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
@@ -87,7 +85,7 @@ import {
   type StartIncubationMode,
 } from '@/blobbi/actions';
 import { useRerollMission } from '@/blobbi/actions/hooks/useRerollMission';
-import { DailyMissionsPanel } from '@/blobbi/actions/components/DailyMissionsPanel';
+// DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
@@ -961,8 +959,6 @@ function BlobbiDashboard({
   
   // Incubation/Hatch task state
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showIncubationDialog, setShowIncubationDialog] = useState(false);
-  const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
@@ -1203,7 +1199,6 @@ function BlobbiDashboard({
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
     try {
       await startIncubation({ mode, stopOtherD });
-      setShowIncubationDialog(false);
     } catch (error) {
       console.error('Failed to start incubation:', error);
     }
@@ -1213,7 +1208,6 @@ function BlobbiDashboard({
   const handleStartEvolution = async () => {
     try {
       await startEvolution();
-      setShowEvolutionDialog(false);
     } catch (error) {
       console.error('Failed to start evolution:', error);
     }
@@ -1472,6 +1466,12 @@ function BlobbiDashboard({
                   onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
                   isClaimingReward={isClaimingReward}
                   isRerollingMission={isRerollingMission}
+                  canStartIncubation={canStartIncubation}
+                  canStartEvolution={canStartEvolution}
+                  isStartingIncubation={isStartingIncubation}
+                  isStartingEvolution={isStartingEvolution}
+                  onStartIncubation={() => handleStartIncubation('start')}
+                  onStartEvolution={handleStartEvolution}
                 />
               )}
               {activeDrawer === 'more' && (
@@ -1497,9 +1497,9 @@ function BlobbiDashboard({
                   onTakePhoto={() => setShowPhotoModal(true)}
                   onEvolve={
                     canStartIncubation
-                      ? () => setShowIncubationDialog(true)
+                      ? () => handleStartIncubation('start')
                       : canStartEvolution
-                        ? () => setShowEvolutionDialog(true)
+                        ? handleStartEvolution
                         : isEgg
                           ? onHatch
                           : onEvolve
@@ -1698,24 +1698,6 @@ function BlobbiDashboard({
         companion={companion}
       />
       
-      {/* Start Incubation Confirmation Dialog */}
-      <StartIncubationDialog
-        open={showIncubationDialog}
-        onOpenChange={setShowIncubationDialog}
-        companion={companion}
-        companions={companions}
-        onConfirm={handleStartIncubation}
-        isPending={isStartingIncubation}
-      />
-      
-      {/* Start Evolution Confirmation Dialog */}
-      <StartEvolutionDialog
-        open={showEvolutionDialog}
-        onOpenChange={setShowEvolutionDialog}
-        companion={companion}
-        onConfirm={handleStartEvolution}
-        isPending={isStartingEvolution}
-      />
       
       {/* Adoption Flow Modal */}
       <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
@@ -2023,7 +2005,15 @@ interface MissionsTabContentProps {
   onRerollMission: (id: string) => void;
   isClaimingReward: boolean;
   isRerollingMission: boolean;
+  canStartIncubation: boolean;
+  canStartEvolution: boolean;
+  isStartingIncubation: boolean;
+  isStartingEvolution: boolean;
+  onStartIncubation: () => void;
+  onStartEvolution: () => void;
 }
+
+type QuestPane = 'journey' | 'bounties';
 
 function MissionsTabContent({
   companion: _companion,
@@ -2044,77 +2034,304 @@ function MissionsTabContent({
   onOpenPostModal,
   dailyMissions,
   onClaimReward,
-  onRerollMission,
+  onRerollMission: _onRerollMission,
   isClaimingReward,
-  isRerollingMission,
+  isRerollingMission: _isRerollingMission,
+  canStartIncubation,
+  canStartEvolution,
+  isStartingIncubation,
+  isStartingEvolution,
+  onStartIncubation,
+  onStartEvolution,
 }: MissionsTabContentProps) {
+  const [pane, setPane] = useState<QuestPane>('journey');
   const hasActiveProcess = (isIncubating && isEgg) || (isEvolvingState && isBaby);
   const isProcessBusy = isHatching || isEvolving || isStoppingIncubation || isStoppingEvolution;
+  const tasks = isIncubating ? hatchTasks.tasks : evolveTasks.tasks;
+  const allCompleted = isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted;
+  const isLoading = isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading;
+  const navigate = useNavigate();
+
+  const completedCount = tasks.filter(t => t.completed).length;
+  const totalCount = tasks.length;
+
+  const { missions } = dailyMissions;
+  const dailyCompleted = missions.filter(m => m.claimed).length;
+  const dailyTotal = missions.length;
 
   return (
-    <div className="space-y-6">
-      {/* Hatch / Evolve Tasks */}
-      {hasActiveProcess && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold">
-            {isIncubating ? 'Hatch Tasks' : 'Evolve Tasks'}
-          </h3>
-          <TasksPanel
-            tasks={isIncubating ? hatchTasks.tasks : evolveTasks.tasks}
-            allCompleted={isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted}
-            isLoading={isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading}
-            onOpenPostModal={onOpenPostModal}
-            onComplete={isIncubating ? onHatch : onEvolve}
-            isCompleting={isIncubating ? isHatching : isEvolving}
-            completeLabel={isIncubating ? 'Hatch Your Blobbi!' : 'Evolve Your Blobbi!'}
-            completingLabel={isIncubating ? 'Hatching...' : 'Evolving...'}
-            completeEmoji={isIncubating ? '\uD83D\uDC23' : '\u2728'}
-            category={isIncubating ? 'hatch' : 'evolve'}
-          />
-          <div className="flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={isIncubating ? onStopIncubation : onStopEvolution}
-              disabled={isProcessBusy}
-              className="text-xs text-muted-foreground hover:text-destructive"
-            >
-              {(isStoppingIncubation || isStoppingEvolution) ? (
-                <><Loader2 className="size-3.5 mr-1.5 animate-spin" />Stopping...</>
-              ) : (
-                `Stop ${isIncubating ? 'Incubation' : 'Evolution'}`
-              )}
-            </Button>
-          </div>
+    <div className="flex flex-col h-full px-3 sm:px-4">
+      {/* ── Pill toggle ── */}
+      <div className="flex justify-center py-2">
+        <div className="inline-flex rounded-full bg-muted/50 p-1 gap-0.5">
+          <button
+            onClick={() => setPane('journey')}
+            className={cn(
+              'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
+              pane === 'journey'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Egg className="size-3.5" />
+            Journey
+            {hasActiveProcess && (
+              <span className="text-[10px] tabular-nums text-muted-foreground">{completedCount}/{totalCount}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setPane('bounties')}
+            className={cn(
+              'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
+              pane === 'bounties'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Target className="size-3.5" />
+            Bounties
+            {dailyTotal > 0 && (
+              <span className="text-[10px] tabular-nums text-muted-foreground">{dailyCompleted}/{dailyTotal}</span>
+            )}
+          </button>
         </div>
-      )}
-
-      {!hasActiveProcess && (
-        <div className="py-4 text-center text-sm text-muted-foreground">
-          No active progression right now
-        </div>
-      )}
-
-      {/* Divider */}
-      <div className="h-px bg-border/60" />
-
-      {/* Daily Missions */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Daily Bounties</h3>
-        <DailyMissionsPanel
-          missions={dailyMissions.missions}
-          onClaimReward={onClaimReward}
-          onRerollMission={onRerollMission}
-          todayCoins={dailyMissions.todayClaimedReward}
-          disabled={isProcessBusy || isClaimingReward || isRerollingMission}
-          bonusAvailable={dailyMissions.bonusAvailable}
-          bonusClaimed={dailyMissions.bonusClaimed}
-          bonusReward={dailyMissions.bonusReward}
-          noMissionsAvailable={dailyMissions.noMissionsAvailable}
-          rerollsRemaining={dailyMissions.rerollsRemaining}
-          isRerolling={isRerollingMission}
-        />
       </div>
+
+      {/* ── Content area ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
+        {pane === 'journey' && (
+          <>
+            {/* Loading */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Active task rows */}
+            {hasActiveProcess && !isLoading && tasks.map(task => {
+              const handleAction = () => {
+                if (!task.action || !task.actionTarget) return;
+                switch (task.action) {
+                  case 'navigate': navigate(task.actionTarget); break;
+                  case 'external_link': openUrl(task.actionTarget); break;
+                  case 'open_modal': if (task.actionTarget === 'blobbi_post') onOpenPostModal(); break;
+                }
+              };
+              const isActionable = !task.completed && !!task.action && !!task.actionTarget;
+              return (
+                <button
+                  key={task.id}
+                  onClick={isActionable ? handleAction : undefined}
+                  disabled={!isActionable}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all text-left',
+                    isActionable && 'hover:bg-accent/50 active:scale-[0.98] cursor-pointer',
+                    !isActionable && 'cursor-default',
+                  )}
+                >
+                  <QuestTaskIcon taskId={task.id} completed={task.completed} />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{task.name}</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{task.description}</p>
+                  </div>
+                  {task.required > 1 && !task.completed && (
+                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{task.current}/{task.required}</span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Hatch / Evolve CTA */}
+            {hasActiveProcess && allCompleted && !isLoading && (
+              <button
+                onClick={isIncubating ? onHatch : onEvolve}
+                disabled={isProcessBusy}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 px-6 py-3 mt-1 rounded-full text-white font-semibold transition-all duration-300',
+                  'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+                  isProcessBusy && 'opacity-50 pointer-events-none',
+                )}
+                style={{
+                  background: isIncubating
+                    ? 'linear-gradient(135deg, #0ea5e9, #8b5cf6)'
+                    : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                }}
+              >
+                {(isHatching || isEvolving) ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <span className="text-lg">{isIncubating ? '\uD83D\uDC23' : '\u2728'}</span>
+                )}
+                <span>{(isHatching || isEvolving) ? (isIncubating ? 'Hatching...' : 'Evolving...') : (isIncubating ? 'Hatch!' : 'Evolve!')}</span>
+              </button>
+            )}
+
+            {/* Stop process */}
+            {hasActiveProcess && !isLoading && (
+              <button
+                onClick={isIncubating ? onStopIncubation : onStopEvolution}
+                disabled={isProcessBusy}
+                className="w-full text-center text-[11px] text-muted-foreground/40 hover:text-destructive/60 transition-colors pt-1"
+              >
+                {(isStoppingIncubation || isStoppingEvolution) ? 'Stopping...' : `Stop ${isIncubating ? 'incubation' : 'evolution'}`}
+              </button>
+            )}
+
+            {/* No active process */}
+            {!hasActiveProcess && !isLoading && (
+              <div className="flex flex-col items-center gap-3 py-4">
+                {(canStartIncubation || canStartEvolution) ? (
+                  <button
+                    onClick={canStartIncubation ? onStartIncubation : onStartEvolution}
+                    disabled={isStartingIncubation || isStartingEvolution}
+                    className={cn(
+                      'flex items-center justify-center gap-2 px-8 py-3 rounded-full text-white font-semibold transition-all duration-300',
+                      'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+                      (isStartingIncubation || isStartingEvolution) && 'opacity-50 pointer-events-none',
+                    )}
+                    style={{
+                      background: canStartIncubation
+                        ? 'linear-gradient(135deg, #0ea5e9, #8b5cf6)'
+                        : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                    }}
+                  >
+                    {(isStartingIncubation || isStartingEvolution) ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-5" />
+                    )}
+                    <span>{canStartIncubation ? 'Begin Hatching' : 'Begin Evolution'}</span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground/50">No journey available right now</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {pane === 'bounties' && (
+          <>
+            {dailyMissions.noMissionsAvailable && (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <Egg className="size-6 text-muted-foreground/30" />
+                <p className="text-xs text-muted-foreground">Hatch your Blobbi to unlock daily bounties</p>
+              </div>
+            )}
+
+            {!dailyMissions.noMissionsAvailable && missions.map(mission => {
+              const canClaim = mission.completed && !mission.claimed;
+              return (
+                <div
+                  key={mission.id}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
+                    canClaim && 'bg-amber-500/[0.06]',
+                  )}
+                >
+                  <DailyMissionIcon action={mission.action} claimed={mission.claimed} canClaim={canClaim} />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-sm font-medium leading-tight', mission.claimed && 'text-muted-foreground line-through')}>{mission.title}</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
+                  </div>
+                  {!mission.claimed && (
+                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.currentCount}/{mission.requiredCount}</span>
+                  )}
+                  {canClaim && (
+                    <button
+                      onClick={() => onClaimReward(mission.id)}
+                      disabled={isClaimingReward}
+                      className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                    >
+                      Claim
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Bonus row */}
+            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusAvailable && !dailyMissions.bonusClaimed && (
+              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-amber-500/[0.06]">
+                <div className="size-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <Sparkles className="size-4 text-amber-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium leading-tight">Daily Champion</p>
+                  <p className="text-[10px] text-muted-foreground">All missions complete!</p>
+                </div>
+                <button
+                  onClick={() => onClaimReward('bonus_daily_complete')}
+                  disabled={isClaimingReward}
+                  className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                >
+                  Claim
+                </button>
+              </div>
+            )}
+
+            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.bonusClaimed && (
+              <div className="flex flex-col items-center gap-1 py-4 text-center">
+                <Sparkles className="size-5 text-primary/40" />
+                <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Quest task icon ──────────────────────────────────────────────────────────
+
+function QuestTaskIcon({ taskId, completed }: { taskId: string; completed: boolean }) {
+  const iconClass = 'size-4';
+  const icon = (() => {
+    switch (taskId) {
+      case 'create_themes': return <Sparkles className={iconClass} />;
+      case 'color_moments': return <Droplets className={iconClass} />;
+      case 'create_posts': return <Target className={iconClass} />;
+      case 'interactions': return <Heart className={iconClass} />;
+      case 'edit_profile': return <Wrench className={iconClass} />;
+      case 'maintain_stats': return <Zap className={iconClass} />;
+      default: return <Target className={iconClass} />;
+    }
+  })();
+  return (
+    <div className={cn(
+      'size-8 rounded-full flex items-center justify-center shrink-0',
+      completed ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted/60 text-muted-foreground',
+    )}>
+      {completed ? <Check className="size-4" /> : icon}
+    </div>
+  );
+}
+
+// ─── Daily mission icon ───────────────────────────────────────────────────────
+
+function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claimed: boolean; canClaim: boolean }) {
+  const iconClass = 'size-4';
+  const icon = (() => {
+    switch (action) {
+      case 'interact': return <Heart className={iconClass} />;
+      case 'feed': return <Utensils className={iconClass} />;
+      case 'clean': return <Droplets className={iconClass} />;
+      case 'sleep': return <Moon className={iconClass} />;
+      case 'take_photo': return <Camera className={iconClass} />;
+      case 'sing': return <Mic className={iconClass} />;
+      case 'play_music': return <Music className={iconClass} />;
+      case 'medicine': return <Pill className={iconClass} />;
+      default: return <Target className={iconClass} />;
+    }
+  })();
+  return (
+    <div className={cn(
+      'size-8 rounded-full flex items-center justify-center shrink-0',
+      claimed ? 'bg-emerald-500/15 text-emerald-500' : canClaim ? 'bg-amber-500/15 text-amber-500' : 'bg-muted/60 text-muted-foreground',
+    )}>
+      {claimed ? <Check className="size-4" /> : icon}
     </div>
   );
 }
