@@ -1481,33 +1481,14 @@ function BlobbiDashboard({
                   selectedD={selectedD}
                   profile={profile}
                   blobbiNaddr={blobbiNaddr}
-                  isCurrentCompanion={isCurrentCompanion}
-                  isUpdatingCompanion={isUpdatingCompanion}
-                  canBeCompanion={canBeCompanion}
-                  canStartIncubation={canStartIncubation}
-                  canStartEvolution={canStartEvolution}
-                  isIncubating={isIncubating}
-                  isEvolvingState={isEvolvingState}
-                  isHatching={isHatching}
-                  isEvolving={isEvolving}
-                  isStartingIncubation={isStartingIncubation}
-                  isStartingEvolution={isStartingEvolution}
                   onSelectBlobbi={onSelectBlobbi}
-                  onSetAsCompanion={handleSetAsCompanion}
                   onTakePhoto={() => setShowPhotoModal(true)}
-                  onEvolve={
-                    canStartIncubation
-                      ? () => handleStartIncubation('start')
-                      : canStartEvolution
-                        ? handleStartEvolution
-                        : isEgg
-                          ? onHatch
-                          : onEvolve
-                  }
                   onAdopt={() => setShowAdoptionFlow(true)}
                   onDevOpenEditor={() => setShowDevEditor(true)}
                   onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
                   onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+                  isHatching={isHatching}
+                  isEvolving={isEvolving}
                 />
               )}
             </div>
@@ -2344,25 +2325,14 @@ interface MoreTabContentProps {
   selectedD: string;
   profile: BlobbonautProfile | null;
   blobbiNaddr: string;
-  isCurrentCompanion: boolean;
-  isUpdatingCompanion: boolean;
-  canBeCompanion: boolean;
-  canStartIncubation: boolean;
-  canStartEvolution: boolean;
-  isIncubating: boolean;
-  isEvolvingState: boolean;
-  isHatching: boolean;
-  isEvolving: boolean;
-  isStartingIncubation: boolean;
-  isStartingEvolution: boolean;
   onSelectBlobbi: (d: string) => void;
-  onSetAsCompanion: () => void;
   onTakePhoto: () => void;
-  onEvolve: () => void;
   onAdopt: () => void;
   onDevOpenEditor: () => void;
   onDevOpenEmotionPanel: () => void;
   onDevInstantTransition?: () => void;
+  isHatching: boolean;
+  isEvolving: boolean;
 }
 
 function MoreTabContent({
@@ -2371,119 +2341,105 @@ function MoreTabContent({
   selectedD,
   profile,
   blobbiNaddr,
-  isCurrentCompanion,
-  isUpdatingCompanion,
-  canBeCompanion,
-  canStartIncubation,
-  canStartEvolution,
-  isIncubating,
-  isEvolvingState,
-  isHatching,
-  isEvolving,
-  isStartingIncubation,
-  isStartingEvolution,
   onSelectBlobbi,
-  onSetAsCompanion,
   onTakePhoto,
-  onEvolve,
   onAdopt,
   onDevOpenEditor,
   onDevOpenEmotionPanel,
   onDevInstantTransition,
+  isHatching,
+  isEvolving,
 }: MoreTabContentProps) {
-  const stage = companion.stage;
-  const showEvolveButton = stage !== 'adult' && !isIncubating && !isEvolvingState;
-  const isTransitioning = isHatching || isEvolving || isStartingIncubation || isStartingEvolution;
+  const isTransitioning = isHatching || isEvolving;
 
   return (
-    <div className="space-y-6">
-      {/* ── Blobbies Section ── */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Your Blobbies</h3>
-        <div className="grid gap-3">
-          {companions.map((c) => (
-            <BlobbiSelectorCard
+    <div className="flex flex-col items-center h-full min-h-[210px] px-3 sm:px-4">
+      {/* ── Blobbi grid ── */}
+      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-3">
+        {companions.map((c) => {
+          const isSelected = c.d === selectedD;
+          const isCompanion = c.d === profile?.currentCompanion;
+          return (
+            <button
               key={c.d}
-              companion={c}
-              onSelect={() => onSelectBlobbi(c.d)}
-              isSelected={c.d === selectedD}
-              isCurrentCompanion={c.d === profile?.currentCompanion}
-            />
-          ))}
-          <AdoptAnotherBlobbiCard onAdopt={onAdopt} />
-        </div>
-      </div>
-      
-      {/* ── Actions Section ── */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Actions</h3>
-        <div className="grid gap-2">
-          {/* Take Photo */}
-          <Button variant="outline" className="justify-start gap-3 h-12" onClick={onTakePhoto}>
-            <Camera className="size-4" />
-            Take a Photo
-          </Button>
-          
-          {/* Set as Companion */}
-          {canBeCompanion && (
-            <Button
-              variant="outline"
-              className="justify-start gap-3 h-12"
-              onClick={onSetAsCompanion}
-              disabled={isUpdatingCompanion}
+              onClick={() => onSelectBlobbi(c.d)}
+              className={cn(
+                'flex flex-col items-center gap-1 transition-all duration-200',
+                'hover:-translate-y-1 hover:scale-105 active:scale-95',
+              )}
             >
-              <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />
-              {isCurrentCompanion ? 'Unset Companion' : 'Set as Companion'}
-            </Button>
-          )}
-          
-          {/* Evolve/Hatch */}
-          {showEvolveButton && (
-            <Button
-              variant="outline"
-              className="justify-start gap-3 h-12"
-              onClick={onEvolve}
-              disabled={isTransitioning}
-            >
-              {stage === 'egg' ? <Egg className="size-4" /> : <Sparkles className="size-4" />}
-              {stage === 'egg'
-                ? (canStartIncubation ? 'Start Incubation' : 'Hatch')
-                : (canStartEvolution ? 'Start Evolution' : 'Evolve')}
-            </Button>
-          )}
-          
-          {/* View Blobbi */}
-          <Button variant="outline" className="justify-start gap-3 h-12" asChild>
-            <Link to={`/${blobbiNaddr}`}>
-              <ExternalLink className="size-4" />
-              View Blobbi
-            </Link>
-          </Button>
-        </div>
-      </div>
-      
-      {/* DEV ONLY tools */}
-      {isLocalhostDev() && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400">Dev Tools</h3>
-          <div className="grid gap-2">
-            {stage !== 'adult' && onDevInstantTransition && (
-              <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevInstantTransition} disabled={isTransitioning}>
-                {stage === 'egg' ? <Egg className="size-4" /> : <Sparkles className="size-4" />}
-                {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
-              </Button>
-            )}
-            <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevOpenEditor}>
-              <Wrench className="size-4" />
-              State Editor
-            </Button>
-            <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevOpenEmotionPanel}>
-              <Theater className="size-4" />
-              Emotion Tester
-            </Button>
+              <div className="relative">
+                <div className={cn(
+                  'rounded-full p-1 transition-all',
+                  isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
+                )}>
+                  <BlobbiStageVisual companion={c} size="sm" />
+                </div>
+                {isCompanion && (
+                  <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-background ring-2 ring-background flex items-center justify-center">
+                    <Footprints className="size-3 text-emerald-500" />
+                  </div>
+                )}
+                {companionNeedsCare(c) && !isCompanion && (
+                  <div className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-amber-500 flex items-center justify-center">
+                    <span className="text-[8px] text-white font-bold">!</span>
+                  </div>
+                )}
+              </div>
+              <span className={cn(
+                'text-[11px] font-medium max-w-[4.5rem] truncate',
+                isSelected ? 'text-foreground' : 'text-muted-foreground',
+              )}>
+                {c.name}
+              </span>
+            </button>
+          );
+        })}
+
+        {/* Adopt + button */}
+        <button
+          onClick={onAdopt}
+          className="flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-1 hover:scale-105 active:scale-95"
+        >
+          <div className="size-14 rounded-full flex items-center justify-center" style={{
+            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 3%, transparent) 70%)',
+          }}>
+            <Plus className="size-6 text-muted-foreground/60" />
           </div>
-        </div>
-      )}
+          <span className="text-[11px] font-medium text-muted-foreground/60">Adopt</span>
+        </button>
+      </div>
+
+      {/* ── Quick actions row ── */}
+      <div className="flex items-center justify-center gap-6 pt-1">
+        <button onClick={onTakePhoto} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+          <Camera className="size-5" />
+          <span className="text-[10px]">Photo</span>
+        </button>
+        <Link to={`/${blobbiNaddr}`} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+          <ExternalLink className="size-5" />
+          <span className="text-[10px]">View</span>
+        </Link>
+        {/* DEV tools */}
+        {isLocalhostDev() && (
+          <>
+            {companion.stage !== 'adult' && onDevInstantTransition && (
+              <button onClick={onDevInstantTransition} disabled={isTransitioning} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40">
+                <Sparkles className="size-5" />
+                <span className="text-[10px]">{companion.stage === 'egg' ? 'Hatch' : 'Evolve'}</span>
+              </button>
+            )}
+            <button onClick={onDevOpenEditor} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
+              <Wrench className="size-5" />
+              <span className="text-[10px]">Editor</span>
+            </button>
+            <button onClick={onDevOpenEmotionPanel} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
+              <Theater className="size-5" />
+              <span className="text-[10px]">Emote</span>
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -2578,11 +2534,9 @@ interface BlobbiSelectorPageProps {
 function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentCompanion }: BlobbiSelectorPageProps) {
   return (
     <DashboardShell>
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Egg className="size-5 text-primary" />
-          </div>
+          <Egg className="size-5 text-primary" />
           <div>
             <h1 className="text-lg font-semibold">Choose Your Blobbi</h1>
             <p className="text-xs text-muted-foreground">Select a companion to care for</p>
@@ -2590,107 +2544,48 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentC
         </div>
         {isLoading && <RefreshCw className="size-4 text-muted-foreground animate-spin" />}
       </div>
-      <div className="flex-1 p-4 sm:p-6">
-        <div className="grid gap-3 max-w-lg mx-auto">
-          {companions.map((c) => (
-            <BlobbiSelectorCard key={c.d} companion={c} onSelect={() => onSelect(c.d)} isCurrentCompanion={c.d === currentCompanion} />
-          ))}
-          {onAdopt && <AdoptAnotherBlobbiCard onAdopt={onAdopt} />}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-6">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+          {companions.map((c) => {
+            const isCompanion = c.d === currentCompanion;
+            return (
+              <button
+                key={c.d}
+                onClick={() => onSelect(c.d)}
+                className="flex flex-col items-center gap-1.5 transition-all duration-200 hover:-translate-y-1 hover:scale-105 active:scale-95"
+              >
+                <div className="relative">
+                  <BlobbiStageVisual companion={c} size="sm" />
+                  {isCompanion && (
+                    <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-background ring-2 ring-background flex items-center justify-center">
+                      <Footprints className="size-3 text-emerald-500" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-medium text-muted-foreground max-w-[5rem] truncate">{c.name}</span>
+              </button>
+            );
+          })}
+          {onAdopt && (
+            <button
+              onClick={onAdopt}
+              className="flex flex-col items-center gap-1.5 transition-all duration-200 hover:-translate-y-1 hover:scale-105 active:scale-95"
+            >
+              <div className="size-14 rounded-full flex items-center justify-center" style={{
+                background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 3%, transparent) 70%)',
+              }}>
+                <Plus className="size-6 text-muted-foreground/60" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground/60">Adopt</span>
+            </button>
+          )}
         </div>
       </div>
     </DashboardShell>
   );
 }
 
-// ─── Blobbi Selector Card ─────────────────────────────────────────────────────
 
-interface BlobbiSelectorCardProps {
-  companion: BlobbiCompanion;
-  onSelect: () => void;
-  isSelected?: boolean;
-  isCurrentCompanion?: boolean;
-}
-
-function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanion }: BlobbiSelectorCardProps) {
-  const isSleeping = companion.state === 'sleeping';
-  const needsCare = companionNeedsCare(companion);
-  
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        'w-full p-4 rounded-xl text-left transition-all relative',
-        'bg-card/60 backdrop-blur-sm border border-border',
-        'hover:border-primary/30 hover:bg-accent/50 hover:shadow-md',
-        isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50',
-      )}
-    >
-      {isCurrentCompanion && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="absolute top-2 left-2 size-5 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Footprints className="size-3.5 text-green-500" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top"><p>Current companion</p></TooltipContent>
-        </Tooltip>
-      )}
-      {needsCare && (
-        <div className="absolute top-2 right-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center">
-          <AlertTriangle className="size-3.5 text-amber-500" />
-        </div>
-      )}
-      <div className="flex items-center gap-4">
-        <div className="shrink-0">
-          <BlobbiStageVisual companion={companion} size="sm" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold truncate">{companion.name}</h3>
-            {isSelected && <Check className="size-4 text-primary shrink-0" />}
-          </div>
-          <p className="text-sm text-muted-foreground capitalize">{companion.stage} Blobbi</p>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant={isSleeping ? 'secondary' : 'default'} className="text-xs">
-              {isSleeping ? <><Moon className="size-3 mr-1" />Sleeping</> : <><Sun className="size-3 mr-1" />Active</>}
-            </Badge>
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-// ─── Adopt Another Blobbi CTA Card ────────────────────────────────────────────
-
-function AdoptAnotherBlobbiCard({ onAdopt }: { onAdopt: () => void }) {
-  return (
-    <button
-      onClick={onAdopt}
-      className={cn(
-        'w-full p-4 rounded-xl text-center transition-all',
-        'bg-primary/5 backdrop-blur-sm',
-        'border-2 border-dashed border-primary/20',
-        'hover:border-primary/40 hover:bg-primary/10 hover:shadow-md',
-        'group',
-      )}
-    >
-      <div className="flex flex-col items-center gap-3 py-2">
-        <div className={cn(
-          'size-12 rounded-full flex items-center justify-center',
-          'bg-primary/10 border border-primary/20',
-          'group-hover:bg-primary/20 group-hover:border-primary/30 transition-colors',
-        )}>
-          <Plus className="size-6 text-primary" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="font-semibold text-foreground">Adopt Another Blobbi</h3>
-          <p className="text-sm text-muted-foreground">Preview and adopt a new companion</p>
-        </div>
-      </div>
-    </button>
-  );
-}
 
 // ─── Dashboard Loading State ──────────────────────────────────────────────────
 
