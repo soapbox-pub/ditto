@@ -1423,7 +1423,7 @@ function BlobbiDashboard({
       )}
       
       {/* ─── Curved Arc Tab Bar with Icon Tabs ─── */}
-      <div className="sticky top-mobile-bar sidebar:top-0 z-10">
+      <div className="sticky top-0 z-10">
         {/* Backdrop — tapping outside the drawer collapses it */}
         {activeDrawer !== 'none' && (
           <div
@@ -1511,7 +1511,7 @@ function BlobbiDashboard({
         </div>
         
         {/* The arc bar itself — sits below the drawer */}
-        <SubHeaderBar className="relative !top-0">
+        <SubHeaderBar pinned className="relative !top-0">
           <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
             <span className="flex items-center gap-1.5">
               <HeartHandshake className="size-4" />
