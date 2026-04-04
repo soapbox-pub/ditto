@@ -566,7 +566,7 @@ export class NostrBatcher {
 
   req(
     filters: NostrFilter[],
-    opts?: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal; relays?: string[]; eoseTimeout?: number },
   ): AsyncIterable<import('@nostrify/types').NostrRelayEVENT | import('@nostrify/types').NostrRelayEOSE | import('@nostrify/types').NostrRelayCLOSED> {
     return this.pool.req(filters, opts);
   }

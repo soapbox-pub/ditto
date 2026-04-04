@@ -5,6 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useLocalStorage } from './useLocalStorage';
+import { fetchFreshEvents } from '@/lib/fetchFreshEvent';
 import {
   KIND_BLOBBONAUT_PROFILE,
   BLOBBONAUT_PROFILE_KINDS,
@@ -76,7 +77,7 @@ export function useBlobbonautProfile() {
   // Main query to fetch the profile from relays
   const query = useQuery({
     queryKey: ['blobbonaut-profile', user?.pubkey],
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       if (!user?.pubkey) {
         return null;
       }
@@ -84,14 +85,18 @@ export function useBlobbonautProfile() {
       // Query with all possible d-tag values (canonical + legacy)
       const dValues = getBlobbonautQueryDValues(user.pubkey);
       
-      // Query BOTH current (11125) and legacy (31125) kinds for migration support
-      const filter = {
-        kinds: [...BLOBBONAUT_PROFILE_KINDS],
-        authors: [user.pubkey],
-        '#d': dValues,
-      };
-      
-      const events = await nostr.query([filter], { signal });
+      // Query BOTH current (11125) and legacy (31125) kinds for migration support.
+      // Use a relaxed eoseTimeout (1000ms) so slower relays have time to respond
+      // and we get the freshest profile across all relays.
+      const events = await fetchFreshEvents(
+        nostr,
+        [{
+          kinds: [...BLOBBONAUT_PROFILE_KINDS],
+          authors: [user.pubkey],
+          '#d': dValues,
+        }],
+        { eoseTimeout: 1000 },
+      );
       
       // Filter to valid events
       const validEvents = events.filter(isValidBlobbonautEvent);

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
@@ -125,8 +126,8 @@ export function ImageGallery({
         ))}
       </div>
 
-      {/* Lightbox */}
-      {lightboxIndex !== null && lightboxIndex !== undefined && (
+      {/* Lightbox — portaled to document.body to escape stacking contexts (e.g. the center column z-0) */}
+      {lightboxIndex !== null && lightboxIndex !== undefined && createPortal(
         <Lightbox
           images={images}
           currentIndex={lightboxIndex}
@@ -135,7 +136,8 @@ export function ImageGallery({
           onPrev={goPrev}
           topBarLeft={lightboxTopBarLeft}
           bottomBar={lightboxBottomBar}
-        />
+        />,
+        document.body,
       )}
     </>
   );
