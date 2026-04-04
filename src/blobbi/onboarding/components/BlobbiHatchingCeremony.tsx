@@ -705,7 +705,7 @@ export function BlobbiHatchingCeremony({
           {/* Wider golden halo */}
           <div
             className={cn(
-              'absolute rounded-full transition-opacity duration-[2000ms]',
+              'absolute rounded-full transition-opacity [transition-duration:2000ms]',
               blobbiVisible ? 'opacity-100' : 'opacity-0',
             )}
             style={{
