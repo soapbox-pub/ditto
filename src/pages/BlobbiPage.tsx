@@ -562,18 +562,24 @@ function BlobbiContent() {
   // ─── CASE B/C: Hatching ceremony (no profile, or profile with no pets) ───
   // Stays mounted until the ceremony explicitly completes, even if the
   // underlying data changes during the ceremony.
+  // Portaled to document.body so it escapes the center column stacking context
+  // (which has `relative z-0`) and covers the entire app shell including the
+  // RightSidebar — matching the subsequent hatch ceremony portal at z-[100].
   if (ceremonyInProgress) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony');
-    return (
-      <BlobbiOnboardingFlow
-        profile={profile ?? null}
-        updateProfileEvent={updateProfileEvent}
-        updateCompanionEvent={updateCompanionEvent}
-        invalidateProfile={invalidateProfile}
-        invalidateCompanion={invalidateCompanion}
-        setStoredSelectedD={setStoredSelectedD}
-        onComplete={() => setCeremonyInProgress(false)}
-      />
+    return createPortal(
+      <div className="fixed inset-0 z-[100] bg-background">
+        <BlobbiOnboardingFlow
+          profile={profile ?? null}
+          updateProfileEvent={updateProfileEvent}
+          updateCompanionEvent={updateCompanionEvent}
+          invalidateProfile={invalidateProfile}
+          invalidateCompanion={invalidateCompanion}
+          setStoredSelectedD={setStoredSelectedD}
+          onComplete={() => setCeremonyInProgress(false)}
+        />
+      </div>,
+      document.body,
     );
   }
   
