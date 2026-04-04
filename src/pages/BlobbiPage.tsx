@@ -1580,27 +1580,25 @@ function BlobbiDashboard({
           }));
           if (visibleStats.length === 0) return null;
 
-          // Arc geometry: stats orbit in a semicircle below the Blobbi.
-          // The arc spans from -arcHalf to +arcHalf degrees (0° = bottom center).
+          // Arc geometry: stats orbit in a wide semicircle below the Blobbi.
+          // We want the stats to spread generously — nearly ear-to-ear.
           const count = visibleStats.length;
-          const arcSpread = Math.min(count * 32, 140); // degrees, capped
+          // Wide arc: 180° for 5 stats, scales down for fewer
+          const arcSpread = count <= 2 ? 90 : count <= 3 ? 120 : 170;
           const arcHalf = arcSpread / 2;
-          // Angles measured clockwise from top (CSS transform convention),
+          // Angles measured clockwise from top (CSS convention),
           // centered on 180° (bottom). Range: 180-arcHalf .. 180+arcHalf
           const angles = count === 1
             ? [180]
             : visibleStats.map((_, i) => 180 - arcHalf + (arcSpread / (count - 1)) * i);
 
           return (
-            <div className="relative flex items-center justify-center w-full mt-1" style={{ height: 72 }}>
+            <div className="relative flex items-center justify-center w-full mt-1" style={{ height: 80 }}>
               {visibleStats.map((s, i) => {
-                // Orbit radius — distance from the center to each stat bubble.
-                // Responsive: tighter on mobile, more spread on larger screens.
-                // Mobile: ~140px, sm: ~160px, md: ~180px (achieved via CSS clamp).
                 const angleDeg = angles[i];
                 const angleRad = (angleDeg * Math.PI) / 180;
-                // Use a base radius; we'll scale it with CSS clamp for responsiveness
-                const baseRadius = 160;
+                // Larger radius so the arc spans wider horizontally
+                const baseRadius = 190;
                 const x = Math.sin(angleRad) * baseRadius;
                 const y = -Math.cos(angleRad) * baseRadius;
 
@@ -1609,7 +1607,6 @@ function BlobbiDashboard({
                     key={s.stat}
                     className="absolute transition-all duration-500"
                     style={{
-                      // Place relative to center; y is offset so the arc hugs the blobbi bottom
                       transform: `translate(calc(-50% + ${x.toFixed(1)}px), calc(-100% + ${y.toFixed(1)}px))`,
                       left: '50%',
                       top: '0%',
