@@ -2,10 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Target, Package, Sparkles, HeartHandshake, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, MoreHorizontal, ExternalLink, Settings2 } from 'lucide-react';
-// Note: Sparkles kept for BlobbiBottomBar center action button
-// Note: Plus kept for AdoptAnotherBlobbiCard
-// Note: AlertTriangle kept for stat warning indicators
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, MoreHorizontal, Droplets, Heart } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -25,7 +22,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
@@ -38,14 +37,17 @@ import {
   updateBlobbonautTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
+  type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
-import { BlobbiShopModal } from '@/blobbi/shop/components/BlobbiShopModal';
+import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import type { ShopItem } from '@/blobbi/shop/types/shop.types';
+import { useBlobbiPurchaseItem } from '@/blobbi/shop/hooks/useBlobbiPurchaseItem';
+import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import {
-  BlobbiActionsModal, 
   BlobbiActionInventoryModal,
   PlayMusicModal,
   InlineMusicPlayer,
@@ -53,7 +55,7 @@ import {
   BlobbiPostModal,
   StartIncubationDialog,
   StartEvolutionDialog,
-  BlobbiMissionsModal,
+  TasksPanel,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
@@ -74,14 +76,17 @@ import {
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
+  useDailyMissions,
+  useClaimMissionReward,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
   type SelectedTrack,
   type BlobbiReactionState,
   type StartIncubationMode,
-  useDailyMissions,
 } from '@/blobbi/actions';
+import { useRerollMission } from '@/blobbi/actions/hooks/useRerollMission';
+import { DailyMissionsPanel } from '@/blobbi/actions/components/DailyMissionsPanel';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
@@ -89,18 +94,6 @@ import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
-import { MissionSurfaceCard } from '@/blobbi/ui/components/MissionSurfaceCard';
-import { ActionBarEditor } from '@/blobbi/ui/components/ActionBarEditor';
-import {
-  type ActionBarPreferences,
-  type BarItemId,
-  getVisibleSlots,
-  getVisibleBarIds,
-  loadPreferences,
-  savePreferences,
-  loadMissionCardVisible,
-  saveMissionCardVisible,
-} from '@/blobbi/ui/lib/action-bar-preferences';
 
 
 
@@ -787,6 +780,11 @@ function DashboardShell({ children }: DashboardShellProps) {
   );
 }
 
+// ─── Dashboard Drawer Type ────────────────────────────────────────────────────
+
+/** Which drawer is open; 'none' = all closed */
+type DashboardDrawer = 'none' | 'care' | 'items' | 'missions' | 'more';
+
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
 interface BlobbiDashboardProps {
@@ -823,7 +821,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+    profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
@@ -867,6 +865,14 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
+  // ─── Active Drawer ───
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
+  
+  // Toggle drawer: tapping same tab closes it, tapping another opens that one
+  const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
+    setActiveDrawer(prev => prev === drawer ? 'none' : drawer);
+  }, []);
+  
   // Build naddr for linking to the Blobbi's detail page
   const blobbiNaddr = useMemo(() => nip19.naddrEncode({
     kind: KIND_BLOBBI_STATE,
@@ -891,29 +897,8 @@ function BlobbiDashboard({
   // Projected state with decay applied (UI-only, recalculates every 60s)
   const projectedState = useProjectedBlobbiState(companion);
   
-  // Modal states for bottom bar
-  const [showActionsModal, setShowActionsModal] = useState(false);
-  const [showMissionsModal, setShowMissionsModal] = useState(false);
-  const [showShopModal, setShowShopModal] = useState(false);
+  // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [showBarEditor, setShowBarEditor] = useState(false);
-  
-  // ─── Action Bar Preferences ───
-  const [barPrefs, setBarPrefs] = useState<ActionBarPreferences>(loadPreferences);
-  const handleBarPrefsUpdate = useCallback((prefs: ActionBarPreferences) => {
-    setBarPrefs(prefs);
-    savePreferences(prefs);
-  }, []);
-  
-  // ─── Mission Surface Card Visibility ───
-  const [missionCardVisible, setMissionCardVisible] = useState(loadMissionCardVisible);
-  const handleToggleMissionCard = useCallback((visible: boolean) => {
-    setMissionCardVisible(visible);
-    saveMissionCardVisible(visible);
-  }, []);
-  
-  // ─── Daily Missions (for surface card) ───
-  const dailyMissions = useDailyMissions({ availableStages });
   
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
@@ -958,7 +943,7 @@ function BlobbiDashboard({
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // Inventory action modal state
+  // Inventory action modal state (still used for the confirmation dialog)
   const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
   
@@ -969,7 +954,6 @@ function BlobbiDashboard({
   const [inlineActivity, setInlineActivity] = useState<InlineActivityState>(createNoActivity());
   
   // Blobbi reaction state - drives visual reactions to activities
-  // This is passed to BlobbiStageVisual to trigger dance/sway animations
   const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
   // Incubation/Hatch task state
@@ -1235,30 +1219,23 @@ function BlobbiDashboard({
   // Handler for stopping incubation
   const handleStopIncubation = async () => {
     await stopIncubation();
-    setShowMissionsModal(false);
   };
   
   // Handler for stopping evolution
   const handleStopEvolution = async () => {
     await stopEvolution();
-    setShowMissionsModal(false);
   };
   
-  // Handle opening an inventory action modal
+  // Handle opening an inventory action modal (from care tab buttons)
   const handleInventoryAction = (action: InventoryAction) => {
-    setShowActionsModal(false);
     setInventoryAction(action);
   };
   
   // Handle opening a direct action (now opens inline card)
   const handleDirectAction = (action: DirectAction) => {
-    setShowActionsModal(false);
     if (action === 'play_music') {
-      // Open the track picker modal first
       setShowTrackPickerModal(true);
     } else if (action === 'sing') {
-      // Open the inline sing card directly
-      // Note: Singing reaction starts when recording actually begins (via onRecordingStart)
       setInlineActivity(createSingActivity());
     }
   };
@@ -1350,61 +1327,228 @@ function BlobbiDashboard({
     }
   };
   
-  // Handle opening shop from empty state
+  // Handle opening shop from empty state (switches to items drawer)
   const handleOpenShopFromAction = () => {
     setInventoryAction(null);
-    setShowShopModal(true);
+    setActiveDrawer('items');
   };
 
-  // Handle using item directly from inventory modal
+  // Handle using item directly from the items tab
   const handleUseItemFromInventory = async (itemId: string, quantity: number) => {
-    // Determine the action type from the item
     const action = getActionForItem(itemId);
     if (!action) return;
 
     setUsingItemId(itemId);
-    // Set action emotion override while item is being used
     setActionOverrideEmotion(getActionEmotion(action as ActionType));
     try {
       await onUseItem(itemId, action, quantity);
-      // Close the shop modal on success (inventory is a tab within it)
-      setShowShopModal(false);
     } finally {
       setUsingItemId(null);
-      // Clear action emotion after a brief delay for visual feedback
       setTimeout(() => setActionOverrideEmotion(null), 1500);
     }
   };
   
+  // ─── Daily Missions (for missions tab) ───
+  const dailyMissions = useDailyMissions({ availableStages });
+  const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
+    profile,
+    updateProfileEvent,
+  );
+  const { mutate: rerollMission, isPending: isRerollingMission } = useRerollMission();
+  
+  // ─── Items Tab: Resolve inventory items ───
+  const inventoryItems = useMemo(() => {
+    if (!profile) return [];
+    const stage = companion.stage;
+    const result: Array<ShopItem & { itemId: string; quantity: number; canUse: boolean; reason?: string }> = [];
+    for (const storageItem of profile.storage) {
+      const item = getShopItemById(storageItem.itemId);
+      if (!item) continue;
+      const usability = canUseItemForStage(storageItem.itemId, stage);
+      result.push({
+        ...item,
+        itemId: storageItem.itemId,
+        quantity: storageItem.quantity,
+        canUse: usability.canUse,
+        reason: usability.reason,
+      });
+    }
+    return result;
+  }, [profile, companion.stage]);
+  
+  // ─── Items Tab: Free item acquisition ───
+  const { mutate: acquireItem, isPending: isAcquiring } = useBlobbiPurchaseItem(profile);
+  const [acquiringItemId, setAcquiringItemId] = useState<string | null>(null);
+  
+  const handleAcquireItem = (item: ShopItem) => {
+    if (isAcquiring) return;
+    setAcquiringItemId(item.id);
+    acquireItem(
+      { itemId: item.id, price: item.price, quantity: 1 },
+      { onSettled: () => setAcquiringItemId(null) },
+    );
+  };
+  
+  // Handle using an item from the items tab
+  const handleUseItemFromTab = (itemId: string) => {
+    const action = getActionForItem(itemId);
+    if (!action || isUsingItem) return;
+    setUsingItemId(itemId);
+    setActionOverrideEmotion(getActionEmotion(action as ActionType));
+    onUseItem(itemId, action, 1).finally(() => {
+      setUsingItemId(null);
+      setTimeout(() => setActionOverrideEmotion(null), 1500);
+    });
+  };
+  
   return (
     <DashboardShell>
-
-      
       {/* Legacy Migration Notice */}
       {companion.isLegacy && (
-        <div className="mx-4 mt-4 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+        <div className="mx-4 mt-2 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
           <p className="text-sm text-amber-600 dark:text-amber-400">
             This pet uses an older format. It will be automatically upgraded on your next interaction.
           </p>
         </div>
       )}
       
-      {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 sm:px-6">
-        
-        {/* Blobbi Name */}
-        <div className="flex items-center gap-2 mb-6">
-          <h2
-            className="text-2xl sm:text-3xl font-bold text-center"
-            style={{ color: companion.visualTraits.baseColor }}
-          >
-            {companion.name}
-          </h2>
+      {/* ─── Curved Arc Tab Bar with Icon Tabs ─── */}
+      <div className="sticky top-mobile-bar sidebar:top-0 z-10">
+        {/* Sliding drawer — opens below the arc when a tab is active.
+            Outer div animates max-height for the slide; ScrollArea handles overflow with a visible scrollbar. */}
+        <div
+          className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
+          style={{ maxHeight: activeDrawer !== 'none' ? '280px' : '0' }}
+        >
+          <ScrollArea style={{ height: 272 }}>
+            <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
+              {activeDrawer === 'care' && (
+                <CareTabContent
+                  companion={companion}
+                  isEgg={isEgg}
+                  isSleeping={isSleeping}
+                  onInventoryAction={handleInventoryAction}
+                  onDirectAction={handleDirectAction}
+                  onRest={onRest}
+                  actionInProgress={actionInProgress}
+                  isPublishing={isPublishing}
+                />
+              )}
+              {activeDrawer === 'items' && (
+              <ItemsTabContent
+                allShopItems={getLiveShopItems()}
+                onUseItem={handleUseItemFromTab}
+                isUsingItem={isUsingItem}
+                usingItemId={usingItemId}
+              />
+              )}
+              {activeDrawer === 'missions' && (
+                <MissionsTabContent
+                  companion={companion}
+                  isIncubating={isIncubating}
+                  isEvolvingState={isEvolvingState}
+                  isEgg={isEgg}
+                  isBaby={isBaby}
+                  hatchTasks={hatchTasks}
+                  evolveTasks={evolveTasks}
+                  onHatch={onHatch}
+                  isHatching={isHatching}
+                  onEvolve={onEvolve}
+                  isEvolving={isEvolving}
+                  onStopIncubation={handleStopIncubation}
+                  isStoppingIncubation={isStoppingIncubation}
+                  onStopEvolution={handleStopEvolution}
+                  isStoppingEvolution={isStoppingEvolution}
+                  onOpenPostModal={() => setShowPostModal(true)}
+                  dailyMissions={dailyMissions}
+                  onClaimReward={(id) => claimReward({ missionId: id })}
+                  onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
+                  isClaimingReward={isClaimingReward}
+                  isRerollingMission={isRerollingMission}
+                />
+              )}
+              {activeDrawer === 'more' && (
+                <MoreTabContent
+                  companion={companion}
+                  companions={companions}
+                  selectedD={selectedD}
+                  profile={profile}
+                  blobbiNaddr={blobbiNaddr}
+                  isCurrentCompanion={isCurrentCompanion}
+                  isUpdatingCompanion={isUpdatingCompanion}
+                  canBeCompanion={canBeCompanion}
+                  canStartIncubation={canStartIncubation}
+                  canStartEvolution={canStartEvolution}
+                  isIncubating={isIncubating}
+                  isEvolvingState={isEvolvingState}
+                  isHatching={isHatching}
+                  isEvolving={isEvolving}
+                  isStartingIncubation={isStartingIncubation}
+                  isStartingEvolution={isStartingEvolution}
+                  onSelectBlobbi={onSelectBlobbi}
+                  onSetAsCompanion={handleSetAsCompanion}
+                  onTakePhoto={() => setShowPhotoModal(true)}
+                  onEvolve={
+                    canStartIncubation
+                      ? () => setShowIncubationDialog(true)
+                      : canStartEvolution
+                        ? () => setShowEvolutionDialog(true)
+                        : isEgg
+                          ? onHatch
+                          : onEvolve
+                  }
+                  onAdopt={() => setShowAdoptionFlow(true)}
+                  onDevOpenEditor={() => setShowDevEditor(true)}
+                  onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
+                  onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+                />
+              )}
+            </div>
+          </ScrollArea>
         </div>
         
-        {/* Main Blobbi Visual */}
+        {/* The arc bar itself — sits below the drawer */}
+        <SubHeaderBar className="relative !top-0">
+          <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
+            <span className="flex items-center gap-1.5">
+              <HeartHandshake className="size-4" />
+              <span className="text-sm">Care</span>
+            </span>
+          </TabButton>
+          <TabButton label="Items" active={activeDrawer === 'items'} onClick={() => toggleDrawer('items')}>
+            <span className="flex items-center gap-1.5">
+              <Package className="size-4" />
+              <span className="text-sm">Items</span>
+            </span>
+          </TabButton>
+          <TabButton label="Missions" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
+            <span className="flex items-center gap-1.5">
+              <Target className="size-4" />
+              <span className="text-sm">Quests</span>
+            </span>
+          </TabButton>
+          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
+            <span className="flex items-center gap-1.5">
+              <Egg className="size-4" />
+              <span className="text-sm">Blobbis</span>
+            </span>
+          </TabButton>
+        </SubHeaderBar>
+      </div>
+
+      {/* ─── Hero Section (always visible below drawer) ─── */}
+      <div className="flex flex-col items-center px-4 pt-4 pb-2 sm:px-6">
+        {/* Blobbi Name */}
+        <h2
+          className="text-2xl sm:text-3xl font-bold text-center mb-4"
+          style={{ color: companion.visualTraits.baseColor }}
+        >
+          {companion.name}
+        </h2>
+        
+        {/* Main Blobbi Visual — ceremony-sized */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center size-48 sm:size-56 text-center">
+          <div className="flex flex-col items-center justify-center size-56 sm:size-64 md:size-72 text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground text-sm">
               {companion.name} is out exploring right now.
@@ -1412,7 +1556,7 @@ function BlobbiDashboard({
           </div>
         ) : (
           <div className="relative transition-all duration-500">
-            <div className="absolute inset-0 -m-8 bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute inset-0 -m-12 bg-primary/5 rounded-full blur-3xl" />
             
             <BlobbiStageVisual
               companion={companion}
@@ -1422,16 +1566,12 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              className="size-48 sm:size-56"
+              className="size-56 sm:size-64 md:size-72"
             />
           </div>
         )}
-      </div>
-      
-      {/* Stats Section */}
-      <div className="px-4 sm:px-6">
-        {/* Stats Grid - shows projected decay state */}
-        {/* Only stats below the visibility threshold are shown (centralized in getVisibleStatsWithValues) */}
+        
+        {/* Stats Row — always visible below Blobbi */}
         {(() => {
           const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
             ...vs,
@@ -1441,7 +1581,7 @@ function BlobbiDashboard({
           if (visibleStats.length === 0) return null;
           return (
             <div className={cn(
-              "grid gap-2 sm:gap-4",
+              "grid gap-2 sm:gap-4 mt-4",
               visibleStats.length <= 3 ? "max-w-xs mx-auto" : "",
               visibleStats.length === 1 ? "grid-cols-1" : visibleStats.length === 2 ? "grid-cols-2" : visibleStats.length === 3 ? "grid-cols-3" : visibleStats.length === 4 ? "grid-cols-4" : "grid-cols-5",
             )}>
@@ -1457,163 +1597,39 @@ function BlobbiDashboard({
             </div>
           );
         })()}
-        
-        {/* Inline Activity Area */}
-        {inlineActivity.type === 'music' && (
-          <div className="mt-6">
-            <InlineMusicPlayer
-              selection={inlineActivity.selection}
-              onChangeTrack={handleChangeTrack}
-              onClose={handleCloseInlineActivity}
-              onPlaybackStart={handleMusicPlaybackStart}
-              onPlaybackStop={handleMusicPlaybackStop}
-              isPublished={inlineActivity.isPublished}
-              isPublishing={isDirectActionPending}
-            />
-          </div>
-        )}
-        
-        {inlineActivity.type === 'sing' && (
-          <div className="mt-6">
-            <InlineSingCard
-              onConfirm={handleConfirmSing}
-              onClose={handleCloseInlineActivity}
-              onRecordingStart={handleSingRecordingStart}
-              onRecordingStop={handleSingRecordingStop}
-              isPublishing={isDirectActionPending}
-            />
-          </div>
-        )}
       </div>
-      
-      {/* Mission Surface Card */}
-      {missionCardVisible && (
-        <div className="px-4 sm:px-6 mt-3">
-          <MissionSurfaceCard
-            tasks={taskProcess.tasks}
-            isInTaskProcess={taskProcess.config.isActive}
-            processType={taskProcess.config.type}
-            dailyMissions={dailyMissions.missions}
-            onViewAll={() => setShowMissionsModal(true)}
-            onHide={() => handleToggleMissionCard(false)}
+
+      {/* ─── Inline Activity Area (music/sing — floats above tabs) ─── */}
+      {inlineActivity.type === 'music' && (
+        <div className="px-4 sm:px-6 pb-2">
+          <InlineMusicPlayer
+            selection={inlineActivity.selection}
+            onChangeTrack={handleChangeTrack}
+            onClose={handleCloseInlineActivity}
+            onPlaybackStart={handleMusicPlaybackStart}
+            onPlaybackStop={handleMusicPlaybackStop}
+            isPublished={inlineActivity.isPublished}
+            isPublishing={isDirectActionPending}
           />
         </div>
       )}
-      
-      {/* Bottom Action Bar */}
-      <BlobbiBottomBar
-        onBlobbiesClick={() => setShowSelector(true)}
-        onMissionsClick={() => setShowMissionsModal(true)}
-        onActionsClick={() => setShowActionsModal(true)}
-        onShopClick={() => setShowShopModal(true)}
-        needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-        isInTaskProcess={isInTaskProcess}
-        remainingTasksCount={remainingTasksCount}
-        allTasksComplete={allTasksComplete}
-        stage={companion.stage}
-        blobbiNaddr={blobbiNaddr}
-        onSetAsCompanion={handleSetAsCompanion}
-        isCurrentCompanion={isCurrentCompanion}
-        isUpdatingCompanion={isUpdatingCompanion}
-        onTakePhoto={() => setShowPhotoModal(true)}
-        onEvolve={
-          canStartIncubation
-            ? () => setShowIncubationDialog(true)
-            : canStartEvolution
-              ? () => setShowEvolutionDialog(true)
-              : isEgg
-                ? onHatch
-                : onEvolve
-        }
-        isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
-        hideEvolveButton={isIncubating || isEvolvingState}
-        isIncubationAction={canStartIncubation}
-        isEvolutionAction={canStartEvolution}
-        onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
-        onDevOpenEditor={() => setShowDevEditor(true)}
-        onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-        barPreferences={barPrefs}
-        onEditBar={() => setShowBarEditor(true)}
-      />
-      
-      {/* Action Bar Editor */}
-      <ActionBarEditor
-        open={showBarEditor}
-        onOpenChange={setShowBarEditor}
-        preferences={barPrefs}
-        onUpdate={handleBarPrefsUpdate}
-      />
-      
-      {/* Blobbi Selector Modal */}
-      <Dialog open={showSelector} onOpenChange={setShowSelector}>
-        <DialogContent className="max-w-md w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
-          {/* Header - Sticky */}
-          <DialogHeader className="sticky top-0 z-10 bg-background px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
-            <div className="flex items-start justify-between gap-4">
-              <DialogTitle className="flex items-center gap-2">
-                <Egg className="size-5" />
-                Your Blobbies
-              </DialogTitle>
-              <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
-                <X className="size-5" />
-                <span className="sr-only">Close</span>
-              </DialogClose>
-            </div>
-          </DialogHeader>
-          {/* Content - Scrollable */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <div className="grid gap-3">
-              {companions.map((c) => (
-                <BlobbiSelectorCard
-                  key={c.d}
-                  companion={c}
-                  onSelect={() => onSelectBlobbi(c.d)}
-                  isSelected={c.d === selectedD}
-                  isCurrentCompanion={c.d === profile?.currentCompanion}
-                />
-              ))}
-              
-              {/* Adopt Another Blobbi CTA */}
-              <AdoptAnotherBlobbiCard
-                onAdopt={() => {
-                  setShowSelector(false);
-                  setShowAdoptionFlow(true);
-                }}
-              />
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Adoption Flow Modal */}
-      <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-          <BlobbiOnboardingFlow
-            profile={profile}
-            updateProfileEvent={updateProfileEvent}
-            updateCompanionEvent={updateCompanionEvent}
-            invalidateProfile={invalidateProfile}
-            invalidateCompanion={invalidateCompanion}
-            setStoredSelectedD={setStoredSelectedD}
-            adoptionOnly={true}
-            onComplete={() => setShowAdoptionFlow(false)}
+      {inlineActivity.type === 'sing' && (
+        <div className="px-4 sm:px-6 pb-2">
+          <InlineSingCard
+            onConfirm={handleConfirmSing}
+            onClose={handleCloseInlineActivity}
+            onRecordingStart={handleSingRecordingStart}
+            onRecordingStop={handleSingRecordingStop}
+            isPublishing={isDirectActionPending}
           />
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
+
+      {/* Tab content is now rendered in the drawer above */}
       
-      {/* Actions Modal */}
-      <BlobbiActionsModal
-        open={showActionsModal}
-        onOpenChange={setShowActionsModal}
-        companion={companion}
-        onRest={onRest}
-        onInventoryAction={handleInventoryAction}
-        onDirectAction={handleDirectAction}
-        actionInProgress={actionInProgress}
-        isPublishing={isPublishing}
-      />
-      
-      {/* Inventory Action Modal (Feed/Play/Clean) */}
+      {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
+
+      {/* Inventory Action Confirmation Modal (Feed/Play/Clean) */}
       {inventoryAction && (
         <BlobbiActionInventoryModal
           open={!!inventoryAction}
@@ -1628,45 +1644,12 @@ function BlobbiDashboard({
         />
       )}
       
-      {/* Track Picker Modal (for selecting music tracks) */}
+      {/* Track Picker Modal */}
       <PlayMusicModal
         open={showTrackPickerModal}
         onOpenChange={setShowTrackPickerModal}
         onConfirm={handleTrackSelected}
         isLoading={isDirectActionPending}
-      />
-      
-      {/* Missions Modal */}
-      <BlobbiMissionsModal
-        open={showMissionsModal}
-        onOpenChange={setShowMissionsModal}
-        companion={companion}
-        profile={profile}
-        updateProfileEvent={updateProfileEvent}
-        hatchTasks={hatchTasks}
-        evolveTasks={evolveTasks}
-        onOpenPostModal={() => setShowPostModal(true)}
-        onHatch={onHatch}
-        isHatching={isHatching}
-        onEvolve={onEvolve}
-        isEvolving={isEvolving}
-        onStopIncubation={handleStopIncubation}
-        isStoppingIncubation={isStoppingIncubation}
-        onStopEvolution={handleStopEvolution}
-        isStoppingEvolution={isStoppingEvolution}
-        availableStages={availableStages}
-        showMissionCard={missionCardVisible}
-        onToggleMissionCard={handleToggleMissionCard}
-      />
-      
-      {/* Shop & Inventory Modal (unified) */}
-      <BlobbiShopModal
-        open={showShopModal}
-        onOpenChange={setShowShopModal}
-        profile={profile}
-        companion={companion}
-        onUseItem={handleUseItemFromInventory}
-        isUsingItem={isUsingItem}
       />
       
       {/* Blobbi Post Modal - for hatch or evolve task */}
@@ -1678,8 +1661,7 @@ function BlobbiDashboard({
         onSuccess={refetchCurrentTasks}
       />
       
-      
-      {/* Blobbi Photo Modal - polaroid-style photo capture */}
+      {/* Blobbi Photo Modal */}
       <BlobbiPhotoModal
         open={showPhotoModal}
         onOpenChange={setShowPhotoModal}
@@ -1705,7 +1687,23 @@ function BlobbiDashboard({
         isPending={isStartingEvolution}
       />
       
-      {/* DEV ONLY: Blobbi State Editor Modal */}
+      {/* Adoption Flow Modal */}
+      <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+          <BlobbiOnboardingFlow
+            profile={profile}
+            updateProfileEvent={updateProfileEvent}
+            updateCompanionEvent={updateCompanionEvent}
+            invalidateProfile={invalidateProfile}
+            invalidateCompanion={invalidateCompanion}
+            setStoredSelectedD={setStoredSelectedD}
+            adoptionOnly={true}
+            onComplete={() => setShowAdoptionFlow(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* DEV ONLY: State Editor */}
       {import.meta.env.DEV && (
         <BlobbiDevEditor
           isOpen={showDevEditor}
@@ -1716,7 +1714,7 @@ function BlobbiDashboard({
         />
       )}
       
-      {/* DEV ONLY: Blobbi Emotion Tester Panel */}
+      {/* DEV ONLY: Emotion Tester */}
       {import.meta.env.DEV && (
         <BlobbiEmotionPanel
           isOpen={showEmotionPanel}
@@ -1727,21 +1725,468 @@ function BlobbiDashboard({
   );
 }
 
-/**
- * Get the appropriate tooltip for the evolve/hatch button based on stage and action state.
- */
-function getEvolveTooltip(
-  stage: 'egg' | 'baby' | 'adult', 
-  isIncubationAction?: boolean,
-  isEvolutionAction?: boolean
-): string {
-  if (stage === 'egg') {
-    return isIncubationAction ? 'Start Incubation' : 'Hatch';
+// ─── Care Tab Content ─────────────────────────────────────────────────────────
+
+interface CareTabContentProps {
+  companion: BlobbiCompanion;
+  isEgg: boolean;
+  isSleeping: boolean;
+  onInventoryAction: (action: InventoryAction) => void;
+  onDirectAction: (action: DirectAction) => void;
+  onRest: () => void;
+  actionInProgress: string | null;
+  isPublishing: boolean;
+}
+
+function CareTabContent({
+  companion,
+  isEgg,
+  isSleeping,
+  onInventoryAction,
+  onDirectAction,
+  onRest,
+  actionInProgress,
+  isPublishing,
+}: CareTabContentProps) {
+  const isDisabled = isPublishing || actionInProgress !== null;
+
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
+      {/* Feed — hidden for eggs */}
+      {!isEgg && (
+        <CareActionButton
+          icon={<Utensils className="size-5 text-orange-500" />}
+          label="Feed"
+          onClick={() => onInventoryAction('feed')}
+          disabled={isDisabled}
+        />
+      )}
+      
+      {/* Play — hidden for eggs */}
+      {!isEgg && (
+        <CareActionButton
+          icon={<Gamepad2 className="size-5 text-yellow-500" />}
+          label="Play"
+          onClick={() => onInventoryAction('play')}
+          disabled={isDisabled}
+        />
+      )}
+      
+      {/* Clean */}
+      <CareActionButton
+        icon={<Sparkles className="size-5 text-blue-500" />}
+        label="Clean"
+        onClick={() => onInventoryAction('clean')}
+        disabled={isDisabled}
+      />
+      
+      {/* Medicine */}
+      <CareActionButton
+        icon={<Pill className="size-5 text-green-500" />}
+        label="Medicine"
+        onClick={() => onInventoryAction('medicine')}
+        disabled={isDisabled}
+      />
+      
+      {/* Music */}
+      <CareActionButton
+        icon={<Music className="size-5 text-pink-500" />}
+        label="Music"
+        onClick={() => onDirectAction('play_music')}
+        disabled={isDisabled}
+      />
+      
+      {/* Sing */}
+      <CareActionButton
+        icon={<Mic className="size-5 text-purple-500" />}
+        label="Sing"
+        onClick={() => onDirectAction('sing')}
+        disabled={isDisabled}
+      />
+      
+      {/* Sleep/Wake — hidden for eggs */}
+      {!isEgg && (
+        <CareActionButton
+          icon={
+            actionInProgress === 'rest' ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : isSleeping ? (
+              <Sun className="size-5 text-amber-500" />
+            ) : (
+              <Moon className="size-5 text-violet-500" />
+            )
+          }
+          label={isSleeping ? 'Wake Up' : 'Sleep'}
+          onClick={onRest}
+          disabled={isDisabled}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Care Action Button ───────────────────────────────────────────────────────
+
+function CareActionButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/60',
+        'bg-card/60 backdrop-blur-sm transition-all',
+        'hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm',
+        'active:scale-[0.97]',
+        disabled && 'opacity-50 pointer-events-none',
+      )}
+    >
+      {icon}
+      <span className="text-xs font-medium">{label}</span>
+    </button>
+  );
+}
+
+// ─── Items Tab Content ────────────────────────────────────────────────────────
+
+/** Lucide icon + color for each item category */
+function ItemTypeIndicator({ type }: { type: string }) {
+  switch (type) {
+    case 'food':
+      return <Utensils className="size-2.5 text-amber-400" />;
+    case 'toy':
+      return <Gamepad2 className="size-2.5 text-rose-400" />;
+    case 'medicine':
+      return <Heart className="size-2.5 text-emerald-400" />;
+    case 'hygiene':
+      return <Droplets className="size-2.5 text-sky-400" />;
+    default:
+      return null;
   }
-  if (stage === 'baby') {
-    return isEvolutionAction ? 'Start Evolution' : 'Evolve';
-  }
-  return 'Evolve';
+}
+
+interface ItemsTabContentProps {
+  allShopItems: ShopItem[];
+  onUseItem: (itemId: string) => void;
+  isUsingItem: boolean;
+  usingItemId: string | null;
+}
+
+function ItemsTabContent({
+  allShopItems,
+  onUseItem,
+  isUsingItem,
+  usingItemId,
+}: ItemsTabContentProps) {
+  return (
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
+      {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
+        const isThisUsing = isUsingItem && usingItemId === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => onUseItem(item.id)}
+            disabled={isUsingItem}
+            className={cn(
+              'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
+              'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
+              isThisUsing && 'bg-accent/40 -translate-y-0.5',
+              isUsingItem && !isThisUsing && 'opacity-40 pointer-events-none',
+            )}
+          >
+            {/* Stat category indicator — top-right */}
+            <span className="absolute top-1.5 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
+              <ItemTypeIndicator type={item.type} />
+            </span>
+            <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
+            <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
+            {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Missions Tab Content ─────────────────────────────────────────────────────
+
+interface MissionsTabContentProps {
+  companion: BlobbiCompanion;
+  isIncubating: boolean;
+  isEvolvingState: boolean;
+  isEgg: boolean;
+  isBaby: boolean;
+  hatchTasks: ReturnType<typeof useHatchTasks>;
+  evolveTasks: ReturnType<typeof useEvolveTasks>;
+  onHatch: () => Promise<void>;
+  isHatching: boolean;
+  onEvolve: () => Promise<void>;
+  isEvolving: boolean;
+  onStopIncubation: () => Promise<void>;
+  isStoppingIncubation: boolean;
+  onStopEvolution: () => Promise<void>;
+  isStoppingEvolution: boolean;
+  onOpenPostModal: () => void;
+  dailyMissions: ReturnType<typeof useDailyMissions>;
+  onClaimReward: (id: string) => void;
+  onRerollMission: (id: string) => void;
+  isClaimingReward: boolean;
+  isRerollingMission: boolean;
+}
+
+function MissionsTabContent({
+  companion: _companion,
+  isIncubating,
+  isEvolvingState,
+  isEgg,
+  isBaby,
+  hatchTasks,
+  evolveTasks,
+  onHatch,
+  isHatching,
+  onEvolve,
+  isEvolving,
+  onStopIncubation,
+  isStoppingIncubation,
+  onStopEvolution,
+  isStoppingEvolution,
+  onOpenPostModal,
+  dailyMissions,
+  onClaimReward,
+  onRerollMission,
+  isClaimingReward,
+  isRerollingMission,
+}: MissionsTabContentProps) {
+  const hasActiveProcess = (isIncubating && isEgg) || (isEvolvingState && isBaby);
+  const isProcessBusy = isHatching || isEvolving || isStoppingIncubation || isStoppingEvolution;
+
+  return (
+    <div className="space-y-6">
+      {/* Hatch / Evolve Tasks */}
+      {hasActiveProcess && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">
+            {isIncubating ? 'Hatch Tasks' : 'Evolve Tasks'}
+          </h3>
+          <TasksPanel
+            tasks={isIncubating ? hatchTasks.tasks : evolveTasks.tasks}
+            allCompleted={isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted}
+            isLoading={isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading}
+            onOpenPostModal={onOpenPostModal}
+            onComplete={isIncubating ? onHatch : onEvolve}
+            isCompleting={isIncubating ? isHatching : isEvolving}
+            completeLabel={isIncubating ? 'Hatch Your Blobbi!' : 'Evolve Your Blobbi!'}
+            completingLabel={isIncubating ? 'Hatching...' : 'Evolving...'}
+            completeEmoji={isIncubating ? '\uD83D\uDC23' : '\u2728'}
+            category={isIncubating ? 'hatch' : 'evolve'}
+          />
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={isIncubating ? onStopIncubation : onStopEvolution}
+              disabled={isProcessBusy}
+              className="text-xs text-muted-foreground hover:text-destructive"
+            >
+              {(isStoppingIncubation || isStoppingEvolution) ? (
+                <><Loader2 className="size-3.5 mr-1.5 animate-spin" />Stopping...</>
+              ) : (
+                `Stop ${isIncubating ? 'Incubation' : 'Evolution'}`
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!hasActiveProcess && (
+        <div className="py-4 text-center text-sm text-muted-foreground">
+          No active progression right now
+        </div>
+      )}
+
+      {/* Divider */}
+      <div className="h-px bg-border/60" />
+
+      {/* Daily Missions */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Daily Bounties</h3>
+        <DailyMissionsPanel
+          missions={dailyMissions.missions}
+          onClaimReward={onClaimReward}
+          onRerollMission={onRerollMission}
+          todayCoins={dailyMissions.todayClaimedReward}
+          disabled={isProcessBusy || isClaimingReward || isRerollingMission}
+          bonusAvailable={dailyMissions.bonusAvailable}
+          bonusClaimed={dailyMissions.bonusClaimed}
+          bonusReward={dailyMissions.bonusReward}
+          noMissionsAvailable={dailyMissions.noMissionsAvailable}
+          rerollsRemaining={dailyMissions.rerollsRemaining}
+          isRerolling={isRerollingMission}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── More Tab Content ─────────────────────────────────────────────────────────
+
+interface MoreTabContentProps {
+  companion: BlobbiCompanion;
+  companions: BlobbiCompanion[];
+  selectedD: string;
+  profile: BlobbonautProfile | null;
+  blobbiNaddr: string;
+  isCurrentCompanion: boolean;
+  isUpdatingCompanion: boolean;
+  canBeCompanion: boolean;
+  canStartIncubation: boolean;
+  canStartEvolution: boolean;
+  isIncubating: boolean;
+  isEvolvingState: boolean;
+  isHatching: boolean;
+  isEvolving: boolean;
+  isStartingIncubation: boolean;
+  isStartingEvolution: boolean;
+  onSelectBlobbi: (d: string) => void;
+  onSetAsCompanion: () => void;
+  onTakePhoto: () => void;
+  onEvolve: () => void;
+  onAdopt: () => void;
+  onDevOpenEditor: () => void;
+  onDevOpenEmotionPanel: () => void;
+  onDevInstantTransition?: () => void;
+}
+
+function MoreTabContent({
+  companion,
+  companions,
+  selectedD,
+  profile,
+  blobbiNaddr,
+  isCurrentCompanion,
+  isUpdatingCompanion,
+  canBeCompanion,
+  canStartIncubation,
+  canStartEvolution,
+  isIncubating,
+  isEvolvingState,
+  isHatching,
+  isEvolving,
+  isStartingIncubation,
+  isStartingEvolution,
+  onSelectBlobbi,
+  onSetAsCompanion,
+  onTakePhoto,
+  onEvolve,
+  onAdopt,
+  onDevOpenEditor,
+  onDevOpenEmotionPanel,
+  onDevInstantTransition,
+}: MoreTabContentProps) {
+  const stage = companion.stage;
+  const showEvolveButton = stage !== 'adult' && !isIncubating && !isEvolvingState;
+  const isTransitioning = isHatching || isEvolving || isStartingIncubation || isStartingEvolution;
+
+  return (
+    <div className="space-y-6">
+      {/* ── Blobbies Section ── */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Your Blobbies</h3>
+        <div className="grid gap-3">
+          {companions.map((c) => (
+            <BlobbiSelectorCard
+              key={c.d}
+              companion={c}
+              onSelect={() => onSelectBlobbi(c.d)}
+              isSelected={c.d === selectedD}
+              isCurrentCompanion={c.d === profile?.currentCompanion}
+            />
+          ))}
+          <AdoptAnotherBlobbiCard onAdopt={onAdopt} />
+        </div>
+      </div>
+      
+      {/* ── Actions Section ── */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold">Actions</h3>
+        <div className="grid gap-2">
+          {/* Take Photo */}
+          <Button variant="outline" className="justify-start gap-3 h-12" onClick={onTakePhoto}>
+            <Camera className="size-4" />
+            Take a Photo
+          </Button>
+          
+          {/* Set as Companion */}
+          {canBeCompanion && (
+            <Button
+              variant="outline"
+              className="justify-start gap-3 h-12"
+              onClick={onSetAsCompanion}
+              disabled={isUpdatingCompanion}
+            >
+              <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />
+              {isCurrentCompanion ? 'Unset Companion' : 'Set as Companion'}
+            </Button>
+          )}
+          
+          {/* Evolve/Hatch */}
+          {showEvolveButton && (
+            <Button
+              variant="outline"
+              className="justify-start gap-3 h-12"
+              onClick={onEvolve}
+              disabled={isTransitioning}
+            >
+              {stage === 'egg' ? <Egg className="size-4" /> : <Sparkles className="size-4" />}
+              {stage === 'egg'
+                ? (canStartIncubation ? 'Start Incubation' : 'Hatch')
+                : (canStartEvolution ? 'Start Evolution' : 'Evolve')}
+            </Button>
+          )}
+          
+          {/* View Blobbi */}
+          <Button variant="outline" className="justify-start gap-3 h-12" asChild>
+            <Link to={`/${blobbiNaddr}`}>
+              <ExternalLink className="size-4" />
+              View Blobbi
+            </Link>
+          </Button>
+        </div>
+      </div>
+      
+      {/* DEV ONLY tools */}
+      {isLocalhostDev() && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400">Dev Tools</h3>
+          <div className="grid gap-2">
+            {stage !== 'adult' && onDevInstantTransition && (
+              <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevInstantTransition} disabled={isTransitioning}>
+                {stage === 'egg' ? <Egg className="size-4" /> : <Sparkles className="size-4" />}
+                {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
+              </Button>
+            )}
+            <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevOpenEditor}>
+              <Wrench className="size-4" />
+              State Editor
+            </Button>
+            <Button variant="outline" className="justify-start gap-3 h-10 text-amber-600 dark:text-amber-400" onClick={onDevOpenEmotionPanel}>
+              <Theater className="size-4" />
+              Emotion Tester
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
@@ -1750,11 +2195,9 @@ interface StatIndicatorProps {
   label: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  /** Optional status for warning/critical indicators */
   status?: 'normal' | 'warning' | 'critical';
 }
 
-// Semantic colors for stats - these represent the stat type, not brand colors
 const STAT_COLORS = {
   orange: 'text-orange-500',
   yellow: 'text-yellow-500',
@@ -1771,9 +2214,8 @@ const STAT_BG_COLORS = {
   violet: 'bg-violet-500/10',
 };
 
-// Status-based ring colors for warning/critical states
 const STATUS_RING_COLORS = {
-  normal: '', // Use default color
+  normal: '',
   warning: 'text-amber-500',
   critical: 'text-red-500',
 };
@@ -1790,28 +2232,9 @@ function StatIndicator({ label, value, color, status = 'normal' }: StatIndicator
         STAT_BG_COLORS[color],
         status === 'critical' && "animate-pulse"
       )}>
-        {/* Progress ring */}
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-          <circle
-            cx="18"
-            cy="18"
-            r="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            className="text-muted/20"
-          />
-          <circle
-            cx="18"
-            cy="18"
-            r="15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray={`${displayValue * 0.94} 100`}
-            className={cn("transition-all duration-500", ringColor)}
-          />
+          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/20" />
+          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${displayValue * 0.94} 100`} className={cn("transition-all duration-500", ringColor)} />
         </svg>
         {showWarningIcon ? (
           <AlertTriangle className="size-4 text-red-500" />
@@ -1838,14 +2261,12 @@ interface BlobbiSelectorPageProps {
   onSelect: (d: string) => void;
   isLoading?: boolean;
   onAdopt?: () => void;
-  /** The d-tag of the current companion (for indicator) */
   currentCompanion?: string;
 }
 
 function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentCompanion }: BlobbiSelectorPageProps) {
   return (
     <DashboardShell>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -1856,27 +2277,14 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentC
             <p className="text-xs text-muted-foreground">Select a companion to care for</p>
           </div>
         </div>
-        {isLoading && (
-          <RefreshCw className="size-4 text-muted-foreground animate-spin" />
-        )}
+        {isLoading && <RefreshCw className="size-4 text-muted-foreground animate-spin" />}
       </div>
-      
-      {/* Blobbi List */}
       <div className="flex-1 p-4 sm:p-6">
         <div className="grid gap-3 max-w-lg mx-auto">
           {companions.map((c) => (
-            <BlobbiSelectorCard
-              key={c.d}
-              companion={c}
-              onSelect={() => onSelect(c.d)}
-              isCurrentCompanion={c.d === currentCompanion}
-            />
+            <BlobbiSelectorCard key={c.d} companion={c} onSelect={() => onSelect(c.d)} isCurrentCompanion={c.d === currentCompanion} />
           ))}
-          
-          {/* Adopt Another Blobbi CTA */}
-          {onAdopt && (
-            <AdoptAnotherBlobbiCard onAdopt={onAdopt} />
-          )}
+          {onAdopt && <AdoptAnotherBlobbiCard onAdopt={onAdopt} />}
         </div>
       </div>
     </DashboardShell>
@@ -1889,7 +2297,6 @@ interface BlobbiSelectorCardProps {
   companion: BlobbiCompanion;
   onSelect: () => void;
   isSelected?: boolean;
-  /** Whether this Blobbi is set as the user's current companion */
   isCurrentCompanion?: boolean;
 }
 
@@ -1902,14 +2309,11 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanio
       onClick={onSelect}
       className={cn(
         'w-full p-4 rounded-xl text-left transition-all relative',
-        'bg-card/60 backdrop-blur-sm',
-        'border border-border',
-        'hover:border-primary/30 hover:bg-accent/50',
-        'hover:shadow-md',
-        isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50'
+        'bg-card/60 backdrop-blur-sm border border-border',
+        'hover:border-primary/30 hover:bg-accent/50 hover:shadow-md',
+        isSelected && 'border-primary ring-2 ring-primary/20 bg-accent/50',
       )}
     >
-      {/* Current companion indicator */}
       {isCurrentCompanion && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1917,55 +2321,27 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanio
               <Footprints className="size-3.5 text-green-500" />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>Current companion</p>
-          </TooltipContent>
+          <TooltipContent side="top"><p>Current companion</p></TooltipContent>
         </Tooltip>
       )}
-      
-      {/* Warning indicator for Blobbies needing care */}
       {needsCare && (
-        <div className={cn(
-          'absolute top-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center',
-          isCurrentCompanion ? 'right-2' : 'right-2'
-        )}>
+        <div className="absolute top-2 right-2 size-5 rounded-full bg-amber-500/20 flex items-center justify-center">
           <AlertTriangle className="size-3.5 text-amber-500" />
         </div>
       )}
-      
       <div className="flex items-center gap-4">
-        {/* Blobbi Visual */}
         <div className="shrink-0">
-          <BlobbiStageVisual
-            companion={companion}
-            size="sm"
-          />
+          <BlobbiStageVisual companion={companion} size="sm" />
         </div>
-        
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold truncate">{companion.name}</h3>
-            {isSelected && (
-              <Check className="size-4 text-primary shrink-0" />
-            )}
+            {isSelected && <Check className="size-4 text-primary shrink-0" />}
           </div>
-          <p className="text-sm text-muted-foreground capitalize">
-            {companion.stage} Blobbi
-          </p>
+          <p className="text-sm text-muted-foreground capitalize">{companion.stage} Blobbi</p>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant={isSleeping ? 'secondary' : 'default'} className="text-xs">
-              {isSleeping ? (
-                <>
-                  <Moon className="size-3 mr-1" />
-                  Sleeping
-                </>
-              ) : (
-                <>
-                  <Sun className="size-3 mr-1" />
-                  Active
-                </>
-              )}
+              {isSleeping ? <><Moon className="size-3 mr-1" />Sleeping</> : <><Sun className="size-3 mr-1" />Active</>}
             </Badge>
           </div>
         </div>
@@ -1976,56 +2352,32 @@ function BlobbiSelectorCard({ companion, onSelect, isSelected, isCurrentCompanio
 
 // ─── Adopt Another Blobbi CTA Card ────────────────────────────────────────────
 
-interface AdoptAnotherBlobbiCardProps {
-  onAdopt: () => void;
-}
-
-/**
- * CTA card for adopting another Blobbi.
- * Appears at the bottom of the Blobbi selector list.
- */
-function AdoptAnotherBlobbiCard({ onAdopt }: AdoptAnotherBlobbiCardProps) {
+function AdoptAnotherBlobbiCard({ onAdopt }: { onAdopt: () => void }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          onClick={onAdopt}
-          className={cn(
-            'w-full p-4 rounded-xl text-center transition-all',
-            'bg-primary/5 backdrop-blur-sm',
-            'border-2 border-dashed border-primary/20',
-            'hover:border-primary/40 hover:bg-primary/10',
-            'hover:shadow-md',
-            'group'
-          )}
-        >
-          <div className="flex flex-col items-center gap-3 py-2">
-            {/* Plus icon in circle */}
-            <div className={cn(
-              'size-12 rounded-full flex items-center justify-center',
-              'bg-primary/10 border border-primary/20',
-              'group-hover:bg-primary/20 group-hover:border-primary/30',
-              'transition-colors'
-            )}>
-              <Plus className="size-6 text-primary" />
-            </div>
-            
-            {/* Title */}
-            <div className="space-y-1">
-              <h3 className="font-semibold text-foreground">
-                Adopt Another Blobbi
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Preview and adopt a new companion
-              </p>
-            </div>
-          </div>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        <p>Click to preview and adopt a new Blobbi egg to add to your collection!</p>
-      </TooltipContent>
-    </Tooltip>
+    <button
+      onClick={onAdopt}
+      className={cn(
+        'w-full p-4 rounded-xl text-center transition-all',
+        'bg-primary/5 backdrop-blur-sm',
+        'border-2 border-dashed border-primary/20',
+        'hover:border-primary/40 hover:bg-primary/10 hover:shadow-md',
+        'group',
+      )}
+    >
+      <div className="flex flex-col items-center gap-3 py-2">
+        <div className={cn(
+          'size-12 rounded-full flex items-center justify-center',
+          'bg-primary/10 border border-primary/20',
+          'group-hover:bg-primary/20 group-hover:border-primary/30 transition-colors',
+        )}>
+          <Plus className="size-6 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-semibold text-foreground">Adopt Another Blobbi</h3>
+          <p className="text-sm text-muted-foreground">Preview and adopt a new companion</p>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -2034,13 +2386,10 @@ function AdoptAnotherBlobbiCard({ onAdopt }: AdoptAnotherBlobbiCardProps) {
 function DashboardLoadingState() {
   return (
     <DashboardShell>
-      {/* Hero */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
         <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="size-48 sm:size-56 rounded-full" />
+        <Skeleton className="size-56 sm:size-64 md:size-72 rounded-full" />
       </div>
-      
-      {/* Stats */}
       <div className="px-4 pb-6 sm:px-6">
         <div className="grid grid-cols-5 gap-2 sm:gap-4">
           {[...Array(5)].map((_, i) => (
@@ -2054,318 +2403,4 @@ function DashboardLoadingState() {
     </DashboardShell>
   );
 }
-
-// ─── Bottom Action Bar ────────────────────────────────────────────────────────
-
-interface BlobbiBottomBarProps {
-  onBlobbiesClick: () => void;
-  onMissionsClick: () => void;
-  onActionsClick: () => void;
-  onShopClick: () => void;
-  /** Number of Blobbies that need care (any stat below threshold) */
-  needyBlobbiesCount?: number;
-  /** Whether the current Blobbi is in an active task process (incubating or evolving) */
-  isInTaskProcess?: boolean;
-  /** Number of remaining (incomplete) persistent tasks */
-  remainingTasksCount?: number;
-  /** Whether all tasks are complete (show "!" badge) */
-  allTasksComplete?: boolean;
-  // ── 3-dots menu actions ──
-  stage: 'egg' | 'baby' | 'adult';
-  blobbiNaddr: string;
-  onSetAsCompanion: () => void;
-  isCurrentCompanion: boolean;
-  isUpdatingCompanion?: boolean;
-  onTakePhoto: () => void;
-  onEvolve: () => void;
-  isTransitioning?: boolean;
-  hideEvolveButton?: boolean;
-  isIncubationAction?: boolean;
-  isEvolutionAction?: boolean;
-  // ── Action bar preferences ──
-  barPreferences: ActionBarPreferences;
-  onEditBar: () => void;
-  // ── Dev-only actions ──
-  onDevInstantTransition?: () => void;
-  onDevOpenEditor?: () => void;
-  onDevOpenEmotionPanel?: () => void;
-}
-
-/** Handler map keyed by BarItemId so the bar can generically call the right action */
-type BarItemHandlers = Record<BarItemId, () => void>;
-
-function BlobbiBottomBar({
-  onBlobbiesClick,
-  onMissionsClick,
-  onActionsClick,
-  onShopClick,
-  needyBlobbiesCount,
-  isInTaskProcess,
-  remainingTasksCount,
-  allTasksComplete,
-  // 3-dots menu props
-  stage,
-  blobbiNaddr,
-  onSetAsCompanion,
-  isCurrentCompanion,
-  isUpdatingCompanion = false,
-  onTakePhoto,
-  onEvolve,
-  isTransitioning = false,
-  hideEvolveButton = false,
-  isIncubationAction = false,
-  isEvolutionAction = false,
-  // Bar preferences
-  barPreferences,
-  onEditBar,
-  // Dev-only props
-  onDevInstantTransition,
-  onDevOpenEditor,
-  onDevOpenEmotionPanel,
-}: BlobbiBottomBarProps) {
-  // Determine what to show on missions badge:
-  const missionsBadge = allTasksComplete ? '!' : (isInTaskProcess && remainingTasksCount && remainingTasksCount > 0 ? remainingTasksCount : undefined);
-
-  const canBeCompanion = stage !== 'egg';
-  const showEvolveButton = stage !== 'adult' && !hideEvolveButton;
-  
-  // Handler map for customizable items
-  const handlers: BarItemHandlers = useMemo(() => ({
-    blobbies: onBlobbiesClick,
-    missions: onMissionsClick,
-    items: onShopClick,
-    take_photo: onTakePhoto,
-    set_companion: onSetAsCompanion,
-  }), [onBlobbiesClick, onMissionsClick, onShopClick, onTakePhoto, onSetAsCompanion]);
-  
-  // Icon map for customizable items
-  const iconMap: Record<BarItemId, React.ReactNode> = useMemo(() => ({
-    blobbies: <Egg className="size-4" />,
-    missions: <Target className="size-4" />,
-    items: <Package className="size-4" />,
-    take_photo: <Camera className="size-4" />,
-    set_companion: <Footprints className={cn('size-4', isCurrentCompanion && 'text-green-500')} />,
-  }), [isCurrentCompanion]);
-  
-  // Label map
-  const labelMap: Record<BarItemId, string> = {
-    blobbies: 'Blobbies',
-    missions: 'Missions',
-    items: 'Items',
-    take_photo: 'Photo',
-    set_companion: isCurrentCompanion ? 'Companion' : 'Companion',
-  };
-  
-  // Badge map
-  const badgeMap: Record<BarItemId, { badge?: number | string; variant?: 'default' | 'warning' | 'success' }> = useMemo(() => ({
-    blobbies: {
-      badge: needyBlobbiesCount && needyBlobbiesCount > 0 ? needyBlobbiesCount : undefined,
-      variant: needyBlobbiesCount && needyBlobbiesCount > 0 ? 'warning' as const : 'default' as const,
-    },
-    missions: {
-      badge: missionsBadge,
-      variant: allTasksComplete ? 'success' as const : 'default' as const,
-    },
-    items: {},
-    take_photo: {},
-    set_companion: {},
-  }), [needyBlobbiesCount, missionsBadge, allTasksComplete]);
-  
-  // Visible custom slots from preferences
-  const visibleSlots = getVisibleSlots(barPreferences);
-  
-  // Set of item IDs currently visible in the bar (used to skip duplicates in More)
-  const visibleBarIds = useMemo(() => getVisibleBarIds(barPreferences), [barPreferences]);
-  
-  // Split into left group (before center) and right group (after center)
-  // Distribute: first half to left, rest to right
-  const halfIdx = Math.ceil(visibleSlots.length / 2);
-  const leftSlots = visibleSlots.slice(0, halfIdx);
-  const rightSlots = visibleSlots.slice(halfIdx);
-  
-  return (
-    <div className="mt-6 pt-2">
-      <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-1.5 sm:px-3 py-2 shadow-lg overflow-hidden">
-        {/* 3-column grid: left | center | right */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
-          {/* Left Group - aligned to end (closer to center) */}
-          <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
-            {leftSlots.map((slot) => (
-              <BottomBarButton
-                key={slot.id}
-                onClick={handlers[slot.id]}
-                icon={iconMap[slot.id]}
-                label={labelMap[slot.id]}
-                badge={badgeMap[slot.id].badge}
-                badgeVariant={badgeMap[slot.id].variant}
-                highlighted={slot.highlighted}
-              />
-            ))}
-          </div>
-          
-          {/* Center Action Button (fixed) */}
-          <button
-            onClick={onActionsClick}
-            className="flex items-center justify-center size-11 sm:size-12 -mt-3 sm:-mt-4 mx-1 sm:mx-2 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all border-4 border-background shrink-0"
-          >
-            <HeartHandshake className="size-4 sm:size-5" />
-          </button>
-          
-          {/* Right Group - aligned to start (closer to center) */}
-          <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            {rightSlots.map((slot) => (
-              <BottomBarButton
-                key={slot.id}
-                onClick={handlers[slot.id]}
-                icon={iconMap[slot.id]}
-                label={labelMap[slot.id]}
-                badge={badgeMap[slot.id].badge}
-                badgeVariant={badgeMap[slot.id].variant}
-                highlighted={slot.highlighted}
-              />
-            ))}
-
-            {/* More dropdown (fixed) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]"
-                >
-                  <MoreHorizontal className="size-4" />
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[48px] sm:max-w-none">More</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="end">
-                {/* Show items in More only when they're NOT already visible in the bar */}
-                {!visibleBarIds.has('blobbies') && (
-                  <DropdownMenuItem onClick={onBlobbiesClick}>
-                    <Egg className="size-4 mr-2" />
-                    Blobbies
-                  </DropdownMenuItem>
-                )}
-                {!visibleBarIds.has('items') && (
-                  <DropdownMenuItem onClick={onShopClick}>
-                    <Package className="size-4 mr-2" />
-                    Items
-                  </DropdownMenuItem>
-                )}
-                {!visibleBarIds.has('missions') && (
-                  <DropdownMenuItem onClick={onMissionsClick}>
-                    <Target className="size-4 mr-2" />
-                    Missions
-                  </DropdownMenuItem>
-                )}
-                {!visibleBarIds.has('take_photo') && (
-                  <DropdownMenuItem onClick={onTakePhoto}>
-                    <Camera className="size-4 mr-2" />
-                    Take a Photo
-                  </DropdownMenuItem>
-                )}
-                {canBeCompanion && !visibleBarIds.has('set_companion') && (
-                  <DropdownMenuItem onClick={onSetAsCompanion} disabled={isUpdatingCompanion}>
-                    <Footprints className={cn('size-4 mr-2', isCurrentCompanion && 'text-green-500')} />
-                    {isCurrentCompanion ? 'Current Companion' : 'Set as Companion'}
-                  </DropdownMenuItem>
-                )}
-                {showEvolveButton && (
-                  <DropdownMenuItem onClick={onEvolve} disabled={isTransitioning}>
-                    {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
-                    {getEvolveTooltip(stage, isIncubationAction, isEvolutionAction)}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <Link to={`/${blobbiNaddr}`}>
-                    <ExternalLink className="size-4 mr-2" />
-                    View Blobbi
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onEditBar}>
-                  <Settings2 className="size-4 mr-2" />
-                  Edit action bar
-                </DropdownMenuItem>
-                {/* DEV ONLY: Developer tools */}
-                {isLocalhostDev() && (onDevInstantTransition || onDevOpenEditor || onDevOpenEmotionPanel) && (
-                  <>
-                    <DropdownMenuSeparator />
-                    {stage !== 'adult' && onDevInstantTransition && (
-                      <DropdownMenuItem onClick={onDevInstantTransition} disabled={isTransitioning} className="text-amber-600 dark:text-amber-400">
-                        {stage === 'egg' ? <Egg className="size-4 mr-2" /> : <Sparkles className="size-4 mr-2" />}
-                        {stage === 'egg' ? 'Dev Hatch' : 'Dev Evolve'}
-                      </DropdownMenuItem>
-                    )}
-                    {onDevOpenEditor && (
-                      <DropdownMenuItem onClick={onDevOpenEditor} className="text-amber-600 dark:text-amber-400">
-                        <Wrench className="size-4 mr-2" />
-                        State Editor
-                      </DropdownMenuItem>
-                    )}
-                    {onDevOpenEmotionPanel && (
-                      <DropdownMenuItem onClick={onDevOpenEmotionPanel} className="text-amber-600 dark:text-amber-400">
-                        <Theater className="size-4 mr-2" />
-                        Emotion Tester
-                      </DropdownMenuItem>
-                    )}
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Bottom Bar Button ────────────────────────────────────────────────────────
-
-interface BottomBarButtonProps {
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  /** Badge content - number or string (e.g., "?" for completed tasks) */
-  badge?: number | string;
-  /** Badge color variant */
-  badgeVariant?: 'default' | 'warning' | 'success';
-  /** Show subtle highlight ring around this button */
-  highlighted?: boolean;
-}
-
-function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default', highlighted }: BottomBarButtonProps) {
-  // Determine if badge should show
-  const showBadge = badge !== undefined && (typeof badge === 'string' || badge > 0);
-  
-  // Badge color classes based on variant
-  const badgeColorClass = {
-    default: 'bg-primary text-primary-foreground',
-    warning: 'bg-amber-500 text-white',
-    success: 'bg-emerald-500 text-white',
-  }[badgeVariant];
-  
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]",
-        highlighted && "ring-1 ring-primary/30 bg-accent/30",
-      )}
-    >
-      <div className="relative">
-        {icon}
-        {showBadge && (
-          <span className={cn(
-            "absolute -top-1 -right-2 size-4 flex items-center justify-center text-[10px] font-medium rounded-full",
-            badgeColorClass
-          )}>
-            {badge}
-          </span>
-        )}
-      </div>
-      <span className="text-[10px] text-muted-foreground truncate max-w-[48px] sm:max-w-none">{label}</span>
-    </button>
-  );
-}
-
-
-
 
