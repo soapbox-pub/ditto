@@ -556,41 +556,55 @@ function BlobbiContent() {
     });
   }
   
+  // ─── Hatching Ceremony State ───
+  // The ceremony creates eggs in the background which updates profile data.
+  // Without this flag, BlobbiPage would immediately fall through to the
+  // dashboard the moment the egg appears in has[]. The flag keeps the
+  // ceremony mounted until it calls onComplete.
+  //
+  // Ceremony is needed when:
+  // - No profile exists (first time user)
+  // - Profile exists but has no pets
+  // - Profile exists with pets but onboarding not done (e.g. page refresh
+  //   mid-ceremony, or user only has unhatched eggs)
+  const [ceremonyInProgress, setCeremonyInProgress] = useState(false);
+  const needsCeremony = !profile
+    || !dList || dList.length === 0
+    || (profile && !profile.onboardingDone);
+  
+  // Auto-start ceremony when conditions are met
+  useEffect(() => {
+    if (needsCeremony && !profileLoading) {
+      setCeremonyInProgress(true);
+    }
+  }, [needsCeremony, profileLoading]);
+  
   // ─── CASE A: Profile still loading ───
-  if (profileLoading) {
+  if (profileLoading && !ceremonyInProgress) {
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE B: No profile exists ───
-  // Show immersive hatching ceremony (full-screen, no shell needed)
-  if (!profile) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony (no profile)');
+  // ─── CASE B/C: Hatching ceremony (no profile, or profile with no pets) ───
+  // Stays mounted until the ceremony explicitly completes, even if the
+  // underlying data changes during the ceremony.
+  if (ceremonyInProgress) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony');
     return (
       <BlobbiOnboardingFlow
-        profile={null}
+        profile={profile ?? null}
         updateProfileEvent={updateProfileEvent}
         updateCompanionEvent={updateCompanionEvent}
         invalidateProfile={invalidateProfile}
         invalidateCompanion={invalidateCompanion}
         setStoredSelectedD={setStoredSelectedD}
+        onComplete={() => setCeremonyInProgress(false)}
       />
     );
   }
   
-  // ─── CASE C: Profile exists but has no pets (empty has[] and no current_companion) ───
-  // Show immersive hatching ceremony (full-screen, no shell needed)
-  if (!dList || dList.length === 0) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony (profile exists, no pets)');
-    return (
-      <BlobbiOnboardingFlow
-        profile={profile}
-        updateProfileEvent={updateProfileEvent}
-        updateCompanionEvent={updateCompanionEvent}
-        invalidateProfile={invalidateProfile}
-        invalidateCompanion={invalidateCompanion}
-        setStoredSelectedD={setStoredSelectedD}
-      />
-    );
+  // After ceremony check, profile and dList must exist
+  if (!profile || !dList || dList.length === 0) {
+    return <DashboardLoadingState />;
   }
   
   // ─── CASE D: Profile has pet references, but companions still loading ───

@@ -478,9 +478,12 @@
   animation: onboard-glow-expand 1.8s ease-out forwards;
 }
 
-/* Gentle lingering glow fade after hatch */
+/* Gentle lingering glow fade after hatch - holds then fades */
 @keyframes onboard-glow-linger {
   0% {
+    opacity: 0.85;
+  }
+  15% {
     opacity: 0.85;
   }
   100% {
@@ -489,7 +492,7 @@
 }
 
 .animate-onboard-glow-linger {
-  animation: onboard-glow-linger 6s ease-out forwards;
+  animation: onboard-glow-linger 7s ease-out forwards;
 }
 
 /* Sentimental text fade in - very slow, dreamlike */
@@ -558,6 +561,54 @@
   100% {
     opacity: 0;
     transform: translateY(-120px) scale(0.2);
+  }
+}
+
+/* Sparkle twinkle - stays in place, pulses brightness */
+@keyframes onboard-sparkle-twinkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  30% {
+    opacity: 0.6;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0.3;
+    transform: scale(0.6);
+  }
+  85% {
+    opacity: 0.9;
+    transform: scale(1.1);
+  }
+}
+
+/* Sparkle drift - gentle floating motion */
+@keyframes onboard-sparkle-drift {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.3);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translateY(-25px) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.4);
   }
 }
 
@@ -675,6 +726,45 @@
   animation: onboard-continue-pulse 2.5s ease-in-out infinite;
 }
 
+/* Slow rotating golden incandescence behind hatched blobbi */
+@keyframes onboard-golden-rotate {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.06);
+  }
+  50% {
+    transform: rotate(180deg) scale(1);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.06);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-onboard-golden-rotate {
+  animation: onboard-golden-rotate 20s linear infinite;
+}
+
+/* Golden glow fade-in */
+@keyframes onboard-golden-fadein {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-onboard-golden-fadein {
+  animation: onboard-golden-fadein 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* Reduced motion overrides for onboarding */
 @media (prefers-reduced-motion: reduce) {
   .animate-egg-onboard-breathe,
@@ -690,7 +780,9 @@
   .animate-egg-onboard-shake-heavy,
   .animate-egg-onboard-burst,
   .animate-onboard-screen-flash,
-  .animate-onboard-continue-pulse {
+  .animate-onboard-continue-pulse,
+  .animate-onboard-golden-rotate,
+  .animate-onboard-golden-fadein {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
