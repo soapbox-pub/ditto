@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.5.0] - 2026-04-03
+
+### Added
+- Run nsites and web apps directly inside Ditto -- hit the "Run" button on any nsite or app card to preview it in an overlay without leaving your feed
+- File uploads in the poll composer -- attach images and media to your polls
+- Blobbi posts now appear in the homepage feed
+
+### Changed
+- Profile media sidebar fills remaining slots with photos from text posts when there aren't enough dedicated media posts
+- App cards now show banner images and improved layout
+
+### Fixed
+- Lightbox no longer appears behind the right sidebar
+- Compose box corners are properly rounded
+- Clicking buttons or links inside a post card no longer accidentally navigates to the post detail page
+
 ## [2.4.1] - 2026-04-02
 
 ### Added
