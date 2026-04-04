@@ -1546,9 +1546,9 @@ function BlobbiDashboard({
           {companion.name}
         </h2>
         
-        {/* Main Blobbi Visual — ceremony-sized */}
+        {/* Main Blobbi Visual + Curved Stats Orbit */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center size-56 sm:size-64 md:size-72 text-center">
+          <div className="flex flex-col items-center justify-center size-64 sm:size-72 md:size-80 text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground text-sm">
               {companion.name} is out exploring right now.
@@ -1556,7 +1556,7 @@ function BlobbiDashboard({
           </div>
         ) : (
           <div className="relative transition-all duration-500">
-            <div className="absolute inset-0 -m-12 bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute inset-0 -m-16 bg-primary/5 rounded-full blur-3xl" />
             
             <BlobbiStageVisual
               companion={companion}
@@ -1566,12 +1566,12 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              className="size-56 sm:size-64 md:size-72"
+              className="size-64 sm:size-72 md:size-80"
             />
           </div>
         )}
         
-        {/* Stats Row — always visible below Blobbi */}
+        {/* Stats Arc — curves below the Blobbi */}
         {(() => {
           const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
             ...vs,
@@ -1579,21 +1579,51 @@ function BlobbiDashboard({
             color: STAT_COLOR_MAP[vs.stat],
           }));
           if (visibleStats.length === 0) return null;
+
+          // Arc geometry: stats orbit in a semicircle below the Blobbi.
+          // The arc spans from -arcHalf to +arcHalf degrees (0° = bottom center).
+          const count = visibleStats.length;
+          const arcSpread = Math.min(count * 32, 140); // degrees, capped
+          const arcHalf = arcSpread / 2;
+          // Angles measured clockwise from top (CSS transform convention),
+          // centered on 180° (bottom). Range: 180-arcHalf .. 180+arcHalf
+          const angles = count === 1
+            ? [180]
+            : visibleStats.map((_, i) => 180 - arcHalf + (arcSpread / (count - 1)) * i);
+
           return (
-            <div className={cn(
-              "grid gap-2 sm:gap-4 mt-4",
-              visibleStats.length <= 3 ? "max-w-xs mx-auto" : "",
-              visibleStats.length === 1 ? "grid-cols-1" : visibleStats.length === 2 ? "grid-cols-2" : visibleStats.length === 3 ? "grid-cols-3" : visibleStats.length === 4 ? "grid-cols-4" : "grid-cols-5",
-            )}>
-              {visibleStats.map((s) => (
-                <StatIndicator
-                  key={s.stat}
-                  label={s.label}
-                  value={s.value}
-                  color={s.color}
-                  status={s.status}
-                />
-              ))}
+            <div className="relative flex items-center justify-center w-full mt-1" style={{ height: 72 }}>
+              {visibleStats.map((s, i) => {
+                // Orbit radius — distance from the center to each stat bubble.
+                // Responsive: tighter on mobile, more spread on larger screens.
+                // Mobile: ~140px, sm: ~160px, md: ~180px (achieved via CSS clamp).
+                const angleDeg = angles[i];
+                const angleRad = (angleDeg * Math.PI) / 180;
+                // Use a base radius; we'll scale it with CSS clamp for responsiveness
+                const baseRadius = 160;
+                const x = Math.sin(angleRad) * baseRadius;
+                const y = -Math.cos(angleRad) * baseRadius;
+
+                return (
+                  <div
+                    key={s.stat}
+                    className="absolute transition-all duration-500"
+                    style={{
+                      // Place relative to center; y is offset so the arc hugs the blobbi bottom
+                      transform: `translate(calc(-50% + ${x.toFixed(1)}px), calc(-100% + ${y.toFixed(1)}px))`,
+                      left: '50%',
+                      top: '0%',
+                    }}
+                  >
+                    <StatIndicator
+                      label={s.label}
+                      value={s.value}
+                      color={s.color}
+                      status={s.status}
+                    />
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
@@ -2228,23 +2258,23 @@ function StatIndicator({ label, value, color, status = 'normal' }: StatIndicator
   return (
     <div className="flex flex-col items-center gap-1">
       <div className={cn(
-        "relative size-12 sm:size-14 rounded-full flex items-center justify-center",
+        "relative size-14 sm:size-16 rounded-full flex items-center justify-center",
         STAT_BG_COLORS[color],
         status === 'critical' && "animate-pulse"
       )}>
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/20" />
-          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${displayValue * 0.94} 100`} className={cn("transition-all duration-500", ringColor)} />
+          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/20" />
+          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${displayValue * 0.94} 100`} className={cn("transition-all duration-500", ringColor)} />
         </svg>
         {showWarningIcon ? (
-          <AlertTriangle className="size-4 text-red-500" />
+          <AlertTriangle className="size-5 text-red-500" />
         ) : (
-          <span className="text-xs sm:text-sm font-semibold">{displayValue}</span>
+          <span className="text-sm sm:text-base font-semibold">{displayValue}</span>
         )}
       </div>
       <span className={cn(
-        "text-[10px] sm:text-xs",
-        status === 'critical' ? "text-red-500 font-medium" : 
+        "text-[10px] sm:text-xs font-medium",
+        status === 'critical' ? "text-red-500" : 
         status === 'warning' ? "text-amber-500" : 
         "text-muted-foreground"
       )}>
@@ -2388,13 +2418,13 @@ function DashboardLoadingState() {
     <DashboardShell>
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
         <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="size-56 sm:size-64 md:size-72 rounded-full" />
+        <Skeleton className="size-64 sm:size-72 md:size-80 rounded-full" />
       </div>
       <div className="px-4 pb-6 sm:px-6">
-        <div className="grid grid-cols-5 gap-2 sm:gap-4">
+        <div className="flex justify-center gap-4 sm:gap-6">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <Skeleton className="size-12 sm:size-14 rounded-full" />
+              <Skeleton className="size-14 sm:size-16 rounded-full" />
               <Skeleton className="h-3 w-10" />
             </div>
           ))}
