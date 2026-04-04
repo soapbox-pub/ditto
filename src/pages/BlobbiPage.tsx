@@ -150,6 +150,8 @@ export function BlobbiPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
+  useLayoutOptions({ hasSubHeader: true, noOverscroll: true });
+
   useSeoMeta({
     title: `Blobbi | ${config.appName}`,
     description: 'Care for your virtual pet companion on Nostr',
@@ -863,7 +865,7 @@ function BlobbiDashboard({
   onDevEditorApply,
   isDevUpdating,
 }: BlobbiDashboardProps) {
-  useLayoutOptions({ hasSubHeader: true, noOverscroll: true });
+  // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
