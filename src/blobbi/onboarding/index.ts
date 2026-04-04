@@ -1,19 +1,15 @@
 /**
  * Blobbi Onboarding Module
- * 
- * Provides components and hooks for the Blobbi onboarding flow:
- * 1. Auto profile creation (using kind 0 name)
- * 2. Adoption question
- * 3. Egg preview with reroll/adopt
+ *
+ * Every new egg goes through the immersive hatching ceremony:
+ * dark screen, huge egg, click-to-hatch, sentimental birth reveal, naming.
  */
 
 // Components
-export { BlobbiAdoptionStep } from './components/BlobbiAdoptionStep';
-export { BlobbiEggPreviewCard } from './components/BlobbiEggPreviewCard';
-export { BlobbiAdoptionConfirmDialog } from './components/BlobbiAdoptionConfirmDialog';
 export { BlobbiOnboardingFlow } from './components/BlobbiOnboardingFlow';
+export { BlobbiHatchingCeremony } from './components/BlobbiHatchingCeremony';
 
-// Hooks
+// Hooks (used internally; kept exported for potential external use)
 export { useBlobbiOnboarding } from './hooks/useBlobbiOnboarding';
 export type {
   OnboardingStep,

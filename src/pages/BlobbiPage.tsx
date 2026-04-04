@@ -101,11 +101,8 @@ import {
   loadMissionCardVisible,
   saveMissionCardVisible,
 } from '@/blobbi/ui/lib/action-bar-preferences';
-import { useQuery } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
-import { useFirstHatchTour, useFirstHatchTourActivation, FirstHatchTourCard } from '@/blobbi/tour';
-import { buildHatchPhrase, isValidHatchPost } from '@/blobbi/actions';
-import type { EggTourVisualState } from '@/blobbi/egg';
+
+
 
 /**
  * Get the localStorage key for the selected Blobbi.
@@ -565,38 +562,34 @@ function BlobbiContent() {
   }
   
   // ─── CASE B: No profile exists ───
-  // Show profile creation onboarding
+  // Show immersive hatching ceremony (full-screen, no shell needed)
   if (!profile) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: profile creation onboarding');
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony (no profile)');
     return (
-      <DashboardShell>
-        <BlobbiOnboardingFlow
-          profile={null}
-          updateProfileEvent={updateProfileEvent}
-          updateCompanionEvent={updateCompanionEvent}
-          invalidateProfile={invalidateProfile}
-          invalidateCompanion={invalidateCompanion}
-          setStoredSelectedD={setStoredSelectedD}
-        />
-      </DashboardShell>
+      <BlobbiOnboardingFlow
+        profile={null}
+        updateProfileEvent={updateProfileEvent}
+        updateCompanionEvent={updateCompanionEvent}
+        invalidateProfile={invalidateProfile}
+        invalidateCompanion={invalidateCompanion}
+        setStoredSelectedD={setStoredSelectedD}
+      />
     );
   }
   
   // ─── CASE C: Profile exists but has no pets (empty has[] and no current_companion) ───
-  // Show adoption onboarding
+  // Show immersive hatching ceremony (full-screen, no shell needed)
   if (!dList || dList.length === 0) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: adoption onboarding (profile exists, no pets)');
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony (profile exists, no pets)');
     return (
-      <DashboardShell>
-        <BlobbiOnboardingFlow
-          profile={profile}
-          updateProfileEvent={updateProfileEvent}
-          updateCompanionEvent={updateCompanionEvent}
-          invalidateProfile={invalidateProfile}
-          invalidateCompanion={invalidateCompanion}
-          setStoredSelectedD={setStoredSelectedD}
-        />
-      </DashboardShell>
+      <BlobbiOnboardingFlow
+        profile={profile}
+        updateProfileEvent={updateProfileEvent}
+        updateCompanionEvent={updateCompanionEvent}
+        invalidateProfile={invalidateProfile}
+        invalidateCompanion={invalidateCompanion}
+        setStoredSelectedD={setStoredSelectedD}
+      />
     );
   }
   
@@ -970,168 +963,6 @@ function BlobbiDashboard({
   const [showIncubationDialog, setShowIncubationDialog] = useState(false);
   const [showEvolutionDialog, setShowEvolutionDialog] = useState(false);
   
-  // ─── First Hatch Tour ───
-  const firstHatchTour = useFirstHatchTour();
-  useFirstHatchTourActivation({
-    companions,
-    isLoading: false, // companions are already loaded at this point
-    tour: firstHatchTour,
-    profileOnboardingDone: profile?.onboardingDone,
-  });
-  const isFirstHatchTourActive = firstHatchTour.state.isActive;
-
-  // The required phrase for the first-hatch post
-  const firstHatchPhrase = useMemo(() => buildHatchPhrase(companion.name), [companion.name]);
-
-  // Auto-advance from idle -> show_hatch_card (immediately)
-  useEffect(() => {
-    if (!isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('idle')) {
-      firstHatchTour.actions.advance(); // -> show_hatch_card
-    }
-  }, [isFirstHatchTourActive, firstHatchTour]);
-
-  // Show the inline first-hatch card for all pre-hatch steps
-  const showFirstHatchCard = isFirstHatchTourActive && firstHatchTour.isAnyStep(
-    'show_hatch_card', 'egg_glowing_waiting_click',
-    'egg_crack_stage_1', 'egg_crack_stage_2', 'egg_crack_stage_3',
-  );
-
-  // Detect hatch post completion for the first-hatch tour
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const tourAwaitingPost = isFirstHatchTourActive && firstHatchTour.isStep('show_hatch_card');
-
-  const { data: tourPostFound } = useQuery({
-    queryKey: ['first-hatch-tour-post', user?.pubkey, companion.name],
-    queryFn: async () => {
-      if (!user?.pubkey) return false;
-      const events = await nostr.query([{
-        kinds: [1],
-        authors: [user.pubkey],
-        limit: 20,
-      }]);
-      return events.some(e => isValidHatchPost(e, companion.name));
-    },
-    enabled: tourAwaitingPost && !!user?.pubkey,
-    refetchInterval: 5000,
-    staleTime: 3000,
-  });
-
-  // When the post is found during show_hatch_card, show the completed state
-  // for 2 seconds so the user sees the checkmark, then auto-advance to glowing.
-  useEffect(() => {
-    if (!tourPostFound || !isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('show_hatch_card')) {
-      const timer = setTimeout(() => {
-        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [tourPostFound, isFirstHatchTourActive, firstHatchTour]);
-
-  // Fake pointer hint: after 10s on glowing_waiting_click, show hint; repeat every 5s
-  const [showClickHint, setShowClickHint] = useState(false);
-  useEffect(() => {
-    if (!isFirstHatchTourActive || !firstHatchTour.isStep('egg_glowing_waiting_click')) {
-      setShowClickHint(false);
-      return;
-    }
-    const initial = setTimeout(() => setShowClickHint(true), 10000);
-    const repeat = setInterval(() => setShowClickHint(true), 5000);
-    return () => { clearTimeout(initial); clearInterval(repeat); };
-  }, [isFirstHatchTourActive, firstHatchTour]);
-
-  // Handle egg click during the tour (advance crack stages)
-  const handleTourEggClick = useCallback(() => {
-    if (!isFirstHatchTourActive) return;
-    setShowClickHint(false);
-    if (firstHatchTour.isStep('egg_glowing_waiting_click')) {
-      firstHatchTour.actions.advance(); // -> egg_crack_stage_1
-    } else if (firstHatchTour.isStep('egg_crack_stage_1')) {
-      firstHatchTour.actions.advance(); // -> egg_crack_stage_2
-    } else if (firstHatchTour.isStep('egg_crack_stage_2')) {
-      firstHatchTour.actions.advance(); // -> egg_crack_stage_3
-    } else if (firstHatchTour.isStep('egg_crack_stage_3')) {
-      firstHatchTour.actions.advance(); // -> egg_opening
-    }
-  }, [isFirstHatchTourActive, firstHatchTour]);
-
-  // Auto-advance for opening -> hatching -> complete (with hatch mutation)
-  useEffect(() => {
-    if (!isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('egg_opening')) {
-      const timer = setTimeout(() => {
-        firstHatchTour.actions.advance(); // -> egg_hatching
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isFirstHatchTourActive, firstHatchTour]);
-
-  useEffect(() => {
-    if (!isFirstHatchTourActive) return;
-    if (firstHatchTour.isStep('egg_hatching')) {
-      // Execute the actual hatch mutation, mark onboarding complete on the
-      // profile event, then complete the tour's local state.
-      const doHatch = async () => {
-        try {
-          await onHatch();
-
-          // Persist blobbi_onboarding_done to the Blobbonaut profile (authoritative)
-          if (profile) {
-            try {
-              const updatedTags = updateBlobbonautTags(profile.allTags, {
-                blobbi_onboarding_done: 'true',
-              });
-              const event = await publishEvent({
-                kind: KIND_BLOBBONAUT_PROFILE,
-                content: '',
-                tags: updatedTags,
-              });
-              updateProfileEvent(event);
-            } catch (e) {
-              console.error('[FirstHatchTour] Failed to persist onboarding completion to profile:', e);
-            }
-          }
-        } finally {
-          firstHatchTour.actions.complete();
-        }
-      };
-      const timer = setTimeout(doHatch, 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [isFirstHatchTourActive, firstHatchTour, onHatch, profile, publishEvent, updateProfileEvent]);
-
-  // Derive tourVisualState for the egg visual
-  const tourVisualState = useMemo((): EggTourVisualState => {
-    if (!isFirstHatchTourActive) return 'idle';
-    const step = firstHatchTour.state.currentStepId;
-    switch (step) {
-      case 'show_hatch_card': return 'show_hatch_card';
-      case 'egg_glowing_waiting_click': return 'glowing_waiting_click';
-      case 'egg_crack_stage_1': return 'crack_stage_1';
-      case 'egg_crack_stage_2': return 'crack_stage_2';
-      case 'egg_crack_stage_3': return 'crack_stage_3';
-      case 'egg_opening': return 'opening';
-      case 'egg_hatching': return 'hatching';
-      default: return 'idle';
-    }
-  }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
-
-  // DEV ONLY: Build tour dev actions for the state editor
-  const tourDevActions = useMemo(() => ({
-    skipPostRequirement: () => {
-      if (firstHatchTour.isStep('show_hatch_card')) {
-        firstHatchTour.actions.goTo('egg_glowing_waiting_click');
-      }
-    },
-    resetTour: () => {
-      firstHatchTour.actions.reset();
-    },
-    currentStepId: firstHatchTour.state.currentStepId,
-    isCompleted: firstHatchTour.state.isCompleted,
-  }), [firstHatchTour]);
-
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1577,34 +1408,13 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              tourVisualState={tourVisualState}
-              onTourEggClick={handleTourEggClick}
               className="size-48 sm:size-56"
             />
-            {showClickHint && firstHatchTour.isStep('egg_glowing_waiting_click') && (
-              <div className="absolute bottom-14 inset-x-0 flex items-center justify-center pointer-events-none select-none">
-                <span className="text-4xl animate-bounce drop-shadow-lg">👆</span>
-              </div>
-            )}
           </div>
         )}
       </div>
       
-      {/* First Hatch Tour: inline card directly below egg (above stats) */}
-      {showFirstHatchCard && (
-        <div className="px-4 sm:px-6 mt-2">
-          <FirstHatchTourCard
-            blobbiName={companion.name}
-            requiredPhrase={firstHatchPhrase}
-            postCompleted={!!tourPostFound || !firstHatchTour.isStep('show_hatch_card')}
-            onCreatePost={() => setShowPostModal(true)}
-            currentStep={firstHatchTour.state.currentStepId}
-          />
-        </div>
-      )}
-
-      {/* Stats Section - hidden during first-hatch tour */}
-      {!isFirstHatchTourActive && (
+      {/* Stats Section */}
       <div className="px-4 sm:px-6">
         {/* Stats Grid - shows projected decay state */}
         {/* Only stats below the visibility threshold are shown (centralized in getVisibleStatsWithValues) */}
@@ -1661,10 +1471,9 @@ function BlobbiDashboard({
           </div>
         )}
       </div>
-      )}
       
-      {/* Mission Surface Card - hidden during first-hatch tour or when user dismissed */}
-      {!isFirstHatchTourActive && missionCardVisible && (
+      {/* Mission Surface Card */}
+      {missionCardVisible && (
         <div className="px-4 sm:px-6 mt-3">
           <MissionSurfaceCard
             tasks={taskProcess.tasks}
@@ -1677,43 +1486,41 @@ function BlobbiDashboard({
         </div>
       )}
       
-      {/* Bottom Action Bar - hidden during first-hatch tour */}
-      {!isFirstHatchTourActive && (
-        <BlobbiBottomBar
-          onBlobbiesClick={() => setShowSelector(true)}
-          onMissionsClick={() => setShowMissionsModal(true)}
-          onActionsClick={() => setShowActionsModal(true)}
-          onShopClick={() => setShowShopModal(true)}
-          needyBlobbiesCount={companions.filter(companionNeedsCare).length}
-          isInTaskProcess={isInTaskProcess}
-          remainingTasksCount={remainingTasksCount}
-          allTasksComplete={allTasksComplete}
-          stage={companion.stage}
-          blobbiNaddr={blobbiNaddr}
-          onSetAsCompanion={handleSetAsCompanion}
-          isCurrentCompanion={isCurrentCompanion}
-          isUpdatingCompanion={isUpdatingCompanion}
-          onTakePhoto={() => setShowPhotoModal(true)}
-          onEvolve={
-            canStartIncubation
-              ? () => setShowIncubationDialog(true)
-              : canStartEvolution
-                ? () => setShowEvolutionDialog(true)
-                : isEgg
-                  ? onHatch
-                  : onEvolve
-          }
-          isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
-          hideEvolveButton={isIncubating || isEvolvingState || isFirstHatchTourActive}
-          isIncubationAction={canStartIncubation}
-          isEvolutionAction={canStartEvolution}
-          onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
-          onDevOpenEditor={() => setShowDevEditor(true)}
-          onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-          barPreferences={barPrefs}
-          onEditBar={() => setShowBarEditor(true)}
-        />
-      )}
+      {/* Bottom Action Bar */}
+      <BlobbiBottomBar
+        onBlobbiesClick={() => setShowSelector(true)}
+        onMissionsClick={() => setShowMissionsModal(true)}
+        onActionsClick={() => setShowActionsModal(true)}
+        onShopClick={() => setShowShopModal(true)}
+        needyBlobbiesCount={companions.filter(companionNeedsCare).length}
+        isInTaskProcess={isInTaskProcess}
+        remainingTasksCount={remainingTasksCount}
+        allTasksComplete={allTasksComplete}
+        stage={companion.stage}
+        blobbiNaddr={blobbiNaddr}
+        onSetAsCompanion={handleSetAsCompanion}
+        isCurrentCompanion={isCurrentCompanion}
+        isUpdatingCompanion={isUpdatingCompanion}
+        onTakePhoto={() => setShowPhotoModal(true)}
+        onEvolve={
+          canStartIncubation
+            ? () => setShowIncubationDialog(true)
+            : canStartEvolution
+              ? () => setShowEvolutionDialog(true)
+              : isEgg
+                ? onHatch
+                : onEvolve
+        }
+        isTransitioning={isHatching || isEvolving || isStartingIncubation || isStartingEvolution}
+        hideEvolveButton={isIncubating || isEvolvingState}
+        isIncubationAction={canStartIncubation}
+        isEvolutionAction={canStartEvolution}
+        onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+        onDevOpenEditor={() => setShowDevEditor(true)}
+        onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
+        barPreferences={barPrefs}
+        onEditBar={() => setShowBarEditor(true)}
+      />
       
       {/* Action Bar Editor */}
       <ActionBarEditor
@@ -1892,7 +1699,6 @@ function BlobbiDashboard({
           companion={companion}
           onApply={onDevEditorApply}
           isUpdating={isDevUpdating}
-          tourDevActions={tourDevActions}
         />
       )}
       

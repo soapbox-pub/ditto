@@ -438,3 +438,262 @@
     filter: grayscale(1) contrast(1.5) !important;
   }
 }
+
+/* ==========================================
+   Onboarding Hatching Ceremony Animations
+   ========================================== */
+
+/* Soft breathing pulse for the egg before interaction */
+@keyframes egg-onboard-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.08));
+  }
+  50% {
+    transform: scale(1.015);
+    filter: brightness(1.03) drop-shadow(0 0 30px rgba(255, 255, 255, 0.15));
+  }
+}
+
+.animate-egg-onboard-breathe {
+  animation: egg-onboard-breathe 3s ease-in-out infinite;
+}
+
+/* Screen-filling radial glow that expands from center on hatch */
+@keyframes onboard-glow-expand {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(2.5);
+  }
+}
+
+.animate-onboard-glow-expand {
+  animation: onboard-glow-expand 1.8s ease-out forwards;
+}
+
+/* Gentle lingering glow fade after hatch */
+@keyframes onboard-glow-linger {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-onboard-glow-linger {
+  animation: onboard-glow-linger 6s ease-out forwards;
+}
+
+/* Sentimental text fade in - very slow, dreamlike */
+@keyframes onboard-text-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.animate-onboard-text-reveal {
+  animation: onboard-text-reveal 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Delayed text reveal for secondary text */
+.animate-onboard-text-reveal-delay {
+  opacity: 0;
+  animation: onboard-text-reveal 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+}
+
+/* Soft fade out for transition between phases */
+@keyframes onboard-soft-fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-onboard-soft-fade-out {
+  animation: onboard-soft-fade-out 0.8s ease-out forwards;
+}
+
+/* Soft fade in */
+@keyframes onboard-soft-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-onboard-soft-fade-in {
+  animation: onboard-soft-fade-in 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Floating particles that drift upward from the egg */
+@keyframes onboard-particle-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(0.2);
+  }
+}
+
+/* Egg entrance - subtle float up from darkness */
+@keyframes egg-onboard-entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-egg-onboard-entrance {
+  animation: egg-onboard-entrance 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Egg shake intensifying - for crack stages */
+@keyframes egg-onboard-shake-light {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-3px) rotate(-2deg); }
+  75% { transform: translateX(3px) rotate(2deg); }
+}
+
+@keyframes egg-onboard-shake-medium {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-5px) rotate(-3deg); }
+  40% { transform: translateX(4px) rotate(2deg); }
+  60% { transform: translateX(-4px) rotate(-2deg); }
+  80% { transform: translateX(5px) rotate(3deg); }
+}
+
+@keyframes egg-onboard-shake-heavy {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  10% { transform: translateX(-6px) rotate(-4deg); }
+  20% { transform: translateX(5px) rotate(3deg); }
+  30% { transform: translateX(-7px) rotate(-3deg); }
+  40% { transform: translateX(6px) rotate(4deg); }
+  50% { transform: translateX(-5px) rotate(-2deg); }
+  60% { transform: translateX(7px) rotate(3deg); }
+  70% { transform: translateX(-6px) rotate(-4deg); }
+  80% { transform: translateX(5px) rotate(2deg); }
+  90% { transform: translateX(-4px) rotate(-3deg); }
+}
+
+.animate-egg-onboard-shake-light {
+  animation: egg-onboard-shake-light 0.4s ease-in-out;
+}
+
+.animate-egg-onboard-shake-medium {
+  animation: egg-onboard-shake-medium 0.5s ease-in-out;
+}
+
+.animate-egg-onboard-shake-heavy {
+  animation: egg-onboard-shake-heavy 0.6s ease-in-out;
+}
+
+/* Final burst - egg explodes into light */
+@keyframes egg-onboard-burst {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.08);
+    filter: brightness(1.5);
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 0.8;
+    filter: brightness(2.5);
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+    filter: brightness(4) blur(8px);
+  }
+}
+
+.animate-egg-onboard-burst {
+  animation: egg-onboard-burst 1.2s ease-in-out forwards;
+}
+
+/* Screen flash on hatch */
+@keyframes onboard-screen-flash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-onboard-screen-flash {
+  animation: onboard-screen-flash 2s ease-out forwards;
+}
+
+/* Gentle continue prompt pulse */
+@keyframes onboard-continue-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-onboard-continue-pulse {
+  animation: onboard-continue-pulse 2.5s ease-in-out infinite;
+}
+
+/* Reduced motion overrides for onboarding */
+@media (prefers-reduced-motion: reduce) {
+  .animate-egg-onboard-breathe,
+  .animate-onboard-glow-expand,
+  .animate-onboard-glow-linger,
+  .animate-onboard-text-reveal,
+  .animate-onboard-text-reveal-delay,
+  .animate-onboard-soft-fade-out,
+  .animate-onboard-soft-fade-in,
+  .animate-egg-onboard-entrance,
+  .animate-egg-onboard-shake-light,
+  .animate-egg-onboard-shake-medium,
+  .animate-egg-onboard-shake-heavy,
+  .animate-egg-onboard-burst,
+  .animate-onboard-screen-flash,
+  .animate-onboard-continue-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

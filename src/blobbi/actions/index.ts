@@ -55,9 +55,6 @@ export {
   getInteractionCount,
   filterPersistentTasks,
   sanitizeToHashtag,
-  isValidHatchPost,
-  isValidBlobbiPost, // Legacy export
-  buildHatchPhrase,
   KIND_THEME_DEFINITION,
   KIND_COLOR_MOMENT,
   HATCH_REQUIRED_INTERACTIONS,
