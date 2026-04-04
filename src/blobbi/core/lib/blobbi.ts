@@ -325,6 +325,8 @@ export interface BlobbonautProfile {
   onboardingDone: boolean;
   /** Whether the first hatch tour has been completed */
   firstHatchTourDone: boolean;
+  /** Whether the UI walkthrough tour has been completed */
+  uiTourDone: boolean;
   /** Display name for the Blobbonaut */
   name: string | undefined;
   /** List of owned Blobbi d-tags */
@@ -996,6 +998,7 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     onboardingDone: parseBooleanTag(tags, 'blobbi_onboarding_done', false)
       || parseBooleanTag(tags, 'onboarding_done', false),
     firstHatchTourDone: parseBooleanTag(tags, 'blobbi_first_hatch_tour_done', false),
+    uiTourDone: parseBooleanTag(tags, 'blobbi_ui_tour_done', false),
     name: getTagValue(tags, 'name'),
     has: getTagValues(tags, 'has'),
     coins: parseNumericTag(tags, 'coins') ?? 0,
@@ -1017,6 +1020,7 @@ export function buildBlobbonautTags(pubkey: string): string[][] {
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
     ['blobbi_onboarding_done', 'false'],
     ['blobbi_first_hatch_tour_done', 'false'],
+    ['blobbi_ui_tour_done', 'false'],
     ['pettingLevel', '0'],
   ];
 }
@@ -1158,7 +1162,7 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  * These tags are controlled by the application and may be overwritten.
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
-  'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'blobbi_first_hatch_tour_done', 'onboarding_done', 'has', 'storage',
+  'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'blobbi_first_hatch_tour_done', 'blobbi_ui_tour_done', 'onboarding_done', 'has', 'storage',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',

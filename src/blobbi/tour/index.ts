@@ -2,25 +2,19 @@
  * Blobbi Tour Module
  *
  * Provides the orchestration layer for guided tours / tutorials.
+ *
  * Currently implements:
  * - First-egg hatch tour (tap crack animation + reveal)
  * - First-egg experience (auto profile + egg creation)
+ * - UI walkthrough tour (bottom bar, guide actor)
  *
- * Architecture:
- * - tour-types.ts: Step definitions, generic types
- * - useFirstHatchTour: In-memory state machine (step progression, actions)
- * - useFirstHatchTourActivation: Precondition guard (auto-starts when eligible)
- * - useFirstEggExperience: Auto-create profile + first egg
- *
- * Persistence: The Kind 11125 profile tag `blobbi_first_hatch_tour_done`
- * is the sole authoritative persisted signal. No localStorage is used.
- *
- * UI components import from this barrel and read tour state to decide
- * what to render. They call tour actions (advance, goTo, complete) in
- * response to user interactions or animation completions.
+ * Persistence:
+ * - `blobbi_first_hatch_tour_done` — sole signal for hatch tour
+ * - `blobbi_ui_tour_done` — sole signal for UI tour (not persisted yet)
+ * - No localStorage is used for any tour.
  */
 
-// ── Types (generic tour infrastructure) ──
+// ── Types (hatch tour infrastructure) ──
 export type {
   TourStepDef,
   TourState,
@@ -56,3 +50,31 @@ export type {
 
 // ── First Hatch Tour - Components ──
 export { BlobbiRevealOverlay } from './components/BlobbiRevealOverlay';
+
+// ── UI Tour - Types & Constants ──
+export type {
+  GuideMovement,
+  GuideAnchorTarget,
+  UITourStepDef,
+  UITourStepId,
+} from './lib/ui-tour-types';
+export {
+  buildUITourSteps,
+  BAR_ITEM_TOUR_DESCRIPTIONS,
+} from './lib/ui-tour-types';
+
+// ── UI Tour - Hooks ──
+export { useUITour } from './hooks/useUITour';
+export type {
+  UITourState,
+  UITourActions,
+  UseUITourResult,
+} from './hooks/useUITour';
+
+// ── UI Tour - Components ──
+export { UITourOverlay } from './components/UITourOverlay';
+export { GuidedModal } from './components/GuidedModal';
+export { MiniBlobbiGuide, GUIDE_SIZE } from './components/MiniBlobbiGuide';
+
+// ── Tour Anchor System ──
+export { TourAnchorProvider, useTourAnchors } from './lib/TourAnchorContext';

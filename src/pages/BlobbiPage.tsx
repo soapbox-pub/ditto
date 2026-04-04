@@ -95,6 +95,7 @@ import { ActionBarEditor } from '@/blobbi/ui/components/ActionBarEditor';
 import {
   type ActionBarPreferences,
   type BarItemId,
+  BAR_ITEM_LABELS,
   getVisibleSlots,
   getVisibleBarIds,
   loadPreferences,
@@ -102,7 +103,11 @@ import {
   loadMissionCardVisible,
   saveMissionCardVisible,
 } from '@/blobbi/ui/lib/action-bar-preferences';
-import { useFirstHatchTour, useFirstHatchTourActivation, useFirstEggExperience, BlobbiRevealOverlay } from '@/blobbi/tour';
+import {
+  useFirstHatchTour, useFirstHatchTourActivation, useFirstEggExperience, BlobbiRevealOverlay,
+  useUITour, UITourOverlay, TourAnchorProvider, useTourAnchors,
+  buildUITourSteps, BAR_ITEM_TOUR_DESCRIPTIONS,
+} from '@/blobbi/tour';
 import type { EggTourVisualState } from '@/blobbi/egg';
 
 /**
@@ -747,6 +752,7 @@ function BlobbiContent() {
   // Note: Item use registration is handled by useBlobbiActionsRegistration hook above
   if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: dashboard');
   return (
+    <TourAnchorProvider>
     <BlobbiDashboard
       companion={companion}
       companions={companions}
@@ -780,6 +786,7 @@ function BlobbiContent() {
       onDevEditorApply={handleDevEditorApply}
       isDevUpdating={isDevUpdating}
     />
+    </TourAnchorProvider>
   );
 }
 
@@ -1190,6 +1197,45 @@ function BlobbiDashboard({
     currentStepId: firstHatchTour.state.currentStepId,
     isCompleted: firstHatchTour.state.isCompleted,
   }), [firstHatchTour, resetTourWithProfile]);
+
+  // ─── UI Walkthrough Tour ───
+  const { registerAnchor } = useTourAnchors();
+
+  // Build step definitions based on the current visible bar items
+  const uiTourSteps = useMemo(() => {
+    const slots = getVisibleSlots(barPrefs);
+    const labels = slots.map(s => BAR_ITEM_LABELS[s.id]);
+    const descriptions = slots.map(s =>
+      BAR_ITEM_TOUR_DESCRIPTIONS[s.id] ?? `Tap here to access ${BAR_ITEM_LABELS[s.id]}.`,
+    );
+    return buildUITourSteps(labels, descriptions);
+  }, [barPrefs]);
+
+  const uiTour = useUITour(uiTourSteps);
+
+  // Auto-start the UI tour when:
+  // - First hatch tour just completed this session (isCompleted && not active)
+  // - UI tour hasn't been done yet (profile tag)
+  // - UI tour is not yet active or completed this session
+  useEffect(() => {
+    if (
+      firstHatchTour.state.isCompleted
+      && !isFirstHatchTourActive
+      && !profile?.uiTourDone
+      && !uiTour.state.isActive
+      && !uiTour.state.isCompleted
+    ) {
+      // Small delay so the reveal overlay fully closes first
+      const timer = setTimeout(() => uiTour.actions.start(), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [firstHatchTour.state.isCompleted, isFirstHatchTourActive, profile?.uiTourDone, uiTour]);
+
+  const handleUITourComplete = useCallback(() => {
+    uiTour.actions.complete();
+    // Note: blobbi_ui_tour_done is NOT persisted yet.
+    // When ready, add profile tag publish here.
+  }, [uiTour]);
 
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
@@ -1786,6 +1832,17 @@ function BlobbiDashboard({
           onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
           barPreferences={barPrefs}
           onEditBar={() => setShowBarEditor(true)}
+          registerTourAnchor={registerAnchor}
+        />
+      )}
+
+      {/* UI Tour Overlay */}
+      {uiTour.state.isActive && (
+        <UITourOverlay
+          tourState={uiTour.state}
+          tourActions={uiTour.actions}
+          companion={companion}
+          onComplete={handleUITourComplete}
         />
       )}
       
@@ -2339,6 +2396,8 @@ interface BlobbiBottomBarProps {
   // ── Action bar preferences ──
   barPreferences: ActionBarPreferences;
   onEditBar: () => void;
+  /** Optional: register anchor elements for the UI tour */
+  registerTourAnchor?: (id: string, el: HTMLElement | null) => void;
   // ── Dev-only actions ──
   onDevInstantTransition?: () => void;
   onDevOpenEditor?: () => void;
@@ -2372,6 +2431,7 @@ function BlobbiBottomBar({
   // Bar preferences
   barPreferences,
   onEditBar,
+  registerTourAnchor,
   // Dev-only props
   onDevInstantTransition,
   onDevOpenEditor,
@@ -2444,7 +2504,7 @@ function BlobbiBottomBar({
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-0.5 sm:gap-2">
           {/* Left Group - aligned to end (closer to center) */}
           <div className="flex items-center justify-end gap-0 sm:gap-1 overflow-hidden">
-            {leftSlots.map((slot) => (
+            {leftSlots.map((slot, idx) => (
               <BottomBarButton
                 key={slot.id}
                 onClick={handlers[slot.id]}
@@ -2453,6 +2513,9 @@ function BlobbiBottomBar({
                 badge={badgeMap[slot.id].badge}
                 badgeVariant={badgeMap[slot.id].variant}
                 highlighted={slot.highlighted}
+                anchorRef={registerTourAnchor
+                  ? (el) => registerTourAnchor(`bar-item-${idx}`, el)
+                  : undefined}
               />
             ))}
           </div>
@@ -2467,7 +2530,7 @@ function BlobbiBottomBar({
           
           {/* Right Group - aligned to start (closer to center) */}
           <div className="flex items-center justify-start gap-0 sm:gap-1 overflow-hidden">
-            {rightSlots.map((slot) => (
+            {rightSlots.map((slot, idx) => (
               <BottomBarButton
                 key={slot.id}
                 onClick={handlers[slot.id]}
@@ -2476,6 +2539,9 @@ function BlobbiBottomBar({
                 badge={badgeMap[slot.id].badge}
                 badgeVariant={badgeMap[slot.id].variant}
                 highlighted={slot.highlighted}
+                anchorRef={registerTourAnchor
+                  ? (el) => registerTourAnchor(`bar-item-${halfIdx + idx}`, el)
+                  : undefined}
               />
             ))}
 
@@ -2583,9 +2649,11 @@ interface BottomBarButtonProps {
   badgeVariant?: 'default' | 'warning' | 'success';
   /** Show subtle highlight ring around this button */
   highlighted?: boolean;
+  /** Optional ref callback for tour anchor registration */
+  anchorRef?: (el: HTMLButtonElement | null) => void;
 }
 
-function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default', highlighted }: BottomBarButtonProps) {
+function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default', highlighted, anchorRef }: BottomBarButtonProps) {
   // Determine if badge should show
   const showBadge = badge !== undefined && (typeof badge === 'string' || badge > 0);
   
@@ -2598,6 +2666,7 @@ function BottomBarButton({ onClick, icon, label, badge, badgeVariant = 'default'
   
   return (
     <button
+      ref={anchorRef}
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-accent/50 active:bg-accent transition-colors min-w-0 sm:min-w-[56px]",
