@@ -126,8 +126,8 @@ export function ImageGallery({
         ))}
       </div>
 
-      {/* Lightbox — portaled to document.body to escape stacking contexts (e.g. the center column z-0) */}
-      {lightboxIndex !== null && lightboxIndex !== undefined && createPortal(
+      {/* Lightbox (portals to document.body internally to escape stacking contexts) */}
+      {lightboxIndex !== null && lightboxIndex !== undefined && (
         <Lightbox
           images={images}
           currentIndex={lightboxIndex}
@@ -136,8 +136,7 @@ export function ImageGallery({
           onPrev={goPrev}
           topBarLeft={lightboxTopBarLeft}
           bottomBar={lightboxBottomBar}
-        />,
-        document.body,
+        />
       )}
     </>
   );
@@ -486,7 +485,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     (i) => i >= 0 && i < images.length,
   );
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
       className="fixed inset-0 z-[100] animate-in fade-in duration-200"
@@ -584,7 +583,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           {bottomBar}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
