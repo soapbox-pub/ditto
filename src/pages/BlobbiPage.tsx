@@ -1421,9 +1421,9 @@ function BlobbiDashboard({
             Outer div animates max-height for the slide; ScrollArea handles overflow with a visible scrollbar. */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
-          style={{ maxHeight: activeDrawer !== 'none' ? '280px' : '0' }}
+          style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
         >
-          <ScrollArea style={{ height: 272 }}>
+          <ScrollArea style={{ height: 248 }}>
             <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
               {activeDrawer === 'care' && (
                 <CareTabContent
@@ -1789,7 +1789,7 @@ function CareTabContent({
   const isDisabled = isPublishing || actionInProgress !== null;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[230px] gap-5">
+    <div className="flex flex-col items-center justify-center h-full min-h-[210px] gap-4">
       <div className="flex items-center justify-center gap-6 sm:gap-10">
         <CareActionButton
           icon={<Package className="size-10 sm:size-12" />}
@@ -1844,27 +1844,47 @@ function CareTabContent({
 
       {/* Take with you / companion pill */}
       {canBeCompanion && (
-        <button
-          onClick={onSetAsCompanion}
-          disabled={isUpdatingCompanion}
-          className={cn(
-            'flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-200',
-            'hover:scale-105 active:scale-95',
-            isCurrentCompanion
-              ? 'bg-primary/10 text-primary'
-              : 'bg-muted/60 text-muted-foreground hover:bg-muted',
-            isUpdatingCompanion && 'opacity-50 pointer-events-none',
-          )}
-        >
-          {isUpdatingCompanion ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Footprints className="size-4" />
-          )}
-          <span className="text-sm font-medium">
-            {isCurrentCompanion ? `${companionName} is with you` : `Take ${companionName} with you`}
-          </span>
-        </button>
+        isCurrentCompanion ? (
+          <button
+            onClick={onSetAsCompanion}
+            disabled={isUpdatingCompanion}
+            className={cn(
+              'flex items-center justify-center gap-2.5 px-8 py-3 rounded-full transition-all duration-300 ease-out',
+              'hover:-translate-y-0.5 hover:scale-105 active:scale-95',
+              isUpdatingCompanion && 'opacity-50 pointer-events-none',
+            )}
+            style={{
+              background: 'linear-gradient(135deg, color-mix(in srgb, #8b5cf6 25%, transparent), color-mix(in srgb, #ec4899 20%, transparent), color-mix(in srgb, #f59e0b 25%, transparent))',
+            }}
+          >
+            {isUpdatingCompanion ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : (
+              <Footprints className="size-5 text-muted-foreground" />
+            )}
+            <span className="text-sm font-semibold text-muted-foreground">{companionName} is with you</span>
+          </button>
+        ) : (
+          <button
+            onClick={onSetAsCompanion}
+            disabled={isUpdatingCompanion}
+            className={cn(
+              'flex items-center justify-center gap-2.5 px-8 py-3 rounded-full text-white transition-all duration-300 ease-out',
+              'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+              isUpdatingCompanion && 'opacity-50 pointer-events-none',
+            )}
+            style={{
+              background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)',
+            }}
+          >
+            {isUpdatingCompanion ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Footprints className="size-5" />
+            )}
+            <span className="text-sm font-semibold">Take {companionName} with you</span>
+          </button>
+        )
       )}
     </div>
   );
