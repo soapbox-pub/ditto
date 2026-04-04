@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, MoreHorizontal, Droplets, Heart } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, MoreHorizontal, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -1537,18 +1537,10 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="flex flex-col items-center px-4 pt-4 pb-2 sm:px-6">
-        {/* Blobbi Name */}
-        <h2
-          className="text-2xl sm:text-3xl font-bold text-center mb-4"
-          style={{ color: companion.visualTraits.baseColor }}
-        >
-          {companion.name}
-        </h2>
-        
+      <div className="flex flex-col items-center px-4 pt-8 pb-2 sm:px-6">
         {/* Main Blobbi Visual + Curved Stats Orbit */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center size-64 sm:size-72 md:size-80 text-center">
+          <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground text-sm">
               {companion.name} is out exploring right now.
@@ -1556,7 +1548,7 @@ function BlobbiDashboard({
           </div>
         ) : (
           <div className="relative transition-all duration-500">
-            <div className="absolute inset-0 -m-16 bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl" />
             
             <BlobbiStageVisual
               companion={companion}
@@ -1566,12 +1558,20 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              className="size-64 sm:size-72 md:size-80"
+              className="size-80 sm:size-96 md:size-[28rem]"
             />
           </div>
         )}
         
-        {/* Stats Arc — curves below the Blobbi */}
+        {/* Blobbi Name — sits between the visual and the stats arc */}
+        <h2
+          className="text-2xl sm:text-3xl font-bold text-center -mt-2"
+          style={{ color: companion.visualTraits.baseColor }}
+        >
+          {companion.name}
+        </h2>
+        
+        {/* Stats Arc — curves below the Blobbi name */}
         {(() => {
           const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
             ...vs,
@@ -1580,25 +1580,20 @@ function BlobbiDashboard({
           }));
           if (visibleStats.length === 0) return null;
 
-          // Arc geometry: stats orbit in a wide semicircle below the Blobbi.
-          // We want the stats to spread generously — nearly ear-to-ear.
           const count = visibleStats.length;
-          // Wide arc: 180° for 5 stats, scales down for fewer
-          const arcSpread = count <= 2 ? 90 : count <= 3 ? 120 : 170;
+          // Very wide arc so stats span nearly the full width
+          const arcSpread = count <= 2 ? 100 : count <= 3 ? 140 : 180;
           const arcHalf = arcSpread / 2;
-          // Angles measured clockwise from top (CSS convention),
-          // centered on 180° (bottom). Range: 180-arcHalf .. 180+arcHalf
           const angles = count === 1
             ? [180]
             : visibleStats.map((_, i) => 180 - arcHalf + (arcSpread / (count - 1)) * i);
 
           return (
-            <div className="relative flex items-center justify-center w-full mt-1" style={{ height: 80 }}>
+            <div className="relative flex items-center justify-center w-full -mt-10" style={{ height: 80 }}>
               {visibleStats.map((s, i) => {
                 const angleDeg = angles[i];
                 const angleRad = (angleDeg * Math.PI) / 180;
-                // Larger radius so the arc spans wider horizontally
-                const baseRadius = 190;
+                const baseRadius = 220;
                 const x = Math.sin(angleRad) * baseRadius;
                 const y = -Math.cos(angleRad) * baseRadius;
 
@@ -1613,6 +1608,7 @@ function BlobbiDashboard({
                     }}
                   >
                     <StatIndicator
+                      stat={s.stat}
                       label={s.label}
                       value={s.value}
                       color={s.color}
@@ -2219,6 +2215,7 @@ function MoreTabContent({
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
 
 interface StatIndicatorProps {
+  stat: string;
   label: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
@@ -2247,15 +2244,25 @@ const STATUS_RING_COLORS = {
   critical: 'text-red-500',
 };
 
-function StatIndicator({ label, value, color, status = 'normal' }: StatIndicatorProps) {
+/** Lucide icon component for each stat */
+const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  hunger: Utensils,
+  happiness: Gamepad2,
+  health: Heart,
+  hygiene: Droplets,
+  energy: Zap,
+};
+
+function StatIndicator({ stat, label, value, color, status = 'normal' }: StatIndicatorProps) {
   const displayValue = value ?? 0;
   const ringColor = status !== 'normal' ? STATUS_RING_COLORS[status] : STAT_COLORS[color];
   const showWarningIcon = status === 'critical';
+  const IconComponent = STAT_ICON_MAP[stat];
   
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <div className={cn(
-        "relative size-14 sm:size-16 rounded-full flex items-center justify-center",
+        "relative size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center",
         STAT_BG_COLORS[color],
         status === 'critical' && "animate-pulse"
       )}>
@@ -2266,15 +2273,16 @@ function StatIndicator({ label, value, color, status = 'normal' }: StatIndicator
         {showWarningIcon ? (
           <AlertTriangle className="size-5 text-red-500" />
         ) : (
-          <span className="text-sm sm:text-base font-semibold">{displayValue}</span>
+          <span className="text-base sm:text-lg font-semibold">{displayValue}</span>
         )}
       </div>
       <span className={cn(
-        "text-[10px] sm:text-xs font-medium",
+        "flex items-center gap-1 text-[10px] sm:text-xs font-medium",
         status === 'critical' ? "text-red-500" : 
         status === 'warning' ? "text-amber-500" : 
         "text-muted-foreground"
       )}>
+        {IconComponent && <IconComponent className={cn("size-3 sm:size-3.5", status === 'normal' && STAT_COLORS[color])} />}
         {label}
       </span>
     </div>
@@ -2415,7 +2423,7 @@ function DashboardLoadingState() {
     <DashboardShell>
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
         <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="size-64 sm:size-72 md:size-80 rounded-full" />
+        <Skeleton className="size-80 sm:size-96 md:size-[28rem] rounded-full" />
       </div>
       <div className="px-4 pb-6 sm:px-6">
         <div className="flex justify-center gap-4 sm:gap-6">
