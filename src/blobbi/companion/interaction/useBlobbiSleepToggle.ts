@@ -17,6 +17,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import {
@@ -52,18 +53,14 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
     pubkey: string,
     dTag: string,
   ): Promise<BlobbiCompanion | null> => {
-    const events = await nostr.query([{
-      kinds: [KIND_BLOBBI_STATE],
-      authors: [pubkey],
-      '#d': [dTag],
-    }]);
+    const event = await fetchFreshEvent(
+      nostr,
+      { kinds: [KIND_BLOBBI_STATE], authors: [pubkey], '#d': [dTag] },
+      { eoseTimeout: 1000 },
+    );
 
-    const validEvents = events
-      .filter(isValidBlobbiEvent)
-      .sort((a, b) => b.created_at - a.created_at);
-
-    if (validEvents.length === 0) return null;
-    return parseBlobbiEvent(validEvents[0]) ?? null;
+    if (!event || !isValidBlobbiEvent(event)) return null;
+    return parseBlobbiEvent(event) ?? null;
   }, [nostr]);
 
   /** Optimistically update the TanStack cache so the companion reacts immediately. */
