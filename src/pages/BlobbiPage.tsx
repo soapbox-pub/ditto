@@ -1944,13 +1944,13 @@ function CareActionButton({
 function ItemTypeIndicator({ type }: { type: string }) {
   switch (type) {
     case 'food':
-      return <Utensils className="size-2.5 text-amber-400" />;
+      return <Utensils className="size-4 text-amber-400" strokeWidth={4} />;
     case 'toy':
-      return <Gamepad2 className="size-2.5 text-rose-400" />;
+      return <Gamepad2 className="size-4 text-rose-400" strokeWidth={4} />;
     case 'medicine':
-      return <Heart className="size-2.5 text-emerald-400" />;
+      return <Heart className="size-4 text-emerald-400" strokeWidth={4} />;
     case 'hygiene':
-      return <Droplets className="size-2.5 text-sky-400" />;
+      return <Droplets className="size-4 text-sky-400" strokeWidth={4} />;
     default:
       return null;
   }
