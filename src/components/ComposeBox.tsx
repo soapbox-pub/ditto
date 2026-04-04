@@ -1266,7 +1266,7 @@ export function ComposeBox({
                 identifier: quotedEvent.tags.find(([name]) => name === 'd')?.[1] ?? '',
               }} />
             ) : (
-              <EmbeddedNote eventId={quotedEvent.id} />
+              <EmbeddedNote eventId={quotedEvent.id} authorHint={quotedEvent.pubkey} />
             )}
           </div>
         )}

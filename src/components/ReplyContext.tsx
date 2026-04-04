@@ -12,6 +12,10 @@ interface ReplyContextProps {
   pubkeys: string[];
   /** Hex event ID of the parent post being replied to. */
   parentEventId?: string;
+  /** Relay URL hint for fetching the parent event. */
+  parentRelayHint?: string;
+  /** Author pubkey hint for NIP-65 outbox resolution of the parent event. */
+  parentAuthorHint?: string;
   className?: string;
 }
 
@@ -20,7 +24,7 @@ interface ReplyContextProps {
  * When parentEventId is provided, hovering over the line shows an embedded preview of the parent post.
  * Used consistently across NoteCard and notification views.
  */
-export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContextProps) {
+export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAuthorHint, className }: ReplyContextProps) {
   // Filter out any undefined/empty pubkeys defensively
   const validPubkeys = pubkeys.filter(Boolean);
   // Show max 2 authors for cleaner UI
@@ -38,7 +42,13 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
         className="w-80 p-0 rounded-2xl shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" disableHoverCards />
+        <EmbeddedNote
+          eventId={parentEventId}
+          relays={parentRelayHint ? [parentRelayHint] : undefined}
+          authorHint={parentAuthorHint}
+          className="border-0 rounded-none"
+          disableHoverCards
+        />
       </HoverCardContent>
     </HoverCard>
   ) : (

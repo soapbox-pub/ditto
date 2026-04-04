@@ -45,26 +45,38 @@ interface CommentRoot {
   identifier?: string;
   /** Root kind number (from K tag). */
   rootKind?: string;
+  /** Relay URL hint from the E or A tag (position [2]). */
+  relayHint?: string;
+  /** Author pubkey hint extracted from the E tag (position [3]) or P tag. */
+  authorHint?: string;
 }
 
 /** Parse the root reference from a kind 1111 comment's tags. */
 function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
-  const aTag = event.tags.find(([name]) => name === 'A')?.[1];
+  const aTagFull = event.tags.find(([name]) => name === 'A');
   // Use find (not findLast) to get the root E tag, not a parent e tag
-  const eTag = event.tags.find(([name]) => name === 'E')?.[1];
+  const eTagFull = event.tags.find(([name]) => name === 'E');
   const iTag = event.tags.find(([name]) => name === 'I')?.[1];
   const kTag = event.tags.find(([name]) => name === 'K')?.[1];
+  // P tag holds the root event author's pubkey — used as author hint fallback
+  const pTag = event.tags.find(([name]) => name === 'P')?.[1];
 
-  if (aTag) {
+  if (aTagFull) {
+    const aTag = aTagFull[1];
+    const relayHint = aTagFull[2] || undefined;
     const parts = aTag.split(':');
     const kind = parseInt(parts[0], 10);
     const pubkey = parts[1] ?? '';
     const identifier = parts.slice(2).join(':');
-    return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag };
+    return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag, relayHint };
   }
 
-  if (eTag) {
-    return { type: 'event', eventId: eTag, rootKind: kTag };
+  if (eTagFull) {
+    const eTag = eTagFull[1];
+    const relayHint = eTagFull[2] || undefined;
+    // NIP-22 E tags may have the author pubkey at position [3]; fall back to P tag
+    const authorHint = eTagFull[3] || pTag || undefined;
+    return { type: 'event', eventId: eTag, rootKind: kTag, relayHint, authorHint };
   }
 
   if (iTag) {
@@ -491,7 +503,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
 
 /** Comment context for non-profile addressable event roots (A tag). */
 function GenericAddrCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
-  const { data: event, isLoading } = useAddrEvent(root.addr);
+  const { data: event, isLoading } = useAddrEvent(root.addr, root.relayHint ? [root.relayHint] : undefined);
 
   const isCommunity = root.rootKind === '34550' || root.addr?.kind === 34550;
   const prefix = isCommunity ? 'Posted in' : 'Commenting on';
@@ -529,7 +541,11 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
 
 /** Comment context for regular event roots (E tag). */
 function EventCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
-  const { data: event, isLoading } = useEvent(root.eventId);
+  const { data: event, isLoading } = useEvent(
+    root.eventId,
+    root.relayHint ? [root.relayHint] : undefined,
+    root.authorHint,
+  );
 
   // Kind 7 reactions get special treatment
   if (event?.kind === 7) {
@@ -545,7 +561,13 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
   const link = event ? getRootLink(event) : undefined;
 
   const hoverContent = root.eventId ? (
-    <EmbeddedNote eventId={root.eventId} className="border-0 rounded-none" disableHoverCards />
+    <EmbeddedNote
+      eventId={root.eventId}
+      relays={root.relayHint ? [root.relayHint] : undefined}
+      authorHint={root.authorHint}
+      className="border-0 rounded-none"
+      disableHoverCards
+    />
   ) : undefined;
 
   return (

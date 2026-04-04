@@ -99,7 +99,7 @@ import { getDisplayName } from "@/lib/getDisplayName";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
-import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
+import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { timeAgo } from "@/lib/timeAgo";
@@ -536,11 +536,12 @@ export const NoteCard = memo(function NoteCard({
     return [parentAuthor];
   }, [event.tags, isTextNote, isReply, event.pubkey]);
 
-  // Extract the parent event ID for reply hover card preview
-  const parentEventId = useMemo(() => {
+  // Extract the parent event ID + relay/author hints for reply hover card preview
+  const parentHints = useMemo(() => {
     if (!isReply) return undefined;
-    return getParentEventId(event);
+    return getParentEventHints(event);
   }, [event, isReply]);
+  const parentEventId = parentHints?.id;
 
   // Kind 34236 specific
   const imeta = useMemo(
@@ -582,7 +583,12 @@ export const NoteCard = memo(function NoteCard({
       {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
       {isComment && <CommentContext event={event} />}
       {isReply && (
-        <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
+        <ReplyContext
+          pubkeys={replyToPubkeys}
+          parentEventId={parentEventId}
+          parentRelayHint={parentHints?.relayHint}
+          parentAuthorHint={parentHints?.authorHint}
+        />
       )}
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}

@@ -318,10 +318,16 @@ function NotificationWrapper({ isNew, children }: { isNew: boolean; children: Re
  * Uses the pre-fetched event from the group, falling back to useEvent.
  */
 function ReferencedNoteCard({ item }: { item: NotificationItem }) {
-  const referencedEventId = item.event.tags.findLast(([name]) => name === 'e')?.[1];
+  const referencedTag = item.event.tags.findLast(([name]) => name === 'e');
+  const referencedEventId = referencedTag?.[1];
+  const relayHint = referencedTag?.[2] || undefined;
+  // Fall back to the first p tag for the author hint (parent event author)
+  const authorHint = referencedTag?.[4] || item.event.tags.find(([name]) => name === 'p')?.[1] || undefined;
   // Fall back to useEvent if the batch fetch didn't find it
   const { data: fetchedEvent } = useEvent(
     item.referencedEvent ? undefined : referencedEventId,
+    relayHint ? [relayHint] : undefined,
+    authorHint,
   );
   const event = item.referencedEvent ?? fetchedEvent;
 

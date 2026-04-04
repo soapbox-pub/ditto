@@ -9,12 +9,15 @@ import { useEvent } from '@/hooks/useEvent';
  * Returns an empty string for non-1018 events or if the parent poll hasn't loaded yet.
  */
 export function usePollVoteLabel(event: NostrEvent): string {
-  const parentId = useMemo(
-    () => event.kind === 1018 ? event.tags.find(([n]) => n === 'e')?.[1] : undefined,
+  const parentTag = useMemo(
+    () => event.kind === 1018 ? event.tags.find(([n]) => n === 'e') : undefined,
     [event],
   );
+  const parentId = parentTag?.[1];
+  const relayHint = parentTag?.[2] || undefined;
+  const authorHint = parentTag?.[4] || (event.kind === 1018 ? event.tags.find(([n]) => n === 'p')?.[1] : undefined) || undefined;
 
-  const { data: parentPoll } = useEvent(parentId);
+  const { data: parentPoll } = useEvent(parentId, relayHint ? [relayHint] : undefined, authorHint);
 
   return useMemo(() => {
     const responseIds = event.kind === 1018
