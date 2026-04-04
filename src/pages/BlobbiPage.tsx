@@ -6,6 +6,7 @@ import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footp
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -867,7 +868,7 @@ function BlobbiDashboard({
   const isEgg = companion.stage === 'egg';
   
   // ─── Active Drawer ───
-  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('care');
   
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
@@ -1520,7 +1521,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '70dvh' }}>
+      <div className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '68dvh' }}>
         {/* Top spacer — pushes content toward lower-center */}
         <div className="flex-[3]" />
 
@@ -1536,23 +1537,24 @@ function BlobbiDashboard({
           <div className="relative flex flex-col items-center">
             {/* Stats crown — arced above the Blobbi */}
             {(() => {
-              const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
-                ...vs,
-                label: STAT_LABEL_MAP[vs.stat],
-                color: STAT_COLOR_MAP[vs.stat],
+              const allStats = getVisibleStats(companion.stage).map(stat => ({
+                stat,
+                value: currentStats[stat] ?? 100,
+                status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
+                color: STAT_COLOR_MAP[stat],
               }));
-              if (visibleStats.length === 0) return null;
+              if (allStats.length === 0) return null;
 
-              const count = visibleStats.length;
+              const count = allStats.length;
               const arcSpread = count <= 2 ? 80 : count <= 3 ? 120 : 160;
               const arcHalf = arcSpread / 2;
               const angles = count === 1
                 ? [0]
-                : visibleStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
+                : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
               return (
-                <div className="relative flex items-end justify-center w-full mb-8" style={{ height: 48 }}>
-                  {visibleStats.map((s, i) => {
+                <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
+                  {allStats.map((s, i) => {
                     const angleDeg = angles[i];
                     const angleRad = (angleDeg * Math.PI) / 180;
                     const radius = 210;
@@ -1572,7 +1574,6 @@ function BlobbiDashboard({
                       >
                         <StatIndicator
                           stat={s.stat}
-                          label={s.label}
                           value={s.value}
                           color={s.color}
                           status={s.status}
@@ -1585,7 +1586,12 @@ function BlobbiDashboard({
             })()}
 
             {/* Blobbi visual */}
-            <div className="relative transition-all duration-500">
+            <div
+              className="relative transition-all duration-500"
+              style={!isSleeping ? {
+                animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
+              } : undefined}
+            >
               <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl" />
               <BlobbiStageVisual
                 companion={companion}
@@ -1595,7 +1601,7 @@ function BlobbiDashboard({
                 recipe={hasDevOverride ? undefined : statusRecipe}
                 recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
                 emotion={effectiveEmotion}
-                className="size-96 sm:size-[28rem] md:size-[32rem]"
+                className="size-96 sm:size-[28rem] md:size-[32rem] lg:size-[36rem]"
               />
             </div>
 
@@ -2444,13 +2450,12 @@ function MoreTabContent({
 
 interface StatIndicatorProps {
   stat: string;
-  label: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
   status?: 'normal' | 'warning' | 'critical';
 }
 
-const STAT_COLORS = {
+const STAT_COLORS: Record<string, string> = {
   orange: 'text-orange-500',
   yellow: 'text-yellow-500',
   green: 'text-green-500',
@@ -2458,7 +2463,7 @@ const STAT_COLORS = {
   violet: 'text-violet-500',
 };
 
-const STAT_BG_COLORS = {
+const STAT_BG_COLORS: Record<string, string> = {
   orange: 'bg-orange-500/10',
   yellow: 'bg-yellow-500/10',
   green: 'bg-green-500/10',
@@ -2466,14 +2471,16 @@ const STAT_BG_COLORS = {
   violet: 'bg-violet-500/10',
 };
 
-const STATUS_RING_COLORS = {
-  normal: '',
-  warning: 'text-amber-500',
-  critical: 'text-red-500',
+const STAT_RING_HEX: Record<string, string> = {
+  orange: '#f97316',
+  yellow: '#eab308',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  violet: '#8b5cf6',
 };
 
 /** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
   hunger: Utensils,
   happiness: Gamepad2,
   health: Heart,
@@ -2481,38 +2488,38 @@ const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>>
   energy: Zap,
 };
 
-function StatIndicator({ stat, label, value, color, status = 'normal' }: StatIndicatorProps) {
+function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
   const displayValue = value ?? 0;
-  const ringColor = status !== 'normal' ? STATUS_RING_COLORS[status] : STAT_COLORS[color];
-  const showWarningIcon = status === 'critical';
+  const isLow = status === 'warning' || status === 'critical';
+  const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
-  
+
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className={cn(
-        "relative size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center",
-        STAT_BG_COLORS[color],
-        status === 'critical' && "animate-pulse"
-      )}>
-        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/20" />
-          <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${displayValue * 0.94} 100`} className={cn("transition-all duration-500", ringColor)} />
-        </svg>
-        {showWarningIcon ? (
-          <AlertTriangle className="size-5 text-red-500" />
-        ) : (
-          <span className="text-base sm:text-lg font-semibold">{displayValue}</span>
+    <div className={cn(
+      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
+      STAT_BG_COLORS[color],
+      status === 'critical' && 'animate-pulse',
+    )}>
+      {/* Progress ring */}
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
+        <circle
+          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
+          stroke={ringHex}
+          strokeDasharray={`${displayValue * 0.94} 100`}
+          className="transition-all duration-500"
+        />
+      </svg>
+      {/* Icon with warning badge on its corner */}
+      <div className="relative">
+        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
+        {isLow && (
+          <AlertTriangle
+            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            strokeWidth={3}
+          />
         )}
       </div>
-      <span className={cn(
-        "flex items-center gap-1 text-[10px] sm:text-xs font-medium",
-        status === 'critical' ? "text-red-500" : 
-        status === 'warning' ? "text-amber-500" : 
-        "text-muted-foreground"
-      )}>
-        {IconComponent && <IconComponent className={cn("size-3 sm:size-3.5", status === 'normal' && STAT_COLORS[color])} />}
-        {label}
-      </span>
     </div>
   );
 }
