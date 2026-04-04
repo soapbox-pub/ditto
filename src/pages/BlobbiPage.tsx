@@ -28,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 
 import {
@@ -771,7 +772,7 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="px-2 py-2 sm:px-4 md:px-6">
+    <main>
       {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
       <div className="mx-auto w-full max-w-2xl lg:max-w-3xl">
         {children}
@@ -862,6 +863,8 @@ function BlobbiDashboard({
   onDevEditorApply,
   isDevUpdating,
 }: BlobbiDashboardProps) {
+  useLayoutOptions({ hasSubHeader: true });
+  
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
@@ -1537,7 +1540,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="flex flex-col items-center px-4 pt-8 pb-2 sm:px-6">
+      <div className="flex flex-col items-center justify-center px-4 pb-2 sm:px-6" style={{ minHeight: '60dvh' }}>
         {/* Main Blobbi Visual + Curved Stats Orbit */}
         {isActiveFloatingCompanion ? (
           <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
