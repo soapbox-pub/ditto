@@ -774,7 +774,7 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="h-dvh flex flex-col overflow-hidden">
+    <main className="fixed inset-0 top-mobile-bar sidebar:top-0 flex flex-col overflow-hidden z-0">
       {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
       <div className="mx-auto w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col">
         {children}
