@@ -201,7 +201,6 @@ export function ComposeBox({
 
   // Poll mode state
   const [mode, setMode] = useState<'post' | 'poll'>(initialMode);
-  const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState([
     { id: pollOptionId(), label: '' },
     { id: pollOptionId(), label: '' },
@@ -233,7 +232,6 @@ export function ComposeBox({
     setTrayOpen(false);
     setInternalPreviewMode(false);
     setMode(initialMode);
-    setPollQuestion('');
     setPollOptions([{ id: pollOptionId(), label: '' }, { id: pollOptionId(), label: '' }]);
     setPollType('singlechoice');
     setPollDuration(7);
@@ -982,7 +980,8 @@ export function ComposeBox({
 
   const handlePollSubmit = async () => {
     const filledOptions = pollOptions.filter((o) => o.label.trim());
-    if (!pollQuestion.trim() || filledOptions.length < 2 || !user || isPollPending) return;
+    const finalContent = content.trim();
+    if (!finalContent || filledOptions.length < 2 || !user || isPollPending) return;
 
     const tags: string[][] = [];
     for (const opt of filledOptions) {
@@ -992,10 +991,27 @@ export function ComposeBox({
     if (pollDuration > 0) {
       tags.push(['endsAt', String(Math.floor(Date.now() / 1000) + pollDuration * 86_400)]);
     }
-    tags.push(['alt', `Poll: ${pollQuestion.trim()}`]);
+
+    // NIP-92: Add imeta tags for media URLs in content
+    const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
+    const processedUrls = new Set<string>();
+    for (const match of mediaUrlMatches) {
+      const url = match[0];
+      if (processedUrls.has(url)) continue;
+      processedUrls.add(url);
+      const fileTags = uploadedFileGroups.get(url);
+      if (fileTags) {
+        tags.push(['imeta', ...fileTags.map(tag => `${tag[0]} ${tag[1]}`)]);
+      } else {
+        const ext = match[1].toLowerCase();
+        tags.push(['imeta', `url ${url}`, `m ${mimeFromExt(ext)}`]);
+      }
+    }
+
+    tags.push(['alt', `Poll: ${finalContent}`]);
 
     try {
-      await createEvent({ kind: 1068, content: pollQuestion.trim(), tags });
+      await createEvent({ kind: 1068, content: finalContent, tags });
       resetComposeState();
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       toast({ title: 'Poll published!' });
@@ -1006,7 +1022,7 @@ export function ComposeBox({
   };
 
   const pollFilledCount = pollOptions.filter((o) => o.label.trim()).length;
-  const isPollValid = pollQuestion.trim().length > 0 && pollFilledCount >= 2;
+  const isPollValid = content.trim().length > 0 && pollFilledCount >= 2;
 
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
 
@@ -1062,30 +1078,82 @@ export function ComposeBox({
         )}
 
         <div className="flex-1 min-w-0">
-          {mode === 'poll' ? (
-          /* ── Inline poll builder ─────────────────────────────── */
-          <div className="pt-2.5 pb-1 space-y-3">
+          {!previewMode ? (
+          /* ── Edit mode — Textarea ────────────────────────────── */
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onFocus={expand}
+              onPaste={handlePaste}
+              placeholder={mode === 'poll' ? 'Ask a question…' : placeholder}
+              className={cn(
+                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words overflow-hidden transition-[min-height] duration-200 ease-in-out',
+                isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
+              )}
+              rows={1}
+              disabled={!user}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSubmit();
+                }
+              }}
+            />
+            <MentionAutocomplete
+              textareaRef={textareaRef}
+              content={content}
+              onInsertMention={handleInsertMention}
+            />
+            <EmojiShortcodeAutocomplete
+              textareaRef={textareaRef}
+              content={content}
+              onInsertEmoji={handleInsertShortcodeEmoji}
+            />
+          </div>
+        ) : (
+          /* Preview mode - Show how post will look */
+          mockEvent && (() => {
+            const imetaMap = parseImetaMap(mockEvent.tags);
+            const videos = extractVideoUrls(mockEvent.content);
+            const imetaAudios = Array.from(imetaMap.values())
+              .filter((e) => e.mime?.startsWith('audio/'))
+              .map((e) => e.url);
+            const audios = imetaAudios.length > 0 ? imetaAudios : extractAudioUrls(mockEvent.content);
+            const webxdcApps = Array.from(imetaMap.values()).filter(
+              (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
+            );
+            return (
+              <div className="pt-2.5 pb-2 min-h-[100px]">
+                <div className="text-lg opacity-85">
+                  <NoteContent event={mockEvent} className="text-foreground" />
+                </div>
+                <NoteMedia
+                  videos={videos}
+                  audios={audios}
+                  imetaMap={imetaMap}
+                  webxdcApps={webxdcApps}
+                  event={mockEvent}
+                />
+              </div>
+            );
+          })()
+        )}
+
+        {/* Poll options + settings — shown below the normal textarea/preview */}
+        {mode === 'poll' && (
+          <div className="space-y-3 pt-1">
             {/* Back to post link — hidden when poll mode is the only mode */}
             {initialMode !== 'poll' && (
               <button
                 type="button"
                 onClick={() => setMode('post')}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors -mt-0.5"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ChevronLeft className="size-3.5" />
                 Back to post
               </button>
             )}
-
-            {/* Question */}
-            <textarea
-              value={pollQuestion}
-              onChange={(e) => setPollQuestion(e.target.value)}
-              placeholder="Ask a question…"
-              rows={2}
-              maxLength={280}
-              className="w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pb-1 opacity-85 break-words"
-            />
 
             {/* Options */}
             <div className="space-y-1.5">
@@ -1167,66 +1235,6 @@ export function ComposeBox({
               ))}
             </div>
           </div>
-        ) : !previewMode ? (
-          /* ── Edit mode — Textarea ────────────────────────────── */
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onFocus={expand}
-              onPaste={handlePaste}
-              placeholder={placeholder}
-              className={cn(
-                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words overflow-hidden transition-[min-height] duration-200 ease-in-out',
-                isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-              )}
-              rows={1}
-              disabled={!user}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  handleSubmit();
-                }
-              }}
-            />
-            <MentionAutocomplete
-              textareaRef={textareaRef}
-              content={content}
-              onInsertMention={handleInsertMention}
-            />
-            <EmojiShortcodeAutocomplete
-              textareaRef={textareaRef}
-              content={content}
-              onInsertEmoji={handleInsertShortcodeEmoji}
-            />
-          </div>
-        ) : (
-          /* Preview mode - Show how post will look */
-          mockEvent && (() => {
-            const imetaMap = parseImetaMap(mockEvent.tags);
-            const videos = extractVideoUrls(mockEvent.content);
-            const imetaAudios = Array.from(imetaMap.values())
-              .filter((e) => e.mime?.startsWith('audio/'))
-              .map((e) => e.url);
-            const audios = imetaAudios.length > 0 ? imetaAudios : extractAudioUrls(mockEvent.content);
-            const webxdcApps = Array.from(imetaMap.values()).filter(
-              (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
-            );
-            return (
-              <div className="pt-2.5 pb-2 min-h-[100px]">
-                <div className="text-lg opacity-85">
-                  <NoteContent event={mockEvent} className="text-foreground" />
-                </div>
-                <NoteMedia
-                  videos={videos}
-                  audios={audios}
-                  imetaMap={imetaMap}
-                  webxdcApps={webxdcApps}
-                  event={mockEvent}
-                />
-              </div>
-            );
-          })()
         )}
 
         {/* Content warning input */}
