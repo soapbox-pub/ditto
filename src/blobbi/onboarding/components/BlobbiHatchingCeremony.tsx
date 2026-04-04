@@ -151,7 +151,7 @@ export function BlobbiHatchingCeremony({
   // ── Core state ──
   const [phase, setPhase] = useState<CeremonyPhase>('loading');
   const [preview, setPreview] = useState<BlobbiEggPreview | null>(null);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(existingCompanion?.name ?? '');
   const [isNaming, setIsNaming] = useState(false);
   const [eggVisible, setEggVisible] = useState(false);
 

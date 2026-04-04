@@ -926,6 +926,11 @@ function BlobbiDashboard({
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showHatchCeremony, setShowHatchCeremony] = useState(false);
   
+  // Reset hatch ceremony when switching companions
+  useEffect(() => {
+    setShowHatchCeremony(false);
+  }, [selectedD]);
+  
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
   
