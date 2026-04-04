@@ -30,6 +30,7 @@ import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
@@ -862,13 +863,14 @@ function BlobbiDashboard({
   onDevEditorApply,
   isDevUpdating,
 }: BlobbiDashboardProps) {
-  useLayoutOptions({ hasSubHeader: true });
+  useLayoutOptions({ hasSubHeader: true, noOverscroll: true });
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
   // ─── Active Drawer ───
-  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('care');
+  const isMobile = useIsMobile();
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>(isMobile ? 'none' : 'care');
   
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
