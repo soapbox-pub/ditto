@@ -1520,7 +1520,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="relative flex flex-col items-center justify-center px-4 pb-2 sm:px-6" style={{ minHeight: '60dvh' }}>
+      <div className="relative flex flex-col items-center justify-center px-4 pb-24 sm:px-6" style={{ minHeight: '60dvh' }}>
         {/* Main Blobbi Visual + Curved Stats Orbit */}
         {isActiveFloatingCompanion ? (
           <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
@@ -1541,7 +1541,7 @@ function BlobbiDashboard({
               recipe={hasDevOverride ? undefined : statusRecipe}
               recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
               emotion={effectiveEmotion}
-              className="size-80 sm:size-96 md:size-[28rem]"
+              className="size-96 sm:size-[28rem] md:size-[32rem]"
             />
           </div>
         )}
@@ -1606,24 +1606,24 @@ function BlobbiDashboard({
 
         {/* ── Floating action circles — lower corners of the hero ── */}
         {!isActiveFloatingCompanion && (
-          <div className="absolute -bottom-2 left-2 right-2 sm:left-4 sm:right-4 flex items-end justify-between pointer-events-none">
+          <div className="absolute bottom-4 left-2 right-2 sm:left-4 sm:right-4 flex items-end justify-between pointer-events-none">
             {/* Photo — lower left */}
             <button
               onClick={() => setShowPhotoModal(true)}
               className={cn(
-                'pointer-events-auto flex flex-col items-center gap-1 transition-all duration-300 ease-out',
+                'pointer-events-auto flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
                 'hover:-translate-y-1 hover:scale-110 active:scale-95',
               )}
             >
               <div
-                className="size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center text-pink-500"
+                className="size-20 sm:size-24 rounded-full flex items-center justify-center text-pink-500"
                 style={{
                   background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #ec4899 14%, transparent), color-mix(in srgb, #ec4899 4%, transparent) 70%)',
                 }}
               >
-                <Camera className="size-7 sm:size-8" />
+                <Camera className="size-9 sm:size-10" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground">Photo</span>
+              <span className="text-xs font-medium text-muted-foreground">Photo</span>
             </button>
 
             {/* Companion — lower right */}
@@ -1632,13 +1632,13 @@ function BlobbiDashboard({
                 onClick={handleSetAsCompanion}
                 disabled={isUpdatingCompanion}
                 className={cn(
-                  'pointer-events-auto flex flex-col items-center gap-1 transition-all duration-300 ease-out',
+                  'pointer-events-auto flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
                   'hover:-translate-y-1 hover:scale-110 active:scale-95',
                   isUpdatingCompanion && 'opacity-50',
                 )}
               >
                 <div
-                  className={cn('size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
+                  className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
                   style={{
                     background: isCurrentCompanion
                       ? 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #10b981 14%, transparent), color-mix(in srgb, #10b981 4%, transparent) 70%)'
@@ -1646,12 +1646,12 @@ function BlobbiDashboard({
                   }}
                 >
                   {isUpdatingCompanion ? (
-                    <Loader2 className="size-7 sm:size-8 animate-spin" />
+                    <Loader2 className="size-9 sm:size-10 animate-spin" />
                   ) : (
-                    <Footprints className="size-7 sm:size-8" />
+                    <Footprints className="size-9 sm:size-10" />
                   )}
                 </div>
-                <span className="text-[10px] font-medium text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground">
                   {isCurrentCompanion ? 'With you' : 'Take along'}
                 </span>
               </button>
