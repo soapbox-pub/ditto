@@ -1163,15 +1163,21 @@ function BlobbiDashboard({
   }, [isFirstHatchTourActive, firstHatchTour.state.currentStepId]);
 
   // DEV ONLY: Build tour dev actions for the state editor
-  const resetTourWithProfile = useCallback(async () => {
-    // Reset in-memory tour state
-    firstHatchTour.actions.reset();
+  // (uiTour is declared below but referenced here — the callback only runs on click,
+  // by which time the ref is populated. We use a ref to avoid a circular dependency.)
+  const uiTourResetRef = useRef<(() => void) | null>(null);
 
-    // Reset the profile tag so the tour can re-activate
+  const resetTourWithProfile = useCallback(async () => {
+    // Reset in-memory state for both tours
+    firstHatchTour.actions.reset();
+    uiTourResetRef.current?.();
+
+    // Reset all tour-related profile tags
     if (profile) {
       try {
         const updatedTags = updateBlobbonautTags(profile.allTags, {
           blobbi_first_hatch_tour_done: 'false',
+          blobbi_ui_tour_done: 'false',
           blobbi_onboarding_done: 'false',
         });
         const event = await publishEvent({
@@ -1212,6 +1218,9 @@ function BlobbiDashboard({
   }, [barPrefs]);
 
   const uiTour = useUITour(uiTourSteps);
+
+  // Wire the ref so dev reset can reach the UI tour
+  uiTourResetRef.current = uiTour.actions.reset;
 
   // Auto-start the UI tour when:
   // - First hatch tour just completed this session (isCompleted && not active)

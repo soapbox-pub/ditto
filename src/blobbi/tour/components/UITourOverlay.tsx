@@ -2,7 +2,7 @@
  * UITourOverlay - Orchestrator for the Blobbi UI walkthrough tour.
  *
  * Manages:
- * - Dark backdrop behind tour modals
+ * - Dark backdrop (welcome step only)
  * - Positioning the MiniBlobbiGuide on the correct surface
  * - Rendering the GuidedModal at the correct placement
  * - Highlighting the active anchor element
@@ -26,22 +26,16 @@ import type { UITourState, UITourActions } from '../hooks/useUITour';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UITourOverlayProps {
-  /** The tour state from useUITour */
   tourState: UITourState;
-  /** The tour actions from useUITour */
   tourActions: UITourActions;
-  /** The companion to render as the mini guide */
   companion: BlobbiCompanion;
-  /** Called when the tour is completed or skipped */
   onComplete: () => void;
 }
 
-// ─── Transition phases between steps ──────────────────────────────────────────
-
 type TransitionPhase =
-  | 'none'       // Stable on current step
-  | 'falling'    // Guide falling off current surface
-  | 'rising';    // Guide rising at new surface
+  | 'none'
+  | 'falling'
+  | 'rising';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -58,7 +52,11 @@ export function UITourOverlay({
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Measured modal rect for guide surface calculation (updated after layout)
+  const [modalRect, setModalRect] = useState<DOMRect | null>(null);
+
   const step = tourState.currentStep;
+  const isWelcome = step?.id === 'welcome';
 
   // Fade in on mount
   useEffect(() => {
@@ -69,6 +67,27 @@ export function UITourOverlay({
       setIsVisible(false);
     }
   }, [tourState.isActive]);
+
+  // Measure modal rect after it renders (for guide surface)
+  useEffect(() => {
+    if (!modalRef.current) {
+      setModalRect(null);
+      return;
+    }
+
+    // Use ResizeObserver to get accurate rect after layout
+    const observer = new ResizeObserver(() => {
+      if (modalRef.current) {
+        setModalRect(modalRef.current.getBoundingClientRect());
+      }
+    });
+    observer.observe(modalRef.current);
+
+    // Also measure immediately
+    setModalRect(modalRef.current.getBoundingClientRect());
+
+    return () => observer.disconnect();
+  }, [step]);
 
   // Update highlight rect when step changes
   useEffect(() => {
@@ -83,7 +102,6 @@ export function UITourOverlay({
     };
 
     update();
-    // Re-measure on scroll/resize
     window.addEventListener('scroll', update, true);
     window.addEventListener('resize', update);
     return () => {
@@ -100,50 +118,64 @@ export function UITourOverlay({
     if (!step) return 'hidden';
     if (step.guideTarget.type === 'offscreen') return 'hidden';
     if (step.guideTarget.type === 'modal') return 'walking';
-    if (step.guideTarget.type === 'element') return 'looking_down';
+    // For element-based steps, walk across the bar then look down
+    if (step.guideTarget.type === 'element') return 'walking';
     return 'idle';
   }, [step, transition]);
 
-  // Calculate the surface the guide walks on
+  // Calculate guide surface.
+  // For modal steps: walk across the modal top edge.
+  // For bar_item steps: walk across the entire bottom bar (not just one item).
+  // The bar surface uses bar-item-0 left edge to the rightmost bar item right edge.
   const guideSurface = useMemo(() => {
     if (!step) return { left: 0, right: 0, y: 0 };
 
-    if (step.guideTarget.type === 'modal' && modalRef.current) {
-      const rect = modalRef.current.getBoundingClientRect();
+    if (step.guideTarget.type === 'modal' && modalRect) {
       return {
-        left: rect.left + 16,
-        right: rect.right - 16,
-        y: rect.top,
+        left: modalRect.left + 12,
+        right: modalRect.right - 12,
+        y: modalRect.top,
       };
     }
 
     if (step.guideTarget.type === 'element') {
-      const rect = getAnchorRect(step.guideTarget.anchorId);
-      if (rect) {
+      // Use the full bar width: from bar-item-0 to the last registered bar item
+      const firstRect = getAnchorRect('bar-item-0');
+      if (firstRect) {
+        // Try to find the rightmost bar item for a wider surface
+        let rightEdge = firstRect.right;
+        for (let i = 1; i <= 5; i++) {
+          const r = getAnchorRect(`bar-item-${i}`);
+          if (r) {
+            rightEdge = Math.max(rightEdge, r.right);
+          } else {
+            break;
+          }
+        }
+
         return {
-          left: rect.left,
-          right: rect.right,
-          y: rect.top,
+          left: firstRect.left,
+          right: rightEdge,
+          y: firstRect.top,
         };
       }
     }
 
-    // Fallback: center of screen
+    // Fallback
     return {
       left: window.innerWidth / 2 - 100,
       right: window.innerWidth / 2 + 100,
       y: window.innerHeight / 2,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, transition, getAnchorRect]);
+  }, [step, modalRect, getAnchorRect]);
 
   // ─── Navigation handlers ────────────────────────────────────────────────
 
   const handleNext = useCallback(() => {
     if (!step) return;
 
-    // If moving from a center-modal step to a bottom step, the guide
-    // needs to fall off the modal and rise at the bar. Otherwise, just advance.
+    // Moving from the centered welcome modal to a bottom step:
+    // guide falls off modal, then rises at the bar.
     if (step.modalPlacement === 'center') {
       setTransition('falling');
     } else {
@@ -161,7 +193,6 @@ export function UITourOverlay({
   }, []);
 
   const handlePrev = useCallback(() => {
-    // If going back to a center-modal step from a bottom step, just go back
     setTransition('none');
     tourActions.prev();
   }, [tourActions]);
@@ -177,15 +208,20 @@ export function UITourOverlay({
   const isCentered = step.modalPlacement === 'center';
 
   return (
-    <div
-      className={cn(
-        'fixed inset-0 z-50',
-        'transition-opacity duration-400',
-        isVisible ? 'opacity-100' : 'opacity-0',
+    <>
+      {/* Full-screen overlay container — only captures events on welcome step */}
+      {isWelcome && (
+        <div
+          className={cn(
+            'fixed inset-0 z-50',
+            'transition-opacity duration-400',
+            isVisible ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          {/* Dark backdrop — welcome step only */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+        </div>
       )}
-    >
-      {/* Dark backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
 
       {/* Highlight cutout for the active anchor */}
       {highlightRect && (
@@ -203,13 +239,13 @@ export function UITourOverlay({
       {/* Guided modal */}
       <div
         className={cn(
-          'fixed z-[52] flex justify-center px-4',
+          'fixed z-[52] flex justify-center px-4 pointer-events-none',
           isCentered
             ? 'inset-0 items-center'
             : 'bottom-28 left-0 right-0',
         )}
       >
-        <div ref={modalRef}>
+        <div ref={modalRef} className="pointer-events-auto">
           <GuidedModal
             title={step.title}
             body={step.body}
@@ -234,6 +270,6 @@ export function UITourOverlay({
         onFallComplete={handleFallComplete}
         onRiseComplete={handleRiseComplete}
       />
-    </div>
+    </>
   );
 }
