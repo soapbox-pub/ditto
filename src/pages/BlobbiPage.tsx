@@ -1426,8 +1426,8 @@ function BlobbiDashboard({
         </div>
       )}
       
-      {/* ─── Curved Arc Tab Bar with Icon Tabs ─── */}
-      <div className="sticky top-0 z-10">
+      {/* ─── Drawer + Tab Bar (compose letter pattern: drawer first, tabs below) ─── */}
+      <div className="sticky top-0 z-20">
         {/* Backdrop — tapping outside the drawer collapses it */}
         {activeDrawer !== 'none' && (
           <div
@@ -1436,7 +1436,7 @@ function BlobbiDashboard({
           />
         )}
 
-        {/* Sliding drawer — overlays the Blobbi when open */}
+        {/* Sliding drawer — in flow, pushes the tab bar down when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1455,12 +1455,12 @@ function BlobbiDashboard({
                 />
               )}
               {activeDrawer === 'items' && (
-              <ItemsTabContent
-                allShopItems={getLiveShopItems()}
-                onUseItem={handleUseItemFromTab}
-                isUsingItem={isUsingItem}
-                usingItemId={usingItemId}
-              />
+                <ItemsTabContent
+                  allShopItems={getLiveShopItems()}
+                  onUseItem={handleUseItemFromTab}
+                  isUsingItem={isUsingItem}
+                  usingItemId={usingItemId}
+                />
               )}
               {activeDrawer === 'missions' && (
                 <MissionsTabContent
@@ -1513,8 +1513,8 @@ function BlobbiDashboard({
             </div>
           </ScrollArea>
         </div>
-        
-        {/* The arc bar itself — sits below the drawer */}
+
+        {/* The arc tab bar — sits below the drawer */}
         <SubHeaderBar pinned className="relative !top-0">
           <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
             <span className="flex items-center gap-1.5">
