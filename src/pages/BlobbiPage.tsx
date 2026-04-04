@@ -1520,8 +1520,11 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="relative flex flex-col items-center justify-center px-4 pb-24 sm:px-6" style={{ minHeight: '60dvh' }}>
-        {/* Main Blobbi Visual + Curved Stats Orbit */}
+      <div className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '70dvh' }}>
+        {/* Top spacer — pushes content toward lower-center */}
+        <div className="flex-[3]" />
+
+        {/* Main Blobbi Visual with stats crown + action buttons */}
         {isActiveFloatingCompanion ? (
           <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
             <Footprints className="size-12 text-muted-foreground/50 mb-3" />
@@ -1530,88 +1533,90 @@ function BlobbiDashboard({
             </p>
           </div>
         ) : (
-          <div className="relative transition-all duration-500">
-            <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl" />
-            
-            <BlobbiStageVisual
-              companion={companion}
-              size="lg"
-              animated={!isSleeping}
-              reaction={blobbiReaction}
-              recipe={hasDevOverride ? undefined : statusRecipe}
-              recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
-              emotion={effectiveEmotion}
-              className="size-96 sm:size-[28rem] md:size-[32rem]"
-            />
+          <div className="relative flex flex-col items-center">
+            {/* Stats crown — arced above the Blobbi */}
+            {(() => {
+              const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
+                ...vs,
+                label: STAT_LABEL_MAP[vs.stat],
+                color: STAT_COLOR_MAP[vs.stat],
+              }));
+              if (visibleStats.length === 0) return null;
+
+              const count = visibleStats.length;
+              const arcSpread = count <= 2 ? 80 : count <= 3 ? 120 : 160;
+              const arcHalf = arcSpread / 2;
+              const angles = count === 1
+                ? [0]
+                : visibleStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
+
+              return (
+                <div className="relative flex items-end justify-center w-full mb-1" style={{ height: 48 }}>
+                  {visibleStats.map((s, i) => {
+                    const angleDeg = angles[i];
+                    const angleRad = (angleDeg * Math.PI) / 180;
+                    const radius = 210;
+                    const x = Math.sin(angleRad) * radius;
+                    // Inverted: center (cos=1) is highest, edges droop down
+                    const y = Math.cos(angleRad) * radius - radius;
+
+                    return (
+                      <div
+                        key={s.stat}
+                        className="absolute transition-all duration-500"
+                        style={{
+                          transform: `translate(-50%, 0)`,
+                          left: `calc(50% + ${x.toFixed(1)}px)`,
+                          bottom: `${y.toFixed(1)}px`,
+                        }}
+                      >
+                        <StatIndicator
+                          stat={s.stat}
+                          label={s.label}
+                          value={s.value}
+                          color={s.color}
+                          status={s.status}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Blobbi visual */}
+            <div className="relative transition-all duration-500">
+              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl" />
+              <BlobbiStageVisual
+                companion={companion}
+                size="lg"
+                animated={!isSleeping}
+                reaction={blobbiReaction}
+                recipe={hasDevOverride ? undefined : statusRecipe}
+                recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
+                emotion={effectiveEmotion}
+                className="size-96 sm:size-[28rem] md:size-[32rem]"
+              />
+            </div>
+
+            {/* Blobbi Name */}
+            <h2
+              className="text-2xl sm:text-3xl font-bold text-center -mt-2"
+              style={{ color: companion.visualTraits.baseColor }}
+            >
+              {companion.name}
+            </h2>
           </div>
         )}
-        
-        {/* Blobbi Name — sits between the visual and the stats arc */}
-        <h2
-          className="text-2xl sm:text-3xl font-bold text-center -mt-2"
-          style={{ color: companion.visualTraits.baseColor }}
-        >
-          {companion.name}
-        </h2>
-        
-        {/* Stats Arc — curves below the Blobbi name */}
-        {(() => {
-          const visibleStats = (projectedState?.visibleStats ?? []).map(vs => ({
-            ...vs,
-            label: STAT_LABEL_MAP[vs.stat],
-            color: STAT_COLOR_MAP[vs.stat],
-          }));
-          if (visibleStats.length === 0) return null;
 
-          const count = visibleStats.length;
-          // Very wide arc so stats span nearly the full width
-          const arcSpread = count <= 2 ? 100 : count <= 3 ? 140 : 180;
-          const arcHalf = arcSpread / 2;
-          const angles = count === 1
-            ? [180]
-            : visibleStats.map((_, i) => 180 - arcHalf + (arcSpread / (count - 1)) * i);
-
-          return (
-            <div className="relative flex items-center justify-center w-full -mt-10" style={{ height: 80 }}>
-              {visibleStats.map((s, i) => {
-                const angleDeg = angles[i];
-                const angleRad = (angleDeg * Math.PI) / 180;
-                const baseRadius = 220;
-                const x = Math.sin(angleRad) * baseRadius;
-                const y = -Math.cos(angleRad) * baseRadius;
-
-                return (
-                  <div
-                    key={s.stat}
-                    className="absolute transition-all duration-500"
-                    style={{
-                      transform: `translate(calc(-50% + ${x.toFixed(1)}px), calc(-100% + ${y.toFixed(1)}px))`,
-                      left: '50%',
-                      top: '0%',
-                    }}
-                  >
-                    <StatIndicator
-                      stat={s.stat}
-                      label={s.label}
-                      value={s.value}
-                      color={s.color}
-                      status={s.status}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-        {/* ── Floating action circles — lower corners of the hero ── */}
+        {/* ── Action circles — below the Blobbi ── */}
         {!isActiveFloatingCompanion && (
-          <div className="absolute bottom-4 left-2 right-2 sm:left-4 sm:right-4 flex items-end justify-between pointer-events-none">
+          <div className="w-full px-4 sm:px-8 pt-4 flex items-start justify-between">
             {/* Photo — lower left */}
             <button
               onClick={() => setShowPhotoModal(true)}
               className={cn(
-                'pointer-events-auto flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
+                'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
                 'hover:-translate-y-1 hover:scale-110 active:scale-95',
               )}
             >
@@ -1632,7 +1637,7 @@ function BlobbiDashboard({
                 onClick={handleSetAsCompanion}
                 disabled={isUpdatingCompanion}
                 className={cn(
-                  'pointer-events-auto flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
+                  'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
                   'hover:-translate-y-1 hover:scale-110 active:scale-95',
                   isUpdatingCompanion && 'opacity-50',
                 )}
