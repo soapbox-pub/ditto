@@ -1434,6 +1434,11 @@ function BlobbiDashboard({
                   onRest={onRest}
                   actionInProgress={actionInProgress}
                   isPublishing={isPublishing}
+                  canBeCompanion={canBeCompanion}
+                  isCurrentCompanion={isCurrentCompanion}
+                  isUpdatingCompanion={isUpdatingCompanion}
+                  companionName={companion.name}
+                  onSetAsCompanion={handleSetAsCompanion}
                 />
               )}
               {activeDrawer === 'items' && (
@@ -1760,6 +1765,11 @@ interface CareTabContentProps {
   onRest: () => void;
   actionInProgress: string | null;
   isPublishing: boolean;
+  canBeCompanion: boolean;
+  isCurrentCompanion: boolean;
+  isUpdatingCompanion: boolean;
+  companionName: string;
+  onSetAsCompanion: () => void;
 }
 
 function CareTabContent({
@@ -1770,62 +1780,92 @@ function CareTabContent({
   onRest,
   actionInProgress,
   isPublishing,
+  canBeCompanion,
+  isCurrentCompanion,
+  isUpdatingCompanion,
+  companionName,
+  onSetAsCompanion,
 }: CareTabContentProps) {
   const isDisabled = isPublishing || actionInProgress !== null;
 
   return (
-    <div className="flex items-center justify-center h-full min-h-[230px] px-4">
-      <div className="flex items-end justify-center gap-8 sm:gap-14">
-        {/* Items — opens the Items drawer tab */}
+    <div className="flex flex-col items-center justify-center h-full min-h-[230px] gap-5">
+      <div className="flex items-center justify-center gap-6 sm:gap-10">
         <CareActionButton
-          icon={<Package className="size-9 sm:size-10" />}
+          icon={<Package className="size-10 sm:size-12" />}
           statIcon={<Sparkles className="size-3.5" />}
           label="Items"
+          description="Feed, clean & heal"
           color="text-sky-500"
           onClick={onOpenItems}
           disabled={isDisabled}
         />
 
-        {/* Play — music */}
         <CareActionButton
-          icon={<Music className="size-9 sm:size-10" />}
+          icon={<Music className="size-10 sm:size-12" />}
           statIcon={<Heart className="size-3.5" />}
           label="Music"
+          description="Play a tune"
           color="text-pink-500"
           onClick={() => onDirectAction('play_music')}
           disabled={isDisabled}
         />
 
-        {/* Play — sing */}
         <CareActionButton
-          icon={<Mic className="size-9 sm:size-10" />}
+          icon={<Mic className="size-10 sm:size-12" />}
           statIcon={<Heart className="size-3.5" />}
           label="Sing"
+          description="Sing together"
           color="text-purple-500"
           onClick={() => onDirectAction('sing')}
           disabled={isDisabled}
         />
 
-        {/* Sleep/Wake — hidden for eggs */}
         {!isEgg && (
           <CareActionButton
             icon={
               actionInProgress === 'rest' ? (
-                <Loader2 className="size-9 sm:size-10 animate-spin" />
+                <Loader2 className="size-10 sm:size-12 animate-spin" />
               ) : isSleeping ? (
-                <Sun className="size-9 sm:size-10" />
+                <Sun className="size-10 sm:size-12" />
               ) : (
-                <Moon className="size-9 sm:size-10" />
+                <Moon className="size-10 sm:size-12" />
               )
             }
             statIcon={<Zap className="size-3.5" />}
             label={isSleeping ? 'Wake' : 'Sleep'}
+            description={isSleeping ? 'Rise and shine' : 'Rest & recharge'}
             color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
             onClick={onRest}
             disabled={isDisabled}
           />
         )}
       </div>
+
+      {/* Take with you / companion pill */}
+      {canBeCompanion && (
+        <button
+          onClick={onSetAsCompanion}
+          disabled={isUpdatingCompanion}
+          className={cn(
+            'flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-200',
+            'hover:scale-105 active:scale-95',
+            isCurrentCompanion
+              ? 'bg-primary/10 text-primary'
+              : 'bg-muted/60 text-muted-foreground hover:bg-muted',
+            isUpdatingCompanion && 'opacity-50 pointer-events-none',
+          )}
+        >
+          {isUpdatingCompanion ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Footprints className="size-4" />
+          )}
+          <span className="text-sm font-medium">
+            {isCurrentCompanion ? `${companionName} is with you` : `Take ${companionName} with you`}
+          </span>
+        </button>
+      )}
     </div>
   );
 }
@@ -1836,6 +1876,7 @@ function CareActionButton({
   icon,
   statIcon,
   label,
+  description,
   color,
   onClick,
   disabled,
@@ -1843,6 +1884,7 @@ function CareActionButton({
   icon: React.ReactNode;
   statIcon: React.ReactNode;
   label: string;
+  description: string;
   color: string;
   onClick: () => void;
   disabled?: boolean;
@@ -1852,26 +1894,26 @@ function CareActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex flex-col items-center gap-2 transition-all duration-200',
-        'hover:-translate-y-1 hover:scale-105 active:scale-95',
+        'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
+        'hover:-translate-y-2 hover:scale-105 active:scale-95',
         disabled && 'opacity-40 pointer-events-none',
       )}
     >
       <div className="relative">
         <div
-          className={cn('size-[4.5rem] sm:size-20 rounded-[1.75rem] flex items-center justify-center shadow-lg', color)}
-          style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}
+          className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
+          style={{
+            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 14%, transparent), color-mix(in srgb, currentColor 5%, transparent) 70%)',
+          }}
         >
           {icon}
         </div>
-        <div className={cn(
-          'absolute -bottom-1 -right-1 size-6 rounded-full flex items-center justify-center',
-          'bg-background shadow-md ring-2 ring-background',
-        )}>
+        <div className="absolute -bottom-1 -right-1 size-7 rounded-full flex items-center justify-center bg-background ring-2 ring-background">
           <span className="text-muted-foreground">{statIcon}</span>
         </div>
       </div>
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <span className={cn('text-sm font-semibold', color)}>{label}</span>
+      <span className="text-[10px] leading-tight text-muted-foreground/70">{description}</span>
     </button>
   );
 }
