@@ -158,7 +158,7 @@ export function BlobbiHatchingCeremony({
   // Reveal phase state
   const [blobbiVisible, setBlobbiVisible] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
-  const [showRevealGlow, setShowRevealGlow] = useState(false);
+  const [, setShowRevealGlow] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
   // Dialog state

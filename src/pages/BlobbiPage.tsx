@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, X, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, MoreHorizontal, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -21,9 +21,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,10 +46,8 @@ import {
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
-import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import type { ShopItem } from '@/blobbi/shop/types/shop.types';
-import { useBlobbiPurchaseItem } from '@/blobbi/shop/hooks/useBlobbiPurchaseItem';
-import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import {
   BlobbiActionInventoryModal,
@@ -127,15 +123,6 @@ function companionNeedsCare(companion: BlobbiCompanion): boolean {
     (stats.health !== undefined && stats.health < CARE_THRESHOLD)
   );
 }
-
-/** Map stat keys to display labels */
-const STAT_LABEL_MAP: Record<string, string> = {
-  hunger: 'Hunger',
-  happiness: 'Happy',
-  health: 'Health',
-  hygiene: 'Hygiene',
-  energy: 'Energy',
-};
 
 /** Map stat keys to indicator colors */
 const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
@@ -240,7 +227,7 @@ function BlobbiContent() {
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
   
   // State for showing the Blobbi selector modal
-  const [showSelector, setShowSelector] = useState(false);
+  const [, setShowSelector] = useState(false);
   
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
@@ -464,7 +451,7 @@ function BlobbiContent() {
   useBlobbiActionsRegistration(useItemForContext, isUsingItem);
   
   // ─── Stage Transition Hooks ───
-  const { mutateAsync: executeHatch, isPending: isHatching } = useBlobbiHatch({
+  const { isPending: isHatching } = useBlobbiHatch({
     companion,
     profile,
     ensureCanonicalBeforeAction,
@@ -481,11 +468,6 @@ function BlobbiContent() {
     invalidateCompanion,
     invalidateProfile,
   });
-  
-  // Handler for hatching (egg -> baby)
-  const handleHatch = useCallback(async () => {
-    await executeHatch();
-  }, [executeHatch]);
   
   // Handler for evolution (baby -> adult)
   const handleEvolve = useCallback(async () => {
@@ -737,8 +719,6 @@ function BlobbiContent() {
       companion={companion}
       companions={companions}
       selectedD={selectedD}
-      showSelector={showSelector}
-      setShowSelector={setShowSelector}
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}
       onUseItem={handleUseItem}
@@ -748,7 +728,6 @@ function BlobbiContent() {
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       profile={profile}
-      onHatch={handleHatch}
       onEvolve={handleEvolve}
       isHatching={isHatching}
       isEvolving={isEvolving}
@@ -801,8 +780,6 @@ interface BlobbiDashboardProps {
   companion: BlobbiCompanion;
   companions: BlobbiCompanion[];
   selectedD: string;
-  showSelector: boolean;
-  setShowSelector: (show: boolean) => void;
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
   onUseItem: (itemId: string, action: InventoryAction, quantity?: number) => Promise<void>;
@@ -813,7 +790,6 @@ interface BlobbiDashboardProps {
   isPublishing: boolean;
   profile: BlobbonautProfile | null;
   // Stage transition handlers
-  onHatch: () => Promise<void>;
   onEvolve: () => Promise<void>;
   isHatching: boolean;
   isEvolving: boolean;
@@ -844,8 +820,6 @@ function BlobbiDashboard({
   companion,
   companions,
   selectedD,
-  showSelector,
-  setShowSelector,
   onSelectBlobbi,
   onRest,
   onUseItem,
@@ -855,7 +829,6 @@ function BlobbiDashboard({
   actionInProgress,
   isPublishing,
   profile,
-  onHatch,
   onEvolve,
   isHatching,
   isEvolving,
@@ -1080,8 +1053,6 @@ function BlobbiDashboard({
   const { 
     completedPersistentTaskIds: completedTaskIds,  // Stable key for anti-loop
     tasksToSync,                                    // Only persistent tasks (for sync)
-    remainingTasksCount,                            // ALL tasks including dynamic (for badge)
-    allCompleted: allTasksComplete,                 // All tasks (persistent + dynamic) complete
     isLoading: activeTasksLoading,                  // Loading state
     config: { isActive: isInTaskProcess },          // Whether in a task process
   } = taskProcess;
@@ -1253,11 +1224,6 @@ function BlobbiDashboard({
     await stopEvolution();
   };
   
-  // Handle opening an inventory action modal (from care tab buttons)
-  const handleInventoryAction = (action: InventoryAction) => {
-    setInventoryAction(action);
-  };
-  
   // Handle opening a direct action (now opens inline card)
   const handleDirectAction = (action: DirectAction) => {
     if (action === 'play_music') {
@@ -1360,21 +1326,6 @@ function BlobbiDashboard({
     setActiveDrawer('items');
   };
 
-  // Handle using item directly from the items tab
-  const handleUseItemFromInventory = async (itemId: string, quantity: number) => {
-    const action = getActionForItem(itemId);
-    if (!action) return;
-
-    setUsingItemId(itemId);
-    setActionOverrideEmotion(getActionEmotion(action as ActionType));
-    try {
-      await onUseItem(itemId, action, quantity);
-    } finally {
-      setUsingItemId(null);
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
-    }
-  };
-  
   // ─── Daily Missions (for missions tab) ───
   const dailyMissions = useDailyMissions({ availableStages });
   const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
@@ -1382,39 +1333,6 @@ function BlobbiDashboard({
     updateProfileEvent,
   );
   const { mutate: rerollMission, isPending: isRerollingMission } = useRerollMission();
-  
-  // ─── Items Tab: Resolve inventory items ───
-  const inventoryItems = useMemo(() => {
-    if (!profile) return [];
-    const stage = companion.stage;
-    const result: Array<ShopItem & { itemId: string; quantity: number; canUse: boolean; reason?: string }> = [];
-    for (const storageItem of profile.storage) {
-      const item = getShopItemById(storageItem.itemId);
-      if (!item) continue;
-      const usability = canUseItemForStage(storageItem.itemId, stage);
-      result.push({
-        ...item,
-        itemId: storageItem.itemId,
-        quantity: storageItem.quantity,
-        canUse: usability.canUse,
-        reason: usability.reason,
-      });
-    }
-    return result;
-  }, [profile, companion.stage]);
-  
-  // ─── Items Tab: Free item acquisition ───
-  const { mutate: acquireItem, isPending: isAcquiring } = useBlobbiPurchaseItem(profile);
-  const [acquiringItemId, setAcquiringItemId] = useState<string | null>(null);
-  
-  const handleAcquireItem = (item: ShopItem) => {
-    if (isAcquiring) return;
-    setAcquiringItemId(item.id);
-    acquireItem(
-      { itemId: item.id, price: item.price, quantity: 1 },
-      { onSettled: () => setAcquiringItemId(null) },
-    );
-  };
   
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
@@ -1514,7 +1432,6 @@ function BlobbiDashboard({
                   profile={profile}
                   blobbiNaddr={blobbiNaddr}
                   onSelectBlobbi={onSelectBlobbi}
-                  onTakePhoto={() => setShowPhotoModal(true)}
                   onAdopt={() => setShowAdoptionFlow(true)}
                   onDevOpenEditor={() => setShowDevEditor(true)}
                   onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
@@ -2410,7 +2327,6 @@ interface MoreTabContentProps {
   profile: BlobbonautProfile | null;
   blobbiNaddr: string;
   onSelectBlobbi: (d: string) => void;
-  onTakePhoto: () => void;
   onAdopt: () => void;
   onDevOpenEditor: () => void;
   onDevOpenEmotionPanel: () => void;
@@ -2426,7 +2342,6 @@ function MoreTabContent({
   profile,
   blobbiNaddr,
   onSelectBlobbi,
-  onTakePhoto,
   onAdopt,
   onDevOpenEditor,
   onDevOpenEmotionPanel,

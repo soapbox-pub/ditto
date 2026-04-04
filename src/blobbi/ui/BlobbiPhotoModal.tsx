@@ -14,7 +14,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
-import { downloadTextFile, openUrl } from '@/lib/downloadFile';
+import { openUrl } from '@/lib/downloadFile';
 import { trackDailyMissionProgress } from '@/blobbi/actions';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';

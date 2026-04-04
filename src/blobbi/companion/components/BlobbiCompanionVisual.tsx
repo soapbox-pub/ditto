@@ -24,6 +24,7 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 
@@ -250,9 +251,8 @@ export function BlobbiCompanionVisual({
           style={{ transformOrigin: 'center bottom' }}
         >
           {companion.stage === 'egg' ? (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             <BlobbiStageVisual
-              companion={companion as any}
+              companion={companion as unknown as BlobbiCompanion}
               size="sm"
               animated={false}
               className="size-full"
