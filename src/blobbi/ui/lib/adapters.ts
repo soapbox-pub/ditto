@@ -45,7 +45,7 @@ export function blobbiCompanionToBlobbi(companion: BlobbiCompanion): Blobbi {
     size: companion.visualTraits.size,
     // Metadata
     seed: companion.seed,
-    tags: companion.allTags,
+    tags: companion.allTags ?? [],
     // Adult-specific data (for adult form resolution)
     adult: companion.adultType ? { evolutionForm: companion.adultType } : undefined,
   };

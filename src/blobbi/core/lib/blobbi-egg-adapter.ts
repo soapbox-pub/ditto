@@ -110,7 +110,7 @@ export function toEggGraphicVisualBlobbi(
   companion: BlobbiCompanion,
   themeVariant: EggThemeVariant = DEFAULT_THEME_VARIANT
 ): EggVisualBlobbi {
-  const { visualTraits, stage, allTags } = companion;
+  const { visualTraits, stage, allTags = [] } = companion;
   
   return {
     // Colors pass through directly (already CSS hex values)
