@@ -771,9 +771,9 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="h-dvh overflow-hidden">
+    <main className="h-dvh flex flex-col overflow-hidden">
       {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
-      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl h-full">
+      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col">
         {children}
       </div>
     </main>
@@ -1540,9 +1540,8 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div ref={heroRef} className="relative flex flex-col items-center px-4 pt-12 sm:px-6 sm:pt-16 md:pt-20 overflow-x-hidden" style={{ minHeight: '60dvh' }}>
-        {/* Top spacer — pushes content toward lower-center */}
-        <div className="flex-[3]" />
+      <div ref={heroRef} className="relative flex-1 min-h-0 flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden">
+
 
         {/* Main Blobbi Visual with stats crown + action buttons */}
         {isActiveFloatingCompanion ? (
