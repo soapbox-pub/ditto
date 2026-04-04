@@ -13,7 +13,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BlobbiHatchingCeremony } from './BlobbiHatchingCeremony';
 
-import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
+import type { BlobbonautProfile, BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
 interface BlobbiOnboardingFlowProps {
   /** Current profile (null if doesn't exist) */
@@ -30,6 +30,8 @@ interface BlobbiOnboardingFlowProps {
   setStoredSelectedD: (d: string) => void;
   /** Called when onboarding is complete */
   onComplete?: () => void;
+  /** If provided, skip egg creation and use this existing egg for the ceremony. */
+  existingCompanion?: BlobbiCompanion | null;
   /**
    * Accepted for API compatibility. Every new egg goes through the ceremony.
    * @deprecated No longer changes the flow.
@@ -45,6 +47,7 @@ export function BlobbiOnboardingFlow({
   invalidateCompanion,
   setStoredSelectedD,
   onComplete,
+  existingCompanion,
   adoptionOnly,
 }: BlobbiOnboardingFlowProps) {
   return (
@@ -56,6 +59,7 @@ export function BlobbiOnboardingFlow({
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       onComplete={onComplete}
+      existingCompanion={existingCompanion}
       eggOnly={adoptionOnly}
     />
   );
