@@ -899,6 +899,18 @@ function BlobbiDashboard({
   // Projected state with decay applied (UI-only, recalculates every 60s)
   const projectedState = useProjectedBlobbiState(companion);
   
+  // Measure hero container width for responsive stat arc radius
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [heroWidth, setHeroWidth] = useState(375);
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
+    ro.observe(el);
+    setHeroWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   
@@ -1412,8 +1424,15 @@ function BlobbiDashboard({
       
       {/* ─── Curved Arc Tab Bar with Icon Tabs ─── */}
       <div className="sticky top-mobile-bar sidebar:top-0 z-10">
-        {/* Sliding drawer — opens below the arc when a tab is active.
-            Outer div animates max-height for the slide; ScrollArea handles overflow with a visible scrollbar. */}
+        {/* Backdrop — tapping outside the drawer collapses it */}
+        {activeDrawer !== 'none' && (
+          <div
+            className="fixed inset-0 z-[-1]"
+            onClick={() => setActiveDrawer('none')}
+          />
+        )}
+
+        {/* Sliding drawer — overlays the Blobbi when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1521,7 +1540,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '68dvh' }}>
+      <div ref={heroRef} className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '68dvh' }}>
         {/* Top spacer — pushes content toward lower-center */}
         <div className="flex-[3]" />
 
@@ -1557,7 +1576,8 @@ function BlobbiDashboard({
                   {allStats.map((s, i) => {
                     const angleDeg = angles[i];
                     const angleRad = (angleDeg * Math.PI) / 180;
-                    const radius = 210;
+                    // Scale radius based on container width: ~110 at 340px, ~210 at 640px+
+                    const radius = Math.min(210, Math.max(110, (heroWidth - 340) / (640 - 340) * (210 - 110) + 110));
                     const x = Math.sin(angleRad) * radius;
                     // Inverted: center (cos=1) is highest, edges droop down
                     const y = Math.cos(angleRad) * radius - radius;
@@ -1601,7 +1621,7 @@ function BlobbiDashboard({
                 recipe={hasDevOverride ? undefined : statusRecipe}
                 recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
                 emotion={effectiveEmotion}
-                className="size-96 sm:size-[28rem] md:size-[32rem] lg:size-[36rem]"
+                className="size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]"
               />
             </div>
 
@@ -1804,7 +1824,7 @@ function CareTabContent({
 
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[210px]">
-      <div className="flex items-center justify-center gap-6 sm:gap-10">
+      <div className="flex items-center justify-center gap-3 min-[400px]:gap-6 sm:gap-10">
         <CareActionButton
           icon={<Package className="size-10 sm:size-12" />}
           statIcon={<Sparkles className="size-3.5" />}
@@ -1890,7 +1910,7 @@ function CareActionButton({
     >
       <div className="relative">
         <div
-          className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
+          className={cn('size-16 min-[400px]:size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
           style={{
             background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 14%, transparent), color-mix(in srgb, currentColor 5%, transparent) 70%)',
           }}
