@@ -12,7 +12,6 @@ import { NoteContent } from '@/components/NoteContent';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getAvatarShape } from '@/lib/avatarShape';

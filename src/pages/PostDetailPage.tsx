@@ -53,7 +53,7 @@ import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
-import { EventActionHeader, NoteCard } from "@/components/NoteCard";
+import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -89,6 +89,7 @@ import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, 
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
+import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { formatNumber } from "@/lib/formatNumber";
 import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
@@ -955,24 +956,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const zapSenderDisplayName = getDisplayName(zapSenderMeta, zapSenderPubkeyRaw);
   const zapSenderProfileUrl = useProfileUrl(zapSenderPubkeyRaw, zapSenderMeta);
 
-  // For kind 1018 poll votes, resolve the voted option label from the parent poll
-  const pollVoteResponseIds = useMemo(
-    () => event.kind === 1018 ? event.tags.filter(([n]) => n === 'response').map(([, id]) => id) : [],
-    [event],
-  );
-  const pollVoteParentId = useMemo(
-    () => event.kind === 1018 ? event.tags.find(([n]) => n === 'e')?.[1] : undefined,
-    [event],
-  );
-  const { data: pollVoteParent } = useEvent(pollVoteParentId);
-  const pollVoteLabels = useMemo(() => {
-    if (!pollVoteParent || pollVoteResponseIds.length === 0) return pollVoteResponseIds;
-    const optMap = new Map<string, string>();
-    for (const tag of pollVoteParent.tags) {
-      if (tag[0] === 'option') optMap.set(tag[1], tag[2]);
-    }
-    return pollVoteResponseIds.map((id) => optMap.get(id) ?? id);
-  }, [pollVoteParent, pollVoteResponseIds]);
+  const pollVoteLabel = usePollVoteLabel(event);
 
   // NIP-19 encoded event identifier for share URLs
   const encodedEventId = useMemo(() => {
@@ -1985,54 +1969,42 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Kind 1018 — Poll vote: compact activity-style card */}
       {isPollVote && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
-          <div className="flex items-center gap-3">
-            <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="shrink-0">
-                <Avatar shape={avatarShape} className="size-10">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            </ProfileHoverCard>
-
-            <div className="flex-1 min-w-0">
-              {author.isLoading ? (
-                <Skeleton className="h-4 w-28" />
-              ) : (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <ProfileHoverCard pubkey={event.pubkey} asChild>
-                      <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
-                        {author.data?.event ? (
-                          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                        ) : displayName}
-                      </Link>
-                    </ProfileHoverCard>
-                    <span className="text-sm text-muted-foreground shrink-0">voted</span>
-                    <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                      {formatFullDate(event.created_at)}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold mt-0.5 truncate">
-                    {pollVoteLabels.join(', ')}
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-
+        <div ref={focusedPostRef as React.RefObject<HTMLDivElement>}>
+          <ActivityCard
+            className="border-b-0 pb-0"
+            icon={
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link to={profileUrl} className="shrink-0">
+                  <Avatar shape={avatarShape} className="size-10">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
+            }
+            actorRow={
+              <div className="flex items-center gap-1.5">
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                    {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground shrink-0">voted</span>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
+              </div>
+            }
+          >
+            {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
+          </ActivityCard>
           <PostActionBar
             event={event}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
-            className="mt-2 -mx-4 px-4"
+            className="mt-2 px-4"
           />
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
           <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-        </article>
+        </div>
       )}
 
       {/* Main post — expanded Ditto-style view */}

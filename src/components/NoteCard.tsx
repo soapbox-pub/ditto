@@ -21,7 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
@@ -98,6 +98,7 @@ import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
+import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
@@ -114,6 +115,113 @@ function ProfileCardContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       <ProfileCard pubkey={event.pubkey} metadata={metadata} showNip05={false} />
+    </div>
+  );
+}
+
+/* ──── Shared activity card shell for reaction / repost / zap / poll vote ──── */
+
+interface ActivityCardProps {
+  /** The round element in the left column (icon bubble or avatar). */
+  icon: ReactNode;
+  /** The actor row content (avatar + name + label + timestamp). */
+  actorRow: ReactNode;
+  /** Optional extra content below the actor row (zap message, vote label, etc.). */
+  children?: ReactNode;
+  /** Threaded mode: connector line below icon, no bottom border. */
+  threaded?: boolean;
+  /** Last item in thread — no connector line, has bottom border. */
+  threadedLast?: boolean;
+  /** Custom connector line class. */
+  threadedLineClassName?: string;
+  className?: string;
+  onClick?: React.MouseEventHandler;
+  onAuxClick?: React.MouseEventHandler;
+}
+
+export function ActivityCard({
+  icon,
+  actorRow,
+  children,
+  threaded,
+  threadedLast,
+  threadedLineClassName,
+  className,
+  onClick,
+  onAuxClick,
+}: ActivityCardProps) {
+  const isThreaded = threaded || threadedLast;
+  return (
+    <article
+      className={cn(
+        "px-4 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        isThreaded
+          ? cn("pt-3", threaded ? "pb-0" : "pb-3 border-b border-border")
+          : "py-3 border-b border-border",
+        className,
+      )}
+      onClick={onClick}
+      onAuxClick={onAuxClick}
+    >
+      <div className="flex gap-3">
+        <div className="flex flex-col items-center">
+          {icon}
+          {threaded && (
+            <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+          )}
+        </div>
+        <div className={cn("flex-1 min-w-0", isThreaded ? "min-h-10 flex flex-col justify-center" : "", threaded && "pb-3")}>
+          {actorRow}
+          {children}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** Reusable actor row: small avatar + display name + action label + timestamp. */
+export interface ActorRowProps {
+  pubkey: string;
+  profileUrl: string;
+  avatarShape: Parameters<typeof Avatar>[0]['shape'];
+  picture?: string;
+  displayName: string;
+  authorEvent?: NostrEvent;
+  isLoading?: boolean;
+  label: string;
+  /** Extra inline elements after the label (e.g. zap amount). */
+  extra?: ReactNode;
+  /** Formatted timestamp string (e.g. timeAgo or full date). */
+  timestampLabel: string;
+}
+
+export function ActorRow({ pubkey, profileUrl, avatarShape, picture, displayName, authorEvent, isLoading, label, extra, timestampLabel }: ActorRowProps) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2">
+        <Skeleton className="size-6 rounded-full shrink-0" />
+        <Skeleton className="h-3.5 w-20" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Avatar shape={avatarShape} className="size-6">
+            <AvatarImage src={picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </Link>
+      </ProfileHoverCard>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+          {authorEvent ? <EmojifiedText tags={authorEvent.tags}>{displayName}</EmojifiedText> : displayName}
+        </Link>
+      </ProfileHoverCard>
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      {extra}
+      <span className="text-xs text-muted-foreground ml-auto shrink-0">{timestampLabel}</span>
     </div>
   );
 }
@@ -219,6 +327,8 @@ export const NoteCard = memo(function NoteCard({
   const zapSenderName = getDisplayName(zapSenderMeta, zapSenderPubkey);
   const zapSenderUrl = useProfileUrl(zapSenderPubkey, zapSenderMeta);
 
+  const pollVoteLabel = usePollVoteLabel(event);
+
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -295,6 +405,7 @@ export const NoteCard = memo(function NoteCard({
   const isProfileBadges = event.kind === 10008 || event.kind === 30008;
   const isBadge = isBadgeDefinition || isProfileBadges;
   const isReaction = event.kind === 7;
+  const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
   const isNormalVideo = event.kind === 21;
@@ -339,6 +450,7 @@ export const NoteCard = memo(function NoteCard({
     !isEmojiPack &&
     !isBadge &&
     !isReaction &&
+    !isPollVote &&
     !isRepost &&
     !isPhoto &&
     !isVideo &&
@@ -802,399 +914,107 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
-  // ── Reaction layout (kind 7) — compact activity-style card ──
+  // ── Reaction layout (kind 7) ──
   if (isReaction) {
-    // Threaded reaction (used in AncestorThread with connector line)
-    if (threaded || threadedLast) {
-      return (
-        <article
-          className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
-            className,
-          )}
-          onClick={handleCardClick}
-          onAuxClick={handleAuxClick}
-        >
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {/* Reaction emoji bubble instead of avatar */}
-              <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-lg leading-none">
-                <ReactionEmoji
-                  content={event.content}
-                  tags={event.tags}
-                  className="h-5 w-5 object-contain"
-                />
-              </div>
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div
-              className={cn(
-                "flex-1 min-w-0 flex items-center min-h-10",
-                threaded && "pb-3",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                {author.isLoading ? (
-                  <Skeleton className="size-6 rounded-full shrink-0" />
-                ) : (
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link
-                      to={profileUrl}
-                      className="shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Avatar shape={avatarShape} className="size-6">
-                        <AvatarImage
-                          src={metadata?.picture}
-                          alt={displayName}
-                        />
-                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                          {displayName[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  </ProfileHoverCard>
-                )}
-                {author.isLoading ? (
-                  <Skeleton className="h-3.5 w-20" />
-                ) : (
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link
-                      to={profileUrl}
-                      className="font-semibold text-sm hover:underline truncate"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {author.data?.event ? (
-                        <EmojifiedText tags={author.data.event.tags}>
-                          {displayName}
-                        </EmojifiedText>
-                      ) : (
-                        displayName
-                      )}
-                    </Link>
-                  </ProfileHoverCard>
-                )}
-                <span className="text-sm text-muted-foreground">reacted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  {timeAgo(event.created_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    // Normal reaction card (standalone or in feed)
+    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
-      <article
-        className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
-      >
-        <div className="flex items-center gap-3">
-          {/* Large reaction emoji */}
-          <div className="flex items-center justify-center size-11 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
-            <ReactionEmoji
-              content={event.content}
-              tags={event.tags}
-              className="h-6 w-6 object-contain"
-            />
+      <ActivityCard
+        icon={
+          <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
+            <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
           </div>
-
-          {/* Author + "reacted" label */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {author.isLoading ? (
-              <>
-                <Skeleton className="size-6 rounded-full shrink-0" />
-                <Skeleton className="h-4 w-24" />
-              </>
-            ) : (
-              <>
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Avatar shape={avatarShape} className="size-6">
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                        {displayName[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                </ProfileHoverCard>
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="font-semibold text-sm hover:underline truncate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {author.data?.event ? (
-                      <EmojifiedText tags={author.data.event.tags}>
-                        {displayName}
-                      </EmojifiedText>
-                    ) : (
-                      displayName
-                    )}
-                  </Link>
-                </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground">reacted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  {timeAgo(event.created_at)}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </article>
+        }
+        actorRow={
+          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reacted" timestampLabel={timeAgo(event.created_at)} />
+        }
+        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
+        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
+      />
     );
   }
 
-  // ── Repost layout (kind 6 / 16) — compact activity-style card ──
+  // ── Repost layout (kind 6 / 16) ──
   if (isRepost) {
-    // Threaded repost (used in AncestorThread with connector line)
-    if (threaded || threadedLast) {
-      return (
-        <article
-          className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
-            className,
-          )}
-          onClick={handleCardClick}
-          onAuxClick={handleAuxClick}
-        >
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {/* Repost icon bubble instead of avatar */}
-              <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
-                <RepostIcon className="size-5 text-accent" />
-              </div>
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div
-              className={cn(
-                "flex-1 min-w-0 flex items-center min-h-10",
-                threaded && "pb-3",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                {author.isLoading ? (
-                  <Skeleton className="size-6 rounded-full shrink-0" />
-                ) : (
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link
-                      to={profileUrl}
-                      className="shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Avatar shape={avatarShape} className="size-6">
-                        <AvatarImage
-                          src={metadata?.picture}
-                          alt={displayName}
-                        />
-                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                          {displayName[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  </ProfileHoverCard>
-                )}
-                {author.isLoading ? (
-                  <Skeleton className="h-3.5 w-20" />
-                ) : (
-                  <ProfileHoverCard pubkey={event.pubkey} asChild>
-                    <Link
-                      to={profileUrl}
-                      className="font-semibold text-sm hover:underline truncate"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {author.data?.event ? (
-                        <EmojifiedText tags={author.data.event.tags}>
-                          {displayName}
-                        </EmojifiedText>
-                      ) : (
-                        displayName
-                      )}
-                    </Link>
-                  </ProfileHoverCard>
-                )}
-                <span className="text-sm text-muted-foreground">reposted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  {timeAgo(event.created_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    // Normal repost card (standalone or in feed)
+    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
-      <article
-        className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
-      >
-        <div className="flex items-center gap-3">
-          {/* Repost icon */}
-          <div className="flex items-center justify-center size-11 rounded-full bg-accent/10 shrink-0">
+      <ActivityCard
+        icon={
+          <div className={cn("flex items-center justify-center rounded-full bg-accent/10 shrink-0", iconSize)}>
             <RepostIcon className="size-5 text-accent" />
           </div>
-
-          {/* Author + "reposted" label */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {author.isLoading ? (
-              <>
-                <Skeleton className="size-6 rounded-full shrink-0" />
-                <Skeleton className="h-4 w-24" />
-              </>
-            ) : (
-              <>
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Avatar shape={avatarShape} className="size-6">
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
-                        {displayName[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                </ProfileHoverCard>
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="font-semibold text-sm hover:underline truncate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {author.data?.event ? (
-                      <EmojifiedText tags={author.data.event.tags}>
-                        {displayName}
-                      </EmojifiedText>
-                    ) : (
-                      displayName
-                    )}
-                  </Link>
-                </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground">reposted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  {timeAgo(event.created_at)}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </article>
+        }
+        actorRow={
+          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reposted" timestampLabel={timeAgo(event.created_at)} />
+        }
+        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
+        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
+      />
     );
   }
 
-  // ── Zap receipt layout (kind 9735) — mirrors reaction layout exactly ──
+  // ── Zap receipt layout (kind 9735) ──
   if (isZap) {
     const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
     const zapMessage = extractZapMessage(event);
-
-    const zapActorRow = (
-      <div className="flex items-center gap-2">
-        {zapSender.isLoading ? (
-          <>
-            <Skeleton className="size-6 rounded-full shrink-0" />
-            <Skeleton className="h-3.5 w-20" />
-          </>
-        ) : (
-          <>
-            {zapSenderPubkey && (
-              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
-                <Link to={zapSenderUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Avatar shape={zapSenderShape} className="size-6">
-                    <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{zapSenderName[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Link>
-              </ProfileHoverCard>
-            )}
-            {zapSenderPubkey && (
-              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
-                <Link to={zapSenderUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                  {zapSender.data?.event ? <EmojifiedText tags={zapSender.data.event.tags}>{zapSenderName}</EmojifiedText> : zapSenderName}
-                </Link>
-              </ProfileHoverCard>
-            )}
-            <span className="text-sm text-muted-foreground shrink-0">zapped</span>
-            {zapAmountSats > 0 && (
+    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
+    return (
+      <ActivityCard
+        icon={
+          <div className={cn("flex items-center justify-center rounded-full bg-amber-500/10 shrink-0", iconSize)}>
+            <Zap className="size-5 text-amber-500 fill-amber-500" />
+          </div>
+        }
+        actorRow={
+          <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture}
+            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading} label="zapped" timestampLabel={timeAgo(event.created_at)}
+            extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
               </span>
-            )}
-            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
-          </>
-        )}
-      </div>
-    );
-
-    if (threaded || threadedLast) {
-      return (
-        <article
-          className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
-            className,
-          )}
-          onClick={handleCardClick}
-          onAuxClick={handleAuxClick}
-        >
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
-                <Zap className="size-5 text-amber-500 fill-amber-500" />
-              </div>
-              {threaded && <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />}
-            </div>
-            <div className={cn("flex-1 min-w-0 flex flex-col justify-center min-h-10", threaded && "pb-3")}>
-              {zapActorRow}
-              {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    return (
-      <article
-        className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
+            ) : undefined}
+          />
+        }
+        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
+        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
       >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-11 rounded-full bg-amber-500/10 shrink-0">
-            <Zap className="size-5 text-amber-500 fill-amber-500" />
+        {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
+      </ActivityCard>
+    );
+  }
+
+  // ── Poll vote layout (kind 1018) ──
+  if (isPollVote) {
+    const iconSize = threaded || threadedLast ? "size-10" : "size-11";
+    return (
+      <ActivityCard
+        icon={
+          <ProfileHoverCard pubkey={event.pubkey} asChild>
+            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={avatarShape} className={iconSize}>
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+        }
+        actorRow={
+          <div className="flex items-center gap-1.5">
+            <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+                {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
+              </Link>
+            </ProfileHoverCard>
+            <span className="text-sm text-muted-foreground shrink-0">voted</span>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
           </div>
-          <div className="flex-1 min-w-0 flex flex-col">
-            {zapActorRow}
-            {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
-          </div>
-        </div>
-      </article>
+        }
+        threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
+        className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
+      >
+        {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
+      </ActivityCard>
     );
   }
 

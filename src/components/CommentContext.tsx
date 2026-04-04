@@ -6,7 +6,7 @@ import {
   Award, BarChart3, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
-  Users, Zap,
+  Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -22,6 +22,7 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
+import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -91,6 +92,7 @@ const KIND_LABELS: Record<number, string> = {
   22: 'a short video',
   62: 'a request to vanish',
   1063: 'a file',
+  1018: 'a vote',
   1068: 'a poll',
   1111: 'a comment',
   1222: 'a voice message',
@@ -142,6 +144,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   21: Film,
   22: Film,
   1063: FileText,
+  1018: Vote,
   1068: BarChart3,
   1222: Mic,
   1617: FileText,
@@ -533,6 +536,11 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return <ReactionCommentContext event={event} className={className} />;
   }
 
+  // Kind 1018 poll votes get special treatment
+  if (event?.kind === 1018) {
+    return <PollVoteCommentContext event={event} className={className} />;
+  }
+
   const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
@@ -582,6 +590,43 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
           </Link>
         </ProfileHoverCard>
       )}
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for kind 1018 poll vote roots — shows "Commenting on @{name}'s vote for {option}". */
+function PollVoteCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const voteLink = getRootLink(event);
+  const profileLink = `/${nip19.npubEncode(event.pubkey)}`;
+
+  const voteLabel = usePollVoteLabel(event);
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      {author.isLoading ? (
+        <Skeleton className="h-3.5 w-16 inline-block" />
+      ) : (
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link
+            to={profileLink}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            @{displayName}
+          </Link>
+        </ProfileHoverCard>
+      )}
+      <Link
+        to={voteLink}
+        className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Vote className="size-3.5 shrink-0" />
+        {voteLabel ? `vote for ${voteLabel}` : 'vote'}
+      </Link>
     </CommentContextRow>
   );
 }
