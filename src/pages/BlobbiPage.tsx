@@ -1426,8 +1426,8 @@ function BlobbiDashboard({
         </div>
       )}
       
-      {/* ─── Drawer + Tab Bar (compose letter pattern: drawer first, tabs below) ─── */}
-      <div className="sticky top-0 z-20">
+      {/* ─── Drawer + Tab Bar — overlays the hero ─── */}
+      <div className="absolute top-0 left-0 right-0 z-20">
         {/* Backdrop — tapping outside the drawer collapses it */}
         {activeDrawer !== 'none' && (
           <div
@@ -1436,7 +1436,7 @@ function BlobbiDashboard({
           />
         )}
 
-        {/* Sliding drawer — in flow, pushes the tab bar down when open */}
+        {/* Sliding drawer — in flow, pushes tabs down when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1514,7 +1514,7 @@ function BlobbiDashboard({
           </ScrollArea>
         </div>
 
-        {/* The arc tab bar — sits below the drawer */}
+        {/* The arc tab bar — below the drawer */}
         <SubHeaderBar pinned className="relative !top-0">
           <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
             <span className="flex items-center gap-1.5">
