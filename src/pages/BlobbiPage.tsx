@@ -1540,7 +1540,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div ref={heroRef} className="relative flex flex-col items-center px-4 sm:px-6" style={{ minHeight: '68dvh' }}>
+      <div ref={heroRef} className="relative flex flex-col items-center px-4 pt-12 sm:px-6 sm:pt-0 overflow-hidden" style={{ minHeight: '60dvh' }}>
         {/* Top spacer — pushes content toward lower-center */}
         <div className="flex-[3]" />
 
@@ -1565,7 +1565,10 @@ function BlobbiDashboard({
               if (allStats.length === 0) return null;
 
               const count = allStats.length;
-              const arcSpread = count <= 2 ? 80 : count <= 3 ? 120 : 160;
+              const isSmall = heroWidth < 400;
+              const arcSpread = isSmall
+                ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
+                : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
               const arcHalf = arcSpread / 2;
               const angles = count === 1
                 ? [0]
@@ -1576,8 +1579,8 @@ function BlobbiDashboard({
                   {allStats.map((s, i) => {
                     const angleDeg = angles[i];
                     const angleRad = (angleDeg * Math.PI) / 180;
-                    // Scale radius based on container width: ~110 at 340px, ~210 at 640px+
-                    const radius = Math.min(210, Math.max(110, (heroWidth - 340) / (640 - 340) * (210 - 110) + 110));
+                    // Scale radius based on container width: ~140 at 340px, ~210 at 640px+
+                    const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
                     const x = Math.sin(angleRad) * radius;
                     // Inverted: center (cos=1) is highest, edges droop down
                     const y = Math.cos(angleRad) * radius - radius;
