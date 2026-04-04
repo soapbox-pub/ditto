@@ -180,7 +180,7 @@ import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
-import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
+import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { cn } from "@/lib/utils";
 
@@ -1299,10 +1299,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsTab, setInteractionsTab] =
     useState<InteractionTab>("reposts");
 
-  const parentEventId = useMemo(
-    () => (isTextNote || isReaction || isRepost || isZap || isPollVote ? getParentEventId(event) : undefined),
+  const parentHints = useMemo(
+    () => (isTextNote || isReaction || isRepost || isZap || isPollVote ? getParentEventHints(event) : undefined),
     [event, isTextNote, isReaction, isRepost, isZap, isPollVote],
   );
+  const parentEventId = parentHints?.id;
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
@@ -1465,6 +1466,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread
             eventId={parentEventId}
+            relays={parentHints?.relayHint ? [parentHints.relayHint] : undefined}
+            authorHint={parentHints?.authorHint}
             collapseAfter={isReaction || isRepost || isZap || isPollVote ? 0 : undefined}
           />
         </div>
@@ -2411,21 +2414,26 @@ function AddrAncestor({ addr }: { addr: { kind: number; pubkey: string; identifi
  */
 function AncestorThread({
   eventId,
+  relays,
+  authorHint,
   depth = 0,
   collapseAfter,
 }: {
   eventId: string;
+  relays?: string[];
+  authorHint?: string;
   depth?: number;
   collapseAfter?: number;
 }) {
-  const { data: event, isLoading } = useEvent(eventId);
+  const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
   const [expanded, setExpanded] = useState(false);
 
-  // Determine this ancestor's own parent
-  const parentId = useMemo(
-    () => (event ? getParentEventId(event) : undefined),
+  // Determine this ancestor's own parent, including relay and author hints
+  const parentHints = useMemo(
+    () => (event ? getParentEventHints(event) : undefined),
     [event],
   );
+  const parentId = parentHints?.id;
 
   // Cap recursion to avoid runaway chains
   const MAX_DEPTH = 20;
@@ -2486,6 +2494,8 @@ function AncestorThread({
         ) : (
           <AncestorThread
             eventId={parentId}
+            relays={parentHints?.relayHint ? [parentHints.relayHint] : undefined}
+            authorHint={parentHints?.authorHint}
             depth={depth + 1}
             collapseAfter={collapseAfter}
           />

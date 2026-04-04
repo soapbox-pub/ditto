@@ -14,15 +14,44 @@ export function isReplyEvent(event: NostrEvent): boolean {
   return nonMentionTags.length > 0;
 }
 
+/** Hints extracted from an `e` tag for relay resolution. */
+export interface ParentEventHints {
+  id: string;
+  relayHint?: string;
+  authorHint?: string;
+}
+
 /**
  * Extracts the parent (replied-to) event ID from an event's tags following NIP-10 conventions.
  * Supports both the preferred marked-tag scheme and the deprecated positional scheme.
  * For kind 7 reactions, uses NIP-25 semantics: the last `e` tag is the reacted-to event.
  */
 export function getParentEventId(event: NostrEvent): string | undefined {
+  return getParentEventTag(event)?.[1];
+}
+
+/**
+ * Extracts the parent event ID along with relay and author hints from the `e` tag.
+ * Returns the full NIP-10 hints (relay URL at position [2], author pubkey at position [4]).
+ */
+export function getParentEventHints(event: NostrEvent): ParentEventHints | undefined {
+  const tag = getParentEventTag(event);
+  if (!tag) return undefined;
+  return {
+    id: tag[1],
+    relayHint: tag[2] || undefined,
+    authorHint: tag[4] || undefined,
+  };
+}
+
+/**
+ * Returns the raw parent `e` tag from an event following NIP-10 conventions.
+ * For kind 7 reactions, uses NIP-25 semantics: the last `e` tag is the reacted-to event.
+ */
+function getParentEventTag(event: NostrEvent): string[] | undefined {
   // NIP-25: for kind 7 reactions, the target event is always the last e-tag
   if (event.kind === 7) {
-    return event.tags.findLast(([name]) => name === 'e')?.[1];
+    return event.tags.findLast(([name]) => name === 'e');
   }
 
   // Exclude "mention" e-tags — they are inline quotes, not reply/root references
@@ -31,12 +60,12 @@ export function getParentEventId(event: NostrEvent): string | undefined {
 
   // Preferred: look for marked "reply" tag first
   const replyTag = eTags.find(([, , , marker]) => marker === 'reply');
-  if (replyTag) return replyTag[1];
+  if (replyTag) return replyTag;
 
   // If there's a "root" marker but no "reply" marker, the event replies directly to root
   const rootTag = eTags.find(([, , , marker]) => marker === 'root');
-  if (rootTag) return rootTag[1];
+  if (rootTag) return rootTag;
 
   // Deprecated positional scheme: last non-mention e-tag is the reply target
-  return eTags[eTags.length - 1][1];
+  return eTags[eTags.length - 1];
 }
