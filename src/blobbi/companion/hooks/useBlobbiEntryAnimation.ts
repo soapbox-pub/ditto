@@ -19,9 +19,8 @@
  *   idle -> rising -> inspecting -> entering -> complete
  * 
  * Route change behavior:
- * - Cancels current entry immediately
- * - Waits 1 second
- * - Restarts entry for the new page
+ * - Companion keeps its current position (no re-entry animation)
+ * - Only initial mount and companion changes trigger entry animations
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -310,20 +309,11 @@ export function useBlobbiEntryAnimation({
       // Random entry type for new companion (fall or rise)
       const entryType: EntryType = Math.random() < 0.5 ? 'fall' : 'rise';
       startEntry(entryType);
-    } else if (routeChanged && companionId) {
-      // Route changed - determine direction for new route
-      const entryType = getEntryDirection(previousPath, pathname, sidebarOrder);
-      
-      // Immediately hide Blobbi and cancel current entry
-      cancelEntry();
-      setIsHiddenForTransition(true);
-      
-      // Wait 1 second, then start the new entry animation
-      routeChangeTimeoutRef.current = setTimeout(() => {
-        startEntry(entryType);
-      }, entryConfig.routeChangeRestartDelay);
+    } else if (routeChanged) {
+      // Route changed - companion keeps its position, no re-entry animation.
+      // Just update the ref so future changes compare against the new path.
     }
-  }, [isActive, pathname, companionId, sidebarOrder, startEntry, cancelEntry, entryConfig.routeChangeRestartDelay]);
+  }, [isActive, pathname, companionId, sidebarOrder, startEntry, cancelEntry]);
   
   /**
    * Animation loop for FALL entry.
