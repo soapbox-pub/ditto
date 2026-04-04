@@ -84,7 +84,6 @@ import {
   type BlobbiReactionState,
   type StartIncubationMode,
 } from '@/blobbi/actions';
-import { useRerollMission } from '@/blobbi/actions/hooks/useRerollMission';
 // DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
@@ -226,9 +225,6 @@ function BlobbiContent() {
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
   
-  // State for showing the Blobbi selector modal
-  const [, setShowSelector] = useState(false);
-  
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
@@ -309,7 +305,6 @@ function BlobbiContent() {
       console.log('[BlobbiPage] handleSelectBlobbi: user selected:', d, '(previous storedSelectedD was:', storedSelectedD, ')');
     }
     setStoredSelectedD(d);
-    setShowSelector(false);
   }, [setStoredSelectedD, storedSelectedD]);
   
   // ─── Helper: Ensure Canonical Before Action ───
@@ -1332,8 +1327,6 @@ function BlobbiDashboard({
     profile,
     updateProfileEvent,
   );
-  const { mutate: rerollMission, isPending: isRerollingMission } = useRerollMission();
-  
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
@@ -1395,7 +1388,6 @@ function BlobbiDashboard({
               )}
               {activeDrawer === 'missions' && (
                 <MissionsTabContent
-                  companion={companion}
                   isIncubating={isIncubating}
                   isEvolvingState={isEvolvingState}
                   isEgg={isEgg}
@@ -1413,9 +1405,7 @@ function BlobbiDashboard({
                   onOpenPostModal={() => setShowPostModal(true)}
                   dailyMissions={dailyMissions}
                   onClaimReward={(id) => claimReward({ missionId: id })}
-                  onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
                   isClaimingReward={isClaimingReward}
-                  isRerollingMission={isRerollingMission}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -1966,7 +1956,6 @@ function ItemsTabContent({
 // ─── Missions Tab Content ─────────────────────────────────────────────────────
 
 interface MissionsTabContentProps {
-  companion: BlobbiCompanion;
   isIncubating: boolean;
   isEvolvingState: boolean;
   isEgg: boolean;
@@ -1984,9 +1973,7 @@ interface MissionsTabContentProps {
   onOpenPostModal: () => void;
   dailyMissions: ReturnType<typeof useDailyMissions>;
   onClaimReward: (id: string) => void;
-  onRerollMission: (id: string) => void;
   isClaimingReward: boolean;
-  isRerollingMission: boolean;
   canStartIncubation: boolean;
   canStartEvolution: boolean;
   isStartingIncubation: boolean;
@@ -1998,7 +1985,6 @@ interface MissionsTabContentProps {
 type QuestPane = 'journey' | 'bounties';
 
 function MissionsTabContent({
-  companion: _companion,
   isIncubating,
   isEvolvingState,
   isEgg,
@@ -2016,9 +2002,7 @@ function MissionsTabContent({
   onOpenPostModal,
   dailyMissions,
   onClaimReward,
-  onRerollMission: _onRerollMission,
   isClaimingReward,
-  isRerollingMission: _isRerollingMission,
   canStartIncubation,
   canStartEvolution,
   isStartingIncubation,
