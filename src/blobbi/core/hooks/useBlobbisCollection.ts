@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { fetchFreshEvents } from '@/lib/fetchFreshEvent';
 import {
   KIND_BLOBBI_STATE,
   isValidBlobbiEvent,
@@ -52,33 +51,45 @@ export function useBlobbisCollection(dList: string[] | undefined) {
   // Main query to fetch all companions from relays
   const query = useQuery({
     queryKey: ['blobbi-collection', user?.pubkey, queryKeyDTags],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!user?.pubkey || !sortedDList || sortedDList.length === 0) {
+        console.log('[useBlobbisCollection] No pubkey or empty dList, returning empty');
         return { companionsByD: {}, companions: [] };
       }
       
+      // Log the dList we're about to query
+      console.log('[Blobbi] dList:', sortedDList);
+      
       // Chunk the d-list for relay compatibility
       const chunks = chunkArray(sortedDList, CHUNK_SIZE);
+      console.log('[useBlobbisCollection] Splitting into', chunks.length, 'chunk(s)');
       
-      // Fetch all chunks, using a relaxed eoseTimeout (1000ms) so slower
-      // relays have time to respond and we get the freshest events.
+      // Query all chunks in parallel
       const allEvents: NostrEvent[] = [];
       
       for (const chunk of chunks) {
-        const events = await fetchFreshEvents(
-          nostr,
-          [{
-            kinds: [KIND_BLOBBI_STATE],
-            authors: [user.pubkey],
-            '#d': chunk,
-          }],
-          { eoseTimeout: 1000 },
-        );
+        const filter = {
+          kinds: [KIND_BLOBBI_STATE],
+          authors: [user.pubkey],
+          '#d': chunk,
+          // IMPORTANT: No limit - fetch ALL pets matching the d-tags
+        };
+        
+        // Log the filter immediately before query
+        console.log('[Blobbi] 31124 query filter:', JSON.stringify(filter, null, 2));
+        
+        const events = await nostr.query([filter], { signal });
         allEvents.push(...events);
+        
+        console.log('[useBlobbisCollection] Chunk returned', events.length, 'events');
       }
+      
+      console.log('[useBlobbisCollection] Total events received:', allEvents.length);
       
       // Filter to valid events
       const validEvents = allEvents.filter(isValidBlobbiEvent);
+      
+      console.log('[useBlobbisCollection] Valid events:', validEvents.length);
       
       // Group events by d-tag and keep only the newest per d
       const eventsByD = new Map<string, NostrEvent>();
@@ -104,6 +115,11 @@ export function useBlobbisCollection(dList: string[] | undefined) {
           companions.push(parsed);
         }
       }
+      
+      console.log('[useBlobbisCollection] Parsed companions:', {
+        count: companions.length,
+        dTags: Object.keys(companionsByD),
+      });
       
       return { companionsByD, companions };
     },

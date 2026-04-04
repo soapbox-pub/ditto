@@ -1,18 +1,5 @@
 import type { NostrEvent, NostrFilter, NPool } from '@nostrify/nostrify';
 
-interface FetchFreshEventOpts {
-  /**
-   * Override the pool-level eoseTimeout for this query. When set, uses
-   * `nostr.req()` directly with this value instead of `nostr.query()`,
-   * giving slower relays more time to respond.
-   *
-   * The default pool eoseTimeout is 300ms (resolves quickly after the
-   * fastest relay). Set to eg. 1000 for accuracy-sensitive queries where
-   * you need the absolute freshest event across all relays.
-   */
-  eoseTimeout?: number;
-}
-
 /**
  * Fetches the freshest version of a replaceable/addressable event directly from
  * relays, bypassing any local cache.
@@ -37,9 +24,13 @@ interface FetchFreshEventOpts {
 export async function fetchFreshEvent(
   nostr: NPool,
   filter: NostrFilter,
-  opts?: FetchFreshEventOpts,
 ): Promise<NostrEvent | null> {
-  const events = await fetchFreshEvents(nostr, [{ ...filter, limit: 1 }], opts);
+  const signal = AbortSignal.timeout(10_000);
+
+  const events = await nostr.query(
+    [{ ...filter, limit: 1 }],
+    { signal },
+  );
 
   if (events.length === 0) return null;
 
@@ -47,43 +38,4 @@ export async function fetchFreshEvent(
   return events.reduce((latest, current) =>
     current.created_at > latest.created_at ? current : latest,
   );
-}
-
-/**
- * Fetches events from relays, bypassing any local cache. Like
- * {@link fetchFreshEvent} but accepts multiple filters and returns all
- * matching events (not just one).
- *
- * When `opts.eoseTimeout` is set, uses `nostr.req()` directly with that
- * timeout, overriding the pool-level eoseTimeout. Otherwise falls back to
- * the standard `nostr.query()` path.
- */
-export async function fetchFreshEvents(
-  nostr: NPool,
-  filters: NostrFilter[],
-  opts?: FetchFreshEventOpts,
-): Promise<NostrEvent[]> {
-  const signal = AbortSignal.timeout(10_000);
-
-  if (opts?.eoseTimeout !== undefined) {
-    // Use req() directly so we can pass a custom eoseTimeout,
-    // overriding the pool-level value (typically 300ms).
-    const events: NostrEvent[] = [];
-    const seen = new Set<string>();
-
-    for await (const msg of nostr.req(filters, { signal, eoseTimeout: opts.eoseTimeout })) {
-      if (msg[0] === 'EOSE' || msg[0] === 'CLOSED') break;
-      if (msg[0] === 'EVENT') {
-        const event = msg[2];
-        if (!seen.has(event.id)) {
-          seen.add(event.id);
-          events.push(event);
-        }
-      }
-    }
-
-    return events;
-  }
-
-  return nostr.query(filters, { signal });
 }

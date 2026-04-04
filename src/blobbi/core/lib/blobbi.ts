@@ -892,15 +892,13 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   const isLegacy = isLegacyBlobbiEvent(event);
   
   // Concise, structured debug log
-  if (import.meta.env.DEV) {
-    console.log('[Blobbi]', {
-      d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
-      name,
-      isLegacy,
-      hasSeed: !!seed,
-      traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
-    });
-  }
+  console.log('[Blobbi]', {
+    d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
+    name,
+    isLegacy,
+    hasSeed: !!seed,
+    traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
+  });
   
   // Parse task progress tags: ["task", "name:value"]
   const tasks: BlobbiTaskProgress[] = [];
