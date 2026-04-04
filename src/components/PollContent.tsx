@@ -1,10 +1,23 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, CheckCircle2, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BarChart3, CheckCircle2, Clock, X, ChevronRight } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { nip19 } from 'nostr-tools';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useAuthors } from '@/hooks/useAuthors';
 import { NoteContent } from '@/components/NoteContent';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
+import { getAvatarShape } from '@/lib/avatarShape';
+import { genUserName } from '@/lib/genUserName';
+import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -61,6 +74,61 @@ function tallyVotes(
   return counts;
 }
 
+/** Get voter events for a specific option ID. */
+function getVotersForOption(
+  votes: NostrEvent[],
+  optionId: string,
+  pollType: string,
+): NostrEvent[] {
+  return votes.filter((vote) => {
+    const responseTags = vote.tags.filter(([n]) => n === 'response');
+    if (pollType === 'singlechoice') {
+      return responseTags[0]?.[1] === optionId;
+    } else {
+      return responseTags.some(([, id]) => id === optionId);
+    }
+  });
+}
+
+/** Clickable avatar stack + "N votes" label. */
+function VoterAvatarsButton({
+  votes,
+  totalVotes,
+  authorsMap,
+  onClick,
+  className,
+}: {
+  votes: NostrEvent[];
+  totalVotes: number;
+  authorsMap?: Map<string, { pubkey: string; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button onClick={onClick} className={cn('flex items-center gap-1.5 group', className)}>
+      <div className="flex -space-x-1.5">
+        {votes.slice(0, 6).map((vote) => {
+          const authorData = authorsMap?.get(vote.pubkey);
+          const metadata = authorData?.metadata;
+          const avatarShape = getAvatarShape(metadata);
+          const name = metadata?.name || genUserName(vote.pubkey);
+          return (
+            <Avatar key={vote.pubkey} shape={avatarShape} className="size-5 ring-1 ring-background">
+              <AvatarImage src={metadata?.picture} alt={name} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                {name[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          );
+        })}
+      </div>
+      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+        {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+      </span>
+    </button>
+  );
+}
+
 export function PollContent({ event }: { event: NostrEvent }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -71,6 +139,10 @@ export function PollContent({ event }: { event: NostrEvent }) {
   const pollType = getTag(event.tags, 'polltype') ?? 'singlechoice';
   const endsAt = getTag(event.tags, 'endsAt');
   const isExpired = endsAt ? Number(endsAt) < Math.floor(Date.now() / 1000) : false;
+
+  // Modal state
+  const [votersModalOpen, setVotersModalOpen] = useState(false);
+  const [votersModalOptionId, setVotersModalOptionId] = useState<string | null>(null);
 
   // Fetch vote events
   const { data: votes } = useQuery<NostrEvent[]>({
@@ -126,6 +198,32 @@ export function PollContent({ event }: { event: NostrEvent }) {
     });
   };
 
+  // Collect all voter pubkeys for batch profile fetching
+  const allVoterPubkeys = useMemo(() => {
+    if (!votes) return [];
+    return votes.map((v) => v.pubkey);
+  }, [votes]);
+
+  const { data: authorsMap } = useAuthors(allVoterPubkeys);
+
+  const openVotersModal = (optionId: string | null) => {
+    setVotersModalOptionId(optionId);
+    setVotersModalOpen(true);
+  };
+
+  // Get the label for the modal
+  const modalOptionLabel = useMemo(() => {
+    if (votersModalOptionId === null) return 'All voters';
+    return options.find((o) => o.id === votersModalOptionId)?.label ?? 'Voters';
+  }, [votersModalOptionId, options]);
+
+  // Get the voters to display in the modal
+  const modalVoters = useMemo(() => {
+    if (!votes) return [];
+    if (votersModalOptionId === null) return votes;
+    return getVotersForOption(votes, votersModalOptionId, pollType);
+  }, [votes, votersModalOptionId, pollType]);
+
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       {/* Question */}
@@ -133,7 +231,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
         <NoteContent event={event} />
       </div>
 
-      {/* Poll type + expiry badges */}
+      {/* Poll type + expiry badges + voter avatars + vote count */}
       <div className="flex items-center gap-2 mt-2">
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
           <BarChart3 className="size-3" />
@@ -144,6 +242,17 @@ export function PollContent({ event }: { event: NostrEvent }) {
             <Clock className="size-3" />
             Ended
           </span>
+        )}
+
+        {/* Voter avatars + count pushed to the right */}
+        {showResults && totalVotes > 0 && (
+          <VoterAvatarsButton
+            votes={votes ?? []}
+            totalVotes={totalVotes}
+            authorsMap={authorsMap}
+            onClick={() => openVotersModal(null)}
+            className="ml-auto"
+          />
         )}
       </div>
 
@@ -192,26 +301,193 @@ export function PollContent({ event }: { event: NostrEvent }) {
         })}
       </div>
 
-      {/* Vote button or total */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="text-xs text-muted-foreground">
-          {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
-        </span>
-        {!showResults && user && (
-          <button
-            onClick={handleVote}
-            disabled={!selectedOption}
-            className={cn(
-              'text-sm font-semibold px-4 py-1.5 rounded-full transition-colors',
-              selectedOption
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-secondary text-muted-foreground cursor-not-allowed',
-            )}
-          >
-            Vote
-          </button>
-        )}
-      </div>
+      {/* Vote button + voter avatars (voting mode only) */}
+      {!showResults && (
+        <div className="flex items-center justify-between mt-3">
+          {totalVotes > 0 ? (
+            <VoterAvatarsButton
+              votes={votes ?? []}
+              totalVotes={totalVotes}
+              authorsMap={authorsMap}
+              onClick={() => openVotersModal(null)}
+            />
+          ) : (
+            <span className="text-xs text-muted-foreground">0 votes</span>
+          )}
+          {user && (
+            <button
+              onClick={handleVote}
+              disabled={!selectedOption}
+              className={cn(
+                'text-sm font-semibold px-4 py-1.5 rounded-full transition-colors',
+                selectedOption
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-secondary text-muted-foreground cursor-not-allowed',
+              )}
+            >
+              Vote
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Voters Modal */}
+      <PollVotersModal
+        open={votersModalOpen}
+        onOpenChange={setVotersModalOpen}
+        title={modalOptionLabel}
+        voters={modalVoters}
+        options={options}
+        pollType={pollType}
+        authorsMap={authorsMap}
+      />
     </div>
   );
 }
+
+/* ──── Poll Voters Modal ──── */
+
+interface PollVotersModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  voters: NostrEvent[];
+  options: PollOption[];
+  pollType: string;
+  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+}
+
+function PollVotersModal({ open, onOpenChange, title, voters, options, pollType, authorsMap }: PollVotersModalProps) {
+  // Build a map from option ID to label for display
+  const optionLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const opt of options) {
+      map.set(opt.id, opt.label);
+    }
+    return map;
+  }, [options]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 h-12">
+          <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <ScrollArea className="max-h-[60vh]">
+          {voters.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              No votes yet
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {voters.map((vote) => (
+                <VoterRow
+                  key={vote.id}
+                  vote={vote}
+                  optionLabelMap={optionLabelMap}
+                  pollType={pollType}
+                  authorsMap={authorsMap}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ──── Voter Row ──── */
+
+interface VoterRowProps {
+  vote: NostrEvent;
+  optionLabelMap: Map<string, string>;
+  pollType: string;
+  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+}
+
+function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps) {
+  // Use batch-fetched author data if available, fall back to individual fetch
+  const individualAuthor = useAuthor(authorsMap?.has(vote.pubkey) ? undefined : vote.pubkey);
+  const authorData = authorsMap?.get(vote.pubkey) ?? individualAuthor.data;
+  const metadata = authorData?.metadata;
+  const avatarShape = getAvatarShape(metadata);
+  const displayName = metadata?.name || genUserName(vote.pubkey);
+
+  const nevent = useMemo(
+    () => nip19.neventEncode({ id: vote.id, author: vote.pubkey }),
+    [vote.id, vote.pubkey],
+  );
+
+  // Resolve which option(s) this person voted for
+  const votedOptions = useMemo(() => {
+    const responseTags = vote.tags.filter(([n]) => n === 'response');
+    if (pollType === 'singlechoice') {
+      const id = responseTags[0]?.[1];
+      const label = id ? optionLabelMap.get(id) : undefined;
+      return label ? [label] : [];
+    }
+    const labels: string[] = [];
+    const seen = new Set<string>();
+    for (const [, id] of responseTags) {
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        const label = optionLabelMap.get(id);
+        if (label) labels.push(label);
+      }
+    }
+    return labels;
+  }, [vote.tags, pollType, optionLabelMap]);
+
+  return (
+    <Link
+      to={`/${nevent}`}
+      onClick={() => {
+        // Close any open dialogs by dispatching escape
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      }}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
+    >
+      <Avatar shape={avatarShape} className="size-10 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0].toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-sm truncate">
+            {authorData?.event ? (
+              <EmojifiedText tags={authorData.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </span>
+          {metadata?.nip05 && (
+            <VerifiedNip05Text nip05={metadata.nip05} pubkey={vote.pubkey} className="text-xs text-muted-foreground truncate" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {votedOptions.length > 0 && (
+            <span className="text-xs text-muted-foreground truncate">
+              {votedOptions.join(', ')}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground shrink-0">{timeAgo(vote.created_at)}</span>
+        </div>
+      </div>
+
+      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+    </Link>
+  );
+}
+
+

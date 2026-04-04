@@ -147,6 +147,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 8211) return "Letter";
   if (kind === 6 || kind === 16) return "Repost";
   if (kind === 7) return "Reaction";
+  if (kind === 1018) return "Poll Vote";
   if (kind === 9735) return "Zap";
   if (kind === 0) return "Profile";
   if (kind === 31124) return "Blobbi";
@@ -954,6 +955,25 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const zapSenderDisplayName = getDisplayName(zapSenderMeta, zapSenderPubkeyRaw);
   const zapSenderProfileUrl = useProfileUrl(zapSenderPubkeyRaw, zapSenderMeta);
 
+  // For kind 1018 poll votes, resolve the voted option label from the parent poll
+  const pollVoteResponseIds = useMemo(
+    () => event.kind === 1018 ? event.tags.filter(([n]) => n === 'response').map(([, id]) => id) : [],
+    [event],
+  );
+  const pollVoteParentId = useMemo(
+    () => event.kind === 1018 ? event.tags.find(([n]) => n === 'e')?.[1] : undefined,
+    [event],
+  );
+  const { data: pollVoteParent } = useEvent(pollVoteParentId);
+  const pollVoteLabels = useMemo(() => {
+    if (!pollVoteParent || pollVoteResponseIds.length === 0) return pollVoteResponseIds;
+    const optMap = new Map<string, string>();
+    for (const tag of pollVoteParent.tags) {
+      if (tag[0] === 'option') optMap.set(tag[1], tag[2]);
+    }
+    return pollVoteResponseIds.map((id) => optMap.get(id) ?? id);
+  }, [pollVoteParent, pollVoteResponseIds]);
+
   // NIP-19 encoded event identifier for share URLs
   const encodedEventId = useMemo(() => {
     if (event.kind >= 30000 && event.kind < 40000) {
@@ -984,6 +1004,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Kind detection — mirrors NoteCard
   const isVine = event.kind === 34236;
   const isPoll = event.kind === 1068;
+  const isPollVote = event.kind === 1018;
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
@@ -1018,6 +1039,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isTextNote =
     !isVine &&
     !isPoll &&
+    !isPollVote &&
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
@@ -1294,8 +1316,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     useState<InteractionTab>("reposts");
 
   const parentEventId = useMemo(
-    () => (isTextNote || isReaction || isRepost || isZap ? getParentEventId(event) : undefined),
-    [event, isTextNote, isReaction, isRepost, isZap],
+    () => (isTextNote || isReaction || isRepost || isZap || isPollVote ? getParentEventId(event) : undefined),
+    [event, isTextNote, isReaction, isRepost, isZap, isPollVote],
   );
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
@@ -1459,7 +1481,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div ref={ancestorRef}>
           <AncestorThread
             eventId={parentEventId}
-            collapseAfter={isReaction || isRepost || isZap ? 0 : undefined}
+            collapseAfter={isReaction || isRepost || isZap || isPollVote ? 0 : undefined}
           />
         </div>
       )}
@@ -1961,8 +1983,60 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </article>
       )}
 
+      {/* Kind 1018 — Poll vote: compact activity-style card */}
+      {isPollVote && (
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <div className="flex items-center gap-3">
+            <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <Link to={profileUrl} className="shrink-0">
+                <Avatar shape={avatarShape} className="size-10">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </ProfileHoverCard>
+
+            <div className="flex-1 min-w-0">
+              {author.isLoading ? (
+                <Skeleton className="h-4 w-28" />
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <ProfileHoverCard pubkey={event.pubkey} asChild>
+                      <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                        {author.data?.event ? (
+                          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                        ) : displayName}
+                      </Link>
+                    </ProfileHoverCard>
+                    <span className="text-sm text-muted-foreground shrink-0">voted</span>
+                    <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                      {formatFullDate(event.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold mt-0.5 truncate">
+                    {pollVoteLabels.join(', ')}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="mt-2 -mx-4 px-4"
+          />
+          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+        </article>
+      )}
+
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && (
+      {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && !isPollVote && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Kind action header for app handlers */}
           {isAppHandler && (
