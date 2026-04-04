@@ -1803,7 +1803,7 @@ function BlobbiDashboard({
 
 
       {/* Hatch Ceremony — portaled to document.body to escape center column stacking context */}
-      {showHatchCeremony && isEgg && createPortal(
+      {showHatchCeremony && createPortal(
         <div className="fixed inset-0 z-[100] bg-background">
           <BlobbiHatchingCeremony
             profile={profile}
