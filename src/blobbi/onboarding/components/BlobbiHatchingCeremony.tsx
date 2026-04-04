@@ -159,6 +159,7 @@ export function BlobbiHatchingCeremony({
   const [blobbiVisible, setBlobbiVisible] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [showRevealGlow, setShowRevealGlow] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
 
   // Dialog state
   const [dialogLineIndex, setDialogLineIndex] = useState(0);
@@ -519,10 +520,14 @@ export function BlobbiHatchingCeremony({
     try {
       await completeCeremony(name.trim());
       setNamingVisible(false);
+      // Fade to white, then complete
       setTimeout(() => {
-        setPhase('complete');
-        onComplete?.();
-      }, 1000);
+        setFadeOut(true);
+        setTimeout(() => {
+          setPhase('complete');
+          onComplete?.();
+        }, 1200);
+      }, 600);
     } catch (error) {
       console.error('[HatchingCeremony] Naming failed:', error);
       toast({
@@ -530,8 +535,11 @@ export function BlobbiHatchingCeremony({
         description: 'Your Blobbi was created, but the name could not be saved.',
         variant: 'destructive',
       });
-      setPhase('complete');
-      onComplete?.();
+      setFadeOut(true);
+      setTimeout(() => {
+        setPhase('complete');
+        onComplete?.();
+      }, 1200);
     } finally {
       setIsNaming(false);
     }
@@ -936,6 +944,17 @@ export function BlobbiHatchingCeremony({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Fade to white on completion ── */}
+      {fadeOut && (
+        <div
+          className="absolute inset-0 bg-white pointer-events-none"
+          style={{
+            zIndex: 70,
+            animation: 'blobbi-fade-to-white 1.2s ease-in forwards',
+          }}
+        />
       )}
     </div>
   );
