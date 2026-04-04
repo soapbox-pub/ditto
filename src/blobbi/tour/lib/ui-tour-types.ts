@@ -12,65 +12,52 @@
  * - The orchestrator reads the current step and positions everything.
  * - Future phases add new steps to the array without changing the
  *   state machine or rendering infrastructure.
- *
- * Guide actor positions:
- * - 'modal-top': walking on top of the guided modal
- * - 'anchor':    walking on top of a UI anchor element
- * - 'hidden':    off-screen (during transitions)
  */
 
-// ─── Guide Movement States ────────────────────────────────────────────────────
+// ─── Guide Choreography ───────────────────────────────────────────────────────
 
 /**
- * Movement states for the MiniBlobbiGuide actor.
+ * High-level choreography intents for the MiniBlobbiGuide.
  *
- * These describe what the guide is doing right now, not where it is.
- * The orchestrator sets these based on the current step + transition phase.
+ * These are NOT low-level animation states. They describe the guide's
+ * role in the current moment of the walkthrough. The guide component
+ * internally sequences sub-phases (peek, climb, walk, edge-look, etc.)
+ * based on the active intent.
  */
-export type GuideMovement =
-  | 'idle'            // Standing still
-  | 'walking'         // Walking left/right
-  | 'looking_down'    // Leaning forward to look at something below
-  | 'falling'         // Falling downward (modal dismissed)
-  | 'rising'          // Rising up from the bottom of the screen
-  | 'hidden';         // Off-screen, not rendered
+export type GuideIntent =
+  | 'hidden'                  // Not rendered
+  | 'emerge_onto_modal'       // Rise from behind modal top edge → peek → climb up
+  | 'pace_on_modal'           // Walk back and forth on modal top with edge-look behavior
+  | 'fall_from_surface'       // Fall off current surface downward
+  | 'emerge_onto_bar'         // Rise from behind bar top edge → peek → climb up
+  | 'walk_to_target'          // Walk along bar to a specific targetX, then stop
+  | 'inspect_target';         // Stopped centered above target, looking down
 
 /**
  * Where the guide is positioned relative to.
  */
 export type GuideAnchorTarget =
-  | { type: 'modal' }                              // On top of the guided modal card
-  | { type: 'element'; anchorId: string }           // On top a registered anchor element
-  | { type: 'offscreen' };                          // Off-screen
+  | { type: 'modal' }
+  | { type: 'element'; anchorId: string }
+  | { type: 'offscreen' };
 
 // ─── Step Definitions ─────────────────────────────────────────────────────────
 
 /**
  * A single UI tour step definition.
- *
- * Each step describes:
- * - Where the guide should be (guide position)
- * - What to show the user (modal content)
- * - What element to highlight (optional anchor)
  */
 export interface UITourStepDef {
   /** Unique step identifier */
   id: UITourStepId;
-  /**
-   * Where the mini Blobbi guide should be during this step.
-   * The guide walks on top of the specified target.
-   */
+  /** Where the mini Blobbi guide should be during this step */
   guideTarget: GuideAnchorTarget;
   /**
-   * Modal placement for this step.
+   * Modal placement:
    * - 'center': centered overlay modal (e.g. welcome screen)
    * - 'bottom': anchored near the bottom bar area
    */
   modalPlacement: 'center' | 'bottom';
-  /**
-   * If set, this anchor element receives a highlight glow.
-   * Must match an anchorId registered via TourAnchorContext.
-   */
+  /** If set, this anchor element receives a highlight glow */
   highlightAnchor?: string;
   /** Title text for the guided modal */
   title: string;
@@ -80,21 +67,6 @@ export interface UITourStepDef {
 
 // ─── Step IDs ─────────────────────────────────────────────────────────────────
 
-/**
- * All possible step IDs for the UI tour.
- *
- * Phase 1 (implemented now):
- * - welcome:   centered welcome modal
- * - bar_item_0: first visible bottom bar item
- *
- * Future phases:
- * - bar_item_1, bar_item_2: more bar items
- * - bar_center: center action button
- * - bar_more: More dropdown
- * - more_menu_item_*: items inside the More dropdown
- * - status_hint: low stat indicators
- * - complete: terminal
- */
 export type UITourStepId =
   | 'welcome'
   | 'bar_item_0'
@@ -107,12 +79,8 @@ export type UITourStepId =
 /**
  * Build the step definitions for the UI tour.
  *
- * This is a function (not a constant) because bar item descriptions
- * depend on the current bar preferences — which items are visible
- * determines what we explain in each step.
- *
- * @param barItemLabels - Labels for the visible bar items in order (e.g. ['Blobbies'])
- * @param barItemDescriptions - Descriptions for the visible bar items in order
+ * Dynamic because bar item descriptions depend on which items are
+ * visible in the current bar preferences.
  */
 export function buildUITourSteps(
   barItemLabels: string[],
@@ -128,7 +96,6 @@ export function buildUITourSteps(
     },
   ];
 
-  // Add steps for each visible bar item (up to 3)
   for (let i = 0; i < Math.min(barItemLabels.length, 3); i++) {
     const stepId = `bar_item_${i}` as UITourStepId;
     steps.push({

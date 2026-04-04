@@ -53,7 +53,7 @@ export { BlobbiRevealOverlay } from './components/BlobbiRevealOverlay';
 
 // ── UI Tour - Types & Constants ──
 export type {
-  GuideMovement,
+  GuideIntent,
   GuideAnchorTarget,
   UITourStepDef,
   UITourStepId,

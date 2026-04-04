@@ -1,15 +1,15 @@
 /**
  * UITourOverlay - Orchestrator for the Blobbi UI walkthrough tour.
  *
- * Manages:
- * - Dark backdrop (welcome step only)
- * - Positioning the MiniBlobbiGuide on the correct surface
- * - Rendering the GuidedModal at the correct placement
- * - Highlighting the active anchor element
- * - Transitions between steps (fall off modal → rise at bar)
+ * This component translates the current tour step into choreography
+ * intents for the MiniBlobbiGuide and positions all UI elements.
  *
- * This component reads the current step from useUITour and positions
- * everything accordingly. It does not own the step logic.
+ * Step → Intent mapping:
+ *   welcome (first render)  → emerge_onto_modal → pace_on_modal
+ *   welcome → Next click    → fall_from_surface → emerge_onto_bar → walk_to_target → inspect_target
+ *   bar_item_N → Next       → walk_to_target (next item) → inspect_target
+ *   bar_item_N → Back       → walk_to_target (prev item) → inspect_target
+ *   bar_item_N → Back to welcome → emerge_onto_modal → pace_on_modal
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -20,7 +20,7 @@ import { GuidedModal } from './GuidedModal';
 import { MiniBlobbiGuide } from './MiniBlobbiGuide';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { GuideMovement } from '../lib/ui-tour-types';
+import type { GuideIntent } from '../lib/ui-tour-types';
 import type { UITourState, UITourActions } from '../hooks/useUITour';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,10 +32,15 @@ export interface UITourOverlayProps {
   onComplete: () => void;
 }
 
+/**
+ * Transition phases between steps.
+ * 'none' = stable on current step, 'falling' = guide falling off surface,
+ * 'emerging_bar' = guide emerging onto bar after fall.
+ */
 type TransitionPhase =
   | 'none'
   | 'falling'
-  | 'rising';
+  | 'emerging_bar';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -50,15 +55,16 @@ export function UITourOverlay({
   const [transition, setTransition] = useState<TransitionPhase>('none');
   const [isVisible, setIsVisible] = useState(false);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  // Measured modal rect for guide surface calculation (updated after layout)
   const [modalRect, setModalRect] = useState<DOMRect | null>(null);
+  const [emergeComplete, setEmergeComplete] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const step = tourState.currentStep;
   const isWelcome = step?.id === 'welcome';
+  const isBarStep = step?.id.startsWith('bar_item_') ?? false;
 
-  // Fade in on mount
+  // ─── Fade in ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (tourState.isActive) {
       const timer = setTimeout(() => setIsVisible(true), 50);
@@ -68,39 +74,23 @@ export function UITourOverlay({
     }
   }, [tourState.isActive]);
 
-  // Measure modal rect after it renders (for guide surface)
-  useEffect(() => {
-    if (!modalRef.current) {
-      setModalRect(null);
-      return;
-    }
+  // ─── Measure modal rect ───────────────────────────────────────────────
 
-    // Use ResizeObserver to get accurate rect after layout
+  useEffect(() => {
+    if (!modalRef.current) { setModalRect(null); return; }
     const observer = new ResizeObserver(() => {
-      if (modalRef.current) {
-        setModalRect(modalRef.current.getBoundingClientRect());
-      }
+      if (modalRef.current) setModalRect(modalRef.current.getBoundingClientRect());
     });
     observer.observe(modalRef.current);
-
-    // Also measure immediately
     setModalRect(modalRef.current.getBoundingClientRect());
-
     return () => observer.disconnect();
   }, [step]);
 
-  // Update highlight rect when step changes
+  // ─── Highlight rect ──────────────────────────────────────────────────
+
   useEffect(() => {
-    if (!step?.highlightAnchor) {
-      setHighlightRect(null);
-      return;
-    }
-
-    const update = () => {
-      const rect = getAnchorRect(step.highlightAnchor!);
-      setHighlightRect(rect);
-    };
-
+    if (!step?.highlightAnchor) { setHighlightRect(null); return; }
+    const update = () => setHighlightRect(getAnchorRect(step.highlightAnchor!) ?? null);
     update();
     window.addEventListener('scroll', update, true);
     window.addEventListener('resize', update);
@@ -110,87 +100,107 @@ export function UITourOverlay({
     };
   }, [step, getAnchorRect]);
 
-  // ─── Guide positioning ──────────────────────────────────────────────────
+  // Reset emergeComplete when step changes
+  useEffect(() => {
+    setEmergeComplete(false);
+  }, [step?.id]);
 
-  const guideMovement: GuideMovement = useMemo(() => {
-    if (transition === 'falling') return 'falling';
-    if (transition === 'rising') return 'rising';
+  // ─── Guide intent derivation ──────────────────────────────────────────
+
+  const guideIntent: GuideIntent = useMemo(() => {
+    // Transition overrides
+    if (transition === 'falling') return 'fall_from_surface';
+    if (transition === 'emerging_bar') return 'emerge_onto_bar';
+
     if (!step) return 'hidden';
     if (step.guideTarget.type === 'offscreen') return 'hidden';
-    if (step.guideTarget.type === 'modal') return 'walking';
-    // For element-based steps, walk across the bar then look down
-    if (step.guideTarget.type === 'element') return 'walking';
-    return 'idle';
-  }, [step, transition]);
 
-  // Calculate guide surface.
-  // For modal steps: walk across the modal top edge.
-  // For bar_item steps: walk across the entire bottom bar (not just one item).
-  // The bar surface uses bar-item-0 left edge to the rightmost bar item right edge.
-  const guideSurface = useMemo(() => {
-    if (!step) return { left: 0, right: 0, y: 0 };
-
-    if (step.guideTarget.type === 'modal' && modalRect) {
-      return {
-        left: modalRect.left + 12,
-        right: modalRect.right - 12,
-        y: modalRect.top,
-      };
+    // Welcome step: emerge then pace
+    if (isWelcome) {
+      return emergeComplete ? 'pace_on_modal' : 'emerge_onto_modal';
     }
 
-    if (step.guideTarget.type === 'element') {
-      // Use the full bar width: from bar-item-0 to the last registered bar item
-      const firstRect = getAnchorRect('bar-item-0');
-      if (firstRect) {
-        // Try to find the rightmost bar item for a wider surface
-        let rightEdge = firstRect.right;
-        for (let i = 1; i <= 5; i++) {
-          const r = getAnchorRect(`bar-item-${i}`);
-          if (r) {
-            rightEdge = Math.max(rightEdge, r.right);
-          } else {
-            break;
-          }
-        }
-
-        return {
-          left: firstRect.left,
-          right: rightEdge,
-          y: firstRect.top,
-        };
-      }
+    // Bar item steps: after emerging, walk to target then inspect
+    if (isBarStep) {
+      return emergeComplete ? 'walk_to_target' : 'walk_to_target';
     }
 
-    // Fallback
+    return 'hidden';
+  }, [step, isWelcome, isBarStep, transition, emergeComplete]);
+
+  // ─── Surface calculation ──────────────────────────────────────────────
+
+  // Modal surface: guide walks on modal top edge
+  const modalSurface = useMemo(() => {
+    if (!modalRect) return { left: 0, right: 0, y: 0 };
     return {
-      left: window.innerWidth / 2 - 100,
-      right: window.innerWidth / 2 + 100,
-      y: window.innerHeight / 2,
+      left: modalRect.left + 12,
+      right: modalRect.right - 12,
+      y: modalRect.top,
     };
-  }, [step, modalRect, getAnchorRect]);
+  }, [modalRect]);
 
-  // ─── Navigation handlers ────────────────────────────────────────────────
+  // Bar surface: full width of the bottom bar items
+  const barSurface = useMemo(() => {
+    const firstRect = getAnchorRect('bar-item-0');
+    if (!firstRect) return { left: 0, right: 0, y: 0 };
+    let rightEdge = firstRect.right;
+    for (let i = 1; i <= 5; i++) {
+      const r = getAnchorRect(`bar-item-${i}`);
+      if (r) rightEdge = Math.max(rightEdge, r.right);
+      else break;
+    }
+    return { left: firstRect.left, right: rightEdge, y: firstRect.top };
+  }, [getAnchorRect, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Active surface depends on current context
+  const activeSurface = useMemo(() => {
+    if (transition === 'falling') return modalSurface; // Falling from modal
+    if (transition === 'emerging_bar') return barSurface;
+    if (isWelcome) return modalSurface;
+    if (isBarStep) return barSurface;
+    return modalSurface;
+  }, [isWelcome, isBarStep, transition, modalSurface, barSurface]);
+
+  // Target X for bar steps: center of the highlighted anchor item
+  const barTargetX = useMemo((): number | undefined => {
+    if (!step?.highlightAnchor) return undefined;
+    const rect = getAnchorRect(step.highlightAnchor);
+    if (!rect) return undefined;
+    return rect.left + rect.width / 2;
+  }, [step, getAnchorRect]);
+
+  // ─── Guide callbacks ──────────────────────────────────────────────────
+
+  const handleEmergeComplete = useCallback(() => {
+    setEmergeComplete(true);
+  }, []);
+
+  const handleFallComplete = useCallback(() => {
+    // After falling from modal, start emerging onto bar and advance step
+    setTransition('emerging_bar');
+    tourActions.next();
+  }, [tourActions]);
+
+  const handleBarEmergeComplete = useCallback(() => {
+    setTransition('none');
+    setEmergeComplete(true);
+  }, []);
+
+  // ─── Navigation ───────────────────────────────────────────────────────
 
   const handleNext = useCallback(() => {
     if (!step) return;
 
-    // Moving from the centered welcome modal to a bottom step:
-    // guide falls off modal, then rises at the bar.
     if (step.modalPlacement === 'center') {
+      // Welcome → first bar item: fall off modal
       setTransition('falling');
+      setEmergeComplete(false);
     } else {
+      // Bar item → next bar item: just advance, guide will walk to new target
       tourActions.next();
     }
   }, [step, tourActions]);
-
-  const handleFallComplete = useCallback(() => {
-    setTransition('rising');
-    tourActions.next();
-  }, [tourActions]);
-
-  const handleRiseComplete = useCallback(() => {
-    setTransition('none');
-  }, []);
 
   const handlePrev = useCallback(() => {
     setTransition('none');
@@ -201,7 +211,7 @@ export function UITourOverlay({
     onComplete();
   }, [onComplete]);
 
-  // ─── Render ─────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────
 
   if (!tourState.isActive || !step) return null;
 
@@ -209,8 +219,8 @@ export function UITourOverlay({
 
   return (
     <>
-      {/* Full-screen overlay container — only captures events on welcome step */}
-      {isWelcome && (
+      {/* Dark backdrop — welcome step only */}
+      {isWelcome && transition === 'none' && (
         <div
           className={cn(
             'fixed inset-0 z-50',
@@ -218,12 +228,11 @@ export function UITourOverlay({
             isVisible ? 'opacity-100' : 'opacity-0',
           )}
         >
-          {/* Dark backdrop — welcome step only */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
         </div>
       )}
 
-      {/* Highlight cutout for the active anchor */}
+      {/* Highlight pulse on active anchor */}
       {highlightRect && (
         <div
           className="fixed rounded-xl animate-tour-highlight-pulse pointer-events-none z-[51]"
@@ -240,9 +249,7 @@ export function UITourOverlay({
       <div
         className={cn(
           'fixed z-[52] flex justify-center px-4 pointer-events-none',
-          isCentered
-            ? 'inset-0 items-center'
-            : 'bottom-28 left-0 right-0',
+          isCentered ? 'inset-0 items-center' : 'bottom-28 left-0 right-0',
         )}
       >
         <div ref={modalRef} className="pointer-events-auto">
@@ -263,12 +270,15 @@ export function UITourOverlay({
       {/* Mini Blobbi guide */}
       <MiniBlobbiGuide
         companion={companion}
-        movement={guideMovement}
-        surfaceLeft={guideSurface.left}
-        surfaceRight={guideSurface.right}
-        surfaceY={guideSurface.y}
+        intent={guideIntent}
+        surfaceLeft={activeSurface.left}
+        surfaceRight={activeSurface.right}
+        surfaceY={activeSurface.y}
+        targetX={barTargetX}
+        onEmergeComplete={
+          transition === 'emerging_bar' ? handleBarEmergeComplete : handleEmergeComplete
+        }
         onFallComplete={handleFallComplete}
-        onRiseComplete={handleRiseComplete}
       />
     </>
   );

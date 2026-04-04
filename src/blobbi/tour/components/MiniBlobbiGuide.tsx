@@ -1,264 +1,370 @@
 /**
- * MiniBlobbiGuide - A miniature animated Blobbi that acts as a tour guide.
+ * MiniBlobbiGuide - Choreography-driven miniature Blobbi tour guide.
  *
- * The guide can:
- * - Walk left/right across a surface (modal top, bar top)
- * - Idle in place with organic breathing float
- * - Look downward at something below
- * - Fall off a surface (modal dismissed)
- * - Rise up from the bottom of the screen
+ * This is NOT a generic walker. It is a character actor that performs
+ * staged sequences based on the GuideIntent from the orchestrator:
  *
- * Movement matches the real Blobbi companion's walking feel:
- * - deltaTime-based physics (pixels per second, not per frame)
- * - Same speed range as the companion config
- * - Organic float animation from the companion utils
+ * emerge_onto_modal → peek from behind modal top → climb up → start pacing
+ * pace_on_modal     → walk left/right, edge-look-down at edges
+ * fall_from_surface → fall off current surface downward
+ * emerge_onto_bar   → peek from behind bar top → climb up
+ * walk_to_target    → walk along bar to targetX, stop when aligned
+ * inspect_target    → idle above target, leaning forward / looking down
  *
- * Positioning is controlled externally via surface props.
- * The component only handles its own animation/visual state.
+ * Each intent drives internal animation phases. The component manages
+ * its own sub-phase progression with deltaTime-based physics.
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { calculateFloatAnimation } from '@/blobbi/companion/utils/animation';
-import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { GuideMovement } from '../lib/ui-tour-types';
+import type { GuideIntent } from '../lib/ui-tour-types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Size of the mini guide in pixels */
 export const GUIDE_SIZE = 48;
 
-/**
- * Walking speed in pixels per second.
- * Matches the companion's mid-energy range (40-50 px/s).
- * The real companion walks at 20-80 px/s depending on energy.
- */
-const WALK_SPEED_PPS = 45;
+/** Walking speed in pixels per second (companion mid-energy range) */
+const WALK_SPEED = 45;
 
-/** How far from the edge the guide pauses before turning (px) */
-const EDGE_MARGIN = 8;
+/** How close to edge before triggering edge-look (px from surface edge) */
+const EDGE_THRESHOLD = 12;
 
-/** Duration of the fall animation in ms */
-const FALL_DURATION = 600;
+// Timing constants (ms)
+const EMERGE_PEEK_DURATION = 600;
+const EMERGE_LOOK_DURATION = 800;
+const EMERGE_CLIMB_DURATION = 500;
+const EDGE_LOOK_PAUSE = 900;
+const FALL_DURATION = 500;
 
-/** Duration of the rise animation in ms */
-const RISE_DURATION = 700;
+// ─── Internal Sub-Phases ──────────────────────────────────────────────────────
 
-/**
- * How long the guide pauses at each edge before turning around (ms).
- * Creates the "look around, then turn" feeling.
- */
-const EDGE_PAUSE_MS = 800;
+type SubPhase =
+  | 'hidden'
+  | 'emerge_peek'        // Partially visible behind surface, rising slowly
+  | 'emerge_look'        // Paused at peek, looking around
+  | 'emerge_climb'       // Climbing up onto the surface
+  | 'pacing'             // Walking freely on surface
+  | 'edge_looking'       // Stopped at edge, leaning forward
+  | 'walking_to_target'  // Walking toward a specific X
+  | 'at_target'          // Stopped above target, inspecting
+  | 'falling';           // Falling off surface
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface MiniBlobbiGuideProps {
-  /** The companion to render as a miniature */
   companion: BlobbiCompanion;
-  /** Current movement state */
-  movement: GuideMovement;
-  /** The left edge of the walking surface (px from viewport left) */
+  /** The high-level choreography intent from the orchestrator */
+  intent: GuideIntent;
+  /** Left edge of the walking surface (viewport px) */
   surfaceLeft: number;
-  /** The right edge of the walking surface (px from viewport left) */
+  /** Right edge of the walking surface (viewport px) */
   surfaceRight: number;
-  /**
-   * The Y position of the surface top edge (px from viewport top).
-   * The guide's feet align with this line.
-   */
+  /** Y position of the surface top edge (viewport px) */
   surfaceY: number;
-  /** Called when a 'falling' animation completes */
+  /** Target X position to walk to (viewport px, center of target item) */
+  targetX?: number;
+  /** Called when an emerge sequence completes (guide is on surface) */
+  onEmergeComplete?: () => void;
+  /** Called when a fall animation completes (guide is off screen) */
   onFallComplete?: () => void;
-  /** Called when a 'rising' animation completes */
-  onRiseComplete?: () => void;
-  className?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MiniBlobbiGuide({
   companion,
-  movement,
+  intent,
   surfaceLeft,
   surfaceRight,
   surfaceY,
+  targetX,
+  onEmergeComplete,
   onFallComplete,
-  onRiseComplete,
-  className,
 }: MiniBlobbiGuideProps) {
-  // Walking state managed imperatively for smooth animation
-  const walkXRef = useRef(0);
+  // ── Imperative animation state ──
+  const subPhaseRef = useRef<SubPhase>('hidden');
+  const xRef = useRef(0);               // Local X offset from surfaceLeft
+  const yOffsetRef = useRef(GUIDE_SIZE); // Y offset below surface (positive = hidden below)
   const facingRightRef = useRef(true);
-  const pausedUntilRef = useRef(0);
+  const phaseStartRef = useRef(0);       // Timestamp when current subPhase began
   const lastTimeRef = useRef(0);
   const animRef = useRef(0);
 
-  // React state for rendering (updated from the animation loop)
-  const [renderState, setRenderState] = useState({
-    x: 0,
-    facingRight: true,
-    floatX: 0,
-    floatY: 0,
-    floatRotation: 0,
+  // React render state (synced from animation loop)
+  const [render, setRender] = useState({
+    x: 0, yOffset: GUIDE_SIZE, facingRight: true,
+    floatX: 0, floatY: 0, floatRotation: 0,
+    visible: false,
   });
 
-  // Initialize walk position to center of surface
-  const initDone = useRef(false);
+  // ── Intent → SubPhase transitions ──
+
+  const prevIntentRef = useRef<GuideIntent>('hidden');
+
   useEffect(() => {
-    if (initDone.current) return;
-    const center = (surfaceRight - surfaceLeft) / 2;
-    walkXRef.current = center;
-    initDone.current = true;
-  }, [surfaceLeft, surfaceRight]);
+    const prev = prevIntentRef.current;
+    prevIntentRef.current = intent;
 
-  // Reset init flag when surface changes significantly (step transition)
-  const prevSurfaceRef = useRef({ left: surfaceLeft, right: surfaceRight });
-  useEffect(() => {
-    const prev = prevSurfaceRef.current;
-    const changed = Math.abs(prev.left - surfaceLeft) > 50
-      || Math.abs(prev.right - surfaceRight) > 50;
-    if (changed) {
-      const center = (surfaceRight - surfaceLeft) / 2;
-      walkXRef.current = center;
-      prevSurfaceRef.current = { left: surfaceLeft, right: surfaceRight };
-    }
-  }, [surfaceLeft, surfaceRight]);
+    const now = performance.now();
+    phaseStartRef.current = now;
 
-  // ─── Walking animation loop (deltaTime-based) ────────────────────────────
+    switch (intent) {
+      case 'hidden':
+        subPhaseRef.current = 'hidden';
+        yOffsetRef.current = GUIDE_SIZE;
+        break;
 
-  const animationLoop = useCallback((timestamp: number) => {
-    if (lastTimeRef.current === 0) {
-      lastTimeRef.current = timestamp;
-    }
-    const deltaMs = Math.min(timestamp - lastTimeRef.current, 50); // Cap at 50ms to prevent jumps
-    lastTimeRef.current = timestamp;
-    const dt = deltaMs / 1000; // seconds
-
-    const walkWidth = surfaceRight - surfaceLeft - GUIDE_SIZE;
-
-    if (movement === 'walking' && walkWidth > 0) {
-      const now = timestamp;
-
-      // Check if currently paused at an edge
-      if (now < pausedUntilRef.current) {
-        // Pausing — use idle float animation
-        const float = calculateFloatAnimation(timestamp, false);
-        setRenderState({
-          x: walkXRef.current,
-          facingRight: facingRightRef.current,
-          floatX: float.x * 0.5,
-          floatY: float.y * 0.5,
-          floatRotation: float.rotation * 0.5,
-        });
-        animRef.current = requestAnimationFrame(animationLoop);
-        return;
+      case 'emerge_onto_modal':
+      case 'emerge_onto_bar': {
+        // Start hidden below surface, center of surface
+        const surfaceWidth = surfaceRight - surfaceLeft;
+        xRef.current = (surfaceWidth - GUIDE_SIZE) / 2;
+        yOffsetRef.current = GUIDE_SIZE; // Fully hidden
+        subPhaseRef.current = 'emerge_peek';
+        break;
       }
 
-      // Walk
-      let x = walkXRef.current;
-      let facing = facingRightRef.current;
-      const moveDistance = WALK_SPEED_PPS * dt;
-
-      if (facing) {
-        x += moveDistance;
-        if (x >= walkWidth - EDGE_MARGIN) {
-          x = walkWidth - EDGE_MARGIN;
-          facing = false;
-          pausedUntilRef.current = now + EDGE_PAUSE_MS;
+      case 'pace_on_modal':
+        // If already on surface from emerge, just start pacing
+        if (prev === 'emerge_onto_modal' || prev === 'pace_on_modal') {
+          subPhaseRef.current = 'pacing';
+        } else {
+          subPhaseRef.current = 'pacing';
+          const surfaceWidth = surfaceRight - surfaceLeft;
+          xRef.current = (surfaceWidth - GUIDE_SIZE) / 2;
+          yOffsetRef.current = 0;
         }
-      } else {
-        x -= moveDistance;
-        if (x <= EDGE_MARGIN) {
-          x = EDGE_MARGIN;
-          facing = true;
-          pausedUntilRef.current = now + EDGE_PAUSE_MS;
-        }
-      }
+        break;
 
-      walkXRef.current = x;
-      facingRightRef.current = facing;
+      case 'fall_from_surface':
+        subPhaseRef.current = 'falling';
+        break;
 
-      // Apply walking float animation (organic bob)
-      const float = calculateFloatAnimation(timestamp, true);
-      setRenderState({
-        x,
-        facingRight: facing,
-        floatX: float.x * 0.4,   // Scale down for mini size
-        floatY: float.y * 0.4,
-        floatRotation: float.rotation * 0.4,
-      });
-    } else if (movement === 'idle' || movement === 'looking_down') {
-      // Idle float animation
-      const float = calculateFloatAnimation(timestamp, false);
-      setRenderState(prev => ({
-        ...prev,
-        floatX: float.x * 0.5,
-        floatY: float.y * 0.5,
-        floatRotation: movement === 'looking_down' ? 8 : float.rotation * 0.5,
-      }));
+      case 'walk_to_target':
+        // Keep current X position, start walking toward target
+        subPhaseRef.current = 'walking_to_target';
+        yOffsetRef.current = 0;
+        break;
+
+      case 'inspect_target':
+        subPhaseRef.current = 'at_target';
+        yOffsetRef.current = 0;
+        break;
     }
 
-    animRef.current = requestAnimationFrame(animationLoop);
-  }, [movement, surfaceLeft, surfaceRight]);
-
-  // Start/stop the animation loop based on movement state
-  useEffect(() => {
-    if (movement === 'hidden' || movement === 'falling' || movement === 'rising') {
-      cancelAnimationFrame(animRef.current);
-      lastTimeRef.current = 0;
-      return;
-    }
-
+    // Reset animation timing
     lastTimeRef.current = 0;
-    pausedUntilRef.current = 0;
-    animRef.current = requestAnimationFrame(animationLoop);
+  }, [intent, surfaceLeft, surfaceRight]);
+
+  // ── Animation loop ──
+
+  const loop = useCallback((timestamp: number) => {
+    if (lastTimeRef.current === 0) lastTimeRef.current = timestamp;
+    const deltaMs = Math.min(timestamp - lastTimeRef.current, 50);
+    lastTimeRef.current = timestamp;
+    const dt = deltaMs / 1000;
+    const elapsed = timestamp - phaseStartRef.current;
+
+    const subPhase = subPhaseRef.current;
+    const surfaceWidth = surfaceRight - surfaceLeft - GUIDE_SIZE;
+
+    let isMoving = false;
+
+    switch (subPhase) {
+      // ── Emerge sequence ──
+      case 'emerge_peek': {
+        // Rise from fully hidden (yOffset = GUIDE_SIZE) to peek (yOffset ≈ GUIDE_SIZE * 0.5)
+        const progress = Math.min(elapsed / EMERGE_PEEK_DURATION, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+        yOffsetRef.current = GUIDE_SIZE * (1 - eased * 0.5);
+        if (progress >= 1) {
+          subPhaseRef.current = 'emerge_look';
+          phaseStartRef.current = timestamp;
+        }
+        break;
+      }
+
+      case 'emerge_look': {
+        // Stay at peek position, companion visual does the looking
+        if (elapsed >= EMERGE_LOOK_DURATION) {
+          subPhaseRef.current = 'emerge_climb';
+          phaseStartRef.current = timestamp;
+        }
+        break;
+      }
+
+      case 'emerge_climb': {
+        // Rise from peek to fully on surface (yOffset = 0)
+        const progress = Math.min(elapsed / EMERGE_CLIMB_DURATION, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        yOffsetRef.current = GUIDE_SIZE * 0.5 * (1 - eased);
+        if (progress >= 1) {
+          yOffsetRef.current = 0;
+          subPhaseRef.current = 'pacing';
+          phaseStartRef.current = timestamp;
+          onEmergeComplete?.();
+        }
+        break;
+      }
+
+      // ── Pacing with edge-look ──
+      case 'pacing': {
+        isMoving = true;
+        let x = xRef.current;
+        const move = WALK_SPEED * dt;
+
+        if (facingRightRef.current) {
+          x += move;
+          if (x >= surfaceWidth - EDGE_THRESHOLD) {
+            x = surfaceWidth - EDGE_THRESHOLD;
+            subPhaseRef.current = 'edge_looking';
+            phaseStartRef.current = timestamp;
+          }
+        } else {
+          x -= move;
+          if (x <= EDGE_THRESHOLD) {
+            x = EDGE_THRESHOLD;
+            subPhaseRef.current = 'edge_looking';
+            phaseStartRef.current = timestamp;
+          }
+        }
+        xRef.current = x;
+        break;
+      }
+
+      case 'edge_looking': {
+        // Pause at edge, lean forward (floatRotation handled below)
+        if (elapsed >= EDGE_LOOK_PAUSE) {
+          // Turn around and resume pacing
+          facingRightRef.current = !facingRightRef.current;
+          subPhaseRef.current = 'pacing';
+          phaseStartRef.current = timestamp;
+        }
+        break;
+      }
+
+      // ── Walk to specific target ──
+      case 'walking_to_target': {
+        if (targetX === undefined) break;
+        const targetLocal = targetX - surfaceLeft - GUIDE_SIZE / 2;
+        const distToTarget = targetLocal - xRef.current;
+
+        if (Math.abs(distToTarget) < 2) {
+          // Arrived at target
+          xRef.current = targetLocal;
+          subPhaseRef.current = 'at_target';
+          phaseStartRef.current = timestamp;
+          facingRightRef.current = true; // Face right (default rest)
+        } else {
+          isMoving = true;
+          const direction = distToTarget > 0 ? 1 : -1;
+          facingRightRef.current = direction > 0;
+          const step = Math.min(WALK_SPEED * dt, Math.abs(distToTarget));
+          xRef.current += direction * step;
+        }
+        break;
+      }
+
+      // ── Inspecting target ──
+      case 'at_target': {
+        // Idle — organic breathing applied below
+        break;
+      }
+
+      // ── Falling ──
+      case 'falling': {
+        const progress = Math.min(elapsed / FALL_DURATION, 1);
+        const eased = progress * progress; // easeInQuad (gravity)
+        yOffsetRef.current = -eased * window.innerHeight * 0.5;
+        // yOffset goes negative = moves downward from surface
+        if (progress >= 1) {
+          subPhaseRef.current = 'hidden';
+          onFallComplete?.();
+        }
+        break;
+      }
+
+      case 'hidden':
+        break;
+    }
+
+    // ── Apply float animation ──
+    const float = calculateFloatAnimation(timestamp, isMoving);
+    const floatScale = isMoving ? 0.4 : 0.5;
+
+    // Edge-look: override rotation to lean forward
+    let rotation = float.rotation * floatScale;
+    if (subPhase === 'edge_looking') {
+      const leanProgress = Math.min(elapsed / 300, 1);
+      rotation = leanProgress * 12; // Lean forward 12°
+    }
+    if (subPhase === 'at_target') {
+      const leanProgress = Math.min(elapsed / 400, 1);
+      rotation = leanProgress * 8; // Gentle lean 8°
+    }
+
+    setRender({
+      x: xRef.current,
+      yOffset: yOffsetRef.current,
+      facingRight: facingRightRef.current,
+      floatX: float.x * floatScale,
+      floatY: float.y * floatScale,
+      floatRotation: rotation,
+      visible: subPhase !== 'hidden',
+    });
+
+    animRef.current = requestAnimationFrame(loop);
+  }, [surfaceLeft, surfaceRight, targetX, onEmergeComplete, onFallComplete]);
+
+  // Start/stop loop
+  useEffect(() => {
+    lastTimeRef.current = 0;
+    animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [movement, animationLoop]);
+  }, [loop]);
 
-  // Fall and rise completion callbacks
-  useEffect(() => {
-    if (movement === 'falling' && onFallComplete) {
-      const timer = setTimeout(onFallComplete, FALL_DURATION);
-      return () => clearTimeout(timer);
-    }
-  }, [movement, onFallComplete]);
+  // ── Render ──
 
-  useEffect(() => {
-    if (movement === 'rising' && onRiseComplete) {
-      const timer = setTimeout(onRiseComplete, RISE_DURATION);
-      return () => clearTimeout(timer);
-    }
-  }, [movement, onRiseComplete]);
+  if (!render.visible) return null;
 
-  if (movement === 'hidden') return null;
+  // Position: surfaceLeft + local X, surfaceY - GUIDE_SIZE + yOffset
+  // yOffset > 0 means hidden below surface (emerge)
+  // yOffset < 0 means fallen below surface (fall)
+  const left = surfaceLeft + render.x + render.floatX;
+  const top = surfaceY - GUIDE_SIZE + render.yOffset + render.floatY;
 
-  // Position: feet align with surfaceY
-  const guideLeft = surfaceLeft + renderState.x + renderState.floatX;
-  const guideTop = surfaceY - GUIDE_SIZE + renderState.floatY;
+  // Clip: during emerge, the guide should be clipped by the surface edge.
+  // We use clip-path to hide the portion below surfaceY.
+  const isEmerging = subPhaseRef.current === 'emerge_peek'
+    || subPhaseRef.current === 'emerge_look'
+    || subPhaseRef.current === 'emerge_climb';
+
+  // How much of the guide is above the surface (in px)
+  const visibleHeight = GUIDE_SIZE - Math.max(render.yOffset, 0);
+  const clipTop = isEmerging ? Math.max(GUIDE_SIZE - visibleHeight, 0) : 0;
 
   return (
     <div
-      className={cn(
-        'fixed pointer-events-none z-[60]',
-        movement === 'falling' && 'animate-guide-fall',
-        movement === 'rising' && 'animate-guide-rise',
-        className,
-      )}
+      className="fixed pointer-events-none z-[60]"
       style={{
-        left: guideLeft,
-        top: guideTop,
+        left,
+        top,
         width: GUIDE_SIZE,
         height: GUIDE_SIZE,
-        transform: `scaleX(${renderState.facingRight ? 1 : -1}) rotate(${renderState.floatRotation}deg)`,
+        transform: `scaleX(${render.facingRight ? 1 : -1}) rotate(${render.floatRotation}deg)`,
+        clipPath: clipTop > 0 ? `inset(${clipTop}px 0 0 0)` : undefined,
       }}
     >
       <BlobbiStageVisual
         companion={companion}
         size="sm"
         animated
-        reaction={movement === 'walking' ? 'happy' : 'idle'}
+        reaction={subPhaseRef.current === 'pacing' || subPhaseRef.current === 'walking_to_target' ? 'happy' : 'idle'}
         className="size-full"
       />
     </div>
