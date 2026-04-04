@@ -1426,16 +1426,16 @@ function BlobbiDashboard({
         </div>
       )}
       
+      {/* Backdrop — tapping outside the drawer collapses it */}
+      {activeDrawer !== 'none' && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setActiveDrawer('none')}
+        />
+      )}
+
       {/* ─── Drawer + Tab Bar — overlays the hero ─── */}
       <div className="absolute top-0 left-0 right-0 z-20">
-        {/* Backdrop — tapping outside the drawer collapses it */}
-        {activeDrawer !== 'none' && (
-          <div
-            className="fixed inset-0 z-[-1]"
-            onClick={() => setActiveDrawer('none')}
-          />
-        )}
-
         {/* Sliding drawer — in flow, pushes tabs down when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
@@ -1549,11 +1549,28 @@ function BlobbiDashboard({
 
         {/* Main Blobbi Visual with stats crown + action buttons */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
-            <Footprints className="size-12 text-muted-foreground/50 mb-3" />
+          <div className="flex flex-col items-center justify-center gap-6 text-center">
+            <Footprints className="size-16 text-muted-foreground/30" />
             <p className="text-muted-foreground text-sm">
               {companion.name} is out exploring right now.
             </p>
+            <button
+              onClick={handleSetAsCompanion}
+              disabled={isUpdatingCompanion}
+              className={cn(
+                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
+                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+                isUpdatingCompanion && 'opacity-50 pointer-events-none',
+              )}
+              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
+            >
+              {isUpdatingCompanion ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <Footprints className="size-5" />
+              )}
+              <span>Bring {companion.name} home</span>
+            </button>
           </div>
         ) : (
           <div className="relative flex flex-col items-center">
@@ -1618,7 +1635,7 @@ function BlobbiDashboard({
                 animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
               } : undefined}
             >
-              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl" />
+              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
               <BlobbiStageVisual
                 companion={companion}
                 size="lg"
@@ -1643,7 +1660,7 @@ function BlobbiDashboard({
 
         {/* ── Action circles — below the Blobbi ── */}
         {!isActiveFloatingCompanion && (
-          <div className="w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
+          <div className="relative z-10 w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
             {/* Photo — lower left */}
             <button
               onClick={() => setShowPhotoModal(true)}
