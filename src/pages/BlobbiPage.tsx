@@ -1551,7 +1551,7 @@ function BlobbiDashboard({
                 : visibleStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
               return (
-                <div className="relative flex items-end justify-center w-full mb-1" style={{ height: 48 }}>
+                <div className="relative flex items-end justify-center w-full mb-8" style={{ height: 48 }}>
                   {visibleStats.map((s, i) => {
                     const angleDeg = angles[i];
                     const angleRad = (angleDeg * Math.PI) / 180;
@@ -1611,7 +1611,7 @@ function BlobbiDashboard({
 
         {/* ── Action circles — below the Blobbi ── */}
         {!isActiveFloatingCompanion && (
-          <div className="w-full px-4 sm:px-8 pt-4 flex items-start justify-between">
+          <div className="w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
             {/* Photo — lower left */}
             <button
               onClick={() => setShowPhotoModal(true)}
