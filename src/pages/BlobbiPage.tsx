@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
@@ -1158,7 +1159,7 @@ function BlobbiDashboard({
   const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
   
   // Check if this Blobbi can be set as companion (must be baby or adult, not egg)
-  const canBeCompanion = companion.stage === 'baby' || companion.stage === 'adult';
+  const canBeCompanion = companion.stage === 'egg' || companion.stage === 'baby' || companion.stage === 'adult';
   
   // Handler for toggling the current companion
   const handleSetAsCompanion = useCallback(async () => {
@@ -1796,9 +1797,9 @@ function BlobbiDashboard({
       />
 
 
-      {/* Hatch Ceremony — reuses the full onboarding ceremony for existing eggs */}
-      {showHatchCeremony && isEgg && (
-        <div className="absolute inset-0 z-50 bg-background">
+      {/* Hatch Ceremony — portaled to document.body to escape center column stacking context */}
+      {showHatchCeremony && isEgg && createPortal(
+        <div className="fixed inset-0 z-[100] bg-background">
           <BlobbiHatchingCeremony
             profile={profile}
             updateProfileEvent={updateProfileEvent}
@@ -1809,7 +1810,8 @@ function BlobbiDashboard({
             existingCompanion={companion}
             onComplete={() => setShowHatchCeremony(false)}
           />
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Adoption Flow Modal */}
