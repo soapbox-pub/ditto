@@ -1427,10 +1427,9 @@ function BlobbiDashboard({
             <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
               {activeDrawer === 'care' && (
                 <CareTabContent
-                  companion={companion}
                   isEgg={isEgg}
                   isSleeping={isSleeping}
-                  onInventoryAction={handleInventoryAction}
+                  onOpenItems={() => setActiveDrawer('items')}
                   onDirectAction={handleDirectAction}
                   onRest={onRest}
                   actionInProgress={actionInProgress}
@@ -1754,10 +1753,9 @@ function BlobbiDashboard({
 // ─── Care Tab Content ─────────────────────────────────────────────────────────
 
 interface CareTabContentProps {
-  companion: BlobbiCompanion;
   isEgg: boolean;
   isSleeping: boolean;
-  onInventoryAction: (action: InventoryAction) => void;
+  onOpenItems: () => void;
   onDirectAction: (action: DirectAction) => void;
   onRest: () => void;
   actionInProgress: string | null;
@@ -1765,10 +1763,9 @@ interface CareTabContentProps {
 }
 
 function CareTabContent({
-  companion,
   isEgg,
   isSleeping,
-  onInventoryAction,
+  onOpenItems,
   onDirectAction,
   onRest,
   actionInProgress,
@@ -1777,76 +1774,58 @@ function CareTabContent({
   const isDisabled = isPublishing || actionInProgress !== null;
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
-      {/* Feed — hidden for eggs */}
-      {!isEgg && (
+    <div className="flex items-center justify-center h-full min-h-[230px] px-4">
+      <div className="flex items-end justify-center gap-8 sm:gap-14">
+        {/* Items — opens the Items drawer tab */}
         <CareActionButton
-          icon={<Utensils className="size-5 text-orange-500" />}
-          label="Feed"
-          onClick={() => onInventoryAction('feed')}
+          icon={<Package className="size-9 sm:size-10" />}
+          statIcon={<Sparkles className="size-3.5" />}
+          label="Items"
+          color="text-sky-500"
+          onClick={onOpenItems}
           disabled={isDisabled}
         />
-      )}
-      
-      {/* Play — hidden for eggs */}
-      {!isEgg && (
+
+        {/* Play — music */}
         <CareActionButton
-          icon={<Gamepad2 className="size-5 text-yellow-500" />}
-          label="Play"
-          onClick={() => onInventoryAction('play')}
+          icon={<Music className="size-9 sm:size-10" />}
+          statIcon={<Heart className="size-3.5" />}
+          label="Music"
+          color="text-pink-500"
+          onClick={() => onDirectAction('play_music')}
           disabled={isDisabled}
         />
-      )}
-      
-      {/* Clean */}
-      <CareActionButton
-        icon={<Sparkles className="size-5 text-blue-500" />}
-        label="Clean"
-        onClick={() => onInventoryAction('clean')}
-        disabled={isDisabled}
-      />
-      
-      {/* Medicine */}
-      <CareActionButton
-        icon={<Pill className="size-5 text-green-500" />}
-        label="Medicine"
-        onClick={() => onInventoryAction('medicine')}
-        disabled={isDisabled}
-      />
-      
-      {/* Music */}
-      <CareActionButton
-        icon={<Music className="size-5 text-pink-500" />}
-        label="Music"
-        onClick={() => onDirectAction('play_music')}
-        disabled={isDisabled}
-      />
-      
-      {/* Sing */}
-      <CareActionButton
-        icon={<Mic className="size-5 text-purple-500" />}
-        label="Sing"
-        onClick={() => onDirectAction('sing')}
-        disabled={isDisabled}
-      />
-      
-      {/* Sleep/Wake — hidden for eggs */}
-      {!isEgg && (
+
+        {/* Play — sing */}
         <CareActionButton
-          icon={
-            actionInProgress === 'rest' ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : isSleeping ? (
-              <Sun className="size-5 text-amber-500" />
-            ) : (
-              <Moon className="size-5 text-violet-500" />
-            )
-          }
-          label={isSleeping ? 'Wake Up' : 'Sleep'}
-          onClick={onRest}
+          icon={<Mic className="size-9 sm:size-10" />}
+          statIcon={<Heart className="size-3.5" />}
+          label="Sing"
+          color="text-purple-500"
+          onClick={() => onDirectAction('sing')}
           disabled={isDisabled}
         />
-      )}
+
+        {/* Sleep/Wake — hidden for eggs */}
+        {!isEgg && (
+          <CareActionButton
+            icon={
+              actionInProgress === 'rest' ? (
+                <Loader2 className="size-9 sm:size-10 animate-spin" />
+              ) : isSleeping ? (
+                <Sun className="size-9 sm:size-10" />
+              ) : (
+                <Moon className="size-9 sm:size-10" />
+              )
+            }
+            statIcon={<Zap className="size-3.5" />}
+            label={isSleeping ? 'Wake' : 'Sleep'}
+            color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
+            onClick={onRest}
+            disabled={isDisabled}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -1855,12 +1834,16 @@ function CareTabContent({
 
 function CareActionButton({
   icon,
+  statIcon,
   label,
+  color,
   onClick,
   disabled,
 }: {
   icon: React.ReactNode;
+  statIcon: React.ReactNode;
   label: string;
+  color: string;
   onClick: () => void;
   disabled?: boolean;
 }) {
@@ -1869,15 +1852,26 @@ function CareActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/60',
-        'bg-card/60 backdrop-blur-sm transition-all',
-        'hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm',
-        'active:scale-[0.97]',
-        disabled && 'opacity-50 pointer-events-none',
+        'flex flex-col items-center gap-2 transition-all duration-200',
+        'hover:-translate-y-1 hover:scale-105 active:scale-95',
+        disabled && 'opacity-40 pointer-events-none',
       )}
     >
-      {icon}
-      <span className="text-xs font-medium">{label}</span>
+      <div className="relative">
+        <div
+          className={cn('size-[4.5rem] sm:size-20 rounded-[1.75rem] flex items-center justify-center shadow-lg', color)}
+          style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}
+        >
+          {icon}
+        </div>
+        <div className={cn(
+          'absolute -bottom-1 -right-1 size-6 rounded-full flex items-center justify-center',
+          'bg-background shadow-md ring-2 ring-background',
+        )}>
+          <span className="text-muted-foreground">{statIcon}</span>
+        </div>
+      </div>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
     </button>
   );
 }
