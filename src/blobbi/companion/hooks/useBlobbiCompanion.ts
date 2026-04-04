@@ -104,7 +104,8 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   // Track if first entry has completed (for position initialization)
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
   
-  // Track viewport size
+  // Track viewport size — listen to both window resize and visualViewport
+  // (mobile browsers fire visualViewport resize when URL bar shows/hides)
   useEffect(() => {
     const handleResize = () => {
       setViewport({
@@ -114,7 +115,11 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     };
     
     window.addEventListener('resize', handleResize, { passive: true });
-    return () => window.removeEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
   }, []);
   
   // Calculate bounds and positions

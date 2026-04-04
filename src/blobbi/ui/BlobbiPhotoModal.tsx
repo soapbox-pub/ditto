@@ -131,17 +131,17 @@ export function BlobbiPhotoModal({
   const isProcessing = isDownloading || isSharing;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center">
       {/* Backdrop — tap to close */}
       <div
         className="absolute inset-0 bg-background/60 backdrop-blur-sm"
         onClick={() => !isProcessing && onOpenChange(false)}
       />
 
-      {/* Close button */}
+      {/* Close button — top-right of the container */}
       <button
         onClick={() => !isProcessing && onOpenChange(false)}
-        className="absolute top-mobile-bar right-3 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute top-3 right-3 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <X className="size-5" />
       </button>
@@ -167,7 +167,7 @@ export function BlobbiPhotoModal({
           )}
         >
           <div className="size-14 rounded-full flex items-center justify-center text-sky-500" style={{
-            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #0ea5e9 14%, transparent), color-mix(in srgb, #0ea5e9 4%, transparent) 70%)',
+            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #0ea5e9 25%, transparent), color-mix(in srgb, #0ea5e9 10%, transparent) 70%)',
           }}>
             {isDownloading ? <Loader2 className="size-6 animate-spin" /> : <Download className="size-6" />}
           </div>
@@ -185,7 +185,7 @@ export function BlobbiPhotoModal({
             )}
           >
             <div className="size-14 rounded-full flex items-center justify-center text-violet-500" style={{
-              background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 14%, transparent), color-mix(in srgb, #8b5cf6 4%, transparent) 70%)',
+              background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 25%, transparent), color-mix(in srgb, #8b5cf6 10%, transparent) 70%)',
             }}>
               {isSharing ? <Loader2 className="size-6 animate-spin" /> : <Share2 className="size-6" />}
             </div>

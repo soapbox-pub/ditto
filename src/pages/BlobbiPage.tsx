@@ -774,8 +774,13 @@ interface DashboardShellProps {
 
 function DashboardShell({ children }: DashboardShellProps) {
   return (
-    <main className="fixed inset-0 top-mobile-bar sidebar:top-0 flex flex-col overflow-hidden z-0">
-      {/* Responsive container: narrow on mobile, wider on desktop with reasonable max */}
+    <main className={cn(
+      'flex flex-col overflow-hidden',
+      // Mobile: fixed to escape pb-overscroll on the parent
+      'max-sidebar:fixed max-sidebar:inset-0 max-sidebar:top-mobile-bar max-sidebar:z-0',
+      // Desktop: normal flow within the center column
+      'sidebar:h-dvh',
+    )}>
       <div className="mx-auto w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col">
         {children}
       </div>
