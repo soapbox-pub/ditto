@@ -126,6 +126,8 @@ interface BlobbiHatchingCeremonyProps {
   onComplete?: () => void;
   /** If provided, skip egg creation and start from the cracking phase with this existing egg. */
   existingCompanion?: BlobbiCompanion | null;
+  /** If true, only create the egg and skip the hatching ceremony. The egg stays an egg. */
+  eggOnly?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -139,6 +141,7 @@ export function BlobbiHatchingCeremony({
   setStoredSelectedD,
   onComplete,
   existingCompanion,
+  eggOnly = false,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
@@ -334,6 +337,16 @@ export function BlobbiHatchingCeremony({
   useEffect(() => {
     if (profile) profileRef.current = profile;
   }, [profile]);
+
+  // eggOnly mode: auto-complete after the egg is shown (skip hatching)
+  useEffect(() => {
+    if (!eggOnly || !eggVisible) return;
+    const timer = setTimeout(() => {
+      setPhase('complete');
+      onComplete?.();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [eggOnly, eggVisible, onComplete]);
 
   // Play entrance animation once
   useEffect(() => {

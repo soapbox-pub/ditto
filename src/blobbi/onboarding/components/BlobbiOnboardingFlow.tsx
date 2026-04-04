@@ -45,6 +45,7 @@ export function BlobbiOnboardingFlow({
   invalidateCompanion,
   setStoredSelectedD,
   onComplete,
+  adoptionOnly,
 }: BlobbiOnboardingFlowProps) {
   return (
     <BlobbiHatchingCeremony
@@ -55,6 +56,7 @@ export function BlobbiOnboardingFlow({
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       onComplete={onComplete}
+      eggOnly={adoptionOnly}
     />
   );
 }
