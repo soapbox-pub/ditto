@@ -1,50 +1,31 @@
 /**
- * BlobbiPhotoModal - Modal for taking and sharing Blobbi photos
+ * BlobbiPhotoModal - Fullscreen photo overlay
  *
- * Features:
- * - Polaroid-style preview of the Blobbi
- * - Download as PNG
- * - Post to Nostr with Blossom upload
- *
- * Uses html-to-image for DOM-to-PNG conversion.
+ * Simple blurred overlay with the polaroid photo centered,
+ * and download/share buttons below. Tap outside to close.
  */
 
 import { useState, useRef, useCallback } from 'react';
 import { toPng } from 'html-to-image';
-import { Download, Send, Loader2, Camera } from 'lucide-react';
+import { Download, Share2, Loader2, X } from 'lucide-react';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { BlobbiPolaroidCard } from './BlobbiPolaroidCard';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
+import { downloadTextFile, openUrl } from '@/lib/downloadFile';
 import { trackDailyMissionProgress } from '@/blobbi/actions';
+import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { Capacitor } from '@capacitor/core';
 
 export interface BlobbiPhotoModalProps {
-  /** Whether the modal is open */
   open: boolean;
-  /** Callback when the modal should close */
   onOpenChange: (open: boolean) => void;
-  /** The Blobbi companion to photograph */
   companion: BlobbiCompanion;
 }
 
-// ─── Utility Functions ────────────────────────────────────────────────────────
-
-/**
- * Convert a data URL to a File object
- */
 function dataUrlToFile(dataUrl: string, filename: string): File {
   const arr = dataUrl.split(',');
   const mime = arr[0].match(/:(.*?);/)?.[1] ?? 'image/png';
@@ -57,218 +38,161 @@ function dataUrlToFile(dataUrl: string, filename: string): File {
   return new File([u8arr], filename, { type: mime });
 }
 
-/**
- * Trigger a file download in the browser
- */
-function downloadFile(dataUrl: string, filename: string): void {
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function BlobbiPhotoModal({
   open,
   onOpenChange,
   companion,
 }: BlobbiPhotoModalProps) {
   const polaroidRef = useRef<HTMLDivElement>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isPosting, setIsPosting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const { user } = useCurrentUser();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { mutateAsync: createEvent } = useNostrPublish();
 
-  /**
-   * Generate PNG from the polaroid card
-   */
   const generateImage = useCallback(async (): Promise<string | null> => {
-    if (!polaroidRef.current) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not capture the photo. Please try again.',
-      });
-      return null;
-    }
-
+    if (!polaroidRef.current) return null;
     try {
-      // Use html-to-image with high quality settings
-      const dataUrl = await toPng(polaroidRef.current, {
+      return await toPng(polaroidRef.current, {
         quality: 1.0,
-        pixelRatio: 2, // 2x for retina displays
+        pixelRatio: 2,
         cacheBust: true,
-        // Skip external fonts that might fail to load
         skipFonts: true,
       });
-      return dataUrl;
     } catch (error) {
-      console.error('[BlobbiPhotoModal] Failed to generate image:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to generate the photo. Please try again.',
-      });
+      console.error('[BlobbiPhoto] Failed to generate image:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to capture photo.' });
       return null;
     }
   }, []);
 
-  /**
-   * Handle download action
-   */
   const handleDownload = useCallback(async () => {
-    setIsGenerating(true);
+    setIsDownloading(true);
     try {
       const dataUrl = await generateImage();
-      if (dataUrl) {
-        const filename = `${companion.name.toLowerCase().replace(/\s+/g, '-')}-polaroid.png`;
-        downloadFile(dataUrl, filename);
-        toast({
-          title: 'Photo saved!',
-          description: 'Your Blobbi photo has been downloaded.',
-        });
+      if (!dataUrl) return;
+      const filename = `${companion.name.toLowerCase().replace(/\s+/g, '-')}-photo.png`;
+
+      if (Capacitor.isNativePlatform()) {
+        // On native, use the download utility which handles share sheet
+        const blob = dataUrlToFile(dataUrl, filename);
+        const url = URL.createObjectURL(blob);
+        await openUrl(url);
+        URL.revokeObjectURL(url);
+      } else {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
       }
+
+      toast({ title: 'Photo saved!' });
     } finally {
-      setIsGenerating(false);
+      setIsDownloading(false);
     }
   }, [generateImage, companion.name]);
 
-  /**
-   * Handle post action - upload to Blossom and create Nostr post
-   */
-  const handlePost = useCallback(async () => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Not logged in',
-        description: 'Please log in to post your Blobbi photo.',
-      });
-      return;
-    }
-
-    setIsPosting(true);
+  const handleShare = useCallback(async () => {
+    if (!user) return;
+    setIsSharing(true);
     try {
-      // Generate the image
       const dataUrl = await generateImage();
-      if (!dataUrl) {
-        return;
-      }
+      if (!dataUrl) return;
 
-      // Convert to File for upload
       const filename = `${companion.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`;
       const file = dataUrlToFile(dataUrl, filename);
-
-      // Upload to Blossom - returns NIP-94 compatible tags
       const tags = await uploadFile(file);
 
-      // Extract URL from the 'url' tag (NIP-94 format)
-      // The upload hook returns tags like [['url', '...'], ['m', '...'], ['x', '...'], ...]
       const urlTag = tags.find((tag) => tag[0] === 'url');
-      if (!urlTag || !urlTag[1]) {
-        throw new Error('Upload succeeded but no URL was returned');
-      }
+      if (!urlTag?.[1]) throw new Error('Upload succeeded but no URL returned');
       const url = urlTag[1];
 
-      // Build imeta tag from all NIP-94 tags
-      // Format: ['imeta', 'url https://...', 'm image/png', 'x abc123', ...]
       const imetaFields = tags.map((tag) => `${tag[0]} ${tag[1]}`);
-
-      // Create the post content
-      const content = `${companion.name} ${url}`;
-
-      // Publish kind 1 event
       await createEvent({
         kind: 1,
-        content,
+        content: `${companion.name} ${url}`,
         tags: [['imeta', ...imetaFields]],
       });
 
-      toast({
-        title: 'Posted!',
-        description: 'Your Blobbi photo has been shared.',
-      });
-
-      // Track daily mission progress for photo action
+      toast({ title: 'Posted!', description: 'Your Blobbi photo has been shared.' });
       trackDailyMissionProgress('take_photo', 1, user.pubkey);
-
-      // Close the modal after successful post
       onOpenChange(false);
     } catch (error) {
-      console.error('[BlobbiPhotoModal] Failed to post:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Failed to post',
-        description: error instanceof Error ? error.message : 'Please try again.',
-      });
+      console.error('[BlobbiPhoto] Failed to share:', error);
+      toast({ variant: 'destructive', title: 'Failed to post', description: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
-      setIsPosting(false);
+      setIsSharing(false);
     }
   }, [user, generateImage, companion.name, uploadFile, createEvent, onOpenChange]);
 
-  const isProcessing = isGenerating || isPosting;
+  if (!open) return null;
+
+  const isProcessing = isDownloading || isSharing;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Camera className="size-5" />
-            Take a Photo
-          </DialogTitle>
-          <DialogDescription>
-            Capture a polaroid-style photo of {companion.name}
-          </DialogDescription>
-        </DialogHeader>
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center">
+      {/* Backdrop — tap to close */}
+      <div
+        className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+        onClick={() => !isProcessing && onOpenChange(false)}
+      />
 
-        {/* Polaroid preview - centered */}
-        <div className="flex justify-center py-4">
-          <BlobbiPolaroidCard
-            ref={polaroidRef}
-            companion={companion}
-            showStage
-          />
-        </div>
+      {/* Close button — top-right of the container */}
+      <button
+        onClick={() => !isProcessing && onOpenChange(false)}
+        className="absolute top-3 right-3 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <X className="size-5" />
+      </button>
 
-        {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            variant="outline"
-            onClick={handleDownload}
+      {/* Polaroid card */}
+      <div className="relative z-10 animate-in fade-in zoom-in-95 duration-200">
+        <BlobbiPolaroidCard
+          ref={polaroidRef}
+          companion={companion}
+          showStage
+        />
+      </div>
+
+      {/* Action buttons */}
+      <div className="relative z-10 flex items-center gap-6 mt-8">
+        <button
+          onClick={handleDownload}
+          disabled={isProcessing}
+          className={cn(
+            'flex flex-col items-center gap-1.5 transition-all duration-200',
+            'hover:scale-110 active:scale-95',
+            isProcessing && 'opacity-50 pointer-events-none',
+          )}
+        >
+          <div className="size-14 rounded-full flex items-center justify-center text-sky-500" style={{
+            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #0ea5e9 25%, transparent), color-mix(in srgb, #0ea5e9 10%, transparent) 70%)',
+          }}>
+            {isDownloading ? <Loader2 className="size-6 animate-spin" /> : <Download className="size-6" />}
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">Save</span>
+        </button>
+
+        {user && (
+          <button
+            onClick={handleShare}
             disabled={isProcessing}
-            className="flex-1"
-          >
-            {isGenerating ? (
-              <Loader2 className="size-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="size-4 mr-2" />
+            className={cn(
+              'flex flex-col items-center gap-1.5 transition-all duration-200',
+              'hover:scale-110 active:scale-95',
+              isProcessing && 'opacity-50 pointer-events-none',
             )}
-            Download
-          </Button>
-
-          <Button
-            onClick={handlePost}
-            disabled={isProcessing || !user}
-            className="flex-1"
           >
-            {isPosting ? (
-              <Loader2 className="size-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="size-4 mr-2" />
-            )}
-            Post
-          </Button>
-        </div>
-
-        {/* Login hint if not logged in */}
-        {!user && (
-          <p className="text-sm text-muted-foreground text-center">
-            Log in to post your Blobbi photo
-          </p>
+            <div className="size-14 rounded-full flex items-center justify-center text-violet-500" style={{
+              background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 25%, transparent), color-mix(in srgb, #8b5cf6 10%, transparent) 70%)',
+            }}>
+              {isSharing ? <Loader2 className="size-6 animate-spin" /> : <Share2 className="size-6" />}
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">Post</span>
+          </button>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

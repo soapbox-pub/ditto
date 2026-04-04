@@ -233,17 +233,18 @@ export function updateDragPosition(motion: CompanionMotion, position: Position):
 }
 
 /**
- * End dragging - let gravity take over.
+ * End dragging - hold position where dropped.
  */
 export function endDrag(motion: CompanionMotion, groundY: number): CompanionMotion {
   return {
     ...motion,
     isDragging: false,
-    // If already at or below ground, snap to ground
-    isGrounded: motion.position.y >= groundY,
+    // Always treat as grounded so companion holds position where dropped
+    isGrounded: true,
     position: {
       ...motion.position,
-      y: motion.position.y >= groundY ? groundY : motion.position.y,
+      // Clamp to ground if below it
+      y: Math.min(motion.position.y, groundY),
     },
   };
 }

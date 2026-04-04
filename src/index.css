@@ -652,3 +652,50 @@
   @apply min-h-[350px];
 }
 
+/* Blobbi idle animations — speed/intensity driven by happiness via inline style */
+@keyframes blobbi-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes blobbi-sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(1.5deg); }
+  75% { transform: rotate(-1.5deg); }
+}
+
+/* Hatch ceremony shake animations */
+@keyframes blobbi-shake-light {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes blobbi-shake-medium {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-6deg); }
+  40% { transform: rotate(5deg); }
+  60% { transform: rotate(-4deg); }
+  80% { transform: rotate(6deg); }
+}
+
+@keyframes blobbi-shake-heavy {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  15% { transform: rotate(-8deg) scale(1.02); }
+  30% { transform: rotate(7deg) scale(0.98); }
+  45% { transform: rotate(-9deg) scale(1.03); }
+  60% { transform: rotate(8deg) scale(0.97); }
+  75% { transform: rotate(-7deg) scale(1.02); }
+  90% { transform: rotate(9deg) scale(1); }
+}
+
+@keyframes blobbi-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes blobbi-fade-to-white {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+

@@ -145,15 +145,6 @@ export function useBlobbiUseInventoryItem({
         throw new Error('Item not found in catalog');
       }
 
-      // Validate item exists in storage with sufficient quantity
-      const storageItem = profile.storage.find(s => s.itemId === itemId);
-      if (!storageItem || storageItem.quantity <= 0) {
-        throw new Error('Item not found in your inventory');
-      }
-      if (storageItem.quantity < quantity) {
-        throw new Error(`Not enough items in inventory (have ${storageItem.quantity}, need ${quantity})`);
-      }
-
       // Validate item has effects
       if (!shopItem.effect) {
         throw new Error('This item has no effect');
@@ -407,23 +398,25 @@ export function useBlobbiUseInventoryItem({
       updateCompanionEvent(blobbiEvent);
 
       // ─── Update Profile Storage (kind 11125) ───
-      // CRITICAL: Use canonical.profileStorage and canonical.profileAllTags
-      // instead of profile.storage/profile.allTags to avoid restoring
-      // stale/legacy values after migration
-      const newStorage = decrementStorageItem(canonical.profileStorage, itemId, quantity);
-      const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
+      // Only decrement storage if the item actually exists in inventory.
+      // Items are free to use regardless of inventory state.
+      const hasItemInStorage = canonical.profileStorage.some(s => s.itemId === itemId && s.quantity > 0);
+      if (hasItemInStorage) {
+        const newStorage = decrementStorageItem(canonical.profileStorage, itemId, quantity);
+        const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
 
-      const profileTags = updateBlobbonautTags(canonical.profileAllTags, {
-        storage: storageValues,
-      });
+        const profileTags = updateBlobbonautTags(canonical.profileAllTags, {
+          storage: storageValues,
+        });
 
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags: profileTags,
-      });
+        const profileEvent = await publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: profileTags,
+        });
 
-      updateProfileEvent(profileEvent);
+        updateProfileEvent(profileEvent);
+      }
 
       // ─── Invalidate Queries ───
       invalidateCompanion();
