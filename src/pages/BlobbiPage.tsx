@@ -27,6 +27,7 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -922,6 +923,7 @@ function BlobbiDashboard({
   
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showHatchCeremony, setShowHatchCeremony] = useState(false);
   
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
@@ -1476,8 +1478,8 @@ function BlobbiDashboard({
                   isBaby={isBaby}
                   hatchTasks={hatchTasks}
                   evolveTasks={evolveTasks}
-                  onHatch={onHatch}
-                  isHatching={isHatching}
+                  onHatch={async () => setShowHatchCeremony(true)}
+                  isHatching={isHatching || showHatchCeremony}
                   onEvolve={onEvolve}
                   isEvolving={isEvolving}
                   onStopIncubation={handleStopIncubation}
@@ -1510,7 +1512,7 @@ function BlobbiDashboard({
                   onAdopt={() => setShowAdoptionFlow(true)}
                   onDevOpenEditor={() => setShowDevEditor(true)}
                   onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-                  onDevInstantTransition={isEgg ? onHatch : isBaby ? onEvolve : undefined}
+                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? onEvolve : undefined}
                   isHatching={isHatching}
                   isEvolving={isEvolving}
                 />
@@ -1649,17 +1651,22 @@ function BlobbiDashboard({
                 recipe={hasDevOverride ? undefined : statusRecipe}
                 recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
                 emotion={effectiveEmotion}
-                className="size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]"
+                className={isEgg
+                  ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
+                  : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
+                }
               />
             </div>
 
-            {/* Blobbi Name */}
-            <h2
-              className="text-2xl sm:text-3xl font-bold text-center -mt-2"
-              style={{ color: companion.visualTraits.baseColor }}
-            >
-              {companion.name}
-            </h2>
+            {/* Blobbi Name — hidden for eggs */}
+            {!isEgg && (
+              <h2
+                className="text-2xl sm:text-3xl font-bold text-center -mt-2"
+                style={{ color: companion.visualTraits.baseColor }}
+              >
+                {companion.name}
+              </h2>
+            )}
           </div>
         )}
 
@@ -1787,8 +1794,24 @@ function BlobbiDashboard({
         onOpenChange={setShowPhotoModal}
         companion={companion}
       />
-      
-      
+
+
+      {/* Hatch Ceremony — reuses the full onboarding ceremony for existing eggs */}
+      {showHatchCeremony && isEgg && (
+        <div className="absolute inset-0 z-50 bg-background">
+          <BlobbiHatchingCeremony
+            profile={profile}
+            updateProfileEvent={updateProfileEvent}
+            updateCompanionEvent={updateCompanionEvent}
+            invalidateProfile={invalidateProfile}
+            invalidateCompanion={invalidateCompanion}
+            setStoredSelectedD={setStoredSelectedD}
+            existingCompanion={companion}
+            onComplete={() => setShowHatchCeremony(false)}
+          />
+        </div>
+      )}
+
       {/* Adoption Flow Modal */}
       <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
@@ -2440,12 +2463,14 @@ function MoreTabContent({
                   </div>
                 )}
               </div>
-              <span className={cn(
-                'text-[11px] font-medium max-w-[4.5rem] truncate',
-                isSelected ? 'text-foreground' : 'text-muted-foreground',
-              )}>
-                {c.name}
-              </span>
+              {c.stage !== 'egg' && (
+                <span className={cn(
+                  'text-[11px] font-medium max-w-[4.5rem] truncate',
+                  isSelected ? 'text-foreground' : 'text-muted-foreground',
+                )}>
+                  {c.name}
+                </span>
+              )}
             </button>
           );
         })}
@@ -2660,4 +2685,7 @@ function DashboardLoadingState() {
     </DashboardShell>
   );
 }
+
+// ─── Hatch Ceremony Overlay ───────────────────────────────────────────────────
+
 

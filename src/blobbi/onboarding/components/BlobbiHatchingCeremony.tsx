@@ -124,6 +124,8 @@ interface BlobbiHatchingCeremonyProps {
   invalidateCompanion: () => void;
   setStoredSelectedD: (d: string) => void;
   onComplete?: () => void;
+  /** If provided, skip egg creation and start from the cracking phase with this existing egg. */
+  existingCompanion?: BlobbiCompanion | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,7 +138,9 @@ export function BlobbiHatchingCeremony({
   invalidateCompanion,
   setStoredSelectedD,
   onComplete,
+  existingCompanion,
 }: BlobbiHatchingCeremonyProps) {
+  const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
@@ -190,8 +194,42 @@ export function BlobbiHatchingCeremony({
 
   const namingTypewriter = useTypewriter(NAMING_DIALOG, namingVisible);
 
-  // ── Silent setup: create profile + egg ──
+  // ── Fast-path setup for existing eggs (no publishing needed) ──
   useEffect(() => {
+    if (!isExistingEgg || setupAttempted.current || !existingCompanion) return;
+    setupAttempted.current = true;
+
+    // Build a minimal preview from the existing companion
+    const fakePreview: BlobbiEggPreview = {
+      d: existingCompanion.d,
+      petId: existingCompanion.d,
+      ownerPubkey: user?.pubkey ?? '',
+      name: existingCompanion.name,
+      stage: 'egg',
+      state: 'active',
+      seed: existingCompanion.seed ?? '',
+      stats: {
+        hunger: existingCompanion.stats.hunger ?? STAT_MAX,
+        happiness: existingCompanion.stats.happiness ?? STAT_MAX,
+        health: existingCompanion.stats.health ?? STAT_MAX,
+        hygiene: existingCompanion.stats.hygiene ?? STAT_MAX,
+        energy: existingCompanion.stats.energy ?? STAT_MAX,
+      },
+      visualTraits: existingCompanion.visualTraits,
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    setPreview(fakePreview);
+    previewRef.current = fakePreview;
+    eggTagsRef.current = existingCompanion.allTags;
+
+    setPhase('egg');
+    setTimeout(() => setEggVisible(true), 200);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExistingEgg, existingCompanion?.d]);
+
+  // ── Silent setup: create profile + egg (new egg flow only) ──
+  useEffect(() => {
+    if (isExistingEgg) return; // Skip for existing eggs
     if (setupAttempted.current || !user?.pubkey) return;
     // Module-level guard: if another mount already started setup for this pubkey, skip
     if (setupInFlightFor.has(user.pubkey)) return;
