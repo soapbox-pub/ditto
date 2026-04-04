@@ -109,6 +109,11 @@ function useTypewriter(fullText: string, active: boolean, speed = 35) {
   return { displayed, done, complete };
 }
 
+// Module-level guard: prevents duplicate egg creation if the component remounts
+// (e.g. React strict mode, parent re-render causing unmount/remount).
+// Tracks pubkeys that have already started setup in this browser session.
+const setupInFlightFor = new Set<string>();
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BlobbiHatchingCeremonyProps {
@@ -188,7 +193,10 @@ export function BlobbiHatchingCeremony({
   // ── Silent setup: create profile + egg ──
   useEffect(() => {
     if (setupAttempted.current || !user?.pubkey) return;
+    // Module-level guard: if another mount already started setup for this pubkey, skip
+    if (setupInFlightFor.has(user.pubkey)) return;
     setupAttempted.current = true;
+    setupInFlightFor.add(user.pubkey);
 
     const setup = async () => {
       try {
@@ -270,11 +278,18 @@ export function BlobbiHatchingCeremony({
           description: 'Failed to set up your Blobbi. Please try again.',
           variant: 'destructive',
         });
+      } finally {
+        // Clear module-level guard so future adoptions can create new eggs
+        if (user?.pubkey) setupInFlightFor.delete(user.pubkey);
       }
     };
 
     const timer = setTimeout(setup, 600);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      // If the timer was cleared before setup ran, release the guard
+      if (user?.pubkey) setupInFlightFor.delete(user.pubkey);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.pubkey]);
 
