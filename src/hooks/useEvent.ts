@@ -64,7 +64,7 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
   const { nostr } = useNostr();
 
   return useQuery<NostrEvent | null>({
-    queryKey: ['event', eventId ?? ''],
+    queryKey: ['event', eventId ?? '', relays ?? [], authorHint ?? ''],
     queryFn: async () => {
       if (!eventId) return null;
       const filter: NostrFilter[] = [{ ids: [eventId], limit: 1 }];

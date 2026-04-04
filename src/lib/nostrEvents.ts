@@ -33,14 +33,23 @@ export function getParentEventId(event: NostrEvent): string | undefined {
 /**
  * Extracts the parent event ID along with relay and author hints from the `e` tag.
  * Returns the full NIP-10 hints (relay URL at position [2], author pubkey at position [4]).
+ *
+ * When the `e` tag doesn't include a pubkey at position [4] (many clients omit it),
+ * falls back to the first `p` tag in the event, which per NIP-10 convention contains
+ * the pubkey of the author being replied to.
  */
 export function getParentEventHints(event: NostrEvent): ParentEventHints | undefined {
   const tag = getParentEventTag(event);
   if (!tag) return undefined;
+
+  // Prefer the pubkey embedded in the e tag (NIP-10 position [4]).
+  // Fall back to the first p tag, which conventionally holds the parent author's pubkey.
+  const authorHint = tag[4] || event.tags.find(([name]) => name === 'p')?.[1] || undefined;
+
   return {
     id: tag[1],
     relayHint: tag[2] || undefined,
-    authorHint: tag[4] || undefined,
+    authorHint,
   };
 }
 
