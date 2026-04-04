@@ -1428,11 +1428,6 @@ function BlobbiDashboard({
                   onRest={onRest}
                   actionInProgress={actionInProgress}
                   isPublishing={isPublishing}
-                  canBeCompanion={canBeCompanion}
-                  isCurrentCompanion={isCurrentCompanion}
-                  isUpdatingCompanion={isUpdatingCompanion}
-                  companionName={companion.name}
-                  onSetAsCompanion={handleSetAsCompanion}
                 />
               )}
               {activeDrawer === 'items' && (
@@ -1525,7 +1520,7 @@ function BlobbiDashboard({
       </div>
 
       {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div className="flex flex-col items-center justify-center px-4 pb-2 sm:px-6" style={{ minHeight: '60dvh' }}>
+      <div className="relative flex flex-col items-center justify-center px-4 pb-2 sm:px-6" style={{ minHeight: '60dvh' }}>
         {/* Main Blobbi Visual + Curved Stats Orbit */}
         {isActiveFloatingCompanion ? (
           <div className="flex flex-col items-center justify-center size-80 sm:size-96 md:size-[28rem] text-center">
@@ -1608,6 +1603,61 @@ function BlobbiDashboard({
             </div>
           );
         })()}
+
+        {/* ── Floating action circles — lower corners of the hero ── */}
+        {!isActiveFloatingCompanion && (
+          <div className="absolute -bottom-2 left-2 right-2 sm:left-4 sm:right-4 flex items-end justify-between pointer-events-none">
+            {/* Photo — lower left */}
+            <button
+              onClick={() => setShowPhotoModal(true)}
+              className={cn(
+                'pointer-events-auto flex flex-col items-center gap-1 transition-all duration-300 ease-out',
+                'hover:-translate-y-1 hover:scale-110 active:scale-95',
+              )}
+            >
+              <div
+                className="size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center text-pink-500"
+                style={{
+                  background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #ec4899 14%, transparent), color-mix(in srgb, #ec4899 4%, transparent) 70%)',
+                }}
+              >
+                <Camera className="size-7 sm:size-8" />
+              </div>
+              <span className="text-[10px] font-medium text-muted-foreground">Photo</span>
+            </button>
+
+            {/* Companion — lower right */}
+            {canBeCompanion && (
+              <button
+                onClick={handleSetAsCompanion}
+                disabled={isUpdatingCompanion}
+                className={cn(
+                  'pointer-events-auto flex flex-col items-center gap-1 transition-all duration-300 ease-out',
+                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
+                  isUpdatingCompanion && 'opacity-50',
+                )}
+              >
+                <div
+                  className={cn('size-16 sm:size-[4.5rem] rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
+                  style={{
+                    background: isCurrentCompanion
+                      ? 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #10b981 14%, transparent), color-mix(in srgb, #10b981 4%, transparent) 70%)'
+                      : 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 14%, transparent), color-mix(in srgb, #8b5cf6 4%, transparent) 70%)',
+                  }}
+                >
+                  {isUpdatingCompanion ? (
+                    <Loader2 className="size-7 sm:size-8 animate-spin" />
+                  ) : (
+                    <Footprints className="size-7 sm:size-8" />
+                  )}
+                </div>
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {isCurrentCompanion ? 'With you' : 'Take along'}
+                </span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─── Inline Activity Area (music/sing — floats above tabs) ─── */}
@@ -1728,11 +1778,6 @@ interface CareTabContentProps {
   onRest: () => void;
   actionInProgress: string | null;
   isPublishing: boolean;
-  canBeCompanion: boolean;
-  isCurrentCompanion: boolean;
-  isUpdatingCompanion: boolean;
-  companionName: string;
-  onSetAsCompanion: () => void;
 }
 
 function CareTabContent({
@@ -1743,16 +1788,11 @@ function CareTabContent({
   onRest,
   actionInProgress,
   isPublishing,
-  canBeCompanion,
-  isCurrentCompanion,
-  isUpdatingCompanion,
-  companionName,
-  onSetAsCompanion,
 }: CareTabContentProps) {
   const isDisabled = isPublishing || actionInProgress !== null;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[210px] gap-4">
+    <div className="flex flex-col items-center justify-center h-full min-h-[210px]">
       <div className="flex items-center justify-center gap-6 sm:gap-10">
         <CareActionButton
           icon={<Package className="size-10 sm:size-12" />}
@@ -1804,51 +1844,6 @@ function CareTabContent({
           />
         )}
       </div>
-
-      {/* Take with you / companion pill */}
-      {canBeCompanion && (
-        isCurrentCompanion ? (
-          <button
-            onClick={onSetAsCompanion}
-            disabled={isUpdatingCompanion}
-            className={cn(
-              'flex items-center justify-center gap-2.5 px-8 py-3 rounded-full transition-all duration-300 ease-out',
-              'hover:-translate-y-0.5 hover:scale-105 active:scale-95',
-              isUpdatingCompanion && 'opacity-50 pointer-events-none',
-            )}
-            style={{
-              background: 'linear-gradient(135deg, color-mix(in srgb, #8b5cf6 25%, transparent), color-mix(in srgb, #ec4899 20%, transparent), color-mix(in srgb, #f59e0b 25%, transparent))',
-            }}
-          >
-            {isUpdatingCompanion ? (
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            ) : (
-              <Footprints className="size-5 text-muted-foreground" />
-            )}
-            <span className="text-sm font-semibold text-muted-foreground">{companionName} is with you</span>
-          </button>
-        ) : (
-          <button
-            onClick={onSetAsCompanion}
-            disabled={isUpdatingCompanion}
-            className={cn(
-              'flex items-center justify-center gap-2.5 px-8 py-3 rounded-full text-white transition-all duration-300 ease-out',
-              'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-              isUpdatingCompanion && 'opacity-50 pointer-events-none',
-            )}
-            style={{
-              background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)',
-            }}
-          >
-            {isUpdatingCompanion ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Footprints className="size-5" />
-            )}
-            <span className="text-sm font-semibold">Take {companionName} with you</span>
-          </button>
-        )
-      )}
     </div>
   );
 }
@@ -2412,10 +2407,6 @@ function MoreTabContent({
 
       {/* ── Quick actions row ── */}
       <div className="flex items-center justify-center gap-6 pt-1">
-        <button onClick={onTakePhoto} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-          <Camera className="size-5" />
-          <span className="text-[10px]">Photo</span>
-        </button>
         <Link to={`/${blobbiNaddr}`} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
           <ExternalLink className="size-5" />
           <span className="text-[10px]">View</span>
