@@ -374,13 +374,25 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     user?.pubkey ?? '',
   );
 
+  // Augment the resolved filter with protocol:nostr (NIP-50 Ditto extension)
+  // to match the behavior of the core feeds and ensure latest native Nostr
+  // posts are returned.
+  const augmentedFilter = useMemo(() => {
+    if (!resolvedFilter) return null;
+    const existing = resolvedFilter.search ?? '';
+    const search = existing
+      ? `${existing} protocol:nostr`
+      : 'protocol:nostr';
+    return { ...resolvedFilter, search };
+  }, [resolvedFilter]);
+
   const {
     data: rawData,
     isLoading: isFeedLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useTabFeed(resolvedFilter, `saved-${feed.id}`, !isResolving);
+  } = useTabFeed(augmentedFilter, `saved-${feed.id}`, !isResolving);
 
   const isLoading = isResolving || isFeedLoading;
 
