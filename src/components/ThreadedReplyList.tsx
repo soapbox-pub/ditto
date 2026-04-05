@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useState } from 'react';
 import { NoteCard } from '@/components/NoteCard';
+import { cn } from '@/lib/utils';
 
 /** Maximum nesting depth before collapsing the rest of the thread. */
 const MAX_RENDER_DEPTH = 3;
@@ -34,7 +35,7 @@ function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: numbe
     return (
       <div>
         <NoteCard event={node.event} threaded />
-        <ExpandThreadButton count={countDescendants(node)} onClick={() => setExpanded(true)} />
+        <ExpandThreadButton count={countDescendants(node)} onClick={() => setExpanded(true)} isLast />
       </div>
     );
   }
@@ -72,11 +73,14 @@ function countDescendants(node: ReplyNode): number {
   return count;
 }
 
-function ExpandThreadButton({ count, onClick }: { count: number; onClick: () => void }) {
+function ExpandThreadButton({ count, onClick, isLast }: { count: number; onClick: () => void; isLast?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-4 pt-0 pb-2.5 w-full hover:bg-secondary/30 transition-colors group"
+      className={cn(
+        "flex items-center gap-3 px-4 pt-0 pb-2.5 w-full hover:bg-secondary/30 transition-colors group",
+        isLast && "border-b border-border",
+      )}
     >
       <div className="flex flex-col items-center w-10">
         <div className="w-0.5 flex-1 mb-1 bg-foreground/20" />
