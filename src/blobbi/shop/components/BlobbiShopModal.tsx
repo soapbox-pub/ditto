@@ -16,7 +16,7 @@ import {
 
 import type { ShopItem } from '../types/shop.types';
 import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
-import { getLiveShopItems, getShopItemById } from '../lib/blobbi-shop-items';
+import { getLiveShopItems } from '../lib/blobbi-shop-items';
 import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { cn, formatCompactNumber } from '@/lib/utils';
@@ -80,28 +80,25 @@ export function BlobbiShopModal({
 
   const effectivePurchasingId = isPurchasing ? purchasingItemId : null;
 
-  // ── Inventory items resolution ──
+  // ── Items resolution — sourced from the full catalog (not inventory) ──
   const inventoryItems = useMemo((): ResolvedInventoryItem[] => {
-    if (!profile) return [];
     const stage = companion?.stage ?? 'egg';
+    const allCatalogItems = getLiveShopItems();
 
     const result: ResolvedInventoryItem[] = [];
-    for (const storageItem of profile.storage) {
-      const item = getShopItemById(storageItem.itemId);
-      if (!item) continue;
-
-      const usability = canUseItemForStage(storageItem.itemId, stage);
+    for (const item of allCatalogItems) {
+      const usability = canUseItemForStage(item.id, stage);
 
       result.push({
         ...item,
-        itemId: storageItem.itemId,
-        quantity: storageItem.quantity,
+        itemId: item.id,
+        quantity: Infinity,
         canUse: usability.canUse,
         reason: usability.reason,
       });
     }
     return result;
-  }, [profile, companion?.stage]);
+  }, [companion?.stage]);
 
   // ── Inventory use item handler ──
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
@@ -138,7 +135,7 @@ export function BlobbiShopModal({
               Items
               {!inventoryEmpty && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-4">
-                  {inventoryItems.reduce((sum, i) => sum + i.quantity, 0)}
+                  {inventoryItems.length}
                 </Badge>
               )}
               {topTab === 'items' && (
@@ -275,20 +272,16 @@ interface ItemsGridProps {
   onGoToShop: () => void;
 }
 
-function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop }: ItemsGridProps) {
+function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop: _onGoToShop }: ItemsGridProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <div className="size-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
           <Package className="size-8 text-muted-foreground/60" />
         </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          No items yet. Visit the shop to stock up!
+        <p className="text-sm text-muted-foreground">
+          No items are available for your Blobbi's current stage.
         </p>
-        <Button variant="outline" size="sm" onClick={onGoToShop} className="gap-2">
-          <ShoppingBag className="size-3.5" />
-          Browse Shop
-        </Button>
       </div>
     );
   }
@@ -308,13 +301,6 @@ function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop }: I
                 item.canUse ? 'hover:border-primary/40 hover:bg-accent/40' : 'opacity-60',
               )}
             >
-              {/* Quantity badge */}
-              <Badge
-                className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0"
-              >
-                {item.quantity}
-              </Badge>
-
               {/* Icon */}
               <div className={cn('text-3xl leading-none mt-1', !item.canUse && 'grayscale')}>{item.icon}</div>
 
