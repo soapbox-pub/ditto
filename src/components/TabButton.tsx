@@ -1,6 +1,6 @@
-import { useRef, useLayoutEffect, useEffect } from 'react';
+import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useSubHeaderBarHover } from '@/components/SubHeaderBar';
+import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBar';
 
 interface TabButtonProps {
   /** Tab display label. */
@@ -26,23 +26,12 @@ interface TabButtonProps {
  */
 export function TabButton({ label, active, onClick, disabled, className, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
-  const { onHover, onActive, scrollContainerRef } = useSubHeaderBarHover();
+  const { onHover, scrollContainerRef } = useSubHeaderBarHover();
+  const { reportSlice } = useActiveTabIndicator(active, ref);
 
-  const reportSlice = () => {
-    const btn = ref.current;
-    if (!btn) return;
-    // Subtract scrollLeft so the position is in the visible (viewport) coordinate
-    // space of the scroll container, matching the coordinate space of the SVG
-    // hover/active indicators in SubHeaderBar.
-    const scrollOffset = scrollContainerRef.current?.scrollLeft ?? 0;
-    return { left: btn.offsetLeft - scrollOffset, width: btn.offsetWidth };
-  };
-
+  // Auto-scroll the active tab into view when the container overflows
   useLayoutEffect(() => {
     if (!active) return;
-    const s = reportSlice();
-    if (s) onActive(s);
-    // Auto-scroll the active tab into view when the container overflows
     const btn = ref.current;
     const container = scrollContainerRef.current;
     if (btn && container) {
@@ -56,21 +45,6 @@ export function TabButton({ label, active, onClick, disabled, className, childre
         container.scrollTo({ left: btnRight - container.clientWidth + 8, behavior: 'smooth' });
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
-
-  // Re-report the active indicator position when the scroll container scrolls,
-  // so the SVG clip-path stays aligned with the visually shifted tab.
-  useEffect(() => {
-    if (!active) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const handleScroll = () => {
-      const s = reportSlice();
-      if (s) onActive(s);
-    };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 

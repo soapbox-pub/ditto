@@ -96,7 +96,7 @@ import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
 import { formatNumber } from '@/lib/formatNumber';
-import { SubHeaderBar, useSubHeaderBarHover } from '@/components/SubHeaderBar';
+import { SubHeaderBar, useActiveTabIndicator } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
@@ -488,20 +488,7 @@ function SortableTabChip({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
   const chipRef = useRef<HTMLDivElement>(null);
-  const { onActive } = useSubHeaderBarHover();
-
-  // Report active slice to SubHeaderBar so the arc indicator renders instead of a flat bar.
-  // NOTE: intentionally excludes `transform` from deps — including it causes an infinite
-  // re-render loop (React error #185) because each onActive call re-renders SubHeaderBar,
-  // which re-renders this component, producing a new transform ref, re-triggering this effect.
-  useLayoutEffect(() => {
-    if (!active) return;
-    const el = chipRef.current;
-    if (!el) return;
-    onActive({ left: el.offsetLeft, width: el.offsetWidth });
-    return () => onActive(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  useActiveTabIndicator(active, chipRef);
 
   return (
     <div
@@ -2311,7 +2298,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           {tabEditMode && (
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
               <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
-                <div className="flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-none">
                   {localTabs.length === 0 ? (
                     <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
                   ) : (
@@ -2329,7 +2315,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       );
                     })
                   )}
-                </div>
               </SortableContext>
             </DndContext>
           )}
