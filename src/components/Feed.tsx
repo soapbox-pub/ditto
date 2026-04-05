@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -19,8 +19,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
-import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
@@ -361,11 +361,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 }
 
-/** Renders a saved search feed using useStreamPosts (live streaming). */
+/** Renders a saved search feed using useTabFeed (TanStack Query cached, infinite scroll). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
+  const { muteItems } = useMuteList();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -374,32 +374,46 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     user?.pubkey ?? '',
   );
 
-  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
-  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+  const {
+    data: rawData,
+    isLoading: isFeedLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTabFeed(resolvedFilter, `saved-${feed.id}`, !isResolving);
 
-  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
-    kindsOverride,
-    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
-  });
+  const isLoading = isResolving || isFeedLoading;
 
-  const isLoading = isResolving || isStreamLoading;
+  const queryKey = useMemo(
+    () => ['tab-feed', `saved-${feed.id}`],
+    [feed.id],
+  );
+  const handleRefresh = usePageRefresh(queryKey);
 
-  // useStreamPosts doesn't use TanStack Query, so refresh by invalidating the
-  // resolution query and letting the stream reconnect via remount.
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
-  }, [queryClient]);
-
-  // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
-  // but we still wire the ref for future pagination support
+  // Infinite scroll: fetch next page when sentinel is in view
   useEffect(() => {
-    // intentionally empty — useStreamPosts handles its own streaming
-  }, [inView]);
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading && posts.length === 0) {
+  // Flatten pages, deduplicate, and filter muted content
+  const feedItems = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    return rawData.pages
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        if (shouldHideFeedEvent(item.event)) return false;
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        return true;
+      });
+  }, [rawData?.pages, muteItems]);
+
+  if (isLoading && feedItems.length === 0) {
     return (
       <div className="divide-y divide-border">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -409,10 +423,10 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     );
   }
 
-  if (posts.length === 0) {
+  if (feedItems.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+        <FeedEmptyState message={`No posts found for "${feed.label}". Try adjusting your relay connections or check back later.`} />
       </PullToRefresh>
     );
   }
@@ -420,10 +434,23 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {posts.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {feedItems.map((item) => (
+          <NoteCard
+            key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+            event={item.event}
+            repostedBy={item.repostedBy}
+          />
         ))}
-        <div ref={scrollRef} className="py-2" />
+        {hasNextPage && (
+          <div ref={scrollRef} className="py-4">
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
+        {!hasNextPage && <div ref={scrollRef} className="py-2" />}
       </div>
     </PullToRefresh>
   );
