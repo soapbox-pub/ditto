@@ -275,13 +275,18 @@ function FollowView({ pubkey }: { pubkey: string }) {
                 Follow {displayName} on Ditto
               </Button>
             ) : isOwnProfile ? (
-              <div className="text-center space-y-2">
-                <p className="text-muted-foreground text-sm">
-                  This is your follow link. Share it with others.
-                </p>
-                <Link to={profileUrl}>
-                  <Button variant="outline" className="rounded-full">View your profile</Button>
-                </Link>
+              <div className="text-center space-y-3">
+                <div className="flex items-center justify-center gap-2 text-primary">
+                  <UserPlus className="size-5" />
+                  <p className="font-semibold">
+                    This is your follow link
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Link to={profileUrl}>
+                    <Button className="rounded-full w-full">View your profile</Button>
+                  </Link>
+                </div>
               </div>
             ) : isPending ? (
               <div className="flex flex-col items-center space-y-2">
