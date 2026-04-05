@@ -20,7 +20,7 @@ import {
 
 import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import type { ShopItem } from '../types/shop.types';
-import { getShopItemById } from '../lib/blobbi-shop-items';
+import { getLiveShopItems } from '../lib/blobbi-shop-items';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { cn } from '@/lib/utils';
 import { ItemEffectDisplay } from './ItemEffectDisplay';
@@ -55,7 +55,7 @@ interface BlobbiInventoryContentProps {
 }
 
 export function BlobbiInventoryContent({
-  profile,
+  profile: _profile,
   companion,
   onUseItem,
   isUsingItem = false,
@@ -65,26 +65,23 @@ export function BlobbiInventoryContent({
   const [showUseDialog, setShowUseDialog] = useState(false);
 
   const inventoryItems = useMemo((): ResolvedInventoryItem[] => {
-    if (!profile) return [];
     const stage = companion?.stage ?? 'egg';
+    const allItems = getLiveShopItems();
 
     const result: ResolvedInventoryItem[] = [];
-    for (const storageItem of profile.storage) {
-      const item = getShopItemById(storageItem.itemId);
-      if (!item) continue;
-
-      const usability = canUseItemForStage(storageItem.itemId, stage);
+    for (const item of allItems) {
+      const usability = canUseItemForStage(item.id, stage);
 
       result.push({
         ...item,
-        itemId: storageItem.itemId,
-        quantity: storageItem.quantity,
+        itemId: item.id,
+        quantity: Infinity,
         canUse: usability.canUse,
         reason: usability.reason,
       });
     }
     return result;
-  }, [profile, companion?.stage]);
+  }, [companion?.stage]);
 
   const isEmpty = inventoryItems.length === 0;
 
@@ -111,7 +108,7 @@ export function BlobbiInventoryContent({
     }
   };
 
-  const maxQuantity = selectedItem?.quantity ?? 1;
+  const maxQuantity = 99;
   const handleIncrease = () => setQuantity(q => Math.min(q + 1, maxQuantity));
   const handleDecrease = () => setQuantity(q => Math.max(q - 1, 1));
   const handleQuantityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,9 +128,9 @@ export function BlobbiInventoryContent({
             <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">
               <Package className="size-10 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No Items Yet</h3>
+            <h3 className="text-lg font-semibold mb-2">No Items Available</h3>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Visit the Shop tab to purchase items for your Blobbi. Items you buy will appear here.
+              No items are available for your Blobbi's current stage.
             </p>
           </div>
         ) : (
@@ -178,11 +175,6 @@ export function BlobbiInventoryContent({
                       </p>
                     )}
                   </div>
-
-                  {/* Quantity Badge */}
-                  <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 px-2 py-0.5 shrink-0 text-xs">
-                    ×{item.quantity}
-                  </Badge>
 
                   {/* Use Button */}
                   {onUseItem && (
@@ -367,9 +359,6 @@ function InventoryUseConfirmDialog({
             <div className="text-3xl sm:text-4xl shrink-0">{item.icon}</div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold truncate">{item.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {item.quantity} in inventory
-              </p>
             </div>
           </div>
 
@@ -377,9 +366,6 @@ function InventoryUseConfirmDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">Quantity</label>
-              <span className="text-xs text-muted-foreground">
-                Max: {maxQuantity}
-              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button

@@ -9,16 +9,12 @@ import { toast } from '@/hooks/useToast';
 import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
-  KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
-  updateBlobbonautTags,
-  createStorageTags,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
-  decrementStorageItem,
   canUseAction,
   getStageRestrictionMessage,
   clampStat,
@@ -102,7 +98,7 @@ export function useBlobbiUseInventoryItem({
   profile,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  updateProfileEvent,
+  updateProfileEvent: _updateProfileEvent,
 }: UseBlobbiUseInventoryItemParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -391,28 +387,8 @@ export function useBlobbiUseInventoryItem({
 
       updateCompanionEvent(blobbiEvent);
 
-      // ─── Update Profile Storage (kind 11125) ───
-      // Only decrement storage if the item actually exists in inventory.
-      // Items are free to use regardless of inventory state.
-      const hasItemInStorage = canonical.profileStorage.some(s => s.itemId === itemId && s.quantity > 0);
-      if (hasItemInStorage) {
-        const newStorage = decrementStorageItem(canonical.profileStorage, itemId, quantity);
-        const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
-
-        const profileTags = updateBlobbonautTags(canonical.profileAllTags, {
-          storage: storageValues,
-        });
-
-        const profileEvent = await publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
-          tags: profileTags,
-        });
-
-        updateProfileEvent(profileEvent);
-      }
-
-      // No query invalidation needed — the optimistic updates above keep the
+      // Items are free to use — no storage decrement needed.
+      // No query invalidation needed — the optimistic update above keeps the
       // cache correct, and ensureCanonicalBeforeAction fetches fresh from relays
       // before every mutation (read-modify-write pattern).
 

@@ -2,7 +2,7 @@
 
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 
@@ -293,8 +293,8 @@ export interface FilterInventoryOptions {
 }
 
 /**
- * Filter inventory items by action type.
- * Returns resolved items with shop metadata.
+ * Get all available items for an action type from the shop catalog.
+ * Items are abilities/tools — no inventory ownership is required.
  * 
  * Filtering rules:
  * - Only items matching the action's item type are included
@@ -304,22 +304,20 @@ export interface FilterInventoryOptions {
  *   - clean action: only items with hygiene or happiness effect
  */
 export function filterInventoryByAction(
-  storage: StorageItem[],
+  _storage: StorageItem[],
   action: InventoryAction,
   options: FilterInventoryOptions = {}
 ): ResolvedInventoryItem[] {
   const allowedType = ACTION_TO_ITEM_TYPE[action];
   const result: ResolvedInventoryItem[] = [];
   const isEgg = options.stage === 'egg';
+  const allItems = getLiveShopItems();
 
-  for (const storageItem of storage) {
-    const shopItem = getShopItemById(storageItem.itemId);
-    if (!shopItem) continue;
+  for (const shopItem of allItems) {
     if (shopItem.type !== allowedType) continue;
-    if (storageItem.quantity <= 0) continue;
 
     // Shell Repair Kit: only show for eggs in medicine modal
-    if (storageItem.itemId === SHELL_REPAIR_KIT_ID && !isEgg) {
+    if (shopItem.id === SHELL_REPAIR_KIT_ID && !isEgg) {
       continue;
     }
 
@@ -334,8 +332,8 @@ export function filterInventoryByAction(
     }
 
     result.push({
-      itemId: storageItem.itemId,
-      quantity: storageItem.quantity,
+      itemId: shopItem.id,
+      quantity: Infinity,
       name: shopItem.name,
       icon: shopItem.icon,
       type: shopItem.type,

@@ -406,7 +406,7 @@ export function HangingItems({
   
   // Track how many instances of each item type have been released (not yet used)
   // Key: item.id (type ID), Value: count of released instances
-  const [releasedCountByItemId, setReleasedCountByItemId] = useState<Map<string, number>>(new Map());
+  const [_releasedCountByItemId, setReleasedCountByItemId] = useState<Map<string, number>>(new Map());
   
   // Counter for generating unique instance IDs
   const instanceCounterRef = useRef(0);
@@ -985,15 +985,9 @@ export function HangingItems({
     return viewportCenterX + startX + index * HANGING_CONFIG.itemSpacing;
   };
   
-  // Calculate hanging items with their remaining quantities
-  // An item appears in the hanging row if (quantity - releasedCount) > 0
-  const hangingItems = items
-    .map(item => {
-      const releasedCount = releasedCountByItemId.get(item.id) || 0;
-      const remainingQuantity = item.quantity - releasedCount;
-      return { ...item, quantity: remainingQuantity };
-    })
-    .filter(item => item.quantity > 0);
+  // All items are always visible — they are abilities, not consumable inventory.
+  // No quantity filtering needed.
+  const hangingItems = items;
   
   // Should we render the hanging container?
   const shouldRenderContainer = containerState !== 'hidden' || (isVisible && selectedAction);
@@ -1033,7 +1027,7 @@ export function HangingItems({
         >
           <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border">
             <p className="text-sm text-muted-foreground text-center">
-              No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items in your inventory
+              No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items available
             </p>
           </div>
         </div>
@@ -1102,8 +1096,8 @@ export function HangingItems({
                       marginLeft: (HANGING_CONFIG.circleSize / 2) * -1 + HANGING_CONFIG.lineWidth / 2,
                     }}
                     onClick={() => handleItemClick(item, itemX)}
-                    title={`${item.name} (x${item.quantity})`}
-                    aria-label={`${item.name}, quantity ${item.quantity}. Click to release.`}
+                    title={item.name}
+                    aria-label={`${item.name}. Click to release.`}
                   >
                     {/* Item emoji */}
                     <span 
@@ -1113,24 +1107,6 @@ export function HangingItems({
                       aria-hidden="true"
                     >
                       {item.emoji}
-                    </span>
-                    
-                    {/* Quantity badge */}
-                    <span
-                      className={cn(
-                        "absolute -top-1 -right-1",
-                        "flex items-center justify-center",
-                        "bg-primary text-primary-foreground",
-                        "text-xs font-semibold rounded-full",
-                        "shadow-md"
-                      )}
-                      style={{
-                        minWidth: HANGING_CONFIG.badgeSize,
-                        height: HANGING_CONFIG.badgeSize,
-                        padding: '0 5px',
-                      }}
-                    >
-                      {item.quantity}
                     </span>
                   </button>
                 </div>

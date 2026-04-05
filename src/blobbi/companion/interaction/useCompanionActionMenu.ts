@@ -18,8 +18,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { StorageItem } from '@/blobbi/core/lib/blobbi';
+import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import type {
@@ -68,7 +67,10 @@ interface UseCompanionActionMenuResult {
 }
 
 /**
- * Resolve inventory items for a specific action/category.
+ * Resolve available items for a specific action/category from the shop catalog.
+ * 
+ * Items are sourced from the full catalog (not inventory) — all items are
+ * available as abilities/tools unlocked by stage, not consumable inventory.
  * 
  * Uses the centralized `canUseItemForStage` function to ensure consistent
  * stage-based filtering across all UIs:
@@ -80,7 +82,6 @@ interface UseCompanionActionMenuResult {
  * filters out all egg-only items from the companion interaction system.
  */
 function resolveItemsForAction(
-  storage: StorageItem[],
   action: CompanionMenuAction,
   stage: 'egg' | 'baby' | 'adult'
 ): CompanionItem[] {
@@ -89,13 +90,10 @@ function resolveItemsForAction(
   // Sleep action has no items
   if (!category) return [];
   
+  const allItems = getLiveShopItems();
   const items: CompanionItem[] = [];
   
-  for (const storageItem of storage) {
-    if (storageItem.quantity <= 0) continue;
-    
-    const shopItem = getShopItemById(storageItem.itemId);
-    if (!shopItem) continue;
+  for (const shopItem of allItems) {
     if (shopItem.type !== category) continue;
     
     // Use centralized stage-based filtering
@@ -104,17 +102,17 @@ function resolveItemsForAction(
     // - Food/Toys: only for baby/adult (excluded for eggs)
     // - Medicine: must have health effect
     // - Hygiene: must have hygiene or happiness effect
-    const usability = canUseItemForStage(storageItem.itemId, stage);
+    const usability = canUseItemForStage(shopItem.id, stage);
     if (!usability.canUse) {
       continue;
     }
     
     items.push({
-      id: storageItem.itemId,
+      id: shopItem.id,
       name: shopItem.name,
       emoji: shopItem.icon,
       category: shopItem.type,
-      quantity: storageItem.quantity,
+      quantity: Infinity,
       effect: shopItem.effect,
     });
   }
@@ -197,8 +195,8 @@ export function useCompanionActionMenu({
       return;
     }
     
-    // Resolve items for this action
-    const items = resolveItemsForAction(profile.storage, action, stage);
+    // Resolve items for this action from the catalog (not inventory)
+    const items = resolveItemsForAction(action, stage);
     
     setMenuState(prev => ({
       ...prev,

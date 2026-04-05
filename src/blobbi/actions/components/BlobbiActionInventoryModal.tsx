@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/BlobbiActionInventoryModal.tsx
 
 import { useMemo, useState } from 'react';
-import { Loader2, ShoppingBag, Minus, Plus, X } from 'lucide-react';
+import { Loader2, Minus, Plus, X } from 'lucide-react';
 
 import {
   Dialog,
@@ -49,9 +49,9 @@ export function BlobbiActionInventoryModal({
   onOpenChange,
   action,
   companion,
-  profile,
+  profile: _profile,
   onUseItem,
-  onOpenShop,
+  onOpenShop: _onOpenShop,
   isUsingItem,
   usingItemId,
 }: BlobbiActionInventoryModalProps) {
@@ -62,11 +62,11 @@ export function BlobbiActionInventoryModal({
   const [quantity, setQuantity] = useState(1);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Filter inventory by action type, respecting egg-compatible effects
+  // Get all available items for this action from the catalog (not inventory).
+  // Items are abilities/tools — no ownership required.
   const availableItems = useMemo(() => {
-    if (!profile) return [];
-    return filterInventoryByAction(profile.storage, action, { stage: companion.stage });
-  }, [profile, action, companion.stage]);
+    return filterInventoryByAction([], action, { stage: companion.stage });
+  }, [action, companion.stage]);
 
   // Check stage restrictions for this specific action
   const canUse = canUseAction(companion, action);
@@ -98,13 +98,8 @@ export function BlobbiActionInventoryModal({
     }
   };
 
-  const handleOpenShop = () => {
-    onOpenChange(false);
-    onOpenShop();
-  };
-
-  // Quantity controls
-  const maxQuantity = selectedItem?.quantity ?? 1;
+  // Quantity controls - items are unlimited abilities, cap at a reasonable max
+  const maxQuantity = 99;
   const handleIncrease = () => setQuantity(q => Math.min(q + 1, maxQuantity));
   const handleDecrease = () => setQuantity(q => Math.max(q - 1, 1));
   const handleQuantityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,14 +156,10 @@ export function BlobbiActionInventoryModal({
               <div className="size-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
                 <span className="text-3xl">{actionMeta.icon}</span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">No Items</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                You don't have any items for this action. Visit the shop to get some!
+              <h3 className="text-lg font-semibold mb-2">No Items Available</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                No items are available for this action at your Blobbi's current stage.
               </p>
-              <Button onClick={handleOpenShop} className="gap-2">
-                <ShoppingBag className="size-4" />
-                Open Shop
-              </Button>
             </div>
           )}
 
@@ -280,9 +271,6 @@ function BlobbiInventoryUseRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
             <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
-            <Badge variant="secondary" className="text-xs shrink-0">
-              x{item.quantity}
-            </Badge>
           </div>
 
           {/* Effect Preview - shown inline on desktop */}
@@ -502,9 +490,6 @@ function BlobbiUseItemConfirmDialog({
             <div className="text-3xl sm:text-4xl shrink-0">{item.icon}</div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold truncate">{item.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {item.quantity} in inventory
-              </p>
             </div>
           </div>
 
@@ -512,9 +497,6 @@ function BlobbiUseItemConfirmDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">Quantity</label>
-              <span className="text-xs text-muted-foreground">
-                Max: {maxQuantity}
-              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button

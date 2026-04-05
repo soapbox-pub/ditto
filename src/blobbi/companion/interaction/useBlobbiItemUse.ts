@@ -30,10 +30,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
-  KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
-  updateBlobbonautTags,
-  createStorageTags,
   parseBlobbiEvent,
   isValidBlobbiEvent,
 } from '@/blobbi/core/lib/blobbi';
@@ -41,7 +38,6 @@ import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
-  decrementStorageItem,
   canUseAction,
   canUseItemForStage,
   getStageRestrictionMessage,
@@ -126,7 +122,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
   const queryClient = useQueryClient();
   
   // Fetch profile if not provided
-  const { profile: fetchedProfile, updateProfileEvent } = useBlobbonautProfile();
+  const { profile: fetchedProfile } = useBlobbonautProfile();
   const profile = options.profile ?? fetchedProfile;
   
   // Per-item cooldown tracking (ref to avoid re-renders)
@@ -283,15 +279,6 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
         throw new Error(itemUsability.reason ?? 'This item cannot be used by this companion');
       }
       
-      // Validate item exists in storage with sufficient quantity
-      const storageItem = profile.storage.find(s => s.itemId === itemId);
-      if (!storageItem || storageItem.quantity <= 0) {
-        throw new Error('Item not found in your inventory');
-      }
-      if (storageItem.quantity < quantity) {
-        throw new Error(`Not enough items in inventory (have ${storageItem.quantity}, need ${quantity})`);
-      }
-      
       // Validate item has effects
       if (!shopItem.effect) {
         throw new Error('This item has no effect');
@@ -414,24 +401,8 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       updateCompanionInCache(blobbiEvent);
       
-      // ─── Update Profile Storage (kind 11125) ───
-      const newStorage = decrementStorageItem(profile.storage, itemId, quantity);
-      const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
-      
-      const profileTags = updateBlobbonautTags(profile.allTags, {
-        storage: storageValues,
-      });
-      
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
-        tags: profileTags,
-      });
-      
-      updateProfileEvent(profileEvent);
-      
       // ─── Invalidate Queries ───
-      queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', user.pubkey] });
+      // Items are free to use — no storage decrement needed.
       queryClient.invalidateQueries({ queryKey: ['blobbi-collection', user.pubkey] });
       
       return { statsChanged };
