@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { nip19 } from 'nostr-tools';
 import { UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -140,13 +141,22 @@ export function MentionAutocomplete({
     setIsOpen(true);
     setSelectedIndex(0);
 
-    // Position the dropdown below the @ character, relative to the textarea's
-    // offsetParent (the `relative` wrapper div) so it stays inside the modal.
+    // Position the dropdown using fixed viewport coordinates so it isn't
+    // clipped by ancestor overflow containers (e.g. the compose modal).
     const coords = getCaretCoordinates(textarea, atPos);
     const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
+    const rect = textarea.getBoundingClientRect();
+    const top = rect.top + coords.top - textarea.scrollTop + lineHeight + 4;
+    const left = rect.left + Math.max(0, Math.min(coords.left, textarea.clientWidth - 280));
+
+    // If the dropdown would overflow the bottom of the viewport, flip it above the cursor
+    const dropdownHeight = 240; // max-h-[240px]
+    const flippedTop = rect.top + coords.top - textarea.scrollTop - dropdownHeight - 4;
+    const useFlipped = top + dropdownHeight > window.innerHeight && flippedTop > 0;
+
     setDropdownPos({
-      top: coords.top + lineHeight + 4,
-      left: Math.max(0, Math.min(coords.left, textarea.clientWidth - 280)),
+      top: useFlipped ? flippedTop : top,
+      left: Math.max(8, Math.min(left, window.innerWidth - 288)),
     });
   }, [textareaRef]);
 
@@ -190,6 +200,19 @@ export function MentionAutocomplete({
     if (!textarea) return;
     detectMention(content, textarea.selectionStart);
   }, [content, detectMention, textareaRef]);
+
+  // Dismiss the dropdown when any ancestor scrolls, since we use fixed
+  // positioning and the dropdown would become misaligned.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleScroll = () => setIsOpen(false);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [isOpen]);
 
   // Handle keyboard navigation within the dropdown
   useEffect(() => {
@@ -254,10 +277,10 @@ export function MentionAutocomplete({
     return null;
   }
 
-  return (
+  const dropdown = (
     <div
       ref={dropdownRef}
-      className="absolute z-[100] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+      className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
       <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
@@ -273,6 +296,10 @@ export function MentionAutocomplete({
       </div>
     </div>
   );
+
+  // Portal to document.body so the dropdown escapes any ancestor overflow
+  // clipping and CSS transform containing blocks (e.g. Radix Dialog).
+  return createPortal(dropdown, document.body);
 }
 
 function MentionItem({
