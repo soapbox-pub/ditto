@@ -13,7 +13,7 @@ interface MobileDorkSheetProps {
 
 export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkSheetProps) {
   const {
-    messages, input, setInput, isStreaming, selectedModel,
+    messages, input, setInput, isStreaming, streamingText, selectedModel,
     apiLoading, messagesEndRef,
     handleSend, handleStop,
   } = useAIChatSession();
@@ -38,10 +38,10 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
     }
   }, [hidden]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or streaming text updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, messagesEndRef]);
+  }, [messages, streamingText, messagesEndRef]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -60,7 +60,7 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
   }, [onClose, handleSend, handleStop, isStreaming]);
 
   const visibleMessages = messages.filter((msg) => msg.role !== 'tool_result');
-  const showThinking = (isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user';
+  const showThinking = (isStreaming || apiLoading) && !streamingText && messages[messages.length - 1]?.role === 'user';
 
   return (
     <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')}>
@@ -71,6 +71,9 @@ export function MobileDorkSheet({ hidden, onClose, onToggleDork }: MobileDorkShe
           <MessageBubble key={msg.id} message={msg} />
         ))}
         {showThinking && <DorkThinking />}
+        {streamingText && (isStreaming || apiLoading) && (
+          <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
+        )}
         <div ref={messagesEndRef} />
       </div>
 

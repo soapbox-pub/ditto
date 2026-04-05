@@ -42,12 +42,13 @@ function saveMessages(messages: DisplayMessage[]): void {
 export function useAIChatSession() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { sendChatMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
+  const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall } = useAIChatTools();
 
   const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
 
   // Resolve the effective model: config value, or fetch the cheapest as default
   const [defaultModel, setDefaultModel] = useState('');
@@ -61,10 +62,10 @@ export function useAIChatSession() {
     saveMessages(messages);
   }, [messages]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages or streaming text updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingText]);
 
   // Fetch cheapest model as fallback when no model is configured
   useEffect(() => {
@@ -153,6 +154,7 @@ export function useAIChatSession() {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsStreaming(true);
+    setStreamingText('');
 
     try {
       const MAX_TOOL_ROUNDS = 10;
@@ -162,9 +164,21 @@ export function useAIChatSession() {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         if (controller.signal.aborted) break;
 
-        const response = await sendChatMessage(apiMessages, selectedModel, {
-          tools: TOOLS,
-        } as Partial<Record<string, unknown>>, controller.signal);
+        // Stream the response — text chunks update streamingText in real-time
+        let streamAccumulator = '';
+        const response = await sendStreamingMessage(
+          apiMessages,
+          selectedModel,
+          (chunk) => {
+            streamAccumulator += chunk;
+            setStreamingText(streamAccumulator);
+          },
+          { tools: TOOLS } as Partial<Record<string, unknown>>,
+          controller.signal,
+        );
+
+        // Stream finished — clear the streaming text
+        setStreamingText('');
 
         const choice = response.choices[0];
         const assistantMsg = choice.message;
@@ -252,8 +266,9 @@ export function useAIChatSession() {
     } finally {
       abortRef.current = null;
       setIsStreaming(false);
+      setStreamingText('');
     }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendChatMessage, executeToolCall, clearError]);
+  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError]);
 
   // Stop an in-flight generation
   const handleStop = useCallback(() => {
@@ -281,6 +296,7 @@ export function useAIChatSession() {
     input,
     setInput,
     isStreaming,
+    streamingText,
     selectedModel,
     apiLoading,
     apiError,

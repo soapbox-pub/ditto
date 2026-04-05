@@ -21,7 +21,7 @@ export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const {
-    messages, input, setInput, isStreaming, selectedModel,
+    messages, input, setInput, isStreaming, streamingText, selectedModel,
     apiLoading, apiError, messagesEndRef,
     handleSend, handleStop, handleKeyDown, handleClear, getCredits,
   } = useAIChatSession();
@@ -80,9 +80,13 @@ export function AIChatPage() {
             ))
           )}
 
-          {/* Loading indicator */}
-          {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <DorkThinking />
+          {/* Streaming / loading indicator */}
+          {(isStreaming || apiLoading) && (
+            streamingText ? (
+              <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
+            ) : messages[messages.length - 1]?.role === 'user' ? (
+              <DorkThinking />
+            ) : null
           )}
 
           {/* Error display */}
