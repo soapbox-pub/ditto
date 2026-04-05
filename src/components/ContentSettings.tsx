@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import {
-  Users, Download, Loader2, X, Pencil, Home, Globe,
+  Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
   Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useToast } from '@/hooks/useToast';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useInterests } from '@/hooks/useInterests';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -556,6 +557,183 @@ function FeedTabsSection() {
 
       {/* Saved Feeds */}
       <SavedFeedsSection />
+
+      {/* Interests (hashtag & geotag tabs) */}
+      <InterestsSection />
+    </div>
+  );
+}
+
+// ─── Interests Section ───────────────────────────────────────────────────────
+
+function InterestsSection() {
+  const { toast } = useToast();
+  const { user } = useCurrentUser();
+  const { hashtags, addInterest: addHashtag, removeInterest: removeHashtag, isLoading: isLoadingHashtags } = useInterests('t');
+  const { hashtags: geotags, addInterest: addGeotag, removeInterest: removeGeotag, isLoading: isLoadingGeotags } = useInterests('g');
+  const [newHashtag, setNewHashtag] = useState('');
+  const [newGeotag, setNewGeotag] = useState('');
+
+  const isLoading = isLoadingHashtags || isLoadingGeotags;
+
+  if (!user) return null;
+
+  const handleRemoveHashtag = async (tag: string) => {
+    await removeHashtag.mutateAsync(tag);
+    toast({ title: `#${tag} removed from feed tabs` });
+  };
+
+  const handleRemoveGeotag = async (tag: string) => {
+    await removeGeotag.mutateAsync(tag);
+    toast({ title: `${tag} removed from feed tabs` });
+  };
+
+  const handleAddHashtag = async () => {
+    const tag = newHashtag.trim().toLowerCase().replace(/^#/, '');
+    if (!tag) return;
+    if (hashtags.includes(tag)) {
+      toast({ title: `#${tag} is already followed`, variant: 'destructive' });
+      return;
+    }
+    await addHashtag.mutateAsync(tag);
+    setNewHashtag('');
+    toast({ title: `#${tag} added to feed tabs` });
+  };
+
+  const handleAddGeotag = async () => {
+    const tag = newGeotag.trim().toLowerCase();
+    if (!tag) return;
+    if (geotags.includes(tag)) {
+      toast({ title: `${tag} is already followed`, variant: 'destructive' });
+      return;
+    }
+    await addGeotag.mutateAsync(tag);
+    setNewGeotag('');
+    toast({ title: `${tag} added to feed tabs` });
+  };
+
+  return (
+    <div className="px-3 py-4 space-y-4 border-t border-border">
+      <div>
+        <h3 className="text-sm font-semibold">Interest Tabs</h3>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Hashtags and locations you follow appear as tabs on the home feed.
+        </p>
+      </div>
+
+      {/* Hashtags */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Hash className="size-4 text-muted-foreground shrink-0" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</span>
+        </div>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="ditto"
+            value={newHashtag}
+            onChange={(e) => setNewHashtag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddHashtag(); }}
+            className="h-9"
+            disabled={addHashtag.isPending}
+          />
+          <Button
+            onClick={handleAddHashtag}
+            disabled={addHashtag.isPending || !newHashtag.trim()}
+            size="sm"
+            className="h-9"
+          >
+            {addHashtag.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : hashtags.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No followed hashtags yet.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {hashtags.map((tag) => (
+              <div
+                key={`hashtag:${tag}`}
+                className="rounded-lg border border-border/50 bg-secondary/30"
+              >
+                <div className="flex items-center gap-2 py-2 px-2.5">
+                  <Hash className="size-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium flex-1 min-w-0 truncate">{tag}</span>
+                  <button
+                    onClick={() => handleRemoveHashtag(tag)}
+                    disabled={removeHashtag.isPending}
+                    className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+                    aria-label={`Remove #${tag}`}
+                  >
+                    <X className="size-3.5" strokeWidth={4} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Geotags */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <MapPin className="size-4 text-muted-foreground shrink-0" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Locations</span>
+        </div>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="geohash (e.g. u4pru)"
+            value={newGeotag}
+            onChange={(e) => setNewGeotag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddGeotag(); }}
+            className="h-9"
+            disabled={addGeotag.isPending}
+          />
+          <Button
+            onClick={handleAddGeotag}
+            disabled={addGeotag.isPending || !newGeotag.trim()}
+            size="sm"
+            className="h-9"
+          >
+            {addGeotag.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : geotags.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No followed locations yet.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {geotags.map((tag) => (
+              <div
+                key={`geotag:${tag}`}
+                className="rounded-lg border border-border/50 bg-secondary/30"
+              >
+                <div className="flex items-center gap-2 py-2 px-2.5">
+                  <MapPin className="size-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium flex-1 min-w-0 truncate">{tag}</span>
+                  <button
+                    onClick={() => handleRemoveGeotag(tag)}
+                    disabled={removeGeotag.isPending}
+                    className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X className="size-3.5" strokeWidth={4} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
