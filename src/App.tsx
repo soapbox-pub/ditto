@@ -16,7 +16,7 @@ import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
 import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
-
+import { DMProviderWrapper } from "@/components/DMProviderWrapper";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
@@ -123,6 +123,7 @@ const hardcodedConfig: AppConfig = {
   sidebarOrder: [
     "feed",
     "notifications",
+    "messages-p",
     "search",
     "blobbi",
     "badges",
@@ -204,6 +205,7 @@ export function App() {
                   <NativeNotifications />
 
                     <NWCProvider>
+                    <DMProviderWrapper>
                     <DMProvider config={dmConfig}>
                       <EmotionDevProvider>
                         <TooltipProvider>
@@ -213,6 +215,7 @@ export function App() {
                         </TooltipProvider>
                       </EmotionDevProvider>
                     </DMProvider>
+                    </DMProviderWrapper>
                   </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>

@@ -37,6 +37,9 @@ deploy.sh
 # Build-time configuration
 ditto.json
 
+# DM message sounds (copied from node_modules by postinstall)
+public/sounds/
+
 # Android build outputs and sensitive files
 *.aab
 resources/

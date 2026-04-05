@@ -78,6 +78,8 @@ const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ 
 const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
 const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
 const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
+const MessagesPage = lazy(() => import("./pages/MessagesPage").then(m => ({ default: m.MessagesPage })));
+const MessagingSettings = lazy(() => import("./pages/MessagingSettings"));
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -156,6 +158,8 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/messages-p" element={<MessagesPage />} />
+            <Route path="/settings/messaging" element={<MessagingSettings />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
             <Route path="/profile" element={<ProfileRedirect />} />

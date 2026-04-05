@@ -15,7 +15,7 @@ import {
   Earth,
   Film,
   HelpCircle,
-
+  Mail,
   MessageSquare,
   MessageSquareMore,
   Mic,
@@ -108,6 +108,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     label: "Notifications",
     path: "/notifications",
     icon: Bell,
+    requiresAuth: true,
+  },
+  {
+    id: "messages-p",
+    label: "Messages P",
+    path: "/messages-p",
+    icon: Mail,
     requiresAuth: true,
   },
   { id: "search", label: "Search", path: "/search", icon: Search },

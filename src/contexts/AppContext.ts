@@ -241,6 +241,16 @@ export interface AppConfig {
   savedFeeds: SavedFeed[];
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
+  /** Messaging configuration (custom sounds, discovery relays, etc.) */
+  messaging?: {
+    customSoundUrl?: string;
+    discoveryRelays?: string[];
+    relayMode?: 'discovery' | 'hybrid' | 'strict_outbox';
+    renderInlineMedia?: boolean;
+    soundEnabled?: boolean;
+    soundId?: string;
+    devMode?: boolean;
+  };
 }
 
 export interface AppContextType {
