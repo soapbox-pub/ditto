@@ -19,7 +19,7 @@ import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
-import { useEffectiveEmotion } from '@/blobbi/dev/EmotionDevContext';
+import { useEffectiveEmotion } from '@/blobbi/dev/useEmotionDev';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';

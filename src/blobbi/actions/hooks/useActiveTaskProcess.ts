@@ -168,7 +168,7 @@ export function useActiveTaskProcess(
   }, [processType, hatchTasks, evolveTasks]);
   
   // Extract tasks and state from active result
-  const tasks = activeResult?.tasks ?? [];
+  const tasks = useMemo(() => activeResult?.tasks ?? [], [activeResult]);
   const isLoading = activeResult?.isLoading ?? false;
   const allCompleted = activeResult?.allCompleted ?? false;
   const persistentTasksComplete = activeResult?.persistentTasksComplete ?? false;

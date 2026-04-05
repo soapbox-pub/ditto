@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { ComposeBox } from '@/components/ComposeBox';

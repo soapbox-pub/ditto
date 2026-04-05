@@ -19,9 +19,10 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getContentWarning } from '@/lib/contentWarning';
-import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer } from '@/components/MiniAudioPlayer';
+import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { parseDimToAspectRatio } from '@/components/MediaCollage';
+import { parseDimToAspectRatio } from '@/lib/mediaUtils';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 

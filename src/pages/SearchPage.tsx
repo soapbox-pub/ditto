@@ -30,7 +30,8 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { buildKindOptions, KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
+import { buildKindOptions } from '@/lib/feedFilterUtils';
+import { KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/SavedFeedFiltersEditor';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
@@ -311,7 +312,7 @@ export function SearchPage() {
     if (sort === 'hot') parts.push('sort:hot');
     else if (sort === 'trending') parts.push('sort:trending');
     return parts.join(' ');
-  }, [debouncedSearchQuery, language, mediaType, protocols, kindsOverride, hasKindMediaConflict, sort]);
+  }, [debouncedSearchQuery, language, mediaType, protocols, hasKindMediaConflict, sort, kindFilter]);
 
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
@@ -891,7 +892,7 @@ const FOLLOWS_PAGE_SIZE = 30;
 
 function FollowsList() {
   const { data: followData } = useFollowList();
-  const pubkeys = followData?.pubkeys ?? [];
+  const pubkeys = useMemo(() => followData?.pubkeys ?? [], [followData]);
   const [visibleCount, setVisibleCount] = useState(FOLLOWS_PAGE_SIZE);
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '300px' });
 

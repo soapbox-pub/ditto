@@ -146,6 +146,44 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       clientRef.current?.destroy();
       clientRef.current = null;
     };
+  }, [supported]);
+
+  // ─── syncPreferences() ─────────────────────────────────────────────────────
+
+  const syncPreferences = useCallback(async (
+    prefs: NonNullable<EncryptedSettings['notificationPreferences']>,
+    userPubkey: string,
+  ) => {
+    const client = clientRef.current;
+    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
+    if (!client || !baseId) return;
+
+    const onlyFollowing = prefs.onlyFollowing === true;
+
+    await Promise.allSettled(
+      NOTIFICATION_TEMPLATES.map((tmpl) => {
+        const prefKey = TEMPLATE_ID_TO_PREF_KEY[tmpl.id];
+        // Default to active when the preference is absent
+        const isActive = prefKey ? prefs[prefKey] !== false : true;
+
+        // Build the full filter — includes #p and optionally $contacts
+        const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
+          kinds: tmpl.kinds,
+          '#p': [userPubkey],
+        };
+        if (onlyFollowing) {
+          filter.authors = ['$contacts'];
+        }
+
+        return client.updateSubscription({
+          subscription_id: `${baseId}-${tmpl.id}`,
+          domain: DOMAIN,
+          updates: { is_active: isActive, filter },
+        }).catch((err) => {
+          console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
+        });
+      }),
+    );
   }, []);
 
   // ─── enable() ─────────────────────────────────────────────────────────────
@@ -225,7 +263,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
 
     setEnabled(true);
-  }, [supported]);
+  }, [supported, syncPreferences]);
 
   // ─── disable() ────────────────────────────────────────────────────────────
 
@@ -253,44 +291,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
 
     setEnabled(false);
-  }, []);
-
-  // ─── syncPreferences() ─────────────────────────────────────────────────────
-
-  const syncPreferences = useCallback(async (
-    prefs: NonNullable<EncryptedSettings['notificationPreferences']>,
-    userPubkey: string,
-  ) => {
-    const client = clientRef.current;
-    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
-    if (!client || !baseId) return;
-
-    const onlyFollowing = prefs.onlyFollowing === true;
-
-    await Promise.allSettled(
-      NOTIFICATION_TEMPLATES.map((tmpl) => {
-        const prefKey = TEMPLATE_ID_TO_PREF_KEY[tmpl.id];
-        // Default to active when the preference is absent
-        const isActive = prefKey ? prefs[prefKey] !== false : true;
-
-        // Build the full filter — includes #p and optionally $contacts
-        const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
-          kinds: tmpl.kinds,
-          '#p': [userPubkey],
-        };
-        if (onlyFollowing) {
-          filter.authors = ['$contacts'];
-        }
-
-        return client.updateSubscription({
-          subscription_id: `${baseId}-${tmpl.id}`,
-          domain: DOMAIN,
-          updates: { is_active: isActive, filter },
-        }).catch((err) => {
-          console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
-        });
-      }),
-    );
   }, []);
 
   return { permission, enabled, supported, enable, disable, syncPreferences };

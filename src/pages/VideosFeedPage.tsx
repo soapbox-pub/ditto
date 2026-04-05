@@ -31,7 +31,7 @@ import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVideoThumbnail } from "@/components/VideoPlayer";
+import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthor } from "@/hooks/useAuthor";

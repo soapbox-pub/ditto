@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBar';
+import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 
 interface TabButtonProps {
   /** Tab display label. */

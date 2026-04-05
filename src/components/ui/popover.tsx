@@ -2,7 +2,7 @@ import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "@/lib/utils"
-import { usePortalContainer } from "@/contexts/PortalContainerContext"
+import { usePortalContainer } from "@/hooks/usePortalContainer"
 
 const Popover = PopoverPrimitive.Root
 

@@ -59,7 +59,7 @@ import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { HATCH_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useEvolveTasks';
 
-import type { UseItemFunction } from './BlobbiActionsProvider';
+import type { UseItemFunction } from './BlobbiActionsContextDef';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 

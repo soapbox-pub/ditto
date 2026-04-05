@@ -209,7 +209,7 @@ export function ExternalContentPage() {
         firstSubReply: directReplies[0] as import('@nostrify/nostrify').NostrEvent | undefined,
       };
     });
-  }, [commentsData, muteItems]);
+  }, [commentsData, muteItems, content?.type]);
 
   // FAB opens the comment compose dialog
   const [composeOpen, setComposeOpen] = useState(false);

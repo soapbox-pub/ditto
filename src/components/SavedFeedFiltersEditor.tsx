@@ -26,8 +26,6 @@ import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
@@ -46,40 +44,11 @@ type KindOption = {
 
 // ─── Kind options (built once) ───────────────────────────────────────────────
 
-export function buildKindOptions(): KindOption[] {
-  const options: KindOption[] = [];
-  for (const def of EXTRA_KINDS) {
-    if (def.subKinds) {
-      for (const sub of def.subKinds) {
-        options.push({
-          value: String(sub.kind),
-          label: `${sub.label} (${sub.kind})`,
-          description: sub.description,
-          parentId: def.id,
-          icon: CONTENT_KIND_ICONS[def.id],
-        });
-      }
-    } else {
-      options.push({
-        value: String(def.kind),
-        label: `${def.label} (${def.kind})`,
-        description: def.description,
-        parentId: def.id,
-        icon: CONTENT_KIND_ICONS[def.id],
-      });
-    }
-  }
-  const seen = new Set<string>();
-  return options.filter((o) => {
-    if (seen.has(o.value)) return false;
-    seen.add(o.value);
-    return true;
-  });
-}
+import { buildKindOptions } from '@/lib/feedFilterUtils';
 
 // ─── useScrollCarets ─────────────────────────────────────────────────────────
 
-export function useScrollCarets() {
+function useScrollCarets() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
@@ -534,12 +503,7 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
 
 // ─── parseSelectedKinds ───────────────────────────────────────────────────────
 
-/** Parse a TabFilter's kinds array into an array of string kind values. */
-export function parseSelectedKinds(filter: TabFilter): string[] {
-  const kinds = filter.kinds;
-  if (!Array.isArray(kinds) || kinds.length === 0) return [];
-  return kinds.map(String);
-}
+
 
 // ─── AuthorChip ───────────────────────────────────────────────────────────────
 
@@ -630,7 +594,7 @@ export function SavedFeedFiltersEditor({
   );
 
   const search = typeof value.search === 'string' ? value.search : '';
-  const authorPubkeys = Array.isArray(value.authors) ? (value.authors as string[]) : [];
+  const authorPubkeys = useMemo(() => Array.isArray(value.authors) ? (value.authors as string[]) : [], [value.authors]);
   // Local scope state so clicking "People" immediately shows the panel,
   // even before any authors have been added. Initialised from the filter value.
   const [authorScope, setAuthorScopeState] = useState<'anyone' | 'people'>(

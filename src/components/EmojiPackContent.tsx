@@ -26,7 +26,7 @@ export interface EmojiPackData {
 }
 
 /** Parse a kind 30030 emoji pack event into structured data. */
-export function parseEmojiPack(event: NostrEvent): EmojiPackData | null {
+function parseEmojiPack(event: NostrEvent): EmojiPackData | null {
   if (event.kind !== 30030) return null;
 
   const identifier = event.tags.find(([n]) => n === 'd')?.[1];

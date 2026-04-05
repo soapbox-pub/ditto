@@ -25,7 +25,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
 import { useAuthor } from '@/hooks/useAuthor';
 import { FeedEditModal } from '@/components/FeedEditModal';
-import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { buildKindOptions } from '@/lib/feedFilterUtils';
 import { genUserName } from '@/lib/genUserName';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';

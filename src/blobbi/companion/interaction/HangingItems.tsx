@@ -566,7 +566,7 @@ export function HangingItems({
     
     // Start the loop
     animationRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [calculateFallDuration]);
   
   // Cleanup animation on unmount
   useEffect(() => {

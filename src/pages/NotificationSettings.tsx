@@ -160,7 +160,7 @@ export function NotificationSettings() {
       setNativePushEnabled(settings.notificationsEnabled ?? true);
     }
     setPrefs(settings.notificationPreferences ?? {});
-  }, [settings]);
+  }, [settings, isNative]);
 
   const pushEnabled = isNative ? nativePushEnabled : pushHookEnabled;
 

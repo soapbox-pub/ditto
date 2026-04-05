@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { parseBadgeDefinition, type BadgeData } from '@/components/BadgeContent';
+import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 
 /** Minimal reference to a badge definition for querying. */

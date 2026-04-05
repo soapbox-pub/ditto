@@ -23,11 +23,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
-import {
-  BadgeContent,
-  type BadgeData,
-  parseBadgeDefinition,
-} from "@/components/BadgeContent";
+import { BadgeContent } from "@/components/BadgeContent";
+import { parseBadgeDefinition, type BadgeData } from "@/lib/parseBadgeDefinition";
 import { BadgeRecoveryDialog } from "@/components/BadgeRecoveryDialog";
 import { BadgeThumbnail } from "@/components/BadgeThumbnail";
 import { CreateBadgeDialog } from "@/components/CreateBadgeDialog";

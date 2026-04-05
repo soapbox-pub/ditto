@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAwardBadge } from '@/hooks/useAwardBadge';
 import { useToast } from '@/hooks/useToast';

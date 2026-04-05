@@ -35,5 +35,6 @@ export { BlobbiDevEditor, type BlobbiDevUpdates } from './BlobbiDevEditor';
 export { useBlobbiDevUpdate } from './useBlobbiDevUpdate';
 
 // Emotion testing tools
-export { EmotionDevProvider, useEmotionDev, useEffectiveEmotion } from './EmotionDevContext';
+export { EmotionDevProvider } from './EmotionDevContext';
+export { useEmotionDev, useEffectiveEmotion } from './useEmotionDev';
 export { BlobbiEmotionPanel } from './BlobbiEmotionPanel';

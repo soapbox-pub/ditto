@@ -360,6 +360,7 @@ export function useInitialSync() {
     nostr,
     config.appId,
     config.relayMetadata.updatedAt,
+    config.blossomServerMetadata.updatedAt,
     updateConfig,
     queryClient,
     markSyncComplete,

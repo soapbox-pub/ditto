@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward, Maximize2, X, GripVertical } from 'lucide-react';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { cn } from '@/lib/utils';
 
 const POSITION_KEY = 'audio-minibar-position';

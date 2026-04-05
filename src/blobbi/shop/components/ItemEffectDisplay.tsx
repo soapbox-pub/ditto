@@ -192,30 +192,6 @@ export function ItemEffectDisplay({
   return null;
 }
 
-// ─── Utility Exports ──────────────────────────────────────────────────────────
 
-/**
- * Format effects as a summary string (for compatibility with existing code).
- * This is a drop-in replacement for formatEffectSummary in blobbi-shop-utils.ts.
- * 
- * @deprecated Use <ItemEffectDisplay variant="inline" /> instead
- */
-export function formatEffectSummary(effect: ItemEffect | undefined, maxEffects = 4): string {
-  const entries = getSortedEffectEntries(effect);
-  
-  if (entries.length === 0) {
-    return 'No effects';
-  }
-  
-  const displayEntries = maxEffects !== undefined ? entries.slice(0, maxEffects) : entries;
-  
-  return displayEntries
-    .map(([stat, value]) => `${formatStatValue(value)} ${STAT_LABELS[stat]}`)
-    .join(', ');
-}
 
-/**
- * Get sorted effect entries for custom rendering.
- * Useful when you need to iterate over effects yourself.
- */
-export { getSortedEffectEntries };
+

@@ -55,7 +55,8 @@ import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer } from '@/components/MiniAudioPlayer';
+import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
 import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
@@ -94,9 +95,10 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { formatNumber } from '@/lib/formatNumber';
-import { SubHeaderBar, useActiveTabIndicator } from '@/components/SubHeaderBar';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
@@ -914,6 +916,15 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
 // ----- Main Component -----
 
+const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+
+// Map from display label → internal tab id for core tabs
+const CORE_TAB_IDS: Record<string, string> = {
+  'Posts': 'posts', 'Posts & replies': 'replies',
+  'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
+};
+
 export function ProfilePage() {
   const { config } = useAppContext();
   const params = useParams();
@@ -1124,17 +1135,9 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
 }
 
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
-  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-  const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
-
-  // Map from display label → internal tab id for core tabs
-  const CORE_TAB_IDS: Record<string, string> = {
-    'Posts': 'posts', 'Posts & replies': 'replies',
-    'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
-  };
 
   // The ordered tab list for view mode:
   // - null (no kind 16769 event) → show all 5 defaults
@@ -1151,7 +1154,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         ? { label: t.label, isCore: true }
         : { label: t.label, isCore: false, tab: t },
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileTabsData]);
 
   // Derive the ID of the first visible tab (used as default selection).

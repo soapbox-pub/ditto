@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -26,7 +26,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 
 // ── data hook ─────────────────────────────────────────────────────────────────
 
-export function useEventComments(event: NostrEvent | undefined) {
+function useEventComments(event: NostrEvent | undefined) {
   const { nostr } = useNostr();
 
   const aTag = event

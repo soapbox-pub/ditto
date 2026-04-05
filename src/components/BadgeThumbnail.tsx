@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Award } from 'lucide-react';
 
-import type { BadgeData } from '@/components/BadgeContent';
+import type { BadgeData } from '@/lib/parseBadgeDefinition';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { cn } from '@/lib/utils';
 

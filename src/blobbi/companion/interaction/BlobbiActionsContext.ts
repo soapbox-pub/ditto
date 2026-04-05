@@ -15,17 +15,15 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { useBlobbiItemUse } from './useBlobbiItemUse';
 import {
   BlobbiActionsContext,
-  BlobbiActionsProvider,
   type UseItemFunction,
   type UseItemResult,
   type BlobbiActionsContextValue,
   type BlobbiActionsContextInternal,
-} from './BlobbiActionsProvider';
+} from './BlobbiActionsContextDef';
 
-// Re-export everything from the provider module for backward compatibility
+// Re-export types and context from the def module for backward compatibility
 export {
   BlobbiActionsContext,
-  BlobbiActionsProvider,
   type UseItemFunction,
   type UseItemResult,
   type BlobbiActionsContextValue,

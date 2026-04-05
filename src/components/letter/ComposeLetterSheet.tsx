@@ -33,7 +33,8 @@ import { DrawingCanvas } from './DrawingCanvas';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { StationeryBackground } from './StationeryBackground';
-import { SendAnimation, useEnvelopeDimensions } from './SendAnimation';
+import { SendAnimation } from './SendAnimation';
+import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
 
 /** Lightweight letter preview used inside the send animation */
 function AnimationLetter({ content, width }: { content: LetterContent; width: number }) {

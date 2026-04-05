@@ -28,7 +28,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { parseBadgeDefinition } from '@/components/BadgeContent';
+import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 
 /**
  * Auto-minimizes the audio player when the user navigates to a different page.

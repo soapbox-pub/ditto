@@ -12,8 +12,8 @@ import { Camera } from "lucide-react";
 import { lazy, Suspense, useMemo, useCallback, useState } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
+import { eventToMediaItem } from "@/lib/mediaUtils";
 import {
-  eventToMediaItem,
   MediaCollage,
   MediaCollageSkeleton,
 } from "@/components/MediaCollage";
