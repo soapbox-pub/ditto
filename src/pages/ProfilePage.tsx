@@ -478,12 +478,13 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
 function SortableTabChip({
-  tab, active, onSelect, onRemove,
+  tab, active, onSelect, onRemove, onEdit,
 }: {
   tab: EditableTab;
   active: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onEdit?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
   const chipRef = useRef<HTMLDivElement>(null);
@@ -498,6 +499,7 @@ function SortableTabChip({
     const el = chipRef.current;
     if (!el) return;
     onActive({ left: el.offsetLeft, width: el.offsetWidth });
+    return () => onActive(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
@@ -507,7 +509,7 @@ function SortableTabChip({
         setNodeRef(node);
         (chipRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
-      style={{ transform: DndCSS.Transform.toString(transform), transition }}
+      style={{ transform: transform ? DndCSS.Transform.toString({ ...transform, x: Math.round(transform.x), y: Math.round(transform.y) }) : undefined, transition }}
       className={cn(
         'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
@@ -533,12 +535,24 @@ function SortableTabChip({
         {tab.label}
       </button>
 
+      {/* Edit — only rendered for active custom (non-core) tabs */}
+      {active && !tab.isCore && onEdit && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="shrink-0 flex items-center justify-center py-3.5 px-1.5 text-muted-foreground/50 hover:text-primary transition-colors"
+          aria-label={`Edit ${tab.label}`}
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      )}
+
       {/* × — only rendered when active */}
       {active && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
+          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pl-1 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
           aria-label={`Remove ${tab.label}`}
         >
           ×
@@ -2310,6 +2324,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           active={activeTab === tabId}
                           onSelect={() => setActiveTab(tabId)}
                           onRemove={() => handleRemoveLocalTab(tab.label)}
+                          onEdit={!tab.isCore && tab.tab ? () => { setEditingTab(tab.tab); setTabModalOpen(true); } : undefined}
                         />
                       );
                     })
