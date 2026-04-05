@@ -3069,10 +3069,21 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     }
   }, [tabInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data],
-  );
+  const items = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    const deduped: FeedItem[] = [];
+    for (const page of data.pages) {
+      for (const item of page.items) {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(item);
+        }
+      }
+    }
+    return deduped;
+  }, [data]);
 
   const isLoading = isResolving || isPending;
 
