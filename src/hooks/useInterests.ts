@@ -9,7 +9,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 export function useInterests(tagName: 't' | 'g' = 't') {
   const { nostr } = useNostr();
@@ -57,12 +56,12 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       if (!normalized) throw new Error('Empty tag');
 
       // Fetch the freshest kind 10015 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [10015],
         authors: [user.pubkey],
       });
 
-      const currentTags = freshEvent?.tags ?? [];
+      const currentTags = prev?.tags ?? [];
 
       // Don't add duplicates
       if (currentTags.some(([n, v]) => n === tagName && v.toLowerCase() === normalized)) return;
@@ -70,9 +69,10 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       const newTags = [...currentTags, [tagName, normalized]];
       await publishEvent({
         kind: 10015,
-        content: freshEvent?.content ?? '',
+        content: prev?.content ?? '',
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev: prev ?? undefined,
+      });
     },
     onSuccess: invalidate,
   });
@@ -84,21 +84,22 @@ export function useInterests(tagName: 't' | 'g' = 't') {
       const normalized = tag.toLowerCase().replace(/^#/, '');
 
       // Fetch the freshest kind 10015 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [10015],
         authors: [user.pubkey],
       });
 
-      if (!freshEvent) return;
+      if (!prev) return;
 
-      const newTags = freshEvent.tags.filter(
+      const newTags = prev.tags.filter(
         ([name, value]) => !(name === tagName && value.toLowerCase() === normalized),
       );
       await publishEvent({
         kind: 10015,
-        content: freshEvent.content ?? '',
+        content: prev.content ?? '',
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev,
+      });
     },
     onSuccess: invalidate,
   });

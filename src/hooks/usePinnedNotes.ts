@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * Hook to manage NIP-51 pinned notes (kind 10001).
@@ -50,12 +49,12 @@ export function usePinnedNotes(pubkey?: string) {
       if (!user) throw new Error('User is not logged in');
 
       // Fetch the freshest kind 10001 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [10001],
         authors: [user.pubkey],
       });
 
-      const currentTags = freshEvent?.tags ?? [];
+      const currentTags = prev?.tags ?? [];
       const currentlyPinned = currentTags.some(
         ([name, id]) => name === 'e' && id === eventId,
       );
@@ -74,10 +73,11 @@ export function usePinnedNotes(pubkey?: string) {
 
       await publishEvent({
         kind: 10001,
-        content: freshEvent?.content ?? '',
+        content: prev?.content ?? '',
         tags: newTags,
         created_at: Math.floor(Date.now() / 1000),
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev: prev ?? undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pinned-notes', user?.pubkey] });

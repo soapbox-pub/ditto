@@ -113,6 +113,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
         await publishEvent({
           kind: 0,
           content: JSON.stringify(profileData),
+          tags: [],
         });
       }
     } catch {

@@ -671,7 +671,7 @@ function ProfileStep({
         );
         if (validFields.length > 0)
           data.fields = validFields.map((f) => [f.label, f.value]);
-        await publishEvent({ kind: 0, content: JSON.stringify(data) });
+        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -949,15 +949,15 @@ function FollowsStep({
           })
           .catch((): NostrEvent[] => []);
 
-        const latestEvent =
+        const prev =
           followEvents.length > 0
             ? followEvents.reduce((latest, current) =>
                 current.created_at > latest.created_at ? current : latest,
               )
             : null;
 
-        const existingFollows = latestEvent
-          ? latestEvent.tags
+        const existingFollows = prev
+          ? prev.tags
               .filter(([name]) => name === "p")
               .map(([, pk]) => pk)
           : [];
@@ -966,8 +966,9 @@ function FollowsStep({
 
         await publishEvent({
           kind: 3,
-          content: latestEvent?.content ?? "",
+          content: prev?.content ?? "",
           tags: allFollows.map((pk) => ["p", pk]),
+          prev: prev ?? undefined,
         });
 
         setFollowedPacks((prev) => new Set([...prev, packId]));

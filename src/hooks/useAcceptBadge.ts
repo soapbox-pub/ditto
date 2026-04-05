@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -24,9 +23,9 @@ export function useAcceptBadge() {
       if (!user) throw new Error('User is not logged in');
 
       // Fetch the freshest profile badges event from relays (both kinds)
-      const freshEvent = await fetchFreshProfileBadges(nostr, user.pubkey);
+      const prev = await fetchFreshProfileBadges(nostr, user.pubkey);
 
-      const currentTags = freshEvent?.tags ?? [['d', 'profile_badges']];
+      const currentTags = prev?.tags ?? [['d', 'profile_badges']];
 
       // Don't add duplicates
       const alreadyHas = currentTags.some(
@@ -48,7 +47,8 @@ export function useAcceptBadge() {
         kind: BADGE_PROFILE_KIND,
         content: '',
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev: prev ?? undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-badges', user?.pubkey] });

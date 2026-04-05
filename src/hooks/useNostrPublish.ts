@@ -7,6 +7,25 @@ import { useCurrentUser } from "./useCurrentUser";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
+/** Event template accepted by `useNostrPublish`. */
+export type EventTemplate = Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> & {
+  /**
+   * The previous version of the event being replaced (for replaceable/addressable kinds).
+   * When provided, `published_at` from the old event is preserved on the new one.
+   * When omitted and the kind is replaceable or addressable, `published_at` is set
+   * equal to `created_at` so the two always match on first publish.
+   */
+  prev?: NostrEvent;
+};
+
+/** Returns true if the kind falls in a replaceable or addressable range. */
+function isReplaceableKind(kind: number): boolean {
+  // Legacy replaceable kinds
+  if (kind === 0 || kind === 3) return true;
+  // Replaceable (10000–19999) or addressable (30000–39999)
+  return (kind >= 10000 && kind < 20000) || (kind >= 30000 && kind < 40000);
+}
+
 /**
  * Builds a NIP-89 "client" tag from the app display name and an optional
  * `naddr1` identifier for the kind 31990 handler event.
@@ -41,9 +60,11 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
   const { config } = useAppContext();
 
   return useMutation({
-    mutationFn: async (t: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>) => {
+    mutationFn: async (t: EventTemplate) => {
       if (user) {
-        const tags = t.tags ?? [];
+        // Extract `prev` before building the event — it's not part of the Nostr event schema.
+        const { prev, ...template } = t;
+        const tags = [...(template.tags ?? [])];
 
         // Add the NIP-89 client tag if it doesn't exist
         if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
@@ -51,11 +72,27 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           tags.push(clientTag);
         }
 
+        const created_at = template.created_at ?? Math.floor(Date.now() / 1000);
+
+        // Handle published_at for replaceable/addressable events (NIP-24)
+        if (isReplaceableKind(template.kind) && !tags.some(([name]) => name === "published_at")) {
+          if (prev) {
+            // Preserve published_at from the previous event if it had one
+            const oldTag = prev.tags.find(([name]) => name === "published_at");
+            if (oldTag) {
+              tags.push(["published_at", oldTag[1]]);
+            }
+          } else {
+            // First publish: set published_at equal to created_at
+            tags.push(["published_at", String(created_at)]);
+          }
+        }
+
         const event = await user.signer.signEvent({
-          kind: t.kind,
-          content: t.content ?? "",
+          kind: template.kind,
+          content: template.content ?? "",
           tags,
-          created_at: t.created_at ?? Math.floor(Date.now() / 1000),
+          created_at,
         });
 
         if (event.pubkey !== user.pubkey) {

@@ -113,10 +113,10 @@ export function useFollowActions(): UseFollowActionsReturn {
 
       try {
         // ① Fetch the freshest kind 3 event via pool
-        const latestEvent = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
 
         // ② Separate tags into `p` tags (follow entries) and everything else
-        const existingTags = latestEvent?.tags ?? [];
+        const existingTags = prev?.tags ?? [];
         const pTags = existingTags.filter(([name]) => name === 'p');
         const nonPTags = existingTags.filter(([name]) => name !== 'p');
 
@@ -135,12 +135,13 @@ export function useFollowActions(): UseFollowActionsReturn {
         const newTags = [...nonPTags, ...newPTags];
 
         // ⑤ Preserve the content field (relay hints / petnames in some clients)
-        const content = latestEvent?.content ?? '';
+        const content = prev?.content ?? '';
 
         await publishEvent({
           kind: 3,
           content,
           tags: newTags,
+          prev: prev ?? undefined,
         });
 
         // ⑥ Invalidate cached follow-list queries so UI updates
