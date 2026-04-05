@@ -327,7 +327,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              <div className="px-2">
+              <div className="px-2 safe-area-bottom">
                 <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
@@ -371,7 +371,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              <div className="px-2">
+              <div className="px-2 safe-area-bottom">
                 <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
