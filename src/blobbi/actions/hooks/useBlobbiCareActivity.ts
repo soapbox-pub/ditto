@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useRef } from 'react';
+import { useNostr } from '@nostrify/react';
 import { useMutation } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -24,7 +25,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags } from '@/blobbi/core/lib/blobbi';
+import {
+  KIND_BLOBBI_STATE,
+  updateBlobbiTags,
+  isValidBlobbiEvent,
+  parseBlobbiEvent,
+} from '@/blobbi/core/lib/blobbi';
 
 import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '../lib/blobbi-streak';
 
@@ -34,8 +40,6 @@ export interface UseBlobbiCareActivityParams {
   companion: BlobbiCompanion | null;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
 }
 
 export interface CareActivityResult {
@@ -59,8 +63,8 @@ export interface CareActivityResult {
 export function useBlobbiCareActivity({
   companion,
   updateCompanionEvent,
-  invalidateCompanion,
 }: UseBlobbiCareActivityParams) {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   
@@ -78,12 +82,24 @@ export function useBlobbiCareActivity({
         throw new Error('No companion available');
       }
 
+      // Fetch fresh companion from relays (read-modify-write pattern)
+      const freshEvents = await nostr.query([{
+        kinds: [KIND_BLOBBI_STATE],
+        authors: [user.pubkey],
+        '#d': [companion.d],
+      }]);
+      const freshCompanion = freshEvents
+        .filter(isValidBlobbiEvent)
+        .sort((a, b) => b.created_at - a.created_at)
+        .map(e => parseBlobbiEvent(e))
+        .find(Boolean) ?? companion;
+
       const now = new Date();
       
-      // Calculate what the streak update should be
+      // Calculate what the streak update should be using fresh data
       const result = calculateStreakUpdate(
-        companion.careStreak,
-        companion.careStreakLastDay,
+        freshCompanion.careStreak,
+        freshCompanion.careStreakLastDay,
         now
       );
       
@@ -96,29 +112,29 @@ export function useBlobbiCareActivity({
         };
       }
       
-      // Get the tag updates
-      const streakUpdates = getStreakTagUpdates(companion, now);
+      // Get the tag updates using fresh data
+      const streakUpdates = getStreakTagUpdates(freshCompanion, now);
       
       if (!streakUpdates) {
         // Shouldn't happen if wasUpdated is true, but handle gracefully
         return {
           wasUpdated: false,
-          newStreak: companion.careStreak ?? 0,
+          newStreak: freshCompanion.careStreak ?? 0,
           action: 'same_day',
         };
       }
       
-      // Build updated tags
-      const updatedTags = updateBlobbiTags(companion.allTags, streakUpdates);
+      // Build updated tags from fresh data
+      const updatedTags = updateBlobbiTags(freshCompanion.allTags, streakUpdates);
       
       // Publish the updated event
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: companion.event.content,
+        content: freshCompanion.event.content,
         tags: updatedTags,
       });
       
-      // Update local cache
+      // Update local cache (optimistic — no invalidation needed)
       updateCompanionEvent(event);
       
       // Update session tracker
@@ -128,9 +144,9 @@ export function useBlobbiCareActivity({
       if (import.meta.env.DEV) {
         console.log('[CareActivity] Streak updated:', {
           action: result.action,
-          previousStreak: companion.careStreak,
+          previousStreak: freshCompanion.careStreak,
           newStreak: result.newStreak,
-          lastDay: companion.careStreakLastDay,
+          lastDay: freshCompanion.careStreakLastDay,
           newDay: result.newLastDay,
         });
       }
@@ -140,11 +156,6 @@ export function useBlobbiCareActivity({
         newStreak: result.newStreak,
         action: result.action,
       };
-    },
-    onSuccess: (result) => {
-      if (result.wasUpdated) {
-        invalidateCompanion();
-      }
     },
     onError: (error: Error) => {
       console.error('[CareActivity] Failed to update streak:', error);

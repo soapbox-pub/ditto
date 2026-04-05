@@ -318,10 +318,8 @@ function BlobbiContent() {
       updateProfileEvent,
       updateCompanionEvent,
       updateStoredSelectedD: setStoredSelectedD,
-      invalidateCompanion,
-      invalidateProfile,
     });
-  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD, invalidateCompanion, invalidateProfile]);
+  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD]);
   
   // ─── Rest Action (with automatic legacy migration) ───
   // Operates on the page-selected `companion` (not profile.currentCompanion).
@@ -376,10 +374,6 @@ function BlobbiContent() {
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       toast({
         title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
@@ -402,7 +396,7 @@ function BlobbiContent() {
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, invalidateCompanion, invalidateProfile]);
+  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
   
   // ─── Use Inventory Item Hook ───
   const { mutateAsync: executeUseItem, isPending: isUsingItem } = useBlobbiUseInventoryItem({
@@ -411,8 +405,6 @@ function BlobbiContent() {
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
     updateProfileEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Handler for using an inventory item (with optional quantity)
@@ -451,8 +443,6 @@ function BlobbiContent() {
     profile,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   const { mutateAsync: executeEvolve, isPending: isEvolving } = useBlobbiEvolve({
@@ -460,8 +450,6 @@ function BlobbiContent() {
     profile,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Handler for evolution (baby -> adult)
@@ -474,8 +462,6 @@ function BlobbiContent() {
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Handler for direct actions (play_music, sing)
@@ -487,7 +473,6 @@ function BlobbiContent() {
   const { mutateAsync: executeDevUpdate, isPending: isDevUpdating } = useBlobbiDevUpdate({
     companion,
     updateCompanionEvent,
-    invalidateCompanion,
   });
   
   // State for dev editor modal
@@ -1072,8 +1057,6 @@ function BlobbiDashboard({
     profile,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Stop incubation hook
@@ -1081,8 +1064,6 @@ function BlobbiDashboard({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Start evolution hook
@@ -1090,8 +1071,6 @@ function BlobbiDashboard({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Stop evolution hook
@@ -1099,8 +1078,6 @@ function BlobbiDashboard({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Sync hatch task completions hook
@@ -1108,8 +1085,6 @@ function BlobbiDashboard({
     companion,
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
-    invalidateCompanion,
-    invalidateProfile,
   });
   
   // Anti-loop protection: track the last synced key to prevent infinite loops

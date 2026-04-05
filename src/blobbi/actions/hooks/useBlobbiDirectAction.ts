@@ -69,10 +69,6 @@ export interface UseBlobbiDirectActionParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration happened) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -92,8 +88,6 @@ export function useBlobbiDirectAction({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseBlobbiDirectActionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -188,12 +182,6 @@ export function useBlobbiDirectAction({
       });
 
       updateCompanionEvent(blobbiEvent);
-
-      // ─── Invalidate Queries ───
-      invalidateCompanion();
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         action,

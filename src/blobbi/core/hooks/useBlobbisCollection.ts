@@ -132,7 +132,10 @@ export function useBlobbisCollection(dList: string[] | undefined) {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
   
-  // Helper to invalidate and refetch after publishing
+  // Helper to invalidate and refetch after publishing.
+  // NOTE: In most mutation paths this is no longer needed — the read-modify-write
+  // pattern (fetch fresh → mutate → optimistic update) keeps the cache correct.
+  // Only call this when the set of d-tags itself changes (e.g. adoption, deletion).
   const invalidate = useCallback(() => {
     if (user?.pubkey && queryKeyDTags) {
       queryClient.invalidateQueries({
@@ -141,36 +144,38 @@ export function useBlobbisCollection(dList: string[] | undefined) {
     }
   }, [queryClient, user?.pubkey, queryKeyDTags]);
   
-  // Update a single companion event in the query cache (optimistic update)
+  // Update a single companion event in the query cache (optimistic update).
+  // CRITICAL: Updates ALL blobbi-collection queries for this user, not just the
+  // one matching the current queryKeyDTags. This ensures the BlobbiPage cache
+  // and companion layer cache stay in sync (they use different d-tag lists).
   const updateCompanionEvent = useCallback((event: NostrEvent) => {
     const parsed = parseBlobbiEvent(event);
     if (!parsed || !user?.pubkey) return;
     
-    queryClient.setQueryData<{ companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] }>(
-      ['blobbi-collection', user.pubkey, queryKeyDTags],
-      (prev) => {
-        if (!prev) {
-          return {
-            companionsByD: { [parsed.d]: parsed },
-            companions: [parsed],
-          };
-        }
-        
-        // Update the specific companion in the record
-        const newCompanionsByD = {
-          ...prev.companionsByD,
-          [parsed.d]: parsed,
-        };
-        
-        // Rebuild companions array from the record
-        const newCompanions = Object.values(newCompanionsByD);
-        
-        return {
-          companionsByD: newCompanionsByD,
-          companions: newCompanions,
-        };
-      }
-    );
+    type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
+    const matchingQueries = queryClient.getQueriesData<CollectionData>({
+      queryKey: ['blobbi-collection', user.pubkey],
+    });
+
+    for (const [queryKey, data] of matchingQueries) {
+      if (!data) continue;
+      const newCompanionsByD = { ...data.companionsByD, [parsed.d]: parsed };
+      queryClient.setQueryData<CollectionData>(queryKey, {
+        companionsByD: newCompanionsByD,
+        companions: Object.values(newCompanionsByD),
+      });
+    }
+
+    // If no existing queries matched (first load), set our own query key
+    if (matchingQueries.length === 0) {
+      queryClient.setQueryData<CollectionData>(
+        ['blobbi-collection', user.pubkey, queryKeyDTags],
+        {
+          companionsByD: { [parsed.d]: parsed },
+          companions: [parsed],
+        },
+      );
+    }
   }, [queryClient, user?.pubkey, queryKeyDTags]);
   
   // Memoize return values for stability
@@ -190,7 +195,7 @@ export function useBlobbisCollection(dList: string[] | undefined) {
     isStale: query.isStale,
     /** Query error if any */
     error: query.error,
-    /** Invalidate and refetch the collection */
+    /** Invalidate and refetch the collection (use only when d-tag set changes, not after mutations) */
     invalidate,
     /** Optimistically update a single companion in the cache */
     updateCompanionEvent,

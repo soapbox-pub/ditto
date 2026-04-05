@@ -80,10 +80,6 @@ export interface UseBlobbiUseInventoryItemParams {
   updateCompanionEvent: (event: NostrEvent) => void;
   /** Update profile event in local cache */
   updateProfileEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries */
-  invalidateProfile: () => void;
 }
 
 // Import NostrEvent type
@@ -107,8 +103,6 @@ export function useBlobbiUseInventoryItem({
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
   updateProfileEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseBlobbiUseInventoryItemParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -418,9 +412,9 @@ export function useBlobbiUseInventoryItem({
         updateProfileEvent(profileEvent);
       }
 
-      // ─── Invalidate Queries ───
-      invalidateCompanion();
-      invalidateProfile();
+      // No query invalidation needed — the optimistic updates above keep the
+      // cache correct, and ensureCanonicalBeforeAction fetches fresh from relays
+      // before every mutation (read-modify-write pattern).
 
       return {
         itemName: shopItem.name,
