@@ -206,6 +206,9 @@ export function useInitialSync() {
               if (parsed.theme) {
                 updates.theme = parsed.theme;
               }
+              if (parsed.customTheme) {
+                updates.customTheme = parsed.customTheme;
+              }
               if (parsed.autoShareTheme !== undefined) {
                 updates.autoShareTheme = parsed.autoShareTheme;
               }
