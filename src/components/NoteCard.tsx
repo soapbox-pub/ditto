@@ -1916,6 +1916,18 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "Blobbi",
     nounRoute: "/blobbi",
   },
+  39089: {
+    icon: Users,
+    action: "shared a",
+    noun: "follow pack",
+    nounRoute: "/packs",
+  },
+  30000: {
+    icon: Users,
+    action: "shared a",
+    noun: "follow set",
+    nounRoute: "/packs",
+  },
 };
 
 /** Generic action header: icon · [author name] [action] [linked noun] */
