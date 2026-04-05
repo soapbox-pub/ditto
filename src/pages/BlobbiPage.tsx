@@ -810,7 +810,7 @@ interface DashboardShellProps {
 function DashboardShell({ children }: DashboardShellProps) {
   return (
     <main className={cn(
-      'flex flex-col overflow-hidden',
+      'flex flex-col overflow-hidden bg-background/85',
       // Mobile: fixed to escape pb-overscroll on the parent
       'max-sidebar:fixed max-sidebar:inset-0 max-sidebar:top-mobile-bar max-sidebar:z-0',
       // Desktop: normal flow within the center column
