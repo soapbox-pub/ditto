@@ -155,16 +155,19 @@ function QuotesTab({ quotes }: { quotes: QuoteEntry[] }) {
 
 /* ──── Reactions Tab ──── */
 function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
-  // Group reactions by emoji
-  const grouped = useMemo(() => {
-    const groups = new Map<string, ReactionEntry[]>();
+  // Summary of unique emojis with counts, sorted by popularity
+  const emojiSummary = useMemo(() => {
+    const counts = new Map<string, { count: number; url?: string }>();
     for (const r of reactions) {
-      const key = r.emoji;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(r);
+      const existing = counts.get(r.emoji);
+      if (existing) {
+        existing.count++;
+      } else {
+        counts.set(r.emoji, { count: 1, url: r.emojiUrl });
+      }
     }
-    // Sort groups by count (most popular first)
-    return Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1].count - a[1].count);
   }, [reactions]);
 
   if (reactions.length === 0) {
@@ -173,32 +176,31 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
 
   return (
     <div>
-      {grouped.map(([emoji, entries]) => {
-        // Check if this is a custom emoji — use the URL from the first entry
-        const firstEntry = entries[0];
-        const customUrl = firstEntry?.emojiUrl;
-        const customName = isCustomEmoji(emoji) ? emoji.slice(1, -1) : undefined;
+      {/* Emoji summary bar */}
+      {emojiSummary.length > 1 && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary/30 border-b border-border flex-wrap">
+          {emojiSummary.map(([emoji, { count, url }]) => {
+            const customName = isCustomEmoji(emoji) ? emoji.slice(1, -1) : undefined;
+            return (
+              <span key={emoji} className="inline-flex items-center gap-1 text-sm">
+                {url && customName ? (
+                  <CustomEmojiImg name={customName} url={url} className="inline-block h-5 w-5 object-contain" />
+                ) : (
+                  <span>{emoji}</span>
+                )}
+                <span className="text-xs text-muted-foreground font-medium tabular-nums">{count}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
-        return (
-          <div key={emoji}>
-            {/* Emoji group header */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary/30 sticky top-0 z-[1]">
-              {customUrl && customName ? (
-                <CustomEmojiImg name={customName} url={customUrl} className="inline-block h-6 w-6 object-contain" />
-              ) : (
-                <span className="text-lg">{emoji}</span>
-              )}
-              <span className="text-xs text-muted-foreground font-medium">{entries.length}</span>
-            </div>
-            {/* Users who reacted with this emoji — each row links to the reaction event */}
-            <div className="divide-y divide-border">
-              {entries.map((entry, i) => (
-                <ReactionRow key={`${entry.pubkey}-${i}`} entry={entry} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      {/* Flat list — each row shows the emoji badge inline */}
+      <div className="divide-y divide-border">
+        {reactions.map((entry, i) => (
+          <ReactionRow key={`${entry.pubkey}-${i}`} entry={entry} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -275,6 +277,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
+  const customName = isCustomEmoji(entry.emoji) ? entry.emoji.slice(1, -1) : undefined;
 
   return (
     <Link
@@ -300,6 +303,15 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
           )}
         </div>
         <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt)}</span>
+      </div>
+
+      {/* Reaction emoji badge */}
+      <div className="flex items-center justify-center shrink-0 bg-secondary/60 rounded-full size-8">
+        {entry.emojiUrl && customName ? (
+          <CustomEmojiImg name={customName} url={entry.emojiUrl} className="inline-block h-5 w-5 object-contain" />
+        ) : (
+          <span className="text-base leading-none">{entry.emoji}</span>
+        )}
       </div>
 
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
