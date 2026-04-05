@@ -537,43 +537,117 @@ function BlobbiContent() {
   // dashboard the moment the egg appears in has[]. The flag keeps the
   // ceremony mounted until it calls onComplete.
   //
-  // Ceremony is needed when:
-  // - No profile exists (first time user)
-  // - Profile exists but has no pets
-  // - Profile exists with pets but onboarding not done (e.g. page refresh
-  //   mid-ceremony, or user only has unhatched eggs)
+  // IMPORTANT: The ceremony decision is based on actual companion stages,
+  // NOT the onboardingDone flag alone. This handles inconsistent accounts
+  // where onboardingDone may be true despite the user never having hatched.
+  //
+  // Ceremony decision tree:
+  // 1. No profile → ceremony (brand new user, creates profile + egg)
+  // 2. Profile with no pets (empty has[]) → ceremony (creates egg)
+  // 3. Profile with pets → wait for companions to load, then:
+  //    a. Any baby/adult exists → skip ceremony (dashboard)
+  //    b. Only eggs exist → ceremony with existingCompanion (reuses egg)
+  //    c. No companions resolved (stale refs) → ceremony (creates egg)
   const [ceremonyInProgress, setCeremonyInProgress] = useState(false);
-  const needsCeremony = !profile
-    || !dList || dList.length === 0
-    || (profile && !profile.onboardingDone);
+  // Set to true once the companion-stage check has resolved so it doesn't
+  // re-run on every render as companion data updates.
+  const [ceremonyCheckDone, setCeremonyCheckDone] = useState(false);
+  // Locks the egg chosen for the ceremony so a page refresh mid-animation
+  // doesn't switch to a different egg or create a new one.
+  const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
   
-  // Auto-start ceremony when conditions are met
+  // Cases that definitely need ceremony (no need to wait for companions)
+  const definitelyNeedsCeremony = !profile || !dList || dList.length === 0;
+  // Cases where we must inspect actual companion stages before deciding.
+  // This fires for ALL users with pets — regardless of onboardingDone —
+  // so that accounts with onboardingDone=true but only eggs still get
+  // the ceremony.
+  const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
+  // Whether we've finished loading enough data to make the decision
+  const companionDataReady = !companionLoading && (!companionFetching || companions.length > 0);
+  
+  // Auto-start ceremony for definite cases (no profile / no pets)
   useEffect(() => {
-    if (needsCeremony && !profileLoading) {
+    if (definitelyNeedsCeremony && !profileLoading && !ceremonyInProgress) {
       setCeremonyInProgress(true);
     }
-  }, [needsCeremony, profileLoading]);
+  }, [definitelyNeedsCeremony, profileLoading, ceremonyInProgress]);
+  
+  // Resolve pending ceremony check once companions are loaded
+  useEffect(() => {
+    if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
+    
+    const eggs = companions.filter(c => c.stage === 'egg');
+    const hasHatchedBlobbi = companions.some(c => c.stage === 'baby' || c.stage === 'adult');
+    
+    // Mark check as done so this effect doesn't re-fire.
+    setCeremonyCheckDone(true);
+    
+    if (hasHatchedBlobbi) {
+      // User already has a hatched blobbi — skip ceremony entirely.
+      // Auto-fix the onboardingDone flag if it was missing.
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
+      if (profile && !profile.onboardingDone) {
+        const updatedTags = updateBlobbonautTags(profile.allTags, {
+          blobbi_onboarding_done: 'true',
+        });
+        publishEvent({
+          kind: KIND_BLOBBONAUT_PROFILE,
+          content: '',
+          tags: updatedTags,
+        }).then(event => {
+          updateProfileEvent(event);
+          invalidateProfile();
+        }).catch(err => console.error('[BlobbiPage] Failed to auto-fix onboardingDone:', err));
+      }
+    } else if (eggs.length > 0) {
+      // User has only eggs — reuse one for the ceremony (don't create a new one).
+      // Pick a random egg if multiple exist.
+      const egg = eggs.length === 1 ? eggs[0] : eggs[Math.floor(Math.random() * eggs.length)];
+      ceremonyEggRef.current = egg;
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
+      setCeremonyInProgress(true);
+    } else {
+      // Profile has pet d-tags but none resolved (stale references) — treat as new user
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions resolved');
+      setCeremonyInProgress(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCeremonyCheck, companionDataReady, ceremonyInProgress]);
   
   // ─── CASE A: Profile still loading ───
   if (profileLoading && !ceremonyInProgress) {
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE B/C: Hatching ceremony (no profile, or profile with no pets) ───
+  // ─── CASE A2: Waiting for companions to decide about ceremony ───
+  if (pendingCeremonyCheck && !companionDataReady && !ceremonyInProgress) {
+    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: loading (waiting for companions to decide ceremony)');
+    return <DashboardLoadingState />;
+  }
+  
+  // ─── CASE B/C: Hatching ceremony ───
   // Stays mounted until the ceremony explicitly completes, even if the
   // underlying data changes during the ceremony.
+  // Portaled to document.body so it escapes the center column stacking context
+  // (which has `relative z-0`) and covers the entire app shell including the
+  // RightSidebar — matching the subsequent hatch ceremony portal at z-[100].
   if (ceremonyInProgress) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony');
-    return (
-      <BlobbiOnboardingFlow
-        profile={profile ?? null}
-        updateProfileEvent={updateProfileEvent}
-        updateCompanionEvent={updateCompanionEvent}
-        invalidateProfile={invalidateProfile}
-        invalidateCompanion={invalidateCompanion}
-        setStoredSelectedD={setStoredSelectedD}
-        onComplete={() => setCeremonyInProgress(false)}
-      />
+    return createPortal(
+      <div className="fixed inset-0 z-[100] bg-background">
+        <BlobbiOnboardingFlow
+          profile={profile ?? null}
+          updateProfileEvent={updateProfileEvent}
+          updateCompanionEvent={updateCompanionEvent}
+          invalidateProfile={invalidateProfile}
+          invalidateCompanion={invalidateCompanion}
+          setStoredSelectedD={setStoredSelectedD}
+          existingCompanion={ceremonyEggRef.current}
+          onComplete={() => setCeremonyInProgress(false)}
+        />
+      </div>,
+      document.body,
     );
   }
   
