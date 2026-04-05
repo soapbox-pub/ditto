@@ -69,6 +69,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
+import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
@@ -173,6 +174,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
   const author = useAuthor(pubkey);
   const showZap = !isOwnProfile && authorEvent && canZap(author.data?.metadata);
@@ -182,6 +184,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
     setTimeout(() => setter(true), 150);
   };
+  const handleFollowQR = () => openAfterClose(setFollowQROpen);
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -266,6 +269,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
             <div className="py-1">
               <MenuRow
+                icon={<QrCode className="size-5" />}
+                label="Share follow link"
+                onClick={handleFollowQR}
+              />
+              <MenuRow
                 icon={<RotateCcw className="size-5" />}
                 label="Profile recovery"
                 onClick={handleRecovery}
@@ -332,10 +340,16 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     />
 
     {isOwnProfile && (
-      <ProfileRecoveryDialog
-        open={recoveryOpen}
-        onOpenChange={setRecoveryOpen}
-      />
+      <>
+        <ProfileRecoveryDialog
+          open={recoveryOpen}
+          onOpenChange={setRecoveryOpen}
+        />
+        <FollowQRDialog
+          open={followQROpen}
+          onOpenChange={setFollowQROpen}
+        />
+      </>
     )}
 
     {!isOwnProfile && (
@@ -912,6 +926,7 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -2106,6 +2121,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <Share2 className="size-5" />
                     </Button>
                   )}
+                  {/* Follow QR code button (own profile only) */}
+                  {isOwnProfile && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10"
+                      title="Share follow link"
+                      onClick={() => setFollowQROpen(true)}
+                    >
+                      <QrCode className="size-5" />
+                    </Button>
+                  )}
                   {/* Profile reaction button */}
                   {!isOwnProfile && authorEvent && (
                     <ProfileReactionButton profileEvent={authorEvent} />
@@ -2608,6 +2635,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             isOwnProfile={isOwnProfile}
             authorEvent={authorEvent}
           />
+        )}
+
+        {/* Follow QR dialog (own profile action bar button) */}
+        {isOwnProfile && (
+          <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
         )}
 
         {/* Following List Modal */}

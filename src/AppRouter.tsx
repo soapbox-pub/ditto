@@ -77,6 +77,7 @@ const WalletSettingsPage = lazy(() => import("./pages/WalletSettingsPage").then(
 const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ default: m.WebxdcFeedPage })));
 const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
 const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
+const FollowPage = lazy(() => import("./pages/FollowPage").then(m => ({ default: m.FollowPage })));
 const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
 
 const pollsDef = getExtraKindDef("polls")!;
@@ -151,6 +152,9 @@ export function AppRouter() {
           </Suspense>
         </BlobbiActionsProvider>
         <Routes>
+          {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
+          <Route path="/follow/:npub" element={<FollowPage />} />
+
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
