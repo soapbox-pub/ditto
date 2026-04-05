@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { useEncryptedSettings, setLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
@@ -246,16 +246,13 @@ export function NostrSync() {
     // Get the remote sync timestamp
     const remoteSync = encryptedSettings.lastSync || 0;
 
-    // On first load, seed the ref with the current remote timestamp so that
-    // subsequent effect firings (e.g. after window focus) don't re-apply the
-    // same snapshot. We still apply this snapshot below so that settings
-    // restored from the query cache (seeded by useInitialSync) take effect
-    // immediately on page reload without waiting for the 5-second delay.
+    // On first load, mark seeded so this block only runs once.
+    // We intentionally do NOT pre-set lastSyncedTimestamp here — leaving it
+    // at 0 lets the `remoteSync <= lastSyncedTimestamp` guard below fall
+    // through so the settings are actually applied on this first pass.
+    // Line 277 then records the timestamp to prevent re-application.
     if (!seededTimestamp) {
-      lastSyncedTimestamp.current = remoteSync;
       setSeededTimestamp(true);
-      // Fall through — apply the settings this time so that sidebarOrder
-      // and other fields are always applied on the first load.
     }
 
     // Don't overwrite local config if we just saved settings (short-circuit for
@@ -433,6 +430,12 @@ export function NostrSync() {
           JSON.stringify({ names: encryptedSettings.communityData.nip05 }),
         );
       }
+    }
+
+    // Persist the sync timestamp so the next page load can render immediately
+    // from localStorage without showing the spinner.
+    if (user && remoteSync > 0) {
+      setLocalSettingsSync(user.pubkey, remoteSync);
     }
   }, [
     user,

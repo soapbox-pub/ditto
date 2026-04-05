@@ -35,7 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
@@ -65,8 +65,12 @@ interface InitialSyncGateProps {
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { user } = useCurrentUser();
   const { phase, markComplete } = useInitialSync();
+  const { isLoading: settingsLoading } = useEncryptedSettings();
   const [preloadApp, setPreloadApp] = useState(false);
   const [signupActive, setSignupActive] = useState(false);
+  // Track whether we've shown the app at least once so we don't re-gate on
+  // subsequent background refetches (e.g. window focus).
+  const hasShownApp = useRef(false);
 
   const startSignup = useCallback(() => setSignupActive(true), []);
 
@@ -91,8 +95,10 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
     );
   }
 
-  // Don't show sync/onboarding when logged out — just show the app
+  // Don't show sync/onboarding when logged out — just show the app.
+  // Reset hasShownApp so that re-login shows the spinner until settings load.
   if (!user) {
+    hasShownApp.current = false;
     return (
       <OnboardingContext.Provider value={contextValue}>
         {children}
@@ -120,6 +126,28 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
       </OnboardingContext.Provider>
     );
   }
+
+  // For returning users (phase === "complete"), decide whether to gate:
+  // - If we have a local lastSync timestamp, localStorage is trustworthy and
+  //   we can render immediately. NostrSync will hot-swap any differences in
+  //   the background once the remote settings arrive.
+  // - If there's NO local timestamp (e.g. localStorage was cleared, or settings
+  //   were never synced on this browser), show the spinner until settings load
+  //   so the user sees correct state from the start.
+  // Only gate on the very first load — once the app has been shown, don't
+  // re-gate on background refetches (e.g. window focus).
+  if (phase === "complete" && settingsLoading && !hasShownApp.current) {
+    const hasLocalSync = user ? getLocalSettingsSync(user.pubkey) > 0 : false;
+    if (!hasLocalSync) {
+      return (
+        <OnboardingContext.Provider value={contextValue}>
+          <SyncScreen phase="syncing" />
+        </OnboardingContext.Provider>
+      );
+    }
+  }
+
+  hasShownApp.current = true;
 
   // idle or complete -> show app
   return (
