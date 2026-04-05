@@ -123,7 +123,7 @@ const hardcodedConfig: AppConfig = {
   sidebarOrder: [
     "feed",
     "notifications",
-    "messages-p",
+    "dms",
     "search",
     "blobbi",
     "badges",
