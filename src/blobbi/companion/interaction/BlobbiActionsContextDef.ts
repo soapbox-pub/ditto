@@ -24,12 +24,11 @@ export interface UseItemResult {
 }
 
 /**
- * Function signature for using an item.
+ * Function signature for using an item (always uses once).
  */
 export type UseItemFunction = (
   itemId: string,
   action: InventoryAction,
-  quantity?: number
 ) => Promise<UseItemResult>;
 
 /**

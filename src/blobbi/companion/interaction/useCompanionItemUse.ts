@@ -42,7 +42,6 @@ export interface ItemUseResult {
 export type UseItemCallback = (
   itemId: string,
   action: InventoryAction,
-  quantity: number
 ) => Promise<{ success: boolean; statsChanged?: Record<string, number>; error?: string }>;
 
 /**
@@ -187,7 +186,7 @@ export function useCompanionItemUse({
     
     try {
       // Execute the use callback
-      const useResult = await onUseItem(item.id, inventoryAction, 1);
+      const useResult = await onUseItem(item.id, inventoryAction);
       
       if (useResult.success) {
         const result: ItemUseResult = {

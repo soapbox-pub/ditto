@@ -161,7 +161,7 @@ export function BlobbiCompanionLayer() {
     }
 
     try {
-      const result = await contextUseItem(item.id, action, 1);
+      const result = await contextUseItem(item.id, action);
 
       if (result.success) {
         if (import.meta.env.DEV) {
