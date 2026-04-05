@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.6.0] - 2026-04-05
+
+### Added
+- Follow links and QR codes -- share a link or scannable code that lets anyone follow you with one tap, complete with your themed profile preview and recent posts
+- Immersive Blobbi hatching ceremony -- crack your egg through cinematic stages with shaking animations, a burst of light, sparkles, typewriter dialog, and a naming moment
+
+### Changed
+- Footer links redesigned as compact icon chips for a cleaner look
+- Custom emoji now render crisp at small sizes with pixel-perfect scaling
+
+### Fixed
+- Custom themes now apply correctly when logging in on a new device
+- Settings and preferences sync reliably across devices
+- Mobile sidebar links no longer clip into the safe area
+- Blobbi page background overlay now appears properly on custom themes
+- Blobbi companion state no longer resets unexpectedly from stale cache data
+- Letter compose picker no longer gets hidden behind the top navigation arc
+
 ## [2.5.2] - 2026-04-04
 
 ### Added
