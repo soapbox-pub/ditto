@@ -16,6 +16,7 @@ import {
   Radio,
   Share2,
   SmilePlus,
+  PartyPopper,
   Sparkles,
   Users,
   Zap,
@@ -1059,39 +1060,29 @@ export const NoteCard = memo(function NoteCard({
         onAuxClick={handleAuxClick}
       >
         {threadedKindHeader}
-        {isFollowPack ? (
-          <div className={cn("min-w-0", threaded && "pb-3")}>
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            {avatarElement}
+            {threaded && (
+              <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+            )}
+          </div>
+          <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+            {authorInfo}
             {contentBlock}
-            <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
             {actionButtons}
-            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
           </div>
-        ) : (
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {avatarElement}
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-              {authorInfo}
-              {contentBlock}
-              {actionButtons}
-              <NoteMoreMenu
-                event={event}
-                open={moreMenuOpen}
-                onOpenChange={setMoreMenuOpen}
-              />
-              <ReplyComposeModal
-                event={event}
-                open={replyOpen}
-                onOpenChange={setReplyOpen}
-              />
-            </div>
-          </div>
-        )}
+        </div>
       </article>
     );
   }
@@ -1144,46 +1135,29 @@ export const NoteCard = memo(function NoteCard({
         })()
       )}
 
-      {/* For follow packs / lists: content-first layout with subtle author attribution */}
-      {isFollowPack ? (
-        <>
-          {contentBlock}
-          <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
-          {!compact && (
-            <>
-              {actionButtons}
-              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {/* Header: avatar + name/handle stacked */}
-          <div className="flex items-center gap-3">
-            {avatarElement}
-            {authorInfo}
-            {isColor && <ColorMomentEyeButton event={event} />}
-          </div>
+      {/* Header: avatar + name/handle stacked */}
+      <div className="flex items-center gap-3">
+        {avatarElement}
+        {authorInfo}
+        {isColor && <ColorMomentEyeButton event={event} />}
+      </div>
 
-          {contentBlock}
+      {contentBlock}
 
-          {/* Action buttons — hidden in compact/embed mode */}
-          {!compact && (
-            <>
-              {actionButtons}
-              <NoteMoreMenu
-                event={event}
-                open={moreMenuOpen}
-                onOpenChange={setMoreMenuOpen}
-              />
-              <ReplyComposeModal
-                event={event}
-                open={replyOpen}
-                onOpenChange={setReplyOpen}
-              />
-            </>
-          )}
+      {/* Action buttons — hidden in compact/embed mode */}
+      {!compact && (
+        <>
+          {actionButtons}
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
         </>
       )}
     </article>
@@ -1703,52 +1677,6 @@ function StreamContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Subtle author attribution line for follow pack / list cards. */
-function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt: number }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
-  return (
-    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-      {author.isLoading ? (
-        <>
-          <Skeleton className="size-4 rounded-full shrink-0" />
-          <Skeleton className="h-3 w-20" />
-        </>
-      ) : (
-        <>
-          <ProfileHoverCard pubkey={pubkey} asChild>
-            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar shape={avatarShape} className="size-4">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-[7px]">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          </ProfileHoverCard>
-          <ProfileHoverCard pubkey={pubkey} asChild>
-            <Link
-              to={profileUrl}
-              className="hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {author.data?.event ? (
-                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-              ) : displayName}
-            </Link>
-          </ProfileHoverCard>
-          <span className="shrink-0">·</span>
-          <span className="shrink-0">{timeAgo(createdAt)}</span>
-        </>
-      )}
-    </div>
-  );
-}
-
 export interface EventActionHeaderProps {
   /** Pubkey of the person performing the action. */
   pubkey: string;
@@ -1917,13 +1845,13 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/blobbi",
   },
   39089: {
-    icon: Users,
+    icon: PartyPopper,
     action: "shared a",
     noun: "follow pack",
     nounRoute: "/packs",
   },
   30000: {
-    icon: Users,
+    icon: PartyPopper,
     action: "shared a",
     noun: "follow set",
     nounRoute: "/packs",
