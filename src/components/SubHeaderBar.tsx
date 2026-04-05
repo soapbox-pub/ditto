@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createContext, useContext } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useNavHidden } from '@/contexts/LayoutContext';
@@ -24,9 +25,10 @@ interface SubHeaderBarProps {
 interface SubHeaderBarContextValue {
   onHover: (slice: HoverSlice | null) => void;
   onActive: (slice: HoverSlice | null) => void;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const SubHeaderBarContext = createContext<SubHeaderBarContextValue>({ onHover: () => {}, onActive: () => {} });
+export const SubHeaderBarContext = createContext<SubHeaderBarContextValue>({ onHover: () => {}, onActive: () => {}, scrollContainerRef: { current: null } });
 
 export function useSubHeaderBarHover() {
   return useContext(SubHeaderBarContext);
@@ -52,6 +54,44 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   const barRef = useRef<HTMLDivElement>(null);
   const [atTop, setAtTop] = useState(false);
 
+  // Horizontal overflow scroll arrows (desktop only)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const tolerance = 2; // sub-pixel rounding tolerance
+    setCanScrollLeft(el.scrollLeft > tolerance);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - tolerance);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkOverflow();
+    el.addEventListener('scroll', checkOverflow, { passive: true });
+    const ro = new ResizeObserver(checkOverflow);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', checkOverflow);
+      ro.disconnect();
+    };
+  }, [checkOverflow]);
+
+  // Also re-check overflow when children change (new tabs added/removed)
+  useEffect(() => {
+    checkOverflow();
+  }, [children, checkOverflow]);
+
+  const scrollBy = (direction: 'left' | 'right') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.6;
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     if (!pinned) return;
 
@@ -76,7 +116,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   const showSafeAreaPadding = pinned && navHidden && atTop;
 
   return (
-    <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive }}>
+    <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive, scrollContainerRef: scrollRef }}>
       <div
         ref={barRef}
         className={cn(
@@ -132,8 +172,35 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             </svg>
           )}
           {/* Tab content sits above the SVG background */}
-          <div className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}>
-            {children}
+          <div className="relative">
+            {/* Left scroll arrow — desktop only, shown when overflowing */}
+            {canScrollLeft && (
+              <button
+                type="button"
+                aria-label="Scroll tabs left"
+                onClick={() => scrollBy('left')}
+                className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-0.5 pr-1 bg-gradient-to-r from-background/90 to-transparent cursor-pointer"
+              >
+                <ChevronLeft className="size-4 text-muted-foreground" />
+              </button>
+            )}
+            <div
+              ref={scrollRef}
+              className={cn('relative flex overflow-x-auto scrollbar-none', innerClassName)}
+            >
+              {children}
+            </div>
+            {/* Right scroll arrow — desktop only, shown when overflowing */}
+            {canScrollRight && (
+              <button
+                type="button"
+                aria-label="Scroll tabs right"
+                onClick={() => scrollBy('right')}
+                className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-0.5 pl-1 bg-gradient-to-l from-background/90 to-transparent cursor-pointer"
+              >
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
         </div>
       </div>
