@@ -20,6 +20,7 @@ import { GifPicker } from '@/components/GifPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
@@ -1487,11 +1488,11 @@ export function ComposeBox({
                                    }}
                                    className="aspect-square rounded-lg overflow-hidden hover:bg-muted transition-colors p-1 group"
                                  >
-                                   <img
-                                     src={emoji.url}
-                                     alt={emoji.shortcode}
-                                     className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
-                                   />
+                                    <CustomEmojiImg
+                                      name={emoji.shortcode}
+                                      url={emoji.url}
+                                      className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
+                                    />
                                  </button>
                                ))}
                              </div>

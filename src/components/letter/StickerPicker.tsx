@@ -4,6 +4,7 @@ import { Sticker, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
 
 interface StickerPickerProps {
@@ -54,11 +55,10 @@ export function StickerPicker({ onSelect }: StickerPickerProps) {
                 onClick={() => onSelect(emoji)}
                 className="aspect-square rounded-xl overflow-hidden hover:bg-muted/80 transition-all p-1.5 group active:scale-90"
               >
-                <img
-                  src={emoji.url}
-                  alt={emoji.shortcode}
+                <CustomEmojiImg
+                  name={emoji.shortcode}
+                  url={emoji.url}
                   className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
-                  loading="lazy"
                 />
               </button>
             ))}

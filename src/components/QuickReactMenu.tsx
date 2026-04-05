@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -212,12 +213,10 @@ export function QuickReactMenu({
             title={`React with ${isCustom ? shortcode : emoji}`}
           >
             {customUrl ? (
-              <img
-                src={customUrl}
-                alt={emoji}
+              <CustomEmojiImg
+                name={shortcode ?? emoji}
+                url={customUrl}
                 className="size-6 object-contain"
-                loading="lazy"
-                decoding="async"
               />
             ) : (
               emoji

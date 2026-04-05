@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 
 const EmojiPackDialog = lazy(() => import('@/components/EmojiPackDialog').then(m => ({ default: m.EmojiPackDialog })));
@@ -172,12 +173,10 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
                 className="group relative"
                 title={`:${emoji.shortcode}:`}
               >
-                <img
-                  src={emoji.url}
-                  alt={`:${emoji.shortcode}:`}
+                <CustomEmojiImg
+                  name={emoji.shortcode}
+                  url={emoji.url}
                   className="size-8 object-contain rounded transition-transform group-hover:scale-125"
-                  loading="lazy"
-                  decoding="async"
                 />
               </div>
             ))}

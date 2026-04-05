@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import data from '@emoji-mart/data';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
 
@@ -375,11 +376,10 @@ export function EmojiShortcodeAutocomplete({
             onMouseDown={(e) => e.preventDefault()}
           >
             {emoji.customUrl ? (
-              <img
-                src={emoji.customUrl}
-                alt={`:${emoji.name}:`}
+              <CustomEmojiImg
+                name={emoji.name}
+                url={emoji.customUrl}
                 className="size-5 object-contain shrink-0"
-                loading="lazy"
               />
             ) : (
               <span className="text-xl leading-none shrink-0">{emoji.native}</span>

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { SortableList, SortableItem } from '@/components/SortableList';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -506,11 +507,10 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
                       >
                         <div className="flex items-center gap-2 pr-2 py-1.5">
                           <div className="size-8 shrink-0 rounded-md overflow-hidden bg-secondary/30 flex items-center justify-center">
-                            <img
-                              src={emoji.url}
-                              alt={emoji.shortcode}
+                            <CustomEmojiImg
+                              name={emoji.shortcode}
+                              url={emoji.url}
                               className="size-8 object-contain"
-                              loading="lazy"
                             />
                           </div>
                           <div className="flex-1 min-w-0">

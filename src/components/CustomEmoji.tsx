@@ -1,7 +1,10 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 import { isCustomEmoji, getCustomEmojiUrl, buildEmojiMap, type ResolvedEmoji } from '@/lib/customEmoji';
 import { cn } from '@/lib/utils';
+
+/** Threshold at or below which we apply nearest-neighbor scaling. */
+const PIXEL_ART_MAX = 16;
 
 interface CustomEmojiImgProps {
   /** The shortcode name (without colons). */
@@ -14,16 +17,30 @@ interface CustomEmojiImgProps {
 
 /**
  * Renders a single custom emoji as an inline image.
+ *
+ * If the image's natural dimensions are 16x16 or smaller, nearest-neighbor
+ * (`image-rendering: pixelated`) scaling is applied to preserve crisp pixels.
  */
 export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom' }: CustomEmojiImgProps) {
+  const [pixelated, setPixelated] = useState(false);
+
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalWidth <= PIXEL_ART_MAX && img.naturalHeight <= PIXEL_ART_MAX) {
+      setPixelated(true);
+    }
+  }, []);
+
   return (
     <img
       src={url}
       alt={`:${name}:`}
       title={`:${name}:`}
       className={className}
+      style={pixelated ? { imageRendering: 'pixelated' } : undefined}
       loading="lazy"
       decoding="async"
+      onLoad={handleLoad}
     />
   );
 }
