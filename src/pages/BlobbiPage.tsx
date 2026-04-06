@@ -87,6 +87,7 @@ import {
 // DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
+import { isItemOnCooldown } from '@/blobbi/actions/lib/item-cooldown';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
@@ -407,9 +408,9 @@ function BlobbiContent() {
     updateProfileEvent,
   });
   
-  // Handler for using an inventory item (with optional quantity)
-  const handleUseItem = useCallback(async (itemId: string, action: InventoryAction, quantity: number = 1) => {
-    await executeUseItem({ itemId, action, quantity });
+  // Handler for using an item (always uses once)
+  const handleUseItem = useCallback(async (itemId: string, action: InventoryAction) => {
+    await executeUseItem({ itemId, action });
   }, [executeUseItem]);
   
   // ─── Blobbi Actions Registration ───
@@ -418,9 +419,9 @@ function BlobbiContent() {
     // Only provide the function when companion and profile are available
     if (!companion || !profile) return null;
     
-    return async (itemId, action, quantity = 1) => {
+    return async (itemId, action) => {
       try {
-        const result = await executeUseItem({ itemId, action, quantity });
+        const result = await executeUseItem({ itemId, action });
         return { 
           success: true, 
           statsChanged: result?.statsChanged,
@@ -792,6 +793,7 @@ function BlobbiContent() {
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
+      isItemOnCooldown={isItemOnCooldown}
       // DEV ONLY: State editor props
       showDevEditor={showDevEditor}
       setShowDevEditor={setShowDevEditor}
@@ -836,7 +838,7 @@ interface BlobbiDashboardProps {
   selectedD: string;
   onSelectBlobbi: (d: string) => void;
   onRest: () => void;
-  onUseItem: (itemId: string, action: InventoryAction, quantity?: number) => Promise<void>;
+  onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
   onDirectAction: (action: DirectAction) => Promise<void>;
   isUsingItem: boolean;
   isDirectActionPending: boolean;
@@ -863,6 +865,8 @@ interface BlobbiDashboardProps {
     profileAllTags: string[][];
     profileStorage: StorageItem[];
   } | null>;
+  /** Check whether a specific item is on cooldown */
+  isItemOnCooldown: (itemId: string) => boolean;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
   setShowDevEditor: (show: boolean) => void;
@@ -893,6 +897,7 @@ function BlobbiDashboard({
   invalidateCompanion,
   setStoredSelectedD,
   ensureCanonicalBeforeAction,
+  isItemOnCooldown: isItemOnCooldownFn,
   // DEV ONLY
   showDevEditor,
   setShowDevEditor,
@@ -1347,14 +1352,14 @@ function BlobbiDashboard({
     setShowTrackPickerModal(true);
   };
   
-  // Handle using an item (with optional quantity)
-  const handleUseItem = async (itemId: string, quantity: number = 1) => {
+  // Handle using an item (always uses once)
+  const handleUseItem = async (itemId: string) => {
     if (!inventoryAction || isUsingItem) return;
     setUsingItemId(itemId);
     // Set action emotion override while item is being used
     setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
     try {
-      await onUseItem(itemId, inventoryAction, quantity);
+      await onUseItem(itemId, inventoryAction);
       // Close the modal on success
       setInventoryAction(null);
     } finally {
@@ -1382,7 +1387,7 @@ function BlobbiDashboard({
     if (!action || isUsingItem) return;
     setUsingItemId(itemId);
     setActionOverrideEmotion(getActionEmotion(action as ActionType));
-    onUseItem(itemId, action, 1).finally(() => {
+    onUseItem(itemId, action).finally(() => {
       setUsingItemId(null);
       setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
@@ -1730,6 +1735,7 @@ function BlobbiDashboard({
           onOpenShop={handleOpenShopFromAction}
           isUsingItem={isUsingItem}
           usingItemId={usingItemId}
+          isItemOnCooldown={isItemOnCooldownFn}
         />
       )}
       

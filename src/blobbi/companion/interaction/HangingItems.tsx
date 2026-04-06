@@ -439,31 +439,14 @@ export function HangingItems({
   // Contact auto-use only triggers when item ENTERS the zone (transitions from outside to inside)
   const itemsInZoneRef = useRef<Set<string>>(new Set());
   
-  // Local item cooldown tracking (fallback if isItemOnCooldown not provided)
-  const localCooldownsRef = useRef<Map<string, number>>(new Map());
-  
-  // Check if an item is on cooldown (uses prop if available, else local)
-  const checkItemCooldown = useCallback((itemId: string): boolean => {
+  // Check if an item is on cooldown.
+  // Uses the parent-provided isItemOnCooldown (shared module) with the item TYPE id.
+  const checkItemCooldown = useCallback((item: CompanionItem): boolean => {
     if (isItemOnCooldown) {
-      return isItemOnCooldown(itemId);
+      return isItemOnCooldown(item.id);
     }
-    // Local fallback cooldown check
-    const expiresAt = localCooldownsRef.current.get(itemId);
-    if (!expiresAt) return false;
-    if (Date.now() >= expiresAt) {
-      localCooldownsRef.current.delete(itemId);
-      return false;
-    }
-    return true;
+    return false;
   }, [isItemOnCooldown]);
-  
-  // Set local cooldown for an item
-  const setLocalCooldown = useCallback((itemId: string, success: boolean) => {
-    const cooldownMs = success 
-      ? HANGING_CONFIG.successUseCooldown 
-      : HANGING_CONFIG.failedUseCooldown;
-    localCooldownsRef.current.set(itemId, Date.now() + cooldownMs);
-  }, []);
   
   // Ref for onItemLanded callback
   const onItemLandedRef = useRef(onItemLanded);
@@ -626,8 +609,8 @@ export function HangingItems({
    * @param source - How the item was used
    */
   const attemptUseItem = useCallback(async (instanceId: string, item: CompanionItem, source: 'contact' | 'click' | 'drag-drop') => {
-    // Check cooldown first (prevents retry spam) - use instanceId for cooldown tracking
-    if (checkItemCooldown(instanceId)) {
+    // Check shared cooldown by item type ID (prevents retry spam)
+    if (checkItemCooldown(item)) {
       if (import.meta.env.DEV) {
         console.log(`[HangingItems] Item on cooldown, skipping:`, item.name, instanceId);
       }
@@ -646,8 +629,6 @@ export function HangingItems({
     itemsBeingUsedRef.current = new Set(itemsBeingUsedRef.current).add(instanceId);
     forceUpdate(c => c + 1); // Trigger re-render for visual feedback
     
-    let success = false;
-    
     try {
       // If onItemUse is provided, use the async flow
       const onItemUseFn = onItemUseRef.current;
@@ -658,7 +639,6 @@ export function HangingItems({
         const result = await onItemUseFn(item);
         
         if (result.success) {
-          success = true;
           if (import.meta.env.DEV) {
             console.log(`[HangingItems] Item used successfully:`, item.name, instanceId);
           }
@@ -687,7 +667,6 @@ export function HangingItems({
         }
       } else {
         // Legacy behavior: call onItemCollected and remove immediately
-        success = true;
         if (import.meta.env.DEV) {
           console.log(`[HangingItems] Item collected (legacy):`, item.name, instanceId);
         }
@@ -714,11 +693,9 @@ export function HangingItems({
       newSet.delete(instanceId);
       itemsBeingUsedRef.current = newSet;
       forceUpdate(c => c + 1);
-      
-      // Set cooldown (longer on failure to prevent retry spam)
-      setLocalCooldown(instanceId, success);
+      // Cooldown is set by the mutation hooks (onSuccess/onError) via the shared module
     }
-  }, [checkItemCooldown, setLocalCooldown]); // Minimal dependencies - rest uses refs
+  }, [checkItemCooldown]); // Minimal dependencies - rest uses refs
   
   // Contact detection with Blobbi (for auto-use)
   // 

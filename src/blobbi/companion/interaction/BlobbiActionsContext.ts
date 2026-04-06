@@ -40,7 +40,8 @@ export {
  * 1. Registered function from BlobbiPage (if available) - better cache access
  * 2. Built-in useBlobbiItemUse hook as fallback - works anywhere
  * 
- * Uses subscription pattern to only re-render when necessary.
+ * Cooldown is enforced via the shared item-cooldown module, which is
+ * consistent across both the registered and fallback paths.
  */
 export function useBlobbiActions(): BlobbiActionsContextValue {
   const context = useContext(BlobbiActionsContext);
@@ -62,13 +63,13 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
   // Create stable useItem function that:
   // 1. Uses registered function if available (from BlobbiPage)
   // 2. Falls back to built-in hook if no registration
-  const useItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
+  const useItem = useCallback<UseItemFunction>(async (itemId, action) => {
     // Try registered function first (from BlobbiPage)
     if (context?.registerRef.current) {
       if (import.meta.env.DEV) {
         console.log('[BlobbiActions] Using registered item-use function');
       }
-      return context.registerRef.current(itemId, action, quantity);
+      return context.registerRef.current(itemId, action);
     }
     
     // Check if fallback can handle it
@@ -86,7 +87,7 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
     if (import.meta.env.DEV) {
       console.log('[BlobbiActions] Using fallback item-use hook');
     }
-    return fallbackItemUse.useItem(itemId, action, quantity);
+    return fallbackItemUse.useItem(itemId, action);
   }, [context, fallbackItemUse]);
   
   // Determine canUseItems: true if registered OR fallback can use
@@ -103,8 +104,7 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
     isUsingItem,
     canUseItems,
     isItemOnCooldown: fallbackItemUse.isItemOnCooldown,
-    clearItemCooldown: fallbackItemUse.clearItemCooldown,
-  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown, fallbackItemUse.clearItemCooldown]);
+  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown]);
 }
 
 // ─── Registration Hook ────────────────────────────────────────────────────────
@@ -134,14 +134,14 @@ export function useBlobbiActionsRegistration(
   useItemRef.current = useItemFn;
   
   // Create a stable wrapper that delegates to the ref
-  const stableUseItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
+  const stableUseItem = useCallback<UseItemFunction>(async (itemId, action) => {
     if (!useItemRef.current) {
       return {
         success: false,
         error: 'Item use function not available',
       };
     }
-    return useItemRef.current(itemId, action, quantity);
+    return useItemRef.current(itemId, action);
   }, []);
   
   // Update refs and notify only when canUseItems actually changes
@@ -187,5 +187,3 @@ export function useBlobbiActionsRegistration(
     };
   }, [context]);
 }
-
-
