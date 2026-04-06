@@ -230,7 +230,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         );
 
       // Reorder for content-type diversity: cap any single type at 20%
-      // per page and enforce a minimum gap of 3 positions between same-type
+      // per page and enforce a minimum gap of 4 positions between same-type
       // items, with gap state carrying across page boundaries.
       return diversifyFeedPages(dedupedPages);
     }

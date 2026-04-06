@@ -3,7 +3,7 @@ import type { FeedItem } from '@/lib/feedUtils';
 
 /** Options for feed diversity reordering. */
 export interface DiversifyOptions {
-  /** Minimum index gap between same content type (default: 3). */
+  /** Minimum index gap between same content type (default: 4). */
   minGap?: number;
   /** Maximum proportion of a page any single type can occupy (default: 0.2 = 20%). */
   maxProportion?: number;
@@ -34,7 +34,7 @@ export function diversifyPage(
 ): FeedItem[] {
   if (items.length === 0) return items;
 
-  const minGap = options?.minGap ?? 3;
+  const minGap = options?.minGap ?? 4;
   const maxProportion = options?.maxProportion ?? 0.2;
 
   // ── Phase 1: Proportional cap ────────────────────────────────────────
@@ -57,7 +57,7 @@ export function diversifyFeedPages(
   pages: FeedItem[][],
   options?: DiversifyOptions,
 ): FeedItem[] {
-  const minGap = options?.minGap ?? 3;
+  const minGap = options?.minGap ?? 4;
   const result: FeedItem[] = [];
   let priorTail: string[] = [];
 
