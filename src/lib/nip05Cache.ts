@@ -35,12 +35,13 @@ export function hydrateNip05Cache(): Promise<void> {
   hydratePromise = (async () => {
     try {
       const db = await openDatabase();
+      if (!db) return; // IndexedDB unavailable — skip hydration.
       const entries: Nip05CacheEntry[] = await db.getAll(STORE.NIP05);
       for (const entry of entries) {
         memoryCache.set(entry.identifier, entry);
       }
     } catch {
-      // IndexedDB unavailable (e.g. private browsing) — silently degrade.
+      // IndexedDB read failure — silently degrade.
     } finally {
       hydrated = true;
     }
@@ -69,7 +70,7 @@ export async function setNip05Cached(identifier: string, pubkey: string): Promis
 
   try {
     const db = await openDatabase();
-    await db.put(STORE.NIP05, entry, identifier);
+    if (db) await db.put(STORE.NIP05, entry, identifier);
   } catch {
     // Write failure is non-critical — the in-memory cache still works.
   }
@@ -84,7 +85,7 @@ export async function deleteNip05Cached(identifier: string): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.delete(STORE.NIP05, identifier);
+    if (db) await db.delete(STORE.NIP05, identifier);
   } catch {
     // Non-critical.
   }
@@ -96,7 +97,7 @@ export async function clearNip05Cache(): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.clear(STORE.NIP05);
+    if (db) await db.clear(STORE.NIP05);
   } catch {
     // Non-critical.
   }
