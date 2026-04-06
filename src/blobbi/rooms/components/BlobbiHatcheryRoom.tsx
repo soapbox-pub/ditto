@@ -28,6 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { isLocalhostDev } from '@/blobbi/dev';
 import type { BlobbiRoomContext } from '../lib/room-types';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
+import { RoomActionButton } from './RoomActionButton';
 
 // ─── Helper: companionNeedsCare (reused from BlobbiPage) ──────────────────────
 
@@ -118,31 +119,24 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
 
       {/* ── Bottom Action Bar ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-3 sm:px-4 pb-4 pt-2">
-          <div className="flex items-end">
-            {/* Bottom left — Blobbis selector button */}
-            <div className="w-16 shrink-0 flex justify-start">
-              <button
-                onClick={() => setShowBlobbisPanel(true)}
-                className={cn(
-                  'flex flex-col items-center gap-1 transition-all duration-300 ease-out',
-                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
-                )}
-              >
-                <div className="relative size-12 rounded-full flex items-center justify-center bg-primary/10 text-primary">
-                  <Egg className="size-6" />
-                  {companions.length > 1 && (
-                    <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-[9px] text-primary-foreground font-bold flex items-center justify-center">
-                      {companions.length}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground font-medium">Blobbis</span>
-              </button>
-            </div>
+        <div className="relative z-10 px-4 sm:px-8 pb-6 pt-2">
+          <div className="flex items-start justify-between">
+            {/* Bottom left — Blobbis selector */}
+            <RoomActionButton
+              icon={<Egg className="size-9 sm:size-10" />}
+              label="Blobbis"
+              color="text-primary"
+              glowHex="var(--primary)"
+              onClick={() => setShowBlobbisPanel(true)}
+              badge={companions.length > 1 ? (
+                <span className="size-5 rounded-full bg-primary text-[10px] text-primary-foreground font-bold flex items-center justify-center">
+                  {companions.length}
+                </span>
+              ) : undefined}
+            />
 
             {/* Center — Main hatch/evolve action */}
-            <div className="flex-1 flex flex-col items-center gap-1.5">
+            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 pt-4">
               {/* Active process: Hatch/Evolve CTA or progress */}
               {hasActiveProcess && allCompleted && !isTasksLoading && (
                 <button
@@ -235,27 +229,19 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
               )}
             </div>
 
-            {/* Bottom right — Quests/Tasks button */}
-            <div className="w-16 shrink-0 flex justify-end">
-              <button
-                onClick={() => setShowQuestsPanel(true)}
-                className={cn(
-                  'flex flex-col items-center gap-1 transition-all duration-300 ease-out',
-                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
-                )}
-              >
-                <div className="relative size-12 rounded-full flex items-center justify-center bg-amber-500/10 text-amber-500">
-                  <ListTodo className="size-6" />
-                  {/* Badge for remaining tasks */}
-                  {hasActiveProcess && totalCount - completedCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-amber-500 text-[9px] text-white font-bold flex items-center justify-center">
-                      {totalCount - completedCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-muted-foreground font-medium">Quests</span>
-              </button>
-            </div>
+            {/* Bottom right — Quests/Tasks */}
+            <RoomActionButton
+              icon={<ListTodo className="size-9 sm:size-10" />}
+              label="Quests"
+              color="text-amber-500"
+              glowHex="#f59e0b"
+              onClick={() => setShowQuestsPanel(true)}
+              badge={hasActiveProcess && totalCount - completedCount > 0 ? (
+                <span className="size-5 rounded-full bg-amber-500 text-[10px] text-white font-bold flex items-center justify-center">
+                  {totalCount - completedCount}
+                </span>
+              ) : undefined}
+            />
           </div>
         </div>
       )}

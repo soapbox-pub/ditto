@@ -16,4 +16,5 @@ export { BlobbiHomeRoom } from './components/BlobbiHomeRoom';
 export { BlobbiKitchenRoom } from './components/BlobbiKitchenRoom';
 export { BlobbiCareRoom } from './components/BlobbiCareRoom';
 export { BlobbiHatcheryRoom } from './components/BlobbiHatcheryRoom';
+export { BlobbiRestRoom } from './components/BlobbiRestRoom';
 export { BlobbiClosetRoom } from './components/BlobbiClosetRoom';

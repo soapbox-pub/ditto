@@ -14,7 +14,7 @@
  * Unique identifier for each room in the Blobbi world.
  * New rooms can be added here without breaking existing code.
  */
-export type BlobbiRoomId = 'care' | 'kitchen' | 'home' | 'hatchery' | 'closet';
+export type BlobbiRoomId = 'care' | 'kitchen' | 'home' | 'hatchery' | 'rest' | 'closet';
 
 // ─── Room Metadata ────────────────────────────────────────────────────────────
 
@@ -58,6 +58,12 @@ export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
     description: 'Evolution and quests',
     icon: '🥚',
   },
+  rest: {
+    id: 'rest',
+    label: 'Bedroom',
+    description: 'Rest and recharge',
+    icon: '🌙',
+  },
   closet: {
     id: 'closet',
     label: 'Closet',
@@ -80,6 +86,7 @@ export const DEFAULT_ROOM_ORDER: BlobbiRoomId[] = [
   'kitchen',
   'home',
   'hatchery',
+  'rest',
   'closet',
 ];
 

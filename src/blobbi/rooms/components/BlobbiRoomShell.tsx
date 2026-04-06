@@ -38,6 +38,7 @@ import { BlobbiHomeRoom } from './BlobbiHomeRoom';
 import { BlobbiKitchenRoom } from './BlobbiKitchenRoom';
 import { BlobbiCareRoom } from './BlobbiCareRoom';
 import { BlobbiHatcheryRoom } from './BlobbiHatcheryRoom';
+import { BlobbiRestRoom } from './BlobbiRestRoom';
 import { BlobbiClosetRoom } from './BlobbiClosetRoom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ const ROOM_COMPONENTS: Record<BlobbiRoomId, React.ComponentType<{ ctx: BlobbiRoo
   kitchen: BlobbiKitchenRoom,
   home: BlobbiHomeRoom,
   hatchery: BlobbiHatcheryRoom,
+  rest: BlobbiRestRoom,
   closet: BlobbiClosetRoom,
 };
 
