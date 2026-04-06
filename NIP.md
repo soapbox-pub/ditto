@@ -325,6 +325,85 @@ The spell does not need to be signed or published to relays -- it is stored inli
 
 ---
 
+## Kind 30078: Buddy AI Agent Identity
+
+### Summary
+
+Uses NIP-78 (Application-specific data, kind 30078) to store a user's personal AI agent ("Buddy") identity. The event is signed by the user (owner), linking the agent to their account. The agent has its own Nostr keypair and kind 0 profile.
+
+Public metadata is in tags. The agent's secret key and soul (personality/behavior description) are NIP-44 encrypted to the owner in the `content` field.
+
+### Event Structure
+
+```json
+{
+  "kind": 30078,
+  "pubkey": "<owner-pubkey>",
+  "tags": [
+    ["d", "<appId>/buddy"],
+    ["p", "<agent-pubkey>"],
+    ["alt", "Buddy AI agent identity"],
+    ["client", "Ditto", "<optional-nip89-addr>"]
+  ],
+  "content": "<NIP-44 encrypted to owner: { nsec, soul }>"
+}
+```
+
+### Content (Encrypted)
+
+The `content` field contains a NIP-44 payload encrypted to the owner's own pubkey (encrypt-to-self). When decrypted, it yields a JSON object:
+
+```json
+{
+  "nsec": "<agent-secret-key-hex>",
+  "soul": "A witty space explorer who explains everything with analogies and never takes itself too seriously."
+}
+```
+
+| Field  | Required | Description                                                                 |
+|--------|----------|-----------------------------------------------------------------------------|
+| `nsec` | Yes      | Agent's secret key as a 64-character hex string                             |
+| `soul` | Yes      | Free-form text describing the agent's personality, injected into the system prompt via `{{SOUL}}` |
+
+### Tags
+
+| Tag      | Required | Description                                                                 |
+|----------|----------|-----------------------------------------------------------------------------|
+| `d`      | Yes      | `<appId>/buddy` — one buddy per user per app (e.g. `ditto/buddy`)          |
+| `p`      | Yes      | Agent's public key (hex) — links to the agent's kind 0 profile             |
+| `alt`    | Yes      | NIP-31 human-readable fallback                                              |
+| `client` | Yes      | NIP-89 client tag identifying the publishing application                    |
+
+### Agent Profile (Kind 0)
+
+The buddy agent has its own kind 0 event signed with its own keypair. This is a standard Nostr profile:
+
+```json
+{
+  "kind": 0,
+  "pubkey": "<agent-pubkey>",
+  "content": "{\"name\":\"Sparkles\",\"about\":\"A witty space explorer...\",\"bot\":true}"
+}
+```
+
+The `bot` field SHOULD be set to `true` per NIP-24 to indicate the profile is automated.
+
+### Client Behavior
+
+- On **creation**: generate a keypair, store nsec in localStorage for fast access, publish kind 0 (agent profile) and kind 30078 (identity event).
+- On **page load**: read nsec from localStorage first. If missing, fetch kind 30078 from relays, decrypt, and restore nsec to localStorage.
+- On **soul update**: re-encrypt and republish the kind 30078 event. Also update the agent's kind 0 `about` field.
+- On **reset**: clear localStorage, publish an empty kind 30078 event to overwrite on relays.
+- The `soul` text is injected into the AI system prompt template at the `{{SOUL}}` placeholder. The base system prompt (tool instructions, etc.) is maintained in application code, not in the event.
+
+### Security
+
+- The kind 30078 event MUST be queried with `authors: [ownerPubkey]` to prevent spoofing.
+- The nsec is NIP-44 encrypted — only the owner can decrypt it.
+- The agent's keypair is separate from the user's keypair. Compromise of the agent key does not affect the user's identity.
+
+---
+
 ## Kind 0 Extension: Avatar Shape
 
 ### Summary
