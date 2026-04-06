@@ -179,7 +179,7 @@ export function AdvancedSettings() {
                           }
                         }}
                         placeholder="Describe your buddy's personality..."
-                        className="min-h-[100px] resize-y text-base md:text-sm"
+                        className="min-h-[100px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
                         disabled={soulSaving}
                       />
                       <p className="text-xs text-muted-foreground">
