@@ -167,6 +167,8 @@ export interface BlobbiRoomContext {
   isDevUpdating: boolean;
   showEmotionPanel: boolean;
   setShowEmotionPanel: React.Dispatch<React.SetStateAction<boolean>>;
+  showProgressionPanel: boolean;
+  setShowProgressionPanel: React.Dispatch<React.SetStateAction<boolean>>;
   showHatchCeremony: boolean;
   setShowHatchCeremony: React.Dispatch<React.SetStateAction<boolean>>;
 

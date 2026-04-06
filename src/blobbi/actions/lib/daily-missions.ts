@@ -83,6 +83,74 @@ export interface DailyMissionsState {
 /** Maximum number of mission rerolls allowed per day */
 export const MAX_DAILY_REROLLS = 3;
 
+// ─── Account-Scoped Storage ───────────────────────────────────────────────────
+
+/**
+ * Get the pubkey-scoped localStorage key for daily missions.
+ *
+ * Daily mission state MUST be isolated per account. Without pubkey scoping,
+ * switching accounts on the same device causes mission progress, claimed
+ * status, rerolls, and lifetime XP to leak between users.
+ *
+ * The key format is: `blobbi:daily-missions:<pubkey>`
+ *
+ * All code that reads or writes daily mission localStorage MUST use this
+ * function (or the read/write helpers below) rather than a hardcoded key.
+ */
+export function getDailyMissionsStorageKey(pubkey: string): string {
+  return `blobbi:daily-missions:${pubkey}`;
+}
+
+/**
+ * Read daily missions state from pubkey-scoped localStorage.
+ *
+ * Returns null if:
+ *   - No stored state exists for this pubkey
+ *   - The stored JSON is corrupt
+ *   - The pubkey is empty/undefined
+ *
+ * This is the ONLY correct way to read mission state from localStorage.
+ * Never use a hardcoded key — always scope by pubkey.
+ */
+export function readDailyMissionsState(pubkey: string | undefined): DailyMissionsState | null {
+  if (!pubkey) return null;
+
+  try {
+    const stored = localStorage.getItem(getDailyMissionsStorageKey(pubkey));
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    // Support legacy field name (totalCoinsEarned → totalXpEarned)
+    if (parsed.totalCoinsEarned !== undefined && parsed.totalXpEarned === undefined) {
+      parsed.totalXpEarned = parsed.totalCoinsEarned;
+      delete parsed.totalCoinsEarned;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write daily missions state to pubkey-scoped localStorage.
+ *
+ * This is the ONLY correct way to write mission state to localStorage.
+ * Never use a hardcoded key — always scope by pubkey.
+ *
+ * No-ops silently if pubkey is empty/undefined (logged-out users should
+ * not persist mission state).
+ */
+export function writeDailyMissionsState(pubkey: string | undefined, state: DailyMissionsState): void {
+  if (!pubkey) return;
+
+  try {
+    localStorage.setItem(getDailyMissionsStorageKey(pubkey), JSON.stringify(state));
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[daily-missions] Failed to write state for', pubkey.slice(0, 8), error);
+    }
+  }
+}
+
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
 
 /**

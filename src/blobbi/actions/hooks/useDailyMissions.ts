@@ -32,6 +32,8 @@ import {
   BONUS_MISSION_DEFINITION,
   getRerollsRemaining,
   MAX_DAILY_REROLLS,
+  readDailyMissionsState,
+  writeDailyMissionsState,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,28 +72,9 @@ export interface UseDailyMissionsResult {
   forceReset: () => void;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useDailyMissions] Failed to write state:', error);
-  }
-}
+// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
+// helpers in daily-missions.ts. These helpers scope the localStorage key by pubkey,
+// preventing mission state from leaking between accounts on the same device.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -100,18 +83,23 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const { user } = useCurrentUser();
   const pubkey = user?.pubkey;
 
-  // Read state directly from localStorage, with a version counter to trigger re-reads
+  // Read state directly from pubkey-scoped localStorage, with a version counter to trigger re-reads.
+  // When pubkey changes (account switch), the version counter is irrelevant because the useMemo
+  // dependency on `pubkey` already forces a re-read from the new user's storage key.
   const [version, setVersion] = useState(0);
   
-  // Read from localStorage on every render when version changes
+  // Read from the current user's localStorage slot. Returns null when:
+  //   - User is logged out (no pubkey)
+  //   - No state stored yet for this pubkey
+  //   - Stored JSON is corrupt
   // eslint-disable-next-line react-hooks/exhaustive-deps -- version is intentionally used to force re-read
-  const state = useMemo(() => readMissionsState(), [version]);
+  const state = useMemo(() => readDailyMissionsState(pubkey), [version, pubkey]);
   
   // Wrapper to write state and update version
   const setState = useCallback((newState: DailyMissionsState) => {
-    writeMissionsState(newState);
+    writeDailyMissionsState(pubkey, newState);
     setVersion((v) => v + 1);
-  }, []);
+  }, [pubkey]);
 
   // Listen for external updates from mutations (reroll, claim, progress tracking)
   // This re-reads localStorage when other hooks modify it directly
@@ -134,8 +122,8 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     if (needsDailyReset(state)) {
       const previousXp = state?.totalXpEarned ?? (state as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
       const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp, availableStages);
-      // Persist the reset state (this will trigger version bump via setState)
-      writeMissionsState(newState);
+      // Persist the reset state
+      writeDailyMissionsState(pubkey, newState);
       return newState;
     }
     
@@ -145,7 +133,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
         ...state,
         rerollsRemaining: MAX_DAILY_REROLLS,
       };
-      writeMissionsState(migratedState);
+      writeDailyMissionsState(pubkey, migratedState);
       return migratedState;
     }
     

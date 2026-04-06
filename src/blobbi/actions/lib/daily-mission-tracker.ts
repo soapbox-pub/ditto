@@ -16,48 +16,27 @@ import {
   needsDailyReset,
   createDailyMissionsState,
   updateMissionProgress,
+  readDailyMissionsState,
+  writeDailyMissionsState,
 } from './daily-missions';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
+// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
+// helpers in daily-missions.ts. These scope the localStorage key by pubkey, preventing
+// mission progress from leaking between accounts.
 
 /**
- * Read the current daily missions state from localStorage
+ * Ensure we have a valid state for today, creating one if necessary.
+ * Requires pubkey for account-scoped storage. Returns null if no pubkey.
  */
-function readState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
+function ensureCurrentState(pubkey: string | undefined): DailyMissionsState | null {
+  if (!pubkey) return null;
 
-/**
- * Write the daily missions state to localStorage
- */
-function writeState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[DailyMissionTracker] Failed to write state:', error);
-  }
-}
-
-/**
- * Ensure we have a valid state for today, creating one if necessary
- */
-function ensureCurrentState(pubkey?: string): DailyMissionsState {
-  const current = readState();
+  const current = readDailyMissionsState(pubkey);
   
   if (needsDailyReset(current)) {
-    // Support both legacy (totalCoinsEarned) and current (totalXpEarned) fields
     const previousXp = current?.totalXpEarned ?? (current as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
     const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp);
-    writeState(newState);
+    writeDailyMissionsState(pubkey, newState);
     return newState;
   }
   
@@ -69,11 +48,13 @@ function ensureCurrentState(pubkey?: string): DailyMissionsState {
 /**
  * Record progress for a daily mission action.
  * This function can be called from anywhere (hooks, event handlers, etc.)
- * and will immediately persist to localStorage.
+ * and will immediately persist to pubkey-scoped localStorage.
+ * 
+ * No-ops silently if pubkey is not provided (logged-out users don't track).
  * 
  * @param action - The action type that was performed
  * @param count - Number of times the action was performed (default: 1)
- * @param pubkey - Optional user pubkey for personalized mission selection
+ * @param pubkey - User pubkey (required for account-scoped storage)
  */
 export function trackDailyMissionProgress(
   action: DailyMissionAction,
@@ -81,8 +62,10 @@ export function trackDailyMissionProgress(
   pubkey?: string
 ): void {
   const current = ensureCurrentState(pubkey);
+  if (!current) return;
+
   const updated = updateMissionProgress(current, action, count);
-  writeState(updated);
+  writeDailyMissionsState(pubkey, updated);
   
   // Dispatch a custom event so React components can re-render if needed
   window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { action, count } }));
@@ -92,19 +75,22 @@ export function trackDailyMissionProgress(
  * Convenience function to track multiple actions at once.
  * Useful when an action should count toward multiple missions.
  * 
+ * No-ops silently if pubkey is not provided (logged-out users don't track).
+ * 
  * @param actions - Array of actions to track
- * @param pubkey - Optional user pubkey
+ * @param pubkey - User pubkey (required for account-scoped storage)
  */
 export function trackMultipleDailyMissionActions(
   actions: DailyMissionAction[],
   pubkey?: string
 ): void {
   let current = ensureCurrentState(pubkey);
+  if (!current) return;
   
   for (const action of actions) {
     current = updateMissionProgress(current, action, 1);
   }
   
-  writeState(current);
+  writeDailyMissionsState(pubkey, current);
   window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { actions } }));
 }

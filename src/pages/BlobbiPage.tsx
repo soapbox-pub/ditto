@@ -76,7 +76,7 @@ import {
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
-import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
+import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev, ProgressionDevPanel } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
@@ -927,6 +927,9 @@ function BlobbiDashboard({
   // DEV ONLY: Emotion panel state
   const [showEmotionPanel, setShowEmotionPanel] = useState(false);
   
+  // DEV ONLY: Progression panel state
+  const [showProgressionPanel, setShowProgressionPanel] = useState(false);
+  
   // DEV ONLY: Get effective emotion (dev override or base)
   const devEmotionOverride = useEffectiveEmotion();
   
@@ -1459,6 +1462,8 @@ function BlobbiDashboard({
     isDevUpdating,
     showEmotionPanel,
     setShowEmotionPanel,
+    showProgressionPanel,
+    setShowProgressionPanel,
     showHatchCeremony,
     setShowHatchCeremony,
 
@@ -1487,7 +1492,7 @@ function BlobbiDashboard({
     dailyMissions, isClaimingReward, availableStages,
     showAdoptionFlow,
     blobbiNaddr, heroWidth,
-    showDevEditor, isDevUpdating, showEmotionPanel, showHatchCeremony,
+    showDevEditor, isDevUpdating, showEmotionPanel, showProgressionPanel, showHatchCeremony,
     inventoryAction,
   ]);
   
@@ -1580,6 +1585,15 @@ function BlobbiDashboard({
         <BlobbiEmotionPanel
           isOpen={showEmotionPanel}
           onClose={() => setShowEmotionPanel(false)}
+        />
+      )}
+      
+      {/* DEV ONLY: Progression Tester */}
+      {import.meta.env.DEV && (
+        <ProgressionDevPanel
+          isOpen={showProgressionPanel}
+          onClose={() => setShowProgressionPanel(false)}
+          onProfileUpdated={updateProfileEvent}
         />
       )}
     </DashboardShell>

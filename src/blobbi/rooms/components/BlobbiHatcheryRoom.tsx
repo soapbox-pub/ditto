@@ -17,7 +17,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Loader2, Sparkles, Egg, Target, Check, ListTodo,
   Wrench, Droplets, Heart, Zap, Moon, Camera, Music, Mic,
-  Pill, Utensils, Plus, Footprints, ExternalLink, Theater,
+  Pill, Utensils, Plus, Footprints, ExternalLink, Theater, TrendingUp,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -94,6 +94,7 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
     // DEV
     setShowDevEditor,
     setShowEmotionPanel,
+    setShowProgressionPanel,
   } = ctx;
 
   const navigate = useNavigate();
@@ -477,6 +478,10 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
                     <button onClick={() => { setShowBlobbisPanel(false); setShowEmotionPanel(true); }} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
                       <Theater className="size-5" />
                       <span className="text-[10px]">Emote</span>
+                    </button>
+                    <button onClick={() => { setShowBlobbisPanel(false); setShowProgressionPanel(true); }} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
+                      <TrendingUp className="size-5" />
+                      <span className="text-[10px]">Level</span>
                     </button>
                   </>
                 )}

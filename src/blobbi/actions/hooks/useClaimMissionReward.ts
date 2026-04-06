@@ -35,6 +35,8 @@ import {
   isBonusMissionAvailable,
   isBonusMissionClaimed,
   BONUS_MISSION_DEFINITION,
+  readDailyMissionsState,
+  writeDailyMissionsState,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,35 +53,8 @@ export interface ClaimMissionResult {
   xpEarned: number;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities (local optimistic cache) ───────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    // Support legacy field name
-    if (parsed.totalCoinsEarned !== undefined && parsed.totalXpEarned === undefined) {
-      parsed.totalXpEarned = parsed.totalCoinsEarned;
-      delete parsed.totalCoinsEarned;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useClaimMissionReward] Failed to write state:', error);
-  }
-}
+// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
+// helpers in daily-missions.ts. These scope the localStorage key by pubkey.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -115,8 +90,8 @@ export function useClaimMissionReward(
         throw new Error('Profile not found');
       }
 
-      // Read current missions state from localStorage (optimistic cache)
-      let missionsState = readMissionsState();
+      // Read current missions state from pubkey-scoped localStorage (optimistic cache)
+      let missionsState = readDailyMissionsState(user.pubkey);
       
       // Ensure we have valid state for today
       if (needsDailyReset(missionsState)) {
@@ -231,7 +206,7 @@ export function useClaimMissionReward(
 
       // ── 3. Update localStorage optimistic cache ──
 
-      writeMissionsState(updatedState);
+      writeDailyMissionsState(user.pubkey, updatedState);
 
       // Dispatch event for React components to re-render
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { 

@@ -14,7 +14,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 
 import {
-  type DailyMissionsState,
   type DailyMission,
   type BlobbiStage,
   getTodayDateString,
@@ -23,6 +22,8 @@ import {
   rerollMission,
   canRerollMission,
   getRerollsRemaining,
+  readDailyMissionsState,
+  writeDailyMissionsState,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,37 +39,8 @@ export interface RerollMissionResult {
   rerollsRemaining: number;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    
-    const state = JSON.parse(stored) as DailyMissionsState;
-    
-    // Migration: ensure rerollsRemaining is set for old state
-    if (state.rerollsRemaining === undefined) {
-      state.rerollsRemaining = 3; // MAX_DAILY_REROLLS
-    }
-    
-    return state;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useRerollMission] Failed to write state:', error);
-  }
-}
+// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
+// helpers in daily-missions.ts. These scope the localStorage key by pubkey.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -87,8 +59,8 @@ export function useRerollMission() {
         throw new Error('You must be logged in to reroll missions');
       }
 
-      // Read current missions state from localStorage
-      let missionsState = readMissionsState();
+      // Read current missions state from pubkey-scoped localStorage
+      let missionsState = readDailyMissionsState(user.pubkey);
       
       // Ensure we have valid state for today
       if (needsDailyReset(missionsState)) {
@@ -118,8 +90,8 @@ export function useRerollMission() {
         throw new Error('No replacement missions available. All alternative missions may already be in your daily list.');
       }
 
-      // Persist the updated state
-      writeMissionsState(result.state);
+      // Persist the updated state to pubkey-scoped localStorage
+      writeDailyMissionsState(user.pubkey, result.state);
 
       // Dispatch event for React components to re-render
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { 
