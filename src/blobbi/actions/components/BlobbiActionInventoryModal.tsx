@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/BlobbiActionInventoryModal.tsx
 
 import { useMemo } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Clock } from 'lucide-react';
 
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
   type ResolvedInventoryItem,
   type EggStatPreview,
 } from '../lib/blobbi-action-utils';
+import { useItemCooldown } from '../hooks/useItemCooldown';
 
 interface BlobbiActionInventoryModalProps {
   open: boolean;
@@ -39,8 +40,6 @@ interface BlobbiActionInventoryModalProps {
   onOpenShop: () => void;
   isUsingItem: boolean;
   usingItemId: string | null;
-  /** Check whether a specific item is on cooldown */
-  isItemOnCooldown?: (itemId: string) => boolean;
 }
 
 export function BlobbiActionInventoryModal({
@@ -53,9 +52,9 @@ export function BlobbiActionInventoryModal({
   onOpenShop: _onOpenShop,
   isUsingItem,
   usingItemId,
-  isItemOnCooldown,
 }: BlobbiActionInventoryModalProps) {
   const actionMeta = ACTION_METADATA[action];
+  const { isOnCooldown } = useItemCooldown();
 
   // Get all available items for this action from the catalog.
   const availableItems = useMemo(() => {
@@ -70,7 +69,7 @@ export function BlobbiActionInventoryModal({
 
   const handleUseItem = (item: ResolvedInventoryItem) => {
     if (isUsingItem) return;
-    if (isItemOnCooldown?.(item.itemId)) return;
+    if (isOnCooldown(item.itemId)) return;
     onUseItem(item.itemId);
   };
 
@@ -130,7 +129,7 @@ export function BlobbiActionInventoryModal({
           {canUse && !isEmpty && (
             <div className="grid gap-3">
               {availableItems.map((item) => {
-                const isCoolingDown = isItemOnCooldown?.(item.itemId) ?? false;
+                const isCoolingDown = isOnCooldown(item.itemId);
                 const isThisUsing = isUsingItem && usingItemId === item.itemId;
                 return (
                   <BlobbiItemUseRow
@@ -251,10 +250,13 @@ function BlobbiItemUseRow({
           size="sm"
           onClick={onUse}
           disabled={disabled}
-          className={cn('shrink-0', isCoolingDown && 'opacity-50')}
+          variant={isCoolingDown ? 'outline' : 'default'}
+          className="shrink-0 min-w-14"
         >
           {isUsing ? (
             <Loader2 className="size-4 animate-spin" />
+          ) : isCoolingDown ? (
+            <Clock className="size-3.5 text-muted-foreground" />
           ) : (
             'Use'
           )}

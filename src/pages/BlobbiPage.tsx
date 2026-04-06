@@ -87,7 +87,7 @@ import {
 // DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
-import { isItemOnCooldown } from '@/blobbi/actions/lib/item-cooldown';
+import { useItemCooldown } from '@/blobbi/actions/hooks/useItemCooldown';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
@@ -793,7 +793,6 @@ function BlobbiContent() {
       invalidateCompanion={invalidateCompanion}
       setStoredSelectedD={setStoredSelectedD}
       ensureCanonicalBeforeAction={ensureCanonicalBeforeAction}
-      isItemOnCooldown={isItemOnCooldown}
       // DEV ONLY: State editor props
       showDevEditor={showDevEditor}
       setShowDevEditor={setShowDevEditor}
@@ -865,8 +864,6 @@ interface BlobbiDashboardProps {
     profileAllTags: string[][];
     profileStorage: StorageItem[];
   } | null>;
-  /** Check whether a specific item is on cooldown */
-  isItemOnCooldown: (itemId: string) => boolean;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
   setShowDevEditor: (show: boolean) => void;
@@ -897,7 +894,6 @@ function BlobbiDashboard({
   invalidateCompanion,
   setStoredSelectedD,
   ensureCanonicalBeforeAction,
-  isItemOnCooldown: isItemOnCooldownFn,
   // DEV ONLY
   showDevEditor,
   setShowDevEditor,
@@ -1735,7 +1731,6 @@ function BlobbiDashboard({
           onOpenShop={handleOpenShopFromAction}
           isUsingItem={isUsingItem}
           usingItemId={usingItemId}
-          isItemOnCooldown={isItemOnCooldownFn}
         />
       )}
       
@@ -1978,20 +1973,25 @@ function ItemsTabContent({
   isUsingItem,
   usingItemId,
 }: ItemsTabContentProps) {
+  const { isOnCooldown } = useItemCooldown();
+
   return (
     <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
       {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
         const isThisUsing = isUsingItem && usingItemId === item.id;
+        const isCoolingDown = isOnCooldown(item.id);
+        const isDisabled = isUsingItem || isCoolingDown;
         return (
           <button
             key={item.id}
             onClick={() => onUseItem(item.id)}
-            disabled={isUsingItem}
+            disabled={isDisabled}
             className={cn(
               'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
               'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
               isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isUsingItem && !isThisUsing && 'opacity-40 pointer-events-none',
+              isCoolingDown && !isThisUsing && 'opacity-40',
+              isDisabled && !isThisUsing && !isCoolingDown && 'opacity-40 pointer-events-none',
             )}
           >
             {/* Stat category indicator — top-right */}

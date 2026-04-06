@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ShoppingBag, Package, Loader2, X } from 'lucide-react';
+import { ShoppingBag, Package, Loader2, X, Clock } from 'lucide-react';
 
 import {
   Dialog,
@@ -19,6 +19,7 @@ import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobb
 import { getLiveShopItems } from '../lib/blobbi-shop-items';
 import { useBlobbiPurchaseItem } from '../hooks/useBlobbiPurchaseItem';
 import { canUseItemForStage } from '@/blobbi/actions/lib/blobbi-action-utils';
+import { useItemCooldown } from '@/blobbi/actions/hooks/useItemCooldown';
 import { cn, formatCompactNumber } from '@/lib/utils';
 
 type TopTab = 'items' | 'shop';
@@ -273,6 +274,8 @@ interface ItemsGridProps {
 }
 
 function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop: _onGoToShop }: ItemsGridProps) {
+  const { isOnCooldown } = useItemCooldown();
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -291,6 +294,8 @@ function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop: _on
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {items.map(item => {
           const isThisUsing = isUsingItem && usingItemId === item.itemId;
+          const isCoolingDown = isOnCooldown(item.itemId);
+          const isDisabled = isUsingItem || isCoolingDown;
 
           return (
             <div
@@ -311,13 +316,15 @@ function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop: _on
               {item.canUse ? (
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant={isCoolingDown ? 'ghost' : 'outline'}
                   className="w-full h-7 text-xs"
                   onClick={() => onUseItem(item)}
-                  disabled={isUsingItem}
+                  disabled={isDisabled}
                 >
                   {isThisUsing ? (
                     <Loader2 className="size-3 animate-spin" />
+                  ) : isCoolingDown ? (
+                    <Clock className="size-3 text-muted-foreground" />
                   ) : (
                     'Use'
                   )}
