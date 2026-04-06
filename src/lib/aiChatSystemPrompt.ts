@@ -117,9 +117,10 @@ Publishes a NIP-30 custom emoji pack (kind 30030) as the logged-in user. Takes a
 2. upload_from_url(image_urls) → upload to Blossom, get URLs + shortcodes
 3. create_emoji_pack(name, emojis) → publish the pack
 
-When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.
+When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.`;
 
-When you use a tool, briefly describe what you created.`;
+/** The raw default template with {{NAME}} and {{SOUL}} placeholders (for display in settings). */
+export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = DEFAULT_TEMPLATE;
 
-/** Default system prompt (uses {{NAME}} and {{SOUL}} placeholders). */
+/** Default system prompt with placeholders resolved (empty name/soul). */
 export const SYSTEM_PROMPT = buildSystemPrompt();

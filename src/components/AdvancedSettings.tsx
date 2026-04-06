@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
-import { SYSTEM_PROMPT } from '@/lib/aiChatSystemPrompt';
+import { DEFAULT_SYSTEM_PROMPT_TEMPLATE } from '@/lib/aiChatSystemPrompt';
 
 import type { MCPServer } from '@/contexts/AppContext';
 
@@ -45,7 +45,7 @@ export function AdvancedSettings() {
   const { buddy, hasBuddy, updateSoul, resetBuddy } = useBuddy();
   const [soulDraft, setSoulDraft] = useState('');
   const [soulSaving, setSoulSaving] = useState(false);
-  const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt || (SYSTEM_PROMPT.content as string));
+  const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt || DEFAULT_SYSTEM_PROMPT_TEMPLATE);
 
   // Sync soul draft with buddy data
   useEffect(() => {
@@ -206,7 +206,7 @@ export function AdvancedSettings() {
                     onChange={(e) => setSystemPromptDraft(e.target.value)}
                     onBlur={() => {
                       const trimmed = systemPromptDraft.trim();
-                      const defaultPrompt = SYSTEM_PROMPT.content as string;
+                      const defaultPrompt = DEFAULT_SYSTEM_PROMPT_TEMPLATE;
                       // Store empty string when it matches the default (no override)
                       const valueToStore = trimmed === defaultPrompt ? '' : trimmed;
                       if (valueToStore !== config.aiSystemPrompt) {
@@ -225,7 +225,7 @@ export function AdvancedSettings() {
                       size="sm"
                       className="h-7 text-xs text-muted-foreground"
                       onClick={() => {
-                        setSystemPromptDraft(SYSTEM_PROMPT.content as string);
+                        setSystemPromptDraft(DEFAULT_SYSTEM_PROMPT_TEMPLATE);
                         updateConfig(() => ({ aiSystemPrompt: '' }));
                         toast({ title: 'System prompt reset to default' });
                       }}
