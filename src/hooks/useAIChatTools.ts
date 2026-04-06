@@ -3,6 +3,7 @@ import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useBuddy } from '@/hooks/useBuddy';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -34,6 +35,7 @@ export function useAIChatTools() {
   const { config } = useAppContext();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
+  const { getBuddySecretKey } = useBuddy();
 
   /** MCP tool definitions in OpenAI format, ready to merge with built-in TOOLS. */
   const mcpTools: OpenAITool[] = Object.values(mcpToolDefs);
@@ -336,11 +338,11 @@ export function useAIChatTools() {
           });
           const content = typeof args.description === 'string' ? args.description : '';
 
-          // Generate ephemeral keypair
-          const sk = generateSecretKey();
+          // Use buddy key if available, otherwise ephemeral
+          const buddySk = getBuddySecretKey();
+          const sk = buddySk ?? generateSecretKey();
           const pubkey = getPublicKey(sk);
 
-          // Finalize and sign with ephemeral key
           const spellEvent = finalizeEvent({
             kind: 777,
             content,
@@ -348,18 +350,22 @@ export function useAIChatTools() {
             created_at: Math.floor(Date.now() / 1000),
           }, sk) as NostrEvent;
 
-          // Publish a minimal kind:0 profile so the ephemeral key has an identity
-          const profileEvent = finalizeEvent({
-            kind: 0,
-            content: JSON.stringify({ name: 'Dork Spellcaster', about: 'Spells created by Dork AI' }),
-            tags: [],
-            created_at: Math.floor(Date.now() / 1000),
-          }, sk) as NostrEvent;
-
-          await Promise.all([
-            nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }),
+          const publishes: Promise<void>[] = [
             nostr.event(spellEvent, { signal: AbortSignal.timeout(5000) }),
-          ]);
+          ];
+
+          // Only publish a throwaway profile for ephemeral keys (buddy already has kind 0)
+          if (!buddySk) {
+            const profileEvent = finalizeEvent({
+              kind: 0,
+              content: JSON.stringify({ name: 'Dork Spellcaster', about: 'Spells created by Dork AI' }),
+              tags: [],
+              created_at: Math.floor(Date.now() / 1000),
+            }, sk) as NostrEvent;
+            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
+          }
+
+          await Promise.all(publishes);
 
           return {
             result: JSON.stringify({
@@ -528,8 +534,9 @@ export function useAIChatTools() {
             ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
           ];
 
-          // Generate ephemeral keypair (same pattern as create_spell).
-          const sk = generateSecretKey();
+          // Use buddy key if available, otherwise ephemeral
+          const buddySk = getBuddySecretKey();
+          const sk = buddySk ?? generateSecretKey();
           const pubkey = getPublicKey(sk);
 
           const emojiPackEvent = finalizeEvent({
@@ -539,18 +546,22 @@ export function useAIChatTools() {
             created_at: Math.floor(Date.now() / 1000),
           }, sk) as NostrEvent;
 
-          // Publish a minimal kind:0 profile for the ephemeral key.
-          const profileEvent = finalizeEvent({
-            kind: 0,
-            content: JSON.stringify({ name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' }),
-            tags: [],
-            created_at: Math.floor(Date.now() / 1000),
-          }, sk) as NostrEvent;
-
-          await Promise.all([
-            nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }),
+          const publishes: Promise<void>[] = [
             nostr.event(emojiPackEvent, { signal: AbortSignal.timeout(5000) }),
-          ]);
+          ];
+
+          // Only publish a throwaway profile for ephemeral keys (buddy already has kind 0)
+          if (!buddySk) {
+            const profileEvent = finalizeEvent({
+              kind: 0,
+              content: JSON.stringify({ name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' }),
+              tags: [],
+              created_at: Math.floor(Date.now() / 1000),
+            }, sk) as NostrEvent;
+            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
+          }
+
+          await Promise.all(publishes);
 
           return {
             result: JSON.stringify({
@@ -571,7 +582,7 @@ export function useAIChatTools() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile, getBuddySecretKey]);
 
   return { executeToolCall, mcpTools, mcpToolsLoading };
 }
