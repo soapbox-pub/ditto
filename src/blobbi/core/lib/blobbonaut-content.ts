@@ -14,6 +14,8 @@
  */
 
 import type { DailyMission } from '@/blobbi/actions/lib/daily-missions';
+import type { Progression } from './progression';
+import { parseProgression } from './progression';
 
 // ─── Daily Missions Persisted Shape ───────────────────────────────────────────
 
@@ -67,6 +69,8 @@ export interface PersistedDailyMission {
 export interface BlobbonautProfileContent {
   /** Daily missions state. Undefined if never migrated. */
   dailyMissions?: PersistedDailyMissions;
+  /** Progression system (global level + per-game levels/XP/unlocks). Undefined if not yet initialized. */
+  progression?: Progression;
 }
 
 /**
@@ -119,6 +123,18 @@ export function parseProfileContent(content: string): RawProfileContent {
       } else {
         // Malformed — drop it
         delete result.dailyMissions;
+      }
+    }
+
+    // Validate progression shape if present.
+    // parseProgression returns undefined for malformed data, which safely
+    // removes the key rather than persisting corrupt structures.
+    if (raw.progression !== undefined) {
+      const parsed = parseProgression(raw.progression);
+      if (parsed) {
+        result.progression = parsed;
+      } else {
+        delete result.progression;
       }
     }
 

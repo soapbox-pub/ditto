@@ -1147,6 +1147,8 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
   'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'onboarding_done', 'has', 'storage',
+  // Progression: derived global level mirrored into a tag for relay queryability
+  'level',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',
