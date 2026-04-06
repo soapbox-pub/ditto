@@ -5,7 +5,7 @@ import type { FeedItem } from '@/lib/feedUtils';
 export interface DiversifyOptions {
   /** Minimum index gap between same content type (default: 3). */
   minGap?: number;
-  /** Maximum proportion of feed any single type can occupy (default: 0.2 = 20%). */
+  /** Maximum proportion of a page any single type can occupy (default: 0.2 = 20%). */
   maxProportion?: number;
 }
 
@@ -15,28 +15,24 @@ function getContentType(kind: number): string {
 }
 
 /**
- * Reorder feed items to ensure content-type diversity.
+ * Diversify a single page of feed items for content-type variety.
  *
- * Two-phase algorithm applied to the hot-sorted input:
- *
+ * Two-phase algorithm:
  * 1. **Proportional cap** — no single content type may exceed `maxProportion`
- *    of the total feed. Excess items (the least-hot ones for that type) are
- *    trimmed first so the interleave has a balanced pool to work with.
+ *    of the page. Excess items (the least-hot ones for that type) are trimmed.
+ * 2. **Gap-enforced interleave** — items are placed so the same content type
+ *    doesn't appear within `minGap` positions of itself.
  *
- * 2. **Gap-enforced interleave** — greedily places items from the capped list,
- *    deferring any item whose content type appeared within the last `minGap`
- *    positions. Deferred items are re-inserted at the earliest valid slot.
- *    Items that still can't satisfy the gap (extreme low-diversity feeds)
- *    are appended at the end.
- *
- * The result preserves the relative hotness ordering as much as possible
- * while preventing repetitive runs of the same content type.
+ * @param priorTail - The last `minGap` content types from the previous page,
+ *   so the gap constraint holds across page boundaries. Pass an empty array
+ *   for the first page.
  */
-export function diversifyFeedItems(
+export function diversifyPage(
   items: FeedItem[],
+  priorTail: string[],
   options?: DiversifyOptions,
 ): FeedItem[] {
-  if (items.length <= 1) return items;
+  if (items.length === 0) return items;
 
   const minGap = options?.minGap ?? 3;
   const maxProportion = options?.maxProportion ?? 0.2;
@@ -45,17 +41,46 @@ export function diversifyFeedItems(
   const capped = applyCap(items, maxProportion);
 
   // ── Phase 2: Gap-enforced interleave ─────────────────────────────────
-  return applyGapInterleave(capped, minGap);
+  return applyGapInterleave(capped, minGap, priorTail);
 }
 
 /**
- * Cap each content type to at most `maxProportion` of the total item count.
+ * Diversify multiple pages of feed items incrementally.
+ *
+ * Each page is diversified independently but the gap state carries forward
+ * from the previous page's tail. This ensures:
+ * - Earlier pages never change when new pages arrive (no visual jumps)
+ * - The gap constraint holds across page boundaries
+ * - The proportional cap applies per-page
+ */
+export function diversifyFeedPages(
+  pages: FeedItem[][],
+  options?: DiversifyOptions,
+): FeedItem[] {
+  const minGap = options?.minGap ?? 3;
+  const result: FeedItem[] = [];
+  let priorTail: string[] = [];
+
+  for (const page of pages) {
+    const diversified = diversifyPage(page, priorTail, options);
+    result.push(...diversified);
+
+    // Extract the tail content types for the next page's gap tracking.
+    // We need the last `minGap` types from the combined result so far.
+    const tailSlice = result.slice(-minGap);
+    priorTail = tailSlice.map((item) => getContentType(item.event.kind));
+  }
+
+  return result;
+}
+
+/**
+ * Cap each content type to at most `maxProportion` of the page item count.
  * Keeps the hottest items for each type (items are already hot-sorted).
  */
 function applyCap(items: FeedItem[], maxProportion: number): FeedItem[] {
   const maxPerType = Math.max(1, Math.ceil(items.length * maxProportion));
 
-  // Count how many of each type we've seen; emit items up to the cap.
   const typeCounts = new Map<string, number>();
   const result: FeedItem[] = [];
 
@@ -66,7 +91,6 @@ function applyCap(items: FeedItem[], maxProportion: number): FeedItem[] {
       result.push(item);
       typeCounts.set(type, count + 1);
     }
-    // else: this item exceeds the cap for its type — skip it
   }
 
   return result;
@@ -76,42 +100,49 @@ function applyCap(items: FeedItem[], maxProportion: number): FeedItem[] {
  * Reorder items so that no two items of the same content type appear
  * within `minGap` positions of each other.
  *
- * Algorithm:
- * 1. Walk the input in order (hottest first). For each item, if its type
- *    was placed within the last `minGap` positions, push it onto a deferred
- *    queue instead of placing it immediately.
- * 2. Before placing each item, try to drain the deferred queue — any
- *    deferred item whose gap constraint is now satisfied gets placed first.
- *    This keeps deferred items as close to their original position as
- *    possible rather than pushing them all to the end.
- * 3. After the main pass, drain remaining deferred items at the first
- *    valid position, appending at the end if no valid gap exists.
+ * @param priorTail - Content type strings from the tail of the previous page,
+ *   used to seed the `lastPlaced` map so the gap holds across boundaries.
  */
-function applyGapInterleave(items: FeedItem[], minGap: number): FeedItem[] {
+function applyGapInterleave(
+  items: FeedItem[],
+  minGap: number,
+  priorTail: string[],
+): FeedItem[] {
   const result: FeedItem[] = [];
   const deferred: FeedItem[] = [];
 
   /** Map from content type → index of last placement in `result`. */
   const lastPlaced = new Map<string, number>();
 
-  /** Check whether placing a given content type at the current end of result is valid. */
+  // Seed lastPlaced from the prior page's tail so the gap constraint
+  // holds across page boundaries. Use negative indices representing
+  // positions "before" this page's result array.
+  for (let i = 0; i < priorTail.length; i++) {
+    const type = priorTail[i];
+    // The tail items are at virtual indices -(priorTail.length - i)
+    // relative to the start of this page's result.
+    const virtualIndex = -(priorTail.length - i);
+    const existing = lastPlaced.get(type);
+    // Keep the highest (most recent) index for each type
+    if (existing === undefined || virtualIndex > existing) {
+      lastPlaced.set(type, virtualIndex);
+    }
+  }
+
   function canPlace(type: string): boolean {
     const lastIdx = lastPlaced.get(type);
     if (lastIdx === undefined) return true;
     return result.length - lastIdx >= minGap;
   }
 
-  /** Place an item at the end of result and update tracking. */
   function place(item: FeedItem): void {
     const type = getContentType(item.event.kind);
     lastPlaced.set(type, result.length);
     result.push(item);
   }
 
-  // Main pass: iterate hot-sorted items, draining deferred when possible.
+  // Main pass
   for (const item of items) {
-    // Try to drain deferred items first (FIFO) — they've been waiting
-    // the longest and should be placed as soon as their gap clears.
     drainDeferred(deferred, result, lastPlaced, minGap);
 
     const type = getContentType(item.event.kind);
@@ -122,15 +153,11 @@ function applyGapInterleave(items: FeedItem[], minGap: number): FeedItem[] {
     }
   }
 
-  // Final drain: place as many deferred items as possible.
-  // Loop until no more progress can be made.
+  // Final drain
   let progress = true;
   while (deferred.length > 0 && progress) {
     progress = false;
     drainDeferred(deferred, result, lastPlaced, minGap);
-    // Check if drain made progress by seeing if deferred shrank.
-    // drainDeferred modifies the array in place, so we re-check.
-    // If nothing was drained, try force-placing the front item.
     if (deferred.length > 0) {
       const front = deferred[0];
       const frontType = getContentType(front.event.kind);
@@ -141,8 +168,7 @@ function applyGapInterleave(items: FeedItem[], minGap: number): FeedItem[] {
     }
   }
 
-  // Any remaining items that can never satisfy the gap (very low diversity)
-  // get appended as-is — graceful degradation.
+  // Graceful degradation: append anything that can never satisfy the gap.
   for (const item of deferred) {
     place(item);
   }
@@ -151,8 +177,7 @@ function applyGapInterleave(items: FeedItem[], minGap: number): FeedItem[] {
 }
 
 /**
- * Drain items from the deferred queue whose gap constraint is now satisfied.
- * Mutates `deferred` in place (splices out placed items).
+ * Drain one item from the deferred queue whose gap constraint is now satisfied.
  */
 function drainDeferred(
   deferred: FeedItem[],
@@ -160,23 +185,17 @@ function drainDeferred(
   lastPlaced: Map<string, number>,
   minGap: number,
 ): void {
-  let i = 0;
-  while (i < deferred.length) {
+  for (let i = 0; i < deferred.length; i++) {
     const item = deferred[i];
     const type = getContentType(item.event.kind);
     const lastIdx = lastPlaced.get(type);
-    const canPlace = lastIdx === undefined || result.length - lastIdx >= minGap;
+    const ok = lastIdx === undefined || result.length - lastIdx >= minGap;
 
-    if (canPlace) {
+    if (ok) {
       lastPlaced.set(type, result.length);
       result.push(item);
       deferred.splice(i, 1);
-      // Don't increment i — the array shifted, so deferred[i] is now the next item.
-      // But break after placing one to give the main loop a chance to place
-      // its current item, preserving hotness ordering as much as possible.
       break;
-    } else {
-      i++;
     }
   }
 }

@@ -24,7 +24,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { diversifyFeedItems } from '@/lib/feedDiversity';
+import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -214,20 +214,25 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const seen = new Set<string>();
 
     if (useDittoQuery) {
-      const dedupedItems = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
-        .flat()
-        .filter((event) => {
-          if (seen.has(event.id)) return false;
-          seen.add(event.id);
-          if (shouldHideFeedEvent(event)) return false;
-          if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-          return true;
-        })
-        .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
+      // Deduplicate and filter each page independently, then diversify
+      // page-by-page so earlier pages never change when new pages arrive.
+      const dedupedPages = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
+        .map((page) =>
+          page
+            .filter((event) => {
+              if (seen.has(event.id)) return false;
+              seen.add(event.id);
+              if (shouldHideFeedEvent(event)) return false;
+              if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+              return true;
+            })
+            .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
+        );
 
       // Reorder for content-type diversity: cap any single type at 20%
-      // and enforce a minimum gap of 3 positions between same-type items.
-      return diversifyFeedItems(dedupedItems);
+      // per page and enforce a minimum gap of 3 positions between same-type
+      // items, with gap state carrying across page boundaries.
+      return diversifyFeedPages(dedupedPages);
     }
 
     return (rawData.pages as unknown as { items: FeedItem[] }[])
