@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
+import { useMCPTools } from '@/hooks/useMCPTools';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
 import { buildSpellTags } from '@/lib/spellEngine';
@@ -11,6 +12,7 @@ import { buildSpellTags } from '@/lib/spellEngine';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
 import type { ToolExecutorResult } from '@/lib/aiChatTools';
+import type { OpenAITool } from '@/lib/MCPClient';
 
 // ─── Helpers ───
 
@@ -26,8 +28,27 @@ export function useAIChatTools() {
   const { applyCustomTheme } = useTheme();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
+
+  /** MCP tool definitions in OpenAI format, ready to merge with built-in TOOLS. */
+  const mcpTools: OpenAITool[] = Object.values(mcpToolDefs);
+
+  /** Whether MCP tool discovery is still in progress. */
+  const mcpToolsLoading = mcpLoading;
 
   const executeToolCall = useCallback(async (name: string, args: Record<string, unknown>): Promise<ToolExecutorResult> => {
+    // Route MCP tool calls (prefixed with `serverName__`) to the appropriate MCPClient.
+    if (name.includes('__') && mcpClients[name]) {
+      try {
+        // Strip the server prefix to get the original tool name for the MCP server.
+        const originalName = name.split('__').slice(1).join('__');
+        const result = await mcpClients[name].callTool(originalName, args);
+        return { result: JSON.stringify({ success: true, content: result }) };
+      } catch (err) {
+        return { result: JSON.stringify({ error: `MCP tool error: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+      }
+    }
+
     switch (name) {
       case 'set_theme': {
         const { background, text, primary, font, background_url, background_mode } = args;
@@ -354,7 +375,7 @@ export function useAIChatTools() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user]);
+  }, [applyCustomTheme, nostr, user, mcpClients]);
 
-  return { executeToolCall };
+  return { executeToolCall, mcpTools, mcpToolsLoading };
 }

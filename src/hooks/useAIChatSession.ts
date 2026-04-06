@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -43,7 +43,13 @@ export function useAIChatSession() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
-  const { executeToolCall } = useAIChatTools();
+  const { executeToolCall, mcpTools, mcpToolsLoading } = useAIChatTools();
+
+  // Merge built-in tools with discovered MCP tools.
+  const allTools = useMemo(() => {
+    if (mcpTools.length === 0) return TOOLS;
+    return [...TOOLS, ...mcpTools];
+  }, [mcpTools]);
 
   const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
   const [input, setInput] = useState('');
@@ -173,7 +179,7 @@ export function useAIChatSession() {
             streamAccumulator += chunk;
             setStreamingText(streamAccumulator);
           },
-          { tools: TOOLS } as Partial<Record<string, unknown>>,
+          { tools: allTools } as Partial<Record<string, unknown>>,
           controller.signal,
         );
 
@@ -268,7 +274,7 @@ export function useAIChatSession() {
       setIsStreaming(false);
       setStreamingText('');
     }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError]);
+  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError, allTools]);
 
   // Stop an in-flight generation
   const handleStop = useCallback(() => {
@@ -300,6 +306,7 @@ export function useAIChatSession() {
     selectedModel,
     apiLoading,
     apiError,
+    mcpToolsLoading,
     messagesEndRef,
 
     // Actions

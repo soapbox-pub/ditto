@@ -114,6 +114,7 @@ export function TestApp({ children }: TestAppProps) {
     sandboxDomain: 'iframe.diy',
     sidebarWidgets: [],
     aiModel: '',
+    mcpServers: {},
   };
 
   return (

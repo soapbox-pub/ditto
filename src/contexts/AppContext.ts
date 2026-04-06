@@ -154,6 +154,13 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
+/** Configuration for a Streamable HTTP MCP server. */
+export interface MCPServer {
+  type: 'streamable-http';
+  url: string;
+  headers?: Record<string, string>;
+}
+
 /** A named feed tab stored as a kind:777 spell event. */
 export interface SavedFeed {
   id: string;
@@ -233,6 +240,8 @@ export interface AppConfig {
   sidebarWidgets: WidgetConfig[];
   /** Selected AI model ID for Dork chat. Empty string means "use cheapest available". */
   aiModel: string;
+  /** Configured MCP (Model Context Protocol) servers for Dork AI tool discovery. */
+  mcpServers: Record<string, MCPServer>;
 }
 
 /** Configuration for a single widget in the right sidebar. */
