@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -14,7 +14,7 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useInfiniteHotFeed } from '@/hooks/useTrending';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
@@ -30,7 +30,6 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
-import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -159,23 +158,53 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
   );
 
-  // "Hot" sorted feed query (used when logged out on the home page, or on the Ditto tab)
-  // Shows curated content from the curator's follow list. Webxdc needs a
-  // separate filter with a MIME-type tag constraint.
-  const topQuery = useInfiniteHotFeed(
-    LANDING_KINDS,
-    (useTopFeedForLoggedOut || !!useDittoTab) && (curatorFollowList ?? []).length > 0,
-    undefined,
-    [LANDING_WEBXDC_FILTER],
-    curatorFollowList,
-  );
+  // Curated Ditto feed: latest content from the curator's follow list.
+  // Standard NIP-01 reverse-chronological pagination (no sort:hot).
+  const { nostr } = useNostr();
+  const dittoFeedEnabled = (useTopFeedForLoggedOut || !!useDittoTab) && (curatorFollowList ?? []).length > 0;
+  const curatorAuthorsKey = curatorFollowList ? curatorFollowList.length.toString() : '';
+
+  const topQuery = useInfiniteQuery<NostrEvent[], Error>({
+    queryKey: ['ditto-curated-feed', curatorAuthorsKey],
+    queryFn: async ({ pageParam, signal }) => {
+      const base: Record<string, unknown> = {
+        kinds: LANDING_KINDS,
+        authors: curatorFollowList,
+        limit: 20,
+      };
+      if (pageParam) base.until = pageParam;
+
+      // Webxdc needs a separate filter with MIME-type tag constraint
+      const webxdcFilter: Record<string, unknown> = {
+        ...LANDING_WEBXDC_FILTER,
+        authors: curatorFollowList,
+        limit: 20,
+      };
+      if (pageParam) webxdcFilter.until = pageParam;
+
+      const ditto = nostr.group(DITTO_RELAYS);
+      return ditto.query(
+        [base, webxdcFilter] as Parameters<typeof ditto.query>[0],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length === 0) return undefined;
+      return lastPage[lastPage.length - 1].created_at - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled: dittoFeedEnabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev,
+  });
 
   // Unify the two query shapes behind a single interface
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useDittoQuery ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
-    [useDittoQuery, activeTab],
+    () => useDittoQuery ? ['ditto-curated-feed', curatorAuthorsKey] : ['feed', activeTab],
+    [useDittoQuery, activeTab, curatorAuthorsKey],
   );
 
   const handleRefresh = usePageRefresh(queryKey);
