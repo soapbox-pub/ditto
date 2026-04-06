@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Server, Plus, Trash2, Bot } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Server, Plus, Trash2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -45,7 +45,7 @@ export function AdvancedSettings() {
   const { buddy, hasBuddy, updateSoul, resetBuddy } = useBuddy();
   const [soulDraft, setSoulDraft] = useState('');
   const [soulSaving, setSoulSaving] = useState(false);
-  const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt);
+  const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt || (SYSTEM_PROMPT.content as string));
 
   // Sync soul draft with buddy data
   useEffect(() => {
@@ -145,10 +145,7 @@ export function AdvancedSettings() {
                 {/* Buddy Identity */}
                 {hasBuddy && buddy && (
                   <div className="space-y-3 pt-2 border-t border-border">
-                    <div className="flex items-center gap-2">
-                      <Bot className="h-4 w-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">Identity</Label>
-                    </div>
+                    <Label className="text-sm font-medium">Identity</Label>
                     <div className="space-y-1.5 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground w-12 shrink-0">Name</span>
@@ -209,24 +206,26 @@ export function AdvancedSettings() {
                     onChange={(e) => setSystemPromptDraft(e.target.value)}
                     onBlur={() => {
                       const trimmed = systemPromptDraft.trim();
-                      if (trimmed !== config.aiSystemPrompt) {
-                        updateConfig(() => ({ aiSystemPrompt: trimmed }));
-                        toast({ title: trimmed ? 'System prompt updated' : 'System prompt reset to default' });
+                      const defaultPrompt = SYSTEM_PROMPT.content as string;
+                      // Store empty string when it matches the default (no override)
+                      const valueToStore = trimmed === defaultPrompt ? '' : trimmed;
+                      if (valueToStore !== config.aiSystemPrompt) {
+                        updateConfig(() => ({ aiSystemPrompt: valueToStore }));
+                        toast({ title: valueToStore ? 'System prompt updated' : 'System prompt reset to default' });
                       }
                     }}
-                    placeholder={SYSTEM_PROMPT.content as string}
                     className="min-h-[120px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Override the base system prompt. Use <code className="bg-muted px-1 rounded">{'{{NAME}}'}</code> and <code className="bg-muted px-1 rounded">{'{{SOUL}}'}</code> as placeholders. Leave empty to use the built-in default.
+                    The base system prompt sent to the AI. Use <code className="bg-muted px-1 rounded">{'{{NAME}}'}</code> and <code className="bg-muted px-1 rounded">{'{{SOUL}}'}</code> as placeholders for your buddy's identity.
                   </p>
-                  {systemPromptDraft && (
+                  {config.aiSystemPrompt && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs text-muted-foreground"
                       onClick={() => {
-                        setSystemPromptDraft('');
+                        setSystemPromptDraft(SYSTEM_PROMPT.content as string);
                         updateConfig(() => ({ aiSystemPrompt: '' }));
                         toast({ title: 'System prompt reset to default' });
                       }}
@@ -239,10 +238,7 @@ export function AdvancedSettings() {
 
                 {/* MCP Servers */}
                 <div className="space-y-3 pt-2 border-t border-border">
-                  <div className="flex items-center gap-2">
-                    <Server className="h-4 w-4 text-muted-foreground" />
-                    <Label className="text-sm font-medium">MCP Servers</Label>
-                  </div>
+                  <Label className="text-sm font-medium">MCP Servers</Label>
                   <p className="text-xs text-muted-foreground">
                     Connect to MCP servers to give your buddy additional tools (web fetching, search, etc.).
                   </p>
