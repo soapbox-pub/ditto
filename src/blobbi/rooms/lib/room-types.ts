@@ -156,7 +156,8 @@ export interface BlobbiRoomContext {
   blobbiNaddr: string;
 
   // ── Hero measurement ──
-  heroRef: React.RefObject<HTMLDivElement | null>;
+  /** Callback ref for the hero container — re-attaches ResizeObserver on room switch */
+  heroRef: React.RefCallback<HTMLDivElement> | React.RefObject<HTMLDivElement | null>;
   heroWidth: number;
 
   // ── DEV ONLY ──

@@ -891,15 +891,28 @@ function BlobbiDashboard({
   const projectedState = useProjectedBlobbiState(companion);
   
   // Measure hero container width for responsive stat arc radius
+  // heroWidth measurement: uses a callback ref so the ResizeObserver
+  // automatically re-attaches when the hero element unmounts/remounts
+  // (which happens on every room switch since each room renders its own hero).
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroWidth, setHeroWidth] = useState(375);
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
-    ro.observe(el);
-    setHeroWidth(el.clientWidth);
-    return () => ro.disconnect();
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  const heroCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    // Disconnect previous observer
+    if (roRef.current) {
+      roRef.current.disconnect();
+      roRef.current = null;
+    }
+    // Update the ref object so ctx.heroRef still works
+    (heroRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+
+    if (node) {
+      setHeroWidth(node.clientWidth);
+      const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
+      ro.observe(node);
+      roRef.current = ro;
+    }
   }, []);
   
   // Modal states (only for things that genuinely need modals)
@@ -1434,7 +1447,7 @@ function BlobbiDashboard({
     blobbiNaddr,
 
     // Hero measurement
-    heroRef,
+    heroRef: heroCallbackRef,
     heroWidth,
 
     // DEV

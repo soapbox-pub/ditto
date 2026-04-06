@@ -196,10 +196,12 @@ function StatsCrown({
   const count = allStats.length;
   const isSmall = heroWidth < 400;
 
-  // Mobile: tighter arc (good already); Desktop: very wide for generous spacing
+  // Balanced arc: mobile is compact, desktop has moderate breathing room.
+  // These values produce a stable crown with no dramatic changes between
+  // 375px (mobile) and 640px+ (desktop) — a smooth interpolation.
   const arcSpread = isSmall
-    ? (count <= 2 ? 80 : count <= 3 ? 120 : 150)
-    : (count <= 2 ? 120 : count <= 3 ? 190 : 230);
+    ? (count <= 2 ? 80 : count <= 3 ? 110 : 140)
+    : (count <= 2 ? 90 : count <= 3 ? 130 : 160);
   const arcHalf = arcSpread / 2;
   const angles = count === 1
     ? [0]
@@ -210,8 +212,8 @@ function StatsCrown({
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
-        // Mobile: compact radius; Desktop: very wide for generous indicator spacing
-        const radius = Math.min(300, Math.max(100, (heroWidth - 340) / (640 - 340) * (300 - 100) + 100));
+        // Smooth interpolation: 110px at 340px width → 200px at 640px+ width
+        const radius = Math.min(200, Math.max(110, (heroWidth - 340) / (640 - 340) * (200 - 110) + 110));
         const x = Math.sin(angleRad) * radius;
         const y = Math.cos(angleRad) * radius - radius;
 

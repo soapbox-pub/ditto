@@ -80,6 +80,9 @@ export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
  * IMPORTANT: This array is the ONLY place that defines order.
  * To support per-user customisation later, replace this with
  * a user-stored array of BlobbiRoomId values.
+ *
+ * Closet is excluded for now (not yet implemented).
+ * To re-enable, add 'closet' back to the array.
  */
 export const DEFAULT_ROOM_ORDER: BlobbiRoomId[] = [
   'care',
@@ -87,7 +90,7 @@ export const DEFAULT_ROOM_ORDER: BlobbiRoomId[] = [
   'home',
   'hatchery',
   'rest',
-  'closet',
+  // 'closet', — re-enable when wardrobe feature is ready
 ];
 
 /**
