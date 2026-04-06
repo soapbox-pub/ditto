@@ -1,0 +1,278 @@
+// src/blobbi/rooms/components/BlobbiRoomHero.tsx
+
+/**
+ * BlobbiRoomHero — Shared Blobbi visual display used in every room.
+ *
+ * Renders:
+ * - Stats crown (arced indicators above Blobbi)
+ * - BlobbiStageVisual (the main Blobbi)
+ * - Blobbi name (hidden for eggs)
+ * - Bob/sway animation when not sleeping
+ *
+ * This component extracts the hero section that was previously inlined
+ * in BlobbiDashboard so all rooms can share it without duplication.
+ */
+
+import { useMemo } from 'react';
+import {
+  Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
+  Footprints, Loader2,
+} from 'lucide-react';
+
+import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
+import { cn } from '@/lib/utils';
+import type { BlobbiRoomContext } from '../lib/room-types';
+
+// ─── Stat colour maps (same as original) ──────────────────────────────────────
+
+const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
+  hunger: 'orange',
+  happiness: 'yellow',
+  health: 'green',
+  hygiene: 'blue',
+  energy: 'violet',
+};
+
+const STAT_COLORS: Record<string, string> = {
+  orange: 'text-orange-500',
+  yellow: 'text-yellow-500',
+  green: 'text-green-500',
+  blue: 'text-blue-500',
+  violet: 'text-violet-500',
+};
+
+const STAT_BG_COLORS: Record<string, string> = {
+  orange: 'bg-orange-500/10',
+  yellow: 'bg-yellow-500/10',
+  green: 'bg-green-500/10',
+  blue: 'bg-blue-500/10',
+  violet: 'bg-violet-500/10',
+};
+
+const STAT_RING_HEX: Record<string, string> = {
+  orange: '#f97316',
+  yellow: '#eab308',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  violet: '#8b5cf6',
+};
+
+const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+  hunger: Utensils,
+  happiness: Gamepad2,
+  health: Heart,
+  hygiene: Droplets,
+  energy: Zap,
+};
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface BlobbiRoomHeroProps {
+  ctx: BlobbiRoomContext;
+  /** Optional extra className on the outer container */
+  className?: string;
+  /** If true, hides the stats crown */
+  hideStats?: boolean;
+  /** If true, hides the name */
+  hideName?: boolean;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRoomHeroProps) {
+  const {
+    companion,
+    currentStats,
+    isSleeping,
+    isEgg,
+    statusRecipe,
+    statusRecipeLabel,
+    effectiveEmotion,
+    hasDevOverride,
+    blobbiReaction,
+    isActiveFloatingCompanion,
+    isUpdatingCompanion,
+    handleSetAsCompanion,
+    heroRef,
+    heroWidth,
+  } = ctx;
+
+  // When the companion is out floating, show "out exploring" instead
+  if (isActiveFloatingCompanion) {
+    return (
+      <div className={cn('flex flex-col items-center justify-center gap-6 text-center flex-1', className)}>
+        <Footprints className="size-16 text-muted-foreground/30" />
+        <p className="text-muted-foreground text-sm">
+          {companion.name} is out exploring right now.
+        </p>
+        <button
+          onClick={handleSetAsCompanion}
+          disabled={isUpdatingCompanion}
+          className={cn(
+            'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
+            'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+            isUpdatingCompanion && 'opacity-50 pointer-events-none',
+          )}
+          style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
+        >
+          {isUpdatingCompanion ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <Footprints className="size-5" />
+          )}
+          <span>Bring {companion.name} home</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={heroRef} className={cn('relative flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden flex-1', className)}>
+      <div className="relative flex flex-col items-center">
+        {/* Stats crown */}
+        {!hideStats && <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />}
+
+        {/* Blobbi visual */}
+        <div
+          className="relative transition-all duration-500"
+          style={!isSleeping ? {
+            animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
+          } : undefined}
+        >
+          <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <BlobbiStageVisual
+            companion={companion}
+            size="lg"
+            animated={!isSleeping}
+            reaction={blobbiReaction}
+            recipe={hasDevOverride ? undefined : statusRecipe}
+            recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
+            emotion={effectiveEmotion}
+            className={isEgg
+              ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
+              : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
+            }
+          />
+        </div>
+
+        {/* Blobbi Name — hidden for eggs */}
+        {!hideName && !isEgg && (
+          <h2
+            className="text-2xl sm:text-3xl font-bold text-center -mt-2"
+            style={{ color: companion.visualTraits.baseColor }}
+          >
+            {companion.name}
+          </h2>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Stats Crown ──────────────────────────────────────────────────────────────
+
+function StatsCrown({
+  companion,
+  currentStats,
+  heroWidth,
+}: {
+  companion: BlobbiRoomContext['companion'];
+  currentStats: BlobbiRoomContext['currentStats'];
+  heroWidth: number;
+}) {
+  const allStats = useMemo(() =>
+    getVisibleStats(companion.stage).map(stat => ({
+      stat,
+      value: currentStats[stat] ?? 100,
+      status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
+      color: STAT_COLOR_MAP[stat],
+    })),
+  [companion.stage, currentStats]);
+
+  if (allStats.length === 0) return null;
+
+  const count = allStats.length;
+  const isSmall = heroWidth < 400;
+  const arcSpread = isSmall
+    ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
+    : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
+  const arcHalf = arcSpread / 2;
+  const angles = count === 1
+    ? [0]
+    : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
+
+  return (
+    <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
+      {allStats.map((s, i) => {
+        const angleDeg = angles[i];
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
+        const x = Math.sin(angleRad) * radius;
+        const y = Math.cos(angleRad) * radius - radius;
+
+        return (
+          <div
+            key={s.stat}
+            className="absolute transition-all duration-500"
+            style={{
+              transform: `translate(-50%, 0)`,
+              left: `calc(50% + ${x.toFixed(1)}px)`,
+              bottom: `${y.toFixed(1)}px`,
+            }}
+          >
+            <StatIndicator
+              stat={s.stat}
+              value={s.value}
+              color={s.color}
+              status={s.status}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Stat Indicator ───────────────────────────────────────────────────────────
+
+interface StatIndicatorProps {
+  stat: string;
+  value: number | undefined;
+  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
+  status?: 'normal' | 'warning' | 'critical';
+}
+
+function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
+  const displayValue = value ?? 0;
+  const isLow = status === 'warning' || status === 'critical';
+  const ringHex = STAT_RING_HEX[color];
+  const IconComponent = STAT_ICON_MAP[stat];
+
+  return (
+    <div className={cn(
+      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
+      STAT_BG_COLORS[color],
+      status === 'critical' && 'animate-pulse',
+    )}>
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
+        <circle
+          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
+          stroke={ringHex}
+          strokeDasharray={`${displayValue * 0.94} 100`}
+          className="transition-all duration-500"
+        />
+      </svg>
+      <div className="relative">
+        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
+        {isLow && (
+          <AlertTriangle
+            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            strokeWidth={3}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
