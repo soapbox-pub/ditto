@@ -54,8 +54,9 @@ function ensureCurrentState(pubkey?: string): DailyMissionsState {
   const current = readState();
   
   if (needsDailyReset(current)) {
-    const previousCoins = current?.totalCoinsEarned ?? 0;
-    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousCoins);
+    // Support both legacy (totalCoinsEarned) and current (totalXpEarned) fields
+    const previousXp = current?.totalXpEarned ?? (current as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
+    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp);
     writeState(newState);
     return newState;
   }

@@ -52,8 +52,8 @@ export interface UseDailyMissionsResult {
   totalPotentialReward: number;
   /** Total claimed reward for today */
   todayClaimedReward: number;
-  /** Lifetime total coins earned from daily missions */
-  lifetimeCoinsEarned: number;
+  /** Lifetime total XP earned from daily missions */
+  lifetimeXpEarned: number;
   /** Whether the bonus mission is available (all regular missions completed) */
   bonusAvailable: boolean;
   /** Whether the bonus mission has been claimed */
@@ -132,8 +132,8 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const currentState = useMemo(() => {
     // Check if we need to reset for a new day
     if (needsDailyReset(state)) {
-      const previousCoins = state?.totalCoinsEarned ?? 0;
-      const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousCoins, availableStages);
+      const previousXp = state?.totalXpEarned ?? (state as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
+      const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp, availableStages);
       // Persist the reset state (this will trigger version bump via setState)
       writeMissionsState(newState);
       return newState;
@@ -155,8 +155,8 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
 
   // Force reset missions (for testing)
   const forceReset = () => {
-    const previousCoins = state?.totalCoinsEarned ?? 0;
-    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousCoins, availableStages);
+    const previousXp = state?.totalXpEarned ?? 0;
+    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp, availableStages);
     setState(newState);
   };
 
@@ -181,7 +181,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const baseTodayClaimedReward = getTodayClaimedReward(currentState);
   const todayClaimedReward = baseTodayClaimedReward + (bonusClaimed ? bonusReward : 0);
   
-  const lifetimeCoinsEarned = currentState.totalCoinsEarned;
+  const lifetimeXpEarned = currentState.totalXpEarned;
 
   return {
     missions,
@@ -189,7 +189,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     allClaimed,
     totalPotentialReward,
     todayClaimedReward,
-    lifetimeCoinsEarned,
+    lifetimeXpEarned,
     bonusAvailable,
     bonusClaimed,
     bonusReward,

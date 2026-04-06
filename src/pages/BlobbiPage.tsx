@@ -1318,6 +1318,8 @@ function BlobbiDashboard({
   const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
     profile,
     updateProfileEvent,
+    companion,
+    updateCompanionEvent,
   );
   // Handle using an item from the items tab / room carousel
   const handleUseItemFromTab = useCallback((itemId: string) => {

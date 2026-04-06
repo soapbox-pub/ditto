@@ -92,8 +92,8 @@ export function useRerollMission() {
       
       // Ensure we have valid state for today
       if (needsDailyReset(missionsState)) {
-        const previousCoins = missionsState?.totalCoinsEarned ?? 0;
-        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousCoins, availableStages);
+        const previousXp = missionsState?.totalXpEarned ?? (missionsState as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
+        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousXp, availableStages);
       }
 
       // Check if reroll is allowed
