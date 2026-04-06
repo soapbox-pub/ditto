@@ -1,17 +1,19 @@
 import { useCallback } from 'react';
 import { generateSecretKey, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
+import { NSecSigner } from '@nostrify/nostrify';
+import { BlossomUploader } from '@nostrify/nostrify/uploaders';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useUploadFile } from '@/hooks/useUploadFile';
 import { useMCPTools } from '@/hooks/useMCPTools';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
 import { buildSpellTags } from '@/lib/spellEngine';
 import { proxyUrl } from '@/lib/proxyUrl';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
@@ -33,7 +35,7 @@ export function useAIChatTools() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { mutateAsync: uploadFile } = useUploadFile();
+
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
   const { getBuddySecretKey } = useBuddy();
 
@@ -450,6 +452,23 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'At least one URL is required.' }) };
           }
 
+          // Use buddy signer for Blossom auth when available, otherwise user's signer
+          const buddySk = getBuddySecretKey();
+          const signer = buddySk ? new NSecSigner(buddySk) : user.signer;
+          const servers = getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers);
+
+          const uploader = new BlossomUploader({
+            servers,
+            signer,
+            fetch: (input, init) => globalThis.fetch(input, {
+              ...init,
+              signal: AbortSignal.any([
+                init?.signal ?? AbortSignal.timeout(30_000),
+                AbortSignal.timeout(30_000),
+              ]),
+            }),
+          });
+
           const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; error?: string }> = [];
 
           for (const imageUrl of urls) {
@@ -476,9 +495,10 @@ export function useAIChatTools() {
                 .replace(/^_|_$/g, '')
                 .toLowerCase();
 
-              // Upload to Blossom.
+              // Upload to Blossom with buddy or user signer.
               const file = new File([blob], filename, { type: blob.type || 'image/png' });
-              const [[, blossomUrl]] = await uploadFile(file);
+              const tags = await uploader.upload(file);
+              const blossomUrl = tags[0][1];
 
               results.push({ original_url: imageUrl, blossom_url: blossomUrl, shortcode: shortcode || 'emoji' });
             } catch (err) {
@@ -722,7 +742,7 @@ export function useAIChatTools() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile, getBuddySecretKey]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey]);
 
   return { executeToolCall, mcpTools, mcpToolsLoading };
 }
