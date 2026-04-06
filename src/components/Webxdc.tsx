@@ -54,6 +54,21 @@ const MIME_TYPES: Record<string, string> = {
   ".toml": "application/toml",
 };
 
+// ---------------------------------------------------------------------------
+// CSP applied to every response served from the archive.
+//
+// The webxdc spec requires that all internet access is denied. We enforce
+// this with a strict Content-Security-Policy on every response. Permits
+// same-origin, inline, eval, wasm, data: and blob: — all commonly needed
+// by webxdc apps — but blocks any external network access.
+// ---------------------------------------------------------------------------
+
+const WEBXDC_CSP = [
+  "default-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob:",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
 function getMimeType(path: string): string {
   const dot = path.lastIndexOf(".");
   if (dot === -1) return "application/octet-stream";
@@ -416,7 +431,11 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
           jsonrpc: "2.0", id,
           result: {
             status: 200, statusText: "OK",
-            headers: { "Content-Type": "application/javascript", "Cache-Control": "no-cache" },
+            headers: {
+              "Content-Type": "application/javascript",
+              "Content-Security-Policy": WEBXDC_CSP,
+              "Cache-Control": "no-cache",
+            },
             body: utf8ToBase64(bridgeScriptRef.current),
           },
         });
@@ -429,7 +448,10 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
           jsonrpc: "2.0", id,
           result: {
             status: 404, statusText: "Not Found",
-            headers: { "Content-Type": "text/plain" },
+            headers: {
+              "Content-Type": "text/plain",
+              "Content-Security-Policy": WEBXDC_CSP,
+            },
             body: utf8ToBase64("Not Found: " + pathname),
           },
         });
@@ -446,7 +468,11 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
           jsonrpc: "2.0", id,
           result: {
             status: 200, statusText: "OK",
-            headers: { "Content-Type": contentType, "Cache-Control": "no-cache" },
+            headers: {
+              "Content-Type": contentType,
+              "Content-Security-Policy": WEBXDC_CSP,
+              "Cache-Control": "no-cache",
+            },
             body: utf8ToBase64(injected),
           },
         });
@@ -457,6 +483,7 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
             status: 200, statusText: "OK",
             headers: {
               "Content-Type": contentType,
+              "Content-Security-Policy": WEBXDC_CSP,
               "Content-Length": String(fileBytes.byteLength),
             },
             body: bytesToBase64(fileBytes),
