@@ -153,25 +153,18 @@ function applyGapInterleave(
     }
   }
 
-  // Final drain
-  let progress = true;
-  while (deferred.length > 0 && progress) {
-    progress = false;
+  // Final drain: keep looping until no deferred item can be placed.
+  // Each iteration tries every item in the queue (not just the front).
+  for (;;) {
+    const sizeBefore = deferred.length;
     drainDeferred(deferred, result, lastPlaced, minGap);
-    if (deferred.length > 0) {
-      const front = deferred[0];
-      const frontType = getContentType(front.event.kind);
-      if (canPlace(frontType)) {
-        place(deferred.shift()!);
-        progress = true;
-      }
-    }
+    if (deferred.length === sizeBefore) break; // no progress
   }
 
-  // Graceful degradation: append anything that can never satisfy the gap.
-  for (const item of deferred) {
-    place(item);
-  }
+  // Drop anything still deferred rather than clustering same-type items
+  // at the tail. The cap already limits per-type count; these leftovers
+  // are items that can't be placed without violating the gap, so it's
+  // better to omit them than to show three Blobbis in a row.
 
   return result;
 }
