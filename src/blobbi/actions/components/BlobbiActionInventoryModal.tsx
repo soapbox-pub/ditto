@@ -16,7 +16,7 @@ import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobb
 import { cn } from '@/lib/utils';
 
 import {
-  filterInventoryByAction,
+  getItemsForAction,
   previewStatChanges,
   previewMedicineForEgg,
   previewCleanForEgg,
@@ -58,7 +58,7 @@ export function BlobbiActionInventoryModal({
 
   // Get all available items for this action from the catalog.
   const availableItems = useMemo(() => {
-    return filterInventoryByAction([], action, { stage: companion.stage });
+    return getItemsForAction(action, { stage: companion.stage });
   }, [action, companion.stage]);
 
   // Check stage restrictions for this specific action

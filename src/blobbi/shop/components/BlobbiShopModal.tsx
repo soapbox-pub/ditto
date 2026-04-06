@@ -24,10 +24,9 @@ import { cn, formatCompactNumber } from '@/lib/utils';
 
 type TopTab = 'items' | 'shop';
 
-/** Resolved inventory item with shop metadata and usability info */
+/** Resolved catalog item with shop metadata and usability info */
 interface ResolvedInventoryItem extends ShopItem {
   itemId: string;
-  quantity: number;
   canUse: boolean;
   reason?: string;
 }
@@ -93,7 +92,6 @@ export function BlobbiShopModal({
       result.push({
         ...item,
         itemId: item.id,
-        quantity: Infinity,
         canUse: usability.canUse,
         reason: usability.reason,
       });
@@ -316,7 +314,7 @@ function ItemsGrid({ items, onUseItem, isUsingItem, usingItemId, onGoToShop: _on
               {item.canUse ? (
                 <Button
                   size="sm"
-                  variant={isCoolingDown ? 'ghost' : 'outline'}
+                  variant="outline"
                   className="w-full h-7 text-xs"
                   onClick={() => onUseItem(item)}
                   disabled={isDisabled}

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap, Clock } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -1990,8 +1990,7 @@ function ItemsTabContent({
               'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
               'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
               isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isCoolingDown && !isThisUsing && 'opacity-40',
-              isDisabled && !isThisUsing && !isCoolingDown && 'opacity-40 pointer-events-none',
+              isDisabled && !isThisUsing && 'opacity-40 pointer-events-none',
             )}
           >
             {/* Stat category indicator — top-right */}
@@ -2001,6 +2000,7 @@ function ItemsTabContent({
             <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
             <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
             {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
+            {isCoolingDown && !isThisUsing && <Clock className="size-3 text-muted-foreground absolute bottom-1" />}
           </button>
         );
       })}
