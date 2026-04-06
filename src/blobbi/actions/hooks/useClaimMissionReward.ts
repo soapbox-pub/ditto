@@ -23,7 +23,7 @@ import {
   KIND_BLOBBI_STATE,
 } from '@/blobbi/core/lib/blobbi';
 import {
-  mergeProfileContent,
+  updateDailyMissionsContent,
   missionToPersistedMission,
   type PersistedDailyMissions,
 } from '@/blobbi/core/lib/blobbonaut-content';
@@ -179,9 +179,7 @@ export function useClaimMissionReward(
         lastUpdatedAt: Date.now(),
       };
 
-      const updatedContent = mergeProfileContent(existingContent, {
-        dailyMissions: persistedMissions,
-      });
+      const updatedContent = updateDailyMissionsContent(existingContent, persistedMissions);
 
       // Publish updated profile (tags preserved, content updated)
       const profileEvent = await publishEvent({

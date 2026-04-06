@@ -35,7 +35,22 @@
  *   A shallow spread at the top level is not enough — the `progression` object
  *   itself contains nested structures (`games`, each game's `unlocks`) that must
  *   be merged recursively without dropping siblings.
+ *
+ * ── Standard Write Path ───────────────────────────────────────────────────────
+ *
+ * Every kind 11125 content write that touches `progression` should flow
+ * through `updateProgressionContent()`. This guarantees:
+ *   - Unknown top-level keys (dailyMissions, future sections) are never dropped
+ *   - `global.level` is always consistent with game data
+ *   - The `["level", "<n>"]` tag can be updated from the returned `globalLevel`
+ *   - Only the `progression` section is modified; everything else is preserved
+ *
+ * The `["level", "<n>"]` tag is a queryable mirror only — it exists so relays
+ * can filter profiles by level without parsing content JSON. It must never be
+ * treated as a source of truth.
  */
+
+import { safeParseContent } from './content-json';
 
 // ─── Game Identifiers ─────────────────────────────────────────────────────────
 
@@ -481,15 +496,15 @@ export function updateProgressionContent(
   progressionUpdate: DeepPartialProgression,
 ): { content: string; globalLevel: number } {
   // Step 1: Parse the full content safely. Unknown keys are preserved.
-  const parsed = safeParseContent(existingContent);
+  const { data } = safeParseContent(existingContent);
 
   // Step 2: Extract and merge progression
-  const existingProgression = parseProgression(parsed.progression);
+  const existingProgression = parseProgression(data.progression);
   const merged = mergeProgression(existingProgression, progressionUpdate);
 
   // Step 3: Write merged progression back, preserving all other keys
   const updated = {
-    ...parsed,
+    ...data,
     progression: merged,
   };
 
@@ -514,35 +529,5 @@ export interface DeepPartialProgression {
   };
 }
 
-// ─── Internal Helpers ─────────────────────────────────────────────────────────
-
-/**
- * Safely parse kind 11125 content JSON into a plain object.
- *
- * Returns an empty object for empty strings, invalid JSON, or non-object values.
- * All keys — known and unknown — are preserved in the returned object.
- *
- * This is intentionally a thin wrapper around JSON.parse with safety guards.
- * It does NOT validate individual sections (that is the job of section-specific
- * parsers like `parseProgression` and `parseProfileContent`).
- */
-function safeParseContent(content: string): Record<string, unknown> {
-  if (!content || content.trim() === '') {
-    return {};
-  }
-
-  try {
-    const raw = JSON.parse(content);
-    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-      return {};
-    }
-    return raw as Record<string, unknown>;
-  } catch {
-    // Parse failure — return empty object instead of crashing.
-    // The caller will merge their update into a fresh structure,
-    // and any data that was in the corrupt content is lost. This is
-    // acceptable because the alternative (throwing) would block all
-    // writes and leave the user stuck.
-    return {};
-  }
-}
+// NOTE: safeParseContent is imported from blobbonaut-content.ts (the shared
+// content parsing entry point for all kind 11125 content operations).
