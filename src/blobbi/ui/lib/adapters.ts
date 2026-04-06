@@ -68,13 +68,11 @@ export function companionDataToBlobbi(companion: CompanionData): Blobbi {
     lifeStage: companion.stage,
     state: companion.state ?? 'active',
     isSleeping,
-    stats: {
-      hunger: 100,
-      happiness: 100,
-      health: 100,
-      hygiene: 100,
-      energy: companion.energy,
-    },
+    // Use the full projected stats from CompanionData (populated by
+    // useBlobbiCompanionData with decay applied). The old code hardcoded
+    // every stat to 100 except energy, which was incorrect when the data
+    // pipeline already provides projected values.
+    stats: companion.stats,
     baseColor: companion.visualTraits.baseColor,
     secondaryColor: companion.visualTraits.secondaryColor,
     eyeColor: companion.visualTraits.eyeColor,

@@ -6,7 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useProjectedBlobbiState, calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -111,15 +111,18 @@ const CARE_THRESHOLD = 40;
 
 /**
  * Check if a companion needs care based on stat thresholds.
- * A Blobbi needs care if any stat is below CARE_THRESHOLD.
+ * A Blobbi needs care if any projected stat is below CARE_THRESHOLD.
+ *
+ * Uses `calculateProjectedDecay` so the badge reflects real-time
+ * condition even when the persisted event hasn't been updated recently.
  */
 function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = companion;
+  const { stats } = calculateProjectedDecay(companion);
   return (
-    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
-    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
-    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
-    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
+    stats.hunger < CARE_THRESHOLD ||
+    stats.happiness < CARE_THRESHOLD ||
+    stats.hygiene < CARE_THRESHOLD ||
+    stats.health < CARE_THRESHOLD
   );
 }
 
@@ -1725,6 +1728,7 @@ function BlobbiDashboard({
           onOpenChange={(open) => !open && setInventoryAction(null)}
           action={inventoryAction}
           companion={companion}
+          projectedStats={currentStats}
           profile={profile}
           onUseItem={handleUseItem}
           onOpenShop={handleOpenShopFromAction}

@@ -25,6 +25,7 @@ import {
   parseBlobbiEvent,
   type BlobbiStats,
 } from '@/blobbi/core/lib/blobbi';
+import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { checkItemCategoryNeed, type NeedCheckResult } from '../interaction/needDetection';
 import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import type { Position } from '../types/companion.types';
@@ -105,7 +106,11 @@ export function useCompanionItemReaction({
       if (validEvents.length === 0) return null;
       
       const companion = parseBlobbiEvent(validEvents[0]);
-      return companion?.stats ?? null;
+      if (!companion) return null;
+
+      // Project stats forward so need detection reflects real-time condition
+      const { stats: projected } = calculateProjectedDecay(companion);
+      return projected;
     },
     enabled: isActive && !!user?.pubkey && !!currentCompanionD,
     staleTime: 30_000, // 30 seconds - stats don't change that fast

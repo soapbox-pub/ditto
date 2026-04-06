@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import { cn } from '@/lib/utils';
 
 import {
@@ -33,6 +33,8 @@ interface BlobbiActionInventoryModalProps {
   onOpenChange: (open: boolean) => void;
   action: InventoryAction;
   companion: BlobbiCompanion;
+  /** Projected stats (with decay applied). Used for preview accuracy. */
+  projectedStats?: BlobbiStats;
   profile: BlobbonautProfile | null;
   /** Called when user taps Use on an item. Always uses once. */
   onUseItem: (itemId: string) => void;
@@ -46,6 +48,7 @@ export function BlobbiActionInventoryModal({
   onOpenChange,
   action,
   companion,
+  projectedStats,
   profile: _profile,
   onUseItem,
   onOpenShop: _onOpenShop,
@@ -131,6 +134,7 @@ export function BlobbiActionInventoryModal({
                   key={item.itemId}
                   item={item}
                   companion={companion}
+                  projectedStats={projectedStats}
                   action={action}
                   onUse={() => handleUseItem(item)}
                   isUsing={isUsingItem && usingItemId === item.itemId}
@@ -150,6 +154,8 @@ export function BlobbiActionInventoryModal({
 interface BlobbiInventoryUseRowProps {
   item: ResolvedInventoryItem;
   companion: BlobbiCompanion;
+  /** Projected stats (with decay applied). Falls back to raw event stats. */
+  projectedStats?: BlobbiStats;
   action: InventoryAction;
   onUse: () => void;
   isUsing: boolean;
@@ -159,6 +165,7 @@ interface BlobbiInventoryUseRowProps {
 function BlobbiInventoryUseRow({
   item,
   companion,
+  projectedStats,
   action,
   onUse,
   isUsing,
@@ -168,28 +175,32 @@ function BlobbiInventoryUseRow({
   const isMedicine = action === 'medicine';
   const isClean = action === 'clean';
 
+  // Use projected stats for preview accuracy; fall back to raw event stats.
+  // Eggs don't decay, so the fallback is always correct for them.
+  const statsForPreview: Partial<BlobbiStats> = projectedStats ?? companion.stats;
+
   // Preview stat changes - handle egg-specific preview for medicine and clean
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
       return {
         normalStatChanges: [],
-        eggStatChanges: previewMedicineForEgg(companion.stats.health, item.effect),
+        eggStatChanges: previewMedicineForEgg(statsForPreview.health, item.effect),
       };
     }
     if (isEgg && isClean) {
       return {
         normalStatChanges: [],
         eggStatChanges: previewCleanForEgg(
-          { hygiene: companion.stats.hygiene, happiness: companion.stats.happiness },
+          { hygiene: statsForPreview.hygiene, happiness: statsForPreview.happiness },
           item.effect
         ),
       };
     }
     return {
-      normalStatChanges: previewStatChanges(companion.stats, item.effect),
+      normalStatChanges: previewStatChanges(statsForPreview, item.effect),
       eggStatChanges: [] as EggStatPreview[],
     };
-  }, [companion.stats, item.effect, isEgg, isMedicine, isClean]);
+  }, [statsForPreview, item.effect, isEgg, isMedicine, isClean]);
 
   const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 
