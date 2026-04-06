@@ -4,9 +4,17 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools } from '@/hooks/useAIChatTools';
 import { TOOLS, type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
-import { SYSTEM_PROMPT } from '@/lib/aiChatSystemPrompt';
+import { buildSystemPrompt } from '@/lib/aiChatSystemPrompt';
 
 import type { NostrEvent } from '@nostrify/nostrify';
+
+/** Options for configuring the AI chat session with a buddy identity. */
+export interface AIChatSessionOptions {
+  /** Buddy agent display name. When omitted, defaults to "Dork". */
+  buddyName?: string;
+  /** Buddy soul text injected into the system prompt. */
+  buddySoul?: string;
+}
 
 // ─── Persistence ───
 
@@ -39,7 +47,8 @@ function saveMessages(messages: DisplayMessage[]): void {
 
 // ─── Hook ───
 
-export function useAIChatSession() {
+export function useAIChatSession(options: AIChatSessionOptions = {}) {
+  const { buddyName, buddySoul } = options;
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
@@ -95,9 +104,15 @@ export function useAIChatSession() {
     return () => { cancelled = true; };
   }, [user, config.aiModel, getAvailableModels]);
 
+  // Build the system prompt — dynamic based on buddy identity
+  const systemPrompt = useMemo(
+    () => buildSystemPrompt(buddyName, buddySoul),
+    [buddyName, buddySoul],
+  );
+
   // Build the chat messages array for the API
   const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
-    const apiMessages: ChatMessage[] = [SYSTEM_PROMPT];
+    const apiMessages: ChatMessage[] = [systemPrompt];
 
     for (const msg of displayMsgs) {
       if (msg.role === 'tool_result') {
@@ -122,7 +137,7 @@ export function useAIChatSession() {
     }
 
     return apiMessages;
-  }, []);
+  }, [systemPrompt]);
 
   // Handle sending a message. Pass `override` to send arbitrary text (e.g. suggestion chips).
   const handleSend = useCallback(async (override?: string) => {

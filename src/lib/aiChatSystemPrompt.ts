@@ -3,9 +3,21 @@ import type { ChatMessage } from '@/hooks/useShakespeare';
 
 const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
-export const SYSTEM_PROMPT: ChatMessage = {
-  role: 'system',
-  content: `You are Dork, extraordinaire. You are an AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
+/**
+ * Build the AI chat system prompt.
+ *
+ * When a buddy is configured, `name` and `soul` are injected into the template.
+ * When no buddy exists, falls back to the default "Dork" persona.
+ */
+export function buildSystemPrompt(name?: string, soul?: string): ChatMessage {
+  const agentName = name ?? 'Dork';
+  const soulBlock = soul
+    ? `\n\nYour soul — this defines who you are, your personality, and how you behave:\n${soul}\n`
+    : '';
+
+  return {
+    role: 'system',
+    content: `You are ${agentName}. You are an AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.${soulBlock}
 
 You have a set_theme tool that applies a full custom theme. It supports:
 
@@ -87,4 +99,8 @@ You have web tools for fetching pages and uploading content:
 When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.
 
 Be concise and friendly. When you use a tool, briefly describe what you created.`,
-};
+  };
+}
+
+/** Default system prompt (Dork persona, no buddy). */
+export const SYSTEM_PROMPT = buildSystemPrompt();
