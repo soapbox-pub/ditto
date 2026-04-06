@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { Webxdc, type WebxdcHandle } from '@/components/Webxdc';
 import { GameControls } from '@/components/GameControls';
 import { useWebxdc } from '@/hooks/useWebxdc';
+import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { cn } from '@/lib/utils';
 
 export interface WebxdcEmbedProps {
@@ -31,8 +32,11 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
   const containerRef = useRef<HTMLDivElement>(null);
   const webxdcHandleRef = useRef<WebxdcHandle>(null);
 
-  // Derive a stable iframe ID from the UUID or URL
-  const iframeId = uuid ?? url.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+  // Derive a private, stable subdomain from a device-local seed + the identifier.
+  // This prevents event authors from choosing a subdomain that collides with
+  // another app's origin on iframe.diy.
+  const identifier = uuid ?? url;
+  const iframeId = deriveIframeSubdomain('webxdc', identifier);
 
   const handleReload = useCallback(() => {
     setIframeKey((k) => k + 1);
