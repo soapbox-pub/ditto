@@ -238,9 +238,9 @@ export interface AppConfig {
   sandboxDomain: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
-  /** Selected AI model ID for Dork chat. Empty string means "use cheapest available". */
+  /** Selected AI model ID for Buddy chat. Empty string means "use cheapest available". */
   aiModel: string;
-  /** Configured MCP (Model Context Protocol) servers for Dork AI tool discovery. */
+  /** Configured MCP (Model Context Protocol) servers for Buddy AI tool discovery. */
   mcpServers: Record<string, MCPServer>;
 }
 

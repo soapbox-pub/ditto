@@ -8,29 +8,35 @@ import { cn } from '@/lib/utils';
 
 import type { DisplayMessage, ToolCall } from '@/lib/aiChatTools';
 
-// ─── Dork Thinking Animation ───
+// ─── Thinking Animation ───
 
-export const DORK_ANIMATION = [
+export const BUDDY_ANIMATION = [
   '<[o_o]>',
   '>[-_-]<',
   '<[0_0]>',
   '>[-_-]<',
 ];
 
-export function DorkThinking() {
+/** @deprecated Use BuddyThinking instead. */
+export const DORK_ANIMATION = BUDDY_ANIMATION;
+
+export function BuddyThinking() {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setFrame((f) => (f + 1) % DORK_ANIMATION.length);
+      setFrame((f) => (f + 1) % BUDDY_ANIMATION.length);
     }, 100);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <pre className="text-sm font-mono text-muted-foreground leading-none">{DORK_ANIMATION[frame]}</pre>
+    <pre className="text-sm font-mono text-muted-foreground leading-none">{BUDDY_ANIMATION[frame]}</pre>
   );
 }
+
+/** @deprecated Use BuddyThinking instead. */
+export const DorkThinking = BuddyThinking;
 
 // ─── Message Bubble ───
 

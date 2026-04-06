@@ -72,7 +72,7 @@ export function AdvancedSettings() {
 
   return (
     <div>
-      {/* Dork AI Section */}
+      {/* Buddy AI Section */}
       {user && (
         <div>
           <Collapsible open={aiOpen} onOpenChange={setAiOpen}>
@@ -81,7 +81,7 @@ export function AdvancedSettings() {
                 variant="ghost"
                 className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
-                <span className="text-base font-semibold">Dork</span>
+                <span className="text-base font-semibold">Buddy</span>
                 {aiOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
@@ -125,7 +125,7 @@ export function AdvancedSettings() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Choose which AI model Dork uses for chat responses.
+                    Choose which AI model your buddy uses for chat responses.
                   </p>
                 </div>
 
@@ -136,7 +136,7 @@ export function AdvancedSettings() {
                     <Label className="text-sm font-medium">MCP Servers</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Connect to MCP servers to give Dork additional tools (web fetching, search, etc.).
+                    Connect to MCP servers to give your buddy additional tools (web fetching, search, etc.).
                   </p>
 
                   {/* Existing servers list */}

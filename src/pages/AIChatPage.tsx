@@ -4,7 +4,7 @@ import { Bot, Send, Square, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { PageHeader } from '@/components/PageHeader';
-import { MessageBubble, DorkThinking } from '@/components/AIChat/AIChatComponents';
+import { MessageBubble, BuddyThinking } from '@/components/AIChat/AIChatComponents';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
@@ -51,7 +51,7 @@ export function AIChatPage() {
       <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
         <PageHeader title="Buddy" icon={<Bot className="size-5" />} className="shrink-0 py-3" />
         <div className="flex-1 flex items-center justify-center">
-          <DorkThinking />
+          <BuddyThinking />
         </div>
       </main>
     );
@@ -100,7 +100,7 @@ function BuddyOnboardingView() {
             <MessageBubble key={msg.id} message={msg} />
           ))}
 
-          {isCreating && <DorkThinking />}
+          {isCreating && <BuddyThinking />}
 
           {error && (
             <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
@@ -183,7 +183,7 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
             streamingText ? (
               <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
             ) : messages[messages.length - 1]?.role === 'user' ? (
-              <DorkThinking />
+              <BuddyThinking />
             ) : null
           )}
 

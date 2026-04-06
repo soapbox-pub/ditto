@@ -13,7 +13,7 @@ import { useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
-import { MobileDorkSheet } from '@/components/AIChat/MobileDorkSheet';
+import { MobileBuddySheet } from '@/components/AIChat/MobileBuddySheet';
 
 /** Transform style applied when the bottom nav is hidden (scrolled away). */
 const hiddenStyle: React.CSSProperties = {
@@ -35,7 +35,7 @@ export function MobileBottomNav() {
   const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);
-  const [dorkMode, setDorkMode] = useState(false);
+  const [buddyMode, setBuddyMode] = useState(false);
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -44,7 +44,7 @@ export function MobileBottomNav() {
 
   const handleClose = useCallback(() => {
     setSearchOpen(false);
-    setDorkMode(false);
+    setBuddyMode(false);
   }, []);
 
   // Hide the nav when search sheet is open so it doesn't compete for space
@@ -64,8 +64,8 @@ export function MobileBottomNav() {
       )}
 
       {/* Both sheets stay mounted when open to preserve state; hidden prop toggles visibility */}
-      {searchOpen && <MobileSearchSheet hidden={dorkMode} onClose={handleClose} dorkMode={dorkMode} onToggleDork={() => setDorkMode((v) => !v)} />}
-      {searchOpen && <MobileDorkSheet hidden={!dorkMode} onClose={handleClose} onToggleDork={() => setDorkMode(false)} />}
+      {searchOpen && <MobileSearchSheet hidden={buddyMode} onClose={handleClose} buddyMode={buddyMode} onToggleBuddy={() => setBuddyMode((v) => !v)} />}
+      {searchOpen && <MobileBuddySheet hidden={!buddyMode} onClose={handleClose} onToggleBuddy={() => setBuddyMode(false)} />}
 
       <nav
         className={cn(
