@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
-import { Package, Loader2, Minus, Plus, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { Package, Loader2, X } from 'lucide-react';
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Tooltip,
   TooltipContent,
@@ -31,26 +29,25 @@ interface BlobbiInventoryModalProps {
   profile: BlobbonautProfile | null;
   /** The current companion (needed for stage-based restrictions) */
   companion: BlobbiCompanion | null;
-  /** Called when user wants to use an item. Opens the use flow. */
-  onUseItem?: (itemId: string, quantity: number) => void;
+  /** Called when user wants to use an item. Always uses once. */
+  onUseItem?: (itemId: string) => void;
   /** Whether an item is currently being used */
   isUsingItem?: boolean;
 }
 
-/** Resolved inventory item with shop metadata and usability info */
+/** Resolved catalog item with shop metadata and usability info */
 interface ResolvedInventoryItem extends ShopItem {
   itemId: string;
-  quantity: number;
   canUse: boolean;
   reason?: string;
 }
 
-// ── Shared inventory content (used by both standalone modal and unified shop modal) ──
+// ── Shared items content (used by both standalone modal and unified shop modal) ──
 
 interface BlobbiInventoryContentProps {
   profile: BlobbonautProfile | null;
   companion: BlobbiCompanion | null;
-  onUseItem?: (itemId: string, quantity: number) => void;
+  onUseItem?: (itemId: string) => void;
   isUsingItem?: boolean;
 }
 
@@ -60,10 +57,6 @@ export function BlobbiInventoryContent({
   onUseItem,
   isUsingItem = false,
 }: BlobbiInventoryContentProps) {
-  const [selectedItem, setSelectedItem] = useState<ResolvedInventoryItem | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [showUseDialog, setShowUseDialog] = useState(false);
-
   const inventoryItems = useMemo((): ResolvedInventoryItem[] => {
     const stage = companion?.stage ?? 'egg';
     const allItems = getLiveShopItems();
@@ -75,7 +68,6 @@ export function BlobbiInventoryContent({
       result.push({
         ...item,
         itemId: item.id,
-        quantity: Infinity,
         canUse: usability.canUse,
         reason: usability.reason,
       });
@@ -85,166 +77,121 @@ export function BlobbiInventoryContent({
 
   const isEmpty = inventoryItems.length === 0;
 
-  const handleSelectItem = (item: ResolvedInventoryItem) => {
-    if (!item.canUse || isUsingItem) return;
-    setSelectedItem(item);
-    setQuantity(1);
-    setShowUseDialog(true);
-  };
-
-  const handleConfirmUse = () => {
-    if (!selectedItem || !onUseItem || isUsingItem) return;
-    onUseItem(selectedItem.itemId, quantity);
-    setShowUseDialog(false);
-    setSelectedItem(null);
-    setQuantity(1);
-  };
-
-  const handleCloseUseDialog = (isOpen: boolean) => {
-    if (!isOpen) {
-      setShowUseDialog(false);
-      setSelectedItem(null);
-      setQuantity(1);
-    }
-  };
-
-  const maxQuantity = 99;
-  const handleIncrease = () => setQuantity(q => Math.min(q + 1, maxQuantity));
-  const handleDecrease = () => setQuantity(q => Math.max(q - 1, 1));
-  const handleQuantityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10);
-    if (isNaN(value) || value < 1) {
-      setQuantity(1);
-    } else {
-      setQuantity(Math.min(value, maxQuantity));
-    }
+  const handleUseItem = (item: ResolvedInventoryItem) => {
+    if (!item.canUse || isUsingItem || !onUseItem) return;
+    onUseItem(item.itemId);
   };
 
   return (
-    <>
-      <div className="px-4 sm:px-6 py-3 sm:py-4">
-        {isEmpty ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">
-              <Package className="size-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No Items Available</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              No items are available for your Blobbi's current stage.
-            </p>
+    <div className="px-4 sm:px-6 py-3 sm:py-4">
+      {isEmpty ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="size-20 rounded-3xl bg-muted/50 flex items-center justify-center mb-4">
+            <Package className="size-10 text-muted-foreground" />
           </div>
-        ) : (
-          <div className="grid gap-2 sm:gap-3">
-            {inventoryItems.map(item => (
-              <div
-                key={item.itemId}
-                className={cn(
-                  "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border bg-card/60 backdrop-blur-sm transition-colors",
-                  item.canUse ? "hover:border-primary/30" : "opacity-70"
-                )}
-              >
-                {/* Top row on mobile: Icon + Name/Type + Quantity + Button */}
-                <div className="flex items-center gap-3 sm:contents">
-                  {/* Item Icon */}
-                  <div className="relative shrink-0">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
-                    <div className={cn(
-                      "relative size-10 sm:size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-2xl sm:text-3xl",
-                      !item.canUse && "grayscale"
-                    )}>
-                      {item.icon}
-                    </div>
+          <h3 className="text-lg font-semibold mb-2">No Items Available</h3>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            No items are available for your Blobbi's current stage.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:gap-3">
+          {inventoryItems.map(item => (
+            <div
+              key={item.itemId}
+              className={cn(
+                "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl border bg-card/60 backdrop-blur-sm transition-colors",
+                item.canUse ? "hover:border-primary/30" : "opacity-70"
+              )}
+            >
+              {/* Top row on mobile: Icon + Name/Type + Button */}
+              <div className="flex items-center gap-3 sm:contents">
+                {/* Item Icon */}
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full blur-xl" />
+                  <div className={cn(
+                    "relative size-10 sm:size-14 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-2xl sm:text-3xl",
+                    !item.canUse && "grayscale"
+                  )}>
+                    {item.icon}
                   </div>
-
-                  {/* Item Info - Name and Type */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                      <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
-                      <Badge variant="secondary" className="text-xs capitalize shrink-0 hidden sm:inline-flex">
-                        {item.type}
-                      </Badge>
-                    </div>
-                    {/* Effect preview - desktop only inline */}
-                    <div className="hidden sm:block">
-                      <ItemEffectDisplay effect={item.effect} variant="inline" />
-                    </div>
-                    {/* Show blocked reason - desktop only inline */}
-                    {!item.canUse && item.reason && (
-                      <p className="hidden sm:block text-xs text-amber-600 dark:text-amber-400 mt-1">
-                        {item.reason}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Use Button */}
-                  {onUseItem && (
-                    item.canUse ? (
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectItem(item)}
-                        disabled={isUsingItem}
-                        className="shrink-0"
-                      >
-                        Use
-                      </Button>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              size="sm"
-                              disabled
-                              className="shrink-0"
-                            >
-                              Use
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{item.reason || 'Cannot use this item'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )
-                  )}
                 </div>
 
-                {/* Mobile only: Effect preview and blocked reason below */}
-                <div className="sm:hidden pl-13 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs capitalize">
+                {/* Item Info - Name and Type */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
+                    <Badge variant="secondary" className="text-xs capitalize shrink-0 hidden sm:inline-flex">
                       {item.type}
                     </Badge>
+                  </div>
+                  {/* Effect preview - desktop only inline */}
+                  <div className="hidden sm:block">
                     <ItemEffectDisplay effect={item.effect} variant="inline" />
                   </div>
+                  {/* Show blocked reason - desktop only inline */}
                   {!item.canUse && item.reason && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className="hidden sm:block text-xs text-amber-600 dark:text-amber-400 mt-1">
                       {item.reason}
                     </p>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Use Item Confirmation Dialog */}
-      {selectedItem && companion && (
-        <InventoryUseConfirmDialog
-          open={showUseDialog}
-          onOpenChange={handleCloseUseDialog}
-          item={selectedItem}
-          companion={companion}
-          quantity={quantity}
-          maxQuantity={maxQuantity}
-          onIncrease={handleIncrease}
-          onDecrease={handleDecrease}
-          onQuantityChange={handleQuantityInput}
-          onConfirm={handleConfirmUse}
-          isUsing={isUsingItem}
-        />
+                {/* Use Button */}
+                {onUseItem && (
+                  item.canUse ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleUseItem(item)}
+                      disabled={isUsingItem}
+                      className="shrink-0"
+                    >
+                      {isUsingItem ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        'Use'
+                      )}
+                    </Button>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            size="sm"
+                            disabled
+                            className="shrink-0"
+                          >
+                            Use
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{item.reason || 'Cannot use this item'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                )}
+              </div>
+
+              {/* Mobile only: Effect preview and blocked reason below */}
+              <div className="sm:hidden pl-13 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs capitalize">
+                    {item.type}
+                  </Badge>
+                  <ItemEffectDisplay effect={item.effect} variant="inline" />
+                </div>
+                {!item.canUse && item.reason && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {item.reason}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -286,150 +233,6 @@ export function BlobbiInventoryModal({
             isUsingItem={isUsingItem}
           />
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Use Confirmation Dialog ──────────────────────────────────────────────────
-
-interface InventoryUseConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  item: ResolvedInventoryItem;
-  companion: BlobbiCompanion;
-  quantity: number;
-  maxQuantity: number;
-  onIncrease: () => void;
-  onDecrease: () => void;
-  onQuantityChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onConfirm: () => void;
-  isUsing: boolean;
-}
-
-function InventoryUseConfirmDialog({
-  open,
-  onOpenChange,
-  item,
-  companion,
-  quantity,
-  maxQuantity,
-  onIncrease,
-  onDecrease,
-  onQuantityChange,
-  onConfirm,
-  isUsing,
-}: InventoryUseConfirmDialogProps) {
-  const totalEffect = useMemo(() => {
-    if (!item.effect) return null;
-    
-    const statKeys = ['hunger', 'happiness', 'energy', 'hygiene', 'health'] as const;
-    const currentStats = { ...companion.stats };
-    
-    for (let i = 0; i < quantity; i++) {
-      for (const stat of statKeys) {
-        const delta = item.effect[stat];
-        if (delta !== undefined) {
-          currentStats[stat] = Math.max(0, Math.min(100, (currentStats[stat] ?? 0) + delta));
-        }
-      }
-    }
-    
-    const result: Record<string, number> = {};
-    for (const stat of statKeys) {
-      const delta = (currentStats[stat] ?? 0) - (companion.stats[stat] ?? 0);
-      if (delta !== 0) {
-        result[stat] = delta;
-      }
-    }
-    
-    return Object.keys(result).length > 0 ? result : null;
-  }, [item.effect, companion.stats, quantity]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
-        <DialogHeader>
-          <DialogTitle>Use Item</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Item Preview */}
-          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/50">
-            <div className="text-3xl sm:text-4xl shrink-0">{item.icon}</div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate">{item.name}</h3>
-            </div>
-          </div>
-
-          {/* Quantity Selector */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Quantity</label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onDecrease}
-                disabled={quantity <= 1 || isUsing}
-              >
-                <Minus className="size-4" />
-              </Button>
-              <Input
-                type="number"
-                min="1"
-                max={maxQuantity}
-                value={quantity}
-                onChange={onQuantityChange}
-                disabled={isUsing}
-                className="text-center"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onIncrease}
-                disabled={quantity >= maxQuantity || isUsing}
-              >
-                <Plus className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Effects Summary */}
-          {totalEffect && (
-            <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
-              <h4 className="text-sm font-medium mb-2">
-                Total effect{quantity > 1 ? ` (x${quantity})` : ''}
-              </h4>
-              <ItemEffectDisplay effect={totalEffect} variant="badges" />
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isUsing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isUsing}
-            className="min-w-24"
-          >
-            {isUsing ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Using...
-              </>
-            ) : (
-              `Use${quantity > 1 ? ` (x${quantity})` : ''}`
-            )}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

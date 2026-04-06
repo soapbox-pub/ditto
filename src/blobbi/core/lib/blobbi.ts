@@ -288,7 +288,7 @@ export interface BlobbiCompanion {
 }
 
 /**
- * Stored item in user's profile inventory
+ * Stored item in user's profile (from purchases)
  */
 export interface StorageItem {
   itemId: string;   // Must match a ShopItem.id
@@ -316,7 +316,7 @@ export interface BlobbonautProfile {
   coins: number;
   /** Petting level (interaction counter) */
   pettingLevel: number;
-  /** Purchased items inventory */
+  /** Purchased items storage */
   storage: StorageItem[];
   /** All tags preserved for republishing */
   allTags: string[][];

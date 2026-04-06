@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
@@ -33,23 +33,19 @@ import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 /**
- * Request payload for using an inventory item
+ * Request payload for using an item on a Blobbi companion
  */
 export interface UseItemRequest {
   itemId: string;
   action: InventoryAction;
-  /** Number of items to use (defaults to 1) */
-  quantity?: number;
 }
 
 /**
- * Result of using an inventory item
+ * Result of using an item on a Blobbi companion
  */
 export interface UseItemResult {
   itemName: string;
   action: InventoryAction;
-  quantity: number;
-  effectiveItemCount: number; // How many items actually changed stats (may be less than quantity due to caps)
   statsChanged: Record<string, number>;
   xpGained: number;
   newXP: number;
@@ -67,9 +63,9 @@ export interface UseBlobbiUseInventoryItemParams {
     content: string;
     allTags: string[][];
     wasMigrated: boolean;
-    /** Latest profile tags after migration (use instead of profile.allTags) */
+    /** Latest profile tags after migration */
     profileAllTags: string[][];
-    /** Latest profile storage after migration (use instead of profile.storage) */
+    /** Latest profile storage after migration */
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
@@ -82,16 +78,16 @@ export interface UseBlobbiUseInventoryItemParams {
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
- * Hook to use an inventory item on a Blobbi companion.
+ * Hook to use an item on a Blobbi companion.
+ * 
+ * Items are reusable abilities sourced from the shop catalog — no
+ * inventory ownership or quantity is required.
  * 
  * This hook:
- * 1. Validates the companion stage (eggs can't use items)
- * 2. Validates the item exists in storage
- * 3. Ensures canonical format before action
- * 4. Applies item effects to Blobbi stats
- * 5. Updates Blobbi state (kind 31124)
- * 6. Decrements item from profile storage (kind 11125)
- * 7. Invalidates relevant queries
+ * 1. Validates the companion and item compatibility
+ * 2. Ensures canonical format before action
+ * 3. Applies accumulated decay, then item effects to Blobbi stats
+ * 4. Updates Blobbi state (kind 31124)
  */
 export function useBlobbiUseInventoryItem({
   companion,
@@ -104,7 +100,7 @@ export function useBlobbiUseInventoryItem({
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   return useMutation({
-    mutationFn: async ({ itemId, action, quantity = 1 }: UseItemRequest): Promise<UseItemResult> => {
+    mutationFn: async ({ itemId, action }: UseItemRequest): Promise<UseItemResult> => {
       // ─── Validation ───
       if (!user?.pubkey) {
         throw new Error('You must be logged in to use items');
@@ -116,11 +112,6 @@ export function useBlobbiUseInventoryItem({
 
       if (!profile) {
         throw new Error('Profile not found');
-      }
-
-      // Validate quantity
-      if (quantity < 1) {
-        throw new Error('Quantity must be at least 1');
       }
 
       // Check stage restrictions for this specific action
@@ -197,78 +188,25 @@ export function useBlobbiUseInventoryItem({
         }
       }
       
-      // ─── Apply Item Effects ───
-      // Apply effects multiple times (once per quantity) to simulate using items in sequence.
-      // This ensures proper clamping at each step, e.g., using 5 health items when at 90 health
-      // won't give more than 100 health total.
-      // 
-      // CRITICAL: Track the number of items that actually produced INTENDED stat changes for XP.
-      // XP counting is action-aware - only count positive intended effects, NOT negative side effects:
-      // - feed: count when hunger/energy/health/happiness INCREASE (NOT when hygiene decreases)
-      // - clean: count when hygiene or happiness INCREASES
-      // - medicine: count when health/energy/happiness INCREASE (NOT negative side effects)
-      // - play: EXCEPTION - count when happiness increases OR energy decreases (both are intended effects)
-      //
-      // Use canonical companion stage for egg checks
+      // ─── Apply Item Effects (single use) ───
       const isEggCompanion = canonical.companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
-      let effectiveItemCount = 0; // Number of items that produced intended effects
 
       if (isEggCompanion && action === 'medicine') {
-        // Egg medicine handling:
-        // Eggs use the 3-stat model: health, hygiene, happiness
-        // Medicine with health effect directly affects the egg's health stat
-        // hunger and energy remain fixed at 100 for eggs
-        
         const healthDelta = shopItem.effect.health ?? 0;
-        // Apply health effect N times in sequence with clamping at each step
-        // Only count items that actually INCREASED health (positive effect only)
-        let currentHealth = statsAfterDecay.health ?? 0;
-        for (let i = 0; i < quantity; i++) {
-          const prevHealth = currentHealth;
-          currentHealth = applyStat(currentHealth, healthDelta);
-          // Only count as effective if health increased (not just changed)
-          if (healthDelta > 0 && currentHealth > prevHealth) {
-            effectiveItemCount++;
-          }
-        }
+        const currentHealth = applyStat(statsAfterDecay.health ?? 0, healthDelta);
         
         statsUpdate.health = currentHealth.toString();
-        // Track total actual change (may be less than healthDelta * quantity due to clamping)
         statsChanged.health = currentHealth - (statsAfterDecay.health ?? 0);
         
-        // Apply decayed values for other egg stats
         statsUpdate.hygiene = (statsAfterDecay.hygiene ?? 0).toString();
         statsUpdate.happiness = (statsAfterDecay.happiness ?? 0).toString();
-        // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
       } else if (isEggCompanion && action === 'clean') {
-        // Egg clean/hygiene handling:
-        // Hygiene items affect the egg's hygiene stat
-        // Some hygiene items also give happiness (e.g., bubble bath)
-        // hunger and energy remain fixed at 100 for eggs
-        
-        const hygieneDelta = shopItem.effect.hygiene ?? 0;
-        const happinessDelta = shopItem.effect.happiness ?? 0;
-        
-        // Apply effects N times in sequence
-        // Only count items that INCREASED hygiene or happiness (positive effects only)
-        let currentHygiene = statsAfterDecay.hygiene ?? 0;
-        let currentHappiness = statsAfterDecay.happiness ?? 0;
-        for (let i = 0; i < quantity; i++) {
-          const prevHygiene = currentHygiene;
-          const prevHappiness = currentHappiness;
-          currentHygiene = applyStat(currentHygiene, hygieneDelta);
-          currentHappiness = applyStat(currentHappiness, happinessDelta);
-          // Count as effective if hygiene OR happiness increased (positive effects only)
-          const hygieneIncreased = hygieneDelta > 0 && currentHygiene > prevHygiene;
-          const happinessIncreased = happinessDelta > 0 && currentHappiness > prevHappiness;
-          if (hygieneIncreased || happinessIncreased) {
-            effectiveItemCount++;
-          }
-        }
+        const currentHygiene = applyStat(statsAfterDecay.hygiene ?? 0, shopItem.effect.hygiene ?? 0);
+        const currentHappiness = applyStat(statsAfterDecay.happiness ?? 0, shopItem.effect.happiness ?? 0);
         
         statsUpdate.hygiene = currentHygiene.toString();
         statsChanged.hygiene = currentHygiene - (statsAfterDecay.hygiene ?? 0);
@@ -279,58 +217,12 @@ export function useBlobbiUseInventoryItem({
           statsChanged.happiness = totalHappinessChange;
         }
         
-        // Apply decayed health
         statsUpdate.health = (statsAfterDecay.health ?? 0).toString();
-        // hunger and energy stay at 100 for eggs
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
       } else {
-        // Normal stats application for baby/adult
-        // Apply item effects N times in sequence ON TOP of decayed stats
-        // Use action-aware effectiveness checking for XP calculation
-        let currentStats: Partial<BlobbiStats> = { ...statsAfterDecay };
-        const effect = shopItem.effect;
-        
-        for (let i = 0; i < quantity; i++) {
-          const prevStats = { ...currentStats };
-          currentStats = applyItemEffects(currentStats, effect);
-          
-          // Action-aware effectiveness check:
-          // Only count INTENDED positive effects, not negative side effects
-          let isEffective = false;
-          
-          if (action === 'feed') {
-            // Feed: count when hunger/energy/health/happiness INCREASE
-            // Do NOT count hygiene decrease (that's a side effect)
-            const hungerIncreased = (effect.hunger ?? 0) > 0 && (currentStats.hunger ?? 0) > (prevStats.hunger ?? 0);
-            const energyIncreased = (effect.energy ?? 0) > 0 && (currentStats.energy ?? 0) > (prevStats.energy ?? 0);
-            const healthIncreased = (effect.health ?? 0) > 0 && (currentStats.health ?? 0) > (prevStats.health ?? 0);
-            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
-            isEffective = hungerIncreased || energyIncreased || healthIncreased || happinessIncreased;
-          } else if (action === 'clean') {
-            // Clean: count when hygiene or happiness INCREASES
-            const hygieneIncreased = (effect.hygiene ?? 0) > 0 && (currentStats.hygiene ?? 0) > (prevStats.hygiene ?? 0);
-            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
-            isEffective = hygieneIncreased || happinessIncreased;
-          } else if (action === 'medicine') {
-            // Medicine: count when health/energy/happiness INCREASE
-            // Do NOT count negative side effects (like happiness decrease on Super Medicine)
-            const healthIncreased = (effect.health ?? 0) > 0 && (currentStats.health ?? 0) > (prevStats.health ?? 0);
-            const energyIncreased = (effect.energy ?? 0) > 0 && (currentStats.energy ?? 0) > (prevStats.energy ?? 0);
-            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
-            isEffective = healthIncreased || energyIncreased || happinessIncreased;
-          } else if (action === 'play') {
-            // Play: EXCEPTION - both happiness increase AND energy decrease are intended effects
-            // Playing naturally consumes energy, so energy decrease counts as valid
-            const happinessIncreased = (effect.happiness ?? 0) > 0 && (currentStats.happiness ?? 0) > (prevStats.happiness ?? 0);
-            const energyDecreased = (effect.energy ?? 0) < 0 && (currentStats.energy ?? 0) < (prevStats.energy ?? 0);
-            isEffective = happinessIncreased || energyDecreased;
-          }
-          
-          if (isEffective) {
-            effectiveItemCount++;
-          }
-        }
+        // Normal stats application for baby/adult — apply once
+        const currentStats = applyItemEffects({ ...statsAfterDecay }, shopItem.effect);
 
         statsUpdate.hunger = clampStat(currentStats.hunger).toString();
         statsChanged.hunger = (currentStats.hunger ?? 0) - (statsAfterDecay.hunger ?? 0);
@@ -363,11 +255,8 @@ export function useBlobbiUseInventoryItem({
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
-      // ─── Apply XP Gain (Based on effective item count) ───
-      // Only grant XP for items that actually changed stats.
-      // If user used 100 food items but hunger capped at item #4, only 4 items were effective.
-      // This prevents XP farming by mass-using items after stats are already maxed.
-      const xpGained = effectiveItemCount > 0 ? calculateInventoryActionXP(action, effectiveItemCount) : 0;
+      // ─── Apply XP Gain ───
+      const xpGained = calculateInventoryActionXP(action, 1);
       const currentXP = canonical.companion.experience ?? 0;
       const newXP = applyXPGain(currentXP, xpGained);
       
@@ -395,20 +284,17 @@ export function useBlobbiUseInventoryItem({
       return {
         itemName: shopItem.name,
         action,
-        quantity,
-        effectiveItemCount, // How many items actually changed stats
         statsChanged,
         xpGained,
         newXP,
       };
     },
-    onSuccess: ({ itemName, action, quantity, xpGained }) => {
+    onSuccess: ({ itemName, action, xpGained }) => {
       const actionMeta = ACTION_METADATA[action];
-      const quantityText = quantity > 1 ? ` (x${quantity})` : '';
       const xpText = formatXPGain(xpGained);
       toast({
         title: `${actionMeta.label} successful!`,
-        description: `Used ${itemName}${quantityText} on your Blobbi. ${xpText}`,
+        description: `Used ${itemName} on your Blobbi. ${xpText}`,
       });
 
       // Track daily mission progress

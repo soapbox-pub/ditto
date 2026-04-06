@@ -27,7 +27,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
@@ -228,16 +228,14 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     });
   }, [queryClient, user?.pubkey, profile?.currentCompanion]);
   
-  // Core mutation for using items
+  // Core mutation for using items (always uses once)
   const mutation = useMutation({
     mutationFn: async ({ 
       itemId, 
       action, 
-      quantity = 1,
     }: { 
       itemId: string; 
       action: InventoryAction; 
-      quantity?: number;
     }): Promise<{ statsChanged: Record<string, number> }> => {
       // ─── Validation ───
       if (!user?.pubkey) {
@@ -253,11 +251,6 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       if (!companion) {
         throw new Error('No companion selected');
-      }
-      
-      // Validate quantity
-      if (quantity < 1) {
-        throw new Error('Quantity must be at least 1');
       }
       
       // Check stage restrictions
@@ -306,17 +299,13 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       // Start with decayed stats as the base
       const statsAfterDecay = decayResult.stats;
       
-      // ─── Apply Item Effects ───
+      // ─── Apply Item Effects (single use) ───
       const isEggCompanion = companion.stage === 'egg';
       const statsUpdate: Record<string, string> = {};
       const statsChanged: Record<string, number> = {};
       
       if (isEggCompanion && action === 'medicine') {
-        const healthDelta = shopItem.effect.health ?? 0;
-        let currentHealth = statsAfterDecay.health ?? 0;
-        for (let i = 0; i < quantity; i++) {
-          currentHealth = applyStat(currentHealth, healthDelta);
-        }
+        const currentHealth = applyStat(statsAfterDecay.health ?? 0, shopItem.effect.health ?? 0);
         
         statsUpdate.health = currentHealth.toString();
         statsChanged.health = currentHealth - (statsAfterDecay.health ?? 0);
@@ -326,15 +315,8 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
       } else if (isEggCompanion && action === 'clean') {
-        const hygieneDelta = shopItem.effect.hygiene ?? 0;
-        const happinessDelta = shopItem.effect.happiness ?? 0;
-        
-        let currentHygiene = statsAfterDecay.hygiene ?? 0;
-        let currentHappiness = statsAfterDecay.happiness ?? 0;
-        for (let i = 0; i < quantity; i++) {
-          currentHygiene = applyStat(currentHygiene, hygieneDelta);
-          currentHappiness = applyStat(currentHappiness, happinessDelta);
-        }
+        const currentHygiene = applyStat(statsAfterDecay.hygiene ?? 0, shopItem.effect.hygiene ?? 0);
+        const currentHappiness = applyStat(statsAfterDecay.happiness ?? 0, shopItem.effect.happiness ?? 0);
         
         statsUpdate.hygiene = currentHygiene.toString();
         statsChanged.hygiene = currentHygiene - (statsAfterDecay.hygiene ?? 0);
@@ -349,11 +331,8 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
         statsUpdate.hunger = '100';
         statsUpdate.energy = '100';
       } else {
-        // Normal stats application for baby/adult
-        let currentStats: Partial<BlobbiStats> = { ...statsAfterDecay };
-        for (let i = 0; i < quantity; i++) {
-          currentStats = applyItemEffects(currentStats, shopItem.effect);
-        }
+        // Normal stats application for baby/adult — apply once
+        const currentStats = applyItemEffects({ ...statsAfterDecay }, shopItem.effect);
         
         statsUpdate.hunger = clampStat(currentStats.hunger).toString();
         statsChanged.hunger = (currentStats.hunger ?? 0) - (statsAfterDecay.hunger ?? 0);
@@ -407,14 +386,13 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       return { statsChanged };
     },
-    onSuccess: (_, { itemId, action, quantity = 1 }) => {
+    onSuccess: (_, { itemId, action }) => {
       const shopItem = getShopItemById(itemId);
       const actionMeta = ACTION_METADATA[action];
-      const quantityText = quantity > 1 ? ` (x${quantity})` : '';
       
       toast({
         title: `${actionMeta.label} successful!`,
-        description: `Used ${shopItem?.name ?? 'item'}${quantityText} on your Blobbi.`,
+        description: `Used ${shopItem?.name ?? 'item'} on your Blobbi.`,
       });
       
       // Track daily mission progress
@@ -439,7 +417,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
   });
   
   // Wrapper function that matches UseItemFunction signature and includes cooldown check
-  const useItem = useCallback<UseItemFunction>(async (itemId, action, quantity = 1) => {
+  const useItem = useCallback<UseItemFunction>(async (itemId, action) => {
     // Check cooldown first
     if (isItemOnCooldown(itemId)) {
       if (import.meta.env.DEV) {
@@ -452,7 +430,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     }
     
     try {
-      const result = await mutation.mutateAsync({ itemId, action, quantity });
+      const result = await mutation.mutateAsync({ itemId, action });
       return {
         success: true,
         statsChanged: result.statsChanged,

@@ -1,19 +1,16 @@
 // src/blobbi/actions/components/BlobbiActionInventoryModal.tsx
 
-import { useMemo, useState } from 'react';
-import { Loader2, Minus, Plus, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { Loader2, X } from 'lucide-react';
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 
 import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
 import { cn } from '@/lib/utils';
@@ -37,8 +34,8 @@ interface BlobbiActionInventoryModalProps {
   action: InventoryAction;
   companion: BlobbiCompanion;
   profile: BlobbonautProfile | null;
-  /** Called when user confirms using item(s). Now accepts quantity. */
-  onUseItem: (itemId: string, quantity: number) => void;
+  /** Called when user taps Use on an item. Always uses once. */
+  onUseItem: (itemId: string) => void;
   onOpenShop: () => void;
   isUsingItem: boolean;
   usingItemId: string | null;
@@ -56,11 +53,6 @@ export function BlobbiActionInventoryModal({
   usingItemId,
 }: BlobbiActionInventoryModalProps) {
   const actionMeta = ACTION_METADATA[action];
-  
-  // State for confirmation dialog
-  const [selectedItem, setSelectedItem] = useState<ResolvedInventoryItem | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Get all available items for this action from the catalog (not inventory).
   // Items are abilities/tools — no ownership required.
@@ -74,41 +66,9 @@ export function BlobbiActionInventoryModal({
 
   const isEmpty = availableItems.length === 0;
 
-  const handleSelectItem = (item: ResolvedInventoryItem) => {
+  const handleUseItem = (item: ResolvedInventoryItem) => {
     if (isUsingItem) return;
-    setSelectedItem(item);
-    setQuantity(1);
-    setShowConfirmDialog(true);
-  };
-
-  const handleConfirmUse = () => {
-    if (!selectedItem || isUsingItem) return;
-    onUseItem(selectedItem.itemId, quantity);
-    // Reset after starting use
-    setShowConfirmDialog(false);
-    setSelectedItem(null);
-    setQuantity(1);
-  };
-
-  const handleCloseConfirmDialog = (isOpen: boolean) => {
-    if (!isOpen) {
-      setShowConfirmDialog(false);
-      setSelectedItem(null);
-      setQuantity(1);
-    }
-  };
-
-  // Quantity controls - items are unlimited abilities, cap at a reasonable max
-  const maxQuantity = 99;
-  const handleIncrease = () => setQuantity(q => Math.min(q + 1, maxQuantity));
-  const handleDecrease = () => setQuantity(q => Math.max(q - 1, 1));
-  const handleQuantityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10);
-    if (isNaN(value) || value < 1) {
-      setQuantity(1);
-    } else {
-      setQuantity(Math.min(value, maxQuantity));
-    }
+    onUseItem(item.itemId);
   };
 
   return (
@@ -172,7 +132,7 @@ export function BlobbiActionInventoryModal({
                   item={item}
                   companion={companion}
                   action={action}
-                  onUse={() => handleSelectItem(item)}
+                  onUse={() => handleUseItem(item)}
                   isUsing={isUsingItem && usingItemId === item.itemId}
                   disabled={isUsingItem}
                 />
@@ -181,24 +141,6 @@ export function BlobbiActionInventoryModal({
           )}
         </div>
       </DialogContent>
-
-      {/* Confirmation Dialog with Quantity Selector */}
-      {selectedItem && (
-        <BlobbiUseItemConfirmDialog
-          open={showConfirmDialog}
-          onOpenChange={handleCloseConfirmDialog}
-          item={selectedItem}
-          companion={companion}
-          action={action}
-          quantity={quantity}
-          maxQuantity={maxQuantity}
-          onIncrease={handleIncrease}
-          onDecrease={handleDecrease}
-          onQuantityChange={handleQuantityInput}
-          onConfirm={handleConfirmUse}
-          isUsing={isUsingItem}
-        />
-      )}
     </Dialog>
   );
 }
@@ -229,15 +171,12 @@ function BlobbiInventoryUseRow({
   // Preview stat changes - handle egg-specific preview for medicine and clean
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
-      // For eggs using medicine, show health preview
-      // Eggs use the 3-stat model: health, hygiene, happiness
       return {
         normalStatChanges: [],
         eggStatChanges: previewMedicineForEgg(companion.stats.health, item.effect),
       };
     }
     if (isEgg && isClean) {
-      // For eggs using hygiene items, show hygiene (and possibly happiness) preview
       return {
         normalStatChanges: [],
         eggStatChanges: previewCleanForEgg(
@@ -246,7 +185,6 @@ function BlobbiInventoryUseRow({
         ),
       };
     }
-    // Normal stats preview
     return {
       normalStatChanges: previewStatChanges(companion.stats, item.effect),
       eggStatChanges: [] as EggStatPreview[],
@@ -277,7 +215,6 @@ function BlobbiInventoryUseRow({
           <div className="hidden sm:block">
             {hasChanges && (
               <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {/* Normal stat changes */}
                 {normalStatChanges.map(({ stat, delta }) => (
                   <span key={stat} className="text-xs">
                     <span
@@ -296,7 +233,6 @@ function BlobbiInventoryUseRow({
                     </span>
                   </span>
                 ))}
-                {/* Egg stat changes (health for medicine) */}
                 {eggStatChanges.map(({ stat, delta }) => (
                   <span key={stat} className="text-xs">
                     <span
@@ -338,7 +274,6 @@ function BlobbiInventoryUseRow({
       {/* Effect Preview - shown below on mobile */}
       {hasChanges && (
         <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 pl-13">
-          {/* Normal stat changes */}
           {normalStatChanges.map(({ stat, delta }) => (
             <span key={stat} className="text-xs">
               <span
@@ -357,7 +292,6 @@ function BlobbiInventoryUseRow({
               </span>
             </span>
           ))}
-          {/* Egg stat changes (health for medicine) */}
           {eggStatChanges.map(({ stat, delta }) => (
             <span key={stat} className="text-xs">
               <span
@@ -379,218 +313,5 @@ function BlobbiInventoryUseRow({
         </div>
       )}
     </div>
-  );
-}
-
-// ─── Use Item Confirmation Dialog ─────────────────────────────────────────────
-
-interface BlobbiUseItemConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  item: ResolvedInventoryItem;
-  companion: BlobbiCompanion;
-  action: InventoryAction;
-  quantity: number;
-  maxQuantity: number;
-  onIncrease: () => void;
-  onDecrease: () => void;
-  onQuantityChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onConfirm: () => void;
-  isUsing: boolean;
-}
-
-function BlobbiUseItemConfirmDialog({
-  open,
-  onOpenChange,
-  item,
-  companion,
-  action,
-  quantity,
-  maxQuantity,
-  onIncrease,
-  onDecrease,
-  onQuantityChange,
-  onConfirm,
-  isUsing,
-}: BlobbiUseItemConfirmDialogProps) {
-  const actionMeta = ACTION_METADATA[action];
-  const isEgg = companion.stage === 'egg';
-  const isMedicine = action === 'medicine';
-  const isClean = action === 'clean';
-
-  // Preview stat changes for the selected quantity
-  const statPreview = useMemo(() => {
-    if (!item.effect) return { normalChanges: [], eggChanges: [] };
-
-    if (isEgg && isMedicine) {
-      // Calculate health change for N items
-      const healthDelta = item.effect.health ?? 0;
-      let currentHealth = companion.stats.health ?? 0;
-      for (let i = 0; i < quantity; i++) {
-        currentHealth = Math.max(0, Math.min(100, currentHealth + healthDelta));
-      }
-      const totalDelta = currentHealth - (companion.stats.health ?? 0);
-      return {
-        normalChanges: [],
-        eggChanges: totalDelta !== 0 ? [{ stat: 'health' as const, delta: totalDelta }] : [],
-      };
-    }
-
-    if (isEgg && isClean) {
-      // Calculate hygiene and happiness changes for N items
-      const hygieneDelta = item.effect.hygiene ?? 0;
-      const happinessDelta = item.effect.happiness ?? 0;
-      let currentHygiene = companion.stats.hygiene ?? 0;
-      let currentHappiness = companion.stats.happiness ?? 0;
-      for (let i = 0; i < quantity; i++) {
-        currentHygiene = Math.max(0, Math.min(100, currentHygiene + hygieneDelta));
-        currentHappiness = Math.max(0, Math.min(100, currentHappiness + happinessDelta));
-      }
-      const changes: Array<{ stat: 'health' | 'hygiene' | 'happiness'; delta: number }> = [];
-      const totalHygieneDelta = currentHygiene - (companion.stats.hygiene ?? 0);
-      const totalHappinessDelta = currentHappiness - (companion.stats.happiness ?? 0);
-      if (totalHygieneDelta !== 0) changes.push({ stat: 'hygiene', delta: totalHygieneDelta });
-      if (totalHappinessDelta !== 0) changes.push({ stat: 'happiness', delta: totalHappinessDelta });
-      return { normalChanges: [], eggChanges: changes };
-    }
-
-    // Normal stats preview - simulate N applications
-    const statKeys = ['hunger', 'happiness', 'energy', 'hygiene', 'health'] as const;
-    const currentStats = { ...companion.stats };
-    for (let i = 0; i < quantity; i++) {
-      for (const stat of statKeys) {
-        const delta = item.effect[stat];
-        if (delta !== undefined) {
-          currentStats[stat] = Math.max(0, Math.min(100, (currentStats[stat] ?? 0) + delta));
-        }
-      }
-    }
-    const changes: Array<{ stat: string; delta: number }> = [];
-    for (const stat of statKeys) {
-      const delta = (currentStats[stat] ?? 0) - (companion.stats[stat] ?? 0);
-      if (delta !== 0) {
-        changes.push({ stat, delta });
-      }
-    }
-    return { normalChanges: changes, eggChanges: [] };
-  }, [item.effect, companion.stats, quantity, isEgg, isMedicine, isClean]);
-
-  const hasChanges = statPreview.normalChanges.length > 0 || statPreview.eggChanges.length > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
-        <DialogHeader>
-          <DialogTitle>{actionMeta.label}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Item Preview */}
-          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/50">
-            <div className="text-3xl sm:text-4xl shrink-0">{item.icon}</div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate">{item.name}</h3>
-            </div>
-          </div>
-
-          {/* Quantity Selector */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Quantity</label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onDecrease}
-                disabled={quantity <= 1 || isUsing}
-              >
-                <Minus className="size-4" />
-              </Button>
-              <Input
-                type="number"
-                min="1"
-                max={maxQuantity}
-                value={quantity}
-                onChange={onQuantityChange}
-                disabled={isUsing}
-                className="text-center"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onIncrease}
-                disabled={quantity >= maxQuantity || isUsing}
-              >
-                <Plus className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Effects Summary */}
-          {hasChanges && (
-            <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
-              <h4 className="text-sm font-medium mb-2">
-                Total effect{quantity > 1 ? ` (x${quantity})` : ''}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {statPreview.normalChanges.map(({ stat, delta }) => (
-                  <Badge
-                    key={stat}
-                    variant="secondary"
-                    className={cn(
-                      'text-xs',
-                      delta > 0
-                        ? 'bg-green-500/20 text-green-700 dark:text-green-300'
-                        : 'bg-red-500/20 text-red-700 dark:text-red-300'
-                    )}
-                  >
-                    {delta > 0 ? '+' : ''}{delta} {stat}
-                  </Badge>
-                ))}
-                {statPreview.eggChanges.map(({ stat, delta }) => (
-                  <Badge
-                    key={stat}
-                    variant="secondary"
-                    className={cn(
-                      'text-xs',
-                      delta > 0
-                        ? 'bg-green-500/20 text-green-700 dark:text-green-300'
-                        : 'bg-red-500/20 text-red-700 dark:text-red-300'
-                    )}
-                  >
-                    {delta > 0 ? '+' : ''}{delta} {stat}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isUsing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isUsing}
-            className="min-w-24"
-          >
-            {isUsing ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Using...
-              </>
-            ) : (
-              `Use${quantity > 1 ? ` (x${quantity})` : ''}`
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

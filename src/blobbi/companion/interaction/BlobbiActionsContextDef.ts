@@ -24,12 +24,11 @@ export interface UseItemResult {
 }
 
 /**
- * Function signature for using an item.
+ * Function signature for using an item (always uses once).
  */
 export type UseItemFunction = (
   itemId: string,
   action: InventoryAction,
-  quantity?: number
 ) => Promise<UseItemResult>;
 
 /**
@@ -37,7 +36,7 @@ export type UseItemFunction = (
  */
 export interface BlobbiActionsContextValue {
   /**
-   * Use an inventory item on the current companion.
+   * Use an item on the current companion.
    * Works even without BlobbiPage registration (uses fallback).
    */
   useItem: UseItemFunction;

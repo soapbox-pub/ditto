@@ -23,10 +23,9 @@ import { cn, formatCompactNumber } from '@/lib/utils';
 
 type TopTab = 'items' | 'shop';
 
-/** Resolved inventory item with shop metadata and usability info */
+/** Resolved catalog item with shop metadata and usability info */
 interface ResolvedInventoryItem extends ShopItem {
   itemId: string;
-  quantity: number;
   canUse: boolean;
   reason?: string;
 }
@@ -39,7 +38,7 @@ interface BlobbiShopModalProps {
   initialTab?: TopTab;
   // ── Inventory props (passed through) ──
   companion: BlobbiCompanion | null;
-  onUseItem?: (itemId: string, quantity: number) => void;
+  onUseItem?: (itemId: string) => void;
   isUsingItem?: boolean;
 }
 
@@ -92,7 +91,6 @@ export function BlobbiShopModal({
       result.push({
         ...item,
         itemId: item.id,
-        quantity: Infinity,
         canUse: usability.canUse,
         reason: usability.reason,
       });
@@ -106,7 +104,7 @@ export function BlobbiShopModal({
   const handleUseItem = (item: ResolvedInventoryItem) => {
     if (!item.canUse || isUsingItem || !onUseItem) return;
     setUsingItemId(item.itemId);
-    onUseItem(item.itemId, 1);
+    onUseItem(item.itemId);
   };
 
   // Clear usingItemId when isUsingItem goes false
@@ -262,7 +260,7 @@ function ShopGrid({ items, availableCoins, onBuy, purchasingItemId }: ShopGridPr
   );
 }
 
-// ─── Items Grid (inventory, tile layout) ──────────────────────────────────────
+// ─── Items Grid (catalog, tile layout) ────────────────────────────────────────
 
 interface ItemsGridProps {
   items: ResolvedInventoryItem[];
