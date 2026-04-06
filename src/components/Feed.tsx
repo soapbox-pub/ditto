@@ -24,6 +24,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { diversifyFeedItems } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -213,7 +214,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const seen = new Set<string>();
 
     if (useDittoQuery) {
-      return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
+      const dedupedItems = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
         .flat()
         .filter((event) => {
           if (seen.has(event.id)) return false;
@@ -223,6 +224,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           return true;
         })
         .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
+
+      // Reorder for content-type diversity: cap any single type at 20%
+      // and enforce a minimum gap of 3 positions between same-type items.
+      return diversifyFeedItems(dedupedItems);
     }
 
     return (rawData.pages as unknown as { items: FeedItem[] }[])
