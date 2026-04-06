@@ -65,7 +65,9 @@ export interface DailyMission extends DailyMissionDefinition {
  *
  * Source of truth: Kind 11125 profile content JSON (`dailyMissions` section).
  * During a session, state is held in an in-memory map for instant UI updates.
- * On page load, the hook hydrates from kind 11125. localStorage is NOT used.
+ * `useDailyMissionsPersistence` debounces all intermediate state changes
+ * (progress, rerolls, daily resets) back to kind 11125, so nothing is lost
+ * on page refresh. localStorage is NOT used.
  */
 export interface DailyMissionsState {
   /** The date string (YYYY-MM-DD) when these missions were generated */
@@ -93,16 +95,16 @@ export const MAX_DAILY_REROLLS = 3;
  * ── Source-of-Truth Architecture ──────────────────────────────────────────────
  *
  *   Kind 11125 content JSON (`dailyMissions` section) is the ONLY persistent
- *   source of truth. This in-memory map is a session cache:
+ *   source of truth. This in-memory map is a short-lived UI cache:
  *
  *   • On page load / account switch, `useDailyMissions` hydrates this map
  *     from `profile.content.dailyMissions` (parsed from the kind 11125 event).
  *   • During the session, progress/rerolls update this map for instant UI.
- *   • Claims persist to kind 11125 via `updateDailyMissionsContent()`.
- *   • On page refresh the map is empty, so the hook re-hydrates from kind 11125.
- *   • Unclaimed progress (feed counts, etc.) that hasn't been written to
- *     kind 11125 is lost on refresh — this is intentional and preferable to
- *     cross-account leakage through localStorage.
+ *   • `useDailyMissionsPersistence` debounces writes of intermediate progress
+ *     (currentCount, completed, rerolls, etc.) back to kind 11125.
+ *   • Claims persist to kind 11125 immediately via `useClaimMissionReward`.
+ *   • On page refresh the map is empty, so the hook re-hydrates from kind 11125
+ *     — which now includes intermediate progress, not just claimed rewards.
  *
  *   localStorage is NOT used for daily missions. This eliminates all
  *   cross-account leakage bugs.
@@ -128,9 +130,10 @@ export function readDailyMissionsState(pubkey: string | undefined): DailyMission
  * No-ops silently if pubkey is empty/undefined (logged-out users
  * should not have mission state).
  *
- * Note: This does NOT persist to kind 11125. Persistence happens
- * explicitly through `updateDailyMissionsContent()` in the claim
- * and other write-path hooks.
+ * Note: This does NOT persist to kind 11125 by itself. Callers
+ * should dispatch a `daily-missions-updated` DOM event after writing
+ * so that `useDailyMissionsPersistence` picks up the change and
+ * debounces the write to kind 11125.
  */
 export function writeDailyMissionsState(pubkey: string | undefined, state: DailyMissionsState): void {
   if (!pubkey) return;

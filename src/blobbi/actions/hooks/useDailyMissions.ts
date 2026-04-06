@@ -3,7 +3,8 @@
  *
  * ── Source-of-Truth Architecture ──────────────────────────────────────────────
  *
- *   Kind 11125 content JSON is the ONLY persistent source of truth.
+ *   Kind 11125 content JSON is the ONLY persistent source of truth for
+ *   the FULL daily mission state, including intermediate progress.
  *   This hook maintains an in-memory session cache for instant UI updates.
  *
  *   Hydration flow:
@@ -12,8 +13,11 @@
  *        kind 11125 event that the caller provides).
  *     3. If kind 11125 also has no data, generate fresh missions for today.
  *     4. During the session, progress/rerolls update the session store.
- *     5. Claims persist to kind 11125 via useClaimMissionReward.
- *     6. On page refresh the session store is empty → re-hydrates from kind 11125.
+ *     5. `useDailyMissionsPersistence` debounces intermediate state changes
+ *        (progress, rerolls, daily resets) back to kind 11125.
+ *     6. Claims persist immediately via useClaimMissionReward.
+ *     7. On page refresh the session store is empty → re-hydrates from
+ *        kind 11125, which now includes all intermediate progress.
  *
  *   localStorage is NOT used. This eliminates cross-account leakage.
  */
@@ -153,6 +157,11 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
       const previousXp = state?.totalXpEarned ?? 0;
       const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousXp, availableStages);
       writeDailyMissionsState(pubkey, newState);
+      // Signal persistence hook to write the fresh mission set to kind 11125.
+      // This ensures even newly generated missions survive a page refresh.
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', {
+        detail: { source: 'daily-reset' },
+      }));
       return newState;
     }
 
@@ -163,6 +172,10 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
         rerollsRemaining: MAX_DAILY_REROLLS,
       };
       writeDailyMissionsState(pubkey, migratedState);
+      // Signal persistence hook to write the migrated state
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', {
+        detail: { source: 'migration' },
+      }));
       return migratedState;
     }
 
