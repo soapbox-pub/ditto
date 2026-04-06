@@ -69,8 +69,8 @@ interface UseCompanionActionMenuResult {
 /**
  * Resolve available items for a specific action/category from the shop catalog.
  * 
- * Items are sourced from the full catalog (not inventory) — all items are
- * available as abilities/tools unlocked by stage, not consumable inventory.
+ * Items are sourced from the full shop catalog — all items are
+ * available as reusable abilities/tools, filtered only by stage.
  * 
  * Uses the centralized `canUseItemForStage` function to ensure consistent
  * stage-based filtering across all UIs:

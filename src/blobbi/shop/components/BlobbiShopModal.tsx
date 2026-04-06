@@ -261,7 +261,7 @@ function ShopGrid({ items, availableCoins, onBuy, purchasingItemId }: ShopGridPr
   );
 }
 
-// ─── Items Grid (inventory, tile layout) ──────────────────────────────────────
+// ─── Items Grid (catalog, tile layout) ────────────────────────────────────────
 
 interface ItemsGridProps {
   items: ResolvedInventoryItem[];

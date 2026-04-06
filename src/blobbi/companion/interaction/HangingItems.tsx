@@ -1,26 +1,24 @@
 /**
  * HangingItems
  * 
- * Displays inventory items as hanging elements from the top of the screen.
+ * Displays available items as hanging elements from the top of the screen.
  * Each item appears as a circle connected to the top by a thin vertical line,
  * creating a playful, spatial feel.
  * 
+ * Items are reusable abilities sourced from the shop catalog — they are
+ * always available and not consumed on use.
+ * 
  * State Model:
  * - Container states: hidden → opening → open → closing → hidden
- * - Hanging items = available inventory that can still be released
+ * - Hanging items = catalog items available for the selected action
  * - Released/dropped items = instances currently in the world (tracked with unique IDs)
  * - Multiple instances of the same item type can exist simultaneously on the ground
- * 
- * Key Design Principle:
- * The hanging row represents "releasable quantity" - clicking releases ONE instance
- * and immediately decrements the visible quantity. A new hanging copy remains if
- * quantity > 1. The released instance tracks separately with a unique instance ID.
  * 
  * Features:
  * - Smooth open/close slide animations (items descend/ascend)
  * - Thin vertical lines from the top of screen
  * - Circular containers for hanging items
- * - Click releases item: one instance falls, remaining quantity stays hanging
+ * - Click releases item: one instance falls to the ground
  * - Multiple dropped instances of same item type can exist
  * - Contact detection: items auto-use when touching Blobbi
  * - Click-to-use: click landed items to use them
@@ -119,7 +117,7 @@ interface HangingItemsProps {
   onItemUse?: (item: CompanionItem) => Promise<ItemUseAttemptResult>;
   /** 
    * Callback when an item is collected by Blobbi (contact).
-   * @deprecated Use onItemUse instead for proper item consumption flow.
+   * @deprecated Use onItemUse instead for proper item-use flow.
    */
   onItemCollected?: (item: CompanionItem) => void;
   /**
@@ -156,7 +154,7 @@ const HANGING_CONFIG = {
   baseFallDistance: 500,
   /** Ground offset from bottom of viewport */
   defaultGroundOffset: 40,
-  /** Size of quantity badge */
+  /** Size of badge (unused — kept for config consistency) */
   badgeSize: 20,
   /** Size of landed item hitbox for contact detection */
   landedItemSize: 40,
@@ -650,7 +648,7 @@ export function HangingItems({
           });
           // Also remove from zone tracking
           itemsInZoneRef.current.delete(instanceId);
-          // Decrement the released count for this item type (since the instance is now consumed)
+          // Decrement the released count for this item type (instance removed from screen)
           setReleasedCountByItemId(prev => {
             const next = new Map(prev);
             const currentCount = next.get(item.id) || 0;
