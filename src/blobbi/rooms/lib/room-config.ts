@@ -36,9 +36,9 @@ export interface BlobbiRoomMeta {
 export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
   care: {
     id: 'care',
-    label: 'Bathroom',
-    description: 'Hygiene and care',
-    icon: '🛁',
+    label: 'Care Room',
+    description: 'Hygiene, care, and medicine',
+    icon: '🩹',
   },
   kitchen: {
     id: 'kitchen',

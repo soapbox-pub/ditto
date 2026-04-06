@@ -3,22 +3,17 @@
 /**
  * BlobbiRoomShell — The outer layout for the room-based Blobbi dashboard.
  *
- * The shell renders the room as one continuous surface:
- * - Room header (label + dots) floats absolutely over the room content
- * - Room navigation arrows float absolutely on the sides
- * - The room component fills the entire area
- *
- * This avoids the "stacked panels" look where header, content, and footer
- * appear as separate background blocks.
- *
- * Future animation branch:
- * - `direction` in nav state tells which way the user navigated.
+ * Manages:
+ * - Current room state + navigation
+ * - Sleep dark overlay (scoped to this shell only)
+ * - Ephemeral poop instances (local-only, no persistence)
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/useToast';
 import {
   type BlobbiRoomId,
   ROOM_META,
@@ -28,7 +23,12 @@ import {
   getPreviousRoom,
   getRoomIndex,
 } from '../lib/room-config';
-import type { BlobbiRoomContext } from '../lib/room-types';
+import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
+import {
+  generateInitialPoops,
+  removePoop,
+  type PoopInstance,
+} from '../lib/poop-system';
 
 import { BlobbiHomeRoom } from './BlobbiHomeRoom';
 import { BlobbiKitchenRoom } from './BlobbiKitchenRoom';
@@ -52,7 +52,7 @@ interface RoomNavState {
 
 // ─── Room Component Map ───────────────────────────────────────────────────────
 
-const ROOM_COMPONENTS: Record<BlobbiRoomId, React.ComponentType<{ ctx: BlobbiRoomContext }>> = {
+const ROOM_COMPONENTS: Record<BlobbiRoomId, React.ComponentType<{ ctx: BlobbiRoomContext; poopState: RoomPoopState }>> = {
   care: BlobbiCareRoom,
   kitchen: BlobbiKitchenRoom,
   home: BlobbiHomeRoom,
@@ -97,22 +97,63 @@ export function BlobbiRoomShell({
     label: ROOM_META[id].label,
   })), [roomOrder, roomIndex]);
 
+  const isSleeping = ctx.isSleeping;
+
+  // ─── Poop system (ephemeral, local-only) ───
+  const [poops, setPoops] = useState<PoopInstance[]>([]);
+  const [shovelMode, setShovelMode] = useState(false);
+
+  // Generate poop on mount
+  useEffect(() => {
+    const hunger = ctx.currentStats.hunger;
+    const lastFeed = ctx.lastFeedTimestamp ?? ctx.companion.lastInteraction * 1000;
+    setPoops(generateInitialPoops(hunger, lastFeed));
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onRemovePoop = useCallback((poopId: string) => {
+    setPoops(prev => {
+      const { remaining, xpReward } = removePoop(prev, poopId);
+      if (xpReward > 0) {
+        toast({ title: `+${xpReward} XP`, description: 'Cleaned up!' });
+      }
+      if (remaining.length === 0) {
+        setShovelMode(false);
+      }
+      return remaining;
+    });
+  }, []);
+
+  const poopState: RoomPoopState = useMemo(() => ({
+    poops,
+    shovelMode,
+    setShovelMode,
+    onRemovePoop,
+  }), [poops, shovelMode, onRemovePoop]);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
       {/* ── Room Content — fills the entire shell ── */}
       <div className="flex-1 min-h-0 flex flex-col relative">
-        <RoomComponent ctx={ctx} />
+        <RoomComponent ctx={ctx} poopState={poopState} />
       </div>
 
-      {/* ── Floating Room Header — absolutely positioned over content ── */}
+      {/* ── Sleep overlay — darkens the room when Blobbi sleeps ── */}
+      {isSleeping && (
+        <div
+          className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-700"
+          style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.45) 100%)' }}
+        />
+      )}
+
+      {/* ── Floating Room Header ── */}
       <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
         <div className="flex flex-col items-center pt-2 pb-1">
-          {/* Room label */}
           <div className="flex items-center gap-1.5 pointer-events-auto">
             <span className="text-sm">{meta.icon}</span>
             <span className="text-xs sm:text-sm font-semibold text-foreground/70">{meta.label}</span>
           </div>
-          {/* Indicator dots */}
           <div className="flex items-center gap-1.5 mt-1">
             {dots.map(dot => (
               <div
@@ -130,7 +171,7 @@ export function BlobbiRoomShell({
         </div>
       </div>
 
-      {/* ── Left / Right Navigation Arrows — absolutely positioned ── */}
+      {/* ── Left / Right Navigation Arrows ── */}
       <button
         onClick={goLeft}
         className={cn(

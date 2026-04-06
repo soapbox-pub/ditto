@@ -26,7 +26,7 @@ import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { isLocalhostDev } from '@/blobbi/dev';
-import type { BlobbiRoomContext } from '../lib/room-types';
+import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
 import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
@@ -49,6 +49,7 @@ function companionNeedsCare(companion: { stats: { hunger?: number; happiness?: n
 
 interface BlobbiHatcheryRoomProps {
   ctx: BlobbiRoomContext;
+  poopState: RoomPoopState;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

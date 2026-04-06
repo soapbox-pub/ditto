@@ -8,12 +8,13 @@
 
 import { Shirt } from 'lucide-react';
 
-import type { BlobbiRoomContext } from '../lib/room-types';
+import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
 import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 
 interface BlobbiClosetRoomProps {
   ctx: BlobbiRoomContext;
+  poopState: RoomPoopState;
 }
 
 export function BlobbiClosetRoom({ ctx }: BlobbiClosetRoomProps) {

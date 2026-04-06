@@ -3,18 +3,19 @@
 /**
  * BlobbiRestRoom — The bedroom / rest room.
  *
- * Bottom bar: (empty left) | (empty center) | Sleep/Wake (right)
+ * Bottom bar: Sleep/Wake button centered.
  */
 
 import { Moon, Sun, Loader2 } from 'lucide-react';
 
-import type { BlobbiRoomContext } from '../lib/room-types';
+import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
 import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
 
 interface BlobbiRestRoomProps {
   ctx: BlobbiRoomContext;
+  poopState: RoomPoopState;
 }
 
 export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
@@ -36,15 +37,8 @@ export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
 
       {!isActiveFloatingCompanion && (
         <div className={ROOM_BOTTOM_BAR_CLASS}>
-          <div className="flex items-center justify-between gap-1 sm:gap-3">
-            {/* Left — empty */}
-            <div className="w-14 sm:w-20 shrink-0" />
-
-            {/* Center — empty */}
-            <div className="flex-1" />
-
-            {/* Right — Sleep / Wake */}
-            {!isEgg ? (
+          <div className="flex items-center justify-center">
+            {!isEgg && (
               <RoomActionButton
                 icon={
                   actionInProgress === 'rest'
@@ -59,8 +53,6 @@ export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
                 onClick={onRest}
                 disabled={isDisabled}
               />
-            ) : (
-              <div className="w-14 sm:w-20 shrink-0" />
             )}
           </div>
         </div>

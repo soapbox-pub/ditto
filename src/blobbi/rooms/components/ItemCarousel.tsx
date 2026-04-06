@@ -3,10 +3,11 @@
 /**
  * ItemCarousel — Single-focus carousel for room items.
  *
+ * The focused item area has a fixed width/height so the arrows and
+ * side previews never shift when cycling between items.
+ *
  * Mobile:  focused item only + compact arrows (no prev/next previews)
  * Desktop: focused item + translucent prev/next previews + arrows
- *
- * Each "item" is an opaque entry with id, icon, label, and an onUse callback.
  */
 
 import { useState, useCallback } from 'react';
@@ -21,6 +22,8 @@ export interface CarouselEntry {
   /** Emoji string or ReactNode rendered at large size */
   icon: React.ReactNode;
   label: string;
+  /** Optional metadata attached to the entry (e.g. item type) */
+  meta?: string;
 }
 
 interface ItemCarouselProps {
@@ -31,6 +34,8 @@ interface ItemCarouselProps {
   activeItemId?: string | null;
   /** Whether any action is in progress */
   disabled?: boolean;
+  /** Called when the focused item changes (for conditional side actions) */
+  onFocusChange?: (entry: CarouselEntry) => void;
   className?: string;
 }
 
@@ -41,6 +46,7 @@ export function ItemCarousel({
   onUse,
   activeItemId,
   disabled,
+  onFocusChange,
   className,
 }: ItemCarouselProps) {
   const [index, setIndex] = useState(0);
@@ -48,16 +54,24 @@ export function ItemCarousel({
   const count = items.length;
 
   const prev = useCallback(() => {
-    setIndex(i => (i - 1 + count) % count);
-  }, [count]);
+    setIndex(i => {
+      const next = (i - 1 + count) % count;
+      onFocusChange?.(items[next]);
+      return next;
+    });
+  }, [count, items, onFocusChange]);
 
   const next = useCallback(() => {
-    setIndex(i => (i + 1) % count);
-  }, [count]);
+    setIndex(i => {
+      const next = (i + 1) % count;
+      onFocusChange?.(items[next]);
+      return next;
+    });
+  }, [count, items, onFocusChange]);
 
   if (count === 0) {
     return (
-      <div className={cn('flex items-center justify-center py-3', className)}>
+      <div className={cn('flex items-center justify-center h-16', className)}>
         <p className="text-xs text-muted-foreground/50">Nothing here yet</p>
       </div>
     );
@@ -71,7 +85,7 @@ export function ItemCarousel({
 
   return (
     <div className={cn('flex items-center justify-center', className)}>
-      {/* Left arrow */}
+      {/* Left arrow — fixed size */}
       <button
         onClick={prev}
         disabled={disabled}
@@ -86,41 +100,48 @@ export function ItemCarousel({
         <ChevronLeft className="size-4" />
       </button>
 
-      {/* Preview (prev) — desktop only, 3+ items */}
+      {/* Preview (prev) — desktop only, fixed slot */}
       {showPreviews && (
-        <div className="hidden sm:flex flex-col items-center opacity-25 scale-[0.65] shrink-0 w-10 pointer-events-none select-none">
-          <span className="text-2xl leading-none">{prevItem.icon}</span>
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 pointer-events-none select-none">
+          <div className="opacity-25 scale-[0.65]">
+            <span className="text-2xl leading-none">{prevItem.icon}</span>
+          </div>
         </div>
       )}
 
-      {/* Focused item */}
+      {/* Focused item — FIXED SIZE container so layout never shifts */}
       <button
         onClick={() => onUse(current.id)}
         disabled={disabled}
         className={cn(
-          'relative flex flex-col items-center gap-0.5 py-1 px-3 sm:px-4 rounded-2xl transition-all duration-200 shrink-0',
-          'hover:-translate-y-0.5 active:scale-95',
+          'relative flex flex-col items-center justify-center shrink-0',
+          'w-20 h-16 sm:w-24 sm:h-20 rounded-2xl transition-colors duration-200',
+          'hover:bg-accent/20 active:scale-95',
           isThisActive && 'bg-accent/40',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
         )}
       >
-        <span className="text-4xl sm:text-5xl leading-none transition-transform duration-200 hover:scale-110">
+        <span className="text-4xl sm:text-5xl leading-none">
           {current.icon}
         </span>
-        <span className="text-[10px] sm:text-xs font-medium text-foreground/70">{current.label}</span>
+        <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 truncate max-w-full px-1">
+          {current.label}
+        </span>
         {isThisActive && (
-          <Loader2 className="size-3.5 animate-spin text-primary absolute -bottom-1" />
+          <Loader2 className="size-3.5 animate-spin text-primary absolute -bottom-0.5" />
         )}
       </button>
 
-      {/* Preview (next) — desktop only, 3+ items */}
+      {/* Preview (next) — desktop only, fixed slot */}
       {showPreviews && (
-        <div className="hidden sm:flex flex-col items-center opacity-25 scale-[0.65] shrink-0 w-10 pointer-events-none select-none">
-          <span className="text-2xl leading-none">{nextItem.icon}</span>
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 pointer-events-none select-none">
+          <div className="opacity-25 scale-[0.65]">
+            <span className="text-2xl leading-none">{nextItem.icon}</span>
+          </div>
         </div>
       )}
 
-      {/* Right arrow */}
+      {/* Right arrow — fixed size */}
       <button
         onClick={next}
         disabled={disabled}

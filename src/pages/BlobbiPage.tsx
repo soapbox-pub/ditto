@@ -1450,6 +1450,9 @@ function BlobbiDashboard({
     // Inventory modal
     inventoryAction,
     setInventoryAction,
+
+    // Last feed timestamp (for poop system — use lastInteraction as proxy)
+    lastFeedTimestamp: companion.lastInteraction ? companion.lastInteraction * 1000 : undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [
     // Only the primitive/memoized deps that actually change.

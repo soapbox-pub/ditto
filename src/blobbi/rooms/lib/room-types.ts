@@ -172,4 +172,22 @@ export interface BlobbiRoomContext {
   // ── Inventory modal (still used in kitchen) ──
   inventoryAction: InventoryAction | null;
   setInventoryAction: React.Dispatch<React.SetStateAction<InventoryAction | null>>;
+
+  // ── Last feed timestamp (for poop system) ──
+  lastFeedTimestamp: number | undefined;
+}
+
+// ─── Poop State (passed from shell to rooms) ──────────────────────────────────
+
+import type { PoopInstance } from './poop-system';
+
+export interface RoomPoopState {
+  /** All poop instances across rooms */
+  poops: PoopInstance[];
+  /** Whether shovel mode is currently active */
+  shovelMode: boolean;
+  /** Toggle shovel mode on/off */
+  setShovelMode: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Remove a poop (returns XP reward via callback) */
+  onRemovePoop: (poopId: string) => void;
 }

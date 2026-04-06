@@ -16,7 +16,7 @@ import { Camera, Footprints, Music, Mic } from 'lucide-react';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { InlineMusicPlayer, InlineSingCard } from '@/blobbi/actions';
-import type { BlobbiRoomContext } from '../lib/room-types';
+import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
 import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
@@ -24,6 +24,7 @@ import { ItemCarousel, type CarouselEntry } from './ItemCarousel';
 
 interface BlobbiHomeRoomProps {
   ctx: BlobbiRoomContext;
+  poopState: RoomPoopState;
 }
 
 export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
