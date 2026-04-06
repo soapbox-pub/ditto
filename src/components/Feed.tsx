@@ -22,6 +22,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -36,8 +37,14 @@ import type { SavedFeed } from '@/contexts/AppContext';
 type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
-/** Curated kinds for the logged-out homepage: unique Ditto content types. */
+/** Curated kinds for the logged-out homepage and Ditto tab: unique Ditto content types. */
 const LANDING_KINDS = [
+  20,    // Photos (NIP-68)
+  21,    // Videos (NIP-71)
+  22,    // Short Videos (NIP-71)
+  34236, // Divines (addressable short videos)
+  36787, // Music Tracks
+  34139, // Music Playlists
   36767, // Themes
   37381, // Magic Decks
   3367,  // Color Moments
@@ -74,6 +81,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
+  const { data: curatorFollowList } = useCuratorFollowList();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -151,13 +159,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 
   // "Hot" sorted feed query (used when logged out on the home page, or on the Ditto tab)
-  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
+  // Shows curated content from the curator's follow list. Webxdc needs a
   // separate filter with a MIME-type tag constraint.
   const topQuery = useInfiniteHotFeed(
     LANDING_KINDS,
-    useTopFeedForLoggedOut || !!useDittoTab,
+    (useTopFeedForLoggedOut || !!useDittoTab) && (curatorFollowList ?? []).length > 0,
     undefined,
     [LANDING_WEBXDC_FILTER],
+    curatorFollowList,
   );
 
   // Unify the two query shapes behind a single interface
