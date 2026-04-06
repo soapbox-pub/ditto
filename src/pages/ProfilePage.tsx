@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -866,7 +867,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     openUrl(imageUrl);
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
       onClick={handleBackdropClick}
@@ -910,7 +911,8 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
           draggable={false}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
