@@ -10,10 +10,8 @@ import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 export function BlobbiStateCard({ event }: { event: NostrEvent }) {
   const companion = useMemo(() => parseBlobbiEvent(event), [event]);
 
-  if (!companion) return null;
-
-  const isSleeping = companion.state === 'sleeping';
-  const isEgg = companion.stage === 'egg';
+  const isSleeping = companion?.state === 'sleeping';
+  const isEgg = companion?.stage === 'egg';
 
   // ── Project stats forward in time, then resolve visual recipe ──
   // Feed cards show a snapshot, not a live ticker, so we call the pure
@@ -22,7 +20,7 @@ export function BlobbiStateCard({ event }: { event: NostrEvent }) {
   // same decay math the room view uses (applyBlobbiDecay under the
   // hood) without any per-card setInterval overhead.
   const { recipe: feedRecipe, recipeLabel: feedRecipeLabel } = useMemo(() => {
-    if (isEgg) return { recipe: EMPTY_RECIPE, recipeLabel: 'neutral' };
+    if (!companion || isEgg) return { recipe: EMPTY_RECIPE, recipeLabel: 'neutral' };
 
     const { stats } = calculateProjectedDecay(companion);
 
@@ -34,6 +32,8 @@ export function BlobbiStateCard({ event }: { event: NostrEvent }) {
 
     return { recipe: final, recipeLabel: isSleeping ? 'sleeping' : result.label };
   }, [companion, isEgg, isSleeping]);
+
+  if (!companion) return null;
 
   return (
     <div className="flex flex-col items-center py-4">
