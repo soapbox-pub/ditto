@@ -73,7 +73,7 @@ export interface UseBlobbiDirectActionParams {
 
 /**
  * Hook to execute a direct action on a Blobbi companion.
- * Direct actions (play_music, sing) don't consume inventory items.
+ * Direct actions (play_music, sing) don't require selecting an item.
  * They directly affect happiness stat.
  * 
  * This hook:

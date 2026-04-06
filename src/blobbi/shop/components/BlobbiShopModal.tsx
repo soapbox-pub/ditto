@@ -23,7 +23,7 @@ import { cn, formatCompactNumber } from '@/lib/utils';
 
 type TopTab = 'items' | 'shop';
 
-/** Resolved inventory item with shop metadata and usability info */
+/** Resolved catalog item with shop metadata and usability info */
 interface ResolvedInventoryItem extends ShopItem {
   itemId: string;
   canUse: boolean;
@@ -260,7 +260,7 @@ function ShopGrid({ items, availableCoins, onBuy, purchasingItemId }: ShopGridPr
   );
 }
 
-// ─── Items Grid (inventory, tile layout) ──────────────────────────────────────
+// ─── Items Grid (catalog, tile layout) ────────────────────────────────────────
 
 interface ItemsGridProps {
   items: ResolvedInventoryItem[];

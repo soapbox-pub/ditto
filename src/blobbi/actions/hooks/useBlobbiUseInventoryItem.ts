@@ -33,7 +33,7 @@ import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 /**
- * Request payload for using an inventory item
+ * Request payload for using an item on a Blobbi companion
  */
 export interface UseItemRequest {
   itemId: string;
@@ -41,7 +41,7 @@ export interface UseItemRequest {
 }
 
 /**
- * Result of using an inventory item
+ * Result of using an item on a Blobbi companion
  */
 export interface UseItemResult {
   itemName: string;
@@ -63,9 +63,9 @@ export interface UseBlobbiUseInventoryItemParams {
     content: string;
     allTags: string[][];
     wasMigrated: boolean;
-    /** Latest profile tags after migration (use instead of profile.allTags) */
+    /** Latest profile tags after migration */
     profileAllTags: string[][];
-    /** Latest profile storage after migration (use instead of profile.storage) */
+    /** Latest profile storage after migration */
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
@@ -78,16 +78,16 @@ export interface UseBlobbiUseInventoryItemParams {
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
- * Hook to use an inventory item on a Blobbi companion.
+ * Hook to use an item on a Blobbi companion.
+ * 
+ * Items are reusable abilities sourced from the shop catalog — no
+ * inventory ownership or quantity is required.
  * 
  * This hook:
- * 1. Validates the companion stage (eggs can't use items)
- * 2. Validates the item exists in storage
- * 3. Ensures canonical format before action
- * 4. Applies item effects to Blobbi stats
- * 5. Updates Blobbi state (kind 31124)
- * 6. Decrements item from profile storage (kind 11125)
- * 7. Invalidates relevant queries
+ * 1. Validates the companion and item compatibility
+ * 2. Ensures canonical format before action
+ * 3. Applies accumulated decay, then item effects to Blobbi stats
+ * 4. Updates Blobbi state (kind 31124)
  */
 export function useBlobbiUseInventoryItem({
   companion,

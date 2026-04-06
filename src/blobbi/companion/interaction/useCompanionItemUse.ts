@@ -66,14 +66,14 @@ export interface UseCompanionItemUseResult {
   isUsingItem: boolean;
   /** Get the action type for an item category */
   getActionForCategory: (category: ShopItemCategory) => InventoryAction | null;
-  /** Get the inventory action for a menu action */
+  /** Get the care action for a menu action */
   getInventoryAction: (menuAction: CompanionMenuAction) => InventoryAction | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /**
- * Map item categories to inventory actions.
+ * Map item categories to care actions.
  * This is the canonical mapping for how items are used.
  */
 export const CATEGORY_TO_ACTION: Record<ShopItemCategory, InventoryAction | null> = {
@@ -84,14 +84,14 @@ export const CATEGORY_TO_ACTION: Record<ShopItemCategory, InventoryAction | null
 };
 
 /**
- * Map menu actions to inventory actions (they match by design).
+ * Map menu actions to item-based care actions (they match by design).
  */
 export const MENU_ACTION_TO_INVENTORY_ACTION: Record<CompanionMenuAction, InventoryAction | null> = {
   feed: 'feed',
   play: 'play',
   medicine: 'medicine',
   clean: 'clean',
-  sleep: null, // Sleep is a special action, not an inventory action
+  sleep: null, // Sleep is a special action, not item-based
 };
 
 // ─── Hook Implementation ──────────────────────────────────────────────────────
@@ -107,8 +107,8 @@ export const MENU_ACTION_TO_INVENTORY_ACTION: Record<CompanionMenuAction, Invent
  * Usage:
  * ```tsx
  * const { useItem, isUsingItem } = useCompanionItemUse({
- *   onUseItem: async (itemId, action, qty) => {
- *     return await executeUseItem({ itemId, action, quantity: qty });
+ *   onUseItem: async (itemId, action) => {
+ *     return await executeUseItem({ itemId, action });
  *   },
  *   onSuccess: (result) => removeItemFromScreen(result.item),
  *   onFailure: (result) => keepItemOnScreen(result.item),
@@ -133,7 +133,7 @@ export function useCompanionItemUse({
   }, []);
   
   /**
-   * Get the inventory action for a menu action.
+   * Get the care action for a menu action.
    */
   const getInventoryAction = useCallback((menuAction: CompanionMenuAction): InventoryAction | null => {
     return MENU_ACTION_TO_INVENTORY_ACTION[menuAction];

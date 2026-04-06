@@ -407,7 +407,7 @@ function BlobbiContent() {
     updateProfileEvent,
   });
   
-  // Handler for using an inventory item (always uses once)
+  // Handler for using an item (always uses once)
   const handleUseItem = useCallback(async (itemId: string, action: InventoryAction) => {
     await executeUseItem({ itemId, action });
   }, [executeUseItem]);

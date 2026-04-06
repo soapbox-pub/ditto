@@ -35,14 +35,14 @@ interface BlobbiInventoryModalProps {
   isUsingItem?: boolean;
 }
 
-/** Resolved inventory item with shop metadata and usability info */
+/** Resolved catalog item with shop metadata and usability info */
 interface ResolvedInventoryItem extends ShopItem {
   itemId: string;
   canUse: boolean;
   reason?: string;
 }
 
-// ── Shared inventory content (used by both standalone modal and unified shop modal) ──
+// ── Shared items content (used by both standalone modal and unified shop modal) ──
 
 interface BlobbiInventoryContentProps {
   profile: BlobbonautProfile | null;
