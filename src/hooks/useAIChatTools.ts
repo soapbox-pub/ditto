@@ -6,7 +6,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useUploadFile } from '@/hooks/useUploadFile';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useMCPTools } from '@/hooks/useMCPTools';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
@@ -34,7 +33,6 @@ export function useAIChatTools() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { mutateAsync: uploadFile } = useUploadFile();
-  const { mutateAsync: publishEvent } = useNostrPublish();
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
 
   /** MCP tool definitions in OpenAI format, ready to merge with built-in TOOLS. */
@@ -498,10 +496,6 @@ export function useAIChatTools() {
 
       case 'create_emoji_pack': {
         try {
-          if (!user) {
-            return { result: JSON.stringify({ error: 'Must be logged in to create emoji packs.' }) };
-          }
-
           const packName = typeof args.name === 'string' ? args.name.trim() : '';
           if (!packName) {
             return { result: JSON.stringify({ error: 'A pack name is required.' }) };
@@ -527,16 +521,6 @@ export function useAIChatTools() {
             .replace(/[\s_]+/g, '-')
             .replace(/^-+|-+$/g, '');
 
-          // Check for d-tag collision.
-          const existing = await nostr.query(
-            [{ kinds: [30030], authors: [user.pubkey], '#d': [dTag], limit: 1 }],
-            { signal: AbortSignal.timeout(5000) },
-          );
-
-          if (existing.length > 0) {
-            return { result: JSON.stringify({ error: `An emoji pack with slug "${dTag}" already exists. Choose a different name.` }) };
-          }
-
           // Build tags: d-tag, title, then emoji entries.
           const tags: string[][] = [
             ['d', dTag],
@@ -544,15 +528,40 @@ export function useAIChatTools() {
             ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
           ];
 
-          await publishEvent({ kind: 30030, content: '', tags });
+          // Generate ephemeral keypair (same pattern as create_spell).
+          const sk = generateSecretKey();
+          const pubkey = getPublicKey(sk);
+
+          const emojiPackEvent = finalizeEvent({
+            kind: 30030,
+            content: '',
+            tags,
+            created_at: Math.floor(Date.now() / 1000),
+          }, sk) as NostrEvent;
+
+          // Publish a minimal kind:0 profile for the ephemeral key.
+          const profileEvent = finalizeEvent({
+            kind: 0,
+            content: JSON.stringify({ name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' }),
+            tags: [],
+            created_at: Math.floor(Date.now() / 1000),
+          }, sk) as NostrEvent;
+
+          await Promise.all([
+            nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }),
+            nostr.event(emojiPackEvent, { signal: AbortSignal.timeout(5000) }),
+          ]);
 
           return {
             result: JSON.stringify({
               success: true,
+              event_id: emojiPackEvent.id,
+              pubkey,
               name: packName,
               slug: dTag,
               emoji_count: emojis.length,
             }),
+            nostrEvent: emojiPackEvent,
           };
         } catch (err) {
           return { result: JSON.stringify({ error: `Failed to create emoji pack: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
@@ -562,7 +571,7 @@ export function useAIChatTools() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile, publishEvent]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile]);
 
   return { executeToolCall, mcpTools, mcpToolsLoading };
 }
