@@ -9,6 +9,7 @@
 import { Moon, Sun, Loader2 } from 'lucide-react';
 
 import type { BlobbiRoomContext } from '../lib/room-types';
+import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
 
@@ -34,7 +35,7 @@ export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+        <div className={ROOM_BOTTOM_BAR_CLASS}>
           <div className="flex items-center justify-between gap-1 sm:gap-3">
             {/* Left — empty */}
             <div className="w-14 sm:w-20 shrink-0" />

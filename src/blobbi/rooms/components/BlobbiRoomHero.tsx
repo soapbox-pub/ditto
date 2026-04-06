@@ -3,16 +3,11 @@
 /**
  * BlobbiRoomHero — Shared Blobbi visual display used in every room.
  *
- * Renders:
- * - Stats crown (arced indicators above Blobbi)
- * - BlobbiStageVisual (the main Blobbi)
- * - Blobbi name (hidden for eggs)
- * - Bob/sway animation when not sleeping
+ * This component does NOT clip or constrain the visual — it simply fills
+ * available flex space and centers the Blobbi + stats within it.
+ * The room owns the full-height surface; this just provides content.
  *
- * Sizing is tuned so the hero doesn't crowd the bottom action bar:
- * - Stats indicators are smaller on mobile (size-14 vs size-20)
- * - Blobbi visual uses a tighter responsive scale
- * - Stats crown margin is reduced
+ * Top padding accounts for the floating room header overlay (~40px).
  */
 
 import { useMemo } from 'react';
@@ -97,7 +92,6 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
     heroWidth,
   } = ctx;
 
-  // When the companion is out floating, show "out exploring" instead
   if (isActiveFloatingCompanion) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-4 text-center flex-1 px-4', className)}>
@@ -127,7 +121,15 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
   }
 
   return (
-    <div ref={heroRef} className={cn('relative flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden flex-1 min-h-0', className)}>
+    <div
+      ref={heroRef}
+      className={cn(
+        // No overflow-hidden — let the room own the visual surface.
+        // pt-10 creates clearance for the floating room header overlay.
+        'relative flex flex-col items-center justify-center pt-10 px-4 sm:px-6 flex-1 min-h-0',
+        className,
+      )}
+    >
       <div className="relative flex flex-col items-center">
         {/* Stats crown */}
         {!hideStats && <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />}
@@ -139,7 +141,7 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
         >
-          <div className="absolute inset-0 -m-16 sm:-m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
           <BlobbiStageVisual
             companion={companion}
             size="lg"
@@ -149,13 +151,13 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
             recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
             emotion={effectiveEmotion}
             className={isEgg
-              ? 'size-36 min-[400px]:size-44 sm:size-56 md:size-72 lg:size-80'
-              : 'size-48 min-[400px]:size-60 sm:size-80 md:size-[28rem] lg:size-[32rem]'
+              ? 'size-36 min-[400px]:size-44 sm:size-56 md:size-64 lg:size-72'
+              : 'size-48 min-[400px]:size-60 sm:size-72 md:size-80 lg:size-96'
             }
           />
         </div>
 
-        {/* Blobbi Name — hidden for eggs */}
+        {/* Blobbi Name */}
         {!hideName && !isEgg && (
           <h2
             className="text-xl sm:text-2xl md:text-3xl font-bold text-center mt-1"
@@ -193,20 +195,23 @@ function StatsCrown({
 
   const count = allStats.length;
   const isSmall = heroWidth < 400;
+
+  // Mobile: tighter arc; Desktop: wider spread for breathing room
   const arcSpread = isSmall
     ? (count <= 2 ? 80 : count <= 3 ? 120 : 150)
-    : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
+    : (count <= 2 ? 90 : count <= 3 ? 140 : 180);
   const arcHalf = arcSpread / 2;
   const angles = count === 1
     ? [0]
     : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
   return (
-    <div className="relative flex items-end justify-center w-full mb-6 sm:mb-10" style={{ height: 40 }}>
+    <div className="relative flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40 }}>
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
-        const radius = Math.min(180, Math.max(100, (heroWidth - 340) / (640 - 340) * (180 - 100) + 100));
+        // Mobile: tighter radius; Desktop: wider for more spread
+        const radius = Math.min(220, Math.max(100, (heroWidth - 340) / (640 - 340) * (220 - 100) + 100));
         const x = Math.sin(angleRad) * radius;
         const y = Math.cos(angleRad) * radius - radius;
 

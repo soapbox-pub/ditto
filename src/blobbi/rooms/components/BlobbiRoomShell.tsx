@@ -3,20 +3,16 @@
 /**
  * BlobbiRoomShell — The outer layout for the room-based Blobbi dashboard.
  *
- * Responsibilities:
- * 1. Manages the current room state
- * 2. Renders left/right navigation arrows
- * 3. Shows the room label indicator
- * 4. Delegates room content to the appropriate room component
+ * The shell renders the room as one continuous surface:
+ * - Room header (label + dots) floats absolutely over the room content
+ * - Room navigation arrows float absolutely on the sides
+ * - The room component fills the entire area
  *
- * The shell does NOT own any Blobbi domain logic — it only owns
- * which room is displayed and provides the navigation chrome.
+ * This avoids the "stacked panels" look where header, content, and footer
+ * appear as separate background blocks.
  *
  * Future animation branch:
- * - The `currentRoom` / `direction` state already provides enough
- *   information to drive enter/exit CSS transitions or framer-motion
- *   variants. The `direction` field ('left' | 'right' | null) can be
- *   used to pick the animation direction.
+ * - `direction` in nav state tells which way the user navigated.
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -44,21 +40,11 @@ import { BlobbiClosetRoom } from './BlobbiClosetRoom';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface BlobbiRoomShellProps {
-  /** All room context passed through to the active room */
   ctx: BlobbiRoomContext;
-  /**
-   * Room sequence. Defaults to DEFAULT_ROOM_ORDER.
-   * Later this can come from user preferences.
-   */
   roomOrder?: BlobbiRoomId[];
-  /** Which room to start on. Defaults to DEFAULT_INITIAL_ROOM ('home'). */
   initialRoom?: BlobbiRoomId;
 }
 
-/**
- * Internal navigation state.
- * `direction` is kept for future animation: it tells which way the user navigated.
- */
 interface RoomNavState {
   current: BlobbiRoomId;
   direction: 'left' | 'right' | null;
@@ -103,11 +89,8 @@ export function BlobbiRoomShell({
 
   const meta = ROOM_META[nav.current];
   const roomIndex = getRoomIndex(nav.current, roomOrder);
-
-  // Resolve the room component to render
   const RoomComponent = ROOM_COMPONENTS[nav.current];
 
-  // Room indicator dots
   const dots = useMemo(() => roomOrder.map((id, i) => ({
     id,
     active: i === roomIndex,
@@ -116,65 +99,61 @@ export function BlobbiRoomShell({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
-      {/* ── Room Header — label + dots ── */}
-      <div className="relative z-30 flex items-center justify-center gap-2 pt-2.5 pb-1.5">
-        {/* Room label */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">{meta.icon}</span>
-          <span className="text-sm font-semibold text-foreground/80">{meta.label}</span>
-        </div>
-      </div>
-
-      {/* ── Room indicator dots ── */}
-      <div className="relative z-30 flex items-center justify-center gap-1.5 pb-2">
-        {dots.map(dot => (
-          <div
-            key={dot.id}
-            className={cn(
-              'rounded-full transition-all duration-300',
-              dot.active
-                ? 'w-5 h-1.5 bg-primary'
-                : 'w-1.5 h-1.5 bg-muted-foreground/25',
-            )}
-            title={dot.label}
-          />
-        ))}
-      </div>
-
-      {/* ── Room Content Area ── */}
-      {/*
-        This is where future animation will happen.
-        The `direction` in nav state tells which way to animate.
-        For now, we simply render the active room instantly.
-      */}
+      {/* ── Room Content — fills the entire shell ── */}
       <div className="flex-1 min-h-0 flex flex-col relative">
         <RoomComponent ctx={ctx} />
       </div>
 
-      {/* ── Left / Right Navigation Arrows ── */}
+      {/* ── Floating Room Header — absolutely positioned over content ── */}
+      <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
+        <div className="flex flex-col items-center pt-2 pb-1">
+          {/* Room label */}
+          <div className="flex items-center gap-1.5 pointer-events-auto">
+            <span className="text-sm">{meta.icon}</span>
+            <span className="text-xs sm:text-sm font-semibold text-foreground/70">{meta.label}</span>
+          </div>
+          {/* Indicator dots */}
+          <div className="flex items-center gap-1.5 mt-1">
+            {dots.map(dot => (
+              <div
+                key={dot.id}
+                className={cn(
+                  'rounded-full transition-all duration-300',
+                  dot.active
+                    ? 'w-4 h-1 bg-primary'
+                    : 'w-1 h-1 bg-muted-foreground/20',
+                )}
+                title={dot.label}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Left / Right Navigation Arrows — absolutely positioned ── */}
       <button
         onClick={goLeft}
         className={cn(
-          'absolute left-1 top-1/2 -translate-y-1/2 z-40',
-          'size-10 rounded-full flex items-center justify-center',
-          'text-muted-foreground/50 hover:text-foreground/80 hover:bg-accent/50',
+          'absolute left-0.5 top-1/2 -translate-y-1/2 z-40',
+          'size-9 rounded-full flex items-center justify-center',
+          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
         )}
         aria-label={`Go to ${ROOM_META[getPreviousRoom(nav.current, roomOrder)].label}`}
       >
-        <ChevronLeft className="size-6" />
+        <ChevronLeft className="size-5" />
       </button>
       <button
         onClick={goRight}
         className={cn(
-          'absolute right-1 top-1/2 -translate-y-1/2 z-40',
-          'size-10 rounded-full flex items-center justify-center',
-          'text-muted-foreground/50 hover:text-foreground/80 hover:bg-accent/50',
+          'absolute right-0.5 top-1/2 -translate-y-1/2 z-40',
+          'size-9 rounded-full flex items-center justify-center',
+          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
         )}
         aria-label={`Go to ${ROOM_META[getNextRoom(nav.current, roomOrder)].label}`}
       >
-        <ChevronRight className="size-6" />
+        <ChevronRight className="size-5" />
       </button>
     </div>
   );

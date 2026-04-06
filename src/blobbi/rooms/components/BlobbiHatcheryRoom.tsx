@@ -27,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { isLocalhostDev } from '@/blobbi/dev';
 import type { BlobbiRoomContext } from '../lib/room-types';
+import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
 
@@ -119,7 +120,7 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
 
       {/* ── Bottom Action Bar ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+        <div className={ROOM_BOTTOM_BAR_CLASS}>
           <div className="flex items-center justify-between gap-1 sm:gap-3">
             {/* Left — Blobbis selector */}
             <RoomActionButton
