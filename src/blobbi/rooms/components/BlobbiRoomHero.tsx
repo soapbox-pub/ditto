@@ -196,10 +196,10 @@ function StatsCrown({
   const count = allStats.length;
   const isSmall = heroWidth < 400;
 
-  // Mobile: tighter arc; Desktop: much wider spread for breathing room
+  // Mobile: tighter arc (good already); Desktop: very wide for generous spacing
   const arcSpread = isSmall
     ? (count <= 2 ? 80 : count <= 3 ? 120 : 150)
-    : (count <= 2 ? 100 : count <= 3 ? 160 : 200);
+    : (count <= 2 ? 120 : count <= 3 ? 190 : 230);
   const arcHalf = arcSpread / 2;
   const angles = count === 1
     ? [0]
@@ -210,8 +210,8 @@ function StatsCrown({
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
-        // Mobile: tighter radius; Desktop: much wider for more spread
-        const radius = Math.min(260, Math.max(100, (heroWidth - 340) / (640 - 340) * (260 - 100) + 100));
+        // Mobile: compact radius; Desktop: very wide for generous indicator spacing
+        const radius = Math.min(300, Math.max(100, (heroWidth - 340) / (640 - 340) * (300 - 100) + 100));
         const x = Math.sin(angleRad) * radius;
         const y = Math.cos(angleRad) * radius - radius;
 

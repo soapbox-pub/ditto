@@ -4,7 +4,7 @@
  * BlobbiKitchenRoom — The feeding room.
  *
  * Bottom bar: Shovel (left, when poop exists) | food carousel (center) | Fridge (right)
- * Poop appears as floating emoji in the room when present.
+ * Poop appears at pre-computed safe positions in the lower corners.
  */
 
 import { useMemo, useState } from 'react';
@@ -54,48 +54,54 @@ export function BlobbiKitchenRoom({ ctx, poopState }: BlobbiKitchenRoomProps) {
     });
   };
 
-  // Poop in this room
   const kitchenPoops = getPoopsInRoom(poopState.poops, 'kitchen');
   const anyPoopAnywhere = hasAnyPoop(poopState.poops);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* ── Hero + Poop ── */}
+      {/* ── Hero + Poop layer ── */}
       <div className="relative flex-1 min-h-0 flex flex-col">
         <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
-        {/* Poop floating in the room */}
-        {kitchenPoops.map((poop, i) => (
+        {/* Poop at pre-computed safe positions */}
+        {kitchenPoops.map((poop) => (
           <button
             key={poop.id}
             onClick={() => poopState.shovelMode && poopState.onRemovePoop(poop.id)}
             className={cn(
-              'absolute z-10 text-2xl sm:text-3xl transition-all duration-200',
+              'absolute z-10 transition-all duration-300',
               poopState.shovelMode
-                ? 'cursor-pointer hover:scale-125 active:scale-90 animate-bounce'
+                ? 'cursor-pointer hover:scale-150 active:scale-75'
                 : 'pointer-events-none',
             )}
             style={{
-              bottom: `${20 + i * 8}%`,
-              left: `${15 + (i * 30) % 70}%`,
+              bottom: `${poop.position.bottom}%`,
+              left: `${poop.position.left}%`,
             }}
           >
-            {'💩'}
+            <span className={cn(
+              'text-2xl sm:text-3xl block',
+              poopState.shovelMode && 'drop-shadow-lg',
+            )}>
+              {'💩'}
+            </span>
           </button>
         ))}
       </div>
 
+      {/* ── Bottom bar ── */}
       {!isActiveFloatingCompanion && (
         <div className={ROOM_BOTTOM_BAR_CLASS}>
           <div className="flex items-center justify-between gap-1 sm:gap-3">
-            {/* Left — Shovel (when poop exists anywhere) or empty */}
+            {/* Left — Shovel (when poop exists) or spacer */}
             {anyPoopAnywhere ? (
               <RoomActionButton
                 icon={<Shovel className="size-7 sm:size-9" />}
-                label={poopState.shovelMode ? 'Shoveling' : 'Shovel'}
+                label={poopState.shovelMode ? 'Done' : 'Shovel'}
                 color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
                 glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
                 onClick={() => poopState.setShovelMode(prev => !prev)}
+                className={poopState.shovelMode ? 'ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background rounded-full' : ''}
               />
             ) : (
               <div className="w-14 sm:w-20 shrink-0" />

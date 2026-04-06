@@ -3,8 +3,11 @@
 /**
  * ItemCarousel — Single-focus carousel for room items.
  *
- * The focused item area has a fixed width/height so the arrows and
- * side previews never shift when cycling between items.
+ * Layout stability guarantees:
+ * - The entire carousel width is deterministic (arrows + previews + focus slot)
+ * - Focused item uses a fixed-size container with overflow-hidden
+ * - Label is clamped to a fixed max-width and single line
+ * - Switching items never causes reflow or arrow movement
  *
  * Mobile:  focused item only + compact arrows (no prev/next previews)
  * Desktop: focused item + translucent prev/next previews + arrows
@@ -55,23 +58,24 @@ export function ItemCarousel({
 
   const prev = useCallback(() => {
     setIndex(i => {
-      const next = (i - 1 + count) % count;
-      onFocusChange?.(items[next]);
-      return next;
+      const n = (i - 1 + count) % count;
+      onFocusChange?.(items[n]);
+      return n;
     });
   }, [count, items, onFocusChange]);
 
   const next = useCallback(() => {
     setIndex(i => {
-      const next = (i + 1) % count;
-      onFocusChange?.(items[next]);
-      return next;
+      const n = (i + 1) % count;
+      onFocusChange?.(items[n]);
+      return n;
     });
   }, [count, items, onFocusChange]);
 
   if (count === 0) {
     return (
-      <div className={cn('flex items-center justify-center h-16', className)}>
+      // Empty state matches the height of a populated carousel
+      <div className={cn('flex items-center justify-center h-[4.5rem] sm:h-[5.5rem]', className)}>
         <p className="text-xs text-muted-foreground/50">Nothing here yet</p>
       </div>
     );
@@ -85,7 +89,7 @@ export function ItemCarousel({
 
   return (
     <div className={cn('flex items-center justify-center', className)}>
-      {/* Left arrow — fixed size */}
+      {/* Left arrow — fixed 28/32px */}
       <button
         onClick={prev}
         disabled={disabled}
@@ -100,22 +104,23 @@ export function ItemCarousel({
         <ChevronLeft className="size-4" />
       </button>
 
-      {/* Preview (prev) — desktop only, fixed slot */}
+      {/* Preview (prev) — desktop only, fixed 40x48px slot */}
       {showPreviews && (
-        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 pointer-events-none select-none">
-          <div className="opacity-25 scale-[0.65]">
-            <span className="text-2xl leading-none">{prevItem.icon}</span>
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
+          <div className="opacity-20 scale-[0.6]">
+            <span className="text-2xl leading-none block">{prevItem.icon}</span>
           </div>
         </div>
       )}
 
-      {/* Focused item — FIXED SIZE container so layout never shifts */}
+      {/* Focused item — FIXED 80x72 / 96x88 container, never resizes */}
       <button
         onClick={() => onUse(current.id)}
         disabled={disabled}
         className={cn(
-          'relative flex flex-col items-center justify-center shrink-0',
-          'w-20 h-16 sm:w-24 sm:h-20 rounded-2xl transition-colors duration-200',
+          'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
+          'w-20 h-[4.5rem] sm:w-24 sm:h-[5.5rem] rounded-2xl',
+          'transition-colors duration-200',
           'hover:bg-accent/20 active:scale-95',
           isThisActive && 'bg-accent/40',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
@@ -124,24 +129,25 @@ export function ItemCarousel({
         <span className="text-4xl sm:text-5xl leading-none">
           {current.icon}
         </span>
-        <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 truncate max-w-full px-1">
+        {/* Label: fixed max-width, single line, ellipsis */}
+        <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 w-16 sm:w-20 text-center truncate">
           {current.label}
         </span>
         {isThisActive && (
-          <Loader2 className="size-3.5 animate-spin text-primary absolute -bottom-0.5" />
+          <Loader2 className="size-3.5 animate-spin text-primary absolute bottom-0.5" />
         )}
       </button>
 
-      {/* Preview (next) — desktop only, fixed slot */}
+      {/* Preview (next) — desktop only, fixed 40x48px slot */}
       {showPreviews && (
-        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 pointer-events-none select-none">
-          <div className="opacity-25 scale-[0.65]">
-            <span className="text-2xl leading-none">{nextItem.icon}</span>
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
+          <div className="opacity-20 scale-[0.6]">
+            <span className="text-2xl leading-none block">{nextItem.icon}</span>
           </div>
         </div>
       )}
 
-      {/* Right arrow — fixed size */}
+      {/* Right arrow — fixed 28/32px */}
       <button
         onClick={next}
         disabled={disabled}

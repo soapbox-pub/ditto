@@ -3,9 +3,12 @@
 /**
  * BlobbiCareRoom — Hygiene, care, and medicine room.
  *
- * Side actions are conditional on the currently focused carousel item:
- * - Hygiene item focused: Towel (left) + Shower (right)
- * - Medicine item focused: Lollipop (left) + empty (right)
+ * Side actions depend on the currently focused carousel item:
+ * - Hygiene focused: Towel (left) + Shower (right)
+ * - Medicine focused: Treat (left) + spacer (right)
+ *
+ * Both left and right slots always render the same fixed width
+ * so the bottom bar never shifts when switching item types.
  */
 
 import { useMemo, useState, useCallback } from 'react';
@@ -69,7 +72,7 @@ export function BlobbiCareRoom({ ctx }: BlobbiCareRoomProps) {
       {!isActiveFloatingCompanion && (
         <div className={ROOM_BOTTOM_BAR_CLASS}>
           <div className="flex items-center justify-between gap-1 sm:gap-3">
-            {/* Left — conditional: Towel (hygiene) or Lollipop (medicine) */}
+            {/* Left slot — always same width (button or spacer) */}
             {isHygieneFocused ? (
               towelItem ? (
                 <RoomActionButton
@@ -91,9 +94,9 @@ export function BlobbiCareRoom({ ctx }: BlobbiCareRoomProps) {
                 color="text-pink-400"
                 glowHex="#f472b6"
                 onClick={() => {
-                  // Use lollipop as a comfort treat after medicine
-                  // For now this triggers a small happiness boost via the direct action
-                  handleUseItemFromTab(carouselEntries.find(e => e.meta === 'medicine')?.id ?? '');
+                  // Comfort treat — use a small food item as a reward after medicine
+                  const treat = getLiveShopItems().find(i => i.type === 'food');
+                  if (treat) handleUseItemFromTab(treat.id);
                 }}
                 disabled={isDisabled}
               />
@@ -110,7 +113,7 @@ export function BlobbiCareRoom({ ctx }: BlobbiCareRoomProps) {
               />
             </div>
 
-            {/* Right — conditional: Shower (hygiene) or empty (medicine) */}
+            {/* Right slot — always same width (button or spacer) */}
             {isHygieneFocused ? (
               <RoomActionButton
                 icon={<ShowerHead className="size-7 sm:size-9" />}
