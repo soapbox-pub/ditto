@@ -57,6 +57,22 @@ deploy-nsite:
       --use-fallback-relays
       --use-fallback-servers
 
+build-web:
+  stage: build
+  timeout: 10 minutes
+  needs: []
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - npm ci
+    - npm run build
+    - cp dist/index.html dist/404.html
+  artifacts:
+    paths:
+      - dist/
+
 build-apk:
   stage: build
   image: eclipse-temurin:21-jdk
