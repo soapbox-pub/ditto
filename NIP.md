@@ -356,6 +356,7 @@ The `content` field contains a NIP-44 payload encrypted to the owner's own pubke
 ```json
 {
   "nsec": "<agent-secret-key-hex>",
+  "name": "Sparkles",
   "soul": "A witty space explorer who explains everything with analogies and never takes itself too seriously."
 }
 ```
@@ -363,6 +364,7 @@ The `content` field contains a NIP-44 payload encrypted to the owner's own pubke
 | Field  | Required | Description                                                                 |
 |--------|----------|-----------------------------------------------------------------------------|
 | `nsec` | Yes      | Agent's secret key as a 64-character hex string                             |
+| `name` | Yes      | The buddy's canonical name (source of truth; the agent's kind 0 may use nicknames) |
 | `soul` | Yes      | Free-form text describing the agent's personality, injected into the system prompt via `{{SOUL}}` |
 
 ### Tags

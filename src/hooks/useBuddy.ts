@@ -22,6 +22,8 @@ const BUDDY_DTAG_SUFFIX = '/buddy';
 export interface BuddySecrets {
   /** Buddy agent secret key as hex string. */
   nsec: string;
+  /** The buddy's canonical name (source of truth — kind 0 may use nicknames). */
+  name: string;
   /** The buddy's soul — personality / behavior description injected into the system prompt. */
   soul: string;
 }
@@ -30,6 +32,8 @@ export interface BuddySecrets {
 export interface BuddyIdentity {
   /** Buddy agent's public key (hex). */
   pubkey: string;
+  /** The buddy's canonical name. */
+  name: string;
   /** The buddy's soul text. */
   soul: string;
   /** The raw kind 30078 event (for reference). */
@@ -109,46 +113,31 @@ export function useBuddy() {
       const event = buddyEventQuery.data;
       if (!event || !user) return null;
 
-      // Try localStorage first
+      // Always need to decrypt to get name + soul
+      const secrets = await decryptSecrets(event, user);
+      if (!secrets) return null;
+
+      // Try localStorage nsec first
       const localSk = getStoredNsec();
       if (localSk) {
         const pubkey = getPublicKey(localSk);
         // Verify the localStorage key matches the event's p-tag
-        const eventPubkey = event.tags.find(([name]) => name === 'p')?.[1];
+        const eventPubkey = event.tags.find(([t]) => t === 'p')?.[1];
         if (eventPubkey && eventPubkey !== pubkey) {
-          // Mismatch — localStorage has a stale key. Clear it and fall through to decrypt.
+          // Mismatch — restore from decrypted secrets
           clearStoredNsec();
-        } else {
-          // Decrypt soul from event content
-          const soul = await decryptSoul(event, user);
-          if (soul !== null) {
-            return { pubkey, soul, event };
-          }
+          const sk = hexToBytes(secrets.nsec);
+          storeNsec(sk);
+          return { pubkey: getPublicKey(sk), name: secrets.name, soul: secrets.soul, event };
         }
+        return { pubkey, name: secrets.name, soul: secrets.soul, event };
       }
 
-      // localStorage empty or mismatched — decrypt from relay event
-      if (!event.content || !user.signer.nip44) return null;
+      // localStorage empty — restore nsec from decrypted secrets
+      const sk = hexToBytes(secrets.nsec);
+      storeNsec(sk);
 
-      try {
-        const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-        const secrets: BuddySecrets = JSON.parse(decrypted);
-
-        if (!secrets.nsec || !secrets.soul) return null;
-
-        // Restore nsec to localStorage
-        const sk = hexToBytes(secrets.nsec);
-        storeNsec(sk);
-
-        return {
-          pubkey: getPublicKey(sk),
-          soul: secrets.soul,
-          event,
-        };
-      } catch (error) {
-        console.error('Failed to decrypt buddy identity:', error);
-        return null;
-      }
+      return { pubkey: getPublicKey(sk), name: secrets.name, soul: secrets.soul, event };
     },
     enabled: !!buddyEventQuery.data && !!user,
     staleTime: Infinity,
@@ -187,6 +176,7 @@ export function useBuddy() {
       // Build kind 30078 buddy identity event (signed by the user)
       const secrets: BuddySecrets = {
         nsec: bytesToHex(sk),
+        name,
         soul,
       };
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(secrets));
@@ -209,7 +199,7 @@ export function useBuddy() {
         nostr.event(buddyEvent, { signal: AbortSignal.timeout(5000) }),
       ]);
 
-      return { pubkey, soul, event: buddyEvent } satisfies BuddyIdentity;
+      return { pubkey, name, soul, event: buddyEvent } satisfies BuddyIdentity;
     },
     onSuccess: (identity) => {
       // Update caches
@@ -228,12 +218,15 @@ export function useBuddy() {
       // Get the current nsec (must exist if buddy exists)
       const localSk = getStoredNsec();
       if (!localSk) throw new Error('Buddy nsec not found in localStorage');
+      if (!buddyQuery.data) throw new Error('No existing buddy identity to update');
 
       const pubkey = getPublicKey(localSk);
+      const currentName = buddyQuery.data.name;
 
-      // Encrypt updated secrets
+      // Encrypt updated secrets (preserve name)
       const secrets: BuddySecrets = {
         nsec: bytesToHex(localSk),
+        name: currentName,
         soul: newSoul,
       };
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(secrets));
@@ -257,7 +250,7 @@ export function useBuddy() {
       const profileEvent = finalizeEvent({
         kind: 0,
         content: JSON.stringify({
-          name: buddyQuery.data?.event.tags.find(([n]) => n === 'name')?.[1] ?? 'Buddy',
+          name: currentName,
           about: newSoul,
           bot: true,
         }),
@@ -269,7 +262,7 @@ export function useBuddy() {
         console.error('Failed to update buddy profile:', err);
       });
 
-      return { pubkey, soul: newSoul, event: buddyEvent } satisfies BuddyIdentity;
+      return { pubkey, name: currentName, soul: newSoul, event: buddyEvent } satisfies BuddyIdentity;
     },
     onSuccess: (identity) => {
       queryClient.setQueryData(['buddy-event', user?.pubkey], identity.event);
@@ -341,16 +334,17 @@ export function useBuddy() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Decrypt just the soul from a buddy event's encrypted content. */
-async function decryptSoul(
+/** Decrypt the buddy secrets from a kind 30078 event's encrypted content. */
+async function decryptSecrets(
   event: NostrEvent,
   user: { pubkey: string; signer: { nip44?: { decrypt: (pubkey: string, ciphertext: string) => Promise<string> } } },
-): Promise<string | null> {
+): Promise<BuddySecrets | null> {
   if (!event.content || !user.signer.nip44) return null;
   try {
     const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-    const secrets: BuddySecrets = JSON.parse(decrypted);
-    return secrets.soul ?? null;
+    const secrets = JSON.parse(decrypted) as BuddySecrets;
+    if (!secrets.nsec || !secrets.name || !secrets.soul) return null;
+    return secrets;
   } catch {
     return null;
   }
