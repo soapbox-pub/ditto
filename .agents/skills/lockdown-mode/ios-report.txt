@@ -1,0 +1,220 @@
+============================================================
+LOCKDOWN MODE DETECTOR REPORT
+2026-04-06T20:53:36.098Z
+============================================================
+
+VERDICT: Lockdown Mode Likely Active
+7 of 11 key APIs are blocked, consistent with iOS/macOS Lockdown Mode.
+Score: 68% (7/11 key APIs blocked)
+
+============================================================
+API TEST RESULTS (detailed)
+============================================================
+
+------------------------------------------------------------
+[BLOCKED] IndexedDB (weight: 3)
+  Client-side structured storage
+  Result: Can't find variable: indexedDB
+  Diagnostics:
+    uncaught: Can't find variable: indexedDB
+
+------------------------------------------------------------
+[BLOCKED] WebAssembly (weight: 2)
+  Binary instruction execution
+  Result: WebAssembly is undefined
+  Diagnostics:
+    typeof WebAssembly: undefined
+    WebAssembly global does not exist
+
+------------------------------------------------------------
+[BLOCKED] Web Locks API (weight: 3)
+  Cross-tab resource coordination
+  Result: navigator.locks is undefined
+  Diagnostics:
+    typeof navigator.locks: undefined
+    'locks' in navigator: false
+    navigator.locks is falsy
+
+------------------------------------------------------------
+[BLOCKED] Speech Synthesis (weight: 3)
+  Web Speech API (text-to-speech)
+  Result: window.speechSynthesis is undefined
+  Diagnostics:
+    typeof window.speechSynthesis: undefined
+    'speechSynthesis' in window: false
+    typeof SpeechSynthesisUtterance: undefined
+    speechSynthesis is falsy
+
+------------------------------------------------------------
+[BLOCKED] FileReader API (weight: 2)
+  Local file reading interface
+  Result: FileReader is undefined
+  Diagnostics:
+    typeof FileReader: undefined
+    FileReader constructor does not exist
+
+------------------------------------------------------------
+[AVAILABLE] File Constructor (weight: 2)
+  File object creation
+  Result: File created: name=test.txt size=4
+  Diagnostics:
+    typeof File: function
+    calling new File(['test'], 'test.txt', {type:'text/plain'})...
+    succeeded
+    f.name: test.txt
+    f.size: 4
+    f.type: text/plain
+    f instanceof Blob: true
+
+------------------------------------------------------------
+[BLOCKED] WebGL (weight: 2)
+  GPU-accelerated graphics
+  Result: all WebGL contexts returned null
+  Diagnostics:
+    getContext('webgl2'): null
+    getContext('webgl'): null
+    getContext('experimental-webgl'): null
+
+------------------------------------------------------------
+[BLOCKED] WebGL2 (weight: 1)
+  Advanced GPU graphics context
+  Result: getContext('webgl2') returned null
+  Diagnostics:
+    getContext('webgl2'): null
+
+------------------------------------------------------------
+[BLOCKED] Service Worker (weight: 1)
+  Background script registration
+  Result: navigator.serviceWorker not present
+  Diagnostics:
+    'serviceWorker' in navigator: false
+    typeof navigator.serviceWorker: undefined
+
+------------------------------------------------------------
+[BLOCKED] Web Share API (weight: 0)
+  Native sharing interface
+  Result: navigator.share is undefined
+  Diagnostics:
+    typeof navigator.share: undefined
+    typeof navigator.canShare: undefined
+
+------------------------------------------------------------
+[BLOCKED] Gamepad API (weight: 1)
+  Game controller input
+  Result: navigator.getGamepads not present
+  Diagnostics:
+    'getGamepads' in navigator: false
+
+------------------------------------------------------------
+[BLOCKED] WebRTC (weight: 2)
+  Real-time peer communication
+  Result: RTCPeerConnection is undefined
+  Diagnostics:
+    typeof RTCPeerConnection: undefined
+    typeof webkitRTCPeerConnection: undefined
+
+------------------------------------------------------------
+[AVAILABLE] FontFace API (weight: 1)
+  Dynamic font loading
+  Result: status: loaded
+  Diagnostics:
+    typeof FontFace: function
+    new FontFace() succeeded
+    ff.status: unloaded
+    ff.family: test
+    ff.status after load: loaded
+
+------------------------------------------------------------
+[AVAILABLE] Remote Fonts (weight: 2)
+  Loading fonts from network via data URI
+  Result: API works, load rejected:  A network error occurred.
+  Diagnostics:
+    FontFace created with data URI
+    ff.status before load: unloaded
+    caught: DOMException:  A network error occurred.
+
+------------------------------------------------------------
+[AVAILABLE] JIT Compilation (weight: 2)
+  JavaScript JIT optimization heuristic
+  Result: 110.0ms for 1M iterations (JIT likely)
+  Diagnostics:
+    running 1,000,000 iterations of Math.sqrt*Math.sin...
+    elapsed: 110.00ms
+    sum (to prevent dead-code elimination): -681.7597
+    threshold: <150ms suggests JIT active
+    verdict: likely JIT
+
+------------------------------------------------------------
+[BLOCKED] Notifications API (weight: 1)
+  Push notification permission
+  Result: Notification not in window
+  Diagnostics:
+    'Notification' in window: false
+    typeof Notification: undefined
+
+------------------------------------------------------------
+[BLOCKED] WebCodecs (weight: 1)
+  Low-level VideoDecoder API
+  Result: VideoDecoder is undefined
+  Diagnostics:
+    typeof VideoDecoder: undefined
+    typeof VideoEncoder: undefined
+    typeof AudioDecoder: function
+
+------------------------------------------------------------
+[AVAILABLE] PDF Embed (weight: 2)
+  Inline PDF rendering via embed/pdfViewerEnabled
+  Result: pdfViewerEnabled is true
+  Diagnostics:
+    navigator.pdfViewerEnabled: true
+    typeof navigator.pdfViewerEnabled: boolean
+    created and appended <embed type=application/pdf>
+    navigator.mimeTypes['application/pdf']: [object MimeType]
+
+------------------------------------------------------------
+[BLOCKED] SharedArrayBuffer (weight: 1)
+  Shared memory between workers
+  Result: SharedArrayBuffer is undefined
+  Diagnostics:
+    typeof SharedArrayBuffer: undefined
+    requires COOP/COEP headers to be present; may not indicate Lockdown Mode specifically
+
+------------------------------------------------------------
+[BLOCKED] Cache API (weight: 1)
+  Programmatic HTTP cache (CacheStorage)
+  Result: caches not in window
+  Diagnostics:
+    'caches' in window: false
+    typeof caches: undefined
+
+============================================================
+NAVIGATOR INFO
+============================================================
+
+  userAgent:             Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.4 Mobile/15E148 Safari/604.1
+  platform:              iPhone
+  vendor:                Apple Computer, Inc.
+  language:              en-US
+  languages:             en-US
+  cookieEnabled:         true
+  doNotTrack:            null
+  maxTouchPoints:        5
+  hardwareConcurrency:   4
+  deviceMemory:          N/A
+  pdfViewerEnabled:      true
+  webdriver:             false
+  connection:            unavailable
+  mediaDevices:          unavailable
+  storage:               available
+  serviceWorker:         unavailable
+  credentials:           available
+  bluetooth:             unavailable
+  gpu (WebGPU):          unavailable
+  screenWidth:           393
+  screenHeight:          852
+  devicePixelRatio:      3
+  colorDepth:            24
+
+============================================================
+END OF REPORT
+============================================================
