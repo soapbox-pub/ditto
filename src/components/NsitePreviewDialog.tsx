@@ -1,5 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
 
@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { getPreviewInjectedScript } from '@/lib/previewInjectedScript';
 
 interface Rect { left: number; top: number; width: number; height: number }
 
@@ -33,8 +35,8 @@ function useElementRect(el: HTMLElement | null): Rect | null {
   return rect;
 }
 
-/** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
-const PREVIEW_DOMAIN = 'local-shakespeare.dev';
+/** The wildcard preview domain (iframe.diy service worker sandbox). */
+const PREVIEW_DOMAIN = 'iframe.diy';
 
 interface JSONRPCFetchRequest {
   jsonrpc: '2.0';
@@ -164,8 +166,7 @@ interface NsitePreviewDialogProps {
 
 /**
  * An in-app preview panel that covers the center column and loads an nsite in
- * a sandboxed iframe, using the Shakespeare iframe-fetch-client protocol over
- * local-shakespeare.dev.
+ * an iframe.diy sandbox.
  *
  * Instead of proxying requests through an nsite gateway, this component serves
  * files directly from Blossom servers using the manifest data embedded in the
@@ -175,8 +176,11 @@ interface NsitePreviewDialogProps {
  * The panel is portaled into the center column DOM element (via CenterColumnContext)
  * and uses `position: fixed` to fill the viewport column area.
  *
- * The parent window intercepts JSON-RPC `fetch` requests from the iframe and
- * serves them directly from Blossom, so the SPA can run without any gateway dependency.
+ * iframe.diy provides a service-worker based sandbox. The handshake is:
+ * 1. iframe.diy sends a `ready` JSON-RPC notification when its SW is installed
+ * 2. Parent responds with `init` notification
+ * 3. iframe.diy then forwards `fetch` JSON-RPC requests for all navigations
+ * 4. Parent serves files from Blossom and injects a preview script into HTML
  */
 export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -184,9 +188,12 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
 
-  // Derive the iframe origin from the NIP-5A canonical subdomain for this event
-  const subdomain = getNsiteSubdomain(event);
-  const iframeOrigin = `https://${subdomain}.${PREVIEW_DOMAIN}`;
+  // Use the NIP-5A canonical subdomain as the stable identifier, then derive
+  // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
+  // an iframe.diy origin (preventing cross-app localStorage/IndexedDB collisions).
+  const nsiteSubdomain = getNsiteSubdomain(event);
+  const previewSubdomain = useMemo(() => deriveIframeSubdomain('nsite', nsiteSubdomain), [nsiteSubdomain]);
+  const iframeOrigin = useMemo(() => `https://${previewSubdomain}.${PREVIEW_DOMAIN}`, [previewSubdomain]);
   const iframeSrc = `${iframeOrigin}/`;
 
   // Build the manifest and server list from the event (memoised per event identity)
@@ -207,6 +214,30 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     iframeRef.current?.contentWindow?.postMessage(message, iframeOrigin);
   }, [iframeOrigin]);
 
+  /** Virtual path where the injected preview script is served. */
+  const INJECTED_SCRIPT_PATH = '/__injected__/preview.js';
+
+  /** Inject a <script> tag into an HTML string so the preview script runs first. */
+  const injectScript = useCallback((html: string): string => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const tag = doc.createElement('script');
+    tag.src = INJECTED_SCRIPT_PATH;
+    doc.head.insertBefore(tag, doc.head.firstChild);
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }, []);
+
+  /** Encode a string as base64. */
+  const encodeBase64 = (str: string): string => btoa(unescape(encodeURIComponent(str)));
+
+  /** Encode raw bytes as base64. */
+  const encodeBytesBase64 = (bytes: Uint8Array): string => {
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
+
   /** Handle a fetch request from the iframe by serving files directly from Blossom. */
   const handleFetch = useCallback(async (request: JSONRPCFetchRequest) => {
     const { params, id } = request;
@@ -225,8 +256,25 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
         return;
       }
 
-      // Strip query string from path for manifest lookup
       const requestedPath = requestedUrl.pathname;
+
+      // Serve the injected preview script at its virtual path
+      if (requestedPath === INJECTED_SCRIPT_PATH) {
+        sendResponse({
+          jsonrpc: '2.0',
+          result: {
+            status: 200,
+            statusText: 'OK',
+            headers: {
+              'Content-Type': 'application/javascript',
+              'Cache-Control': 'no-cache',
+            },
+            body: encodeBase64(getPreviewInjectedScript()),
+          },
+          id,
+        });
+        return;
+      }
 
       // Look up the sha256 for this path in the manifest.
       // If not found, fall back to /index.html (SPA client-side routing).
@@ -258,11 +306,6 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       // Read as ArrayBuffer → base64 so binary assets work correctly
       const buffer = await res.arrayBuffer();
       const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const bodyBase64 = btoa(binary);
 
       // Always determine content type from the file extension.
       // Blossom servers commonly return incorrect types (e.g. text/plain for .js
@@ -270,12 +313,18 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       // the manifest is authoritative for the correct MIME type.
       const contentType = guessMimeType(servingPath);
 
-      // The iframe-fetch-client (main.js) checks headers with Title-Case keys
-      // (e.g. "Content-Type"), and does an exact equality check against "text/html"
-      // for routing decisions.
+      // Inject preview script into HTML responses for console/navigation support
+      let bodyBase64: string;
+      if (contentType === 'text/html') {
+        const html = new TextDecoder().decode(bytes);
+        bodyBase64 = encodeBase64(injectScript(html));
+      } else {
+        bodyBase64 = encodeBytesBase64(bytes);
+      }
+
       const responseHeaders: Record<string, string> = {
         'Content-Type': contentType,
-        'Content-Length': String(bytes.byteLength),
+        'Cache-Control': 'no-cache',
       };
 
       sendResponse({
@@ -295,7 +344,16 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
         id,
       });
     }
-  }, [iframeOrigin, sendResponse]);
+  }, [iframeOrigin, sendResponse, injectScript]);
+
+  /** Send a JSON-RPC notification to the iframe. */
+  const sendNotification = useCallback((method: string, params?: Record<string, unknown>) => {
+    iframeRef.current?.contentWindow?.postMessage({
+      jsonrpc: '2.0' as const,
+      method,
+      params: params ?? {},
+    }, iframeOrigin);
+  }, [iframeOrigin]);
 
   /** Handle navigation state updates from the iframe (no-op). */
   const handleNavigationState = useCallback((_params: {
@@ -311,7 +369,14 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== iframeOrigin) return;
       const message = event.data;
-      if (message?.jsonrpc !== '2.0') return;
+      if (!message || typeof message !== 'object' || message.jsonrpc !== '2.0') return;
+
+      // Handle iframe.diy handshake: respond to "ready" with "init"
+      if (message.method === 'ready') {
+        sendNotification('init', { version: 1 });
+        return;
+      }
+
       if (message.method === 'fetch') {
         handleFetch(message as JSONRPCFetchRequest);
       } else if (message.method === 'updateNavigationState') {
@@ -320,7 +385,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [iframeOrigin, handleFetch, handleNavigationState]);
+  }, [iframeOrigin, handleFetch, handleNavigationState, sendNotification]);
 
 
 
@@ -375,12 +440,11 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       {/* iframe */}
       <div className="flex-1 min-h-0 bg-background">
         <iframe
-          key={`${subdomain}-${open}`}
+          key={`${previewSubdomain}-${open}`}
           ref={iframeRef}
           src={iframeSrc}
           className="w-full h-full border-0"
           title={`${appName} preview`}
-          sandbox="allow-scripts allow-same-origin allow-forms"
         />
       </div>
     </div>,
