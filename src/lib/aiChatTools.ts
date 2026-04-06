@@ -230,6 +230,80 @@ Examples:
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'fetch_page',
+      description: `Fetch a web page and extract its content. Returns the page text and a list of image URLs found on the page. Use this when the user provides a URL and wants to download content from it — for example, to find emoji images on a page.
+
+The page is fetched through a CORS proxy so it works in the browser. Images are extracted from <img> tags in the HTML. Relative URLs are resolved to absolute URLs.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The URL to fetch (e.g. "https://www.jamfoo.com/aim-emoticons/").',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'upload_from_url',
+      description: `Download images from URLs and upload them to Blossom file servers. Returns the resulting Blossom URLs.
+
+Use this after fetch_page to upload discovered images. Each image is fetched via CORS proxy, converted to a File, and uploaded to Blossom. The user must be logged in.
+
+Handles up to 50 images per call. Returns an array of objects with the original URL, the Blossom URL, and a suggested shortcode derived from the filename.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          urls: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of image URLs to download and upload (max 50).',
+          },
+        },
+        required: ['urls'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_emoji_pack',
+      description: `Create and publish a NIP-30 custom emoji pack (kind 30030 event). The pack is published as the logged-in user.
+
+Takes a pack name and an array of emoji entries (shortcode + image URL). Shortcodes must be alphanumeric with hyphens and underscores only. The image URLs should be Blossom URLs from a prior upload_from_url call.
+
+After publishing, the emoji pack appears in the user's feed and can be added to their emoji collection.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Human-readable name for the emoji pack (e.g. "AIM Emoticons", "Retro Smileys").',
+          },
+          emojis: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                shortcode: { type: 'string', description: 'Shortcode for the emoji (alphanumeric, hyphens, underscores). E.g. "smiley", "heart-eyes".' },
+                url: { type: 'string', description: 'URL to the emoji image (should be a Blossom URL).' },
+              },
+              required: ['shortcode', 'url'],
+            },
+            description: 'Array of emoji entries to include in the pack.',
+          },
+        },
+        required: ['name', 'emojis'],
+      },
+    },
+  },
 ];
 
 

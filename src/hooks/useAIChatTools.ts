@@ -4,10 +4,14 @@ import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useUploadFile } from '@/hooks/useUploadFile';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useMCPTools } from '@/hooks/useMCPTools';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
 import { buildSpellTags } from '@/lib/spellEngine';
+import { proxyUrl } from '@/lib/proxyUrl';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
@@ -28,6 +32,9 @@ export function useAIChatTools() {
   const { applyCustomTheme } = useTheme();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
+  const { mutateAsync: uploadFile } = useUploadFile();
+  const { mutateAsync: publishEvent } = useNostrPublish();
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
 
   /** MCP tool definitions in OpenAI format, ready to merge with built-in TOOLS. */
@@ -372,10 +379,190 @@ export function useAIChatTools() {
         }
       }
 
+      case 'fetch_page': {
+        try {
+          const url = typeof args.url === 'string' ? args.url.trim() : '';
+          if (!url) {
+            return { result: JSON.stringify({ error: 'A URL is required.' }) };
+          }
+
+          const proxied = proxyUrl({ template: config.corsProxy, url });
+          const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
+
+          if (!response.ok) {
+            return { result: JSON.stringify({ error: `Fetch failed: ${response.status} ${response.statusText}` }) };
+          }
+
+          const html = await response.text();
+
+          // Extract image URLs from HTML using DOMParser.
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const imgs = Array.from(doc.querySelectorAll('img'));
+          const baseUrl = new URL(url);
+
+          const imageUrls: string[] = [];
+          for (const img of imgs) {
+            const src = img.getAttribute('src');
+            if (!src) continue;
+            try {
+              const absolute = new URL(src, baseUrl).href;
+              // Only include common image formats.
+              if (/\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)(\?.*)?$/i.test(absolute)) {
+                imageUrls.push(absolute);
+              }
+            } catch {
+              // Skip malformed URLs.
+            }
+          }
+
+          // Deduplicate
+          const uniqueImages = [...new Set(imageUrls)];
+
+          // Extract page title
+          const title = doc.querySelector('title')?.textContent?.trim() || '';
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              title,
+              image_count: uniqueImages.length,
+              images: uniqueImages.slice(0, 100),
+              text_preview: doc.body?.textContent?.slice(0, 500)?.trim() || '',
+            }),
+          };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Fetch failed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
+      case 'upload_from_url': {
+        try {
+          if (!user) {
+            return { result: JSON.stringify({ error: 'Must be logged in to upload files.' }) };
+          }
+
+          const urls = Array.isArray(args.urls) ? (args.urls as string[]).slice(0, 50) : [];
+          if (urls.length === 0) {
+            return { result: JSON.stringify({ error: 'At least one URL is required.' }) };
+          }
+
+          const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; error?: string }> = [];
+
+          for (const imageUrl of urls) {
+            try {
+              // Fetch image via CORS proxy.
+              const proxied = proxyUrl({ template: config.corsProxy, url: imageUrl });
+              const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
+
+              if (!response.ok) {
+                results.push({ original_url: imageUrl, shortcode: '', error: `HTTP ${response.status}` });
+                continue;
+              }
+
+              const blob = await response.blob();
+
+              // Derive filename and shortcode from URL path.
+              const pathname = new URL(imageUrl).pathname;
+              const filename = pathname.split('/').pop() || 'image.png';
+              const dotIndex = filename.lastIndexOf('.');
+              const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+              const shortcode = baseName
+                .replace(/[^a-zA-Z0-9_-]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/g, '')
+                .toLowerCase();
+
+              // Upload to Blossom.
+              const file = new File([blob], filename, { type: blob.type || 'image/png' });
+              const [[, blossomUrl]] = await uploadFile(file);
+
+              results.push({ original_url: imageUrl, blossom_url: blossomUrl, shortcode: shortcode || 'emoji' });
+            } catch (err) {
+              results.push({ original_url: imageUrl, shortcode: '', error: err instanceof Error ? err.message : 'Upload failed' });
+            }
+          }
+
+          const successful = results.filter((r) => r.blossom_url);
+          return {
+            result: JSON.stringify({
+              success: true,
+              uploaded: successful.length,
+              failed: results.length - successful.length,
+              results,
+            }),
+          };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
+      case 'create_emoji_pack': {
+        try {
+          if (!user) {
+            return { result: JSON.stringify({ error: 'Must be logged in to create emoji packs.' }) };
+          }
+
+          const packName = typeof args.name === 'string' ? args.name.trim() : '';
+          if (!packName) {
+            return { result: JSON.stringify({ error: 'A pack name is required.' }) };
+          }
+
+          const emojis = Array.isArray(args.emojis) ? args.emojis as Array<{ shortcode: string; url: string }> : [];
+          if (emojis.length === 0) {
+            return { result: JSON.stringify({ error: 'At least one emoji is required.' }) };
+          }
+
+          // Validate shortcodes.
+          for (const e of emojis) {
+            if (!/^[a-zA-Z0-9_-]+$/.test(e.shortcode)) {
+              return { result: JSON.stringify({ error: `Invalid shortcode "${e.shortcode}". Must be alphanumeric with hyphens and underscores only.` }) };
+            }
+          }
+
+          // Build d-tag slug from pack name.
+          const dTag = packName
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+          // Check for d-tag collision.
+          const existing = await nostr.query(
+            [{ kinds: [30030], authors: [user.pubkey], '#d': [dTag], limit: 1 }],
+            { signal: AbortSignal.timeout(5000) },
+          );
+
+          if (existing.length > 0) {
+            return { result: JSON.stringify({ error: `An emoji pack with slug "${dTag}" already exists. Choose a different name.` }) };
+          }
+
+          // Build tags: d-tag, title, then emoji entries.
+          const tags: string[][] = [
+            ['d', dTag],
+            ['title', packName],
+            ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
+          ];
+
+          await publishEvent({ kind: 30030, content: '', tags });
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              name: packName,
+              slug: dTag,
+              emoji_count: emojis.length,
+            }),
+          };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Failed to create emoji pack: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config.corsProxy, uploadFile, publishEvent]);
 
   return { executeToolCall, mcpTools, mcpToolsLoading };
 }

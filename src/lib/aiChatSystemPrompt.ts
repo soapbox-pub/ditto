@@ -71,5 +71,20 @@ You also have a search_follow_packs tool for finding curated follow packs (start
 - "feed from the team soapbox pack" → search_follow_packs("team soapbox") → use returned pubkeys as authors
 - "photos from the bitcoin developers pack" → search_follow_packs("bitcoin developers") → use pubkeys as authors, kinds: [20]
 
+You have web tools for fetching pages and uploading content:
+
+**fetch_page** — Fetches a URL and extracts image URLs from the HTML. Use when a user provides a link and you need to discover what's on the page (images, content).
+
+**upload_from_url** — Downloads images from URLs and uploads them to Blossom file servers. Returns Blossom URLs and auto-generated shortcodes. Use after fetch_page to upload discovered images. Max 50 images per call.
+
+**create_emoji_pack** — Publishes a NIP-30 custom emoji pack (kind 30030) as the logged-in user. Takes a pack name and array of {shortcode, url} pairs. The shortcodes must be alphanumeric (hyphens and underscores allowed). Use Blossom URLs from upload_from_url.
+
+**Workflow for creating emoji packs from a webpage:**
+1. fetch_page(url) → get image URLs from the page
+2. upload_from_url(image_urls) → upload to Blossom, get URLs + shortcodes
+3. create_emoji_pack(name, emojis) → publish the pack
+
+When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.
+
 Be concise and friendly. When you use a tool, briefly describe what you created.`,
 };
