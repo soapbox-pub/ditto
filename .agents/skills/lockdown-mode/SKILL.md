@@ -80,6 +80,10 @@ Several blocked web APIs have Capacitor plugin equivalents that bypass WKWebView
 
 The report used a scoring heuristic (7/11 key APIs blocked = 68%) to detect Lockdown Mode. There is no official API to query Lockdown Mode status. Detection relies on probing for the absence of multiple APIs that are specifically disabled by Lockdown Mode but normally present in Safari.
 
+## Raw Diagnostic Report
+
+For exact error messages, navigator properties, weight scores, and per-API diagnostic output, see [lockdown-mode-report.txt](lockdown-mode-report.txt).
+
 ## Guidance for Feature Decisions
 
 When building new features, consider:
