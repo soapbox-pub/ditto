@@ -376,7 +376,7 @@ export function useBlobbiOnboarding({
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content,
         tags: updatedTags,
       });
       
@@ -474,7 +474,7 @@ export function useBlobbiOnboarding({
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content,
         tags: updatedProfileTags,
       });
       

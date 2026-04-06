@@ -188,7 +188,7 @@ export function useBlobbiMigration() {
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content,
         tags: profileTags,
       });
       

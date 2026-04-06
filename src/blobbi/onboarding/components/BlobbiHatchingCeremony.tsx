@@ -300,7 +300,7 @@ export function BlobbiHatchingCeremony({
 
           const updatedProfileEvent = await publishEvent({
             kind: KIND_BLOBBONAUT_PROFILE,
-            content: '',
+            content: currentProfile?.event.content ?? '',
             tags: updatedTags,
           });
 
@@ -499,7 +499,7 @@ export function BlobbiHatchingCeremony({
         });
         const profileEvent = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: currentProfile.event.content,
           tags: updatedTags,
         });
         updateProfileEvent(profileEvent);

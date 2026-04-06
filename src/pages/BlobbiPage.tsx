@@ -545,7 +545,7 @@ function BlobbiContent() {
         });
         publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: profile.event.content,
           tags: updatedTags,
         }).then(event => {
           updateProfileEvent(event);
@@ -1181,7 +1181,7 @@ function BlobbiDashboard({
       
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content,
         tags: updatedTags,
       });
       

@@ -83,7 +83,7 @@ export function useBlobbonautProfileNormalization({
         // Always publish to the NEW kind (11125), regardless of source kind
         const event = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: profile.event.content,
           tags: normalizedTags,
         });
         
