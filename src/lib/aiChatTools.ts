@@ -304,6 +304,61 @@ After publishing, the emoji pack appears in the user's feed and can be added to 
       },
     },
   },
-];
+  {
+    type: 'function' as const,
+    function: {
+      name: 'publish_events',
+      description: `Publish one or more Nostr events signed by your identity. Each event can specify a kind, content, and tags. Defaults: kind 1 (text note), empty content, empty tags, current timestamp.
 
+Common kinds: 1 = text note, 6 = repost, 7 = reaction (content is "+" or emoji), 30023 = long-form article.
+
+For text notes (kind 1), put the post text in content. For reactions (kind 7), set content to "+" or an emoji and add an "e" tag referencing the target event.
+
+Tags are arrays of strings, e.g. [["t", "nostr"], ["p", "<hex-pubkey>"]] for a hashtag and a mention.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          events: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                kind: { type: 'number', description: 'Event kind number (default: 1).' },
+                content: { type: 'string', description: 'Event content (default: empty string).' },
+                tags: {
+                  type: 'array',
+                  items: { type: 'array', items: { type: 'string' } },
+                  description: 'Event tags (default: empty array).',
+                },
+              },
+            },
+            description: 'Array of events to publish.',
+          },
+        },
+        required: ['events'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'fetch_event',
+      description: `Fetch a Nostr event by its NIP-19 identifier. Supports npub (fetches kind 0 profile), nprofile, note (fetches event by ID), nevent, and naddr (fetches addressable event by kind+author+d-tag).
+
+Use this when the user shares a Nostr identifier and you need to read its content — for example, to see what a note says, look up a user's profile, or read an article.
+
+Returns the full event JSON including kind, content, tags, pubkey, and timestamp.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          identifier: {
+            type: 'string',
+            description: 'NIP-19 identifier (npub1..., note1..., nevent1..., naddr1..., nprofile1...).',
+          },
+        },
+        required: ['identifier'],
+      },
+    },
+  },
+];
 

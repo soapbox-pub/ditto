@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
+import { generateSecretKey, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -576,6 +576,146 @@ export function useAIChatTools() {
           };
         } catch (err) {
           return { result: JSON.stringify({ error: `Failed to create emoji pack: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
+      case 'publish_events': {
+        try {
+          const events = Array.isArray(args.events)
+            ? args.events as Array<{ kind?: number; content?: string; tags?: string[][] }>
+            : [];
+          if (events.length === 0) {
+            return { result: JSON.stringify({ error: 'At least one event is required.' }) };
+          }
+
+          // Use buddy key if available, otherwise ephemeral
+          const buddySk = getBuddySecretKey();
+          const sk = buddySk ?? generateSecretKey();
+          const pubkey = getPublicKey(sk);
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+
+          const finalized: NostrEvent[] = events.map((partial) =>
+            finalizeEvent({
+              kind: partial.kind ?? 1,
+              content: partial.content ?? '',
+              tags: partial.tags ?? [],
+              created_at: currentTimestamp,
+            }, sk) as NostrEvent,
+          );
+
+          // If ephemeral (no buddy), publish a fallback profile
+          if (!buddySk) {
+            const profileEvent = finalizeEvent({
+              kind: 0,
+              content: JSON.stringify({ name: 'Dork Publisher', about: 'Events published by Dork AI' }),
+              tags: [],
+              created_at: currentTimestamp,
+            }, sk) as NostrEvent;
+            await nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) });
+          }
+
+          await Promise.all(
+            finalized.map((event) => nostr.event(event, { signal: AbortSignal.timeout(5000) })),
+          );
+
+          // Return the first event for inline display if it's a kind 1
+          const displayEvent = finalized.find((e) => e.kind === 1) ?? finalized[0];
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              pubkey,
+              events_published: finalized.length,
+              events: finalized.map((e) => ({
+                id: e.id,
+                kind: e.kind,
+                content: e.content.length > 100 ? `${e.content.slice(0, 100)}...` : e.content,
+              })),
+            }),
+            nostrEvent: displayEvent,
+          };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Failed to publish events: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
+      case 'fetch_event': {
+        try {
+          const identifier = typeof args.identifier === 'string' ? args.identifier.trim() : '';
+          if (!identifier) {
+            return { result: JSON.stringify({ error: 'A NIP-19 identifier is required.' }) };
+          }
+
+          let decoded: nip19.DecodedResult;
+          try {
+            decoded = nip19.decode(identifier);
+          } catch {
+            return { result: JSON.stringify({ error: `Invalid NIP-19 identifier: ${identifier}` }) };
+          }
+
+          if (decoded.type === 'nsec') {
+            return { result: JSON.stringify({ error: 'nsec identifiers are not supported for security reasons.' }) };
+          }
+
+          let event: NostrEvent | undefined;
+
+          switch (decoded.type) {
+            case 'npub': {
+              const events = await nostr.query(
+                [{ kinds: [0], authors: [decoded.data], limit: 1 }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+              event = events[0];
+              break;
+            }
+            case 'nprofile': {
+              const events = await nostr.query(
+                [{ kinds: [0], authors: [decoded.data.pubkey], limit: 1 }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+              event = events[0];
+              break;
+            }
+            case 'note': {
+              const events = await nostr.query(
+                [{ ids: [decoded.data] }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+              event = events[0];
+              break;
+            }
+            case 'nevent': {
+              const events = await nostr.query(
+                [{ ids: [decoded.data.id] }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+              event = events[0];
+              break;
+            }
+            case 'naddr': {
+              const events = await nostr.query(
+                [{
+                  kinds: [decoded.data.kind],
+                  authors: [decoded.data.pubkey],
+                  '#d': [decoded.data.identifier],
+                  limit: 1,
+                }],
+                { signal: AbortSignal.timeout(8000) },
+              );
+              event = events[0];
+              break;
+            }
+            default:
+              return { result: JSON.stringify({ error: `Unsupported identifier type: ${(decoded as { type: string }).type}` }) };
+          }
+
+          if (!event) {
+            return { result: JSON.stringify({ error: 'No event found for the provided identifier.' }) };
+          }
+
+          return { result: JSON.stringify(event) };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Failed to fetch event: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
         }
       }
 

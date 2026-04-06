@@ -117,7 +117,35 @@ Publishes a NIP-30 custom emoji pack (kind 30030) as the logged-in user. Takes a
 2. upload_from_url(image_urls) → upload to Blossom, get URLs + shortcodes
 3. create_emoji_pack(name, emojis) → publish the pack
 
-When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.`;
+When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.
+
+## publish_events
+Publishes one or more Nostr events signed by your identity. Each event can specify a kind, content, and tags. Use this when the user asks you to post, publish, or broadcast something to Nostr.
+
+**Common kinds:**
+- 1 = text note (put post text in content)
+- 7 = reaction (content is "+" or an emoji, add an "e" tag referencing the target event)
+- 6 = repost (content is the JSON of the reposted event, add an "e" tag)
+
+**Tag format:** Arrays of strings, e.g. \`[["t", "nostr"], ["p", "<hex-pubkey>"]]\`
+
+**Examples:**
+- Post a note: \`{ events: [{ content: "Hello Nostr!" }] }\`
+- Post with hashtags: \`{ events: [{ content: "Building on Nostr", tags: [["t", "nostr"], ["t", "dev"]] }] }\`
+
+Only publish events when the user explicitly asks you to. Never publish autonomously.
+
+## fetch_event
+Fetches a Nostr event by its NIP-19 identifier. Use this when the user shares a Nostr link or identifier and you need to read its content.
+
+**Supported identifiers:**
+- npub1... → fetches the user's kind 0 profile
+- note1... → fetches a specific event by ID
+- nevent1... → fetches an event (may include relay hints)
+- naddr1... → fetches an addressable event by kind+author+d-tag
+- nprofile1... → fetches a user profile with relay hints
+
+Returns the full event JSON. For profiles (kind 0), the content field contains JSON metadata (name, about, picture, etc.).`;
 
 /** The raw default template with {{NAME}} and {{SOUL}} placeholders (for display in settings). */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = DEFAULT_TEMPLATE;
