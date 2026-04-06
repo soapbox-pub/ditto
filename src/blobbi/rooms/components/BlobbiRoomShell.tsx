@@ -9,8 +9,9 @@
  * - Ephemeral poop instances (local-only, no persistence)
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/useToast';
@@ -97,6 +98,11 @@ export function BlobbiRoomShell({
     label: ROOM_META[id].label,
   })), [roomOrder, roomIndex]);
 
+  // ─── Destination labels for nav arrows ───
+  const leftDest = ROOM_META[getPreviousRoom(nav.current, roomOrder)];
+  const rightDest = ROOM_META[getNextRoom(nav.current, roomOrder)];
+  const isMobile = useIsMobile();
+
   const isSleeping = ctx.isSleeping;
 
   // ─── Poop system (ephemeral, local-only) ───
@@ -171,30 +177,67 @@ export function BlobbiRoomShell({
         </div>
       </div>
 
-      {/* ── Left / Right Navigation Arrows ── */}
+      {/* ── Left / Right Navigation Arrows with destination labels ── */}
       <button
         onClick={goLeft}
         className={cn(
-          'absolute left-0.5 top-1/2 -translate-y-1/2 z-40',
-          'size-9 rounded-full flex items-center justify-center',
-          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
-          'transition-all duration-200 active:scale-90',
+          'group absolute left-0 top-1/2 -translate-y-1/2 z-40',
+          'flex items-center gap-0',
+          'text-muted-foreground/40 hover:text-foreground/70',
+          'transition-all duration-200 active:scale-95',
+          'cursor-pointer select-none',
+          'rounded-r-full pl-0.5 pr-1 py-1',
+          'hover:bg-accent/40',
         )}
-        aria-label={`Go to ${ROOM_META[getPreviousRoom(nav.current, roomOrder)].label}`}
+        aria-label={`Go to ${leftDest.label}`}
       >
-        <ChevronLeft className="size-5" />
+        <ChevronLeft
+          className="size-5 shrink-0 transition-transform duration-300 group-hover:scale-110"
+          style={{ animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties}
+        />
+        <span
+          className={cn(
+            'text-[10px] font-medium leading-none whitespace-nowrap',
+            'transition-all duration-200',
+            isMobile
+              ? 'max-w-[60px] opacity-60'
+              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70 group-focus-visible:max-w-[80px] group-focus-visible:opacity-70',
+            'overflow-hidden',
+          )}
+        >
+          {leftDest.label}
+        </span>
       </button>
+
       <button
         onClick={goRight}
         className={cn(
-          'absolute right-0.5 top-1/2 -translate-y-1/2 z-40',
-          'size-9 rounded-full flex items-center justify-center',
-          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
-          'transition-all duration-200 active:scale-90',
+          'group absolute right-0 top-1/2 -translate-y-1/2 z-40',
+          'flex items-center gap-0',
+          'text-muted-foreground/40 hover:text-foreground/70',
+          'transition-all duration-200 active:scale-95',
+          'cursor-pointer select-none',
+          'rounded-l-full pr-0.5 pl-1 py-1',
+          'hover:bg-accent/40',
         )}
-        aria-label={`Go to ${ROOM_META[getNextRoom(nav.current, roomOrder)].label}`}
+        aria-label={`Go to ${rightDest.label}`}
       >
-        <ChevronRight className="size-5" />
+        <span
+          className={cn(
+            'text-[10px] font-medium leading-none whitespace-nowrap',
+            'transition-all duration-200',
+            isMobile
+              ? 'max-w-[60px] opacity-60'
+              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70 group-focus-visible:max-w-[80px] group-focus-visible:opacity-70',
+            'overflow-hidden',
+          )}
+        >
+          {rightDest.label}
+        </span>
+        <ChevronRight
+          className="size-5 shrink-0 transition-transform duration-300 group-hover:scale-110"
+          style={{ animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties}
+        />
       </button>
     </div>
   );
