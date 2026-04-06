@@ -5,9 +5,8 @@
  *
  * Layout:
  * - BlobbiRoomHero (stats crown, Blobbi visual, name)
- * - Photo button (left) + Companion toggle (right) — same style as original
- * - Center: single-focus carousel with toys + music + sing
- * - Inline activity (music player, sing card) between hero and bottom bar
+ * - Unified bottom bar: Photo (left) | Carousel (center) | Companion (right)
+ * - Inline activity (music player, sing card) above the bottom bar
  *
  * Sleep/wake has been moved to BlobbiRestRoom.
  */
@@ -29,20 +28,16 @@ interface BlobbiHomeRoomProps {
 export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
   const {
     isActiveFloatingCompanion,
-    // Photo
     setShowPhotoModal,
-    // Companion
     isCurrentCompanion,
     canBeCompanion,
     isUpdatingCompanion,
     handleSetAsCompanion,
-    // Items + actions
     isUsingItem,
     usingItemId,
     handleUseItemFromTab,
     handleDirectAction,
     isDirectActionPending,
-    // Inline activity
     inlineActivity,
     handleConfirmSing,
     handleCloseInlineActivity,
@@ -51,7 +46,6 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     handleSingRecordingStart,
     handleSingRecordingStop,
     handleChangeTrack,
-    // State
     isPublishing,
     actionInProgress,
   } = ctx;
@@ -65,12 +59,12 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     const actions: CarouselEntry[] = [
       {
         id: '__action_music',
-        icon: <div className="size-12 rounded-full flex items-center justify-center bg-pink-500/15 text-pink-500"><Music className="size-6" /></div>,
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-pink-500/15 text-pink-500"><Music className="size-5 sm:size-6" /></div>,
         label: 'Music',
       },
       {
         id: '__action_sing',
-        icon: <div className="size-12 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-500"><Mic className="size-6" /></div>,
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-500"><Mic className="size-5 sm:size-6" /></div>,
         label: 'Sing',
       },
     ];
@@ -94,33 +88,6 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     <div className="flex flex-col flex-1 min-h-0">
       {/* ── Hero (Blobbi + stats) ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
-
-      {/* ── Action circles — Photo (left) + Companion (right) ── */}
-      {!isActiveFloatingCompanion && (
-        <div className="relative z-10 w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
-          {/* Photo */}
-          <RoomActionButton
-            icon={<Camera className="size-9 sm:size-10" />}
-            label="Photo"
-            color="text-pink-500"
-            glowHex="#ec4899"
-            onClick={() => setShowPhotoModal(true)}
-          />
-
-          {/* Companion toggle */}
-          {canBeCompanion && (
-            <RoomActionButton
-              icon={<Footprints className="size-9 sm:size-10" />}
-              label={isCurrentCompanion ? 'With you' : 'Take along'}
-              color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
-              glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              loading={isUpdatingCompanion}
-            />
-          )}
-        </div>
-      )}
 
       {/* ── Inline Activity Area (music/sing) ── */}
       {inlineActivity.type === 'music' && (
@@ -148,15 +115,44 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
         </div>
       )}
 
-      {/* ── Bottom: Single-focus carousel ── */}
+      {/* ── Unified Bottom Bar: Photo | Carousel | Companion ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-2 pb-4 pt-2">
-          <ItemCarousel
-            items={carouselItems}
-            onUse={handleCarouselUse}
-            activeItemId={isUsingItem ? usingItemId : null}
-            disabled={isDisabled}
-          />
+        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+          <div className="flex items-center justify-between gap-1 sm:gap-3">
+            {/* Photo */}
+            <RoomActionButton
+              icon={<Camera className="size-7 sm:size-9" />}
+              label="Photo"
+              color="text-pink-500"
+              glowHex="#ec4899"
+              onClick={() => setShowPhotoModal(true)}
+            />
+
+            {/* Center carousel */}
+            <div className="flex-1 min-w-0 flex justify-center">
+              <ItemCarousel
+                items={carouselItems}
+                onUse={handleCarouselUse}
+                activeItemId={isUsingItem ? usingItemId : null}
+                disabled={isDisabled}
+              />
+            </div>
+
+            {/* Companion toggle */}
+            {canBeCompanion ? (
+              <RoomActionButton
+                icon={<Footprints className="size-7 sm:size-9" />}
+                label={isCurrentCompanion ? 'With you' : 'Take along'}
+                color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
+                glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
+                onClick={handleSetAsCompanion}
+                disabled={isUpdatingCompanion}
+                loading={isUpdatingCompanion}
+              />
+            ) : (
+              <div className="w-14 sm:w-20 shrink-0" />
+            )}
+          </div>
         </div>
       )}
     </div>

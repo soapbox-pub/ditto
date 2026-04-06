@@ -9,8 +9,10 @@
  * - Blobbi name (hidden for eggs)
  * - Bob/sway animation when not sleeping
  *
- * This component extracts the hero section that was previously inlined
- * in BlobbiDashboard so all rooms can share it without duplication.
+ * Sizing is tuned so the hero doesn't crowd the bottom action bar:
+ * - Stats indicators are smaller on mobile (size-14 vs size-20)
+ * - Blobbi visual uses a tighter responsive scale
+ * - Stats crown margin is reduced
  */
 
 import { useMemo } from 'react';
@@ -24,7 +26,7 @@ import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { cn } from '@/lib/utils';
 import type { BlobbiRoomContext } from '../lib/room-types';
 
-// ─── Stat colour maps (same as original) ──────────────────────────────────────
+// ─── Stat colour maps ─────────────────────────────────────────────────────────
 
 const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
   hunger: 'orange',
@@ -70,11 +72,8 @@ const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; st
 
 interface BlobbiRoomHeroProps {
   ctx: BlobbiRoomContext;
-  /** Optional extra className on the outer container */
   className?: string;
-  /** If true, hides the stats crown */
   hideStats?: boolean;
-  /** If true, hides the name */
   hideName?: boolean;
 }
 
@@ -101,8 +100,8 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
   // When the companion is out floating, show "out exploring" instead
   if (isActiveFloatingCompanion) {
     return (
-      <div className={cn('flex flex-col items-center justify-center gap-6 text-center flex-1', className)}>
-        <Footprints className="size-16 text-muted-foreground/30" />
+      <div className={cn('flex flex-col items-center justify-center gap-4 text-center flex-1 px-4', className)}>
+        <Footprints className="size-12 text-muted-foreground/30" />
         <p className="text-muted-foreground text-sm">
           {companion.name} is out exploring right now.
         </p>
@@ -110,16 +109,16 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
           onClick={handleSetAsCompanion}
           disabled={isUpdatingCompanion}
           className={cn(
-            'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
+            'flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 ease-out text-sm',
             'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
             isUpdatingCompanion && 'opacity-50 pointer-events-none',
           )}
           style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
         >
           {isUpdatingCompanion ? (
-            <Loader2 className="size-5 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Footprints className="size-5" />
+            <Footprints className="size-4" />
           )}
           <span>Bring {companion.name} home</span>
         </button>
@@ -128,7 +127,7 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
   }
 
   return (
-    <div ref={heroRef} className={cn('relative flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden flex-1', className)}>
+    <div ref={heroRef} className={cn('relative flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden flex-1 min-h-0', className)}>
       <div className="relative flex flex-col items-center">
         {/* Stats crown */}
         {!hideStats && <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />}
@@ -140,7 +139,7 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
         >
-          <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 -m-16 sm:-m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
           <BlobbiStageVisual
             companion={companion}
             size="lg"
@@ -150,8 +149,8 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
             recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
             emotion={effectiveEmotion}
             className={isEgg
-              ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
-              : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
+              ? 'size-36 min-[400px]:size-44 sm:size-56 md:size-72 lg:size-80'
+              : 'size-48 min-[400px]:size-60 sm:size-80 md:size-[28rem] lg:size-[32rem]'
             }
           />
         </div>
@@ -159,7 +158,7 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
         {/* Blobbi Name — hidden for eggs */}
         {!hideName && !isEgg && (
           <h2
-            className="text-2xl sm:text-3xl font-bold text-center -mt-2"
+            className="text-xl sm:text-2xl md:text-3xl font-bold text-center mt-1"
             style={{ color: companion.visualTraits.baseColor }}
           >
             {companion.name}
@@ -195,7 +194,7 @@ function StatsCrown({
   const count = allStats.length;
   const isSmall = heroWidth < 400;
   const arcSpread = isSmall
-    ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
+    ? (count <= 2 ? 80 : count <= 3 ? 120 : 150)
     : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
   const arcHalf = arcSpread / 2;
   const angles = count === 1
@@ -203,11 +202,11 @@ function StatsCrown({
     : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
   return (
-    <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
+    <div className="relative flex items-end justify-center w-full mb-6 sm:mb-10" style={{ height: 40 }}>
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
-        const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
+        const radius = Math.min(180, Math.max(100, (heroWidth - 340) / (640 - 340) * (180 - 100) + 100));
         const x = Math.sin(angleRad) * radius;
         const y = Math.cos(angleRad) * radius - radius;
 
@@ -251,7 +250,7 @@ function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorP
 
   return (
     <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
+      'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
       STAT_BG_COLORS[color],
       status === 'critical' && 'animate-pulse',
     )}>
@@ -265,10 +264,10 @@ function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorP
         />
       </svg>
       <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
+        {IconComponent && <IconComponent className={cn('size-5 sm:size-6', STAT_COLORS[color])} strokeWidth={2.5} />}
         {isLow && (
           <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            className={cn('absolute -top-1.5 -right-2 size-3', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
             strokeWidth={3}
           />
         )}

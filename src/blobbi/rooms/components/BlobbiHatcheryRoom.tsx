@@ -119,24 +119,24 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
 
       {/* ── Bottom Action Bar ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-4 sm:px-8 pb-6 pt-2">
-          <div className="flex items-start justify-between">
-            {/* Bottom left — Blobbis selector */}
+        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+          <div className="flex items-center justify-between gap-1 sm:gap-3">
+            {/* Left — Blobbis selector */}
             <RoomActionButton
-              icon={<Egg className="size-9 sm:size-10" />}
+              icon={<Egg className="size-7 sm:size-9" />}
               label="Blobbis"
               color="text-primary"
               glowHex="var(--primary)"
               onClick={() => setShowBlobbisPanel(true)}
               badge={companions.length > 1 ? (
-                <span className="size-5 rounded-full bg-primary text-[10px] text-primary-foreground font-bold flex items-center justify-center">
+                <span className="size-4 sm:size-5 rounded-full bg-primary text-[9px] sm:text-[10px] text-primary-foreground font-bold flex items-center justify-center">
                   {companions.length}
                 </span>
               ) : undefined}
             />
 
             {/* Center — Main hatch/evolve action */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 pt-4">
+            <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
               {/* Active process: Hatch/Evolve CTA or progress */}
               {hasActiveProcess && allCompleted && !isTasksLoading && (
                 <button
@@ -229,15 +229,15 @@ export function BlobbiHatcheryRoom({ ctx }: BlobbiHatcheryRoomProps) {
               )}
             </div>
 
-            {/* Bottom right — Quests/Tasks */}
+            {/* Right — Quests/Tasks */}
             <RoomActionButton
-              icon={<ListTodo className="size-9 sm:size-10" />}
+              icon={<ListTodo className="size-7 sm:size-9" />}
               label="Quests"
               color="text-amber-500"
               glowHex="#f59e0b"
               onClick={() => setShowQuestsPanel(true)}
               badge={hasActiveProcess && totalCount - completedCount > 0 ? (
-                <span className="size-5 rounded-full bg-amber-500 text-[10px] text-white font-bold flex items-center justify-center">
+                <span className="size-4 sm:size-5 rounded-full bg-amber-500 text-[9px] sm:text-[10px] text-white font-bold flex items-center justify-center">
                   {totalCount - completedCount}
                 </span>
               ) : undefined}

@@ -3,12 +3,7 @@
 /**
  * BlobbiRestRoom — The bedroom / rest room.
  *
- * Dedicated to sleep / wake / resting.
- * Layout:
- * - BlobbiRoomHero (Blobbi visual + stats)
- * - Bottom right: sleep / wake toggle (unified RoomActionButton style)
- * - Bottom center: minimal for now
- * - Bottom left: empty for now
+ * Bottom bar: (empty left) | (empty center) | Sleep/Wake (right)
  */
 
 import { Moon, Sun, Loader2 } from 'lucide-react';
@@ -36,28 +31,26 @@ export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* ── Hero ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
-      {/* ── Bottom Action Bar ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-4 sm:px-8 pb-6 pt-2">
-          <div className="flex items-start justify-between">
-            {/* Bottom left — empty for now */}
-            <div className="w-24 shrink-0" />
+        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+          <div className="flex items-center justify-between gap-1 sm:gap-3">
+            {/* Left — empty */}
+            <div className="w-14 sm:w-20 shrink-0" />
 
-            {/* Center — minimal for now */}
+            {/* Center — empty */}
             <div className="flex-1" />
 
-            {/* Bottom right — Sleep / Wake */}
-            {!isEgg && (
+            {/* Right — Sleep / Wake */}
+            {!isEgg ? (
               <RoomActionButton
                 icon={
                   actionInProgress === 'rest'
-                    ? <Loader2 className="size-9 sm:size-10 animate-spin" />
+                    ? <Loader2 className="size-7 sm:size-9 animate-spin" />
                     : isSleeping
-                      ? <Sun className="size-9 sm:size-10" />
-                      : <Moon className="size-9 sm:size-10" />
+                      ? <Sun className="size-7 sm:size-9" />
+                      : <Moon className="size-7 sm:size-9" />
                 }
                 label={isSleeping ? 'Wake up' : 'Sleep'}
                 color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
@@ -65,6 +58,8 @@ export function BlobbiRestRoom({ ctx }: BlobbiRestRoomProps) {
                 onClick={onRest}
                 disabled={isDisabled}
               />
+            ) : (
+              <div className="w-14 sm:w-20 shrink-0" />
             )}
           </div>
         </div>

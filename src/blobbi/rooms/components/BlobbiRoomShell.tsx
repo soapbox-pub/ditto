@@ -147,7 +147,7 @@ export function BlobbiRoomShell({
         The `direction` in nav state tells which way to animate.
         For now, we simply render the active room instantly.
       */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 flex flex-col relative">
         <RoomComponent ctx={ctx} />
       </div>
 

@@ -3,11 +3,7 @@
 /**
  * BlobbiKitchenRoom — The feeding room.
  *
- * Layout:
- * - BlobbiRoomHero (Blobbi visual + stats)
- * - Center: single-focus food carousel
- * - Bottom right: fridge button (opens full food list modal)
- * - Bottom left: empty for now
+ * Bottom bar: (empty left) | food carousel (center) | Fridge button (right)
  */
 
 import { useMemo, useState } from 'react';
@@ -38,7 +34,6 @@ export function BlobbiKitchenRoom({ ctx }: BlobbiKitchenRoomProps) {
 
   const [showFridge, setShowFridge] = useState(false);
 
-  // Food carousel entries
   const foodEntries = useMemo<CarouselEntry[]>(() =>
     getLiveShopItems()
       .filter(i => i.type === 'food')
@@ -47,7 +42,6 @@ export function BlobbiKitchenRoom({ ctx }: BlobbiKitchenRoomProps) {
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
-  // Handler for using an item from the fridge modal
   const handleFridgeUseItem = (itemId: string) => {
     if (isUsingItem) return;
     ctx.onUseItem(itemId, 'feed').finally(() => {
@@ -57,17 +51,15 @@ export function BlobbiKitchenRoom({ ctx }: BlobbiKitchenRoomProps) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* ── Hero ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
-      {/* ── Bottom Action Bar ── */}
       {!isActiveFloatingCompanion && (
-        <div className="relative z-10 px-4 sm:px-8 pb-6 pt-2">
-          <div className="flex items-start justify-between">
-            {/* Bottom left — empty */}
-            <div className="w-24 shrink-0" />
+        <div className="relative z-10 px-3 sm:px-6 pb-4 sm:pb-6 pt-1">
+          <div className="flex items-center justify-between gap-1 sm:gap-3">
+            {/* Left — empty spacer matching button width */}
+            <div className="w-14 sm:w-20 shrink-0" />
 
-            {/* Center: single-focus food carousel */}
+            {/* Center: food carousel */}
             <div className="flex-1 min-w-0 flex justify-center">
               <ItemCarousel
                 items={foodEntries}
@@ -77,9 +69,9 @@ export function BlobbiKitchenRoom({ ctx }: BlobbiKitchenRoomProps) {
               />
             </div>
 
-            {/* Bottom right — Fridge */}
+            {/* Right — Fridge */}
             <RoomActionButton
-              icon={<Refrigerator className="size-9 sm:size-10" />}
+              icon={<Refrigerator className="size-7 sm:size-9" />}
               label="Fridge"
               color="text-orange-500"
               glowHex="#f97316"
@@ -90,7 +82,6 @@ export function BlobbiKitchenRoom({ ctx }: BlobbiKitchenRoomProps) {
         </div>
       )}
 
-      {/* ── Fridge Modal ── */}
       {showFridge && (
         <BlobbiActionInventoryModal
           open={showFridge}

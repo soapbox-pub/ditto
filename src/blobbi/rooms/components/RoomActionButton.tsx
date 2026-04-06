@@ -3,12 +3,12 @@
 /**
  * RoomActionButton — Unified circular action button for all rooms.
  *
- * Matches the visual language of the original Photo and Companion buttons:
- * - Large rounded-full circle with soft radial glow background
- * - Icon centred inside
- * - Label beneath
- * - Hover lift + scale, active scale-down
- * - Consistent size across all rooms
+ * Responsive sizing:
+ * - Mobile: size-14 circle, size-7 icons
+ * - Desktop (sm+): size-20 circle, size-9 icons
+ *
+ * Matches the soft radial glow of the original Photo / Companion buttons
+ * but at a smaller scale so the bottom bar feels proportional on mobile.
  */
 
 import { Loader2 } from 'lucide-react';
@@ -48,7 +48,7 @@ export function RoomActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
+        'flex flex-col items-center gap-1 transition-all duration-300 ease-out shrink-0',
         'hover:-translate-y-1 hover:scale-110 active:scale-95',
         disabled && 'opacity-50 pointer-events-none',
         className,
@@ -56,13 +56,13 @@ export function RoomActionButton({
     >
       <div className="relative">
         <div
-          className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
+          className={cn('size-14 sm:size-20 rounded-full flex items-center justify-center', color)}
           style={{
             background: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
           }}
         >
           {loading ? (
-            <Loader2 className="size-9 sm:size-10 animate-spin" />
+            <Loader2 className="size-7 sm:size-9 animate-spin" />
           ) : (
             icon
           )}
@@ -73,7 +73,7 @@ export function RoomActionButton({
           </div>
         )}
       </div>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">{label}</span>
     </button>
   );
 }
