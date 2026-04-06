@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Server, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Server, Plus, Trash2, Bot } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
@@ -12,6 +14,7 @@ import { useShakespeare, type Model } from '@/hooks/useShakespeare';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useBuddy } from '@/hooks/useBuddy';
 
 import type { MCPServer } from '@/contexts/AppContext';
 
@@ -38,6 +41,14 @@ export function AdvancedSettings() {
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
   const [sentryDsn, setSentryDsn] = useState(config.sentryDsn);
+  const { buddy, hasBuddy, updateSoul, resetBuddy } = useBuddy();
+  const [soulDraft, setSoulDraft] = useState('');
+  const [soulSaving, setSoulSaving] = useState(false);
+
+  // Sync soul draft with buddy data
+  useEffect(() => {
+    if (buddy?.soul) setSoulDraft(buddy.soul);
+  }, [buddy?.soul]);
 
   // Fetch AI models when the section opens
   useEffect(() => {
@@ -128,6 +139,64 @@ export function AdvancedSettings() {
                     Choose which AI model your buddy uses for chat responses.
                   </p>
                 </div>
+
+                {/* Buddy Identity */}
+                {hasBuddy && buddy && (
+                  <div className="space-y-3 pt-2 border-t border-border">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-muted-foreground" />
+                      <Label className="text-sm font-medium">Identity</Label>
+                    </div>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-12 shrink-0">Name</span>
+                        <span className="font-medium">{buddy.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-12 shrink-0">npub</span>
+                        <span className="font-mono text-xs text-muted-foreground truncate">{nip19.npubEncode(buddy.pubkey)}</span>
+                      </div>
+                    </div>
+
+                    {/* Soul */}
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="buddy-soul">Soul</Label>
+                      <Textarea
+                        id="buddy-soul"
+                        value={soulDraft}
+                        onChange={(e) => setSoulDraft(e.target.value)}
+                        onBlur={async () => {
+                          const trimmed = soulDraft.trim();
+                          if (trimmed && trimmed !== buddy.soul) {
+                            setSoulSaving(true);
+                            try {
+                              await updateSoul.mutateAsync(trimmed);
+                              toast({ title: 'Buddy soul updated' });
+                            } catch {
+                              toast({ title: 'Failed to update soul', variant: 'destructive' });
+                            } finally {
+                              setSoulSaving(false);
+                            }
+                          }
+                        }}
+                        placeholder="Describe your buddy's personality..."
+                        className="min-h-[100px] resize-y text-base md:text-sm"
+                        disabled={soulSaving}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Your buddy's personality and behavior. Changes are saved when you click away.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!hasBuddy && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      No buddy configured. Visit the Buddy page to create one.
+                    </p>
+                  </div>
+                )}
 
                 {/* MCP Servers */}
                 <div className="space-y-3 pt-2 border-t border-border">
@@ -463,6 +532,35 @@ export function AdvancedSettings() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="px-3 pt-3 pb-4 space-y-4">
+                {/* Reset Buddy */}
+                {hasBuddy && (
+                  <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Reset Buddy</h3>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Delete your buddy's identity and start over. The buddy's Nostr keypair and soul
+                        will be wiped from this device and relays. This cannot be undone.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={async () => {
+                        try {
+                          await resetBuddy.mutateAsync();
+                          toast({ title: 'Buddy has been reset' });
+                        } catch {
+                          toast({ title: 'Failed to reset buddy', variant: 'destructive' });
+                        }
+                      }}
+                      disabled={resetBuddy.isPending}
+                    >
+                      {resetBuddy.isPending ? 'Resetting...' : 'Reset Buddy'}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
                   <div>
                     <h3 className="text-sm font-medium">Delete Account</h3>
