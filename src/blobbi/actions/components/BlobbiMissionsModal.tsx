@@ -175,7 +175,10 @@ function DailyMissionsSection({
     bonusReward,
     noMissionsAvailable,
     rerollsRemaining,
-  } = useDailyMissions({ availableStages });
+  } = useDailyMissions({
+    availableStages,
+    persistedDailyMissions: profile?.content.dailyMissions,
+  });
 
   const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
     profile,

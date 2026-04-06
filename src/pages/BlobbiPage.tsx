@@ -1317,7 +1317,10 @@ function BlobbiDashboard({
   };
   
   // ─── Daily Missions (for missions tab) ───
-  const dailyMissions = useDailyMissions({ availableStages });
+  const dailyMissions = useDailyMissions({
+    availableStages,
+    persistedDailyMissions: profile?.content.dailyMissions,
+  });
   const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
     profile,
     updateProfileEvent,

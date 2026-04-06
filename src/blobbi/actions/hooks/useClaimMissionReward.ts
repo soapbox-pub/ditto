@@ -1,12 +1,15 @@
 /**
  * useClaimMissionReward - Hook for claiming daily mission rewards
- * 
+ *
  * Handles:
  * - Awarding XP to the active companion (Kind 31124)
  * - Persisting mission claimed state to profile content JSON (Kind 11125)
- * - Updating localStorage optimistic cache
+ * - Updating the in-memory session store
  * - Idempotent claiming (prevents double-credit)
  * - Optimistic cache updates
+ *
+ * Kind 11125 content JSON is the persistent source of truth.
+ * The in-memory session store is updated for immediate UI feedback.
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -53,8 +56,8 @@ export interface ClaimMissionResult {
   xpEarned: number;
 }
 
-// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
-// helpers in daily-missions.ts. These scope the localStorage key by pubkey.
+// State is read/written via the in-memory session store in daily-missions.ts.
+// Kind 11125 content JSON is the persistent source of truth.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -90,7 +93,7 @@ export function useClaimMissionReward(
         throw new Error('Profile not found');
       }
 
-      // Read current missions state from pubkey-scoped localStorage (optimistic cache)
+      // Read current missions state from in-memory session store
       let missionsState = readDailyMissionsState(user.pubkey);
       
       // Ensure we have valid state for today
@@ -204,7 +207,7 @@ export function useClaimMissionReward(
         }
       }
 
-      // ── 3. Update localStorage optimistic cache ──
+      // ── 3. Update in-memory session store for immediate UI feedback ──
 
       writeDailyMissionsState(user.pubkey, updatedState);
 

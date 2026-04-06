@@ -1,11 +1,15 @@
 /**
  * useRerollMission - Hook for rerolling daily missions
- * 
+ *
  * Handles:
  * - Replacing a mission with a new one from the pool
  * - Tracking reroll usage (max 3 per day)
  * - Respecting stage-based mission filtering
- * - Persisting state to localStorage
+ * - Updating the in-memory session store
+ *
+ * Note: Rerolled state is held in the session store until a claim
+ * persists it to kind 11125. Rerolls that happen without a subsequent
+ * claim are lost on page refresh — this is intentional.
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -39,8 +43,7 @@ export interface RerollMissionResult {
   rerollsRemaining: number;
 }
 
-// Storage is now handled by the centralized readDailyMissionsState / writeDailyMissionsState
-// helpers in daily-missions.ts. These scope the localStorage key by pubkey.
+// State is read/written via the in-memory session store in daily-missions.ts.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -59,7 +62,7 @@ export function useRerollMission() {
         throw new Error('You must be logged in to reroll missions');
       }
 
-      // Read current missions state from pubkey-scoped localStorage
+      // Read current missions state from in-memory session store
       let missionsState = readDailyMissionsState(user.pubkey);
       
       // Ensure we have valid state for today
@@ -90,7 +93,7 @@ export function useRerollMission() {
         throw new Error('No replacement missions available. All alternative missions may already be in your daily list.');
       }
 
-      // Persist the updated state to pubkey-scoped localStorage
+      // Update the in-memory session store
       writeDailyMissionsState(user.pubkey, result.state);
 
       // Dispatch event for React components to re-render

@@ -62,8 +62,10 @@ export interface DailyMission extends DailyMissionDefinition {
 
 /**
  * Stored state for daily missions.
- * Source of truth is now Kind 11125 profile content JSON.
- * localStorage is used only as a local optimistic cache.
+ *
+ * Source of truth: Kind 11125 profile content JSON (`dailyMissions` section).
+ * During a session, state is held in an in-memory map for instant UI updates.
+ * On page load, the hook hydrates from kind 11125. localStorage is NOT used.
  */
 export interface DailyMissionsState {
   /** The date string (YYYY-MM-DD) when these missions were generated */
@@ -83,72 +85,65 @@ export interface DailyMissionsState {
 /** Maximum number of mission rerolls allowed per day */
 export const MAX_DAILY_REROLLS = 3;
 
-// ─── Account-Scoped Storage ───────────────────────────────────────────────────
+// ─── In-Memory Session Store ──────────────────────────────────────────────────
 
 /**
- * Get the pubkey-scoped localStorage key for daily missions.
+ * In-memory, pubkey-scoped store for daily missions state.
  *
- * Daily mission state MUST be isolated per account. Without pubkey scoping,
- * switching accounts on the same device causes mission progress, claimed
- * status, rerolls, and lifetime XP to leak between users.
+ * ── Source-of-Truth Architecture ──────────────────────────────────────────────
  *
- * The key format is: `blobbi:daily-missions:<pubkey>`
+ *   Kind 11125 content JSON (`dailyMissions` section) is the ONLY persistent
+ *   source of truth. This in-memory map is a session cache:
  *
- * All code that reads or writes daily mission localStorage MUST use this
- * function (or the read/write helpers below) rather than a hardcoded key.
+ *   • On page load / account switch, `useDailyMissions` hydrates this map
+ *     from `profile.content.dailyMissions` (parsed from the kind 11125 event).
+ *   • During the session, progress/rerolls update this map for instant UI.
+ *   • Claims persist to kind 11125 via `updateDailyMissionsContent()`.
+ *   • On page refresh the map is empty, so the hook re-hydrates from kind 11125.
+ *   • Unclaimed progress (feed counts, etc.) that hasn't been written to
+ *     kind 11125 is lost on refresh — this is intentional and preferable to
+ *     cross-account leakage through localStorage.
+ *
+ *   localStorage is NOT used for daily missions. This eliminates all
+ *   cross-account leakage bugs.
  */
-export function getDailyMissionsStorageKey(pubkey: string): string {
-  return `blobbi:daily-missions:${pubkey}`;
-}
+const sessionStore = new Map<string, DailyMissionsState>();
 
 /**
- * Read daily missions state from pubkey-scoped localStorage.
+ * Read daily missions state from the in-memory session store.
  *
  * Returns null if:
- *   - No stored state exists for this pubkey
- *   - The stored JSON is corrupt
+ *   - No state exists for this pubkey in the current session
  *   - The pubkey is empty/undefined
- *
- * This is the ONLY correct way to read mission state from localStorage.
- * Never use a hardcoded key — always scope by pubkey.
  */
 export function readDailyMissionsState(pubkey: string | undefined): DailyMissionsState | null {
   if (!pubkey) return null;
-
-  try {
-    const stored = localStorage.getItem(getDailyMissionsStorageKey(pubkey));
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    // Support legacy field name (totalCoinsEarned → totalXpEarned)
-    if (parsed.totalCoinsEarned !== undefined && parsed.totalXpEarned === undefined) {
-      parsed.totalXpEarned = parsed.totalCoinsEarned;
-      delete parsed.totalCoinsEarned;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+  return sessionStore.get(pubkey) ?? null;
 }
 
 /**
- * Write daily missions state to pubkey-scoped localStorage.
+ * Write daily missions state to the in-memory session store.
  *
- * This is the ONLY correct way to write mission state to localStorage.
- * Never use a hardcoded key — always scope by pubkey.
+ * This is the ONLY correct way to update session mission state.
+ * No-ops silently if pubkey is empty/undefined (logged-out users
+ * should not have mission state).
  *
- * No-ops silently if pubkey is empty/undefined (logged-out users should
- * not persist mission state).
+ * Note: This does NOT persist to kind 11125. Persistence happens
+ * explicitly through `updateDailyMissionsContent()` in the claim
+ * and other write-path hooks.
  */
 export function writeDailyMissionsState(pubkey: string | undefined, state: DailyMissionsState): void {
   if (!pubkey) return;
+  sessionStore.set(pubkey, state);
+}
 
-  try {
-    localStorage.setItem(getDailyMissionsStorageKey(pubkey), JSON.stringify(state));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('[daily-missions] Failed to write state for', pubkey.slice(0, 8), error);
-    }
-  }
+/**
+ * Clear the session store entry for a pubkey.
+ * Used when the hook needs to re-hydrate from kind 11125 data.
+ */
+export function clearDailyMissionsState(pubkey: string | undefined): void {
+  if (!pubkey) return;
+  sessionStore.delete(pubkey);
 }
 
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
