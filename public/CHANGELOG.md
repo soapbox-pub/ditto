@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.6.1] - 2026-04-06
+
+### Added
+- Manage your interest tabs (hashtags and locations) from the settings page
+- Edit button on custom profile tabs so you can tweak them without recreating from scratch
+- Follow packs and follow sets now show author info and action headers in the feed
+- Posts now show whether they were created or updated, so you can tell when something's been edited
+
+### Changed
+- Webxdc games and apps run in a more secure sandbox with stricter content policies and private subdomains
+- Nsite previews now use the same secure sandbox as webxdc apps
+- Blobbi items work as instant abilities instead of consumable inventory -- no more fiddly quantity pickers
+
+### Fixed
+- Desktop tab bar no longer overflows when you have lots of tabs -- scroll arrows appear automatically
+- Mobile compose box no longer randomly collapses or becomes unclickable
+- Profile avatar and banner lightbox no longer hides behind the right sidebar
+- Infinite scroll on custom profile tab feeds no longer reloads the same content
+- Reaction emoji are now visible on each row in the interactions modal
+- Missing bottom border on collapsed thread expand button restored
+
 ## [2.6.0] - 2026-04-05
 
 ### Added

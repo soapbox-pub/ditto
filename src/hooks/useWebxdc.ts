@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Webxdc as WebxdcAPI, SendingStatusUpdate, ReceivedStatusUpdate, RealtimeListener } from '@webxdc/types';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 import { NSecSigner } from '@nostrify/nostrify';
 
+import type { Webxdc as WebxdcAPI, SendingStatusUpdate, ReceivedStatusUpdate, RealtimeListener } from '@webxdc/types/webxdc';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 
