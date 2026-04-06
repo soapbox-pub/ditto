@@ -7,7 +7,14 @@ export interface DiversifyOptions {
   minGap?: number;
   /** Maximum proportion of a page any single type can occupy (default: 0.2 = 20%). */
   maxProportion?: number;
+  /** Per-type cap overrides. Key is the content-type ID (from getKindId), value is the proportion. */
+  typeCaps?: Record<string, number>;
 }
+
+/** Default per-type cap overrides. */
+const DEFAULT_TYPE_CAPS: Record<string, number> = {
+  blobbi: 0.1, // 10% cap for Blobbi
+};
 
 /** Resolve a kind number to a content-type bucket string. */
 function getContentType(kind: number): string {
@@ -36,9 +43,10 @@ export function diversifyPage(
 
   const minGap = options?.minGap ?? 4;
   const maxProportion = options?.maxProportion ?? 0.2;
+  const typeCaps = { ...DEFAULT_TYPE_CAPS, ...options?.typeCaps };
 
   // ── Phase 1: Proportional cap ────────────────────────────────────────
-  const capped = applyCap(items, maxProportion);
+  const capped = applyCap(items, maxProportion, typeCaps);
 
   // ── Phase 2: Gap-enforced interleave ─────────────────────────────────
   return applyGapInterleave(capped, minGap, priorTail);
@@ -76,10 +84,24 @@ export function diversifyFeedPages(
 
 /**
  * Cap each content type to at most `maxProportion` of the page item count.
+ * Per-type overrides in `typeCaps` take precedence over the default proportion.
  * Keeps the hottest items for each type (items are already hot-sorted).
  */
-function applyCap(items: FeedItem[], maxProportion: number): FeedItem[] {
-  const maxPerType = Math.max(1, Math.ceil(items.length * maxProportion));
+function applyCap(
+  items: FeedItem[],
+  maxProportion: number,
+  typeCaps: Record<string, number>,
+): FeedItem[] {
+  const defaultMax = Math.max(1, Math.ceil(items.length * maxProportion));
+
+  /** Resolve the cap for a given content type. */
+  function maxForType(type: string): number {
+    const override = typeCaps[type];
+    if (override !== undefined) {
+      return Math.max(1, Math.ceil(items.length * override));
+    }
+    return defaultMax;
+  }
 
   const typeCounts = new Map<string, number>();
   const result: FeedItem[] = [];
@@ -87,7 +109,7 @@ function applyCap(items: FeedItem[], maxProportion: number): FeedItem[] {
   for (const item of items) {
     const type = getContentType(item.event.kind);
     const count = typeCounts.get(type) ?? 0;
-    if (count < maxPerType) {
+    if (count < maxForType(type)) {
       result.push(item);
       typeCounts.set(type, count + 1);
     }
