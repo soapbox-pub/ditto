@@ -1182,7 +1182,7 @@ function BlobbiDashboard({
   const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
   
   // Check if this Blobbi can be set as companion (must be baby or adult, not egg)
-  const canBeCompanion = companion.stage === 'egg' || companion.stage === 'baby' || companion.stage === 'adult';
+  const canBeCompanion = companion.stage === 'baby' || companion.stage === 'adult';
   
   // Handler for toggling the current companion
   const handleSetAsCompanion = useCallback(async () => {

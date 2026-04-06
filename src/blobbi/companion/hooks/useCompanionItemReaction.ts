@@ -23,6 +23,7 @@ import {
   KIND_BLOBBI_STATE,
   isValidBlobbiEvent,
   parseBlobbiEvent,
+  type BlobbiCompanion,
   type BlobbiStats,
 } from '@/blobbi/core/lib/blobbi';
 import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -87,10 +88,13 @@ export function useCompanionItemReaction({
   // Get current companion's d-tag from profile
   const currentCompanionD = profile?.currentCompanion;
   
-  // Fetch companion stats
-  const statsQuery = useQuery({
+  // Fetch the parsed companion (raw event data).
+  // We cache the BlobbiCompanion itself — NOT projected stats — because
+  // projected values become stale within the staleTime window.  Projection
+  // is done at point-of-use below so it is always fresh.
+  const companionQuery = useQuery({
     queryKey: ['companion-stats', user?.pubkey, currentCompanionD],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }): Promise<BlobbiCompanion | null> => {
       if (!user?.pubkey || !currentCompanionD) return null;
       
       const events = await nostr.query([{
@@ -105,42 +109,64 @@ export function useCompanionItemReaction({
       
       if (validEvents.length === 0) return null;
       
-      const companion = parseBlobbiEvent(validEvents[0]);
-      if (!companion) return null;
-
-      // Project stats forward so need detection reflects real-time condition
-      const { stats: projected } = calculateProjectedDecay(companion);
-      return projected;
+      return parseBlobbiEvent(validEvents[0]) ?? null;
     },
     enabled: isActive && !!user?.pubkey && !!currentCompanionD,
-    staleTime: 30_000, // 30 seconds - stats don't change that fast
-    gcTime: 60_000, // 1 minute
+    staleTime: 30_000,
+    gcTime: 60_000,
   });
   
-  const stats = statsQuery.data ?? null;
-  const hasStats = stats !== null;
+  const cachedCompanion = companionQuery.data ?? null;
+
+  // Keep a ref so callbacks always read the latest cached companion
+  // without needing to be recreated on every query update.
+  const companionRef = useRef<BlobbiCompanion | null>(null);
+  companionRef.current = cachedCompanion;
+
+  /**
+   * Project stats from the cached companion at call-time.
+   * This ensures every invocation uses a fresh Date.now() for decay,
+   * so need detection is accurate even when the underlying query data
+   * hasn't been refetched.
+   */
+  const getProjectedStats = useCallback((): BlobbiStats | null => {
+    const c = companionRef.current;
+    if (!c) return null;
+    return calculateProjectedDecay(c).stats;
+  }, []);
+
+  const hasStats = cachedCompanion !== null;
+
+  // Expose a snapshot for debugging/display (projected at render time)
+  const stats: Partial<BlobbiStats> | null = hasStats ? getProjectedStats() : null;
   
   /**
    * Check if Blobbi needs an item category based on current stats.
+   * Projects stats at call-time for accuracy.
    */
   const checkItemNeed = useCallback((category: ShopItemCategory): ItemReactionResult | null => {
-    if (!stats) return null;
+    const projected = getProjectedStats();
+    if (!projected) return null;
     
-    const needResult = checkItemCategoryNeed(category, stats);
+    const needResult = checkItemCategoryNeed(category, projected);
     return {
       needsItem: needResult.needsItem,
       needResult,
     };
-  }, [stats]);
+  }, [getProjectedStats]);
   
   /**
    * React to an item landing on the ground.
+   * Projects stats at call-time for accuracy.
    * 
    * - If Blobbi needs the item: walk toward it (via onWalkTo)
    * - If Blobbi doesn't need the item: glance at it briefly (via onGlance)
    */
   const reactToItemLanding = useCallback((category: ShopItemCategory, position: Position) => {
-    if (!isActive || !stats) return;
+    if (!isActive) return;
+
+    const projected = getProjectedStats();
+    if (!projected) return;
     
     // Rate limit reactions
     const now = Date.now();
@@ -149,7 +175,7 @@ export function useCompanionItemReaction({
     }
     lastReactionTimeRef.current = now;
     
-    const needResult = checkItemCategoryNeed(category, stats);
+    const needResult = checkItemCategoryNeed(category, projected);
     
     // Delay reaction slightly for more natural feel
     setTimeout(() => {
@@ -175,7 +201,7 @@ export function useCompanionItemReaction({
         onGlance?.(position);
       }
     }, REACTION_CONFIG.reactionDelay);
-  }, [isActive, stats, onGlance, onWalkTo]);
+  }, [isActive, getProjectedStats, onGlance, onWalkTo]);
   
   return {
     checkItemNeed,
