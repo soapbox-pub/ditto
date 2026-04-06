@@ -43,6 +43,7 @@ These APIs are **completely unavailable** (return `undefined`, `null`, or throw)
 | **Notifications API** | Low | `Notification` is absent. Web push permission prompts won't appear. (Capacitor local notifications via the native plugin are unaffected.) |
 | **WebCodecs** | Low | `VideoDecoder` / `VideoEncoder` are absent (`AudioDecoder` remains). Low-level media processing is unavailable. |
 | **Gamepad API** | Low | `navigator.getGamepads` is absent. |
+| **OPFS** | Medium | `navigator.storage.getDirectory` method does not exist. The `navigator.storage` object is present but the Origin Private File System API is stripped. SQLite-over-OPFS and any other OPFS-based storage will fail. |
 | **Web Share API** | Low | `navigator.share` is absent. Use Capacitor's `@capacitor/share` plugin instead -- the native share sheet still works. |
 
 ## Available APIs
@@ -65,6 +66,7 @@ These APIs **still work** under Lockdown Mode and can be relied on.
 
 - **localStorage works** -- our primary client-side storage (app config, relay lists, etc.) is unaffected.
 - **IndexedDB is gone** -- if any dependency silently uses IndexedDB (e.g. some Nostr caching layers, TanStack Query persisters), it will fail. Ensure all storage paths fall back to localStorage or in-memory.
+- **OPFS is gone** -- `navigator.storage.getDirectory` is stripped (the method doesn't exist, though the `navigator.storage` object itself remains). SQLite-over-OPFS (e.g. wa-sqlite, sql.js with OPFS backend) and any other OPFS-based persistence will not work.
 
 ### Cryptography
 
@@ -93,7 +95,7 @@ Several blocked web APIs have Capacitor plugin equivalents that bypass WKWebView
 
 ### Detection
 
-The report used a scoring heuristic (7/11 key APIs blocked = 68%) to detect Lockdown Mode. There is no official API to query Lockdown Mode status. Detection relies on probing for the absence of multiple APIs that are specifically disabled by Lockdown Mode but normally present in Safari.
+The report used a scoring heuristic (8/12 key APIs blocked = 70%) to detect Lockdown Mode. There is no official API to query Lockdown Mode status. Detection relies on probing for the absence of multiple APIs that are specifically disabled by Lockdown Mode but normally present in Safari.
 
 ## Raw Diagnostic Report
 
@@ -104,7 +106,7 @@ For exact error messages, navigator properties, weight scores, and per-API diagn
 When building new features, consider:
 
 1. **Always provide pure-JS fallbacks** for any crypto or data-processing library that might ship a WASM build.
-2. **Never depend on IndexedDB** as the sole storage mechanism. Always fall back to localStorage or in-memory stores.
+2. **Never depend on IndexedDB or OPFS** as the sole storage mechanism. Both are completely stripped. Always fall back to localStorage or in-memory stores.
 3. **Avoid WebGL-dependent UI** for core functionality. Use it as a progressive enhancement with a CSS/Canvas 2D fallback.
 4. **Use Capacitor plugins** for sharing, notifications, and file operations rather than web APIs -- they work on all native platforms regardless of Lockdown Mode.
 5. **Test on a Lockdown Mode device** when shipping features that touch storage, crypto, or media APIs.

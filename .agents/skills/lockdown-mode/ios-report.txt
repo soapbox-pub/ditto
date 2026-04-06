@@ -1,11 +1,11 @@
 ============================================================
 LOCKDOWN MODE DETECTOR REPORT
-2026-04-06T20:53:36.098Z
+2026-04-06T23:40:58.170Z
 ============================================================
 
 VERDICT: Lockdown Mode Likely Active
-7 of 11 key APIs are blocked, consistent with iOS/macOS Lockdown Mode.
-Score: 68% (7/11 key APIs blocked)
+8 of 12 key APIs are blocked, consistent with iOS/macOS Lockdown Mode.
+Score: 70% (8/12 key APIs blocked)
 
 ============================================================
 API TEST RESULTS (detailed)
@@ -136,10 +136,10 @@ API TEST RESULTS (detailed)
 ------------------------------------------------------------
 [AVAILABLE] JIT Compilation (weight: 2)
   JavaScript JIT optimization heuristic
-  Result: 110.0ms for 1M iterations (JIT likely)
+  Result: 99.0ms for 1M iterations (JIT likely)
   Diagnostics:
     running 1,000,000 iterations of Math.sqrt*Math.sin...
-    elapsed: 110.00ms
+    elapsed: 99.00ms
     sum (to prevent dead-code elimination): -681.7597
     threshold: <150ms suggests JIT active
     verdict: likely JIT
@@ -186,6 +186,15 @@ API TEST RESULTS (detailed)
   Diagnostics:
     'caches' in window: false
     typeof caches: undefined
+
+------------------------------------------------------------
+[BLOCKED] OPFS (weight: 2)
+  Origin Private File System (navigator.storage.getDirectory)
+  Result: navigator.storage.getDirectory is not a function
+  Diagnostics:
+    typeof navigator.storage: object
+    typeof navigator.storage.getDirectory: undefined
+    getDirectory method does not exist
 
 ============================================================
 NAVIGATOR INFO
