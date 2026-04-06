@@ -8,12 +8,23 @@ const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
  *
  * When a buddy is configured, `name` and `soul` are injected into the template.
  * When no buddy exists, falls back to the default "Dork" persona.
+ *
+ * If `customPrompt` is provided (from Advanced Settings), it replaces the entire
+ * base template. `{{NAME}}` and `{{SOUL}}` placeholders are substituted in both
+ * the custom and default prompts.
  */
-export function buildSystemPrompt(name?: string, soul?: string): ChatMessage {
+export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: string): ChatMessage {
   const agentName = name ?? 'Dork';
   const soulBlock = soul
     ? `\n\nYour soul — this defines who you are, your personality, and how you behave:\n${soul}\n`
     : '';
+
+  if (customPrompt) {
+    const resolved = customPrompt
+      .replace(/\{\{NAME\}\}/g, agentName)
+      .replace(/\{\{SOUL\}\}/g, soul ?? '');
+    return { role: 'system', content: resolved };
+  }
 
   return {
     role: 'system',

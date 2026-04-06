@@ -240,6 +240,8 @@ export interface AppConfig {
   sidebarWidgets: WidgetConfig[];
   /** Selected AI model ID for Buddy chat. Empty string means "use cheapest available". */
   aiModel: string;
+  /** Custom system prompt override for Buddy chat. Empty string means use the built-in default. */
+  aiSystemPrompt: string;
   /** Configured MCP (Model Context Protocol) servers for Buddy AI tool discovery. */
   mcpServers: Record<string, MCPServer>;
 }

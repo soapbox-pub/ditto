@@ -104,10 +104,10 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     return () => { cancelled = true; };
   }, [user, config.aiModel, getAvailableModels]);
 
-  // Build the system prompt — dynamic based on buddy identity
+  // Build the system prompt — dynamic based on buddy identity + optional custom override
   const systemPrompt = useMemo(
-    () => buildSystemPrompt(buddyName, buddySoul),
-    [buddyName, buddySoul],
+    () => buildSystemPrompt(buddyName, buddySoul, config.aiSystemPrompt || undefined),
+    [buddyName, buddySoul, config.aiSystemPrompt],
   );
 
   // Build the chat messages array for the API

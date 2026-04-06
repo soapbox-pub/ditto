@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
+import { SYSTEM_PROMPT } from '@/lib/aiChatSystemPrompt';
 
 import type { MCPServer } from '@/contexts/AppContext';
 
@@ -44,6 +45,7 @@ export function AdvancedSettings() {
   const { buddy, hasBuddy, updateSoul, resetBuddy } = useBuddy();
   const [soulDraft, setSoulDraft] = useState('');
   const [soulSaving, setSoulSaving] = useState(false);
+  const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt);
 
   // Sync soul draft with buddy data
   useEffect(() => {
@@ -197,6 +199,43 @@ export function AdvancedSettings() {
                     </p>
                   </div>
                 )}
+
+                {/* System Prompt */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <Label htmlFor="ai-system-prompt">System Prompt</Label>
+                  <Textarea
+                    id="ai-system-prompt"
+                    value={systemPromptDraft}
+                    onChange={(e) => setSystemPromptDraft(e.target.value)}
+                    onBlur={() => {
+                      const trimmed = systemPromptDraft.trim();
+                      if (trimmed !== config.aiSystemPrompt) {
+                        updateConfig(() => ({ aiSystemPrompt: trimmed }));
+                        toast({ title: trimmed ? 'System prompt updated' : 'System prompt reset to default' });
+                      }
+                    }}
+                    placeholder={SYSTEM_PROMPT.content as string}
+                    className="min-h-[120px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Override the base system prompt. Use <code className="bg-muted px-1 rounded">{'{{NAME}}'}</code> and <code className="bg-muted px-1 rounded">{'{{SOUL}}'}</code> as placeholders. Leave empty to use the built-in default.
+                  </p>
+                  {systemPromptDraft && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground"
+                      onClick={() => {
+                        setSystemPromptDraft('');
+                        updateConfig(() => ({ aiSystemPrompt: '' }));
+                        toast({ title: 'System prompt reset to default' });
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Reset to default
+                    </Button>
+                  )}
+                </div>
 
                 {/* MCP Servers */}
                 <div className="space-y-3 pt-2 border-t border-border">

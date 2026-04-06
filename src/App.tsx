@@ -157,6 +157,7 @@ const hardcodedConfig: AppConfig = {
     { id: 'wikipedia' },
   ],
   aiModel: '',
+  aiSystemPrompt: '',
   mcpServers: {},
 };
 

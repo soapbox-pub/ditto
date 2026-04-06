@@ -260,6 +260,7 @@ export const AppConfigSchema = z.object({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  aiSystemPrompt: z.string().optional().default(''),
   mcpServers: z.record(z.string(), MCPServerSchema).optional(),
 });
 
