@@ -1,13 +1,28 @@
 ---
 name: lockdown-mode
-description: iOS Lockdown Mode restrictions and their impact on web APIs inside WKWebView/Capacitor. Reference when debugging or building features for lockdown-enabled devices.
+description: Apple Lockdown Mode restrictions and their impact on web APIs inside WKWebView/Safari/WebView. Reference when debugging or building features for lockdown-enabled devices.
 ---
 
-# iOS Lockdown Mode
+# Apple Lockdown Mode
 
-Apple's Lockdown Mode is an opt-in security hardening profile on iOS/macOS that disables or restricts many web platform APIs inside Safari and WKWebView. Since this app ships inside a Capacitor WKWebView shell, **every restriction that applies to Safari also applies to our app**.
+Apple's Lockdown Mode is an opt-in security hardening profile that disables or restricts many web platform APIs inside Safari and WKWebView. Since this app ships inside a Capacitor WKWebView shell, **every restriction that applies to Safari also applies to our app**.
 
-This document is based on testing against **iOS 18.7 / Safari 26.4** on an iPhone with Lockdown Mode enabled (April 2026).
+## Platform Availability
+
+Lockdown Mode is available on:
+
+- **iOS 16** or later (iPhone)
+- **iPadOS 16** or later (iPad)
+- **watchOS 10** or later (Apple Watch)
+- **macOS Ventura** or later (Mac)
+
+Additional protections are available starting in iOS 17, iPadOS 17, watchOS 10, and macOS Sonoma.
+
+For full details, see [About Lockdown Mode](https://support.apple.com/en-us/105120) on Apple Support.
+
+## Testing Baseline
+
+This document is based on testing against **iOS 18.7 / Safari 26.4** on an iPhone with Lockdown Mode enabled (April 2026). The web API restrictions documented below apply to Safari and WKWebView across all supported platforms (iOS, iPadOS, and macOS).
 
 ## Blocked APIs
 
@@ -82,7 +97,7 @@ The report used a scoring heuristic (7/11 key APIs blocked = 68%) to detect Lock
 
 ## Raw Diagnostic Report
 
-For exact error messages, navigator properties, weight scores, and per-API diagnostic output, see [lockdown-mode-report.txt](lockdown-mode-report.txt).
+For exact error messages, navigator properties, weight scores, and per-API diagnostic output, see [ios-report.txt](ios-report.txt).
 
 ## Guidance for Feature Decisions
 
