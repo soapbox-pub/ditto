@@ -102,3 +102,63 @@ export function satsToUSD(sats: number, btcPrice: number): string {
     maximumFractionDigits: 2,
   });
 }
+
+/** A simplified transaction relevant to a specific address. */
+export interface Transaction {
+  /** Transaction ID (hex). */
+  txid: string;
+  /** Net satoshi change for the address (positive = received, negative = sent). */
+  amount: number;
+  /** Whether this is a receive or send relative to the address. */
+  type: 'receive' | 'send';
+  /** Whether the transaction is confirmed. */
+  confirmed: boolean;
+  /** Unix timestamp of the block (undefined if unconfirmed). */
+  timestamp?: number;
+}
+
+/**
+ * Fetch transactions for a Bitcoin address from the Blockstream Esplora API.
+ * Returns simplified transactions with net amount relative to the address.
+ */
+export async function fetchTransactions(address: string): Promise<Transaction[]> {
+  const response = await fetch(`https://blockstream.info/api/address/${address}/txs`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch transactions');
+  }
+
+  const txs = await response.json();
+
+  return txs.map((tx: Record<string, unknown>) => {
+    const vin = tx.vin as Array<{ prevout: { scriptpubkey_address?: string; value: number } | null }>;
+    const vout = tx.vout as Array<{ scriptpubkey_address?: string; value: number }>;
+    const status = tx.status as { confirmed: boolean; block_time?: number };
+
+    // Sum sats flowing out of this address (inputs we owned)
+    const totalIn = vin.reduce((sum, input) => {
+      if (input.prevout?.scriptpubkey_address === address) {
+        return sum + input.prevout.value;
+      }
+      return sum;
+    }, 0);
+
+    // Sum sats flowing into this address (outputs we own)
+    const totalOut = vout.reduce((sum, output) => {
+      if (output.scriptpubkey_address === address) {
+        return sum + output.value;
+      }
+      return sum;
+    }, 0);
+
+    const net = totalOut - totalIn;
+
+    return {
+      txid: tx.txid as string,
+      amount: Math.abs(net),
+      type: net >= 0 ? 'receive' : 'send',
+      confirmed: status.confirmed,
+      timestamp: status.block_time,
+    } satisfies Transaction;
+  });
+}

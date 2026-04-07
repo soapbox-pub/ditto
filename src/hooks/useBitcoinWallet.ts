@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { nostrPubkeyToBitcoinAddress, fetchAddressData, fetchBtcPrice } from '@/lib/bitcoin';
+import { nostrPubkeyToBitcoinAddress, fetchAddressData, fetchBtcPrice, fetchTransactions } from '@/lib/bitcoin';
 
 /**
  * Hook that derives a Bitcoin Taproot address from the current user's Nostr
@@ -38,6 +38,16 @@ export function useBitcoinWallet() {
     staleTime: 30_000,
   });
 
+  const {
+    data: transactions,
+    isLoading: isLoadingTxs,
+  } = useQuery({
+    queryKey: ['bitcoin-txs', bitcoinAddress],
+    queryFn: () => fetchTransactions(bitcoinAddress),
+    enabled: !!bitcoinAddress,
+    refetchInterval: 30_000,
+  });
+
   return {
     /** The derived bc1p... Taproot address. */
     bitcoinAddress,
@@ -45,8 +55,12 @@ export function useBitcoinWallet() {
     addressData,
     /** Current BTC price in USD. */
     btcPrice,
+    /** Transaction history for the address. */
+    transactions,
     /** Whether the initial balance fetch is in progress. */
     isLoading,
+    /** Whether transactions are still loading. */
+    isLoadingTxs,
     /** Error from the balance query, if any. */
     error,
     /** Manually trigger a balance refresh. */
