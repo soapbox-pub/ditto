@@ -149,8 +149,6 @@ const hardcodedConfig: AppConfig = {
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
   imageQuality: 'compressed',
-  blockExplorerAddress: 'https://mempool.space/address/{address}',
-  blockExplorerTx: 'https://mempool.space/tx/{txid}',
 };
 
 /**

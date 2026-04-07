@@ -89,15 +89,26 @@ import * as ecc from '@bitcoinerlab/secp256k1';
 bitcoin.initEccLib(ecc);
 ```
 
-## Balance API
+## Balance & Transaction APIs
 
-Balance data is fetched from the public Blockstream Esplora API:
+All Bitcoin data is fetched from the public [mempool.space](https://mempool.space) Esplora-compatible API:
 
-```
-GET https://blockstream.info/api/address/{address}
-```
+| Endpoint | Purpose |
+|---|---|
+| `GET https://mempool.space/api/address/{address}` | Balance stats (funded/spent sums, tx counts) |
+| `GET https://mempool.space/api/address/{address}/txs` | Transaction history for an address |
+| `GET https://mempool.space/api/tx/{txid}` | Full transaction detail (inputs, outputs, fee, block) |
 
-Returns confirmed and mempool stats (funded/spent sums, transaction counts). The wallet page polls this endpoint every 30 seconds.
+The wallet page polls balance and transaction data every 30 seconds. BTC/USD price is fetched from CoinGecko every 60 seconds.
+
+## NIP-73 Integration
+
+Transaction and address detail pages use [NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md) external content identifiers, enabling Nostr comments and reactions on Bitcoin transactions and addresses:
+
+- **Transaction pages**: `/i/bitcoin:tx:{txid}` -- renders a mempool.space-style transaction view with inputs, outputs, fee, block info, and USD values
+- **Address pages**: `/i/bitcoin:address:{address}` -- renders balance, recent transactions, and total received/sent
+
+These pages are part of the existing `/i/*` external content system, which also supports URLs, ISBNs, country codes, and other NIP-73 identifier types.
 
 ## Security Considerations
 

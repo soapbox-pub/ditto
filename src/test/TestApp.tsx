@@ -111,8 +111,6 @@ export function TestApp({ children }: TestAppProps) {
     plausibleEndpoint: "",
     savedFeeds: [],
     imageQuality: 'compressed',
-    blockExplorerAddress: 'https://mempool.space/address/{address}',
-    blockExplorerTx: 'https://mempool.space/tx/{txid}',
   };
 
   return (

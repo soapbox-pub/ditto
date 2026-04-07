@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import UriTemplate from 'uri-templates';
 import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -129,7 +129,7 @@ export function WalletPage() {
               <TxAccordion open={txOpen}>
                 <div className="w-full divide-y">
                   {transactions.map((tx) => (
-                    <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} txUrlTemplate={config.blockExplorerTx} />
+                    <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} />
                   ))}
                 </div>
               </TxAccordion>
@@ -174,15 +174,12 @@ function formatTxDate(timestamp?: number): string {
 }
 
 /** Single transaction row. */
-function TxRow({ tx, btcPrice, txUrlTemplate }: { tx: Transaction; btcPrice?: number; txUrlTemplate: string }) {
+function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
   const isReceive = tx.type === 'receive';
-  const txUrl = UriTemplate(txUrlTemplate).fill({ txid: tx.txid });
 
   return (
-    <a
-      href={txUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      to={`/i/bitcoin:tx:${tx.txid}`}
       className="flex items-center justify-between py-3 px-1 hover:bg-muted/50 transition-colors rounded-lg -mx-1 px-2"
     >
       <div className="flex items-center gap-3">
@@ -213,6 +210,6 @@ function TxRow({ tx, btcPrice, txUrlTemplate }: { tx: Transaction; btcPrice?: nu
           {satsToBTC(tx.amount).replace(/\.?0+$/, '')} BTC
         </p>
       </div>
-    </a>
+    </Link>
   );
 }

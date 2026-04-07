@@ -1,5 +1,12 @@
 import * as bitcoin from 'bitcoinjs-lib';
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Base URL for the mempool.space Esplora-compatible REST API. */
+const MEMPOOL_API = 'https://mempool.space/api';
+
 /**
  * Convert a Nostr public key (32-byte hex) to a Bitcoin Taproot (P2TR) address.
  *
@@ -23,7 +30,11 @@ export function nostrPubkeyToBitcoinAddress(pubkeyHex: string): string {
   }
 }
 
-/** Balance data returned by the Blockstream API. */
+// ---------------------------------------------------------------------------
+// Balance / Address data (wallet page)
+// ---------------------------------------------------------------------------
+
+/** Balance data returned by the Esplora API. */
 export interface AddressData {
   /** Confirmed on-chain balance in satoshis. */
   balance: number;
@@ -43,10 +54,10 @@ export interface AddressData {
 
 /**
  * Fetch balance and transaction stats for a Bitcoin address from the
- * Blockstream Esplora API.
+ * mempool.space Esplora API.
  */
 export async function fetchAddressData(address: string): Promise<AddressData> {
-  const response = await fetch(`https://blockstream.info/api/address/${address}`);
+  const response = await fetch(`${MEMPOOL_API}/address/${address}`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch balance');
@@ -67,6 +78,10 @@ export async function fetchAddressData(address: string): Promise<AddressData> {
     pendingTxCount: data.mempool_stats.tx_count,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
 
 /** Convert satoshis to a BTC string with up to 8 decimal places. */
 export function satsToBTC(sats: number): string {
@@ -103,6 +118,10 @@ export function satsToUSD(sats: number, btcPrice: number): string {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Wallet-page transaction list (simplified per-address view)
+// ---------------------------------------------------------------------------
+
 /** A simplified transaction relevant to a specific address. */
 export interface Transaction {
   /** Transaction ID (hex). */
@@ -118,11 +137,11 @@ export interface Transaction {
 }
 
 /**
- * Fetch transactions for a Bitcoin address from the Blockstream Esplora API.
+ * Fetch transactions for a Bitcoin address from the mempool.space Esplora API.
  * Returns simplified transactions with net amount relative to the address.
  */
 export async function fetchTransactions(address: string): Promise<Transaction[]> {
-  const response = await fetch(`https://blockstream.info/api/address/${address}/txs`);
+  const response = await fetch(`${MEMPOOL_API}/address/${address}/txs`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
@@ -161,4 +180,134 @@ export async function fetchTransactions(address: string): Promise<Transaction[]>
       timestamp: status.block_time,
     } satisfies Transaction;
   });
+}
+
+// ---------------------------------------------------------------------------
+// Full transaction detail (NIP-73 /i/bitcoin:tx:... page)
+// ---------------------------------------------------------------------------
+
+/** A single input in a full transaction. */
+export interface TxInput {
+  txid: string;
+  vout: number;
+  address?: string;
+  value: number;
+  isCoinbase: boolean;
+}
+
+/** A single output in a full transaction. */
+export interface TxOutput {
+  address?: string;
+  value: number;
+  scriptpubkeyType: string;
+  /** True if the output has been spent. */
+  spent: boolean;
+}
+
+/** Full transaction detail returned by the Esplora API. */
+export interface TxDetail {
+  txid: string;
+  version: number;
+  locktime: number;
+  size: number;
+  weight: number;
+  fee: number;
+  confirmed: boolean;
+  blockHeight?: number;
+  blockHash?: string;
+  blockTime?: number;
+  inputs: TxInput[];
+  outputs: TxOutput[];
+  /** Total value of all inputs (sats). */
+  totalInput: number;
+  /** Total value of all outputs (sats). */
+  totalOutput: number;
+}
+
+/** Fetch full transaction details from mempool.space. */
+export async function fetchTxDetail(txid: string): Promise<TxDetail> {
+  const response = await fetch(`${MEMPOOL_API}/tx/${txid}`);
+  if (!response.ok) throw new Error('Failed to fetch transaction');
+
+  const tx = await response.json();
+
+  const vin = tx.vin as Array<{
+    txid: string;
+    vout: number;
+    prevout: { scriptpubkey_address?: string; value: number } | null;
+    is_coinbase: boolean;
+  }>;
+  const vout = tx.vout as Array<{
+    scriptpubkey_address?: string;
+    value: number;
+    scriptpubkey_type: string;
+  }>;
+  const status = tx.status as { confirmed: boolean; block_height?: number; block_hash?: string; block_time?: number };
+
+  const inputs: TxInput[] = vin.map((input) => ({
+    txid: input.txid,
+    vout: input.vout,
+    address: input.prevout?.scriptpubkey_address,
+    value: input.prevout?.value ?? 0,
+    isCoinbase: input.is_coinbase,
+  }));
+
+  const outputs: TxOutput[] = vout.map((output) => ({
+    address: output.scriptpubkey_address,
+    value: output.value,
+    scriptpubkeyType: output.scriptpubkey_type,
+    spent: false, // Esplora /tx endpoint doesn't include spending info
+  }));
+
+  const totalInput = inputs.reduce((sum, i) => sum + i.value, 0);
+  const totalOutput = outputs.reduce((sum, o) => sum + o.value, 0);
+
+  return {
+    txid: tx.txid as string,
+    version: tx.version as number,
+    locktime: tx.locktime as number,
+    size: tx.size as number,
+    weight: tx.weight as number,
+    fee: tx.fee as number,
+    confirmed: status.confirmed,
+    blockHeight: status.block_height,
+    blockHash: status.block_hash,
+    blockTime: status.block_time,
+    inputs,
+    outputs,
+    totalInput,
+    totalOutput,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Full address detail (NIP-73 /i/bitcoin:address:... page)
+// ---------------------------------------------------------------------------
+
+/** Full address detail combining balance stats + recent transactions. */
+export interface AddressDetail {
+  address: string;
+  balance: number;
+  pendingBalance: number;
+  totalBalance: number;
+  totalReceived: number;
+  totalSent: number;
+  txCount: number;
+  pendingTxCount: number;
+  /** Most recent transactions (up to 25). */
+  recentTxs: Transaction[];
+}
+
+/** Fetch full address details (balance + recent txs) from mempool.space. */
+export async function fetchAddressDetail(address: string): Promise<AddressDetail> {
+  const [addrData, txs] = await Promise.all([
+    fetchAddressData(address),
+    fetchTransactions(address),
+  ]);
+
+  return {
+    address,
+    ...addrData,
+    recentTxs: txs.slice(0, 25),
+  };
 }

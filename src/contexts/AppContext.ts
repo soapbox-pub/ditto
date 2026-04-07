@@ -241,10 +241,6 @@ export interface AppConfig {
   savedFeeds: SavedFeed[];
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
-  /** Block explorer URI template for address pages. Supports RFC 6570 variable: {address}. */
-  blockExplorerAddress: string;
-  /** Block explorer URI template for transaction pages. Supports RFC 6570 variable: {txid}. */
-  blockExplorerTx: string;
 }
 
 export interface AppContextType {
