@@ -137,7 +137,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
   {
     id: "wallet",
-    label: "Bitcoin Wallet",
+    label: "Wallet",
     path: "/wallet",
     icon: Wallet,
     requiresAuth: true,
