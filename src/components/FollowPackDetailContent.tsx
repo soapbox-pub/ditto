@@ -22,25 +22,15 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useNostr } from '@nostrify/react';
 import { genUserName } from '@/lib/genUserName';
+import { parsePackEvent } from '@/lib/packUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
-
-/** Parse a follow pack / starter pack event into structured data. */
-function parsePackEvent(event: NostrEvent) {
-  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag('title') || getTag('name') || 'Untitled Pack';
-  const description = getTag('description') || getTag('summary') || '';
-  const image = getTag('image') || getTag('thumb') || getTag('banner');
-  const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
-
-  return { title, description, image, pubkeys };
-}
 
 type Tab = 'feed' | 'members';
 
 // ─── Feed Tab ─────────────────────────────────────────────────────────────────
 
-function PackFeedTab({ pubkeys }: { pubkeys: string[] }) {
+export function PackFeedTab({ pubkeys }: { pubkeys: string[] }) {
   const { muteItems } = useMuteList();
 
   const { posts, isLoading } = useStreamPosts('', {
@@ -101,7 +91,7 @@ function PackFeedTab({ pubkeys }: { pubkeys: string[] }) {
 
 // ─── Members Tab ──────────────────────────────────────────────────────────────
 
-function PackMembersTab({
+export function PackMembersTab({
   pubkeys,
   membersMap,
   membersLoading,
@@ -357,7 +347,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 }
 
 /** Individual member card in the follow pack. */
-function MemberCard({
+export function MemberCard({
   pubkey,
   metadata,
   isFollowed,
@@ -437,7 +427,7 @@ function MemberCard({
   );
 }
 
-function MemberCardSkeleton() {
+export function MemberCardSkeleton() {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <Skeleton className="size-11 rounded-full shrink-0" />
