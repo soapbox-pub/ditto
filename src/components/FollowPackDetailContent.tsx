@@ -21,6 +21,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useNostr } from '@nostrify/react';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { genUserName } from '@/lib/genUserName';
 import { parsePackEvent } from '@/lib/packUtils';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -176,34 +177,32 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 
     setIsFollowingAll(true);
     try {
-      const signal = AbortSignal.timeout(10_000);
+      // 1. Fetch freshest kind 3 from relays (not cache)
+      const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
 
-      const followEvents = await nostr.query(
-        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-        { signal },
-      );
+      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
+      const existingPTags = prev?.tags.filter(([n]) => n === 'p') ?? [];
+      const nonPTags = prev?.tags.filter(([n]) => n !== 'p') ?? [];
+      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
 
-      const latestEvent = followEvents.length > 0
-        ? followEvents.reduce((latest, current) => current.created_at > latest.created_at ? current : latest)
-        : null;
+      // 3. Merge: add new pubkeys that aren't already followed
+      const newPTags = pubkeys
+        .filter((pk) => !existingPubkeys.has(pk))
+        .map((pk) => ['p', pk]);
+      const added = newPTags.length;
 
-      const existingFollows = latestEvent
-        ? latestEvent.tags.filter(([name]) => name === 'p').map(([, pk]) => pk)
-        : [];
-
-      const allFollows = [...new Set([...existingFollows, ...pubkeys])];
-      const added = pubkeys.filter((pk) => !existingFollows.includes(pk));
-
+      // 4. Publish with prev for published_at preservation
       await publishEvent({
         kind: 3,
-        content: latestEvent?.content ?? '',
-        tags: allFollows.map((pk) => ['p', pk]),
+        content: prev?.content ?? '',
+        tags: [...nonPTags, ...existingPTags, ...newPTags],
+        prev: prev ?? undefined,
       });
 
       toast({
         title: 'Following all!',
-        description: added.length > 0
-          ? `Added ${added.length} new account${added.length !== 1 ? 's' : ''} to your follow list.`
+        description: added > 0
+          ? `Added ${added} new account${added !== 1 ? 's' : ''} to your follow list.`
           : 'You were already following everyone in this pack.',
       });
     } catch (error) {
