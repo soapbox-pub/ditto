@@ -21,7 +21,7 @@ export function WalletPage() {
   const [copiedAddress, setCopiedAddress] = useState(false);
 
   useSeoMeta({
-    title: `Bitcoin Wallet | ${config.appName}`,
+    title: `Wallet | ${config.appName}`,
     description: 'Your Bitcoin Taproot wallet derived from your Nostr identity.',
   });
 
@@ -38,7 +38,7 @@ export function WalletPage() {
 
   return (
     <main>
-      <PageHeader title="Bitcoin Wallet" icon={<Wallet className="size-5" />} />
+      <PageHeader title="Wallet" icon={<Wallet className="size-5" />} />
 
       {!user ? (
         <div className="py-20 px-8 flex flex-col items-center gap-6 text-center">
