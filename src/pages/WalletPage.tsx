@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
+import UriTemplate from 'uri-templates';
 import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -128,7 +129,7 @@ export function WalletPage() {
               <TxAccordion open={txOpen}>
                 <div className="w-full divide-y">
                   {transactions.map((tx) => (
-                    <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} />
+                    <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} txUrlTemplate={config.blockExplorerTx} />
                   ))}
                 </div>
               </TxAccordion>
@@ -173,12 +174,13 @@ function formatTxDate(timestamp?: number): string {
 }
 
 /** Single transaction row. */
-function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
+function TxRow({ tx, btcPrice, txUrlTemplate }: { tx: Transaction; btcPrice?: number; txUrlTemplate: string }) {
   const isReceive = tx.type === 'receive';
+  const txUrl = UriTemplate(txUrlTemplate).fill({ txid: tx.txid });
 
   return (
     <a
-      href={`https://blockstream.info/tx/${tx.txid}`}
+      href={txUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-center justify-between py-3 px-1 hover:bg-muted/50 transition-colors rounded-lg -mx-1 px-2"

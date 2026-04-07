@@ -245,6 +245,8 @@ export const AppConfigSchema = z.object({
     })
   ).optional().default([]),
   imageQuality: z.enum(['compressed', 'original']),
+  blockExplorerAddress: z.string(),
+  blockExplorerTx: z.string(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
