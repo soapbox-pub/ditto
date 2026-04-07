@@ -84,6 +84,7 @@ import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reacti
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import { BlobbiRoomShell } from '@/blobbi/rooms/components/BlobbiRoomShell';
 import type { BlobbiRoomContext } from '@/blobbi/rooms/lib/room-types';
+import { useBlobbiHouse } from '@/blobbi/house';
 
 
 
@@ -152,6 +153,12 @@ function BlobbiContent() {
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
+
+  // ── Blobbi House (kind 11127) ──
+  const {
+    houseEvent,
+    updateHouseEvent,
+  } = useBlobbiHouse(profile?.event);
   
   // Auto-normalize profiles missing pettingLevel tag
   useBlobbonautProfileNormalization({
@@ -750,6 +757,8 @@ function BlobbiContent() {
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       profile={profile}
+      houseEvent={houseEvent}
+      updateHouseEvent={updateHouseEvent}
       onEvolve={handleEvolve}
       isHatching={isHatching}
       isEvolving={isEvolving}
@@ -806,6 +815,9 @@ interface BlobbiDashboardProps {
   actionInProgress: string | null;
   isPublishing: boolean;
   profile: BlobbonautProfile | null;
+  // House (kind 11127)
+  houseEvent: import('@nostrify/nostrify').NostrEvent | null;
+  updateHouseEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   // Stage transition handlers
   onEvolve: () => Promise<void>;
   isHatching: boolean;
@@ -846,6 +858,8 @@ function BlobbiDashboard({
   actionInProgress,
   isPublishing,
   profile,
+  houseEvent,
+  updateHouseEvent,
   onEvolve,
   isHatching,
   isEvolving,
@@ -1353,6 +1367,10 @@ function BlobbiDashboard({
     selectedD,
     profile,
 
+    // House (kind 11127)
+    houseEvent,
+    updateHouseEvent,
+
     // Projected / visual state
     currentStats,
     isSleeping,
@@ -1484,7 +1502,7 @@ function BlobbiDashboard({
   }), [
     // Only the primitive/memoized deps that actually change.
     // Stable callbacks (useCallback) and setState refs are intentionally omitted.
-    companion, companions, selectedD, profile,
+    companion, companions, selectedD, profile, houseEvent,
     currentStats, isSleeping, isEgg, isBaby,
     statusRecipe, statusRecipeLabel, effectiveEmotion, hasDevOverride, blobbiReaction,
     isUsingItem, usingItemId, isDirectActionPending,

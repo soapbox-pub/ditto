@@ -29,6 +29,9 @@ export {
 export { useRoomScene } from './hooks/useRoomScene';
 export { useRoomSceneEditor, type RoomScenePatch } from './hooks/useRoomSceneEditor';
 
+// ── Layout Constants ──
+export { WALL_PERCENT } from './components/RoomSceneLayer';
+
 // ── Components ──
 export { RoomSceneLayer } from './components/RoomSceneLayer';
 export { WallLayer } from './components/WallLayer';

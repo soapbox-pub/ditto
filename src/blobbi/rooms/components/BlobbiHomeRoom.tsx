@@ -36,7 +36,8 @@ interface BlobbiHomeRoomProps {
 
 export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
   const {
-    profile,
+    houseEvent,
+    updateHouseEvent,
     isActiveFloatingCompanion,
     setShowPhotoModal,
     isCurrentCompanion,
@@ -60,13 +61,13 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     actionInProgress,
   } = ctx;
 
-  // ── Room Scene (wall + floor behind Blobbi) ──
-  const roomScene = useRoomScene('home', profile?.event?.content ?? '');
+  // ── Room Scene (wall + floor behind Blobbi) — reads from house (kind 11127) ──
+  const roomScene = useRoomScene('home', houseEvent?.content ?? '');
 
-  // ── Room Customization Editor ──
+  // ── Room Customization Editor — writes to house (kind 11127) ──
   const [showCustomize, setShowCustomize] = useState(false);
   const { scene: rawScene, patchScene, resetScene, isSaving: isSceneSaving } =
-    useRoomSceneEditor('home', profile, ctx.updateProfileEvent);
+    useRoomSceneEditor('home', houseEvent, updateHouseEvent);
 
   // Build carousel entries: toys + music + sing
   const carouselItems = useMemo<CarouselEntry[]>(() => {

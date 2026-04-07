@@ -41,7 +41,7 @@ interface RoomSceneLayerProps {
  * transform to read as real depth without the floor feeling squished.
  * The 60/40 ratio works well across both desktop and mobile viewports.
  */
-const WALL_PERCENT = 60;
+export const WALL_PERCENT = 60;
 const FLOOR_PERCENT = 100 - WALL_PERCENT; // 40%
 
 /**

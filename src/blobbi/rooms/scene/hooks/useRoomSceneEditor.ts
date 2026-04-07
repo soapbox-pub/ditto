@@ -9,11 +9,12 @@
  *   - A `reset` function to remove customization (back to defaults)
  *   - `isSaving` state for UI feedback
  *
- * Persistence strategy:
- *   - Uses fetchFreshEvent to get the latest kind 11125 event (safe read-modify-write)
- *   - Uses patchRoomSceneContent for field-level partial updates
- *   - All sibling content sections are preserved
- *   - Optimistic cache update via updateProfileEvent
+ * Persistence target (post-migration):
+ *   - Reads and writes to kind 11127 (Blobbi House root event)
+ *   - Uses fetchFreshEvent for safe read-modify-write
+ *   - Uses patchHouseRoomScene for field-level partial updates
+ *   - All sibling rooms, items, and unknown keys are preserved
+ *   - Optimistic cache update via updateHouseEvent
  *
  * This hook is designed for the customization UI only (not for read-only rendering).
  * For rendering, use `useRoomScene` instead.
@@ -21,19 +22,26 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 import {
-  KIND_BLOBBONAUT_PROFILE,
-  type BlobbonautProfile,
-} from '@/blobbi/core/lib/blobbi';
-import type { BlobbiRoomId } from '../../lib/room-config';
-import type { RoomScene, WallConfig, FloorConfig } from '../types';
-import { getDefaultScene, DEFAULT_HOME_SCENE } from '../defaults';
-import { parseRoomCustomization, patchRoomSceneContent, removeRoomSceneContent } from '../lib/room-scene-content';
+  KIND_BLOBBI_HOUSE,
+  buildHouseDTag,
+  buildHouseTags,
+} from '@/blobbi/house/lib/house-constants';
+import {
+  getRoomSceneFromHouse,
+  patchHouseRoomScene,
+  resetHouseRoomScene,
+} from '@/blobbi/house/lib/house-content';
+import { getDefaultRoomScene } from '@/blobbi/house/lib/house-defaults';
+import type { HouseRoomScene } from '@/blobbi/house/lib/house-types';
+import type { WallConfig, FloorConfig, RoomScene } from '../types';
+import { DEFAULT_HOME_SCENE } from '../defaults';
 
 /** Partial update shape accepted by the patch function. */
 export interface RoomScenePatch {
@@ -45,18 +53,18 @@ export interface RoomScenePatch {
 interface UseRoomSceneEditorResult {
   /** The current raw (unresolved) scene for this room. */
   scene: RoomScene;
-  /** Apply a partial update to the room scene. Persists to kind 11125. */
+  /** Apply a partial update to the room scene. Persists to kind 11127. */
   patchScene: (patch: RoomScenePatch) => Promise<void>;
-  /** Reset the room to its default scene. Removes from kind 11125. */
+  /** Reset the room to its default scene. Persists to kind 11127. */
   resetScene: () => Promise<void>;
   /** Whether a save operation is currently in flight. */
   isSaving: boolean;
 }
 
 export function useRoomSceneEditor(
-  roomId: BlobbiRoomId,
-  profile: BlobbonautProfile | null,
-  updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void,
+  roomId: string,
+  houseEvent: NostrEvent | null,
+  updateHouseEvent: (event: NostrEvent) => void,
 ): UseRoomSceneEditorResult {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -65,50 +73,50 @@ export function useRoomSceneEditor(
 
   // The fallback scene for this room
   const fallbackScene = useMemo(
-    () => getDefaultScene(roomId) ?? DEFAULT_HOME_SCENE,
+    (): HouseRoomScene => getDefaultRoomScene(roomId) ?? DEFAULT_HOME_SCENE,
     [roomId],
   );
 
-  // Parse the current raw scene from profile content
-  const scene = useMemo(() => {
-    if (!profile?.event?.content) return fallbackScene;
-    const map = parseRoomCustomization(profile.event.content);
-    return map?.[roomId] ?? fallbackScene;
-  }, [profile?.event?.content, roomId, fallbackScene]);
+  // Parse the current raw scene from house content
+  const scene = useMemo((): RoomScene => {
+    if (!houseEvent?.content) return fallbackScene;
+    return getRoomSceneFromHouse(houseEvent.content, roomId) ?? fallbackScene;
+  }, [houseEvent?.content, roomId, fallbackScene]);
 
   // ── Patch Scene ──
   const patchScene = useCallback(async (patch: RoomScenePatch) => {
-    if (!user?.pubkey || !profile) return;
+    if (!user?.pubkey) return;
 
     setIsSaving(true);
     try {
-      // Fetch fresh event for safe read-modify-write
+      // Fetch fresh house event for safe read-modify-write
       const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_BLOBBONAUT_PROFILE],
+        kinds: [KIND_BLOBBI_HOUSE],
         authors: [user.pubkey],
+        '#d': [buildHouseDTag(user.pubkey)],
       });
 
-      const existingContent = prev?.content ?? profile.event.content ?? '';
-      const existingTags = prev?.tags ?? profile.allTags;
+      const existingContent = prev?.content ?? houseEvent?.content ?? '';
+      const existingTags = prev?.tags ?? buildHouseTags(user.pubkey);
 
-      // Apply the partial patch
-      const updatedContent = patchRoomSceneContent(
+      // Apply the partial patch to house content
+      const updatedContent = patchHouseRoomScene(
         existingContent,
         roomId,
         patch,
         fallbackScene,
       );
 
-      // Publish
+      // Publish to kind 11127
       const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
+        kind: KIND_BLOBBI_HOUSE,
         content: updatedContent,
         tags: existingTags,
         prev: prev ?? undefined,
       });
 
       // Optimistic cache update
-      updateProfileEvent(event);
+      updateHouseEvent(event);
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[useRoomSceneEditor] Failed to save room scene:', err);
@@ -121,33 +129,34 @@ export function useRoomSceneEditor(
     } finally {
       setIsSaving(false);
     }
-  }, [user?.pubkey, profile, nostr, publishEvent, updateProfileEvent, roomId, fallbackScene]);
+  }, [user?.pubkey, nostr, publishEvent, updateHouseEvent, roomId, fallbackScene, houseEvent?.content]);
 
   // ── Reset Scene ──
   const resetScene = useCallback(async () => {
-    if (!user?.pubkey || !profile) return;
+    if (!user?.pubkey) return;
 
     setIsSaving(true);
     try {
       const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_BLOBBONAUT_PROFILE],
+        kinds: [KIND_BLOBBI_HOUSE],
         authors: [user.pubkey],
+        '#d': [buildHouseDTag(user.pubkey)],
       });
 
-      const existingContent = prev?.content ?? profile.event.content ?? '';
-      const existingTags = prev?.tags ?? profile.allTags;
+      const existingContent = prev?.content ?? houseEvent?.content ?? '';
+      const existingTags = prev?.tags ?? buildHouseTags(user.pubkey);
 
-      // Remove this room's scene
-      const updatedContent = removeRoomSceneContent(existingContent, roomId);
+      // Reset this room's scene in house content
+      const updatedContent = resetHouseRoomScene(existingContent, roomId);
 
       const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
+        kind: KIND_BLOBBI_HOUSE,
         content: updatedContent,
         tags: existingTags,
         prev: prev ?? undefined,
       });
 
-      updateProfileEvent(event);
+      updateHouseEvent(event);
 
       toast({
         title: 'Room reset',
@@ -165,7 +174,7 @@ export function useRoomSceneEditor(
     } finally {
       setIsSaving(false);
     }
-  }, [user?.pubkey, profile, nostr, publishEvent, updateProfileEvent, roomId]);
+  }, [user?.pubkey, nostr, publishEvent, updateHouseEvent, roomId, houseEvent?.content]);
 
   return { scene, patchScene, resetScene, isSaving };
 }

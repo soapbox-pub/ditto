@@ -37,6 +37,10 @@ export interface BlobbiRoomContext {
   selectedD: string;
   profile: BlobbonautProfile | null;
 
+  // ── House (kind 11127) ──
+  houseEvent: NostrEvent | null;
+  updateHouseEvent: (event: NostrEvent) => void;
+
   // ── Projected / visual state ──
   currentStats: {
     hunger: number;
