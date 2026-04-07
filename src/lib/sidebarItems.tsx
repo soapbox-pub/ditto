@@ -31,6 +31,7 @@ import {
   Settings,
   Smile,
   SmilePlus,
+  Wallet,
   Sparkles,
   TrendingUp,
   User,
@@ -134,6 +135,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  {
+    id: "wallet",
+    label: "Bitcoin Wallet",
+    path: "/wallet",
+    icon: Wallet,
+    requiresAuth: true,
+  },
   { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText },
   {
     id: "letters",
