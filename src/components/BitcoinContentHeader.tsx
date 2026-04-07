@@ -519,11 +519,30 @@ function AddressSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
-// Compact previews (used in NoteCard embeds, etc.)
+// Compact previews (used in NoteCard embeds, hover cards, etc.)
 // ---------------------------------------------------------------------------
 
-/** Compact preview for a Bitcoin transaction (used in ExternalContentPreview). */
+/** Compact preview for a Bitcoin transaction — fetches real data. */
 export function BitcoinTxPreview({ txid, link }: { txid: string; link: string }) {
+  const { tx, btcPrice, isLoading } = useBitcoinTx(txid);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-lg shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const amount = tx ? tx.totalOutput : 0;
+  const fee = tx?.fee ?? 0;
+
   return (
     <Link
       to={link}
@@ -536,16 +555,54 @@ export function BitcoinTxPreview({ txid, link }: { txid: string; link: string })
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Bitcoin className="size-3 shrink-0" />
           <span>Bitcoin Transaction</span>
+          {tx && (
+            <span className={tx.confirmed
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-yellow-600 dark:text-yellow-400'
+            }>
+              {tx.confirmed ? 'Confirmed' : 'Unconfirmed'}
+            </span>
+          )}
         </div>
-        <p className="text-sm font-mono font-medium truncate mt-0.5">{truncateMiddle(txid, 12, 8)}</p>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {tx ? `${satsToBTC(amount)} BTC` : truncateMiddle(txid, 12, 8)}
+          {tx && btcPrice ? (
+            <span className="text-muted-foreground font-normal"> ({satsToUSD(amount, btcPrice)})</span>
+          ) : null}
+        </p>
+        {tx && (
+          <p className="text-xs text-muted-foreground truncate">
+            Fee {formatSats(fee)} sats
+            {tx.blockHeight ? ` · Block ${tx.blockHeight.toLocaleString()}` : ''}
+          </p>
+        )}
       </div>
       <ExternalLink className="size-4 text-muted-foreground shrink-0" />
     </Link>
   );
 }
 
-/** Compact preview for a Bitcoin address (used in ExternalContentPreview). */
+/** Compact preview for a Bitcoin address — fetches real data. */
 export function BitcoinAddressPreview({ address, link }: { address: string; link: string }) {
+  const { addressDetail, btcPrice, isLoading } = useBitcoinAddress(address);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-lg shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const balance = addressDetail?.totalBalance ?? 0;
+  const txCount = addressDetail ? addressDetail.txCount + addressDetail.pendingTxCount : 0;
+
   return (
     <Link
       to={link}
@@ -559,7 +616,19 @@ export function BitcoinAddressPreview({ address, link }: { address: string; link
           <Bitcoin className="size-3 shrink-0" />
           <span>Bitcoin Address</span>
         </div>
-        <p className="text-sm font-mono font-medium truncate mt-0.5">{truncateMiddle(address, 12, 8)}</p>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {addressDetail ? `${satsToBTC(balance)} BTC` : truncateMiddle(address, 12, 8)}
+          {addressDetail && btcPrice ? (
+            <span className="text-muted-foreground font-normal"> ({satsToUSD(balance, btcPrice)})</span>
+          ) : null}
+        </p>
+        {addressDetail && (
+          <p className="text-xs text-muted-foreground truncate">
+            {txCount.toLocaleString()} transaction{txCount !== 1 ? 's' : ''}
+            {' · '}
+            <span className="font-mono">{truncateMiddle(address, 8, 6)}</span>
+          </p>
+        )}
       </div>
       <ExternalLink className="size-4 text-muted-foreground shrink-0" />
     </Link>
