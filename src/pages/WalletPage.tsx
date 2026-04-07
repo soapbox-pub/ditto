@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/PageHeader';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
+import { SendBitcoinDialog } from '@/components/SendBitcoinDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinWallet } from '@/hooks/useBitcoinWallet';
@@ -21,6 +22,7 @@ export function WalletPage() {
 
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   useSeoMeta({
     title: `Wallet | ${config.appName}`,
@@ -96,6 +98,25 @@ export function WalletPage() {
               )}
             </div>
           ) : null}
+
+          {/* Send button */}
+          {addressData && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSendOpen(true)}
+              className="rounded-full"
+            >
+              <Send className="size-3.5 mr-1.5" />
+              Send
+            </Button>
+          )}
+
+          <SendBitcoinDialog
+            isOpen={sendOpen}
+            onClose={() => setSendOpen(false)}
+            btcPrice={btcPrice}
+          />
 
           {/* QR Code */}
           <div className="rounded-2xl bg-white p-4 shadow-sm">

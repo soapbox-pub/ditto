@@ -1,4 +1,8 @@
 import * as bitcoin from 'bitcoinjs-lib';
+import { toXOnly } from 'bitcoinjs-lib';
+import { nip19 } from 'nostr-tools';
+import * as ecc from '@bitcoinerlab/secp256k1';
+import { ECPairFactory, type ECPairAPI } from 'ecpair';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -6,6 +10,32 @@ import * as bitcoin from 'bitcoinjs-lib';
 
 /** Base URL for the mempool.space Esplora-compatible REST API. */
 const MEMPOOL_API = 'https://mempool.space/api';
+
+/** Standard Bitcoin dust limit in satoshis. */
+const DUST_LIMIT = 546;
+
+/** Estimated vBytes per P2TR input. */
+const VBYTES_PER_INPUT = 57.5;
+
+/** Estimated vBytes per P2TR output. */
+const VBYTES_PER_OUTPUT = 43;
+
+/** Estimated vBytes for transaction overhead (version, locktime, etc.). */
+const VBYTES_OVERHEAD = 10.5;
+
+// ---------------------------------------------------------------------------
+// ECC initialisation (lazy)
+// ---------------------------------------------------------------------------
+
+let _ECPair: ECPairAPI | null = null;
+
+function getECPair(): ECPairAPI {
+  if (!_ECPair) {
+    bitcoin.initEccLib(ecc);
+    _ECPair = ECPairFactory(ecc);
+  }
+  return _ECPair;
+}
 
 /**
  * Convert a Nostr public key (32-byte hex) to a Bitcoin Taproot (P2TR) address.
@@ -28,6 +58,18 @@ export function nostrPubkeyToBitcoinAddress(pubkeyHex: string): string {
     console.error('Error generating Bitcoin address:', error);
     return '';
   }
+}
+
+/**
+ * Convert a bech32 `npub1...` identifier to a Bitcoin Taproot (P2TR) address.
+ * Decodes the npub to a hex pubkey, then delegates to {@link nostrPubkeyToBitcoinAddress}.
+ */
+export function npubToBitcoinAddress(npub: string): string {
+  const decoded = nip19.decode(npub);
+  if (decoded.type !== 'npub') {
+    throw new Error('Invalid npub format');
+  }
+  return nostrPubkeyToBitcoinAddress(decoded.data);
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +147,11 @@ export async function fetchBtcPrice(): Promise<number> {
 
   const data = await response.json();
   return data.bitcoin.usd;
+}
+
+/** Convert a BTC amount to satoshis (rounded to nearest integer). */
+export function btcToSats(btc: number): number {
+  return Math.round(btc * 100_000_000);
 }
 
 /** Convert satoshis to USD given a BTC price. */
@@ -310,4 +357,198 @@ export async function fetchAddressDetail(address: string): Promise<AddressDetail
     ...addrData,
     recentTxs: txs.slice(0, 25),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sending: UTXOs, fee estimation, transaction construction, broadcast
+// ---------------------------------------------------------------------------
+
+/** An unspent transaction output. */
+export interface UTXO {
+  txid: string;
+  vout: number;
+  /** Value in satoshis. */
+  value: number;
+  status: {
+    confirmed: boolean;
+    block_height?: number;
+    block_hash?: string;
+    block_time?: number;
+  };
+}
+
+/** Fetch UTXOs for a Bitcoin address from mempool.space. */
+export async function fetchUTXOs(address: string): Promise<UTXO[]> {
+  const response = await fetch(`${MEMPOOL_API}/address/${address}/utxo`);
+  if (!response.ok) throw new Error('Failed to fetch UTXOs');
+  return response.json();
+}
+
+/** Fee rate estimates keyed by confirmation speed. */
+export interface FeeRates {
+  /** ~10 min / next block (target 1). */
+  fastestFee: number;
+  /** ~30 min (target 3). */
+  halfHourFee: number;
+  /** ~1 hour (target 6). */
+  hourFee: number;
+  /** ~1 day (target 144). */
+  economyFee: number;
+  /** Minimum relay fee (target 504). */
+  minimumFee: number;
+}
+
+/** Fetch recommended fee rates (sat/vB) from mempool.space. */
+export async function getFeeRates(): Promise<FeeRates> {
+  const response = await fetch(`${MEMPOOL_API}/fee-estimates`);
+  if (!response.ok) throw new Error('Failed to fetch fee estimates');
+
+  const data = await response.json();
+
+  return {
+    fastestFee: Math.ceil(data['1'] || 1),
+    halfHourFee: Math.ceil(data['3'] || 1),
+    hourFee: Math.ceil(data['6'] || 1),
+    economyFee: Math.ceil(data['144'] || 1),
+    minimumFee: Math.ceil(data['504'] || 1),
+  };
+}
+
+/**
+ * Estimate the fee for a P2TR transaction in satoshis.
+ *
+ * @param numInputs  Number of Taproot inputs.
+ * @param numOutputs Number of outputs (recipient + optional change).
+ * @param feeRate    Fee rate in sat/vB.
+ */
+export function estimateFee(numInputs: number, numOutputs: number, feeRate: number): number {
+  const vBytes = numInputs * VBYTES_PER_INPUT + numOutputs * VBYTES_PER_OUTPUT + VBYTES_OVERHEAD;
+  return Math.ceil(vBytes * feeRate);
+}
+
+/**
+ * Validate a Bitcoin address (mainnet). Returns `true` if the address has a
+ * valid format and checksum, `false` otherwise.
+ */
+export function validateBitcoinAddress(address: string): boolean {
+  try {
+    bitcoin.address.toOutputScript(address, bitcoin.networks.bitcoin);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Broadcast a signed transaction hex to the Bitcoin network via mempool.space. Returns the txid. */
+export async function broadcastTransaction(txHex: string): Promise<string> {
+  const response = await fetch(`${MEMPOOL_API}/tx`, {
+    method: 'POST',
+    body: txHex,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Broadcast failed: ${body}`);
+  }
+
+  return response.text();
+}
+
+/**
+ * Compute the maximum sendable amount (in sats) after fees.
+ *
+ * @param totalBalance Total spendable sats across all UTXOs.
+ * @param numInputs    Number of UTXOs that will be consumed.
+ * @param feeRate      Fee rate in sat/vB.
+ * @returns The max amount in sats, or 0 if the balance cannot cover fees.
+ */
+export function maxSendable(totalBalance: number, numInputs: number, feeRate: number): number {
+  // When sending max there is no change output, so only 1 output.
+  const fee = estimateFee(numInputs, 1, feeRate);
+  return Math.max(0, totalBalance - fee);
+}
+
+/**
+ * Create, sign, and return a raw Bitcoin Taproot transaction.
+ *
+ * @param privateKeyHex 32-byte hex private key (from Nostr nsec).
+ * @param toAddress     Recipient Bitcoin address.
+ * @param amountSats    Amount to send in satoshis.
+ * @param utxos         Available UTXOs (all will be consumed).
+ * @param feeRate       Fee rate in sat/vB.
+ * @returns The signed transaction hex and the fee paid.
+ */
+export function createBitcoinTransaction(
+  privateKeyHex: string,
+  toAddress: string,
+  amountSats: number,
+  utxos: UTXO[],
+  feeRate: number,
+): { txHex: string; fee: number } {
+  // 1. Key pair from raw private key
+  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
+  const internalPubkey = toXOnly(keyPair.publicKey);
+
+  // 2. Derive change address (same Taproot address as sender)
+  const { address: changeAddress } = bitcoin.payments.p2tr({
+    internalPubkey,
+    network: bitcoin.networks.bitcoin,
+  });
+  if (!changeAddress) throw new Error('Failed to derive change address');
+
+  // 3. Build PSBT, add all UTXOs as inputs
+  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
+  let totalInput = 0;
+
+  for (const utxo of utxos) {
+    psbt.addInput({
+      hash: utxo.txid,
+      index: utxo.vout,
+      witnessUtxo: {
+        script: bitcoin.payments.p2tr({
+          internalPubkey,
+          network: bitcoin.networks.bitcoin,
+        }).output!,
+        value: BigInt(utxo.value),
+      },
+      tapInternalKey: internalPubkey,
+    });
+    totalInput += utxo.value;
+  }
+
+  // 4. Estimate fee — first assume 2 outputs (recipient + change)
+  const change2Out = totalInput - amountSats - estimateFee(utxos.length, 2, feeRate);
+  const hasChange = change2Out > DUST_LIMIT;
+  const numOutputs = hasChange ? 2 : 1;
+  const fee = estimateFee(utxos.length, numOutputs, feeRate);
+  const change = totalInput - amountSats - fee;
+
+  if (change < 0) {
+    throw new Error(
+      `Insufficient funds. Need ${(amountSats + fee).toLocaleString()} sats, have ${totalInput.toLocaleString()} sats.`,
+    );
+  }
+
+  // 5. Add outputs
+  psbt.addOutput({ address: toAddress, value: BigInt(amountSats) });
+
+  if (hasChange) {
+    psbt.addOutput({ address: changeAddress, value: BigInt(change) });
+  }
+
+  // 6. Tweak private key for Taproot key-path spending (BIP-341)
+  const tweakedSigner = keyPair.tweak(
+    bitcoin.crypto.taggedHash('TapTweak', internalPubkey),
+  );
+
+  // 7. Sign all inputs
+  for (let i = 0; i < utxos.length; i++) {
+    psbt.signInput(i, tweakedSigner);
+  }
+
+  // 8. Finalize and extract
+  psbt.finalizeAllInputs();
+  const tx = psbt.extractTransaction();
+
+  return { txHex: tx.toHex(), fee };
 }
