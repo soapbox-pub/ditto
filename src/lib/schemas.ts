@@ -301,6 +301,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
   notificationsEnabled: z.boolean().optional(),
+  notificationStyle: z.enum(['push', 'persistent']).optional(),
   notificationsCursor: z.number().optional(),
   notificationPreferences: z.object({
     reactions: z.boolean().optional(),
