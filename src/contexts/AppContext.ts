@@ -241,6 +241,8 @@ export interface AppConfig {
   savedFeeds: SavedFeed[];
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
+  /** Hex pubkey of the curator whose follow list defines the Ditto feed. */
+  curatorPubkey?: string;
 }
 
 export interface AppContextType {

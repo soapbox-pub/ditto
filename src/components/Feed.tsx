@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -23,6 +23,7 @@ import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
+import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
@@ -36,29 +37,6 @@ import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
-
-/** Curated kinds for the logged-out homepage and Ditto tab: unique Ditto content types. */
-const LANDING_KINDS = [
-  20,    // Photos (NIP-68)
-  21,    // Videos (NIP-71)
-  22,    // Short Videos (NIP-71)
-  34236, // Divines (addressable short videos)
-  36787, // Music Tracks
-  34139, // Music Playlists
-  36767, // Themes
-  37381, // Magic Decks
-  3367,  // Color Moments
-  37516, // Treasures
-  7516,  // Treasures (Found Logs)
-  30030, // Emoji Packs
-  30009, // Badge Definitions
-  10008, // Profile Badges
-  30008, // Profile Badges (legacy)
-  31124, // Blobbi
-];
-
-/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
-const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -81,7 +59,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
-  const { data: curatorFollowList } = useCuratorFollowList();
+  const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -159,52 +137,17 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 
   // Curated Ditto feed: latest content from the curator's follow list.
-  // Standard NIP-01 reverse-chronological pagination (no sort:hot).
-  const { nostr } = useNostr();
-  const dittoFeedEnabled = (useTopFeedForLoggedOut || !!useDittoTab) && (curatorFollowList ?? []).length > 0;
-  const curatorAuthorsKey = curatorFollowList ? curatorFollowList.length.toString() : '';
-
-  const topQuery = useInfiniteQuery<NostrEvent[], Error>({
-    queryKey: ['ditto-curated-feed', curatorAuthorsKey],
-    queryFn: async ({ pageParam, signal }) => {
-      const base: Record<string, unknown> = {
-        kinds: LANDING_KINDS,
-        authors: curatorFollowList,
-        limit: 20,
-      };
-      if (pageParam) base.until = pageParam;
-
-      // Webxdc needs a separate filter with MIME-type tag constraint
-      const webxdcFilter: Record<string, unknown> = {
-        ...LANDING_WEBXDC_FILTER,
-        authors: curatorFollowList,
-        limit: 20,
-      };
-      if (pageParam) webxdcFilter.until = pageParam;
-
-      const ditto = nostr.group(DITTO_RELAYS);
-      return ditto.query(
-        [base, webxdcFilter] as Parameters<typeof ditto.query>[0],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
-      );
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.length === 0) return undefined;
-      return lastPage[lastPage.length - 1].created_at - 1;
-    },
-    initialPageParam: undefined as number | undefined,
-    enabled: dittoFeedEnabled,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    placeholderData: (prev) => prev,
-  });
+  const topQuery = useCuratedDittoFeed(
+    curatorFollowList,
+    useTopFeedForLoggedOut || !!useDittoTab,
+  );
 
   // Unify the two query shapes behind a single interface
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useDittoQuery ? ['ditto-curated-feed', curatorAuthorsKey] : ['feed', activeTab],
-    [useDittoQuery, activeTab, curatorAuthorsKey],
+    () => useDittoQuery ? ['ditto-curated-feed'] : ['feed', activeTab],
+    [useDittoQuery, activeTab],
   );
 
   const handleRefresh = usePageRefresh(queryKey);
@@ -276,7 +219,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       });
   }, [rawData?.pages, muteItems, useDittoQuery]);
 
-  const showSkeleton = isPending || (isLoading && !rawData);
+  // Show skeletons while loading, but not if the curator list query errored
+  // (that would leave logged-out users staring at infinite skeletons).
+  const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
 
   // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
   // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.

@@ -1,11 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-
-/**
- * The curator pubkey whose follow list curates the Ditto feed.
- * npub1jvnpg4c6ljadf5t6ry0w9q0rnm4mksde87kglkrc993z46c39axsgq89sc
- */
-export const CURATOR_PUBKEY = '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /** localStorage key for cached curator follow list. */
 const CACHE_KEY = 'ditto:curatorFollowList';
@@ -36,28 +31,36 @@ function setCached(pubkeys: string[]): void {
  * Fetches the follow list (kind 3 `p` tags) for the curator pubkey.
  * Returns the curator's pubkey + all pubkeys they follow.
  * Cached in localStorage for instant display on return visits.
+ *
+ * The curator pubkey is read from `config.curatorPubkey`. When unset the
+ * hook is disabled and returns `undefined`.
  */
 export function useCuratorFollowList() {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const curatorPubkey = config.curatorPubkey;
 
   return useQuery<string[]>({
-    queryKey: ['curator-follow-list', CURATOR_PUBKEY],
+    queryKey: ['curator-follow-list', curatorPubkey],
     queryFn: async ({ signal }) => {
+      if (!curatorPubkey) return [];
+
       const [event] = await nostr.query(
-        [{ kinds: [3], authors: [CURATOR_PUBKEY], limit: 1 }],
+        [{ kinds: [3], authors: [curatorPubkey], limit: 1 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
       );
-      if (!event) return [CURATOR_PUBKEY];
+      if (!event) return [curatorPubkey];
 
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
         .map(([, pk]) => pk);
 
       // Include the curator themselves
-      const allPubkeys = [...new Set([CURATOR_PUBKEY, ...pubkeys])];
+      const allPubkeys = [...new Set([curatorPubkey, ...pubkeys])];
       setCached(allPubkeys);
       return allPubkeys;
     },
+    enabled: !!curatorPubkey,
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
     placeholderData: getCached(),

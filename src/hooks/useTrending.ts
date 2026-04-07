@@ -198,14 +198,12 @@ export function useInfiniteHotFeed(
   enabled = true,
   limit = SORTED_PAGE_SIZE,
   extraFilters?: Record<string, unknown>[],
-  authors?: string[],
 ) {
   const { nostr } = useNostr();
   const extraKey = extraFilters ? JSON.stringify(extraFilters) : '';
-  const authorsKey = authors ? authors.length.toString() : '';
 
   return useInfiniteQuery<NostrEvent[], Error>({
-    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey, authorsKey],
+    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey],
     queryFn: async ({ pageParam, signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
 
@@ -214,7 +212,6 @@ export function useInfiniteHotFeed(
         limit,
       };
       if (pageParam) base.until = pageParam;
-      if (authors && authors.length > 0) base.authors = authors;
 
       // Primary filter for the main kinds list
       const filters: Record<string, unknown>[] = [{ ...base, kinds }];
