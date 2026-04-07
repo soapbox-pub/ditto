@@ -7,9 +7,13 @@
 /**
  * CSS class for the bottom action bar in every room.
  *
+ * Includes a semi-transparent frosted background so action buttons remain
+ * readable over the room scene background. The frost is subtle enough to
+ * let the room environment show through.
+ *
  * On mobile/tablet (max-sidebar), adds extra bottom padding so the
  * room controls clear the app's fixed bottom navigation bar.
  * On desktop (sidebar:), uses normal padding since there's no bottom nav.
  */
 export const ROOM_BOTTOM_BAR_CLASS =
-  'relative z-10 px-3 sm:px-6 pt-1 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)]';
+  'relative z-10 px-3 sm:px-6 pt-3 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)] bg-background/50 backdrop-blur-md';

@@ -155,20 +155,27 @@ export function BlobbiRoomShell({
 
       {/* ── Floating Room Header ── */}
       <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
-        <div className="flex flex-col items-center pt-2 pb-1">
-          <div className="flex items-center gap-1.5 pointer-events-auto">
+        <div className="flex flex-col items-center pt-2 pb-2">
+          <div
+            className={cn(
+              'flex items-center gap-1.5 pointer-events-auto',
+              'px-3 py-1 rounded-full',
+              'bg-background/60 backdrop-blur-md',
+              'shadow-sm border border-border/20',
+            )}
+          >
             <span className="text-sm">{meta.icon}</span>
-            <span className="text-xs sm:text-sm font-semibold text-foreground/70">{meta.label}</span>
+            <span className="text-xs sm:text-sm font-semibold text-foreground/80">{meta.label}</span>
           </div>
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="flex items-center gap-1.5 mt-1.5">
             {dots.map(dot => (
               <div
                 key={dot.id}
                 className={cn(
                   'rounded-full transition-all duration-300',
                   dot.active
-                    ? 'w-4 h-1 bg-primary'
-                    : 'w-1 h-1 bg-muted-foreground/20',
+                    ? 'w-4 h-1.5 bg-primary shadow-sm'
+                    : 'w-1.5 h-1.5 bg-foreground/20',
                 )}
                 title={dot.label}
               />
@@ -181,13 +188,15 @@ export function BlobbiRoomShell({
       <button
         onClick={goLeft}
         className={cn(
-          'group absolute left-0 top-1/2 -translate-y-1/2 z-40',
+          'group absolute left-0.5 top-1/2 -translate-y-1/2 z-40',
           'flex items-center gap-0',
-          'text-muted-foreground/40 hover:text-foreground/70',
+          'text-foreground/50 hover:text-foreground/80',
           'transition-all duration-200 active:scale-95',
           'cursor-pointer select-none',
-          'rounded-r-full pl-0.5 pr-1 py-1',
-          'hover:bg-accent/40',
+          'rounded-full pl-1 pr-1.5 py-1.5',
+          'bg-background/40 backdrop-blur-sm',
+          'hover:bg-background/60',
+          'shadow-sm',
         )}
         aria-label={`Go to ${leftDest.label}`}
       >
@@ -200,8 +209,8 @@ export function BlobbiRoomShell({
             'text-[10px] font-medium leading-none whitespace-nowrap',
             'transition-all duration-200',
             isMobile
-              ? 'max-w-[60px] opacity-60'
-              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70 group-focus-visible:max-w-[80px] group-focus-visible:opacity-70',
+              ? 'max-w-[60px] opacity-70'
+              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-80 group-focus-visible:max-w-[80px] group-focus-visible:opacity-80',
             'overflow-hidden',
           )}
         >
@@ -212,13 +221,15 @@ export function BlobbiRoomShell({
       <button
         onClick={goRight}
         className={cn(
-          'group absolute right-0 top-1/2 -translate-y-1/2 z-40',
+          'group absolute right-0.5 top-1/2 -translate-y-1/2 z-40',
           'flex items-center gap-0',
-          'text-muted-foreground/40 hover:text-foreground/70',
+          'text-foreground/50 hover:text-foreground/80',
           'transition-all duration-200 active:scale-95',
           'cursor-pointer select-none',
-          'rounded-l-full pr-0.5 pl-1 py-1',
-          'hover:bg-accent/40',
+          'rounded-full pr-1 pl-1.5 py-1.5',
+          'bg-background/40 backdrop-blur-sm',
+          'hover:bg-background/60',
+          'shadow-sm',
         )}
         aria-label={`Go to ${rightDest.label}`}
       >
@@ -227,8 +238,8 @@ export function BlobbiRoomShell({
             'text-[10px] font-medium leading-none whitespace-nowrap',
             'transition-all duration-200',
             isMobile
-              ? 'max-w-[60px] opacity-60'
-              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70 group-focus-visible:max-w-[80px] group-focus-visible:opacity-70',
+              ? 'max-w-[60px] opacity-70'
+              : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-80 group-focus-visible:max-w-[80px] group-focus-visible:opacity-80',
             'overflow-hidden',
           )}
         >

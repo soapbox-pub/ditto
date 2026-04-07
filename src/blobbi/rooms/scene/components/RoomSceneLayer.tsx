@@ -34,9 +34,30 @@ interface RoomSceneLayerProps {
   scene: ResolvedRoomScene;
 }
 
-/** Wall occupies the top portion, floor the bottom. */
-const WALL_PERCENT = 62;
-const FLOOR_PERCENT = 100 - WALL_PERCENT; // 38%
+/**
+ * Wall/floor split — 60% wall, 40% floor.
+ *
+ * A slightly generous floor area gives enough room for the perspective
+ * transform to read as real depth without the floor feeling squished.
+ * The 60/40 ratio works well across both desktop and mobile viewports.
+ */
+const WALL_PERCENT = 60;
+const FLOOR_PERCENT = 100 - WALL_PERCENT; // 40%
+
+/**
+ * Floor perspective settings.
+ *
+ * - `perspective: 600px` — gentle distance; avoids extreme distortion on
+ *   mobile while still producing visible foreshortening on desktop.
+ * - `rotateX(22deg)` — moderate tilt; enough to read as "floor receding"
+ *   without fighting the Blobbi hero or bottom bar visually.
+ * - `height: 160%` — overflow factor to cover the gap that forms at the
+ *   bottom edge when the surface is foreshortened by the perspective.
+ *   160% at 22deg is sufficient (cos(22deg) ~ 0.93).
+ */
+const FLOOR_PERSPECTIVE = '600px';
+const FLOOR_TILT = 'rotateX(22deg)';
+const FLOOR_OVERFLOW = '160%';
 
 export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
   return (
@@ -57,9 +78,9 @@ export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
       <div
         className="absolute inset-x-0"
         style={{
-          top: `calc(${WALL_PERCENT}% - 6px)`,
-          height: '12px',
-          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.08) 40%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0.04) 100%)',
+          top: `calc(${WALL_PERCENT}% - 8px)`,
+          height: '16px',
+          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.06) 30%, rgba(0,0,0,0.10) 50%, rgba(0,0,0,0.06) 70%, transparent 100%)',
           zIndex: 2,
         }}
       />
@@ -72,7 +93,7 @@ export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
           height: `${FLOOR_PERCENT}%`,
           // Perspective container: the vanishing point is at the center
           // of the wall-floor junction line.
-          perspective: '500px',
+          perspective: FLOOR_PERSPECTIVE,
           perspectiveOrigin: '50% 0%',
         }}
       >
@@ -82,10 +103,10 @@ export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
             // Tilt the floor plane backward to create depth.
             // transform-origin at top center keeps the junction line fixed.
             transformOrigin: 'top center',
-            transform: 'rotateX(28deg)',
-            // Extend 80% taller to cover any gaps from the perspective
+            transform: FLOOR_TILT,
+            // Extend taller to cover any gaps from the perspective
             // foreshortening at the bottom edge.
-            height: '180%',
+            height: FLOOR_OVERFLOW,
           }}
         >
           <FloorLayer config={scene.floor} />
@@ -96,7 +117,7 @@ export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 85% 70% at 50% 45%, transparent 55%, rgba(0,0,0,0.06) 100%)',
+          background: 'radial-gradient(ellipse 90% 75% at 50% 45%, transparent 50%, rgba(0,0,0,0.05) 100%)',
           zIndex: 3,
         }}
       />

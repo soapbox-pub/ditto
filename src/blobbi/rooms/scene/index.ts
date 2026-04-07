@@ -21,13 +21,16 @@ export { resolveRoomScene, getActiveThemeColors } from './resolver';
 export {
   parseRoomCustomization,
   updateRoomSceneContent,
+  patchRoomSceneContent,
   removeRoomSceneContent,
 } from './lib/room-scene-content';
 
-// ── Hook ──
+// ── Hooks ──
 export { useRoomScene } from './hooks/useRoomScene';
+export { useRoomSceneEditor, type RoomScenePatch } from './hooks/useRoomSceneEditor';
 
 // ── Components ──
 export { RoomSceneLayer } from './components/RoomSceneLayer';
 export { WallLayer } from './components/WallLayer';
 export { FloorLayer } from './components/FloorLayer';
+export { RoomCustomizeSheet } from './components/RoomCustomizeSheet';

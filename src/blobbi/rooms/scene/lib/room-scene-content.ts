@@ -161,6 +161,67 @@ export function updateRoomSceneContent(
 }
 
 /**
+ * Partially update a single room's scene in the `roomCustomization` content section.
+ *
+ * Unlike `updateRoomSceneContent` which replaces the entire room scene,
+ * this function deep-merges a partial update into the existing scene.
+ *
+ * Safety guarantees:
+ *   1. All other top-level content sections are preserved
+ *   2. Other rooms within `roomCustomization` are preserved
+ *   3. Only the specified fields within the room scene are changed
+ *   4. Unchanged fields (wall, floor, useThemeColors) remain intact
+ *   5. Within wall/floor, unchanged sub-fields are preserved
+ *
+ * @param existingContent - The current `event.content` string (may be empty)
+ * @param roomId          - The room to update
+ * @param patch           - Partial scene update (only changed fields)
+ * @param fallbackScene   - Scene to use if the room has no existing config
+ * @returns The serialized content string with the room's scene patched
+ */
+export function patchRoomSceneContent(
+  existingContent: string,
+  roomId: string,
+  patch: Partial<{
+    useThemeColors: boolean;
+    wall: Partial<WallConfig>;
+    floor: Partial<FloorConfig>;
+  }>,
+  fallbackScene: RoomScene,
+): string {
+  const { data } = safeParseContent(existingContent);
+
+  // Get existing roomCustomization map, or start fresh
+  const existingMap = (
+    data.roomCustomization &&
+    typeof data.roomCustomization === 'object' &&
+    !Array.isArray(data.roomCustomization)
+  )
+    ? { ...(data.roomCustomization as Record<string, unknown>) }
+    : {};
+
+  // Get the existing scene for this room, or use the fallback
+  const existingRoomRaw = existingMap[roomId];
+  const existingRoom = validateRoomScene(existingRoomRaw) ?? fallbackScene;
+
+  // Deep-merge the patch into the existing scene
+  const merged: RoomScene = {
+    useThemeColors: patch.useThemeColors ?? existingRoom.useThemeColors,
+    wall: {
+      ...existingRoom.wall,
+      ...(patch.wall ?? {}),
+    } as WallConfig,
+    floor: {
+      ...existingRoom.floor,
+      ...(patch.floor ?? {}),
+    } as FloorConfig,
+  };
+
+  existingMap[roomId] = merged;
+  return updateContentSection(existingContent, 'roomCustomization', existingMap);
+}
+
+/**
  * Remove a room's scene from the `roomCustomization` content section.
  *
  * Used when resetting a room back to its default scene.

@@ -12,8 +12,8 @@
  * Sleep/wake has been moved to BlobbiRestRoom.
  */
 
-import { useMemo } from 'react';
-import { Camera, Footprints, Music, Mic } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Camera, Footprints, Music, Mic, Paintbrush } from 'lucide-react';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { InlineMusicPlayer, InlineSingCard } from '@/blobbi/actions';
@@ -22,7 +22,12 @@ import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
 import { ItemCarousel, type CarouselEntry } from './ItemCarousel';
-import { RoomSceneLayer, useRoomScene } from '../scene';
+import {
+  RoomSceneLayer,
+  useRoomScene,
+  useRoomSceneEditor,
+  RoomCustomizeSheet,
+} from '../scene';
 
 interface BlobbiHomeRoomProps {
   ctx: BlobbiRoomContext;
@@ -57,6 +62,11 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
 
   // ── Room Scene (wall + floor behind Blobbi) ──
   const roomScene = useRoomScene('home', profile?.event?.content ?? '');
+
+  // ── Room Customization Editor ──
+  const [showCustomize, setShowCustomize] = useState(false);
+  const { scene: rawScene, patchScene, resetScene, isSaving: isSceneSaving } =
+    useRoomSceneEditor('home', profile, ctx.updateProfileEvent);
 
   // Build carousel entries: toys + music + sing
   const carouselItems = useMemo<CarouselEntry[]>(() => {
@@ -139,6 +149,15 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
               onClick={() => setShowPhotoModal(true)}
             />
 
+            {/* Customize room */}
+            <RoomActionButton
+              icon={<Paintbrush className="size-7 sm:size-9" />}
+              label="Decor"
+              color="text-amber-500"
+              glowHex="#f59e0b"
+              onClick={() => setShowCustomize(true)}
+            />
+
             {/* Center carousel */}
             <div className="flex-1 min-w-0 flex justify-center">
               <ItemCarousel
@@ -166,6 +185,20 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
           </div>
         </div>
       )}
+
+      {/* ── Room Customization Sheet ── */}
+      <RoomCustomizeSheet
+        open={showCustomize}
+        onOpenChange={setShowCustomize}
+        currentWallType={rawScene.wall.type}
+        currentWallColor={rawScene.wall.color}
+        currentFloorType={rawScene.floor.type}
+        currentFloorColor={rawScene.floor.color}
+        currentUseThemeColors={rawScene.useThemeColors}
+        onPatch={patchScene}
+        onReset={resetScene}
+        isSaving={isSceneSaving}
+      />
     </div>
   );
 }
