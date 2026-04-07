@@ -16,7 +16,7 @@ import type { Transaction } from '@/lib/bitcoin';
 export function WalletPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, isLoadingTxs, error, refetch } = useBitcoinWallet();
+  const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, error, refetch } = useBitcoinWallet();
 
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
@@ -114,44 +114,26 @@ export function WalletPage() {
             )}
           </button>
 
-          {/* Transactions toggle */}
-          <button
-            onClick={() => setTxOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            Transactions
-            <ChevronDown className={`size-3 transition-transform duration-200 ${txOpen ? 'rotate-180' : ''}`} />
-          </button>
+          {/* Transactions */}
+          {transactions && transactions.length > 0 && (
+            <>
+              <button
+                onClick={() => setTxOpen((o) => !o)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                Transactions
+                <ChevronDown className={`size-3 transition-transform duration-200 ${txOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-          {/* Transactions accordion */}
-          <TxAccordion open={txOpen}>
-            {isLoadingTxs ? (
-              <div className="w-full space-y-3 pt-1">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-8 rounded-full" />
-                      <div className="space-y-1.5">
-                        <Skeleton className="h-3.5 w-16 rounded" />
-                        <Skeleton className="h-3 w-24 rounded" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-3.5 w-16 rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : transactions && transactions.length > 0 ? (
-              <div className="w-full divide-y">
-                {transactions.map((tx) => (
-                  <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No transactions yet
-              </p>
-            )}
-          </TxAccordion>
+              <TxAccordion open={txOpen}>
+                <div className="w-full divide-y">
+                  {transactions.map((tx) => (
+                    <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} />
+                  ))}
+                </div>
+              </TxAccordion>
+            </>
+          )}
         </div>
       )}
     </main>
