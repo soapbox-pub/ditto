@@ -77,3 +77,28 @@ export function satsToBTC(sats: number): string {
 export function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
+
+/** Fetch the current BTC price in USD from the CoinGecko API. */
+export async function fetchBtcPrice(): Promise<number> {
+  const response = await fetch(
+    'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch BTC price');
+  }
+
+  const data = await response.json();
+  return data.bitcoin.usd;
+}
+
+/** Convert satoshis to USD given a BTC price. */
+export function satsToUSD(sats: number, btcPrice: number): string {
+  const btc = sats / 100_000_000;
+  return (btc * btcPrice).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}

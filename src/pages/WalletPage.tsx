@@ -10,12 +10,12 @@ import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinWallet } from '@/hooks/useBitcoinWallet';
-import { satsToBTC, formatSats } from '@/lib/bitcoin';
+import { satsToBTC, satsToUSD } from '@/lib/bitcoin';
 
 export function WalletPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { bitcoinAddress, addressData, isLoading, error, refetch } = useBitcoinWallet();
+  const { bitcoinAddress, addressData, btcPrice, isLoading, error, refetch } = useBitcoinWallet();
 
   const [copiedAddress, setCopiedAddress] = useState(false);
 
@@ -74,24 +74,21 @@ export function WalletPage() {
             </div>
           ) : addressData ? (
             <div className="flex flex-col items-center space-y-1">
-              <button
-                onClick={() => refetch()}
-                className="group flex items-baseline gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                disabled={isLoading}
-              >
-                <span className="text-4xl font-bold tracking-tight">
-                  {satsToBTC(addressData.totalBalance).replace(/\.?0+$/, '')}
-                </span>
-                <span className="text-lg font-medium text-muted-foreground">BTC</span>
-              </button>
+              <span className="text-4xl font-bold tracking-tight">
+                {btcPrice
+                  ? satsToUSD(addressData.totalBalance, btcPrice)
+                  : '---'}
+              </span>
               <span className="text-sm text-muted-foreground">
-                {formatSats(addressData.totalBalance)} sats
+                {satsToBTC(addressData.totalBalance).replace(/\.?0+$/, '')} BTC
               </span>
 
               {addressData.pendingBalance !== 0 && (
                 <span className="flex items-center gap-1 text-xs text-orange-500 dark:text-orange-400 pt-1">
                   <RefreshCw className="size-3 animate-spin" />
-                  {formatSats(addressData.pendingBalance)} sats pending
+                  {btcPrice
+                    ? `${satsToUSD(addressData.pendingBalance, btcPrice)} pending`
+                    : 'pending'}
                 </span>
               )}
             </div>
