@@ -125,11 +125,16 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
       ref={heroRef}
       className={cn(
         // No overflow-hidden — let the room own the visual surface.
-        // pt-10 creates clearance for the floating room header overlay.
-        'relative flex flex-col items-center justify-center pt-10 px-4 sm:px-6 flex-1 min-h-0',
+        // Weighted flex layout: top spacer grows more than bottom spacer
+        // so Blobbi is pushed downward toward the floor plane. This
+        // produces consistent grounding across mobile and desktop.
+        'relative flex flex-col items-center pt-10 px-4 sm:px-6 flex-1 min-h-0',
         className,
       )}
     >
+      {/* Top spacer — grows 3x to push content toward the floor */}
+      <div className="flex-[3_3_0%] min-h-0" />
+
       <div className="relative flex flex-col items-center">
         {/* Stats crown */}
         {!hideStats && <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />}
@@ -167,6 +172,9 @@ export function BlobbiRoomHero({ ctx, className, hideStats, hideName }: BlobbiRo
           </h2>
         )}
       </div>
+
+      {/* Bottom spacer — grows 2x; keeps Blobbi off the very bottom edge */}
+      <div className="flex-[2_2_0%] min-h-0" />
     </div>
   );
 }
