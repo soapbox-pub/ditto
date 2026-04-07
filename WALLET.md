@@ -112,11 +112,29 @@ These pages are part of the existing `/i/*` external content system, which also 
 
 ## Sending Bitcoin
 
-The wallet supports sending Bitcoin transactions directly from the app. Because Nostr and Bitcoin Taproot share the same private key, the Nostr nsec can sign Bitcoin transactions without any key conversion.
+The wallet supports sending Bitcoin transactions directly from the app. Because Nostr and Bitcoin Taproot share the same private key, the Nostr key can sign Bitcoin transactions without any key conversion.
 
-### Requirements
+### Supported Signer Types
 
-Sending is only available when logged in with an **nsec**. Extension (NIP-07) and bunker (NIP-46) logins do not expose the raw private key, which is required for Taproot key-path signing. Users on those login types see an explanation in the send dialog.
+Sending works with all three login types:
+
+| Login type | Signing method | How it works |
+|---|---|---|
+| **nsec** (secret key) | Local signing | The app applies the BIP-341 TapTweak and signs the PSBT directly using the private key. |
+| **NIP-07 extension** | `window.nostr.signPsbt(hex)` | The unsigned PSBT hex is passed to the extension, which handles tweaking and signing internally. |
+| **NIP-46 bunker** | `sign_psbt` RPC | The unsigned PSBT hex is sent to the remote signer over the NIP-46 relay channel. |
+
+If the signer does not support PSBT signing (e.g. an extension without `signPsbt`), the send dialog displays an explanation and the user cannot proceed.
+
+### Architecture
+
+The send flow uses a three-step PSBT pipeline:
+
+1. **`buildUnsignedPsbt()`** -- Constructs the PSBT with all inputs and outputs but no signatures. Only needs the sender's public key.
+2. **`signer.signPsbt()`** -- Signs the PSBT. Dispatched through the signer interface (local, extension, or bunker).
+3. **`finalizePsbt()`** -- Finalizes all inputs and extracts the raw transaction hex for broadcast.
+
+The signer classes (`NSecSignerBtc`, `NBrowserSignerBtc`, `NConnectSignerBtc`) extend Nostrify's base signer classes with a `signPsbt` method. The `signerWithNudge` wrapper forwards `signPsbt` to the underlying signer, providing the same nudge toast UX for remote signers.
 
 ### Transaction Construction
 
@@ -135,7 +153,7 @@ The send flow constructs a standard Taproot (P2TR) key-path spend:
 
 3. **Resolve recipient** -- The recipient can be an `npub1...` (converted to its Taproot address via `npubToBitcoinAddress`) or a raw Bitcoin address (validated via `bitcoin.address.toOutputScript`).
 
-4. **Build PSBT** -- All UTXOs are consumed as inputs (no coin selection). Each input includes:
+4. **Build unsigned PSBT** -- All UTXOs are consumed as inputs (no coin selection). Each input includes:
    - `witnessUtxo`: the P2TR output script and value
    - `tapInternalKey`: the 32-byte x-only public key
 
@@ -143,16 +161,16 @@ The send flow constructs a standard Taproot (P2TR) key-path spend:
 
 6. **Add outputs** -- The recipient output is always added. A change output (back to the sender's own Taproot address) is added only if the change exceeds the dust limit.
 
-7. **Tweak and sign** -- For Taproot key-path spending (BIP-341), the private key is tweaked:
+7. **Sign** -- The unsigned PSBT is passed to the signer's `signPsbt` method. For local nsec signing, the private key is tweaked for Taproot key-path spending (BIP-341):
 
    ```
    tweak = taggedHash("TapTweak", internalPubkey)
    tweakedKey = privateKey + tweak  (mod n, with y-parity correction)
    ```
 
-   The `ecpair` library's `.tweak()` method handles parity normalization automatically (negating the private key if the public key has an odd y-coordinate). Each input is signed with the tweaked signer using Schnorr signatures.
+   For extension and bunker signers, the tweaking is handled by the external signer.
 
-8. **Broadcast** -- The finalized transaction hex is POSTed to `mempool.space/api/tx`, which returns the txid on success.
+8. **Finalize and broadcast** -- The signed PSBT is finalized, the raw transaction hex is extracted, and POSTed to `mempool.space/api/tx`, which returns the txid on success.
 
 ### User Flow
 
@@ -182,9 +200,10 @@ These are in addition to the base dependencies listed above.
 ## Security Considerations
 
 - The same private key (nsec in Nostr) controls both the Nostr identity and the Bitcoin funds at the derived address.
-- Extension and bunker logins do not expose the raw private key, so spending Bitcoin from those login types requires exporting the key or using a compatible wallet application.
+- Extension and bunker signers handle the private key internally -- the app never sees the raw key for those login types. Only the unsigned PSBT (which contains no secret material) is sent to the signer.
 - This is a **single-key** Taproot address with no HD derivation (no BIP-32/BIP-44 path). Every Nostr keypair maps to exactly one Bitcoin address.
 - Users should ensure they have secure backups of their Nostr private key before receiving Bitcoin at the derived address.
+- Extensions and bunkers that support `signPsbt` / `sign_psbt` should display a confirmation dialog showing transaction outputs and amounts before signing.
 
 ## References
 

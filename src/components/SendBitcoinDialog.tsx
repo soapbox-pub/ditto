@@ -31,7 +31,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNsecAccess } from '@/hooks/useNsecAccess';
+import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
 import {
   nostrPubkeyToBitcoinAddress,
@@ -39,7 +39,8 @@ import {
   validateBitcoinAddress,
   fetchUTXOs,
   getFeeRates,
-  createBitcoinTransaction,
+  buildUnsignedPsbt,
+  finalizePsbt,
   broadcastTransaction,
   estimateFee,
   maxSendable,
@@ -104,7 +105,7 @@ function resolveRecipient(input: string): string {
 
 export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDialogProps) {
   const { user } = useCurrentUser();
-  const { hasNsecAccess, getPrivateKeyHex } = useNsecAccess();
+  const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -175,9 +176,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      if (!user || !hasNsecAccess) throw new Error('Nsec login required.');
-      const privateKey = getPrivateKeyHex();
-      if (!privateKey) throw new Error('Failed to access private key.');
+      if (!user || !canSignPsbt || !signPsbt) throw new Error('Bitcoin signing not available.');
       if (!utxos?.length) throw new Error('No UTXOs available.');
       if (!feeRates) throw new Error('Fee rates not loaded.');
 
@@ -187,13 +186,20 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
       const feeRate = feeRateForSpeed(feeRates, feeSpeed);
 
-      const { txHex, fee } = createBitcoinTransaction(
-        privateKey,
+      // 1. Build unsigned PSBT
+      const { psbtHex, fee } = buildUnsignedPsbt(
+        user.pubkey,
         recipientAddress,
         amountSats,
         utxos,
         feeRate,
       );
+
+      // 2. Sign via the signer (local nsec, NIP-07 extension, or NIP-46 bunker)
+      const signedHex = await signPsbt(psbtHex);
+
+      // 3. Finalize and extract raw tx
+      const txHex = finalizePsbt(signedHex);
 
       const id = await broadcastTransaction(txHex);
       return { txId: id, fee };
@@ -244,26 +250,26 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   // ── Render ─────────────────────────────────────────────────────
 
-  // Not logged in with nsec
-  if (isOpen && !hasNsecAccess) {
+  // Signer doesn't support Bitcoin signing
+  if (isOpen && !canSignPsbt) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-orange-500" />
-              Nsec Required
+              Signing Not Available
             </DialogTitle>
             <DialogDescription>
-              Sending Bitcoin requires access to your private key.
+              Sending Bitcoin requires a signer that supports PSBT signing.
             </DialogDescription>
           </DialogHeader>
           <Alert>
             <AlertTriangle className="size-4" />
             <AlertDescription>
-              This feature is only available when logged in with your nsec (secret key).
-              Browser extensions and remote signers don't expose the raw private key
-              needed to sign Bitcoin transactions.
+              Your current signer does not support Bitcoin transaction signing.
+              Log in with your nsec, a NIP-07 extension that supports signPsbt,
+              or a NIP-46 remote signer that supports the sign_psbt method.
             </AlertDescription>
           </Alert>
           <Button onClick={handleClose}>Close</Button>

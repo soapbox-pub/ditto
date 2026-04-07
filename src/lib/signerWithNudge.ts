@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { toast } from '@/hooks/useToast';
 import { androidResume } from '@/lib/androidResume';
 import { NudgeToastContent } from '@/components/SignerToastContent';
+import { type BtcSigner, hasBtcSigning } from '@/lib/bitcoin-signers';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -353,6 +354,14 @@ export function signerWithNudge(
 
   if (signer.nip44) {
     wrapped.nip44 = wrapCrypto(signer.nip44);
+  }
+
+  // Forward signPsbt if the underlying signer supports Bitcoin signing.
+  if (hasBtcSigning(signer)) {
+    const btcWrapped = wrapped as BtcSigner;
+    const btcSigner = signer;
+    btcWrapped.signPsbt = (psbtHex: string) =>
+      run(() => btcSigner.signPsbt(psbtHex), undefined, 'sign');
   }
 
   return wrapped;

@@ -468,35 +468,44 @@ export function maxSendable(totalBalance: number, numInputs: number, feeRate: nu
   return Math.max(0, totalBalance - fee);
 }
 
+/** Result of building an unsigned PSBT. */
+export interface UnsignedPsbt {
+  /** Hex-encoded unsigned PSBT. */
+  psbtHex: string;
+  /** Fee in satoshis. */
+  fee: number;
+}
+
 /**
- * Create, sign, and return a raw Bitcoin Taproot transaction.
+ * Build an unsigned Taproot PSBT ready for signing.
  *
- * @param privateKeyHex 32-byte hex private key (from Nostr nsec).
- * @param toAddress     Recipient Bitcoin address.
- * @param amountSats    Amount to send in satoshis.
- * @param utxos         Available UTXOs (all will be consumed).
- * @param feeRate       Fee rate in sat/vB.
- * @returns The signed transaction hex and the fee paid.
+ * This function constructs the PSBT with all inputs and outputs but does NOT
+ * sign it. The returned hex can be passed to any signer (local nsec, NIP-07
+ * extension, or NIP-46 remote signer).
+ *
+ * @param senderPubkeyHex 32-byte hex x-only public key of the sender.
+ * @param toAddress       Recipient Bitcoin address.
+ * @param amountSats      Amount to send in satoshis.
+ * @param utxos           Available UTXOs (all will be consumed).
+ * @param feeRate         Fee rate in sat/vB.
  */
-export function createBitcoinTransaction(
-  privateKeyHex: string,
+export function buildUnsignedPsbt(
+  senderPubkeyHex: string,
   toAddress: string,
   amountSats: number,
   utxos: UTXO[],
   feeRate: number,
-): { txHex: string; fee: number } {
-  // 1. Key pair from raw private key
-  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
-  const internalPubkey = toXOnly(keyPair.publicKey);
+): UnsignedPsbt {
+  const internalPubkey = Buffer.from(senderPubkeyHex, 'hex');
 
-  // 2. Derive change address (same Taproot address as sender)
+  // Derive change address (same Taproot address as sender)
   const { address: changeAddress } = bitcoin.payments.p2tr({
     internalPubkey,
     network: bitcoin.networks.bitcoin,
   });
   if (!changeAddress) throw new Error('Failed to derive change address');
 
-  // 3. Build PSBT, add all UTXOs as inputs
+  // Build PSBT, add all UTXOs as inputs
   const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
   let totalInput = 0;
 
@@ -516,7 +525,7 @@ export function createBitcoinTransaction(
     totalInput += utxo.value;
   }
 
-  // 4. Estimate fee — first assume 2 outputs (recipient + change)
+  // Estimate fee — first assume 2 outputs (recipient + change)
   const change2Out = totalInput - amountSats - estimateFee(utxos.length, 2, feeRate);
   const hasChange = change2Out > DUST_LIMIT;
   const numOutputs = hasChange ? 2 : 1;
@@ -529,26 +538,87 @@ export function createBitcoinTransaction(
     );
   }
 
-  // 5. Add outputs
+  // Add outputs
   psbt.addOutput({ address: toAddress, value: BigInt(amountSats) });
 
   if (hasChange) {
     psbt.addOutput({ address: changeAddress, value: BigInt(change) });
   }
 
-  // 6. Tweak private key for Taproot key-path spending (BIP-341)
+  return { psbtHex: psbt.toHex(), fee };
+}
+
+/**
+ * Sign a PSBT locally using a raw private key (nsec).
+ *
+ * Applies the BIP-341 TapTweak to the private key, signs all inputs whose
+ * `tapInternalKey` matches, and returns the signed (but not finalized) PSBT hex.
+ *
+ * @param psbtHex       Hex-encoded unsigned PSBT.
+ * @param privateKeyHex 32-byte hex private key.
+ * @returns Hex-encoded signed PSBT (not finalized).
+ */
+export function signPsbtLocal(psbtHex: string, privateKeyHex: string): string {
+  bitcoin.initEccLib(ecc);
+  const psbt = bitcoin.Psbt.fromHex(psbtHex, { network: bitcoin.networks.bitcoin });
+
+  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
+  const internalPubkey = toXOnly(keyPair.publicKey);
+
+  // Tweak private key for Taproot key-path spending (BIP-341)
   const tweakedSigner = keyPair.tweak(
     bitcoin.crypto.taggedHash('TapTweak', internalPubkey),
   );
 
-  // 7. Sign all inputs
-  for (let i = 0; i < utxos.length; i++) {
+  // Sign all inputs
+  for (let i = 0; i < psbt.inputCount; i++) {
     psbt.signInput(i, tweakedSigner);
   }
 
-  // 8. Finalize and extract
-  psbt.finalizeAllInputs();
-  const tx = psbt.extractTransaction();
+  return psbt.toHex();
+}
 
-  return { txHex: tx.toHex(), fee };
+/**
+ * Finalize a signed PSBT and extract the raw transaction hex.
+ *
+ * @param psbtHex Hex-encoded signed PSBT.
+ * @returns Raw transaction hex ready for broadcast.
+ */
+export function finalizePsbt(psbtHex: string): string {
+  bitcoin.initEccLib(ecc);
+  const psbt = bitcoin.Psbt.fromHex(psbtHex, { network: bitcoin.networks.bitcoin });
+  psbt.finalizeAllInputs();
+  return psbt.extractTransaction().toHex();
+}
+
+/**
+ * Create, sign, and return a raw Bitcoin Taproot transaction.
+ *
+ * Convenience wrapper that calls {@link buildUnsignedPsbt},
+ * {@link signPsbtLocal}, and {@link finalizePsbt} in sequence.
+ *
+ * @param privateKeyHex 32-byte hex private key (from Nostr nsec).
+ * @param toAddress     Recipient Bitcoin address.
+ * @param amountSats    Amount to send in satoshis.
+ * @param utxos         Available UTXOs (all will be consumed).
+ * @param feeRate       Fee rate in sat/vB.
+ * @returns The signed transaction hex and the fee paid.
+ */
+export function createBitcoinTransaction(
+  privateKeyHex: string,
+  toAddress: string,
+  amountSats: number,
+  utxos: UTXO[],
+  feeRate: number,
+): { txHex: string; fee: number } {
+  // Derive the x-only pubkey from the private key for buildUnsignedPsbt
+  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
+  const internalPubkey = toXOnly(keyPair.publicKey);
+  const senderPubkeyHex = Buffer.from(internalPubkey).toString('hex');
+
+  const { psbtHex, fee } = buildUnsignedPsbt(senderPubkeyHex, toAddress, amountSats, utxos, feeRate);
+  const signedHex = signPsbtLocal(psbtHex, privateKeyHex);
+  const txHex = finalizePsbt(signedHex);
+
+  return { txHex, fee };
 }
