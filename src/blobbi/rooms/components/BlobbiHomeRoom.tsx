@@ -107,6 +107,15 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
       {/* ── Room Scene Background ── */}
       <RoomSceneLayer scene={roomScene} />
 
+      {/* ── Decor button (top-right, above room content) ── */}
+      <button
+        onClick={() => setShowCustomize(true)}
+        className="absolute top-2 right-2 z-30 size-8 flex items-center justify-center rounded-full bg-background/50 backdrop-blur-sm text-foreground/60 hover:text-foreground/90 hover:bg-background/70 transition-all shadow-sm"
+        aria-label="Customize room"
+      >
+        <Paintbrush className="size-3.5" />
+      </button>
+
       {/* ── Hero (Blobbi + stats) ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
@@ -147,15 +156,6 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
               color="text-pink-500"
               glowHex="#ec4899"
               onClick={() => setShowPhotoModal(true)}
-            />
-
-            {/* Customize room */}
-            <RoomActionButton
-              icon={<Paintbrush className="size-7 sm:size-9" />}
-              label="Decor"
-              color="text-amber-500"
-              glowHex="#f59e0b"
-              onClick={() => setShowCustomize(true)}
             />
 
             {/* Center carousel */}
