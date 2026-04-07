@@ -4,6 +4,7 @@
  * BlobbiHomeRoom — The main living / play room.
  *
  * Layout:
+ * - Room scene background (wall + floor with perspective)
  * - BlobbiRoomHero (stats crown, Blobbi visual, name)
  * - Unified bottom bar: Photo (left) | Carousel (center) | Companion (right)
  * - Inline activity (music player, sing card) above the bottom bar
@@ -21,6 +22,7 @@ import { ROOM_BOTTOM_BAR_CLASS } from '../lib/room-layout';
 import { BlobbiRoomHero } from './BlobbiRoomHero';
 import { RoomActionButton } from './RoomActionButton';
 import { ItemCarousel, type CarouselEntry } from './ItemCarousel';
+import { RoomSceneLayer, useRoomScene } from '../scene';
 
 interface BlobbiHomeRoomProps {
   ctx: BlobbiRoomContext;
@@ -29,6 +31,7 @@ interface BlobbiHomeRoomProps {
 
 export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
   const {
+    profile,
     isActiveFloatingCompanion,
     setShowPhotoModal,
     isCurrentCompanion,
@@ -51,6 +54,9 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     isPublishing,
     actionInProgress,
   } = ctx;
+
+  // ── Room Scene (wall + floor behind Blobbi) ──
+  const roomScene = useRoomScene('home', profile?.event?.content ?? '');
 
   // Build carousel entries: toys + music + sing
   const carouselItems = useMemo<CarouselEntry[]>(() => {
@@ -87,7 +93,10 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 relative">
+      {/* ── Room Scene Background ── */}
+      <RoomSceneLayer scene={roomScene} />
+
       {/* ── Hero (Blobbi + stats) ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
 
