@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Bitcoin, Copy, Check, RefreshCw, Wallet, ExternalLink, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/PageHeader';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -20,6 +19,7 @@ export function WalletPage() {
   const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, isLoadingTxs, error, refetch } = useBitcoinWallet();
 
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [txOpen, setTxOpen] = useState(false);
 
   useSeoMeta({
     title: `Wallet | ${config.appName}`,
@@ -114,54 +114,63 @@ export function WalletPage() {
             )}
           </button>
 
-          {/* Explorer link */}
-          <a
-            href={`https://blockstream.info/address/${bitcoinAddress}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          {/* Transactions toggle */}
+          <button
+            onClick={() => setTxOpen((o) => !o)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            <ExternalLink className="size-3" />
-            View on explorer
-          </a>
+            Transactions
+            <ChevronDown className={`size-3 transition-transform duration-200 ${txOpen ? 'rotate-180' : ''}`} />
+          </button>
 
-          {/* Transactions */}
-          {isLoadingTxs ? (
-            <div className="w-full space-y-3 pt-2">
-              <Separator />
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="size-8 rounded-full" />
-                    <div className="space-y-1.5">
-                      <Skeleton className="h-3.5 w-16 rounded" />
-                      <Skeleton className="h-3 w-24 rounded" />
+          {/* Transactions accordion */}
+          <TxAccordion open={txOpen}>
+            {isLoadingTxs ? (
+              <div className="w-full space-y-3 pt-1">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-8 rounded-full" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-3.5 w-16 rounded" />
+                        <Skeleton className="h-3 w-24 rounded" />
+                      </div>
                     </div>
+                    <Skeleton className="h-3.5 w-16 rounded" />
                   </div>
-                  <Skeleton className="h-3.5 w-16 rounded" />
-                </div>
-              ))}
-            </div>
-          ) : transactions && transactions.length > 0 ? (
-            <div className="w-full pt-2">
-              <Separator />
-              <div className="divide-y">
+                ))}
+              </div>
+            ) : transactions && transactions.length > 0 ? (
+              <div className="w-full divide-y">
                 {transactions.map((tx) => (
                   <TxRow key={tx.txid} tx={tx} btcPrice={btcPrice} />
                 ))}
               </div>
-            </div>
-          ) : transactions && transactions.length === 0 ? (
-            <div className="w-full pt-2">
-              <Separator />
+            ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No transactions yet
               </p>
-            </div>
-           ) : null}
+            )}
+          </TxAccordion>
         </div>
       )}
     </main>
+  );
+}
+
+/** Accordion wrapper using grid-template-rows for smooth height animation. */
+function TxAccordion({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      className="w-full grid transition-[grid-template-rows] duration-300 ease-in-out"
+      style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+    >
+      <div ref={contentRef} className="overflow-hidden">
+        {children}
+      </div>
+    </div>
   );
 }
 
