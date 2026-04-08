@@ -177,7 +177,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
   return createPortal(
     <div
-      className="fixed z-50 flex flex-col bg-background safe-area-top"
+      className="fixed z-50 flex flex-col bg-background"
       style={{
         left: columnRect.left,
         top: panelTop,
@@ -186,7 +186,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       }}
     >
       {/* Nav bar */}
-      <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
+      <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0 safe-area-top">
         {/* App icon + name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {appPicture ? (
