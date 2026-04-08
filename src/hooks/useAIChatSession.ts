@@ -52,7 +52,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
-  const { executeToolCall, mcpTools, mcpToolsLoading } = useAIChatTools();
+  const { executeToolCall, mcpTools, mcpToolsLoading, savedFeeds } = useAIChatTools();
 
   // Merge built-in tools with discovered MCP tools.
   const allTools = useMemo(() => {
@@ -104,10 +104,11 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     return () => { cancelled = true; };
   }, [user, config.aiModel, getAvailableModels]);
 
-  // Build the system prompt — dynamic based on buddy identity + optional custom override
+  // Build the system prompt — dynamic based on buddy identity, saved feeds, + optional custom override
+  const savedFeedLabels = useMemo(() => savedFeeds.map((f) => f.label), [savedFeeds]);
   const systemPrompt = useMemo(
-    () => buildSystemPrompt(buddyName, buddySoul, config.aiSystemPrompt || undefined),
-    [buddyName, buddySoul, config.aiSystemPrompt],
+    () => buildSystemPrompt(buddyName, buddySoul, config.aiSystemPrompt || undefined, savedFeedLabels),
+    [buddyName, buddySoul, config.aiSystemPrompt, savedFeedLabels],
   );
 
   // Build the chat messages array for the API

@@ -9,13 +9,15 @@ import { useBuddy } from '@/hooks/useBuddy';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useMCPTools } from '@/hooks/useMCPTools';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
-import { buildSpellTags } from '@/lib/spellEngine';
+import { buildSpellTags, buildUnsignedSpell, resolveSpell } from '@/lib/spellEngine';
 import { proxyUrl } from '@/lib/proxyUrl';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
 import type { ToolExecutorResult } from '@/lib/aiChatTools';
 import type { OpenAITool } from '@/lib/MCPClient';
@@ -35,6 +37,7 @@ export function useAIChatTools() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const { savedFeeds } = useSavedFeeds();
 
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
   const { getBuddySecretKey } = useBuddy();
@@ -739,10 +742,206 @@ export function useAIChatTools() {
         }
       }
 
+      case 'get_feed': {
+        try {
+          const feedName = typeof args.feed_name === 'string' ? args.feed_name.trim().toLowerCase() : '';
+          const country = typeof args.country === 'string' ? args.country.trim().toUpperCase() : '';
+          const hours = Math.min(Math.max(1, typeof args.hours === 'number' ? args.hours : 12), 168);
+          const limit = Math.min(Math.max(1, typeof args.limit === 'number' ? args.limit : 50), 100);
+          const sinceTimestamp = Math.floor(Date.now() / 1000) - hours * 3600;
+
+          // Fetch user's contacts for resolving $contacts and the follows feed.
+          let contactPubkeys: string[] = [];
+          if (user) {
+            try {
+              const contactEvents = await nostr.query(
+                [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
+                { signal: AbortSignal.timeout(5000) },
+              );
+              contactPubkeys = contactEvents[0]?.tags
+                .filter(([t]) => t === 'p')
+                .map(([, pk]) => pk) ?? [];
+            } catch {
+              // Contacts unavailable — continue without them
+            }
+          }
+
+          let filter: NostrFilter;
+          let needsDittoRelay = false;
+          let feedLabel = '';
+
+          if (country) {
+            // Country feed — NIP-73 geographic comments
+            filter = {
+              kinds: [1111],
+              '#I': [`iso3166:${country}`],
+              since: sinceTimestamp,
+              limit,
+            } as NostrFilter;
+            feedLabel = `country: ${country}`;
+          } else if (feedName === 'follows') {
+            if (!user) {
+              return { result: JSON.stringify({ error: 'Must be logged in to read the follows feed.' }) };
+            }
+            const authors = [user.pubkey, ...contactPubkeys];
+            if (authors.length <= 1) {
+              return { result: JSON.stringify({ error: 'The user is not following anyone yet.' }) };
+            }
+            filter = { kinds: [1], authors, since: sinceTimestamp, limit };
+            feedLabel = 'follows';
+          } else if (feedName === 'global') {
+            filter = { kinds: [1], since: sinceTimestamp, limit };
+            feedLabel = 'global';
+          } else if (feedName === 'ditto') {
+            filter = { kinds: [1], since: sinceTimestamp, limit, search: 'sort:hot protocol:nostr' };
+            needsDittoRelay = true;
+            feedLabel = 'ditto (hot)';
+          } else if (feedName) {
+            // Look up a saved feed by label
+            const match = savedFeeds.find((f) => f.label.toLowerCase() === feedName);
+            if (!match) {
+              const available = savedFeeds.map((f) => f.label).join(', ');
+              return {
+                result: JSON.stringify({
+                  error: `No saved feed named "${args.feed_name}".`,
+                  available_feeds: available ? `follows, global, ditto, ${available}` : 'follows, global, ditto',
+                }),
+              };
+            }
+            try {
+              const resolved = resolveSpell(match.spell, user?.pubkey, contactPubkeys);
+              filter = { ...resolved.filter, since: sinceTimestamp, limit };
+              needsDittoRelay = resolved.needsDittoRelay;
+              feedLabel = match.label;
+            } catch (err) {
+              return { result: JSON.stringify({ error: `Failed to resolve saved feed "${match.label}": ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+            }
+          } else {
+            // Ad-hoc query — build a spell from the inline params
+            const spellArgs: Parameters<typeof buildSpellTags>[0] = {
+              name: 'ad-hoc',
+              kinds: Array.isArray(args.kinds) ? (args.kinds as number[]).filter((k) => typeof k === 'number') : undefined,
+              authors: Array.isArray(args.authors) ? args.authors as string[] : undefined,
+              search: typeof args.search === 'string' ? args.search : undefined,
+            };
+
+            if (typeof args.hashtag === 'string' && args.hashtag.trim()) {
+              spellArgs.tag_filters = [{ letter: 't', values: [args.hashtag.trim().toLowerCase()] }];
+            }
+
+            const tags = buildSpellTags(spellArgs);
+            const unsigned = buildUnsignedSpell(tags);
+
+            try {
+              const resolved = resolveSpell(unsigned, user?.pubkey, contactPubkeys);
+              filter = { ...resolved.filter, since: sinceTimestamp, limit };
+              // Default to kind 1 if no kinds specified
+              if (!filter.kinds) filter.kinds = [1];
+              needsDittoRelay = resolved.needsDittoRelay;
+              feedLabel = args.search ? `search: ${args.search}` : args.hashtag ? `#${args.hashtag}` : 'ad-hoc';
+            } catch (err) {
+              return { result: JSON.stringify({ error: `Failed to resolve query: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+            }
+          }
+
+          // Query relays
+          const store = needsDittoRelay ? nostr.group(DITTO_RELAYS) : nostr;
+          const events = await store.query(
+            [filter],
+            { signal: AbortSignal.timeout(10000) },
+          );
+
+          // Sort newest first
+          const sorted = events.sort((a: NostrEvent, b: NostrEvent) => b.created_at - a.created_at);
+
+          if (sorted.length === 0) {
+            return {
+              result: JSON.stringify({
+                success: true,
+                feed: feedLabel,
+                hours,
+                post_count: 0,
+                data: `No posts found in the "${feedLabel}" feed in the past ${hours} hours.`,
+              }),
+            };
+          }
+
+          // Batch-fetch author profiles for display names
+          const uniquePubkeys = [...new Set(sorted.map((e) => e.pubkey))];
+          const profileMap = new Map<string, { name?: string; display_name?: string; nip05?: string }>();
+
+          try {
+            // Fetch in batches of 100
+            for (let i = 0; i < uniquePubkeys.length; i += 100) {
+              const batch = uniquePubkeys.slice(i, i + 100);
+              const profiles = await nostr.query(
+                [{ kinds: [0], authors: batch }],
+                { signal: AbortSignal.timeout(5000) },
+              );
+              for (const p of profiles) {
+                try {
+                  const meta = JSON.parse(p.content);
+                  profileMap.set(p.pubkey, {
+                    name: meta.name,
+                    display_name: meta.display_name,
+                    nip05: meta.nip05,
+                  });
+                } catch {
+                  // Skip invalid metadata
+                }
+              }
+            }
+          } catch {
+            // Profiles unavailable — continue with pubkey-only display
+          }
+
+          // Format results as readable text
+          const formatTimeAgo = (ts: number): string => {
+            const seconds = Math.floor(Date.now() / 1000) - ts;
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+          };
+
+          let text = `## ${feedLabel} — past ${hours}h (${sorted.length} posts)\n\n`;
+
+          for (const event of sorted) {
+            const profile = profileMap.get(event.pubkey);
+            const displayName = profile?.display_name || profile?.name || nip19.npubEncode(event.pubkey).slice(0, 16) + '...';
+
+            const hashtags = event.tags
+              .filter(([t]) => t === 't')
+              .map(([, v]) => `#${v}`)
+              .join(' ');
+
+            text += `**${displayName}** (${formatTimeAgo(event.created_at)}):\n`;
+            text += `${event.content.slice(0, 500)}${event.content.length > 500 ? '...' : ''}\n`;
+            if (hashtags) text += `Tags: ${hashtags}\n`;
+            text += '\n---\n\n';
+          }
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              feed: feedLabel,
+              hours,
+              post_count: sorted.length,
+              data: text,
+            }),
+          };
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            return { result: JSON.stringify({ error: 'Request timed out. Try reducing the time window or limit.' }) };
+          }
+          return { result: JSON.stringify({ error: `Failed to fetch feed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey, savedFeeds]);
 
-  return { executeToolCall, mcpTools, mcpToolsLoading };
+  return { executeToolCall, mcpTools, mcpToolsLoading, savedFeeds };
 }

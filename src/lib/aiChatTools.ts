@@ -360,5 +360,73 @@ Returns the full event JSON including kind, content, tags, pubkey, and timestamp
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_feed',
+      description: `Read posts from a feed and return their content. Use this when the user asks what people are talking about, wants a summary of recent activity, or asks about a specific topic or country.
+
+You can reference an existing feed by name or build a query on the fly:
+
+**Named feeds:**
+- "follows" — posts from people the user follows
+- "global" — recent posts from everyone
+- Any saved feed label the user has created (check the system prompt for available feeds)
+
+**Ad-hoc queries using spell parameters:**
+- kinds: event kinds to include (default: [1] for text notes)
+- authors: who to include — "$me", "$contacts", or hex pubkeys
+- search: full-text NIP-50 search query
+- hashtag: filter by hashtag (without #)
+- country: ISO 3166-1 alpha-2 country code (e.g. "VE", "US") — queries the country activity feed (kind 1111 geographic comments)
+
+**Time window:**
+- hours: how far back to look (default: 12, max: 168)
+
+When the user asks about a country (e.g. "what's going on in Venezuela?"), use the country parameter. When they ask about their friends or follows, use feed_name "follows". When they ask about a topic, use search or hashtag.
+
+After receiving results, summarize the key topics, conversations, and notable posts for the user.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          feed_name: {
+            type: 'string',
+            description: 'Name of an existing feed: "follows", "global", or a saved feed label.',
+          },
+          kinds: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Event kind numbers to filter (e.g. [1] for text notes, [20] for photos, [30023] for articles).',
+          },
+          authors: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Author filter. Use "$me" for the logged-in user, "$contacts" for their follow list, or hex pubkeys.',
+          },
+          search: {
+            type: 'string',
+            description: 'Full-text search query (NIP-50).',
+          },
+          hashtag: {
+            type: 'string',
+            description: 'Filter by hashtag (without the # symbol).',
+          },
+          country: {
+            type: 'string',
+            description: 'ISO 3166-1 alpha-2 country code (e.g. "VE", "US", "BR"). Queries NIP-73 geographic comments (kind 1111) for that country.',
+          },
+          hours: {
+            type: 'number',
+            description: 'How many hours back to look. Default 12, max 168 (1 week).',
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of posts to return. Default 50, max 100.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 

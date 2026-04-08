@@ -11,18 +11,26 @@ const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
  * entirely determined by those values — the base template is purely
  * functional (tool definitions, capabilities, formatting).
  *
+ * `{{SAVED_FEEDS}}` is replaced with a list of the user's saved feed
+ * labels so the model knows which named feeds are available.
+ *
  * If `customPrompt` is provided (from Advanced Settings), it replaces
  * the entire base template. Placeholders are substituted in both cases.
  */
-export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: string): ChatMessage {
+export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: string, savedFeedLabels?: string[]): ChatMessage {
   const agentName = name ?? 'Dork';
   const soulText = soul ?? '';
+
+  const savedFeedsText = savedFeedLabels && savedFeedLabels.length > 0
+    ? `**Saved feeds the user has created:** ${savedFeedLabels.map((l) => `"${l}"`).join(', ')}`
+    : '';
 
   const template = customPrompt || DEFAULT_TEMPLATE;
 
   const resolved = template
     .replace(/\{\{NAME\}\}/g, agentName)
-    .replace(/\{\{SOUL\}\}/g, soulText);
+    .replace(/\{\{SOUL\}\}/g, soulText)
+    .replace(/\{\{SAVED_FEEDS\}\}/g, savedFeedsText);
 
   return { role: 'system', content: resolved };
 }
@@ -145,7 +153,43 @@ Fetches a Nostr event by its NIP-19 identifier. Use this when the user shares a 
 - naddr1... → fetches an addressable event by kind+author+d-tag
 - nprofile1... → fetches a user profile with relay hints
 
-Returns the full event JSON. For profiles (kind 0), the content field contains JSON metadata (name, about, picture, etc.).`;
+Returns the full event JSON. For profiles (kind 0), the content field contains JSON metadata (name, about, picture, etc.).
+
+## get_feed
+Reads posts from a feed and returns their content. Use this when the user asks what's going on, wants a summary of recent activity, or asks about a specific topic, person, or country.
+
+**Built-in feeds:**
+- "follows" — posts from people the user follows (requires login)
+- "global" — recent posts from everyone
+- "ditto" — curated trending posts
+
+{{SAVED_FEEDS}}
+
+**Country feeds:**
+When the user asks about a country (e.g. "what's going on in Venezuela?", "anything happening in Japan?"), use the \`country\` parameter with the ISO 3166-1 alpha-2 code (e.g. "VE", "JP"). This queries NIP-73 geographic comments (kind 1111) for that country. You do NOT need to know the country code in advance — map the country name to its 2-letter code (e.g. Venezuela = VE, Brazil = BR, United States = US, Japan = JP, Germany = DE).
+
+**Ad-hoc queries:**
+When no existing feed matches, build a query using:
+- kinds: event kinds (default [1] for text notes; use [20] for photos, [30023] for articles, etc.)
+- authors: "$me", "$contacts", or hex pubkeys from search_users
+- search: NIP-50 full-text search
+- hashtag: filter by hashtag
+
+**Time window:**
+- hours: how far back to look (default 12). Use 1-6 for "what's happening right now", 12-24 for "today", 168 for "this week"
+
+**Workflow:**
+1. Determine the best feed source: named feed, country code, or ad-hoc query
+2. Call get_feed with appropriate parameters
+3. Summarize the results — highlight key topics, interesting conversations, and notable posts
+4. Be conversational; don't just list posts, synthesize what's going on
+
+**Examples:**
+- "what are my friends talking about?" → get_feed(feed_name: "follows")
+- "what's trending?" → get_feed(feed_name: "ditto")
+- "what's going on in Venezuela?" → get_feed(country: "VE")
+- "anything about bitcoin today?" → get_feed(search: "bitcoin", hours: 24)
+- "what's #nostr been like this week?" → get_feed(hashtag: "nostr", hours: 168)`;
 
 /** The raw default template with {{NAME}} and {{SOUL}} placeholders (for display in settings). */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = DEFAULT_TEMPLATE;
