@@ -17,8 +17,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Register the native notification config plugin before super.onCreate
+        // Register native plugins before super.onCreate.
         registerPlugin(DittoNotificationPlugin.class);
+        registerPlugin(SandboxPlugin.class);
 
         super.onCreate(savedInstanceState);
 
