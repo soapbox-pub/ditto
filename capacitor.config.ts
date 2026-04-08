@@ -18,7 +18,8 @@ const config: CapacitorConfig = {
   ios: {
     backgroundColor: '#14161f',
     contentInset: 'automatic',
-    scheme: 'Ditto'
+    scheme: 'Ditto',
+    allowsBackForwardNavigationGestures: true
   }
 };
 
