@@ -23,6 +23,8 @@ import type { useHatchTasks, useEvolveTasks, useDailyMissions } from '@/blobbi/a
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { ShopItem } from '@/blobbi/shop/types/shop.types';
+import type { BlobbiHouseContent } from '@/blobbi/house/lib/house-types';
+import type { BlobbiRoomId } from './room-config';
 
 // ─── Shared Dashboard Context ─────────────────────────────────────────────────
 
@@ -38,8 +40,13 @@ export interface BlobbiRoomContext {
   profile: BlobbonautProfile | null;
 
   // ── House (kind 11127) ──
+  /** The parsed house content, or null while loading. */
+  house: BlobbiHouseContent | null;
+  /** The raw house event — needed by write hooks (useRoomSceneEditor). */
   houseEvent: NostrEvent | null;
   updateHouseEvent: (event: NostrEvent) => void;
+  /** Room order derived from the house layout. */
+  roomOrder: BlobbiRoomId[];
 
   // ── Projected / visual state ──
   currentStats: {

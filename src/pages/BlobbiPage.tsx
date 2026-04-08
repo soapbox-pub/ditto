@@ -85,6 +85,8 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import { BlobbiRoomShell } from '@/blobbi/rooms/components/BlobbiRoomShell';
 import type { BlobbiRoomContext } from '@/blobbi/rooms/lib/room-types';
 import { useBlobbiHouse } from '@/blobbi/house';
+import { DEFAULT_ROOM_ORDER as HOUSE_DEFAULT_ROOM_ORDER } from '@/blobbi/house/lib/house-defaults';
+import type { BlobbiRoomId } from '@/blobbi/rooms/lib/room-config';
 
 
 
@@ -156,6 +158,7 @@ function BlobbiContent() {
 
   // ── Blobbi House (kind 11127) ──
   const {
+    house,
     houseEvent,
     updateHouseEvent,
   } = useBlobbiHouse(profile?.event);
@@ -757,6 +760,7 @@ function BlobbiContent() {
       actionInProgress={actionInProgress}
       isPublishing={isPublishing}
       profile={profile}
+      house={house}
       houseEvent={houseEvent}
       updateHouseEvent={updateHouseEvent}
       onEvolve={handleEvolve}
@@ -816,6 +820,7 @@ interface BlobbiDashboardProps {
   isPublishing: boolean;
   profile: BlobbonautProfile | null;
   // House (kind 11127)
+  house: import('@/blobbi/house/lib/house-types').BlobbiHouseContent | null;
   houseEvent: import('@nostrify/nostrify').NostrEvent | null;
   updateHouseEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   // Stage transition handlers
@@ -858,6 +863,7 @@ function BlobbiDashboard({
   actionInProgress,
   isPublishing,
   profile,
+  house,
   houseEvent,
   updateHouseEvent,
   onEvolve,
@@ -1357,6 +1363,17 @@ function BlobbiDashboard({
     });
   }, [isUsingItem, onUseItem]);
 
+  // ── Derive room order from house layout, falling back to defaults ──
+  // Cast is safe: house.layout.roomOrder only contains known room IDs from
+  // DEFAULT_ROOM_ORDER or user customisation. Unknown IDs are filtered out.
+  const roomOrder = useMemo((): BlobbiRoomId[] => {
+    const houseOrder = house?.layout.roomOrder;
+    if (houseOrder && houseOrder.length > 0) {
+      return houseOrder as BlobbiRoomId[];
+    }
+    return HOUSE_DEFAULT_ROOM_ORDER as BlobbiRoomId[];
+  }, [house]);
+
   // ─── Build Room Context ───
   // This is the single object that flows into BlobbiRoomShell → individual rooms.
   // It mirrors everything the old tab components consumed but centralised.
@@ -1368,8 +1385,10 @@ function BlobbiDashboard({
     profile,
 
     // House (kind 11127)
+    house,
     houseEvent,
     updateHouseEvent,
+    roomOrder,
 
     // Projected / visual state
     currentStats,
@@ -1502,7 +1521,7 @@ function BlobbiDashboard({
   }), [
     // Only the primitive/memoized deps that actually change.
     // Stable callbacks (useCallback) and setState refs are intentionally omitted.
-    companion, companions, selectedD, profile, houseEvent,
+    companion, companions, selectedD, profile, house, houseEvent, roomOrder,
     currentStats, isSleeping, isEgg, isBaby,
     statusRecipe, statusRecipeLabel, effectiveEmotion, hasDevOverride, blobbiReaction,
     isUsingItem, usingItemId, isDirectActionPending,
@@ -1533,7 +1552,7 @@ function BlobbiDashboard({
       )}
 
       {/* ─── Room-based Layout ─── */}
-      <BlobbiRoomShell ctx={roomCtx} />
+      <BlobbiRoomShell ctx={roomCtx} roomOrder={roomOrder} />
 
       {/* ─── Global Dialogs (shared across all rooms) ─── */}
       

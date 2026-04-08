@@ -42,6 +42,7 @@ export function buildHouseDTag(pubkey: string): string {
  *   ["b", "blobbi:ecosystem:v1"]
  *   ["name", "Blobbi House"]
  *   ["version", "1"]
+ *   ["alt", "Blobbi House — room layout, scenes, and furniture"]
  */
 export function buildHouseTags(pubkey: string): string[][] {
   return [
@@ -49,5 +50,6 @@ export function buildHouseTags(pubkey: string): string[][] {
     ['b', 'blobbi:ecosystem:v1'],
     ['name', HOUSE_DEFAULT_NAME],
     ['version', String(HOUSE_VERSION)],
+    ['alt', 'Blobbi House \u2014 room layout, scenes, and furniture'],
   ];
 }

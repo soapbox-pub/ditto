@@ -21,6 +21,7 @@ These event kinds were created by community contributors and are supported by Di
 | 7516  | Found Log              | Log entry recording a user finding a geocache                    | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 11127 | Blobbi House           | Room layout, scenes, and furniture for a user's Blobbi house     | See [Kind 11127](#kind-11127-blobbi-house) below                                          |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -360,4 +361,90 @@ Kind 16158 (replaceable) describes a weather station's configuration: name, geoh
 **See also:** [Blobbi tag schema](docs/blobbi/blobbi-tag-schema.md) (Ditto-specific integration details)
 
 NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and inventory.
+
+---
+
+## Kind 11127: Blobbi House
+
+### Summary
+
+Replaceable event (kind range 10000–19999) that stores the layout, room scenes, and placed items for a user's Blobbi house. One house per user, identified by a canonical `d` tag derived from the user's pubkey.
+
+Kind 11127 is the source of truth for all room visual data (wall/floor styles, theme color preferences) and will hold furniture placement in a future phase. Daily missions, progression, and inventory remain in kind 11125 (Blobbonaut Profile).
+
+### Event Structure
+
+```json
+{
+  "kind": 11127,
+  "content": "{\"version\":1,\"meta\":{\"schema\":\"blobbi-house/v1\",\"name\":\"Blobbi House\"},\"layout\":{\"roomOrder\":[\"care\",\"kitchen\",\"home\",\"hatchery\",\"rest\"],\"rooms\":{\"home\":{\"label\":\"Home\",\"enabled\":true,\"scene\":{\"useThemeColors\":false,\"wall\":{\"type\":\"paint\",\"color\":\"#f5f0eb\"},\"floor\":{\"type\":\"wood\",\"color\":\"#c4a882\",\"accentColor\":\"#a08060\"}},\"items\":[]}}}}",
+  "tags": [
+    ["d", "blobbi-house-abcdef012345"],
+    ["b", "blobbi:ecosystem:v1"],
+    ["name", "Blobbi House"],
+    ["version", "1"],
+    ["alt", "Blobbi House — room layout, scenes, and furniture"]
+  ]
+}
+```
+
+### Content
+
+The `content` field is a JSON string with the following schema:
+
+| Field              | Type     | Required | Description                                          |
+|--------------------|----------|----------|------------------------------------------------------|
+| `version`          | number   | Yes      | Schema version (currently `1`)                       |
+| `meta.schema`      | string   | Yes      | Schema identifier: `"blobbi-house/v1"`               |
+| `meta.name`        | string   | Yes      | Display name for the house                           |
+| `layout.roomOrder` | string[] | Yes      | Ordered list of room IDs for navigation              |
+| `layout.rooms`     | object   | Yes      | Room definitions keyed by room ID                    |
+
+Each room in `layout.rooms` has:
+
+| Field     | Type     | Required | Description                                   |
+|-----------|----------|----------|-----------------------------------------------|
+| `label`   | string   | Yes      | Human-readable room name                      |
+| `enabled` | boolean  | Yes      | Whether the room is visible                   |
+| `scene`   | object   | Yes      | Room scene (wall, floor, theme colors)        |
+| `items`   | array    | Yes      | Placed furniture/items (empty for now)        |
+
+Room scene shape:
+
+| Field            | Type    | Required | Description                                        |
+|------------------|---------|----------|----------------------------------------------------|
+| `useThemeColors` | boolean | Yes      | Whether to derive colors from the active app theme |
+| `wall.type`      | string  | Yes      | Wall surface: `"paint"`, `"wallpaper"`, `"brick"`  |
+| `wall.color`     | string  | Yes      | Hex color (e.g. `"#f5f0eb"`)                       |
+| `wall.accentColor` | string | No     | Hex accent color for patterns                      |
+| `floor.type`     | string  | Yes      | Floor surface: `"wood"`, `"tile"`, `"carpet"`      |
+| `floor.color`    | string  | Yes      | Hex color                                          |
+| `floor.accentColor` | string | No    | Hex accent color for grain/grout                   |
+
+### Tags
+
+| Tag       | Required | Description                                                                |
+|-----------|----------|----------------------------------------------------------------------------|
+| `d`       | Yes      | Canonical identifier: `blobbi-house-{first 12 chars of pubkey}`            |
+| `b`       | Yes      | Blobbi ecosystem marker: `blobbi:ecosystem:v1`                             |
+| `name`    | Yes      | Human-readable house name                                                  |
+| `version` | Yes      | Schema version string                                                      |
+| `alt`     | Yes      | NIP-31 human-readable fallback description                                 |
+
+### D-Tag Strategy
+
+The `d` tag is deterministic: `blobbi-house-` + the first 12 hex characters of the user's pubkey. This allows lookup without knowing the event ID. One house per user is enforced by the replaceable event semantics (kind 10000–19999: latest event per pubkey+kind wins).
+
+### Migration from Kind 11125
+
+Prior to kind 11127, room scene data was stored in the `roomCustomization` section of kind 11125 content. On first load, if no kind 11127 event exists, the client checks kind 11125 for legacy `roomCustomization` data and migrates it into a new kind 11127 event. Kind 11125 is never mutated during migration.
+
+### Client Behavior
+
+- Query: `{ kinds: [11127], authors: [pubkey], "#d": ["blobbi-house-{prefix}"], limit: 1 }`
+- On first visit (no house): auto-bootstrap with default rooms
+- All room scene reads come from kind 11127
+- All room scene writes go to kind 11127 (read-modify-write with `fetchFreshEvent`)
+- Unknown top-level keys in the content are preserved across writes
+- Unknown rooms in `layout.rooms` are preserved (forward compatibility)
 

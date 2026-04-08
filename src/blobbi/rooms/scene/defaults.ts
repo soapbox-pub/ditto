@@ -1,23 +1,26 @@
 // src/blobbi/rooms/scene/defaults.ts
 
 /**
- * Default room scenes — the initial visual configuration for each room.
+ * ⚠️  LEGACY defaults — superseded by `house-defaults.ts`.
  *
- * These defaults are used when a room has no persisted customization.
- * Only the `home` room is defined for the Phase 1 POC; other rooms
- * will get defaults as customization is rolled out to them.
+ * The canonical default scenes for ALL rooms are now defined in
+ * `src/blobbi/house/lib/house-defaults.ts` (used by kind 11127).
  *
- * Design notes:
- * - Colors are warm, neutral, and cozy — a pleasant default that works
- *   in both light and dark app themes.
- * - The home room uses a cream/off-white wall with warm wood flooring,
- *   evoking a comfortable living room.
+ * This file is retained for:
+ *   - `DEFAULT_HOME_SCENE`: still used as an ultimate fallback in
+ *     `useRoomScene` and `useRoomSceneEditor` when a room has no
+ *     house data AND no house-level default (should never happen
+ *     for known rooms, but provides safety).
+ *   - `DEFAULT_ROOM_SCENES` / `getDefaultScene`: exported for
+ *     backward compatibility but no longer the source of truth.
+ *
+ * Prefer importing from `@/blobbi/house` for new code.
  */
 
 import type { BlobbiRoomId } from '../lib/room-config';
 import type { RoomScene } from './types';
 
-// ─── Home Room Default ────────────────────────────────────────────────────────
+// ─── Home Room Default (ultimate fallback) ────────────────────────────────────
 
 export const DEFAULT_HOME_SCENE: RoomScene = {
   useThemeColors: false,
@@ -32,21 +35,19 @@ export const DEFAULT_HOME_SCENE: RoomScene = {
   },
 };
 
-// ─── Default Scene Registry ───────────────────────────────────────────────────
+// ─── Legacy Default Scene Registry ────────────────────────────────────────────
 
 /**
- * Default scenes keyed by room ID.
- *
- * Not every room needs a scene default right now — only rooms that
- * have scene rendering enabled. Future phases will add more entries.
+ * @deprecated Use `getDefaultRoomScene()` from `@/blobbi/house/lib/house-defaults`
+ * for the canonical defaults. This map only contains `home` and is kept for
+ * backward compatibility.
  */
 export const DEFAULT_ROOM_SCENES: Partial<Record<BlobbiRoomId, RoomScene>> = {
   home: DEFAULT_HOME_SCENE,
 };
 
 /**
- * Get the default scene for a room, or undefined if the room
- * has no default (scene not yet available for that room).
+ * @deprecated Use `getDefaultRoomScene()` from `@/blobbi/house/lib/house-defaults`.
  */
 export function getDefaultScene(roomId: BlobbiRoomId): RoomScene | undefined {
   return DEFAULT_ROOM_SCENES[roomId];

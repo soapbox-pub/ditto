@@ -17,7 +17,9 @@ export { DEFAULT_HOME_SCENE, DEFAULT_ROOM_SCENES, getDefaultScene } from './defa
 // ── Resolver ──
 export { resolveRoomScene, getActiveThemeColors } from './resolver';
 
-// ── Persistence ──
+// ── Legacy Persistence (kind 11125) ──
+// ⚠️  These helpers are for reading legacy `roomCustomization` data only.
+// New code should use house content helpers from `@/blobbi/house`.
 export {
   parseRoomCustomization,
   updateRoomSceneContent,

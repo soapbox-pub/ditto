@@ -18,12 +18,12 @@ import { toast } from '@/hooks/useToast';
 import {
   type BlobbiRoomId,
   ROOM_META,
-  DEFAULT_ROOM_ORDER,
   DEFAULT_INITIAL_ROOM,
   getNextRoom,
   getPreviousRoom,
   getRoomIndex,
 } from '../lib/room-config';
+import { DEFAULT_ROOM_ORDER } from '@/blobbi/house/lib/house-defaults';
 import type { BlobbiRoomContext, RoomPoopState } from '../lib/room-types';
 import {
   generateInitialPoops,
@@ -42,6 +42,7 @@ import { BlobbiClosetRoom } from './BlobbiClosetRoom';
 
 interface BlobbiRoomShellProps {
   ctx: BlobbiRoomContext;
+  /** Room order — should come from the house event layout. Falls back to defaults. */
   roomOrder?: BlobbiRoomId[];
   initialRoom?: BlobbiRoomId;
 }
@@ -66,7 +67,7 @@ const ROOM_COMPONENTS: Record<BlobbiRoomId, React.ComponentType<{ ctx: BlobbiRoo
 
 export function BlobbiRoomShell({
   ctx,
-  roomOrder = DEFAULT_ROOM_ORDER,
+  roomOrder = DEFAULT_ROOM_ORDER as BlobbiRoomId[],
   initialRoom = DEFAULT_INITIAL_ROOM,
 }: BlobbiRoomShellProps) {
   const [nav, setNav] = useState<RoomNavState>({

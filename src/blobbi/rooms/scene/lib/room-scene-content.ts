@@ -1,22 +1,23 @@
 // src/blobbi/rooms/scene/lib/room-scene-content.ts
 
 /**
- * Room Scene Persistence — Read/write helpers for the `roomCustomization`
- * section inside kind 11125 content JSON.
+ * ⚠️  LEGACY — Room Scene Persistence for kind 11125.
  *
- * ── Content Safety ────────────────────────────────────────────────────────
+ * Room scenes have been migrated to kind 11127 (Blobbi House).
+ * These helpers are retained ONLY for:
+ *   1. Reading legacy `roomCustomization` data during migration
+ *      (see `house-migration.ts`)
+ *   2. Backward compatibility if any legacy consumers still exist
  *
- * These helpers follow the same safety contract as the existing content
- * helpers in `content-json.ts` and `blobbonaut-content.ts`:
+ * NEW CODE should use the house content helpers in
+ * `src/blobbi/house/lib/house-content.ts` instead.
  *
- *   1. Only the `roomCustomization` key is modified
- *   2. All sibling sections (dailyMissions, progression, unknown keys)
- *      are preserved untouched
- *   3. Within `roomCustomization`, only the targeted room ID is modified
- *   4. Other rooms within the map are preserved
- *   5. Invalid/corrupt content is handled gracefully
+ * ── Original Purpose ─────────────────────────────────────────────────
  *
- * ── Persisted Shape ──────────────────────────────────────────────────────
+ * Read/write helpers for the `roomCustomization` section inside
+ * kind 11125 content JSON.
+ *
+ * ── Persisted Shape (legacy) ─────────────────────────────────────────
  *
  *   {
  *     "roomCustomization": {

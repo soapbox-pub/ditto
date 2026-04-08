@@ -75,14 +75,15 @@ export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
 // ─── Default Room Order ───────────────────────────────────────────────────────
 
 /**
- * The default room sequence.
+ * Navigation fallback room order.
  *
- * IMPORTANT: This array is the ONLY place that defines order.
- * To support per-user customisation later, replace this with
- * a user-stored array of BlobbiRoomId values.
+ * The canonical room order is stored in the house event (kind 11127)
+ * at `layout.roomOrder`. This constant is a fallback for navigation
+ * helpers when no house-derived order is available (e.g. during
+ * initial load or in contexts without house access).
  *
- * Closet is excluded for now (not yet implemented).
- * To re-enable, add 'closet' back to the array.
+ * The house-level default (`house-defaults.ts`) and this array MUST
+ * stay in sync. Both exclude 'closet' until the wardrobe feature ships.
  */
 export const DEFAULT_ROOM_ORDER: BlobbiRoomId[] = [
   'care',

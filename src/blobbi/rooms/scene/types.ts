@@ -54,8 +54,9 @@ export interface FloorConfig {
 /**
  * A complete room scene declaration.
  *
- * This is the persisted shape — stored in kind 11125 content under the
- * `roomCustomization` section, keyed by room ID.
+ * This is the core scene shape — stored in kind 11127 (Blobbi House)
+ * inside each room's `scene` field. Legacy kind 11125 content stored
+ * this under `roomCustomization` (migrated automatically on first load).
  *
  * When `useThemeColors` is true, the resolver derives wall/floor colors
  * from the active app theme. The wall/floor *types* always come from
@@ -85,12 +86,13 @@ export interface ResolvedRoomScene {
   floor: FloorConfig;
 }
 
-// ─── Persistence Map ──────────────────────────────────────────────────────────
+// ─── Legacy Persistence Map ───────────────────────────────────────────────────
 
 /**
- * The shape of the `roomCustomization` section in kind 11125 content.
+ * The shape of the legacy `roomCustomization` section in kind 11125 content.
  *
- * Maps room IDs to their scene configurations. Only rooms that have
- * been customized appear here — rooms without entries use defaults.
+ * @deprecated Room scenes are now stored in kind 11127 (Blobbi House).
+ * This type is retained only for migration from legacy kind 11125 data.
+ * New code should read/write scenes via the house content helpers.
  */
 export type RoomCustomizationMap = Partial<Record<BlobbiRoomId, RoomScene>>;

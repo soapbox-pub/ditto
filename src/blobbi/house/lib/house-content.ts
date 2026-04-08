@@ -148,9 +148,16 @@ export function parseHouseContent(content: string): BlobbiHouseContent | null {
     }
   }
 
+  // If we have neither room order nor rooms, the content is fundamentally empty
   if (roomOrder.length === 0 && Object.keys(rooms).length === 0) return null;
 
-  return { version, meta, layout: { roomOrder, rooms } };
+  // If roomOrder is empty but rooms exist, derive order from the rooms map.
+  // This handles partial data gracefully (e.g., manual edits, future migrations).
+  const effectiveRoomOrder = roomOrder.length > 0
+    ? roomOrder
+    : Object.keys(rooms);
+
+  return { version, meta, layout: { roomOrder: effectiveRoomOrder, rooms } };
 }
 
 // ─── Safe Content Update Helpers ──────────────────────────────────────────────

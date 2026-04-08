@@ -8,13 +8,21 @@
  *
  * 1. Query for existing kind 11127 event for the logged-in user.
  * 2. If found, parse and validate the content → use as house data.
- * 3. If not found, check kind 11125 for legacy roomCustomization,
- *    build a new house (with or without legacy data), and publish it.
- * 4. Return the parsed house content + the raw event for write-back.
+ * 3. If not found AND profile event is available, check kind 11125
+ *    for legacy `roomCustomization` data and merge it into a new house.
+ * 4. If not found AND no legacy data, build a fresh default house.
+ * 5. Return the parsed house content + the raw event for write-back.
  *
- * The hook publishes the bootstrap event automatically when needed.
- * Subsequent writes use the `updateHouseEvent` callback for optimistic
- * cache updates (same pattern as useBlobbonautProfile).
+ * ── Bootstrap safety ─────────────────────────────────────────────────
+ *
+ * Bootstrap only fires when ALL of:
+ *   - The house query has settled (not loading, not fetching)
+ *   - No house event was found
+ *   - The profile event has been provided (not undefined = still loading)
+ *   - No bootstrap is already in progress (guarded by ref)
+ *
+ * This prevents duplicate publishes across re-mounts and avoids
+ * firing before the profile is ready (which would miss legacy data).
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -37,7 +45,7 @@ export interface UseBlobbiHouseResult {
   house: BlobbiHouseContent | null;
   /** The raw house event, or null if not yet fetched/created. */
   houseEvent: NostrEvent | null;
-  /** Whether the house is still loading. */
+  /** Whether the house is still loading (query + bootstrap). */
   isLoading: boolean;
   /** Optimistic cache update — call after publishing a new house event. */
   updateHouseEvent: (event: NostrEvent) => void;
@@ -84,22 +92,38 @@ export function useBlobbiHouse(
   const houseEvent = query.data ?? null;
 
   // ── Bootstrap: create house if it doesn't exist ──
+  //
+  // Guard: `bootstrapInFlightRef` prevents concurrent bootstrap attempts.
+  // Unlike a simple "attempted" flag, this is only set while a publish is
+  // in-flight and is cleared on completion (success or failure). This means:
+  //   - Re-mounts don't skip bootstrap if the previous attempt failed
+  //   - Concurrent attempts are prevented during in-flight publishes
+  //   - Successful bootstrap is reflected via the cache update (not the ref)
 
-  const bootstrapAttemptedRef = useRef(false);
+  const bootstrapInFlightRef = useRef(false);
 
   useEffect(() => {
-    // Only attempt once, when query has settled and no house exists
-    if (!pubkey || query.isLoading || query.isFetching || bootstrapAttemptedRef.current) return;
-    if (houseEvent) return; // House already exists
+    // Wait for the query to fully settle
+    if (!pubkey || query.isLoading || query.isFetching) return;
 
-    bootstrapAttemptedRef.current = true;
+    // House already exists — nothing to do
+    if (houseEvent) return;
+
+    // Profile event must be explicitly available (null = no profile, undefined = still loading).
+    // If undefined, we wait — bootstrap will re-evaluate when profileEvent arrives.
+    if (profileEvent === undefined) return;
+
+    // Already bootstrapping — don't fire again
+    if (bootstrapInFlightRef.current) return;
 
     const { content, needsPublish } = resolveHouseBootstrap(
       null, // No house event
-      profileEvent ?? null,
+      profileEvent,
     );
 
     if (!needsPublish) return;
+
+    bootstrapInFlightRef.current = true;
 
     // Publish the new house event
     publishEvent({
@@ -107,14 +131,14 @@ export function useBlobbiHouse(
       content: JSON.stringify(content),
       tags: buildHouseTags(pubkey),
     }).then((event) => {
-      // Optimistically set in cache
+      // Optimistically set in cache so the query picks it up
       queryClient.setQueryData(['blobbi-house', pubkey], event);
     }).catch((err) => {
       if (import.meta.env.DEV) {
         console.error('[useBlobbiHouse] Failed to bootstrap house:', err);
       }
-      // Reset so it can be retried
-      bootstrapAttemptedRef.current = false;
+    }).finally(() => {
+      bootstrapInFlightRef.current = false;
     });
   }, [pubkey, query.isLoading, query.isFetching, houseEvent, profileEvent, publishEvent, queryClient]);
 
@@ -132,10 +156,15 @@ export function useBlobbiHouse(
     queryClient.setQueryData(['blobbi-house', pubkey], event);
   }, [pubkey, queryClient]);
 
+  // Loading is true while the query hasn't settled OR while bootstrap is pending.
+  // "Bootstrap pending" = query settled with no result and profile not yet available.
+  const isBootstrapPending = !query.isLoading && !houseEvent && profileEvent === undefined;
+  const isLoading = query.isLoading || isBootstrapPending;
+
   return {
     house,
     houseEvent,
-    isLoading: query.isLoading,
+    isLoading,
     updateHouseEvent,
   };
 }
