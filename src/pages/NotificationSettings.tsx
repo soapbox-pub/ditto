@@ -300,8 +300,8 @@ export function NotificationSettings() {
           )}
         </div>
 
-        {/* Notification Style — native only */}
-        {isNative && (
+        {/* Notification Style — native only, visible when push is enabled */}
+        {isNative && pushEnabled && (
           <>
             <SectionHeader title="Delivery Method" />
             <div className="pb-4">
@@ -333,7 +333,7 @@ export function NotificationSettings() {
                       <span className="text-sm font-medium">Persistent</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Background service polls relays continuously. Shows a persistent notification but delivers faster, more reliable alerts.
+                      Background service polls relays directly. Shows a persistent notification. Use this on devices that don't support push notifications (e.g. GrapheneOS).
                     </p>
                   </Label>
                 </div>
