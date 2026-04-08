@@ -57,8 +57,9 @@ export function MobileBottomNav() {
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
-        {/* Arc + items wrapper */}
-        <div className="relative">
+        {/* Arc + items wrapper — safe-area-bottom extends the arc fill
+             over the home-indicator zone so there's no seam or opaque block. */}
+        <div className="relative safe-area-bottom">
           <ArcBackground variant={noArcs ? 'rect' : 'up'} />
           <div className="h-11 flex items-center relative">
 
@@ -137,8 +138,7 @@ export function MobileBottomNav() {
 
           </div>
         </div>
-        {/* Safe area spacer — fully opaque so any subpixel gap is invisible */}
-        <div className="safe-area-bottom bg-background" />
+
       </nav>
     </>
   );
