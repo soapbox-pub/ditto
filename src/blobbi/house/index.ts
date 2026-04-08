@@ -30,6 +30,8 @@ export {
   DEFAULT_ROOM_ORDER,
   buildDefaultHouseContent,
   getDefaultRoomScene,
+  isKnownRoomId,
+  deriveNavigableRooms,
 } from './lib/house-defaults';
 
 // ── Content Helpers ──

@@ -75,6 +75,16 @@ export function BlobbiRoomShell({
     direction: null,
   });
 
+  // ── Keep current room valid when roomOrder changes ──
+  // If the current room was removed or disabled, jump to the first available room.
+  // Without this, a stale `nav.current` produces a broken header / missing component.
+  useEffect(() => {
+    setNav(prev => {
+      if (roomOrder.includes(prev.current)) return prev; // still valid
+      return { current: roomOrder[0], direction: null };
+    });
+  }, [roomOrder]);
+
   const goRight = useCallback(() => {
     setNav(prev => ({
       current: getNextRoom(prev.current, roomOrder),

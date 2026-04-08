@@ -84,8 +84,7 @@ import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reacti
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 import { BlobbiRoomShell } from '@/blobbi/rooms/components/BlobbiRoomShell';
 import type { BlobbiRoomContext } from '@/blobbi/rooms/lib/room-types';
-import { useBlobbiHouse } from '@/blobbi/house';
-import { DEFAULT_ROOM_ORDER as HOUSE_DEFAULT_ROOM_ORDER } from '@/blobbi/house/lib/house-defaults';
+import { useBlobbiHouse, deriveNavigableRooms } from '@/blobbi/house';
 import type { BlobbiRoomId } from '@/blobbi/rooms/lib/room-config';
 
 
@@ -160,6 +159,7 @@ function BlobbiContent() {
   const {
     house,
     houseEvent,
+    isLoading: houseLoading,
     updateHouseEvent,
   } = useBlobbiHouse(profile?.event);
   
@@ -762,6 +762,7 @@ function BlobbiContent() {
       profile={profile}
       house={house}
       houseEvent={houseEvent}
+      houseLoading={houseLoading}
       updateHouseEvent={updateHouseEvent}
       onEvolve={handleEvolve}
       isHatching={isHatching}
@@ -822,6 +823,7 @@ interface BlobbiDashboardProps {
   // House (kind 11127)
   house: import('@/blobbi/house/lib/house-types').BlobbiHouseContent | null;
   houseEvent: import('@nostrify/nostrify').NostrEvent | null;
+  houseLoading: boolean;
   updateHouseEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   // Stage transition handlers
   onEvolve: () => Promise<void>;
@@ -865,6 +867,7 @@ function BlobbiDashboard({
   profile,
   house,
   houseEvent,
+  houseLoading,
   updateHouseEvent,
   onEvolve,
   isHatching,
@@ -1363,16 +1366,12 @@ function BlobbiDashboard({
     });
   }, [isUsingItem, onUseItem]);
 
-  // ── Derive room order from house layout, falling back to defaults ──
-  // Cast is safe: house.layout.roomOrder only contains known room IDs from
-  // DEFAULT_ROOM_ORDER or user customisation. Unknown IDs are filtered out.
-  const roomOrder = useMemo((): BlobbiRoomId[] => {
-    const houseOrder = house?.layout.roomOrder;
-    if (houseOrder && houseOrder.length > 0) {
-      return houseOrder as BlobbiRoomId[];
-    }
-    return HOUSE_DEFAULT_ROOM_ORDER as BlobbiRoomId[];
-  }, [house]);
+  // ── Derive navigable room order from house layout ──
+  // Filters against known room IDs, respects enabled state, falls back safely.
+  const roomOrder = useMemo(
+    () => deriveNavigableRooms(house) as BlobbiRoomId[],
+    [house],
+  );
 
   // ─── Build Room Context ───
   // This is the single object that flows into BlobbiRoomShell → individual rooms.
@@ -1552,7 +1551,13 @@ function BlobbiDashboard({
       )}
 
       {/* ─── Room-based Layout ─── */}
-      <BlobbiRoomShell ctx={roomCtx} roomOrder={roomOrder} />
+      {houseLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Skeleton className="size-60 sm:size-72 rounded-full" />
+        </div>
+      ) : (
+        <BlobbiRoomShell ctx={roomCtx} roomOrder={roomOrder} />
+      )}
 
       {/* ─── Global Dialogs (shared across all rooms) ─── */}
       
