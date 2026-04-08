@@ -30,32 +30,52 @@ export function useActiveTabIndicator(active: boolean, elRef: React.RefObject<HT
   const reportSlice = useCallback(() => {
     const el = elRef.current;
     if (!el) return null;
-    const scrollOffset = scrollContainerRef.current?.scrollLeft ?? 0;
-    return { left: el.offsetLeft - scrollOffset, width: el.offsetWidth };
+    const container = scrollContainerRef.current;
+    const scrollOffset = container?.scrollLeft ?? 0;
+    // Account for the scroll container's own offset within its parent
+    // (e.g. when innerClassName adds mx-auto centering).
+    const containerOffset = container?.offsetLeft ?? 0;
+    return { left: el.offsetLeft - scrollOffset + containerOffset, width: el.offsetWidth };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Report active slice to SubHeaderBar so the arc indicator renders.
+  // Schedule a second report after paint so that layout-dependent values
+  // (e.g. offsetLeft from mx-auto centering) are fully resolved.
   useLayoutEffect(() => {
     if (!active) return;
     const s = reportSlice();
     if (s) onActive(s);
-    return () => onActive(null);
+
+    const raf = requestAnimationFrame(() => {
+      const updated = reportSlice();
+      if (updated) onActive(updated);
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      onActive(null);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Re-report position when the scroll container scrolls,
+  // Re-report position when the scroll container scrolls or resizes,
   // so the SVG clip-path stays aligned with the visually shifted tab.
   useEffect(() => {
     if (!active) return;
     const container = scrollContainerRef.current;
     if (!container) return;
-    const handleScroll = () => {
+    const update = () => {
       const s = reportSlice();
       if (s) onActive(s);
     };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+    return () => {
+      container.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
