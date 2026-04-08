@@ -9,7 +9,7 @@ const SEED_STORAGE_KEY = 'ditto:seed';
 /**
  * Get or create a device-local random seed persisted in localStorage.
  * This is a general-purpose secret used to derive private identifiers
- * (e.g. iframe.diy subdomains) that must not be predictable by third parties.
+ * (e.g. sandbox frame subdomains) that must not be predictable by third parties.
  */
 function getSeed(): string {
   const stored = localStorage.getItem(SEED_STORAGE_KEY);
@@ -21,16 +21,16 @@ function getSeed(): string {
 }
 
 /**
- * Derive a stable, private subdomain label for an iframe.diy iframe.
+ * Derive a stable, private subdomain label for a sandbox frame.
  *
  * Uses HMAC-SHA256 with the device-local seed as the key and
  * `prefix|identifier` as the message. Because the seed is secret to
  * this device, a third party cannot predict or collide with another
  * app's subdomain, preventing cross-app localStorage/IndexedDB access
- * on iframe.diy.
+ * on the sandbox domain.
  *
  * The `prefix` acts as a domain separator so that different use-cases
- * (e.g. "webxdc", "sandbox") produce distinct subdomains even for the
+ * (e.g. "webxdc", "nsite") produce distinct subdomains even for the
  * same identifier.
  *
  * The result is a 50-character base36 string (256 bits of entropy) that
