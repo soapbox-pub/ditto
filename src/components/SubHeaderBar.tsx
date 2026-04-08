@@ -169,7 +169,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
                 onClick={() => scrollBy('left')}
                 className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-0.5 pr-1 bg-gradient-to-r from-background/90 to-transparent cursor-pointer"
               >
-                <ChevronLeft className="size-4 text-muted-foreground" />
+                <ChevronLeft className="size-4 text-foreground/60" strokeWidth={4} />
               </button>
             )}
             <div
@@ -186,7 +186,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
                 onClick={() => scrollBy('right')}
                 className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-0.5 pl-1 bg-gradient-to-l from-background/90 to-transparent cursor-pointer"
               >
-                <ChevronRight className="size-4 text-muted-foreground" />
+                <ChevronRight className="size-4 text-foreground/60" strokeWidth={4} />
               </button>
             )}
           </div>
