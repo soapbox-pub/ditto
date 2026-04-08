@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { SandboxFrame } from '@/components/SandboxFrame';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
@@ -112,8 +111,7 @@ interface NsitePreviewDialogProps {
  */
 export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
   const centerColumn = useCenterColumn();
-  const isMobile = useIsMobile();
-  const columnRect = useElementRect(open && !isMobile ? centerColumn : null);
+  const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
 
   // Use the NIP-5A canonical subdomain as the stable identifier, then derive
@@ -169,28 +167,23 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     return { status: 200, contentType, body };
   }, []);
 
-  if (!open || !centerColumn) return null;
+  if (!open || !centerColumn || !columnRect) return null;
 
-  // On desktop, align the panel to the center column.
-  // On mobile, go full-viewport with `inset-0` so the panel correctly fills
-  // the screen and safe-area padding handles the notch / home indicator.
-  const useColumnRect = !isMobile && columnRect;
-
-  const panelStyle: React.CSSProperties = useColumnRect
-    ? {
-        left: columnRect.left,
-        top: Math.max(0, columnRect.top),
-        width: columnRect.width,
-        height: window.innerHeight - Math.max(0, columnRect.top),
-      }
-    : {
-        inset: 0,
-      };
+  // If the user has scrolled down, columnRect.top is negative (the column top
+  // is above the viewport). Clamp to 0 so the panel always starts at the
+  // viewport top edge and never grows taller than the viewport.
+  const panelTop = Math.max(0, columnRect.top);
+  const panelHeight = window.innerHeight - panelTop;
 
   return createPortal(
     <div
       className="fixed z-50 flex flex-col bg-background"
-      style={panelStyle}
+      style={{
+        left: columnRect.left,
+        top: panelTop,
+        width: columnRect.width,
+        height: panelHeight,
+      }}
     >
       {/* Nav bar */}
       <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0 safe-area-top">
@@ -223,7 +216,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       </div>
 
       {/* Sandboxed iframe */}
-      <div className="flex-1 min-h-0 bg-background safe-area-bottom">
+      <div className="flex-1 min-h-0 bg-background">
         <SandboxFrame
           key={`${previewSubdomain}-${open}`}
           id={previewSubdomain}
