@@ -2,7 +2,6 @@ import {
   useRef,
   useEffect,
   useCallback,
-  useMemo,
   forwardRef,
   useImperativeHandle,
   type IframeHTMLAttributes,
@@ -12,9 +11,8 @@ import { unzipSync } from 'fflate';
 import type { Webxdc as WebxdcAPI, ReceivedStatusUpdate } from '@webxdc/types/webxdc';
 
 import { SandboxFrame, type SandboxFrameHandle } from '@/components/SandboxFrame';
-import { getMimeType } from '@/lib/sandbox';
-import type { FileResponse, InjectedScript } from '@/lib/sandbox';
-import { bytesToBase64 } from '@/lib/sandbox';
+import { getMimeType, bytesToBase64, injectScriptTags } from '@/lib/sandbox';
+import type { FileResponse } from '@/lib/sandbox';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -311,18 +309,15 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
   }, []);
 
   // -----------------------------------------------------------------
-  // Injected script: the webxdc bridge
+  // File resolver with bridge script injection
+  //
+  // The webxdc bridge is generated dynamically in onReady (it embeds
+  // runtime values like selfAddr), so we can't use SandboxFrame's
+  // static injectedScripts prop. Instead we:
+  //  1. Serve /webxdc.js ourselves from bridgeScriptRef
+  //  2. Inject <script src="/webxdc.js"> into HTML responses here
   // -----------------------------------------------------------------
 
-  const injectedScripts = useMemo<InjectedScript[]>(() => [{
-    path: 'webxdc.js',
-    content: '', // placeholder — actual content is served dynamically
-  }], []);
-
-  // Override the injected script content with the dynamically generated bridge.
-  // The SandboxFrame serves injected scripts by their path, but the bridge
-  // content depends on the webxdc API values which aren't available until
-  // onReady. We use a custom resolveFile that intercepts the bridge path.
   const resolveFileWithBridge = useCallback(async (pathname: string): Promise<FileResponse | null> => {
     // Serve the virtual webxdc bridge script.
     if (pathname === '/webxdc.js') {
@@ -332,7 +327,18 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
         body: new TextEncoder().encode(bridgeScriptRef.current),
       };
     }
-    return resolveFile(pathname);
+
+    const file = await resolveFile(pathname);
+    if (!file) return null;
+
+    // Inject <script src="/webxdc.js"> into HTML responses.
+    if (file.contentType.includes('text/html')) {
+      const html = new TextDecoder().decode(file.body);
+      const injected = injectScriptTags(html, ['/webxdc.js']);
+      return { ...file, body: new TextEncoder().encode(injected) };
+    }
+
+    return file;
   }, [resolveFile]);
 
   // -----------------------------------------------------------------
@@ -428,7 +434,6 @@ export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
       id={id}
       resolveFile={resolveFileWithBridge}
       onRpc={onRpc}
-      injectedScripts={injectedScripts}
       csp={WEBXDC_CSP}
       onReady={onReady}
       {...iframeProps}
