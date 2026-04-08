@@ -177,7 +177,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
   return createPortal(
     <div
-      className="fixed z-50 flex flex-col bg-background"
+      className="fixed z-50 flex flex-col bg-background safe-area-top"
       style={{
         left: columnRect.left,
         top: panelTop,

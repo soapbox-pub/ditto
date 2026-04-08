@@ -99,7 +99,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       ref={containerRef}
       className={cn(
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-background flex flex-col'
+          ? 'fixed inset-0 z-50 bg-background flex flex-col safe-area-top'
           : 'mt-3 rounded-2xl border border-border overflow-hidden flex flex-col',
         !isFullscreen && className,
       )}
