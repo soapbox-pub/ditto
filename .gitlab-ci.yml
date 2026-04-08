@@ -145,8 +145,9 @@ build-apk:
     - npx vite build -l error
     - cp dist/index.html dist/404.html
 
-    # Sync web assets to Capacitor Android project
+    # Sync web assets to Capacitor Android project and register local plugins
     - npx cap sync android
+    - node scripts/patch-cap-config.mjs
 
     # Build signed release APK
     - cd android && chmod +x gradlew && ./gradlew assembleRelease bundleRelease && cd ..
