@@ -53,8 +53,13 @@ export interface SandboxFrameProps
   injectedScripts?: InjectedScript[];
   /** Optional Content-Security-Policy header added to every response. */
   csp?: string;
-  /** Called after the ready → init handshake completes. */
-  onReady?: () => void;
+  /**
+   * Called when the sandbox sends `ready`, **before** `init` is sent back.
+   * If the returned promise is pending, `init` is deferred until it resolves,
+   * which prevents fetch requests from arriving before the consumer is ready
+   * to serve files (e.g. while an archive is still being downloaded).
+   */
+  onReady?: () => void | Promise<void>;
 }
 
 /** Imperative handle exposed via ref. */
@@ -140,10 +145,9 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         const msg = event.data;
         if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
 
-        // Notification: ready → respond with init
+        // Notification: ready → await onReady, then respond with init
         if (msg.method === 'ready' && msg.id === undefined) {
-          post({ jsonrpc: '2.0', method: 'init', params: { version: 1 } });
-          onReadyRef.current?.();
+          handleReady();
           return;
         }
 
@@ -155,6 +159,19 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
             handleRpc(msg.id, msg.method, msg.params ?? {});
           }
         }
+      }
+
+      // ---------------------------------------------------------------
+      // Ready handler: run consumer setup, then send init
+      // ---------------------------------------------------------------
+
+      async function handleReady() {
+        try {
+          await onReadyRef.current?.();
+        } catch (err) {
+          console.error('[SandboxFrame] onReady failed:', err);
+        }
+        post({ jsonrpc: '2.0', method: 'init', params: { version: 1 } });
       }
 
       // ---------------------------------------------------------------
