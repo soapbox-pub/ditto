@@ -343,14 +343,12 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
               autoCapitalize="off"
               spellCheck={false}
             />
-            {query.length > 0 && (
-              <button
-                onClick={() => setQuery('')}
-                className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-              >
-                <X strokeWidth={4} className="size-3" />
-              </button>
-            )}
+            <button
+              onClick={handleClose}
+              className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+            >
+              <X strokeWidth={4} className="size-3" />
+            </button>
           </div>
         </div>
       </div>
