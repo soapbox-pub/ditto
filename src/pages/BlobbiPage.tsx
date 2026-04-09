@@ -170,26 +170,9 @@ function BlobbiContent() {
     invalidateProfile,
   });
   
-  // STEP 1: Build dList from profile.has[] + currentCompanion
-  const dList = useMemo(() => {
-    if (!profile) return undefined;
-    
-    // Build unique list: profile.has[] + currentCompanion (if not already in list)
-    const allDs = new Set<string>(profile.has);
-    if (profile.currentCompanion && !allDs.has(profile.currentCompanion)) {
-      allDs.add(profile.currentCompanion);
-    }
-    
-    const result = Array.from(allDs);
-    
-    if (DEBUG_BLOBBI) {
-      console.log('[Blobbi] dList:', result);
-    }
-    
-    return result.length > 0 ? result : undefined;
-  }, [profile]);
-  
-  // STEP 2 & 3: Fetch ALL Blobbi pets (with chunking in the hook)
+  // STEP 1: Fetch ALL the user's Blobbi events from relays (author is source of truth).
+  // No dList needed — useBlobbisCollection() without args queries by author + ecosystem tag.
+  // This ensures blobbis are never invisible due to a stale profile.has[] list.
   const {
     companionsByD,
     companions,
@@ -197,7 +180,7 @@ function BlobbiContent() {
     isFetching: collectionFetching,
     invalidate: invalidateCollection,
     updateCompanionEvent,
-  } = useBlobbisCollection(dList);
+  } = useBlobbisCollection();
   
   // STEP 5: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
@@ -208,14 +191,13 @@ function BlobbiContent() {
   
   // STEP 6: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
-  // 2) first item from profile.has that exists in companionsByD - DEFAULT ONLY, never persisted
-  // 3) undefined (show selector)
+  // 2) first item from profile.has that exists in companionsByD - preferred ordering
+  // 3) first companion in the collection (covers blobbis missing from profile.has)
+  // 4) undefined (show selector)
   //
   // CRITICAL: Default selection must NEVER overwrite localStorage.
   // User selection persists only via handleSelectBlobbi, not via this computed value.
   const selectedD = useMemo(() => {
-    if (!profile) return undefined;
-    
     // Priority 1: localStorage selection (if it exists in loaded collection)
     // USER SELECTION ALWAYS WINS - this is the authoritative source
     if (storedSelectedD && companionsByD[storedSelectedD]) {
@@ -226,24 +208,35 @@ function BlobbiContent() {
     }
     
     // Priority 2: First item from profile.has that exists in companionsByD
-    // This is a DEFAULT - it should NOT be persisted to localStorage
-    for (const d of profile.has) {
-      if (companionsByD[d]) {
-        if (DEBUG_BLOBBI) {
-          console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
-            '(storedSelectedD was:', storedSelectedD, 
-            storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+    // This preserves the user's ordering preference from their profile
+    if (profile) {
+      for (const d of profile.has) {
+        if (companionsByD[d]) {
+          if (DEBUG_BLOBBI) {
+            console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
+              '(storedSelectedD was:', storedSelectedD, 
+              storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+          }
+          return d;
         }
-        return d;
       }
     }
     
-    // Priority 3: No valid selection
+    // Priority 3: First companion in the collection (covers blobbis not in profile.has)
+    if (companions.length > 0) {
+      const firstD = companions[0].d;
+      if (DEBUG_BLOBBI) {
+        console.log('[BlobbiPage] selectedD: using first companion from collection:', firstD);
+      }
+      return firstD;
+    }
+    
+    // Priority 4: No valid selection
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
-  }, [profile, storedSelectedD, companionsByD]);
+  }, [profile, storedSelectedD, companionsByD, companions]);
   
   // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
   // This prevents the default selection from overwriting user selections during:
@@ -270,7 +263,6 @@ function BlobbiContent() {
   }, [selectedD, companion]);
   
   // Combine loading/fetching states
-  const companionLoading = collectionLoading;
   const companionFetching = collectionFetching;
   const invalidateCompanion = invalidateCollection;
   
@@ -468,14 +460,13 @@ function BlobbiContent() {
   const pageState = useMemo(() => {
     if (profileLoading) return 'loading-profile';
     if (!profile) return 'no-profile';
-    if (!dList || dList.length === 0) return 'profile-no-pets';
-    if (companionLoading) return 'loading-companions';
-    if (companionFetching && companions.length === 0) return 'fetching-companions';
-    if (companions.length === 0) return 'pets-not-found';
+    if (collectionLoading) return 'loading-companions';
+    if (collectionFetching && companions.length === 0) return 'fetching-companions';
+    if (companions.length === 0) return 'no-pets';
     if (!selectedD) return 'no-selection';
     if (!companion) return 'companion-not-resolved';
     return 'dashboard';
-  }, [profileLoading, profile, dList, companionLoading, companionFetching, companions.length, selectedD, companion]);
+  }, [profileLoading, profile, collectionLoading, collectionFetching, companions.length, selectedD, companion]);
   
   // Debug log page state decisions
   if (DEBUG_BLOBBI) {
@@ -485,9 +476,8 @@ function BlobbiContent() {
       hasProfile: !!profile,
       profileName: profile?.name,
       profileHas: profile?.has?.length ?? 0,
-      dListLength: dList?.length ?? 0,
-      companionLoading,
-      companionFetching,
+      collectionLoading,
+      collectionFetching,
       companionsLoaded: companions.length,
       selectedD,
       hasCompanion: !!companion,
@@ -506,11 +496,11 @@ function BlobbiContent() {
   //
   // Ceremony decision tree:
   // 1. No profile → ceremony (brand new user, creates profile + egg)
-  // 2. Profile with no pets (empty has[]) → ceremony (creates egg)
-  // 3. Profile with pets → wait for companions to load, then:
+  // 2. Profile exists but no blobbis found on relays → ceremony (creates egg)
+  // 3. Profile with blobbis → inspect companion stages, then:
   //    a. Any baby/adult exists → skip ceremony (dashboard)
   //    b. Only eggs exist → ceremony with existingCompanion (reuses egg)
-  //    c. No companions resolved (stale refs) → ceremony (creates egg)
+  //    c. No companions resolved → ceremony (creates egg)
   const [ceremonyInProgress, setCeremonyInProgress] = useState(false);
   // Set to true once the companion-stage check has resolved so it doesn't
   // re-run on every render as companion data updates.
@@ -520,14 +510,14 @@ function BlobbiContent() {
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
   
   // Cases that definitely need ceremony (no need to wait for companions)
-  const definitelyNeedsCeremony = !profile || !dList || dList.length === 0;
+  const definitelyNeedsCeremony = !profile;
+  // Whether we've finished loading enough data to make the decision
+  const companionDataReady = !collectionLoading && (!collectionFetching || companions.length > 0);
   // Cases where we must inspect actual companion stages before deciding.
-  // This fires for ALL users with pets — regardless of onboardingDone —
+  // This fires for ALL users with a profile — regardless of onboardingDone —
   // so that accounts with onboardingDone=true but only eggs still get
   // the ceremony.
   const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
-  // Whether we've finished loading enough data to make the decision
-  const companionDataReady = !companionLoading && (!companionFetching || companions.length > 0);
   
   // Auto-start ceremony for definite cases (no profile / no pets)
   useEffect(() => {
@@ -571,8 +561,8 @@ function BlobbiContent() {
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
       setCeremonyInProgress(true);
     } else {
-      // Profile has pet d-tags but none resolved (stale references) — treat as new user
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions resolved');
+      // No blobbi events found on relays — treat as new user
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -614,19 +604,19 @@ function BlobbiContent() {
     );
   }
   
-  // After ceremony check, profile and dList must exist
-  if (!profile || !dList || dList.length === 0) {
+  // After ceremony check, profile must exist
+  if (!profile) {
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE D: Profile has pet references, but companions still loading ───
-  if (companionLoading) {
+  // ─── CASE D: Companions still loading ───
+  if (collectionLoading) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: loading companions');
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE E: Profile has pet references, but companions not yet resolved (fetching) ───
-  if (companionFetching && companions.length === 0) {
+  // ─── CASE E: Companions not yet resolved (fetching) ───
+  if (collectionFetching && companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: syncing pets from relays');
     return (
       <DashboardShell>
@@ -645,8 +635,8 @@ function BlobbiContent() {
     );
   }
   
-  // ─── CASE F: Profile has pet references, but pets not found on relays ───
-  // This is a data sync issue - show error state, NOT onboarding
+  // ─── CASE F: No blobbi events found on relays ───
+  // This shouldn't normally happen after the ceremony check, but handle gracefully
   if (companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pets not found error');
     return (
@@ -658,7 +648,7 @@ function BlobbiContent() {
             </div>
             <h1 className="text-2xl font-bold">Pet Data Not Found</h1>
             <p className="text-muted-foreground">
-              Your profile references {dList.length} pet(s), but the data couldn't be loaded from relays.
+              No Blobbi data could be loaded from relays.
               This may be a sync issue - try refreshing the page.
             </p>
             <Button

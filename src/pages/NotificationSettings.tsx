@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, Heart, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -150,6 +152,7 @@ export function NotificationSettings() {
   // Web: toggle reflects actual browser push subscription (from the hook).
   // Native: toggle reflects NIP-78 persisted preference.
   const [nativePushEnabled, setNativePushEnabled] = useState<boolean>(() => isNative);
+  const [notificationStyle, setNotificationStyle] = useState<'push' | 'persistent'>('push');
   const [prefs, setPrefs] = useState<NonNullable<NonNullable<typeof settings>['notificationPreferences']>>({});
   const initializedRef = useRef(false);
 
@@ -158,6 +161,7 @@ export function NotificationSettings() {
     initializedRef.current = true;
     if (isNative) {
       setNativePushEnabled(settings.notificationsEnabled ?? true);
+      setNotificationStyle(settings.notificationStyle ?? 'push');
     }
     setPrefs(settings.notificationPreferences ?? {});
   }, [settings, isNative]);
@@ -226,6 +230,14 @@ export function NotificationSettings() {
     }
   };
 
+  const handleStyleChange = (style: 'push' | 'persistent') => {
+    const prev = notificationStyle;
+    setNotificationStyle(style);
+    updateSettings.mutateAsync({ notificationStyle: style }).catch(() => {
+      setNotificationStyle(prev); // roll back on failure
+    });
+  };
+
   const handleToggleOnlyFollowing = (enabled: boolean) => {
     const next = { ...prefs, onlyFollowing: enabled };
     setPrefs(next);
@@ -287,6 +299,48 @@ export function NotificationSettings() {
             </div>
           )}
         </div>
+
+        {/* Notification Style — native only, visible when push is enabled */}
+        {isNative && pushEnabled && (
+          <>
+            <SectionHeader title="Delivery Method" />
+            <div className="pb-4">
+              <p className="text-xs text-muted-foreground px-3 pt-3 pb-4">
+                Choose how notifications are delivered to your device.
+              </p>
+              <RadioGroup
+                value={notificationStyle}
+                onValueChange={(v) => handleStyleChange(v as 'push' | 'persistent')}
+                className="px-3 space-y-3"
+              >
+                <div className="flex items-start gap-3">
+                  <RadioGroupItem value="push" id="style-push" className="mt-0.5" />
+                  <Label htmlFor="style-push" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Radio className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Push</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Standard notifications. No persistent status bar icon.
+                    </p>
+                  </Label>
+                </div>
+                <div className="flex items-start gap-3">
+                  <RadioGroupItem value="persistent" id="style-persistent" className="mt-0.5" />
+                  <Label htmlFor="style-persistent" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <MonitorSmartphone className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Persistent</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Background service polls relays directly. Shows a persistent notification. Use this on devices that don't support push notifications (e.g. GrapheneOS).
+                    </p>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </>
+        )}
 
         {/* Filter + Notify Me About — one continuous block */}
         <SectionHeader title="Notify Me About" />

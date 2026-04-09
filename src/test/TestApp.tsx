@@ -111,6 +111,7 @@ export function TestApp({ children }: TestAppProps) {
     plausibleEndpoint: "",
     savedFeeds: [],
     imageQuality: 'compressed',
+    sandboxDomain: 'iframe.diy',
   };
 
   return (

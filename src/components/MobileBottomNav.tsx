@@ -137,8 +137,8 @@ export function MobileBottomNav() {
 
           </div>
         </div>
-        {/* Safe area spacer — fully opaque so any subpixel gap is invisible */}
-        <div className="safe-area-bottom bg-background" />
+        {/* Safe area fill — matches the arc's semi-transparent background */}
+        <div className="safe-area-bottom bg-background/85" />
       </nav>
     </>
   );

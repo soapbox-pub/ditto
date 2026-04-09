@@ -59,6 +59,8 @@ export interface EncryptedSettings {
   contentWarningPolicy?: ContentWarningPolicy;
   /** Whether the user has enabled push notifications */
   notificationsEnabled?: boolean;
+  /** Notification delivery style on native: 'push' (default) or 'persistent' (foreground service) */
+  notificationStyle?: 'push' | 'persistent';
   /** Timestamp of last viewed notification (Unix timestamp in seconds) */
   notificationsCursor?: number;
   /** Per-type notification preferences (all default to true/enabled) */

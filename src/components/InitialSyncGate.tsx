@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { downloadTextFile } from "@/lib/downloadFile";
+import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   type ReactNode,
   useCallback,
@@ -942,32 +943,27 @@ function FollowsStep({
           .filter(([n]) => n === "p")
           .map(([, pk]) => pk);
 
-        // Fetch current follow list
-        const followEvents: NostrEvent[] = await nostr
-          .query([{ kinds: [3], authors: [user.pubkey], limit: 1 }], {
-            signal: AbortSignal.timeout(10_000),
-          })
-          .catch((): NostrEvent[] => []);
+        // 1. Fetch freshest kind 3 from relays (not cache)
+        const prev = await fetchFreshEvent(nostr, {
+          kinds: [3],
+          authors: [user.pubkey],
+        });
 
-        const prev =
-          followEvents.length > 0
-            ? followEvents.reduce((latest, current) =>
-                current.created_at > latest.created_at ? current : latest,
-              )
-            : null;
+        // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
+        const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
+        const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
+        const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
 
-        const existingFollows = prev
-          ? prev.tags
-              .filter(([name]) => name === "p")
-              .map(([, pk]) => pk)
-          : [];
+        // 3. Merge: add new pubkeys that aren't already followed
+        const newPTags = packPubkeys
+          .filter((pk) => !existingPubkeys.has(pk))
+          .map((pk) => ["p", pk]);
 
-        const allFollows = [...new Set([...existingFollows, ...packPubkeys])];
-
+        // 4. Publish with prev for published_at preservation
         await publishEvent({
           kind: 3,
           content: prev?.content ?? "",
-          tags: allFollows.map((pk) => ["p", pk]),
+          tags: [...nonPTags, ...existingPTags, ...newPTags],
           prev: prev ?? undefined,
         });
 
