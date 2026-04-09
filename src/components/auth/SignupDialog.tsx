@@ -1,7 +1,6 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { Capacitor } from '@capacitor/core';
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,10 +57,6 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
 
       await downloadTextFile(filename, nsec);
-
-      if (Capacitor.getPlatform() === 'android') {
-        toast({ title: 'Key saved', description: `Saved to Download/${filename}` });
-      }
 
       // Continue to profile step
       login.nsec(nsec);

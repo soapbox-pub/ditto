@@ -36,6 +36,7 @@ export function useHasUnreadNotifications(): boolean {
   const { data: followData } = useFollowList();
 
   const prefs = settings?.notificationPreferences;
+  const notificationStyle = settings?.notificationStyle ?? 'push';
 
   // Derive enabled kinds from preferences so disabled types don't trigger the dot
   const enabledKinds = useMemo(
@@ -77,7 +78,9 @@ export function useHasUnreadNotifications(): boolean {
       return events.some((e) => e.pubkey !== user.pubkey);
     },
     enabled: !!user && notificationsCursor !== null,
-    refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
+    // Disable polling on native only when using persistent mode (foreground service
+    // handles it). In push mode on native, poll like web since there's no service.
+    refetchInterval: Capacitor.isNativePlatform() && notificationStyle === 'persistent' ? false : 60_000,
     placeholderData: (prev) => prev,
   });
 

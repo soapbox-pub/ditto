@@ -22,9 +22,12 @@ import '@fontsource-variable/inter';
 // (class changes for builtin themes, style-content changes for custom themes).
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { Keyboard } from '@capacitor/keyboard';
 import { getBackgroundThemeMode, getBackgroundHex } from '@/lib/colorUtils';
 
 if (Capacitor.isNativePlatform()) {
+  // Hide the iOS keyboard accessory bar (prev/next/done toolbar above the keyboard)
+  Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
   /**
    * Read --background from the computed style of <html>, convert the HSL
    * value to a hex color, and update the native status bar to match.

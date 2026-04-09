@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -167,6 +167,7 @@ interface ProfileMoreMenuProps {
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -232,6 +233,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   const handleRecovery = () => openAfterClose(setRecoveryOpen);
   const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
+  const handleWriteLetter = () => {
+    close();
+    navigate(`/letters/compose?to=${npubEncoded}`);
+  };
   const handleZap = () => {
     close();
     setTimeout(() => zapTriggerRef.current?.click(), 150);
@@ -302,6 +307,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                   icon={<Award className="size-5" />}
                   label="Award badge"
                   onClick={handleGiveBadge}
+                />
+              )}
+              {user && (
+                <MenuRow
+                  icon={<Mail className="size-5" />}
+                  label="Write a letter"
+                  onClick={handleWriteLetter}
                 />
               )}
               <MenuRow
@@ -2257,9 +2269,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-              {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+              {/* Profile fields shown inline */}
               {fields.length > 0 && (
-                <div className="mt-4 space-y-3 xl:hidden">
+                <div className="mt-4 space-y-3">
                   {fields.map((field, i) => (
                     <ProfileFieldInline key={i} field={field} />
                   ))}

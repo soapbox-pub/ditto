@@ -42,12 +42,13 @@ export function hydrateProfileCache(): Promise<void> {
   hydratePromise = (async () => {
     try {
       const db = await openDatabase();
+      if (!db) return; // IndexedDB unavailable — skip hydration.
       const entries: ProfileCacheEntry[] = await db.getAll(STORE.PROFILES);
       for (const entry of entries) {
         memoryCache.set(entry.pubkey, entry);
       }
     } catch {
-      // IndexedDB unavailable (e.g. private browsing) — silently degrade.
+      // IndexedDB read failure — silently degrade.
     } finally {
       hydrated = true;
     }
@@ -87,7 +88,7 @@ export async function setProfileCached(event: NostrEvent, metadata?: NostrMetada
 
   try {
     const db = await openDatabase();
-    await db.put(STORE.PROFILES, entry, event.pubkey);
+    if (db) await db.put(STORE.PROFILES, entry, event.pubkey);
   } catch {
     // Write failure is non-critical — the in-memory cache still works.
   }
@@ -99,7 +100,7 @@ export async function deleteProfileCached(pubkey: string): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.delete(STORE.PROFILES, pubkey);
+    if (db) await db.delete(STORE.PROFILES, pubkey);
   } catch {
     // Non-critical.
   }
@@ -111,7 +112,7 @@ export async function clearProfileCache(): Promise<void> {
 
   try {
     const db = await openDatabase();
-    await db.clear(STORE.PROFILES);
+    if (db) await db.clear(STORE.PROFILES);
   } catch {
     // Non-critical.
   }

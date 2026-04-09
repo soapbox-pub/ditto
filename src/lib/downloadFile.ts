@@ -4,39 +4,24 @@ import { Capacitor } from '@capacitor/core';
  * Download a text file to the user's device.
  *
  * On the web this uses the classic `<a download>` trick.
- * On Android it writes to the public Download folder via ExternalStorage.
- * On iOS it writes to a temp file and presents the native share sheet.
+ * On native (Android & iOS) the file is saved to the app's Documents
+ * directory, which is visible in the iOS Files app and Android's
+ * app-scoped documents. No permissions are required.
  */
 export async function downloadTextFile(filename: string, content: string): Promise<void> {
-  const platform = Capacitor.getPlatform();
+  if (Capacitor.isNativePlatform()) {
+    const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
 
-  if (platform === 'android') {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
-
-    // Write to the public Download folder. On Android 11+ no storage
-    // permissions are required for app-created files in shared directories.
+    // Write straight to Documents — visible in the iOS Files app and
+    // Android's app-scoped documents. No storage permissions needed.
+    // NOTE: encoding is required — without it Capacitor expects base64 data
+    // and will throw for plain-text strings.
     await Filesystem.writeFile({
-      path: `Download/${filename}`,
-      data: content,
-      directory: Directory.ExternalStorage,
-    });
-  } else if (platform === 'ios') {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
-    const { Share } = await import('@capacitor/share');
-
-    const result = await Filesystem.writeFile({
       path: filename,
       data: content,
-      directory: Directory.Cache,
+      directory: Directory.Documents,
+      encoding: Encoding.UTF8,
     });
-
-    // On iOS there is no user-visible Downloads folder, so present the
-    // share sheet and let the user choose where to save / send the file.
-    try {
-      await Share.share({ title: filename, url: result.uri });
-    } catch {
-      // User dismissed the share sheet — not a real failure
-    }
   } else {
     // Web: use the anchor-click download pattern
     const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });

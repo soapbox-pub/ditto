@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.6.2] - 2026-04-08
+
+### Added
+- Share follow packs and follow sets via link -- recipients see an immersive preview with member avatars, a "Follow All" button, and a combined feed from everyone in the pack
+- Curated home feed with a mix of photos, short videos, livestreams, and music -- content types are spaced out so your timeline stays fresh and varied
+- "Write a letter" option on profile menus for a more personal way to reach out
+- Push vs persistent notification delivery option on Android
+
+### Changed
+- Webxdc games and apps always open fullscreen for a more immersive experience
+- Login credentials are now stored in the device's secure keychain on iOS and Android instead of plain local storage
+- Profile fields now appear inline instead of in a separate right sidebar
+- Trending hashtags removed from the logged-out homepage for a cleaner first impression
+
+### Fixed
+- Webxdc and nsites work natively on iOS and Android without relying on browser sandboxing tricks
+- File downloads now save directly to Documents on iOS and Android instead of silently failing
+- Mobile search no longer scrolls the page behind it and properly hides the bottom navigation bar
+- iOS swipe-back navigation works correctly throughout the app
+- Blobbi companions appear reliably on profiles instead of sometimes going missing
+- IndexedDB no longer crashes on devices with Lockdown Mode enabled
+
 ## [2.6.1] - 2026-04-06
 
 ### Added

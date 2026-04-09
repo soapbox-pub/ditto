@@ -4,11 +4,9 @@
  * Fetches the current companion data from the user's Blobbonaut profile.
  * This is the data layer - it handles fetching and provides companion data.
  * 
- * IMPORTANT: This hook shares the same query cache as BlobbiPage via
- * useBlobbisCollection. This ensures:
- * - Immediate reactivity when stats change (optimistic updates)
- * - Projected decay is applied for accurate visual reactions
- * - No duplicate queries or stale cache issues
+ * Uses useBlobbisCollection with a targeted dList (single d-tag) for efficiency.
+ * Optimistic updates from mutations propagate across all blobbi-collection
+ * queries (including BlobbiPage's 'all' mode) via updateCompanionEvent.
  */
 
 import { useMemo } from 'react';
@@ -32,16 +30,14 @@ interface UseBlobbiCompanionDataResult {
  * 
  * Flow:
  * 1. Use useBlobbonautProfile to get the profile (shared query, reactive)
- * 2. Build a dList containing just the currentCompanion
- * 3. Use useBlobbisCollection (shared with BlobbiPage) to get the companion
+ * 2. Build a dList containing just the currentCompanion (targeted fetch)
+ * 3. Use useBlobbisCollection with the dList to get the companion
  * 4. Apply projected decay for accurate UI reactions
  * 5. Return the companion data with projected stats
  * 
  * Reactivity:
- * - Uses the same query cache as BlobbiPage (blobbi-collection)
- * - When Blobbi state is updated, optimistic updates flow through immediately
- * - Projected decay recalculates every 60 seconds
- * - No separate query or stale cache issues
+ * - Optimistic updates propagate across all blobbi-collection queries
+ * - Projected decay recalculates every 60 seconds while mounted
  */
 export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
   // Use the shared profile hook - this ensures reactivity when profile changes

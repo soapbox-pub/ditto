@@ -26,8 +26,9 @@ export interface MessageStore {
 // ============================================================================
 
 /**
- * Write messages to IndexedDB for a specific user
- * Messages are stored in their original encrypted form (kind 4 or kind 13)
+ * Write messages to IndexedDB for a specific user.
+ * Messages are stored in their original encrypted form (kind 4 or kind 13).
+ * Silently skipped when IndexedDB is unavailable.
  */
 export async function writeMessagesToDB(
   userPubkey: string,
@@ -35,60 +36,59 @@ export async function writeMessagesToDB(
 ): Promise<void> {
   try {
     const db = await openDatabase();
-    
-      // Store messages in their original encrypted form (no NIP-44 wrapper needed)
-      // Each message content is already encrypted by the sender
-      await db.put(STORE.MESSAGES, messageStore, userPubkey);
-  } catch (error) {
-    console.error('[MessageStore] Error writing to IndexedDB:', error);
-    throw error;
+    if (!db) return; // IndexedDB unavailable — skip persistence.
+    // Store messages in their original encrypted form (no NIP-44 wrapper needed)
+    // Each message content is already encrypted by the sender
+    await db.put(STORE.MESSAGES, messageStore, userPubkey);
+  } catch {
+    // Write failure is non-critical — DMs still work in-memory.
   }
 }
 
 /**
- * Read messages from IndexedDB for a specific user
- * Messages are stored in their original encrypted form (kind 4 or kind 13)
+ * Read messages from IndexedDB for a specific user.
+ * Messages are stored in their original encrypted form (kind 4 or kind 13).
+ * Returns `undefined` when IndexedDB is unavailable.
  */
 export async function readMessagesFromDB(
   userPubkey: string
 ): Promise<MessageStore | undefined> {
   try {
     const db = await openDatabase();
+    if (!db) return undefined; // IndexedDB unavailable.
     const data = await db.get(STORE.MESSAGES, userPubkey);
-    
-    if (!data) {
-      return undefined;
-    }
-    
+    if (!data) return undefined;
     return data as MessageStore;
-  } catch (error) {
-    console.error('[MessageStore] Error reading from IndexedDB:', error);
-    throw error;
+  } catch {
+    // Read failure — return undefined so the caller proceeds without cache.
+    return undefined;
   }
 }
 
 /**
- * Delete messages from IndexedDB for a specific user
+ * Delete messages from IndexedDB for a specific user.
+ * Silently skipped when IndexedDB is unavailable.
  */
 export async function deleteMessagesFromDB(userPubkey: string): Promise<void> {
   try {
     const db = await openDatabase();
+    if (!db) return;
     await db.delete(STORE.MESSAGES, userPubkey);
-  } catch (error) {
-    console.error('[MessageStore] Error deleting from IndexedDB:', error);
-    throw error;
+  } catch {
+    // Non-critical.
   }
 }
 
 /**
- * Clear all messages from IndexedDB
+ * Clear all messages from IndexedDB.
+ * Silently skipped when IndexedDB is unavailable.
  */
 export async function clearAllMessages(): Promise<void> {
   try {
     const db = await openDatabase();
+    if (!db) return;
     await db.clear(STORE.MESSAGES);
-  } catch (error) {
-    console.error('[MessageStore] Error clearing IndexedDB:', error);
-    throw error;
+  } catch {
+    // Non-critical.
   }
 }

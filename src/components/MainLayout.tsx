@@ -1,7 +1,6 @@
 import { Suspense, useState, useMemo, useCallback, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
-import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -42,68 +41,15 @@ function PageSkeleton() {
           ))}
         </div>
       </main>
-      {/* Right sidebar skeleton — mirrors RightSidebar's container + widget card styling */}
-      <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
-        {/* Trends widget skeleton */}
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <div className="flex items-center justify-between mb-3">
-            <Skeleton className="h-6 w-20" />
-            <Skeleton className="h-4 w-14" />
-          </div>
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <div className="space-y-1.5">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-[28px] w-[50px] rounded" />
-              </div>
-            ))}
-          </div>
-        </section>
-        {/* Hot Posts widget skeleton */}
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <div className="flex items-center justify-between mb-3">
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="size-5 rounded-full" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <Skeleton className="h-3.5 w-full" />
-                <Skeleton className="h-3.5 w-3/4" />
-              </div>
-            ))}
-          </div>
-        </section>
-        {/* New Accounts widget skeleton */}
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <Skeleton className="h-6 w-28 mb-3" />
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <Skeleton className="size-10 rounded-full" />
-                <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-36" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </aside>
+      {/* Right sidebar placeholder — preserves layout width */}
+      <div className="w-[300px] shrink-0 hidden xl:block" />
     </>
   );
 }
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
+  const { showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const centerColumnRef = useRef<HTMLDivElement>(null);
@@ -158,7 +104,8 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {rightSidebar !== null && (rightSidebar ?? <RightSidebar />)}
+          {/* Right sidebar placeholder — preserves layout width */}
+          <div className="w-[300px] shrink-0 hidden xl:block" />
         </Suspense>
       </div>
 
