@@ -40,8 +40,8 @@ export function MobileBottomNav() {
     setSearchOpen((v) => !v);
   }, []);
 
-  // Keep the nav visible while search is open regardless of scroll
-  const isHidden = hidden && !searchOpen;
+  // Hide the nav when search sheet is open so it doesn't compete for space
+  const isHidden = hidden || searchOpen;
 
   const displayName = metadata?.name || metadata?.display_name;
   const isOnProfile = user && location.pathname === profileUrl;

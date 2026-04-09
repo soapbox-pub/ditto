@@ -101,6 +101,14 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const wikipediaIndex = hasWikipedia ? nextMobileIdx++ : -1;
   const archiveIndex = hasArchive ? nextMobileIdx++ : -1;
 
+  // Lock body scroll while the search sheet is open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   // Focus input when opened
   useEffect(() => {
     if (open) {
@@ -224,8 +232,8 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         onClick={handleClose}
       />
 
-      {/* Bottom sheet — sits above the bottom nav bar */}
-      <div className="fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 bottom-mobile-nav">
+      {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
+      <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200">
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
@@ -293,7 +301,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         )}
 
         {/* Input bar */}
-        <div className="flex items-center px-6 py-3">
+        <div className="flex items-center px-6 py-3 safe-area-bottom bg-background/85">
           <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
             {isFetching ? (
               <svg
