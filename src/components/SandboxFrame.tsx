@@ -8,6 +8,8 @@ import {
   type IframeHTMLAttributes,
 } from 'react';
 
+import { Capacitor } from '@capacitor/core';
+
 import { useAppContext } from '@/hooks/useAppContext';
 import {
   bytesToBase64,
@@ -20,6 +22,11 @@ import type {
   JsonRpcResponse,
   SerialisedRequest,
 } from '@/lib/sandbox';
+import {
+  SandboxPlugin,
+  type SandboxFetchEvent,
+  type SandboxScriptMessageEvent,
+} from '@/lib/sandboxPlugin';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -71,22 +78,98 @@ export interface SandboxFrameHandle {
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Shared fetch/RPC handler logic
 // ---------------------------------------------------------------------------
 
 /**
- * Renders an iframe sandbox on a unique subdomain (`<id>.<sandboxDomain>`)
- * and implements the sandbox handshake + fetch proxy protocol.
- *
- * All file serving is delegated to the `resolveFile` callback.
- * Custom RPC methods are delegated to the optional `onRpc` callback.
- *
- * The sandbox domain is read from `AppConfig.sandboxDomain` (default:
- * `iframe.diy`). This is the single component that would be swapped out
- * for a native implementation on Capacitor builds.
+ * Build a serialised HTTP response and call `respond` with it.
+ * Shared between the web (postMessage) and native (respondToFetch) paths.
  */
-export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
-  function SandboxFrame(
+async function handleFetchRequest(
+  pathname: string,
+  resolveFile: (pathname: string) => Promise<FileResponse | null>,
+  scripts: InjectedScript[],
+  activeCsp: string | undefined,
+  respond: (result: Record<string, unknown>) => void,
+  respondError: (code: number, message: string) => void,
+): Promise<void> {
+  // Check if the request is for a virtual injected script.
+  const virtualScript = scripts.find(
+    (s) => pathname === `/${s.path}` || pathname === s.path,
+  );
+  if (virtualScript) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/javascript',
+      'Cache-Control': 'no-cache',
+    };
+    if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
+
+    respond({
+      status: 200,
+      statusText: 'OK',
+      headers,
+      body: utf8ToBase64(virtualScript.content),
+    });
+    return;
+  }
+
+  // Delegate to the consumer's file resolver.
+  try {
+    const file = await resolveFile(pathname);
+
+    if (!file) {
+      const headers: Record<string, string> = { 'Content-Type': 'text/plain' };
+      if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
+
+      respond({
+        status: 404,
+        statusText: 'Not Found',
+        headers,
+        body: utf8ToBase64('Not Found'),
+      });
+      return;
+    }
+
+    // For HTML responses, inject script tags.
+    let bodyBase64: string;
+    if (file.contentType === 'text/html' && scripts.length > 0) {
+      const html = new TextDecoder().decode(file.body);
+      const injected = injectScriptTags(
+        html,
+        scripts.map((s) => `/${s.path}`),
+      );
+      bodyBase64 = utf8ToBase64(injected);
+    } else {
+      bodyBase64 = bytesToBase64(file.body);
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': file.contentType,
+      'Cache-Control': 'no-cache',
+    };
+    if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
+    // Include Content-Length for non-HTML (binary) responses.
+    if (file.contentType !== 'text/html') {
+      headers['Content-Length'] = String(file.body.byteLength);
+    }
+
+    respond({
+      status: file.status,
+      statusText: 'OK',
+      headers,
+      body: bodyBase64,
+    });
+  } catch (err) {
+    respondError(-32002, String(err));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Web (iframe.diy) implementation
+// ---------------------------------------------------------------------------
+
+const SandboxFrameWeb = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
+  function SandboxFrameWeb(
     { id, resolveFile, onRpc, injectedScripts, csp, onReady, ...iframeProps },
     ref,
   ) {
@@ -145,7 +228,7 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         const msg = event.data;
         if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
 
-        // Notification: ready → await onReady, then respond with init
+        // Notification: ready -> await onReady, then respond with init
         if (msg.method === 'ready' && msg.id === undefined) {
           handleReady();
           return;
@@ -178,7 +261,10 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       // Fetch handler
       // ---------------------------------------------------------------
 
-      async function handleFetch(id: string | number, params: { request?: SerialisedRequest }) {
+      async function handleFetch(
+        id: string | number,
+        params: { request?: SerialisedRequest },
+      ) {
         const reqUrl = params?.request?.url;
         if (!reqUrl) {
           post({ jsonrpc: '2.0', id, error: { code: -32001, message: 'Invalid request' } });
@@ -199,96 +285,25 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           return;
         }
 
-        const scripts = injectedScriptsRef.current ?? [];
-        const activeCsp = cspRef.current;
-
-        // Check if the request is for a virtual injected script.
-        const virtualScript = scripts.find((s) => pathname === `/${s.path}` || pathname === s.path);
-        if (virtualScript) {
-          const headers: Record<string, string> = {
-            'Content-Type': 'application/javascript',
-            'Cache-Control': 'no-cache',
-          };
-          if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
-
-          post({
-            jsonrpc: '2.0',
-            id,
-            result: {
-              status: 200,
-              statusText: 'OK',
-              headers,
-              body: utf8ToBase64(virtualScript.content),
-            },
-          });
-          return;
-        }
-
-        // Delegate to the consumer's file resolver.
-        try {
-          const file = await resolveFileRef.current(pathname);
-
-          if (!file) {
-            const headers: Record<string, string> = { 'Content-Type': 'text/plain' };
-            if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
-
-            post({
-              jsonrpc: '2.0',
-              id,
-              result: {
-                status: 404,
-                statusText: 'Not Found',
-                headers,
-                body: utf8ToBase64('Not Found'),
-              },
-            });
-            return;
-          }
-
-          // For HTML responses, inject script tags.
-          let bodyBase64: string;
-          if (file.contentType === 'text/html' && scripts.length > 0) {
-            const html = new TextDecoder().decode(file.body);
-            const injected = injectScriptTags(html, scripts.map((s) => `/${s.path}`));
-            bodyBase64 = utf8ToBase64(injected);
-          } else {
-            bodyBase64 = bytesToBase64(file.body);
-          }
-
-          const headers: Record<string, string> = {
-            'Content-Type': file.contentType,
-            'Cache-Control': 'no-cache',
-          };
-          if (activeCsp) headers['Content-Security-Policy'] = activeCsp;
-          // Include Content-Length for non-HTML (binary) responses.
-          if (file.contentType !== 'text/html') {
-            headers['Content-Length'] = String(file.body.byteLength);
-          }
-
-          post({
-            jsonrpc: '2.0',
-            id,
-            result: {
-              status: file.status,
-              statusText: 'OK',
-              headers,
-              body: bodyBase64,
-            },
-          });
-        } catch (err) {
-          post({
-            jsonrpc: '2.0',
-            id,
-            error: { code: -32002, message: String(err) },
-          });
-        }
+        await handleFetchRequest(
+          pathname,
+          resolveFileRef.current,
+          injectedScriptsRef.current ?? [],
+          cspRef.current,
+          (result) => post({ jsonrpc: '2.0', id, result }),
+          (code, message) => post({ jsonrpc: '2.0', id, error: { code, message } }),
+        );
       }
 
       // ---------------------------------------------------------------
       // Custom RPC handler
       // ---------------------------------------------------------------
 
-      async function handleRpc(id: string | number, method: string, params: unknown) {
+      async function handleRpc(
+        id: string | number,
+        method: string,
+        params: unknown,
+      ) {
         try {
           const result = await onRpcRef.current!(method, params, post);
           post({ jsonrpc: '2.0', id, result: result ?? null } satisfies JsonRpcResponse);
@@ -312,6 +327,310 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         {...iframeProps}
       />
     );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Native (Capacitor) implementation
+// ---------------------------------------------------------------------------
+
+const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
+  function SandboxFrameNative(
+    { id, resolveFile, onRpc, injectedScripts, csp, onReady, className, style, title },
+    ref,
+  ) {
+    const placeholderRef = useRef<HTMLDivElement>(null);
+    const createdRef = useRef(false);
+    const destroyedRef = useRef(false);
+
+    // Keep latest callbacks in refs.
+    const resolveFileRef = useRef(resolveFile);
+    const onRpcRef = useRef(onRpc);
+    const injectedScriptsRef = useRef(injectedScripts);
+    const cspRef = useRef(csp);
+    const onReadyRef = useRef(onReady);
+
+    useEffect(() => { resolveFileRef.current = resolveFile; }, [resolveFile]);
+    useEffect(() => { onRpcRef.current = onRpc; }, [onRpc]);
+    useEffect(() => { injectedScriptsRef.current = injectedScripts; }, [injectedScripts]);
+    useEffect(() => { cspRef.current = csp; }, [csp]);
+    useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+
+    // -----------------------------------------------------------------
+    // Post a message into the native sandbox
+    // -----------------------------------------------------------------
+
+    const postToSandbox = useCallback(
+      (msg: Record<string, unknown>) => {
+        if (!createdRef.current || destroyedRef.current) return;
+        SandboxPlugin.postMessage({ id, message: msg }).catch((err) => {
+          console.error('[SandboxFrame] postMessage failed:', err);
+        });
+      },
+      [id],
+    );
+
+    // Expose imperative handle.
+    useImperativeHandle(
+      ref,
+      () => ({
+        postMessage: (msg: Record<string, unknown>) => {
+          postToSandbox(msg);
+        },
+        focus: () => {
+          // No-op on native — the WebView is overlaid, not an iframe.
+        },
+      }),
+      [postToSandbox],
+    );
+
+    // -----------------------------------------------------------------
+    // Lifecycle: onReady -> create WebView -> listen for events -> destroy
+    // -----------------------------------------------------------------
+
+    useEffect(() => {
+      if (createdRef.current) return;
+
+      const listeners: Array<{ remove: () => void }> = [];
+      let cancelled = false;
+
+      async function setup() {
+        // Run onReady first so the consumer can prepare (e.g. download and
+        // unzip a .xdc archive) before the native WebView starts loading
+        // resources. This mirrors the web behaviour where onReady runs
+        // before `init` is sent.
+        try {
+          await onReadyRef.current?.();
+        } catch (err) {
+          console.error('[SandboxFrame] onReady failed:', err);
+        }
+
+        if (cancelled || destroyedRef.current) return;
+
+        // Measure the placeholder position.
+        const el = placeholderRef.current;
+        if (!el) return;
+
+        const rect = el.getBoundingClientRect();
+
+        // Create the native WebView.
+        await SandboxPlugin.create({
+          id,
+          frame: {
+            x: Math.round(rect.left),
+            y: Math.round(rect.top),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          },
+        });
+
+        if (cancelled || destroyedRef.current) {
+          // Component unmounted while we were awaiting — clean up immediately.
+          SandboxPlugin.destroy({ id }).catch(() => {});
+          return;
+        }
+
+        createdRef.current = true;
+
+        // Listen for fetch requests from the native URL scheme handler.
+        const fetchListener = await SandboxPlugin.addListener(
+          'fetch',
+          (event: SandboxFetchEvent) => {
+            if (event.id !== id) return;
+            handleNativeFetch(event);
+          },
+        );
+        listeners.push(fetchListener);
+
+        // Listen for script messages (custom JSON-RPC from injected scripts).
+        const scriptListener = await SandboxPlugin.addListener(
+          'scriptMessage',
+          (event: SandboxScriptMessageEvent) => {
+            if (event.id !== id) return;
+            handleNativeScriptMessage(event);
+          },
+        );
+        listeners.push(scriptListener);
+      }
+
+      // ---------------------------------------------------------------
+      // Handle a fetch request from the native WebView
+      // ---------------------------------------------------------------
+
+      async function handleNativeFetch(event: SandboxFetchEvent) {
+        const reqUrl = event.request.url;
+
+        let pathname: string;
+        try {
+          pathname = new URL(reqUrl).pathname;
+        } catch {
+          // The native handler rewrites custom-scheme URLs to
+          // https://<id>.sandbox.native/<path> so we can parse them.
+          // If that fails, try extracting the path directly.
+          const pathMatch = reqUrl.match(/\/\/[^/]+(\/.*)/);
+          pathname = pathMatch?.[1] ?? '/';
+        }
+
+        await handleFetchRequest(
+          pathname,
+          resolveFileRef.current,
+          injectedScriptsRef.current ?? [],
+          cspRef.current,
+          (result) => {
+            SandboxPlugin.respondToFetch({
+              id,
+              requestId: event.requestId,
+              response: result as {
+                status: number;
+                statusText: string;
+                headers: Record<string, string>;
+                body: string | null;
+              },
+            }).catch((err) => {
+              console.error('[SandboxFrame] respondToFetch failed:', err);
+            });
+          },
+          (_code, message) => {
+            SandboxPlugin.respondToFetch({
+              id,
+              requestId: event.requestId,
+              response: {
+                status: 500,
+                statusText: 'Internal Error',
+                headers: { 'Content-Type': 'text/plain' },
+                body: btoa(message),
+              },
+            }).catch((err) => {
+              console.error('[SandboxFrame] respondToFetch error failed:', err);
+            });
+          },
+        );
+      }
+
+      // ---------------------------------------------------------------
+      // Handle a script message from the native WebView
+      // ---------------------------------------------------------------
+
+      async function handleNativeScriptMessage(event: SandboxScriptMessageEvent) {
+        const msg = event.message;
+        if (!msg || typeof msg !== 'object') return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rpc = msg as any;
+        if (rpc.jsonrpc !== '2.0') return;
+
+        // Handle RPC requests (have both `id` and `method`).
+        if (rpc.id !== undefined && rpc.method && onRpcRef.current) {
+          try {
+            const result = await onRpcRef.current(
+              rpc.method,
+              rpc.params ?? {},
+              postToSandbox,
+            );
+            postToSandbox({
+              jsonrpc: '2.0',
+              id: rpc.id,
+              result: result ?? null,
+            });
+          } catch (err) {
+            postToSandbox({
+              jsonrpc: '2.0',
+              id: rpc.id,
+              error: { code: -1, message: String(err) },
+            });
+          }
+        }
+      }
+
+      setup().catch((err) => {
+        console.error('[SandboxFrame] native setup failed:', err);
+      });
+
+      return () => {
+        cancelled = true;
+        destroyedRef.current = true;
+        for (const listener of listeners) {
+          listener.remove();
+        }
+        if (createdRef.current) {
+          SandboxPlugin.destroy({ id }).catch((err) => {
+            console.error('[SandboxFrame] destroy failed:', err);
+          });
+          createdRef.current = false;
+        }
+      };
+    }, [id, postToSandbox]);
+
+    // -----------------------------------------------------------------
+    // Keep frame in sync with placeholder size/position
+    // -----------------------------------------------------------------
+
+    useEffect(() => {
+      const el = placeholderRef.current;
+      if (!el) return;
+
+      function updateFrame() {
+        if (!createdRef.current || destroyedRef.current) return;
+        const rect = el!.getBoundingClientRect();
+        SandboxPlugin.updateFrame({
+          id,
+          frame: {
+            x: Math.round(rect.left),
+            y: Math.round(rect.top),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          },
+        }).catch(() => {
+          // Ignore — WebView may not be created yet.
+        });
+      }
+
+      const ro = new ResizeObserver(updateFrame);
+      ro.observe(el);
+      window.addEventListener('scroll', updateFrame, { passive: true });
+
+      return () => {
+        ro.disconnect();
+        window.removeEventListener('scroll', updateFrame);
+      };
+    }, [id]);
+
+    return (
+      <div
+        ref={placeholderRef}
+        className={className}
+        style={style}
+        title={title}
+        data-sandbox-id={id}
+      />
+    );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Public component — delegates to web or native implementation
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders a sandboxed content frame.
+ *
+ * On web, this creates an iframe on a unique subdomain (`<id>.<sandboxDomain>`)
+ * and implements the iframe.diy handshake + fetch proxy protocol.
+ *
+ * On native platforms (iOS/Android via Capacitor), this creates a native
+ * WKWebView/WebView overlay with a custom URL scheme handler that intercepts
+ * all requests and routes them through the same `resolveFile` callback.
+ *
+ * All file serving is delegated to the `resolveFile` callback.
+ * Custom RPC methods are delegated to the optional `onRpc` callback.
+ * Consumers (Webxdc, NsitePreviewDialog) are platform-agnostic.
+ */
+export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
+  function SandboxFrame(props, ref) {
+    if (Capacitor.isNativePlatform()) {
+      return <SandboxFrameNative ref={ref} {...props} />;
+    }
+    return <SandboxFrameWeb ref={ref} {...props} />;
   },
 );
 
