@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     backgroundColor: '#14161f',
-    contentInset: 'automatic',
+    contentInset: 'never',
     scheme: 'Ditto'
   }
 };
