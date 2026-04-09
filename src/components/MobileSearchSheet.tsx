@@ -101,6 +101,28 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const wikipediaIndex = hasWikipedia ? nextMobileIdx++ : -1;
   const archiveIndex = hasArchive ? nextMobileIdx++ : -1;
 
+  // Lock body scroll while the search sheet is open.
+  // overflow:hidden alone is unreliable on mobile Safari, so we also
+  // block touchmove on the document (except inside the results scroller).
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const preventScroll = (e: TouchEvent) => {
+      // Allow scrolling inside the results list
+      const target = e.target as HTMLElement;
+      if (target.closest?.('[data-mobile-search-results]')) return;
+      e.preventDefault();
+    };
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('touchmove', preventScroll);
+    };
+  }, [open]);
+
   // Focus input when opened
   useEffect(() => {
     if (open) {
@@ -224,8 +246,8 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         onClick={handleClose}
       />
 
-      {/* Bottom sheet — sits above the bottom nav bar */}
-      <div className="fixed left-0 right-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 bottom-mobile-nav">
+      {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
+      <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
@@ -293,7 +315,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         )}
 
         {/* Input bar */}
-        <div className="flex items-center px-6 py-3">
+        <div className="flex items-center px-6 py-3 safe-area-bottom">
           <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
             {isFetching ? (
               <svg
@@ -321,14 +343,12 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
               autoCapitalize="off"
               spellCheck={false}
             />
-            {query.length > 0 && (
-              <button
-                onClick={() => setQuery('')}
-                className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-              >
-                <X strokeWidth={4} className="size-3" />
-              </button>
-            )}
+            <button
+              onClick={handleClose}
+              className="size-5 shrink-0 flex items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+            >
+              <X strokeWidth={4} className="size-3" />
+            </button>
           </div>
         </div>
       </div>
