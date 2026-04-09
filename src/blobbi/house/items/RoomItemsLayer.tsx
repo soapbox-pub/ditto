@@ -40,7 +40,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { HouseItem, HouseItemLayer, HouseItemPlane, HouseItemPosition } from '../lib/house-types';
+import type { HouseItem, HouseItemLayer, HouseItemPosition } from '../lib/house-types';
 import {
   WALL_PERCENT,
   FLOOR_PERSPECTIVE,
