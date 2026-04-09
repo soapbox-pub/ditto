@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Blocks, Play, Maximize2, Minimize2, RotateCcw, X, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -94,7 +95,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
     );
   }
 
-  return (
+  const content = (
     <div
       ref={containerRef}
       className={cn(
@@ -108,7 +109,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       {/* Controls bar */}
       <div className={cn(
         'flex items-center justify-between px-3 py-1.5 bg-muted/60 border-b border-border',
-        isFullscreen ? '' : 'rounded-t-2xl',
+        isFullscreen ? 'safe-area-top' : 'rounded-t-2xl',
       )}>
         <div className="flex items-center gap-2 min-w-0">
           {icon ? (
@@ -225,6 +226,10 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       )}
     </div>
   );
+
+  // Portal fullscreen out of any parent stacking context (e.g. z-0 center column)
+  // so it reliably sits above the mobile top bar and other fixed UI.
+  return isFullscreen ? createPortal(content, document.body) : content;
 }
 
 /**
