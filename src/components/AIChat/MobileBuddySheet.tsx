@@ -64,34 +64,29 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
   const showThinking = (isStreaming || apiLoading) && !streamingText && messages[messages.length - 1]?.role === 'user';
   const displayName = buddy?.name ?? 'Buddy';
 
-  // Close the sheet when tapping the empty background area (not a message bubble or input)
-  const handleBackgroundClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
-
   return (
-    <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')}>
+    <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')} onClick={onClose}>
 
-      {/* Messages area — fills from top, scrollable, padded at bottom to clear the fixed input bar */}
+      {/* Messages area — fills from top, scrollable, padded at bottom to clear the fixed input bar.
+          stopPropagation on the content wrapper so clicking a bubble doesn't close the sheet. */}
       <div
-        className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 space-y-4"
+        className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4"
         style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}
-        onClick={handleBackgroundClick}
       >
-        {visibleMessages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
-        {showThinking && <BuddyThinking />}
-        {streamingText && (isStreaming || apiLoading) && (
-          <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
-        )}
-        <div ref={messagesEndRef} />
+        <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+          {visibleMessages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))}
+          {showThinking && <BuddyThinking />}
+          {streamingText && (isStreaming || apiLoading) && (
+            <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input bar — pinned to bottom-mobile-nav position */}
-      <div className="flex items-center px-6 py-3 bottom-mobile-nav fixed left-0 right-0 z-[49]">
+      <div className="flex items-center px-6 py-3 bottom-mobile-nav fixed left-0 right-0 z-[49]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
           <Search strokeWidth={4} className="size-4 shrink-0 text-muted-foreground" />
           <input
