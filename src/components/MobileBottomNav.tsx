@@ -54,8 +54,9 @@ export function MobileBottomNav() {
 
   const sheetOpen = searchOpen || buddyOpen;
 
-  // Hide the nav when any sheet is open so it doesn't compete for space
-  const isHidden = hidden || sheetOpen;
+  // Only hide nav on scroll — keep it visible when sheets are open so the
+  // user can see the active tab and tap between them.
+  const isHidden = hidden && !sheetOpen;
 
   const displayName = metadata?.name || metadata?.display_name;
 

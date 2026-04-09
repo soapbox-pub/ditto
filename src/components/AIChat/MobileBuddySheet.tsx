@@ -64,11 +64,22 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
   const showThinking = (isStreaming || apiLoading) && !streamingText && messages[messages.length - 1]?.role === 'user';
   const displayName = buddy?.name ?? 'Buddy';
 
+  // Close the sheet when tapping the empty background area (not a message bubble or input)
+  const handleBackgroundClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
   return (
     <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')}>
 
       {/* Messages area — fills from top, scrollable, padded at bottom to clear the fixed input bar */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 space-y-4" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}>
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 space-y-4"
+        style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}
+        onClick={handleBackgroundClick}
+      >
         {visibleMessages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}

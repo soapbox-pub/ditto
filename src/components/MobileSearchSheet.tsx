@@ -234,14 +234,8 @@ export function MobileSearchSheet({ hidden, onClose }: MobileSearchSheetProps) {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/60 sidebar:hidden animate-in fade-in-0 duration-150"
-        onClick={handleClose}
-      />
-
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
-      <div className={cn('fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6', hidden && 'hidden')}>
+      <div className={cn('fixed left-0 right-0 bottom-mobile-nav z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-2', hidden && 'hidden')}>
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (
