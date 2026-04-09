@@ -6,45 +6,36 @@
  * ── Coordinate spaces ────────────────────────────────────────────────
  *
  * Persisted:   { x: 0..1000, y: 0..1000 }
- *   Origin at top-left of the room reference area.
+ *   Each plane has its own independent coordinate space.
  *   x=0 is left edge, x=1000 is right edge.
- *   y=0 is top edge (ceiling), y=1000 is bottom edge (front of floor).
+ *   y=0 is the top of the plane, y=1000 is the bottom.
  *
- * Screen:      { left: '0%'...'100%', top: '0%'...'100%' }
- *   CSS percentage positions within the room reference container.
- *   The reference container is the full room viewport (wall + floor).
+ * ── Wall items ───────────────────────────────────────────────────────
  *
- * The mapping is a simple linear percentage conversion:
- *   screenX = (x / 1000) * 100  →  CSS left %
- *   screenY = (y / 1000) * 100  →  CSS top %
+ * Wall item layers are absolutely positioned over the full room viewport.
+ * Positions map to the wall area (top 60% of the viewport):
+ *   left = (x / 1000) * 100 %
+ *   top  = (y / 1000) * WALL_PERCENT %
+ *
+ * ── Floor items ──────────────────────────────────────────────────────
+ *
+ * Floor item layers live INSIDE a perspective-transformed container
+ * that matches the floor scene geometry. Their coordinate space is
+ * local to the tilted floor surface:
+ *   left = (x / 1000) * 100 %
+ *   top  = (y / 1000) * 100 %
+ *
+ * Because these percentages are relative to the tilted inner div,
+ * items naturally foreshorten with the floor — no extra math needed.
+ *
+ * ── Centering ────────────────────────────────────────────────────────
  *
  * Items are positioned with `transform: translate(-50%, -50%)` so the
  * position represents the item's center point, not its top-left corner.
- *
- * ── Why percentage-based ─────────────────────────────────────────────
- *
- * Using CSS % on the same reference container for both mobile and desktop
- * means items appear at the same relative location regardless of viewport
- * size. No pixel math or ResizeObserver needed for positioning.
- *
- * ── Wall vs Floor plane ──────────────────────────────────────────────
- *
- * The room scene splits into wall (top 60%) and floor (bottom 40%).
- * WALL_PERCENT from the scene layer defines the boundary.
- *
- * Wall items (plane: 'wall'):
- *   - y=0..1000 maps to the wall area only (0%..WALL_PERCENT%)
- *   - Rendered flat, no perspective
- *
- * Floor items (plane: 'floor'):
- *   - y=0..1000 maps to the floor area only (WALL_PERCENT%..100%)
- *   - Rendered with the same perspective as the floor layer
  */
 
 import { WALL_PERCENT } from '@/blobbi/rooms/scene/components/RoomSceneLayer';
 import type { HouseItemPlane, HouseItemPosition } from '../lib/house-types';
-
-const FLOOR_PERCENT = 100 - WALL_PERCENT;
 
 // ─── Normalized → Screen CSS ──────────────────────────────────────────────────
 
@@ -56,37 +47,46 @@ export interface ScreenPosition {
 }
 
 /**
- * Convert a normalized (0..1000) position to CSS percentages.
+ * Convert a normalized (0..1000) wall-item position to CSS percentages.
  *
- * @param pos   - Normalized position (0..1000 on both axes)
- * @param plane - Whether the item is on the wall or floor
- * @returns CSS left/top strings for absolute positioning
+ * The returned values are relative to the full room viewport.
+ * Wall items map y into the wall area (0% → WALL_PERCENT%).
+ */
+export function toWallPosition(pos: HouseItemPosition): ScreenPosition {
+  return {
+    left: `${(pos.x / 1000) * 100}%`,
+    top: `${(pos.y / 1000) * WALL_PERCENT}%`,
+  };
+}
+
+/**
+ * Convert a normalized (0..1000) floor-item position to CSS percentages.
+ *
+ * The returned values are relative to the perspective-transformed
+ * floor container (not the full room viewport). Since the floor
+ * container already covers only the floor zone, both x and y map
+ * directly to 0%..100%.
+ */
+export function toFloorPosition(pos: HouseItemPosition): ScreenPosition {
+  return {
+    left: `${(pos.x / 1000) * 100}%`,
+    top: `${(pos.y / 1000) * 100}%`,
+  };
+}
+
+/**
+ * Convert a normalized (0..1000) position to CSS percentages.
+ * Dispatches to the plane-specific helper.
  */
 export function toScreenPosition(pos: HouseItemPosition, plane: HouseItemPlane): ScreenPosition {
-  const xPercent = (pos.x / 1000) * 100;
-
-  if (plane === 'wall') {
-    // Wall items: y maps into the wall portion (0% → WALL_PERCENT%)
-    const yPercent = (pos.y / 1000) * WALL_PERCENT;
-    return {
-      left: `${xPercent}%`,
-      top: `${yPercent}%`,
-    };
-  }
-
-  // Floor items: y maps into the floor portion (WALL_PERCENT% → 100%)
-  const yPercent = WALL_PERCENT + (pos.y / 1000) * FLOOR_PERCENT;
-  return {
-    left: `${xPercent}%`,
-    top: `${yPercent}%`,
-  };
+  return plane === 'wall' ? toWallPosition(pos) : toFloorPosition(pos);
 }
 
 /**
  * Convert a normalized size (0..1000) to CSS percentage width/height.
  *
- * Width is always relative to the full room width.
- * Height is relative to the item's plane (wall or floor area).
+ * Wall items: width relative to full room, height relative to wall area.
+ * Floor items: width and height relative to the floor container.
  */
 export function toScreenSize(
   width: number,
@@ -94,10 +94,11 @@ export function toScreenSize(
   plane: HouseItemPlane,
 ): { width: string; height: string } {
   const wPercent = (width / 1000) * 100;
-  const planeHeight = plane === 'wall' ? WALL_PERCENT : FLOOR_PERCENT;
-  const hPercent = (height / 1000) * planeHeight;
-  return {
-    width: `${wPercent}%`,
-    height: `${hPercent}%`,
-  };
+  if (plane === 'wall') {
+    const hPercent = (height / 1000) * WALL_PERCENT;
+    return { width: `${wPercent}%`, height: `${hPercent}%` };
+  }
+  // Floor items: both dimensions are relative to the floor container
+  const hPercent = (height / 1000) * 100;
+  return { width: `${wPercent}%`, height: `${hPercent}%` };
 }

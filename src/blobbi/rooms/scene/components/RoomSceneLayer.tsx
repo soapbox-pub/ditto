@@ -55,9 +55,9 @@ const FLOOR_PERCENT = 100 - WALL_PERCENT; // 40%
  *   bottom edge when the surface is foreshortened by the perspective.
  *   160% at 22deg is sufficient (cos(22deg) ~ 0.93).
  */
-const FLOOR_PERSPECTIVE = '600px';
-const FLOOR_TILT = 'rotateX(22deg)';
-const FLOOR_OVERFLOW = '160%';
+export const FLOOR_PERSPECTIVE = '600px';
+export const FLOOR_TILT = 'rotateX(22deg)';
+export const FLOOR_OVERFLOW = '160%';
 
 export function RoomSceneLayer({ scene }: RoomSceneLayerProps) {
   return (

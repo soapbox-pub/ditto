@@ -3,62 +3,59 @@
 /**
  * RoomItemsLayer — Renders placed items in a room using layer-based z-ordering.
  *
- * ── Layer structure (back to front) ──────────────────────────────────
+ * ── Rendering model ──────────────────────────────────────────────────
  *
- *   z-index 1:  wallBack    — behind the wall texture (rarely used)
- *   z-index 2:  wallDecor   — on the wall surface (posters, shelves)
- *   z-index 4:  backFloor   — on the floor behind Blobbi (rugs)
- *   ─────────── Blobbi hero occupies z-index 5 ───────────────────────
- *   z-index 6:  frontFloor  — floor in front of Blobbi (tables, plants)
- *   z-index 8:  overlay     — floating above everything
+ * Wall items (wallBack, wallDecor) are rendered as flat absolutely-
+ * positioned elements over the full room viewport. Their coordinates
+ * map into the wall area (top 60%).
  *
- * Each layer is an absolutely-positioned container that fills its parent.
- * Items within a layer are positioned via CSS percentages derived from
- * normalized 0..1000 coordinates.
+ * Floor items (backFloor, frontFloor) are rendered inside a perspective-
+ * transformed container that matches the floor scene geometry from
+ * RoomSceneLayer. This makes floor items visually belong to the same
+ * receding floor plane — they foreshorten and scale naturally instead
+ * of feeling pasted on top.
  *
- * ── Usage ────────────────────────────────────────────────────────────
+ * Overlay items render flat over the full viewport (above everything).
  *
- * Place this component as a sibling of RoomSceneLayer inside a
- * position:relative container. BlobbiRoomHero should sit between the
- * backFloor and frontFloor layers in the z-stack.
+ * ── Layer z-stack (back to front) ────────────────────────────────────
  *
- *   RoomSceneLayer  (z 0)
- *   RoomItemsLayer  (layers z 1–8, hero gap at z 5)
- *   BlobbiRoomHero  (z 5)
+ *   z  1:  wallBack    — behind wall texture
+ *   z  2:  wallDecor   — on wall surface (posters, shelves)
+ *   z  4:  backFloor   — floor behind Blobbi (rugs)
+ *   z  5:  (Blobbi hero — not rendered here)
+ *   z  6:  frontFloor  — floor in front of Blobbi (plants, tables)
+ *   z  8:  overlay     — floating above everything
  */
 
 import type { HouseItem, HouseItemLayer } from '../lib/house-types';
+import {
+  WALL_PERCENT,
+  FLOOR_PERSPECTIVE,
+  FLOOR_TILT,
+  FLOOR_OVERFLOW,
+} from '@/blobbi/rooms/scene/components/RoomSceneLayer';
 import { getCatalogItem } from './item-catalog';
 import { toScreenPosition, toScreenSize } from './item-coordinates';
 import { BuiltinItemVisual } from './BuiltinItemVisual';
 
-// ─── Layer Z-Index Map ────────────────────────────────────────────────────────
+// ─── Layer Configuration ──────────────────────────────────────────────────────
 
-/**
- * Z-index assignments per layer.
- *
- * The Blobbi hero renders at z-index 5.
- * Wall layers are behind everything (1–2).
- * backFloor (4) is behind Blobbi, frontFloor (6) is in front.
- * overlay (8) is above everything.
- */
+const FLOOR_PERCENT = 100 - WALL_PERCENT;
+
 const LAYER_Z: Record<HouseItemLayer, number> = {
   wallBack: 1,
   wallDecor: 2,
   backFloor: 4,
-  blobbi: 5, // reserved — never used for items
+  blobbi: 5,
   frontFloor: 6,
   overlay: 8,
 };
 
-/** Layers that actually render items (excludes the reserved 'blobbi' layer). */
-const RENDERABLE_LAYERS: HouseItemLayer[] = [
-  'wallBack',
-  'wallDecor',
-  'backFloor',
-  'frontFloor',
-  'overlay',
-];
+/** Wall layers: rendered flat over the full room viewport. */
+const WALL_LAYERS: HouseItemLayer[] = ['wallBack', 'wallDecor'];
+
+/** Floor layers: rendered inside a perspective-transformed container. */
+const FLOOR_LAYERS: HouseItemLayer[] = ['backFloor', 'frontFloor'];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -72,25 +69,22 @@ interface RoomItemsLayerProps {
 export function RoomItemsLayer({ items }: RoomItemsLayerProps) {
   if (items.length === 0) return null;
 
-  // Group items by layer for proper z-ordering
+  // Group visible items by layer
   const byLayer = new Map<HouseItemLayer, HouseItem[]>();
   for (const item of items) {
     if (!item.visible) continue;
-    if (item.layer === 'blobbi') continue; // reserved layer
+    if (item.layer === 'blobbi') continue;
     const list = byLayer.get(item.layer);
-    if (list) {
-      list.push(item);
-    } else {
-      byLayer.set(item.layer, [item]);
-    }
+    if (list) list.push(item);
+    else byLayer.set(item.layer, [item]);
   }
 
   return (
     <>
-      {RENDERABLE_LAYERS.map((layerId) => {
+      {/* ── Wall layers: flat, positioned over full room viewport ── */}
+      {WALL_LAYERS.map((layerId) => {
         const layerItems = byLayer.get(layerId);
         if (!layerItems || layerItems.length === 0) return null;
-
         return (
           <div
             key={layerId}
@@ -103,7 +97,81 @@ export function RoomItemsLayer({ items }: RoomItemsLayerProps) {
           </div>
         );
       })}
+
+      {/* ── Floor layers: inside perspective-transformed container ── */}
+      {FLOOR_LAYERS.map((layerId) => {
+        const layerItems = byLayer.get(layerId);
+        if (!layerItems || layerItems.length === 0) return null;
+        return (
+          <FloorItemLayer
+            key={layerId}
+            layerId={layerId}
+            items={layerItems}
+          />
+        );
+      })}
+
+      {/* ── Overlay: flat, above everything ── */}
+      {(() => {
+        const overlayItems = byLayer.get('overlay');
+        if (!overlayItems || overlayItems.length === 0) return null;
+        return (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: LAYER_Z.overlay }}
+          >
+            {overlayItems.map((item) => (
+              <RoomItem key={item.instanceId} item={item} />
+            ))}
+          </div>
+        );
+      })()}
     </>
+  );
+}
+
+// ─── Floor Item Layer ─────────────────────────────────────────────────────────
+
+/**
+ * A floor item layer that replicates the floor scene's perspective geometry.
+ *
+ * Structure (matches RoomSceneLayer's floor area):
+ *   outer div  — covers the floor zone, applies perspective
+ *   inner div  — tilted plane (rotateX), items positioned inside
+ *
+ * Items use floor-local coordinates (0..1000 → 0%..100% of the tilted surface).
+ */
+function FloorItemLayer({
+  layerId,
+  items,
+}: {
+  layerId: HouseItemLayer;
+  items: HouseItem[];
+}) {
+  return (
+    <div
+      className="absolute inset-x-0 pointer-events-none"
+      style={{
+        top: `${WALL_PERCENT}%`,
+        height: `${FLOOR_PERCENT}%`,
+        perspective: FLOOR_PERSPECTIVE,
+        perspectiveOrigin: '50% 0%',
+        zIndex: LAYER_Z[layerId],
+      }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          transformOrigin: 'top center',
+          transform: FLOOR_TILT,
+          height: FLOOR_OVERFLOW,
+        }}
+      >
+        {items.map((item) => (
+          <RoomItem key={item.instanceId} item={item} />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -111,18 +179,15 @@ export function RoomItemsLayer({ items }: RoomItemsLayerProps) {
 
 function RoomItem({ item }: { item: HouseItem }) {
   const catalog = getCatalogItem(item.id);
-  if (!catalog) return null; // unknown item — render nothing, preserve in data
+  if (!catalog) return null;
 
   const pos = toScreenPosition(item.position, item.plane);
   const size = toScreenSize(catalog.width, catalog.height, item.plane);
 
-  // Build transform: center on position + apply scale/rotation
   const transforms: string[] = ['translate(-50%, -50%)'];
   if (item.scale !== 1) transforms.push(`scale(${item.scale})`);
   if (item.rotation !== 0) transforms.push(`rotate(${item.rotation}deg)`);
 
-  // Width/height are percentages relative to the layer container (absolute inset-0),
-  // which is the full room viewport. Applying them here ensures proper sizing.
   return (
     <div
       className="absolute"

@@ -32,7 +32,12 @@ export { useRoomScene } from './hooks/useRoomScene';
 export { useRoomSceneEditor, type RoomScenePatch } from './hooks/useRoomSceneEditor';
 
 // ── Layout Constants ──
-export { WALL_PERCENT } from './components/RoomSceneLayer';
+export {
+  WALL_PERCENT,
+  FLOOR_PERSPECTIVE,
+  FLOOR_TILT,
+  FLOOR_OVERFLOW,
+} from './components/RoomSceneLayer';
 
 // ── Components ──
 export { RoomSceneLayer } from './components/RoomSceneLayer';
