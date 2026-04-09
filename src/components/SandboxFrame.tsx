@@ -570,6 +570,10 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
     // -----------------------------------------------------------------
     // Keep frame in sync with placeholder size/position
+    //
+    // Both consumers (WebxdcEmbed, NsitePreviewDialog) render inside
+    // position:fixed panels, so the placeholder never moves on scroll.
+    // A ResizeObserver is sufficient to track layout changes.
     // -----------------------------------------------------------------
 
     useEffect(() => {
@@ -594,11 +598,9 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
       const ro = new ResizeObserver(updateFrame);
       ro.observe(el);
-      window.addEventListener('scroll', updateFrame, { passive: true });
 
       return () => {
         ro.disconnect();
-        window.removeEventListener('scroll', updateFrame);
       };
     }, [id]);
 
