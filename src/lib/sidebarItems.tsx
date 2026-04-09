@@ -112,8 +112,8 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   },
   {
     id: "dms",
-    label: "DMs",
-    path: "/dms",
+    label: "Chats",
+    path: "/chats",
     icon: Mail,
     requiresAuth: true,
   },

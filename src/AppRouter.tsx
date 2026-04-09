@@ -158,7 +158,7 @@ export function AppRouter() {
             <Route path="/" element={<HomePage />} />
             <Route path="/feed" element={<Index />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/dms" element={<MessagesPage />} />
+            <Route path="/chats" element={<MessagesPage />} />
             <Route path="/settings/messaging" element={<MessagingSettings />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/trends" element={<TrendsPage />} />
