@@ -58,6 +58,14 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'messaging',
+    label: 'Messages',
+    description: 'Direct messaging settings, relays, and cache',
+    illustration: '/messaging-intro.png',
+    path: '/settings/messaging',
+    requiresAuth: true,
+  },
+  {
     id: 'advanced',
     label: 'Advanced',
     description: 'Wallet, system, and power user settings',
