@@ -54,12 +54,12 @@ export function MobileBottomNav() {
         className={cn(
           'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform',
           'transition-transform duration-300 ease-in-out',
+          'safe-area-bottom bg-background/85',
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
-        {/* Arc + items wrapper — safe-area-bottom extends the arc fill
-             over the home-indicator zone so there's no seam or opaque block. */}
-        <div className="relative safe-area-bottom">
+        {/* Arc + items wrapper */}
+        <div className="relative">
           <ArcBackground variant={noArcs ? 'rect' : 'up'} />
           <div className="h-11 flex items-center relative">
 
