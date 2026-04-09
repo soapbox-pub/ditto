@@ -9,10 +9,9 @@ import { cn } from '@/lib/utils';
 interface MobileBuddySheetProps {
   hidden: boolean;
   onClose: () => void;
-  onToggleBuddy: () => void;
 }
 
-export function MobileBuddySheet({ hidden, onClose, onToggleBuddy }: MobileBuddySheetProps) {
+export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
   const { buddy } = useBuddy();
   const {
     messages, input, setInput, isStreaming, streamingText, selectedModel,
@@ -98,7 +97,7 @@ export function MobileBuddySheet({ hidden, onClose, onToggleBuddy }: MobileBuddy
             spellCheck={false}
           />
           <button
-            onClick={onToggleBuddy}
+            onClick={onClose}
             className="shrink-0 font-mono text-xs text-primary transition-colors"
             onMouseDown={(e) => e.preventDefault()}
           >

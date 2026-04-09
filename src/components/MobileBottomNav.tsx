@@ -33,20 +33,29 @@ export function MobileBottomNav() {
   const homePage = config.homePage;
 
   const [searchOpen, setSearchOpen] = useState(false);
-  const [buddyMode, setBuddyMode] = useState(false);
+  const [buddyOpen, setBuddyOpen] = useState(false);
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setSearchOpen((v) => !v);
+    setBuddyOpen(false);
+  }, []);
+
+  const handleBuddyClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setBuddyOpen((v) => !v);
+    setSearchOpen(false);
   }, []);
 
   const handleClose = useCallback(() => {
     setSearchOpen(false);
-    setBuddyMode(false);
+    setBuddyOpen(false);
   }, []);
 
-  // Hide the nav when search sheet is open so it doesn't compete for space
-  const isHidden = hidden || searchOpen;
+  const sheetOpen = searchOpen || buddyOpen;
+
+  // Hide the nav when any sheet is open so it doesn't compete for space
+  const isHidden = hidden || sheetOpen;
 
   const displayName = metadata?.name || metadata?.display_name;
 
@@ -61,17 +70,17 @@ export function MobileBottomNav() {
 
   return (
     <>
-      {/* Shared backdrop for both sheets */}
-      {searchOpen && (
+      {/* Shared backdrop for sheets */}
+      {sheetOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 sidebar:hidden animate-in fade-in-0 duration-150"
           onClick={handleClose}
         />
       )}
 
-      {/* Both sheets stay mounted when open to preserve state; hidden prop toggles visibility */}
-      {searchOpen && <MobileSearchSheet hidden={buddyMode} onClose={handleClose} buddyMode={buddyMode} onToggleBuddy={() => setBuddyMode((v) => !v)} />}
-      {searchOpen && <MobileBuddySheet hidden={!buddyMode} onClose={handleClose} onToggleBuddy={() => setBuddyMode(false)} />}
+      {/* Search and buddy sheets are independent */}
+      {searchOpen && <MobileSearchSheet hidden={false} onClose={handleClose} />}
+      {buddyOpen && <MobileBuddySheet hidden={false} onClose={handleClose} />}
 
       <nav
         className={cn(
@@ -86,20 +95,40 @@ export function MobileBottomNav() {
           <div className="h-11 flex items-center relative">
             {allItems.map((id) => {
               const isSearch = id === 'search';
+              const isBuddy = id === 'ai-chat';
               const isProfile = id === 'profile';
               const isNotifications = id === 'notifications';
               const active = isSearch
                 ? searchOpen
-                : isItemActive(id, location.pathname, location.search, profileUrl, homePage);
+                : isBuddy
+                  ? buddyOpen
+                  : isItemActive(id, location.pathname, location.search, profileUrl, homePage);
               const label = itemLabel(id);
               const path = isProfile ? profileUrl : itemPath(id, undefined, homePage);
 
-              // Search opens the sheet instead of navigating
+              // Search opens the search sheet instead of navigating
               if (isSearch) {
                 return (
                   <button
                     key={id}
                     onClick={handleSearchClick}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground',
+                    )}
+                  >
+                    {sidebarItemIcon(id, 'size-5')}
+                    <span className="text-[10px] font-medium">{label}</span>
+                  </button>
+                );
+              }
+
+              // Buddy opens the AI chat sheet instead of navigating
+              if (isBuddy) {
+                return (
+                  <button
+                    key={id}
+                    onClick={handleBuddyClick}
                     className={cn(
                       'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                       active ? 'text-primary' : 'text-muted-foreground',
@@ -117,7 +146,7 @@ export function MobileBottomNav() {
                   <Link
                     key={id}
                     to={path}
-                    onClick={() => setSearchOpen(false)}
+                    onClick={handleClose}
                     className={cn(
                       'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                       active ? 'text-primary' : 'text-muted-foreground',
@@ -138,7 +167,7 @@ export function MobileBottomNav() {
                 <Link
                   key={id}
                   to={path}
-                  onClick={() => setSearchOpen(false)}
+                  onClick={handleClose}
                   className={cn(
                     'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                     active ? 'text-primary' : 'text-muted-foreground',
