@@ -3,6 +3,20 @@ import type { ChatMessage } from '@/hooks/useShakespeare';
 
 const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
+/** Minimal profile fields injected into the system prompt so the AI knows who it's talking to. */
+export interface UserIdentity {
+  /** The user's npub (bech32 public key). */
+  npub: string;
+  /** The user's hex public key. */
+  pubkey: string;
+  /** Display name from kind 0 metadata. */
+  displayName?: string;
+  /** NIP-05 identifier (e.g. "alice@example.com"). */
+  nip05?: string;
+  /** Short bio / about text. */
+  about?: string;
+}
+
 /**
  * Build the AI chat system prompt.
  *
@@ -14,10 +28,20 @@ const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
  * `{{SAVED_FEEDS}}` is replaced with a list of the user's saved feed
  * labels so the model knows which named feeds are available.
  *
+ * `{{USER_IDENTITY}}` is replaced with a block describing the logged-in
+ * user so the AI can answer questions like "who am I?" or "show me my
+ * recent posts" without extra round-trips.
+ *
  * If `customPrompt` is provided (from Advanced Settings), it replaces
  * the entire base template. Placeholders are substituted in both cases.
  */
-export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: string, savedFeedLabels?: string[]): ChatMessage {
+export function buildSystemPrompt(
+  name?: string,
+  soul?: string,
+  customPrompt?: string,
+  savedFeedLabels?: string[],
+  userIdentity?: UserIdentity,
+): ChatMessage {
   const agentName = name ?? 'Dork';
   const soulText = soul ?? '';
 
@@ -25,14 +49,41 @@ export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: s
     ? `**Saved feeds the user has created:** ${savedFeedLabels.map((l) => `"${l}"`).join(', ')}`
     : '';
 
+  const userIdentityText = userIdentity ? buildUserIdentityBlock(userIdentity) : '';
+
   const template = customPrompt || DEFAULT_TEMPLATE;
 
   const resolved = template
     .replace(/\{\{NAME\}\}/g, agentName)
     .replace(/\{\{SOUL\}\}/g, soulText)
-    .replace(/\{\{SAVED_FEEDS\}\}/g, savedFeedsText);
+    .replace(/\{\{SAVED_FEEDS\}\}/g, savedFeedsText)
+    .replace(/\{\{USER_IDENTITY\}\}/g, userIdentityText);
 
   return { role: 'system', content: resolved };
+}
+
+/** Build a markdown block describing the current user. */
+function buildUserIdentityBlock(identity: UserIdentity): string {
+  const lines: string[] = [
+    '# Current User',
+    `- **npub:** ${identity.npub}`,
+    `- **hex pubkey:** ${identity.pubkey}`,
+  ];
+
+  if (identity.displayName) {
+    lines.push(`- **name:** ${identity.displayName}`);
+  }
+  if (identity.nip05) {
+    lines.push(`- **NIP-05:** ${identity.nip05}`);
+  }
+  if (identity.about) {
+    lines.push(`- **about:** ${identity.about}`);
+  }
+
+  lines.push('');
+  lines.push('Use this identity when the user asks "who am I?", "what\'s my npub?", or similar. To fetch their full profile, use `fetch_event` with their npub. To see their recent posts, use `get_feed` with `authors: ["$me"]`.');
+
+  return lines.join('\n');
 }
 
 // ─── Default template ─────────────────────────────────────────────────────────
@@ -40,6 +91,8 @@ export function buildSystemPrompt(name?: string, soul?: string, customPrompt?: s
 const DEFAULT_TEMPLATE = `You are {{NAME}}, an AI assistant in Ditto, a Nostr social client.
 
 {{SOUL}}
+
+{{USER_IDENTITY}}
 
 # Tools
 

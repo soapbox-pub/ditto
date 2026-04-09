@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { nip19 } from 'nostr-tools';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools } from '@/hooks/useAIChatTools';
 import { TOOLS, type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
-import { buildSystemPrompt } from '@/lib/aiChatSystemPrompt';
+import { buildSystemPrompt, type UserIdentity } from '@/lib/aiChatSystemPrompt';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -49,7 +50,7 @@ function saveMessages(messages: DisplayMessage[]): void {
 
 export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const { buddyName, buddySoul } = options;
-  const { user } = useCurrentUser();
+  const { user, metadata } = useCurrentUser();
   const { config } = useAppContext();
   const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall, mcpTools, mcpToolsLoading, savedFeeds } = useAIChatTools();
@@ -104,11 +105,23 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     return () => { cancelled = true; };
   }, [user, config.aiModel, getAvailableModels]);
 
-  // Build the system prompt — dynamic based on buddy identity, saved feeds, + optional custom override
+  // Build the system prompt — dynamic based on buddy identity, saved feeds, user identity, + optional custom override
   const savedFeedLabels = useMemo(() => savedFeeds.map((f) => f.label), [savedFeeds]);
+
+  const userIdentity = useMemo<UserIdentity | undefined>(() => {
+    if (!user) return undefined;
+    return {
+      npub: nip19.npubEncode(user.pubkey),
+      pubkey: user.pubkey,
+      displayName: metadata?.display_name || metadata?.name,
+      nip05: metadata?.nip05,
+      about: metadata?.about,
+    };
+  }, [user, metadata]);
+
   const systemPrompt = useMemo(
-    () => buildSystemPrompt(buddyName, buddySoul, config.aiSystemPrompt || undefined, savedFeedLabels),
-    [buddyName, buddySoul, config.aiSystemPrompt, savedFeedLabels],
+    () => buildSystemPrompt(buddyName, buddySoul, config.aiSystemPrompt || undefined, savedFeedLabels, userIdentity),
+    [buddyName, buddySoul, config.aiSystemPrompt, savedFeedLabels, userIdentity],
   );
 
   // Build the chat messages array for the API
