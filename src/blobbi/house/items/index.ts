@@ -2,6 +2,7 @@
 
 export { RoomItemsLayer, type RoomItemsEditCallbacks } from './RoomItemsLayer';
 export { BuiltinItemVisual } from './BuiltinItemVisual';
+export { AddItemSheet } from './AddItemSheet';
 export { BUILTIN_ITEMS, getCatalogItem, type CatalogItem } from './item-catalog';
 export {
   toScreenPosition,

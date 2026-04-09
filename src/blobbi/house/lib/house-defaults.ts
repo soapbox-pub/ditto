@@ -71,7 +71,7 @@ const DEFAULT_CLOSET_SCENE: HouseRoomScene = {
  * Wall items use the wall plane (y maps to the wall area).
  * Floor items use the floor plane (y maps to the floor area).
  */
-const DEFAULT_HOME_ITEMS: HouseItem[] = [
+export const DEFAULT_HOME_ITEMS: HouseItem[] = [
   {
     id: 'poster_abstract',
     instanceId: 'home-poster-1',

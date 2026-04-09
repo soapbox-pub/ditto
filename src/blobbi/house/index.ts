@@ -42,6 +42,8 @@ export {
   resetHouseRoomScene,
   getRoomSceneFromHouse,
   updateRoomItemPosition,
+  addRoomItem,
+  setRoomItems,
   patchRoomItem,
 } from './lib/house-content';
 

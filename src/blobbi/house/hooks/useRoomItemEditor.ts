@@ -34,8 +34,8 @@ import {
   buildHouseDTag,
   buildHouseTags,
 } from '../lib/house-constants';
-import { updateRoomItemPosition } from '../lib/house-content';
-import type { HouseItemPosition } from '../lib/house-types';
+import { updateRoomItemPosition, addRoomItem } from '../lib/house-content';
+import type { HouseItem, HouseItemPosition } from '../lib/house-types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +50,8 @@ export interface UseRoomItemEditorResult {
   selectItem: (instanceId: string | null) => void;
   /** Persist a new position for an item. Called on drag-end. */
   commitPosition: (instanceId: string, position: HouseItemPosition) => Promise<void>;
+  /** Append a new item to the room and persist to kind 11127. */
+  addItem: (item: HouseItem) => Promise<void>;
   /** Whether a save/publish is in flight. */
   isSaving: boolean;
 }
@@ -136,12 +138,52 @@ export function useRoomItemEditor(
     }
   }, [user?.pubkey, nostr, publishEvent, updateHouseEvent, roomId, houseEvent?.content]);
 
+  // ── Add new item ──
+  const addItemFn = useCallback(async (item: HouseItem) => {
+    if (!user?.pubkey) return;
+
+    setIsSaving(true);
+    try {
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [KIND_BLOBBI_HOUSE],
+        authors: [user.pubkey],
+        '#d': [buildHouseDTag(user.pubkey)],
+      });
+
+      const existingContent = prev?.content ?? houseEvent?.content ?? '';
+      const existingTags = prev?.tags ?? buildHouseTags(user.pubkey);
+
+      const updatedContent = addRoomItem(existingContent, roomId, item);
+
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_HOUSE,
+        content: updatedContent,
+        tags: existingTags,
+        prev: prev ?? undefined,
+      });
+
+      updateHouseEvent(event);
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[useRoomItemEditor] Failed to add item:', err);
+      }
+      toast({
+        title: 'Failed to add item',
+        description: 'The item could not be placed. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user?.pubkey, nostr, publishEvent, updateHouseEvent, roomId, houseEvent?.content]);
+
   return {
     editMode,
     setEditMode,
     selectedItemId,
     selectItem,
     commitPosition,
+    addItem: addItemFn,
     isSaving,
   };
 }

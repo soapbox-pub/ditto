@@ -347,6 +347,76 @@ export function updateRoomItemPosition(
 }
 
 /**
+ * Append a new item to a room's items array in the house content.
+ *
+ * Safety guarantees:
+ *   1. All other top-level keys preserved (version, meta, unknown)
+ *   2. All other rooms preserved
+ *   3. Scene within the target room preserved
+ *   4. All existing items in the target room preserved
+ *   5. roomOrder preserved
+ *
+ * If the room doesn't exist, it is created with the room's default scene
+ * (or a blank scene fallback) and the new item as its sole item.
+ */
+export function addRoomItem(
+  existingContent: string,
+  roomId: string,
+  item: HouseItem,
+): string {
+  const { data, house } = safeParseHouse(existingContent);
+
+  const existingRoom = house.layout.rooms[roomId] ?? DEFAULT_ROOMS[roomId];
+  const updatedItems = [...(existingRoom?.items ?? []), item];
+
+  const updatedRoom: HouseRoom = existingRoom
+    ? { ...existingRoom, items: updatedItems }
+    : { label: roomId, enabled: true, scene: DEFAULT_ROOMS[roomId]?.scene ?? { useThemeColors: false, wall: { type: 'paint', color: '#f5f0eb' }, floor: { type: 'wood', color: '#c4a882' } }, items: updatedItems };
+
+  const updatedRooms = { ...house.layout.rooms, [roomId]: updatedRoom };
+  const updatedLayout: HouseLayout = { ...house.layout, rooms: updatedRooms };
+
+  return JSON.stringify({
+    ...data,
+    version: house.version,
+    meta: house.meta,
+    layout: updatedLayout,
+  });
+}
+
+/**
+ * Replace the entire items array for a room in the house content.
+ *
+ * Used for backfill operations (e.g. seeding default items into
+ * existing houses that were created before items existed).
+ *
+ * Safety guarantees: same as addRoomItem.
+ */
+export function setRoomItems(
+  existingContent: string,
+  roomId: string,
+  items: HouseItem[],
+): string {
+  const { data, house } = safeParseHouse(existingContent);
+
+  const existingRoom = house.layout.rooms[roomId] ?? DEFAULT_ROOMS[roomId];
+
+  const updatedRoom: HouseRoom = existingRoom
+    ? { ...existingRoom, items }
+    : { label: roomId, enabled: true, scene: DEFAULT_ROOMS[roomId]?.scene ?? { useThemeColors: false, wall: { type: 'paint', color: '#f5f0eb' }, floor: { type: 'wood', color: '#c4a882' } }, items };
+
+  const updatedRooms = { ...house.layout.rooms, [roomId]: updatedRoom };
+  const updatedLayout: HouseLayout = { ...house.layout, rooms: updatedRooms };
+
+  return JSON.stringify({
+    ...data,
+    version: house.version,
+    meta: house.meta,
+    layout: updatedLayout,
+  });
+}
+
+/**
  * Generic room item patch — update any fields on a single item.
  *
  * This is the future-ready version for rotation, scale, visibility, etc.

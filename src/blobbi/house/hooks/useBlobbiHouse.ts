@@ -33,8 +33,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { KIND_BLOBBI_HOUSE, buildHouseDTag, buildHouseTags } from '../lib/house-constants';
-import { parseHouseContent } from '../lib/house-content';
-import { buildDefaultHouseContent } from '../lib/house-defaults';
+import { parseHouseContent, setRoomItems } from '../lib/house-content';
+import { buildDefaultHouseContent, DEFAULT_HOME_ITEMS } from '../lib/house-defaults';
 import { resolveHouseBootstrap } from '../lib/house-migration';
 import type { BlobbiHouseContent } from '../lib/house-types';
 
@@ -141,6 +141,50 @@ export function useBlobbiHouse(
       bootstrapInFlightRef.current = false;
     });
   }, [pubkey, query.isLoading, query.isFetching, houseEvent, profileEvent, publishEvent, queryClient]);
+
+  // ── Backfill: seed default home items into pre-furniture houses ──
+  //
+  // Houses bootstrapped before the furniture feature was added have
+  // `home.items = []`. This one-time backfill detects that case and
+  // patches the default starter items into the existing house content
+  // without touching scenes, other rooms, or unknown keys.
+
+  const backfillInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!pubkey || !houseEvent) return;
+    if (backfillInFlightRef.current) return;
+
+    const parsed = parseHouseContent(houseEvent.content);
+    if (!parsed) return;
+
+    const homeRoom = parsed.layout.rooms.home;
+    // Only backfill if the home room exists but has zero items
+    if (!homeRoom || homeRoom.items.length > 0) return;
+
+    backfillInFlightRef.current = true;
+
+    const updatedContent = setRoomItems(
+      houseEvent.content,
+      'home',
+      structuredClone(DEFAULT_HOME_ITEMS),
+    );
+
+    publishEvent({
+      kind: KIND_BLOBBI_HOUSE,
+      content: updatedContent,
+      tags: houseEvent.tags,
+      prev: houseEvent,
+    }).then((event) => {
+      queryClient.setQueryData(['blobbi-house', pubkey], event);
+    }).catch((err) => {
+      if (import.meta.env.DEV) {
+        console.error('[useBlobbiHouse] Failed to backfill home items:', err);
+      }
+    }).finally(() => {
+      backfillInFlightRef.current = false;
+    });
+  }, [pubkey, houseEvent, publishEvent, queryClient]);
 
   // ── Parse house content ──
 

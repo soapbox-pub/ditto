@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { Camera, Footprints, Music, Mic, Paintbrush, Move, X } from 'lucide-react';
+import { Camera, Footprints, Music, Mic, Paintbrush, Move, X, Plus } from 'lucide-react';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { InlineMusicPlayer, InlineSingCard } from '@/blobbi/actions';
@@ -28,7 +28,7 @@ import {
   useRoomSceneEditor,
   RoomCustomizeSheet,
 } from '../scene';
-import { RoomItemsLayer } from '@/blobbi/house/items';
+import { RoomItemsLayer, AddItemSheet } from '@/blobbi/house/items';
 import { useRoomItemEditor } from '@/blobbi/house/hooks/useRoomItemEditor';
 import type { HouseItemPosition } from '@/blobbi/house/lib/house-types';
 
@@ -103,6 +103,7 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
 
   // ── Furniture Edit Mode ──
   const itemEditor = useRoomItemEditor('home', houseEvent, updateHouseEvent);
+  const [showAddItem, setShowAddItem] = useState(false);
 
   const handleItemDragEnd = useCallback((instanceId: string, position: HouseItemPosition) => {
     itemEditor.commitPosition(instanceId, position);
@@ -166,9 +167,18 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
 
       {/* ── Edit mode banner ── */}
       {itemEditor.editMode && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-blue-500/80 backdrop-blur-sm text-white text-xs font-medium shadow-lg flex items-center gap-1.5">
-          <Move className="size-3" />
-          {itemEditor.isSaving ? 'Saving...' : 'Hold item to move'}
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+          <div className="px-3 py-1 rounded-full bg-blue-500/80 backdrop-blur-sm text-white text-xs font-medium shadow-lg flex items-center gap-1.5">
+            <Move className="size-3" />
+            {itemEditor.isSaving ? 'Saving...' : 'Hold item to move'}
+          </div>
+          <button
+            onClick={() => setShowAddItem(true)}
+            className="size-7 flex items-center justify-center rounded-full bg-blue-500/80 backdrop-blur-sm text-white hover:bg-blue-600/90 transition-all shadow-lg"
+            aria-label="Add furniture"
+          >
+            <Plus className="size-3.5" />
+          </button>
         </div>
       )}
 
@@ -254,6 +264,15 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
         onPatch={patchScene}
         onReset={resetScene}
         isSaving={isSceneSaving}
+      />
+
+      {/* ── Add Furniture Sheet (edit mode only) ── */}
+      <AddItemSheet
+        open={showAddItem}
+        onOpenChange={setShowAddItem}
+        roomId="home"
+        onAdd={itemEditor.addItem}
+        isSaving={itemEditor.isSaving}
       />
     </div>
   );
