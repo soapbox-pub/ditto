@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 
-import { MessageBubble, BuddyThinking, BUDDY_ANIMATION } from '@/components/AIChat/AIChatComponents';
+import { MessageBubble, BUDDY_ANIMATION } from '@/components/AIChat/AIChatComponents';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
 import { useBuddy } from '@/hooks/useBuddy';
 import { cn } from '@/lib/utils';
@@ -61,7 +61,6 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
   }, [onClose, handleSend, handleStop, isStreaming]);
 
   const visibleMessages = messages.filter((msg) => msg.role !== 'tool_result');
-  const showThinking = (isStreaming || apiLoading) && !streamingText && messages[messages.length - 1]?.role === 'user';
   const displayName = buddy?.name ?? 'Buddy';
 
   return (
@@ -77,7 +76,6 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
           {visibleMessages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
-          {showThinking && <BuddyThinking />}
           {streamingText && (isStreaming || apiLoading) && (
             <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
           )}
