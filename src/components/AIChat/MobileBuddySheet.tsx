@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search } from 'lucide-react';
+import { Bot } from 'lucide-react';
 
 import { MessageBubble, BUDDY_ANIMATION } from '@/components/AIChat/AIChatComponents';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
@@ -86,7 +86,7 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
       {/* Input bar — pinned to bottom-mobile-nav position */}
       <div className="flex items-center px-6 py-3 bottom-mobile-nav fixed left-0 right-0 z-[49]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
-          <Search strokeWidth={4} className="size-4 shrink-0 text-muted-foreground" />
+          <Bot className="size-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             value={input}
@@ -101,11 +101,17 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
             spellCheck={false}
           />
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (isStreaming) {
+                handleStop();
+              } else {
+                setAnimFrame((f) => (f + 1) % BUDDY_ANIMATION.length);
+              }
+            }}
             className="shrink-0 font-mono text-xs text-primary transition-colors"
             onMouseDown={(e) => e.preventDefault()}
           >
-            {isStreaming ? BUDDY_ANIMATION[animFrame] : '<[o_o]>'}
+            {BUDDY_ANIMATION[animFrame]}
           </button>
         </div>
       </div>
