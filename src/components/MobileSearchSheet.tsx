@@ -101,12 +101,26 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const wikipediaIndex = hasWikipedia ? nextMobileIdx++ : -1;
   const archiveIndex = hasArchive ? nextMobileIdx++ : -1;
 
-  // Lock body scroll while the search sheet is open
+  // Lock body scroll while the search sheet is open.
+  // overflow:hidden alone is unreliable on mobile Safari, so we also
+  // block touchmove on the document (except inside the results scroller).
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+
+    const preventScroll = (e: TouchEvent) => {
+      // Allow scrolling inside the results list
+      const target = e.target as HTMLElement;
+      if (target.closest?.('[data-mobile-search-results]')) return;
+      e.preventDefault();
+    };
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('touchmove', preventScroll);
+    };
   }, [open]);
 
   // Focus input when opened
@@ -301,7 +315,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
         )}
 
         {/* Input bar */}
-        <div className="flex items-center px-6 py-3 safe-area-bottom bg-background/85">
+        <div className="flex items-center px-6 py-3 safe-area-bottom">
           <div className="flex items-center gap-2 flex-1 bg-secondary rounded-full px-4 py-2.5">
             {isFetching ? (
               <svg
