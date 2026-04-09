@@ -385,7 +385,7 @@ public class SandboxPlugin extends Plugin {
                     "  onMessage: function(data) {" +
                     "    var event = {" +
                     "      data: data," +
-                    "      origin: 'sandbox://app'," +
+                    "      origin: 'https://" + id + ".sandbox.native'," +
                     "      source: window.parent," +
                     "      type: 'message'" +
                     "    };" +

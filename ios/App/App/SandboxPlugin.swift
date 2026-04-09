@@ -194,10 +194,9 @@ private class SandboxInstance: NSObject, WKScriptMessageHandler {
         self.id = id
         self.plugin = plugin
 
-        // Use a shortened ID for the scheme (URL schemes have length limits
-        // and must start with a letter). We use "sbx-" prefix + first 12 chars.
-        let schemeId = String(id.prefix(12))
-        self.customScheme = "sbx-\(schemeId)"
+        // Each sandbox gets a unique custom URL scheme so that WKWebView
+        // assigns a distinct origin, isolating localStorage/IndexedDB/cookies.
+        self.customScheme = "sbx-\(id)"
 
         self.schemeHandler = SandboxSchemeHandler(
             sandboxId: id,
