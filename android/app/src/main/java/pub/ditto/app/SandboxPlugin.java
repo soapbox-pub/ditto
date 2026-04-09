@@ -13,7 +13,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.FrameLayout;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -80,9 +80,11 @@ public class SandboxPlugin extends Plugin {
             sandboxes.put(sandboxId, sandbox);
 
             // Add the WebView on top of the Capacitor WebView.
+            // The parent is a CoordinatorLayout — using the wrong LayoutParams
+            // type causes a ClassCastException when it intercepts touch events.
             View capWebView = getBridge().getWebView();
             ViewGroup parent = (ViewGroup) capWebView.getParent();
-            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(pxWidth, pxHeight);
+            CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(pxWidth, pxHeight);
             params.leftMargin = pxX;
             params.topMargin = pxY;
             parent.addView(sandbox.webView, params);
@@ -126,7 +128,7 @@ public class SandboxPlugin extends Plugin {
                 return;
             }
 
-            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(pxWidth, pxHeight);
+            CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(pxWidth, pxHeight);
             params.leftMargin = pxX;
             params.topMargin = pxY;
             sandbox.webView.setLayoutParams(params);
@@ -385,7 +387,7 @@ public class SandboxPlugin extends Plugin {
                     "  onMessage: function(data) {" +
                     "    var event = {" +
                     "      data: data," +
-                    "      origin: 'sandbox://app'," +
+                    "      origin: 'https://" + sandbox.id + ".sandbox.native'," +
                     "      source: window.parent," +
                     "      type: 'message'" +
                     "    };" +

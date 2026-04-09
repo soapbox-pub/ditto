@@ -413,7 +413,34 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
         const rect = el.getBoundingClientRect();
 
-        // Create the native WebView.
+        // Register listeners BEFORE creating the WebView. On Android,
+        // `shouldInterceptRequest` fires on a background thread as soon
+        // as the WebView starts loading — if the fetch listener isn't
+        // registered yet, the event is lost and the request times out
+        // (the thread blocks via CountDownLatch waiting for a response
+        // that never arrives).
+        const fetchListener = await SandboxPlugin.addListener(
+          'fetch',
+          (event: SandboxFetchEvent) => {
+            if (event.id !== id) return;
+            handleNativeFetch(event);
+          },
+        );
+        listeners.push(fetchListener);
+
+        const scriptListener = await SandboxPlugin.addListener(
+          'scriptMessage',
+          (event: SandboxScriptMessageEvent) => {
+            if (event.id !== id) return;
+            handleNativeScriptMessage(event);
+          },
+        );
+        listeners.push(scriptListener);
+
+        if (cancelled || destroyedRef.current) return;
+
+        // Create the native WebView. Fetch events from the initial load
+        // will be handled by the listeners registered above.
         await SandboxPlugin.create({
           id,
           frame: {
@@ -431,26 +458,6 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         }
 
         createdRef.current = true;
-
-        // Listen for fetch requests from the native URL scheme handler.
-        const fetchListener = await SandboxPlugin.addListener(
-          'fetch',
-          (event: SandboxFetchEvent) => {
-            if (event.id !== id) return;
-            handleNativeFetch(event);
-          },
-        );
-        listeners.push(fetchListener);
-
-        // Listen for script messages (custom JSON-RPC from injected scripts).
-        const scriptListener = await SandboxPlugin.addListener(
-          'scriptMessage',
-          (event: SandboxScriptMessageEvent) => {
-            if (event.id !== id) return;
-            handleNativeScriptMessage(event);
-          },
-        );
-        listeners.push(scriptListener);
       }
 
       // ---------------------------------------------------------------
