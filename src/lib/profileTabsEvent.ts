@@ -28,22 +28,14 @@ export interface ProfileTabsData {
 
 // ─── Parsing ─────────────────────────────────────────────────────────────────
 
-/**
- * Parse a kind 16769 event into ProfileTabsData. Discards malformed entries.
- *
- * Returns `null` when the event contains legacy (pre-spell) tab tags that
- * can't be parsed into the current format. This signals callers to fall back
- * to default tabs rather than showing an empty tab bar.
- */
-export function parseProfileTabs(event: NostrEvent): ProfileTabsData | null {
+/** Parse a kind 16769 event into ProfileTabsData. Discards malformed entries. */
+export function parseProfileTabs(event: NostrEvent): ProfileTabsData {
   if (event.kind !== PROFILE_TABS_KIND) return { tabs: [] };
 
   const tabs: ProfileTab[] = [];
-  let tabTagCount = 0;
 
   for (const tag of event.tags) {
     if (tag[0] === 'tab' && tag.length >= 3) {
-      tabTagCount++;
       const label = tag[1];
       if (!label) continue;
       try {
@@ -57,11 +49,6 @@ export function parseProfileTabs(event: NostrEvent): ProfileTabsData | null {
       }
     }
   }
-
-  // If the event had tab tags but none parsed as valid spells, this is a
-  // legacy event from before the spell migration. Return null so callers
-  // fall back to default tabs instead of showing an empty tab bar.
-  if (tabTagCount > 0 && tabs.length === 0) return null;
 
   return { tabs };
 }
