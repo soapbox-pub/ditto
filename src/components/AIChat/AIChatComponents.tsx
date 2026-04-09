@@ -60,8 +60,8 @@ export function MessageBubble({ message }: { message: DisplayMessage }) {
               <p className="whitespace-pre-wrap break-words">{message.content}</p>
             ) : (
               <div
-                className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:text-primary prose-code:before:content-none prose-code:after:content-none"
-                style={{ '--tw-prose-links': 'hsl(var(--primary))' } as React.CSSProperties}
+                className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:text-muted-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:text-primary prose-code:before:content-none prose-code:after:content-none"
+                style={{ '--tw-prose-links': 'hsl(var(--primary))', '--tw-prose-quote-borders': 'hsl(var(--border))' } as React.CSSProperties}
               >
                 <Markdown rehypePlugins={[rehypeSanitize]}>
                   {message.content}
