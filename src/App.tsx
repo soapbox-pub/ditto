@@ -24,6 +24,7 @@ import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
+import { secureStorage } from "@/lib/secureStorage";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -200,7 +201,7 @@ export function App() {
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey="nostr:login">
+              <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
