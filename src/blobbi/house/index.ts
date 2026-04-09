@@ -41,6 +41,8 @@ export {
   patchHouseRoomScene,
   resetHouseRoomScene,
   getRoomSceneFromHouse,
+  updateRoomItemPosition,
+  patchRoomItem,
 } from './lib/house-content';
 
 // ── Migration ──
@@ -52,3 +54,4 @@ export {
 
 // ── Hooks ──
 export { useBlobbiHouse, type UseBlobbiHouseResult } from './hooks/useBlobbiHouse';
+export { useRoomItemEditor, type UseRoomItemEditorResult } from './hooks/useRoomItemEditor';

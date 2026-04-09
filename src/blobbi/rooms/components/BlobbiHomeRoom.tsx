@@ -12,8 +12,8 @@
  * Sleep/wake has been moved to BlobbiRestRoom.
  */
 
-import { useMemo, useState } from 'react';
-import { Camera, Footprints, Music, Mic, Paintbrush } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Camera, Footprints, Music, Mic, Paintbrush, Move, X } from 'lucide-react';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { InlineMusicPlayer, InlineSingCard } from '@/blobbi/actions';
@@ -29,6 +29,8 @@ import {
   RoomCustomizeSheet,
 } from '../scene';
 import { RoomItemsLayer } from '@/blobbi/house/items';
+import { useRoomItemEditor } from '@/blobbi/house/hooks/useRoomItemEditor';
+import type { HouseItemPosition } from '@/blobbi/house/lib/house-types';
 
 interface BlobbiHomeRoomProps {
   ctx: BlobbiRoomContext;
@@ -99,6 +101,13 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     [house],
   );
 
+  // ── Furniture Edit Mode ──
+  const itemEditor = useRoomItemEditor('home', houseEvent, updateHouseEvent);
+
+  const handleItemDragEnd = useCallback((instanceId: string, position: HouseItemPosition) => {
+    itemEditor.commitPosition(instanceId, position);
+  }, [itemEditor]);
+
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   const handleCarouselUse = (id: string) => {
@@ -117,16 +126,51 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
       <RoomSceneLayer scene={roomScene} />
 
       {/* ── Room Items — layered around Blobbi (z 1-8, hero at 5) ── */}
-      <RoomItemsLayer items={homeItems} />
+      <RoomItemsLayer
+        items={homeItems}
+        editMode={itemEditor.editMode}
+        edit={{
+          selectedItemId: itemEditor.selectedItemId,
+          onSelect: itemEditor.selectItem,
+          onDragEnd: handleItemDragEnd,
+          isSaving: itemEditor.isSaving,
+        }}
+      />
 
-      {/* ── Decor button (top-right, above room content) ── */}
-      <button
-        onClick={() => setShowCustomize(true)}
-        className="absolute top-2 right-2 z-30 size-8 flex items-center justify-center rounded-full bg-background/50 backdrop-blur-sm text-foreground/60 hover:text-foreground/90 hover:bg-background/70 transition-all shadow-sm"
-        aria-label="Customize room"
-      >
-        <Paintbrush className="size-3.5" />
-      </button>
+      {/* ── Top-right action buttons ── */}
+      <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+        {/* Furniture edit toggle */}
+        <button
+          onClick={() => itemEditor.setEditMode(!itemEditor.editMode)}
+          className={`size-8 flex items-center justify-center rounded-full backdrop-blur-sm transition-all shadow-sm ${
+            itemEditor.editMode
+              ? 'bg-blue-500/80 text-white hover:bg-blue-500/90'
+              : 'bg-background/50 text-foreground/60 hover:text-foreground/90 hover:bg-background/70'
+          }`}
+          aria-label={itemEditor.editMode ? 'Exit furniture edit mode' : 'Edit furniture'}
+        >
+          {itemEditor.editMode ? <X className="size-3.5" /> : <Move className="size-3.5" />}
+        </button>
+
+        {/* Decor (scene customize) button — hide during furniture edit */}
+        {!itemEditor.editMode && (
+          <button
+            onClick={() => setShowCustomize(true)}
+            className="size-8 flex items-center justify-center rounded-full bg-background/50 backdrop-blur-sm text-foreground/60 hover:text-foreground/90 hover:bg-background/70 transition-all shadow-sm"
+            aria-label="Customize room"
+          >
+            <Paintbrush className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* ── Edit mode banner ── */}
+      {itemEditor.editMode && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-full bg-blue-500/80 backdrop-blur-sm text-white text-xs font-medium shadow-lg flex items-center gap-1.5">
+          <Move className="size-3" />
+          {itemEditor.isSaving ? 'Saving...' : 'Hold item to move'}
+        </div>
+      )}
 
       {/* ── Hero (Blobbi + stats) — z-index 5, between backFloor and frontFloor ── */}
       <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0 z-[5]" />

@@ -296,3 +296,91 @@ export function getRoomSceneFromHouse(
   const house = parseHouseContent(content);
   return house?.layout.rooms[roomId]?.scene;
 }
+
+// ─── Item Update Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Update a single room item's position in the house content.
+ *
+ * Safety guarantees:
+ *   1. All other top-level keys preserved (version, meta, unknown)
+ *   2. All other rooms preserved
+ *   3. Scene within the target room preserved
+ *   4. All other items in the target room preserved
+ *   5. roomOrder preserved
+ *   6. Non-position fields on the target item preserved
+ *
+ * Returns the updated JSON string, or the input unchanged if the
+ * room or item was not found.
+ */
+export function updateRoomItemPosition(
+  existingContent: string,
+  roomId: string,
+  instanceId: string,
+  position: { x: number; y: number },
+): string {
+  const { data, house } = safeParseHouse(existingContent);
+
+  const room = house.layout.rooms[roomId];
+  if (!room) return existingContent;
+
+  const itemIndex = room.items.findIndex((i) => i.instanceId === instanceId);
+  if (itemIndex === -1) return existingContent;
+
+  // Clone items array, update position on the target item
+  const updatedItems = room.items.map((item, i) =>
+    i === itemIndex
+      ? { ...item, position: { x: Math.round(position.x), y: Math.round(position.y) } }
+      : item,
+  );
+
+  const updatedRoom: HouseRoom = { ...room, items: updatedItems };
+  const updatedRooms = { ...house.layout.rooms, [roomId]: updatedRoom };
+  const updatedLayout: HouseLayout = { ...house.layout, rooms: updatedRooms };
+
+  return JSON.stringify({
+    ...data,
+    version: house.version,
+    meta: house.meta,
+    layout: updatedLayout,
+  });
+}
+
+/**
+ * Generic room item patch — update any fields on a single item.
+ *
+ * This is the future-ready version for rotation, scale, visibility, etc.
+ * For now it's used internally. The `patch` is a partial HouseItem
+ * (without id/instanceId which are identity fields).
+ *
+ * Same safety guarantees as `updateRoomItemPosition`.
+ */
+export function patchRoomItem(
+  existingContent: string,
+  roomId: string,
+  instanceId: string,
+  patch: Partial<Omit<HouseItem, 'id' | 'instanceId'>>,
+): string {
+  const { data, house } = safeParseHouse(existingContent);
+
+  const room = house.layout.rooms[roomId];
+  if (!room) return existingContent;
+
+  const itemIndex = room.items.findIndex((i) => i.instanceId === instanceId);
+  if (itemIndex === -1) return existingContent;
+
+  const updatedItems = room.items.map((item, i) =>
+    i === itemIndex ? { ...item, ...patch } : item,
+  );
+
+  const updatedRoom: HouseRoom = { ...room, items: updatedItems };
+  const updatedRooms = { ...house.layout.rooms, [roomId]: updatedRoom };
+  const updatedLayout: HouseLayout = { ...house.layout, rooms: updatedRooms };
+
+  return JSON.stringify({
+    ...data,
+    version: house.version,
+    meta: house.meta,
+    layout: updatedLayout,
+  });
+}

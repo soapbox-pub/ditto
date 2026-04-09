@@ -102,3 +102,66 @@ export function toScreenSize(
   const hPercent = (height / 1000) * 100;
   return { width: `${wPercent}%`, height: `${hPercent}%` };
 }
+
+// ─── Screen → Normalized (Inverse Mapping) ────────────────────────────────────
+
+/**
+ * Convert a pixel delta (dx, dy) in the room viewport into a
+ * normalized-coordinate delta for a wall item.
+ *
+ * The caller provides the room container's pixel dimensions.
+ * Wall items map x across the full width and y across the top WALL_PERCENT%.
+ */
+export function wallPixelDeltaToNormalized(
+  dx: number,
+  dy: number,
+  containerWidth: number,
+  containerHeight: number,
+): { dx: number; dy: number } {
+  const wallHeight = containerHeight * (WALL_PERCENT / 100);
+  return {
+    dx: (dx / containerWidth) * 1000,
+    dy: (dy / wallHeight) * 1000,
+  };
+}
+
+/**
+ * Convert a pixel delta (dx, dy) in the **floor container** into a
+ * normalized-coordinate delta for a floor item.
+ *
+ * The caller provides the floor container's pixel dimensions (the actual
+ * tilted inner div that floor items are positioned inside). Because the
+ * floor container already has the perspective transform applied, pointer
+ * events inside it map naturally — no inverse-perspective math is needed.
+ *
+ * IMPORTANT: The dx/dy here should come from measuring pointer movement
+ * relative to the floor container element, NOT the full room viewport.
+ */
+export function floorPixelDeltaToNormalized(
+  dx: number,
+  dy: number,
+  floorContainerWidth: number,
+  floorContainerHeight: number,
+): { dx: number; dy: number } {
+  return {
+    dx: (dx / floorContainerWidth) * 1000,
+    dy: (dy / floorContainerHeight) * 1000,
+  };
+}
+
+/**
+ * Clamp a normalized position to the valid 0..1000 range with optional padding.
+ * Padding shrinks the valid area by `pad` units on each side.
+ */
+export function clampNormalized(
+  x: number,
+  y: number,
+  pad = 0,
+): HouseItemPosition {
+  const min = pad;
+  const max = 1000 - pad;
+  return {
+    x: Math.max(min, Math.min(max, x)),
+    y: Math.max(min, Math.min(max, y)),
+  };
+}

@@ -1,6 +1,6 @@
 // src/blobbi/house/items/index.ts — barrel export
 
-export { RoomItemsLayer } from './RoomItemsLayer';
+export { RoomItemsLayer, type RoomItemsEditCallbacks } from './RoomItemsLayer';
 export { BuiltinItemVisual } from './BuiltinItemVisual';
 export { BUILTIN_ITEMS, getCatalogItem, type CatalogItem } from './item-catalog';
 export {
@@ -8,5 +8,8 @@ export {
   toWallPosition,
   toFloorPosition,
   toScreenSize,
+  wallPixelDeltaToNormalized,
+  floorPixelDeltaToNormalized,
+  clampNormalized,
   type ScreenPosition,
 } from './item-coordinates';
