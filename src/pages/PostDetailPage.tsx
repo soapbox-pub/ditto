@@ -52,7 +52,7 @@ import { RepostIcon } from "@/components/icons/RepostIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
-import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
+import { EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -1942,32 +1942,32 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {/* Kind 1018 — Poll vote: compact activity-style card */}
       {isPollVote && (
         <div ref={focusedPostRef as React.RefObject<HTMLDivElement>}>
-          <ActivityCard
-            className="border-b-0 pb-0"
-            icon={
-              <ProfileHoverCard pubkey={event.pubkey} asChild>
-                <Link to={profileUrl} className="shrink-0">
-                  <Avatar shape={avatarShape} className="size-10">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Link>
-              </ProfileHoverCard>
-            }
-            actorRow={
-              <div className="flex items-center gap-1.5">
+           <article className="px-4 py-3 border-b-0 pb-0 overflow-hidden">
+            <div className="flex gap-3">
+              <div className="flex flex-col items-center">
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
-                    {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
+                  <Link to={profileUrl} className="shrink-0">
+                    <Avatar shape={avatarShape} className="size-10">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
+                    </Avatar>
                   </Link>
                 </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground shrink-0">voted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
               </div>
-            }
-          >
-            {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
-          </ActivityCard>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <ProfileHoverCard pubkey={event.pubkey} asChild>
+                    <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                      {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
+                    </Link>
+                  </ProfileHoverCard>
+                  <span className="text-sm text-muted-foreground shrink-0">voted</span>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
+                </div>
+                {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
+              </div>
+            </div>
+          </article>
           <PostActionBar
             event={event}
             onReply={() => setReplyOpen(true)}
