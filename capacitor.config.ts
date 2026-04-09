@@ -19,7 +19,12 @@ const config: CapacitorConfig = {
     backgroundColor: '#14161f',
     contentInset: 'never',
     scheme: 'Ditto'
-  }
+  },
+  plugins: {
+    Keyboard: {
+      resizeOnFullScreen: true,
+    },
+  },
 };
 
 export default config;

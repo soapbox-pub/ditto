@@ -8,6 +8,9 @@ project(':capacitor-app').projectDir = new File('../node_modules/@capacitor/app/
 include ':capacitor-filesystem'
 project(':capacitor-filesystem').projectDir = new File('../node_modules/@capacitor/filesystem/android')
 
+include ':capacitor-keyboard'
+project(':capacitor-keyboard').projectDir = new File('../node_modules/@capacitor/keyboard/android')
+
 include ':capacitor-local-notifications'
 project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
 
