@@ -54,7 +54,6 @@ export function MobileBottomNav() {
         className={cn(
           'fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform',
           'transition-transform duration-300 ease-in-out',
-          'safe-area-bottom bg-background/85',
         )}
         style={isHidden ? hiddenStyle : undefined}
       >
@@ -138,7 +137,8 @@ export function MobileBottomNav() {
 
           </div>
         </div>
-
+        {/* Safe area fill — matches the arc's semi-transparent background */}
+        <div className="safe-area-bottom bg-background/85" />
       </nav>
     </>
   );
