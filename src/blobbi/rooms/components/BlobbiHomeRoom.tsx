@@ -28,6 +28,7 @@ import {
   useRoomSceneEditor,
   RoomCustomizeSheet,
 } from '../scene';
+import { RoomItemsLayer } from '@/blobbi/house/items';
 
 interface BlobbiHomeRoomProps {
   ctx: BlobbiRoomContext;
@@ -36,6 +37,7 @@ interface BlobbiHomeRoomProps {
 
 export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
   const {
+    house,
     houseEvent,
     updateHouseEvent,
     isActiveFloatingCompanion,
@@ -91,6 +93,12 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
     return [...toys, ...actions];
   }, []);
 
+  // ── Room Items (furniture) — reads from house (kind 11127) ──
+  const homeItems = useMemo(
+    () => house?.layout.rooms.home?.items ?? [],
+    [house],
+  );
+
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   const handleCarouselUse = (id: string) => {
@@ -105,8 +113,11 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
-      {/* ── Room Scene Background ── */}
+      {/* ── Room Scene Background (z-index 0) ── */}
       <RoomSceneLayer scene={roomScene} />
+
+      {/* ── Room Items — layered around Blobbi (z 1-8, hero at 5) ── */}
+      <RoomItemsLayer items={homeItems} />
 
       {/* ── Decor button (top-right, above room content) ── */}
       <button
@@ -117,8 +128,8 @@ export function BlobbiHomeRoom({ ctx }: BlobbiHomeRoomProps) {
         <Paintbrush className="size-3.5" />
       </button>
 
-      {/* ── Hero (Blobbi + stats) ── */}
-      <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0" />
+      {/* ── Hero (Blobbi + stats) — z-index 5, between backFloor and frontFloor ── */}
+      <BlobbiRoomHero ctx={ctx} className="flex-1 min-h-0 z-[5]" />
 
       {/* ── Inline Activity Area (music/sing) ── */}
       {inlineActivity.type === 'music' && (

@@ -16,6 +16,7 @@ import {
 } from './house-constants';
 import type {
   BlobbiHouseContent,
+  HouseItem,
   HouseRoom,
   HouseRoomScene,
 } from './house-types';
@@ -58,6 +59,54 @@ const DEFAULT_CLOSET_SCENE: HouseRoomScene = {
   floor: { type: 'wood', color: '#b8a28e', accentColor: '#9a8672' },
 };
 
+// ─── Default Home Room Items ──────────────────────────────────────────────────
+
+/**
+ * Starter furniture for the home room.
+ *
+ * Positions are in the normalized 0..1000 coordinate space:
+ *   x: 0 = left edge, 1000 = right edge
+ *   y: 0 = top of the plane, 1000 = bottom of the plane
+ *
+ * Wall items use the wall plane (y maps to the wall area).
+ * Floor items use the floor plane (y maps to the floor area).
+ */
+const DEFAULT_HOME_ITEMS: HouseItem[] = [
+  {
+    id: 'poster_abstract',
+    instanceId: 'home-poster-1',
+    kind: 'builtin',
+    plane: 'wall',
+    layer: 'wallDecor',
+    position: { x: 250, y: 350 },
+    scale: 1,
+    rotation: 0,
+    visible: true,
+  },
+  {
+    id: 'rug_round',
+    instanceId: 'home-rug-1',
+    kind: 'builtin',
+    plane: 'floor',
+    layer: 'backFloor',
+    position: { x: 500, y: 350 },
+    scale: 1,
+    rotation: 0,
+    visible: true,
+  },
+  {
+    id: 'plant_potted',
+    instanceId: 'home-plant-1',
+    kind: 'builtin',
+    plane: 'floor',
+    layer: 'frontFloor',
+    position: { x: 820, y: 500 },
+    scale: 1,
+    rotation: 0,
+    visible: true,
+  },
+];
+
 // ─── Default Room Definitions ─────────────────────────────────────────────────
 
 export const DEFAULT_ROOMS: Record<string, HouseRoom> = {
@@ -77,7 +126,7 @@ export const DEFAULT_ROOMS: Record<string, HouseRoom> = {
     label: 'Home',
     enabled: true,
     scene: DEFAULT_HOME_SCENE,
-    items: [],
+    items: structuredClone(DEFAULT_HOME_ITEMS),
   },
   hatchery: {
     label: 'Hatchery',
