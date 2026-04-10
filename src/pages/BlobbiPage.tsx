@@ -1,13 +1,11 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap, Clock } from 'lucide-react';
+import { Egg, RefreshCw, Footprints, Plus } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -22,16 +20,11 @@ import { Button } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { SubHeaderBar } from '@/components/SubHeaderBar';
-import { TabButton } from '@/components/TabButton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { useIsMobile } from '@/hooks/useIsMobile';
-import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
 import {
@@ -46,14 +39,10 @@ import {
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
-import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { ShopItem } from '@/blobbi/shop/types/shop.types';
+
 
 import {
-  BlobbiActionInventoryModal,
   PlayMusicModal,
-  InlineMusicPlayer,
-  InlineSingCard,
   BlobbiPostModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
@@ -84,15 +73,16 @@ import {
   type BlobbiReactionState,
   type StartIncubationMode,
 } from '@/blobbi/actions';
-// DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
+import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
-import { useItemCooldown } from '@/blobbi/actions/hooks/useItemCooldown';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
+import { BlobbiRoomShell } from '@/blobbi/rooms/components/BlobbiRoomShell';
+import type { BlobbiRoomContext } from '@/blobbi/rooms/lib/room-types';
 
 
 
@@ -107,31 +97,7 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
-/** Stat threshold below which a Blobbi is considered to need care */
-const CARE_THRESHOLD = 40;
 
-/**
- * Check if a companion needs care based on stat thresholds.
- * A Blobbi needs care if any stat is below CARE_THRESHOLD.
- */
-function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = companion;
-  return (
-    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
-    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
-    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
-    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
-  );
-}
-
-/** Map stat keys to indicator colors */
-const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
-  hunger: 'orange',
-  happiness: 'yellow',
-  health: 'green',
-  hygiene: 'blue',
-  energy: 'violet',
-};
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
@@ -814,11 +780,6 @@ function DashboardShell({ children }: DashboardShellProps) {
   );
 }
 
-// ─── Dashboard Drawer Type ────────────────────────────────────────────────────
-
-/** Which drawer is open; 'none' = all closed */
-type DashboardDrawer = 'none' | 'care' | 'items' | 'missions' | 'more';
-
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
 interface BlobbiDashboardProps {
@@ -895,15 +856,6 @@ function BlobbiDashboard({
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
-  // ─── Active Drawer ───
-  const isMobile = useIsMobile();
-  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>(isMobile ? 'none' : 'care');
-  
-  // Toggle drawer: tapping same tab closes it, tapping another opens that one
-  const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
-    setActiveDrawer(prev => prev === drawer ? 'none' : drawer);
-  }, []);
-  
   // Build naddr for linking to the Blobbi's detail page
   const blobbiNaddr = useMemo(() => nip19.naddrEncode({
     kind: KIND_BLOBBI_STATE,
@@ -929,15 +881,28 @@ function BlobbiDashboard({
   const projectedState = useProjectedBlobbiState(companion);
   
   // Measure hero container width for responsive stat arc radius
+  // heroWidth measurement: uses a callback ref so the ResizeObserver
+  // automatically re-attaches when the hero element unmounts/remounts
+  // (which happens on every room switch since each room renders its own hero).
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroWidth, setHeroWidth] = useState(375);
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
-    ro.observe(el);
-    setHeroWidth(el.clientWidth);
-    return () => ro.disconnect();
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  const heroCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    // Disconnect previous observer
+    if (roRef.current) {
+      roRef.current.disconnect();
+      roRef.current = null;
+    }
+    // Update the ref object so ctx.heroRef still works
+    (heroRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+
+    if (node) {
+      setHeroWidth(node.clientWidth);
+      const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
+      ro.observe(node);
+      roRef.current = ro;
+    }
   }, []);
   
   // Modal states (only for things that genuinely need modals)
@@ -1338,37 +1303,14 @@ function BlobbiDashboard({
     setShowTrackPickerModal(true);
   };
   
-  // Handle using an item (always uses once)
-  const handleUseItem = async (itemId: string) => {
-    if (!inventoryAction || isUsingItem) return;
-    setUsingItemId(itemId);
-    // Set action emotion override while item is being used
-    setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
-    try {
-      await onUseItem(itemId, inventoryAction);
-      // Close the modal on success
-      setInventoryAction(null);
-    } finally {
-      setUsingItemId(null);
-      // Clear action emotion after a brief delay for visual feedback
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
-    }
-  };
-  
-  // Handle opening shop from empty state (switches to items drawer)
-  const handleOpenShopFromAction = () => {
-    setInventoryAction(null);
-    setActiveDrawer('items');
-  };
-
   // ─── Daily Missions (for missions tab) ───
   const dailyMissions = useDailyMissions({ availableStages });
   const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
     profile,
     updateProfileEvent,
   );
-  // Handle using an item from the items tab
-  const handleUseItemFromTab = (itemId: string) => {
+  // Handle using an item from the items tab / room carousel
+  const handleUseItemFromTab = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
     setUsingItemId(itemId);
@@ -1377,7 +1319,165 @@ function BlobbiDashboard({
       setUsingItemId(null);
       setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
-  };
+  }, [isUsingItem, onUseItem]);
+
+  // ─── Build Room Context ───
+  // This is the single object that flows into BlobbiRoomShell → individual rooms.
+  // It mirrors everything the old tab components consumed but centralised.
+  const roomCtx = useMemo<BlobbiRoomContext>(() => ({
+    // Core data
+    companion,
+    companions,
+    selectedD,
+    profile,
+
+    // Projected / visual state
+    currentStats,
+    isSleeping,
+    isEgg,
+    isBaby,
+
+    // Visual recipe
+    statusRecipe,
+    statusRecipeLabel,
+    effectiveEmotion,
+    hasDevOverride,
+    blobbiReaction,
+
+    // Item use
+    onUseItem,
+    handleUseItemFromTab,
+    isUsingItem,
+    usingItemId,
+    allShopItems: getLiveShopItems(),
+
+    // Direct actions
+    onDirectAction,
+    handleDirectAction,
+    isDirectActionPending,
+
+    // Inline activity
+    inlineActivity,
+    setInlineActivity,
+    setBlobbiReaction,
+    setActionOverrideEmotion,
+    showTrackPickerModal,
+    setShowTrackPickerModal,
+    handleTrackSelected,
+    handleConfirmSing,
+    handleCloseInlineActivity,
+    handleMusicPlaybackStart,
+    handleMusicPlaybackStop,
+    handleSingRecordingStart,
+    handleSingRecordingStop,
+    handleChangeTrack,
+
+    // Rest / sleep
+    onRest,
+    actionInProgress,
+    isPublishing,
+
+    // Companion toggle
+    isCurrentCompanion,
+    canBeCompanion,
+    isUpdatingCompanion,
+    isActiveFloatingCompanion,
+    handleSetAsCompanion,
+
+    // Photo
+    showPhotoModal,
+    setShowPhotoModal,
+
+    // Blobbi selector
+    onSelectBlobbi,
+
+    // Incubation / Evolution / Tasks
+    isIncubating,
+    isEvolvingState,
+    canStartIncubation,
+    canStartEvolution,
+    isStartingIncubation,
+    isStartingEvolution,
+    isStoppingIncubation,
+    isStoppingEvolution,
+    isHatching,
+    isEvolving,
+    hatchTasks,
+    evolveTasks,
+    onStartIncubation: handleStartIncubation,
+    onStartEvolution: handleStartEvolution,
+    onStopIncubation: handleStopIncubation,
+    onStopEvolution: handleStopEvolution,
+    onHatch: async () => setShowHatchCeremony(true),
+    onEvolve,
+    showPostModal,
+    setShowPostModal,
+    refetchCurrentTasks,
+
+    // Daily missions
+    dailyMissions,
+    onClaimReward: (id: string) => claimReward({ missionId: id }),
+    isClaimingReward,
+    availableStages,
+
+    // Adoption
+    showAdoptionFlow,
+    setShowAdoptionFlow,
+
+    // Adoption + Profile update props
+    publishEvent,
+    updateProfileEvent,
+    updateCompanionEvent,
+    invalidateProfile,
+    invalidateCompanion,
+    setStoredSelectedD,
+    ensureCanonicalBeforeAction,
+
+    // Naddr link
+    blobbiNaddr,
+
+    // Hero measurement
+    heroRef: heroCallbackRef,
+    heroWidth,
+
+    // DEV
+    showDevEditor,
+    setShowDevEditor,
+    onDevEditorApply,
+    isDevUpdating,
+    showEmotionPanel,
+    setShowEmotionPanel,
+    showHatchCeremony,
+    setShowHatchCeremony,
+
+    // Inventory modal
+    inventoryAction,
+    setInventoryAction,
+
+    // Last feed timestamp (for poop system — use lastInteraction as proxy)
+    lastFeedTimestamp: companion.lastInteraction ? companion.lastInteraction * 1000 : undefined,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [
+    // Only the primitive/memoized deps that actually change.
+    // Stable callbacks (useCallback) and setState refs are intentionally omitted.
+    companion, companions, selectedD, profile,
+    currentStats, isSleeping, isEgg, isBaby,
+    statusRecipe, statusRecipeLabel, effectiveEmotion, hasDevOverride, blobbiReaction,
+    isUsingItem, usingItemId, isDirectActionPending,
+    inlineActivity, showTrackPickerModal,
+    actionInProgress, isPublishing,
+    isCurrentCompanion, canBeCompanion, isUpdatingCompanion, isActiveFloatingCompanion,
+    showPhotoModal,
+    isIncubating, isEvolvingState, canStartIncubation, canStartEvolution,
+    isStartingIncubation, isStartingEvolution, isStoppingIncubation, isStoppingEvolution,
+    isHatching, isEvolving, hatchTasks, evolveTasks,
+    showPostModal, refetchCurrentTasks,
+    dailyMissions, isClaimingReward, availableStages,
+    showAdoptionFlow,
+    blobbiNaddr, heroWidth,
+    showDevEditor, isDevUpdating, showEmotionPanel, showHatchCeremony,
+    inventoryAction,
+  ]);
   
   return (
     <DashboardShell>
@@ -1389,340 +1489,11 @@ function BlobbiDashboard({
           </p>
         </div>
       )}
-      
-      {/* Backdrop — tapping outside the drawer collapses it */}
-      {activeDrawer !== 'none' && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setActiveDrawer('none')}
-        />
-      )}
 
-      {/* ─── Drawer + Tab Bar — overlays the hero ─── */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        {/* Sliding drawer — in flow, pushes tabs down when open */}
-        <div
-          className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
-          style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
-        >
-          <ScrollArea style={{ height: 248 }}>
-            <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
-              {activeDrawer === 'care' && (
-                <CareTabContent
-                  isEgg={isEgg}
-                  isSleeping={isSleeping}
-                  onOpenItems={() => setActiveDrawer('items')}
-                  onDirectAction={handleDirectAction}
-                  onRest={onRest}
-                  actionInProgress={actionInProgress}
-                  isPublishing={isPublishing}
-                />
-              )}
-              {activeDrawer === 'items' && (
-                <ItemsTabContent
-                  allShopItems={getLiveShopItems()}
-                  onUseItem={handleUseItemFromTab}
-                  isUsingItem={isUsingItem}
-                  usingItemId={usingItemId}
-                />
-              )}
-              {activeDrawer === 'missions' && (
-                <MissionsTabContent
-                  isIncubating={isIncubating}
-                  isEvolvingState={isEvolvingState}
-                  isEgg={isEgg}
-                  isBaby={isBaby}
-                  hatchTasks={hatchTasks}
-                  evolveTasks={evolveTasks}
-                  onHatch={async () => setShowHatchCeremony(true)}
-                  isHatching={isHatching || showHatchCeremony}
-                  onEvolve={onEvolve}
-                  isEvolving={isEvolving}
-                  onStopIncubation={handleStopIncubation}
-                  isStoppingIncubation={isStoppingIncubation}
-                  onStopEvolution={handleStopEvolution}
-                  isStoppingEvolution={isStoppingEvolution}
-                  onOpenPostModal={() => setShowPostModal(true)}
-                  dailyMissions={dailyMissions}
-                  onClaimReward={(id) => claimReward({ missionId: id })}
-                  isClaimingReward={isClaimingReward}
-                  canStartIncubation={canStartIncubation}
-                  canStartEvolution={canStartEvolution}
-                  isStartingIncubation={isStartingIncubation}
-                  isStartingEvolution={isStartingEvolution}
-                  onStartIncubation={() => handleStartIncubation('start')}
-                  onStartEvolution={handleStartEvolution}
-                />
-              )}
-              {activeDrawer === 'more' && (
-                <MoreTabContent
-                  companion={companion}
-                  companions={companions}
-                  selectedD={selectedD}
-                  profile={profile}
-                  blobbiNaddr={blobbiNaddr}
-                  onSelectBlobbi={onSelectBlobbi}
-                  onAdopt={() => setShowAdoptionFlow(true)}
-                  onDevOpenEditor={() => setShowDevEditor(true)}
-                  onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? onEvolve : undefined}
-                  isHatching={isHatching}
-                  isEvolving={isEvolving}
-                />
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+      {/* ─── Room-based Layout ─── */}
+      <BlobbiRoomShell ctx={roomCtx} />
 
-        {/* The arc tab bar — below the drawer */}
-        <SubHeaderBar pinned className="relative !top-0">
-          <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
-            <span className="flex items-center gap-1.5">
-              <HeartHandshake className="size-4" />
-              <span className="text-sm">Care</span>
-            </span>
-          </TabButton>
-          <TabButton label="Items" active={activeDrawer === 'items'} onClick={() => toggleDrawer('items')}>
-            <span className="flex items-center gap-1.5">
-              <Package className="size-4" />
-              <span className="text-sm">Items</span>
-            </span>
-          </TabButton>
-          <TabButton label="Missions" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
-            <span className="flex items-center gap-1.5">
-              <Target className="size-4" />
-              <span className="text-sm">Quests</span>
-            </span>
-          </TabButton>
-          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
-            <span className="flex items-center gap-1.5">
-              <Egg className="size-4" />
-              <span className="text-sm">Blobbis</span>
-            </span>
-          </TabButton>
-        </SubHeaderBar>
-      </div>
-
-      {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div ref={heroRef} className="relative flex-1 min-h-0 flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden">
-
-
-        {/* Main Blobbi Visual with stats crown + action buttons */}
-        {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <Footprints className="size-16 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">
-              {companion.name} is out exploring right now.
-            </p>
-            <button
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              className={cn(
-                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
-                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                isUpdatingCompanion && 'opacity-50 pointer-events-none',
-              )}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
-            >
-              {isUpdatingCompanion ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : (
-                <Footprints className="size-5" />
-              )}
-              <span>Bring {companion.name} home</span>
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center">
-            {/* Stats crown — arced above the Blobbi */}
-            {(() => {
-              const allStats = getVisibleStats(companion.stage).map(stat => ({
-                stat,
-                value: currentStats[stat] ?? 100,
-                status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
-                color: STAT_COLOR_MAP[stat],
-              }));
-              if (allStats.length === 0) return null;
-
-              const count = allStats.length;
-              const isSmall = heroWidth < 400;
-              const arcSpread = isSmall
-                ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
-                : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
-              const arcHalf = arcSpread / 2;
-              const angles = count === 1
-                ? [0]
-                : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
-
-              return (
-                <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
-                  {allStats.map((s, i) => {
-                    const angleDeg = angles[i];
-                    const angleRad = (angleDeg * Math.PI) / 180;
-                    // Scale radius based on container width: ~140 at 340px, ~210 at 640px+
-                    const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
-                    const x = Math.sin(angleRad) * radius;
-                    // Inverted: center (cos=1) is highest, edges droop down
-                    const y = Math.cos(angleRad) * radius - radius;
-
-                    return (
-                      <div
-                        key={s.stat}
-                        className="absolute transition-all duration-500"
-                        style={{
-                          transform: `translate(-50%, 0)`,
-                          left: `calc(50% + ${x.toFixed(1)}px)`,
-                          bottom: `${y.toFixed(1)}px`,
-                        }}
-                      >
-                        <StatIndicator
-                          stat={s.stat}
-                          value={s.value}
-                          color={s.color}
-                          status={s.status}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {/* Blobbi visual */}
-            <div
-              className="relative transition-all duration-500"
-              style={!isSleeping ? {
-                animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
-              } : undefined}
-            >
-              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-              <BlobbiStageVisual
-                companion={companion}
-                size="lg"
-                animated={!isSleeping}
-                reaction={blobbiReaction}
-                recipe={hasDevOverride ? undefined : statusRecipe}
-                recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
-                emotion={effectiveEmotion}
-                className={isEgg
-                  ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
-                  : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
-                }
-              />
-            </div>
-
-            {/* Blobbi Name — hidden for eggs */}
-            {!isEgg && (
-              <h2
-                className="text-2xl sm:text-3xl font-bold text-center -mt-2"
-                style={{ color: companion.visualTraits.baseColor }}
-              >
-                {companion.name}
-              </h2>
-            )}
-          </div>
-        )}
-
-        {/* ── Action circles — below the Blobbi ── */}
-        {!isActiveFloatingCompanion && (
-          <div className="relative z-10 w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
-            {/* Photo — lower left */}
-            <button
-              onClick={() => setShowPhotoModal(true)}
-              className={cn(
-                'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                'hover:-translate-y-1 hover:scale-110 active:scale-95',
-              )}
-            >
-              <div
-                className="size-20 sm:size-24 rounded-full flex items-center justify-center text-pink-500"
-                style={{
-                  background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #ec4899 14%, transparent), color-mix(in srgb, #ec4899 4%, transparent) 70%)',
-                }}
-              >
-                <Camera className="size-9 sm:size-10" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Photo</span>
-            </button>
-
-            {/* Companion — lower right */}
-            {canBeCompanion && (
-              <button
-                onClick={handleSetAsCompanion}
-                disabled={isUpdatingCompanion}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
-                  isUpdatingCompanion && 'opacity-50',
-                )}
-              >
-                <div
-                  className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
-                  style={{
-                    background: isCurrentCompanion
-                      ? 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #10b981 14%, transparent), color-mix(in srgb, #10b981 4%, transparent) 70%)'
-                      : 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 14%, transparent), color-mix(in srgb, #8b5cf6 4%, transparent) 70%)',
-                  }}
-                >
-                  {isUpdatingCompanion ? (
-                    <Loader2 className="size-9 sm:size-10 animate-spin" />
-                  ) : (
-                    <Footprints className="size-9 sm:size-10" />
-                  )}
-                </div>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {isCurrentCompanion ? 'With you' : 'Take along'}
-                </span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Inline Activity Area (music/sing — floats above tabs) ─── */}
-      {inlineActivity.type === 'music' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineMusicPlayer
-            selection={inlineActivity.selection}
-            onChangeTrack={handleChangeTrack}
-            onClose={handleCloseInlineActivity}
-            onPlaybackStart={handleMusicPlaybackStart}
-            onPlaybackStop={handleMusicPlaybackStop}
-            isPublished={inlineActivity.isPublished}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-      {inlineActivity.type === 'sing' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineSingCard
-            onConfirm={handleConfirmSing}
-            onClose={handleCloseInlineActivity}
-            onRecordingStart={handleSingRecordingStart}
-            onRecordingStop={handleSingRecordingStop}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-
-      {/* Tab content is now rendered in the drawer above */}
-      
-      {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
-
-      {/* Inventory Action Confirmation Modal (Feed/Play/Clean) */}
-      {inventoryAction && (
-        <BlobbiActionInventoryModal
-          open={!!inventoryAction}
-          onOpenChange={(open) => !open && setInventoryAction(null)}
-          action={inventoryAction}
-          companion={companion}
-          profile={profile}
-          onUseItem={handleUseItem}
-          onOpenShop={handleOpenShopFromAction}
-          isUsingItem={isUsingItem}
-          usingItemId={usingItemId}
-        />
-      )}
+      {/* ─── Global Dialogs (shared across all rooms) ─── */}
       
       {/* Track Picker Modal */}
       <PlayMusicModal
@@ -1748,8 +1519,7 @@ function BlobbiDashboard({
         companion={companion}
       />
 
-
-      {/* Hatch Ceremony — portaled to document.body to escape center column stacking context */}
+      {/* Hatch Ceremony — portaled to document.body */}
       {showHatchCeremony && createPortal(
         <div className="fixed inset-0 z-[100] bg-background">
           <BlobbiHatchingCeremony
@@ -1804,749 +1574,6 @@ function BlobbiDashboard({
   );
 }
 
-// ─── Care Tab Content ─────────────────────────────────────────────────────────
-
-interface CareTabContentProps {
-  isEgg: boolean;
-  isSleeping: boolean;
-  onOpenItems: () => void;
-  onDirectAction: (action: DirectAction) => void;
-  onRest: () => void;
-  actionInProgress: string | null;
-  isPublishing: boolean;
-}
-
-function CareTabContent({
-  isEgg,
-  isSleeping,
-  onOpenItems,
-  onDirectAction,
-  onRest,
-  actionInProgress,
-  isPublishing,
-}: CareTabContentProps) {
-  const isDisabled = isPublishing || actionInProgress !== null;
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[210px]">
-      <div className="flex items-center justify-center gap-3 min-[400px]:gap-6 sm:gap-10">
-        <CareActionButton
-          icon={<Package className="size-10 sm:size-12" />}
-          statIcon={<Sparkles className="size-3.5" />}
-          label="Items"
-          description="Feed, clean & heal"
-          color="text-sky-500"
-          onClick={onOpenItems}
-          disabled={isDisabled}
-        />
-
-        <CareActionButton
-          icon={<Music className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Music"
-          description="Play a tune"
-          color="text-pink-500"
-          onClick={() => onDirectAction('play_music')}
-          disabled={isDisabled}
-        />
-
-        <CareActionButton
-          icon={<Mic className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Sing"
-          description="Sing together"
-          color="text-purple-500"
-          onClick={() => onDirectAction('sing')}
-          disabled={isDisabled}
-        />
-
-        {!isEgg && (
-          <CareActionButton
-            icon={
-              actionInProgress === 'rest' ? (
-                <Loader2 className="size-10 sm:size-12 animate-spin" />
-              ) : isSleeping ? (
-                <Sun className="size-10 sm:size-12" />
-              ) : (
-                <Moon className="size-10 sm:size-12" />
-              )
-            }
-            statIcon={<Zap className="size-3.5" />}
-            label={isSleeping ? 'Wake' : 'Sleep'}
-            description={isSleeping ? 'Rise and shine' : 'Rest & recharge'}
-            color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
-            onClick={onRest}
-            disabled={isDisabled}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Care Action Button ───────────────────────────────────────────────────────
-
-function CareActionButton({
-  icon,
-  statIcon,
-  label,
-  description,
-  color,
-  onClick,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  statIcon: React.ReactNode;
-  label: string;
-  description: string;
-  color: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-        'hover:-translate-y-2 hover:scale-105 active:scale-95',
-        disabled && 'opacity-40 pointer-events-none',
-      )}
-    >
-      <div className="relative">
-        <div
-          className={cn('size-16 min-[400px]:size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
-          style={{
-            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 14%, transparent), color-mix(in srgb, currentColor 5%, transparent) 70%)',
-          }}
-        >
-          {icon}
-        </div>
-        <div className="absolute -bottom-1 -right-1 size-7 rounded-full flex items-center justify-center bg-background ring-2 ring-background">
-          <span className="text-muted-foreground">{statIcon}</span>
-        </div>
-      </div>
-      <span className={cn('text-sm font-semibold', color)}>{label}</span>
-      <span className="text-[10px] leading-tight text-muted-foreground/70">{description}</span>
-    </button>
-  );
-}
-
-// ─── Items Tab Content ────────────────────────────────────────────────────────
-
-/** Lucide icon + color for each item category */
-function ItemTypeIndicator({ type }: { type: string }) {
-  switch (type) {
-    case 'food':
-      return <Utensils className="size-4 text-amber-400" strokeWidth={4} />;
-    case 'toy':
-      return <Gamepad2 className="size-4 text-rose-400" strokeWidth={4} />;
-    case 'medicine':
-      return <Heart className="size-4 text-emerald-400" strokeWidth={4} />;
-    case 'hygiene':
-      return <Droplets className="size-4 text-sky-400" strokeWidth={4} />;
-    default:
-      return null;
-  }
-}
-
-interface ItemsTabContentProps {
-  allShopItems: ShopItem[];
-  onUseItem: (itemId: string) => void;
-  isUsingItem: boolean;
-  usingItemId: string | null;
-}
-
-function ItemsTabContent({
-  allShopItems,
-  onUseItem,
-  isUsingItem,
-  usingItemId,
-}: ItemsTabContentProps) {
-  const { isOnCooldown } = useItemCooldown();
-
-  return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
-      {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
-        const isThisUsing = isUsingItem && usingItemId === item.id;
-        const isCoolingDown = isOnCooldown(item.id);
-        const isDisabled = isUsingItem || isCoolingDown;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onUseItem(item.id)}
-            disabled={isDisabled}
-            className={cn(
-              'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
-              'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
-              isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isDisabled && !isThisUsing && 'opacity-40 pointer-events-none',
-            )}
-          >
-            {/* Stat category indicator — top-right */}
-            <span className="absolute top-1.5 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
-              <ItemTypeIndicator type={item.type} />
-            </span>
-            <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
-            <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
-            {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
-            {isCoolingDown && !isThisUsing && <Clock className="size-3 text-muted-foreground absolute bottom-1" />}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Missions Tab Content ─────────────────────────────────────────────────────
-
-interface MissionsTabContentProps {
-  isIncubating: boolean;
-  isEvolvingState: boolean;
-  isEgg: boolean;
-  isBaby: boolean;
-  hatchTasks: ReturnType<typeof useHatchTasks>;
-  evolveTasks: ReturnType<typeof useEvolveTasks>;
-  onHatch: () => Promise<void>;
-  isHatching: boolean;
-  onEvolve: () => Promise<void>;
-  isEvolving: boolean;
-  onStopIncubation: () => Promise<void>;
-  isStoppingIncubation: boolean;
-  onStopEvolution: () => Promise<void>;
-  isStoppingEvolution: boolean;
-  onOpenPostModal: () => void;
-  dailyMissions: ReturnType<typeof useDailyMissions>;
-  onClaimReward: (id: string) => void;
-  isClaimingReward: boolean;
-  canStartIncubation: boolean;
-  canStartEvolution: boolean;
-  isStartingIncubation: boolean;
-  isStartingEvolution: boolean;
-  onStartIncubation: () => void;
-  onStartEvolution: () => void;
-}
-
-type QuestPane = 'journey' | 'bounties';
-
-function MissionsTabContent({
-  isIncubating,
-  isEvolvingState,
-  isEgg,
-  isBaby,
-  hatchTasks,
-  evolveTasks,
-  onHatch,
-  isHatching,
-  onEvolve,
-  isEvolving,
-  onStopIncubation,
-  isStoppingIncubation,
-  onStopEvolution,
-  isStoppingEvolution,
-  onOpenPostModal,
-  dailyMissions,
-  onClaimReward,
-  isClaimingReward,
-  canStartIncubation,
-  canStartEvolution,
-  isStartingIncubation,
-  isStartingEvolution,
-  onStartIncubation,
-  onStartEvolution,
-}: MissionsTabContentProps) {
-  const [pane, setPane] = useState<QuestPane>('journey');
-  const hasActiveProcess = (isIncubating && isEgg) || (isEvolvingState && isBaby);
-  const isProcessBusy = isHatching || isEvolving || isStoppingIncubation || isStoppingEvolution;
-  const tasks = isIncubating ? hatchTasks.tasks : evolveTasks.tasks;
-  const allCompleted = isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted;
-  const isLoading = isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading;
-  const navigate = useNavigate();
-
-  const completedCount = tasks.filter(t => t.completed).length;
-  const totalCount = tasks.length;
-
-  const { missions } = dailyMissions;
-  const dailyCompleted = missions.filter(m => m.claimed).length;
-  const dailyTotal = missions.length;
-
-  return (
-    <div className="flex flex-col h-full px-3 sm:px-4">
-      {/* ── Pill toggle ── */}
-      <div className="flex justify-center py-2">
-        <div className="inline-flex rounded-full bg-muted/50 p-1 gap-0.5">
-          <button
-            onClick={() => setPane('journey')}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
-              pane === 'journey'
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Egg className="size-3.5" />
-            Journey
-            {hasActiveProcess && (
-              <span className="text-[10px] tabular-nums text-muted-foreground">{completedCount}/{totalCount}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setPane('bounties')}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
-              pane === 'bounties'
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Target className="size-3.5" />
-            Bounties
-            {dailyTotal > 0 && (
-              <span className="text-[10px] tabular-nums text-muted-foreground">{dailyCompleted}/{dailyTotal}</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Content area ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
-        {pane === 'journey' && (
-          <>
-            {/* Loading */}
-            {isLoading && (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {/* Active task rows */}
-            {hasActiveProcess && !isLoading && tasks.map(task => {
-              const handleAction = () => {
-                if (!task.action || !task.actionTarget) return;
-                switch (task.action) {
-                  case 'navigate': navigate(task.actionTarget); break;
-                  case 'external_link': openUrl(task.actionTarget); break;
-                  case 'open_modal': if (task.actionTarget === 'blobbi_post') onOpenPostModal(); break;
-                }
-              };
-              const isActionable = !task.completed && !!task.action && !!task.actionTarget;
-              return (
-                <button
-                  key={task.id}
-                  onClick={isActionable ? handleAction : undefined}
-                  disabled={!isActionable}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all text-left',
-                    isActionable && 'hover:bg-accent/50 active:scale-[0.98] cursor-pointer',
-                    !isActionable && 'cursor-default',
-                  )}
-                >
-                  <QuestTaskIcon taskId={task.id} completed={task.completed} />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{task.name}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{task.description}</p>
-                  </div>
-                  {task.required > 1 && !task.completed && (
-                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{task.current}/{task.required}</span>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Hatch / Evolve CTA */}
-            {hasActiveProcess && allCompleted && !isLoading && (
-              <button
-                onClick={isIncubating ? onHatch : onEvolve}
-                disabled={isProcessBusy}
-                className={cn(
-                  'w-full flex items-center justify-center gap-2 px-6 py-3 mt-1 rounded-full text-white font-semibold transition-all duration-300',
-                  'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                  isProcessBusy && 'opacity-50 pointer-events-none',
-                )}
-                style={{
-                  background: isIncubating
-                    ? 'linear-gradient(135deg, #0ea5e9, #8b5cf6)'
-                    : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                }}
-              >
-                {(isHatching || isEvolving) ? (
-                  <Loader2 className="size-5 animate-spin" />
-                ) : (
-                  <span className="text-lg">{isIncubating ? '\uD83D\uDC23' : '\u2728'}</span>
-                )}
-                <span>{(isHatching || isEvolving) ? (isIncubating ? 'Hatching...' : 'Evolving...') : (isIncubating ? 'Hatch!' : 'Evolve!')}</span>
-              </button>
-            )}
-
-            {/* Stop process */}
-            {hasActiveProcess && !isLoading && (
-              <button
-                onClick={isIncubating ? onStopIncubation : onStopEvolution}
-                disabled={isProcessBusy}
-                className="w-full text-center text-[11px] text-muted-foreground/40 hover:text-destructive/60 transition-colors pt-1"
-              >
-                {(isStoppingIncubation || isStoppingEvolution) ? 'Stopping...' : `Stop ${isIncubating ? 'incubation' : 'evolution'}`}
-              </button>
-            )}
-
-            {/* No active process */}
-            {!hasActiveProcess && !isLoading && (
-              <div className="flex flex-col items-center gap-3 py-4">
-                {(canStartIncubation || canStartEvolution) ? (
-                  <button
-                    onClick={canStartIncubation ? onStartIncubation : onStartEvolution}
-                    disabled={isStartingIncubation || isStartingEvolution}
-                    className={cn(
-                      'flex items-center justify-center gap-2 px-8 py-3 rounded-full text-white font-semibold transition-all duration-300',
-                      'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                      (isStartingIncubation || isStartingEvolution) && 'opacity-50 pointer-events-none',
-                    )}
-                    style={{
-                      background: canStartIncubation
-                        ? 'linear-gradient(135deg, #0ea5e9, #8b5cf6)'
-                        : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    }}
-                  >
-                    {(isStartingIncubation || isStartingEvolution) ? (
-                      <Loader2 className="size-5 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-5" />
-                    )}
-                    <span>{canStartIncubation ? 'Begin Hatching' : 'Begin Evolution'}</span>
-                  </button>
-                ) : (
-                  <p className="text-xs text-muted-foreground/50">No journey available right now</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {pane === 'bounties' && (
-          <>
-            {dailyMissions.noMissionsAvailable && (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <Egg className="size-6 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground">Hatch your Blobbi to unlock daily bounties</p>
-              </div>
-            )}
-
-            {!dailyMissions.noMissionsAvailable && missions.map(mission => {
-              const canClaim = mission.completed && !mission.claimed;
-              return (
-                <div
-                  key={mission.id}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
-                    canClaim && 'bg-amber-500/[0.06]',
-                  )}
-                >
-                  <DailyMissionIcon action={mission.action} claimed={mission.claimed} canClaim={canClaim} />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', mission.claimed && 'text-muted-foreground line-through')}>{mission.title}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
-                  </div>
-                  {!mission.claimed && (
-                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.currentCount}/{mission.requiredCount}</span>
-                  )}
-                  {canClaim && (
-                    <button
-                      onClick={() => onClaimReward(mission.id)}
-                      disabled={isClaimingReward}
-                      className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                    >
-                      Claim
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Bonus row */}
-            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusAvailable && !dailyMissions.bonusClaimed && (
-              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-amber-500/[0.06]">
-                <div className="size-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="size-4 text-amber-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium leading-tight">Daily Champion</p>
-                  <p className="text-[10px] text-muted-foreground">All missions complete!</p>
-                </div>
-                <button
-                  onClick={() => onClaimReward('bonus_daily_complete')}
-                  disabled={isClaimingReward}
-                  className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Claim
-                </button>
-              </div>
-            )}
-
-            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.bonusClaimed && (
-              <div className="flex flex-col items-center gap-1 py-4 text-center">
-                <Sparkles className="size-5 text-primary/40" />
-                <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Quest task icon ──────────────────────────────────────────────────────────
-
-function QuestTaskIcon({ taskId, completed }: { taskId: string; completed: boolean }) {
-  const iconClass = 'size-4';
-  const icon = (() => {
-    switch (taskId) {
-      case 'create_themes': return <Sparkles className={iconClass} />;
-      case 'color_moments': return <Droplets className={iconClass} />;
-      case 'create_posts': return <Target className={iconClass} />;
-      case 'interactions': return <Heart className={iconClass} />;
-      case 'edit_profile': return <Wrench className={iconClass} />;
-      case 'maintain_stats': return <Zap className={iconClass} />;
-      default: return <Target className={iconClass} />;
-    }
-  })();
-  return (
-    <div className={cn(
-      'size-8 rounded-full flex items-center justify-center shrink-0',
-      completed ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted/60 text-muted-foreground',
-    )}>
-      {completed ? <Check className="size-4" /> : icon}
-    </div>
-  );
-}
-
-// ─── Daily mission icon ───────────────────────────────────────────────────────
-
-function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claimed: boolean; canClaim: boolean }) {
-  const iconClass = 'size-4';
-  const icon = (() => {
-    switch (action) {
-      case 'interact': return <Heart className={iconClass} />;
-      case 'feed': return <Utensils className={iconClass} />;
-      case 'clean': return <Droplets className={iconClass} />;
-      case 'sleep': return <Moon className={iconClass} />;
-      case 'take_photo': return <Camera className={iconClass} />;
-      case 'sing': return <Mic className={iconClass} />;
-      case 'play_music': return <Music className={iconClass} />;
-      case 'medicine': return <Pill className={iconClass} />;
-      default: return <Target className={iconClass} />;
-    }
-  })();
-  return (
-    <div className={cn(
-      'size-8 rounded-full flex items-center justify-center shrink-0',
-      claimed ? 'bg-emerald-500/15 text-emerald-500' : canClaim ? 'bg-amber-500/15 text-amber-500' : 'bg-muted/60 text-muted-foreground',
-    )}>
-      {claimed ? <Check className="size-4" /> : icon}
-    </div>
-  );
-}
-
-// ─── More Tab Content ─────────────────────────────────────────────────────────
-
-interface MoreTabContentProps {
-  companion: BlobbiCompanion;
-  companions: BlobbiCompanion[];
-  selectedD: string;
-  profile: BlobbonautProfile | null;
-  blobbiNaddr: string;
-  onSelectBlobbi: (d: string) => void;
-  onAdopt: () => void;
-  onDevOpenEditor: () => void;
-  onDevOpenEmotionPanel: () => void;
-  onDevInstantTransition?: () => void;
-  isHatching: boolean;
-  isEvolving: boolean;
-}
-
-function MoreTabContent({
-  companion,
-  companions,
-  selectedD,
-  profile,
-  blobbiNaddr,
-  onSelectBlobbi,
-  onAdopt,
-  onDevOpenEditor,
-  onDevOpenEmotionPanel,
-  onDevInstantTransition,
-  isHatching,
-  isEvolving,
-}: MoreTabContentProps) {
-  const isTransitioning = isHatching || isEvolving;
-
-  return (
-    <div className="flex flex-col items-center h-full min-h-[210px] px-3 sm:px-4">
-      {/* ── Blobbi grid ── */}
-      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-3">
-        {companions.map((c) => {
-          const isSelected = c.d === selectedD;
-          const isCompanion = c.d === profile?.currentCompanion;
-          return (
-            <button
-              key={c.d}
-              onClick={() => onSelectBlobbi(c.d)}
-              className={cn(
-                'flex flex-col items-center gap-1 transition-all duration-200',
-                'hover:-translate-y-1 hover:scale-105 active:scale-95',
-              )}
-            >
-              <div className="relative">
-                <div className={cn(
-                  'rounded-full p-1 transition-all',
-                  isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
-                )}>
-                  <BlobbiStageVisual companion={c} size="sm" />
-                </div>
-                {isCompanion && (
-                  <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-background ring-2 ring-background flex items-center justify-center">
-                    <Footprints className="size-3 text-emerald-500" />
-                  </div>
-                )}
-                {companionNeedsCare(c) && !isCompanion && (
-                  <div className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-amber-500 flex items-center justify-center">
-                    <span className="text-[8px] text-white font-bold">!</span>
-                  </div>
-                )}
-              </div>
-              {c.stage !== 'egg' && (
-                <span className={cn(
-                  'text-[11px] font-medium max-w-[4.5rem] truncate',
-                  isSelected ? 'text-foreground' : 'text-muted-foreground',
-                )}>
-                  {c.name}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        {/* Adopt + button */}
-        <button
-          onClick={onAdopt}
-          className="flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-1 hover:scale-105 active:scale-95"
-        >
-          <div className="size-14 rounded-full flex items-center justify-center" style={{
-            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 3%, transparent) 70%)',
-          }}>
-            <Plus className="size-6 text-muted-foreground/60" />
-          </div>
-          <span className="text-[11px] font-medium text-muted-foreground/60">Adopt</span>
-        </button>
-      </div>
-
-      {/* ── Quick actions row ── */}
-      <div className="flex items-center justify-center gap-6 pt-1">
-        <Link to={`/${blobbiNaddr}`} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-          <ExternalLink className="size-5" />
-          <span className="text-[10px]">View</span>
-        </Link>
-        {/* DEV tools */}
-        {isLocalhostDev() && (
-          <>
-            {companion.stage !== 'adult' && onDevInstantTransition && (
-              <button onClick={onDevInstantTransition} disabled={isTransitioning} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40">
-                <Sparkles className="size-5" />
-                <span className="text-[10px]">{companion.stage === 'egg' ? 'Hatch' : 'Evolve'}</span>
-              </button>
-            )}
-            <button onClick={onDevOpenEditor} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
-              <Wrench className="size-5" />
-              <span className="text-[10px]">Editor</span>
-            </button>
-            <button onClick={onDevOpenEmotionPanel} className="flex flex-col items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors">
-              <Theater className="size-5" />
-              <span className="text-[10px]">Emote</span>
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Stat Indicator ───────────────────────────────────────────────────────────
-
-interface StatIndicatorProps {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
-}
-
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green: 'text-green-500',
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10',
-  yellow: 'bg-yellow-500/10',
-  green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10',
-  violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  violet: '#8b5cf6',
-};
-
-/** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
-};
-
-function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
-  const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon with warning badge on its corner */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 
