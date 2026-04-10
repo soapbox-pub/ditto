@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendSparkline } from '@/components/RightSidebar';
+import { TrendSparkline } from '@/components/TrendSparkline';
 import { useTrendingTags, useTagSparklines } from '@/hooks/useTrending';
 import { formatNumber } from '@/lib/formatNumber';
 

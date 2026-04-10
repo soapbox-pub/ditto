@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, lazy, Suspense } from 'react';
+import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -105,7 +105,7 @@ interface SortableWidgetProps {
   onHeightChange: (id: string, height: number) => void;
 }
 
-function SortableWidget({ config, definition, onToggleCollapse, onRemove, onHeightChange }: SortableWidgetProps) {
+const SortableWidget = memo(function SortableWidget({ config, definition, onToggleCollapse, onRemove, onHeightChange }: SortableWidgetProps) {
   const {
     attributes,
     listeners,
@@ -140,7 +140,7 @@ function SortableWidget({ config, definition, onToggleCollapse, onRemove, onHeig
       </WidgetCard>
     </div>
   );
-}
+});
 
 // ── Main sidebar ─────────────────────────────────────────────────────────────
 
@@ -194,11 +194,13 @@ export function WidgetSidebar() {
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sortableIds.indexOf(active.id as string);
-    const newIndex = sortableIds.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    updateWidgets((ws) => arrayMove(ws, oldIndex, newIndex));
-  }, [sortableIds, updateWidgets]);
+    updateWidgets((ws) => {
+      const oldIndex = ws.findIndex((w) => w.id === active.id);
+      const newIndex = ws.findIndex((w) => w.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return ws;
+      return arrayMove(ws, oldIndex, newIndex);
+    });
+  }, [updateWidgets]);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-2">

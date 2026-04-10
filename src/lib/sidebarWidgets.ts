@@ -158,9 +158,12 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
 ];
 
+/** Pre-built Map for O(1) widget definition lookup. */
+const WIDGET_MAP = new Map(WIDGET_DEFINITIONS.map((w) => [w.id, w]));
+
 /** Lookup a widget definition by ID. */
 export function getWidgetDefinition(id: string): WidgetDefinition | undefined {
-  return WIDGET_DEFINITIONS.find((w) => w.id === id);
+  return WIDGET_MAP.get(id);
 }
 
 /** Category labels for display in the picker. */
