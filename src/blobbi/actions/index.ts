@@ -197,6 +197,23 @@ export {
 } from '@/blobbi/core/lib/missions';
 export type { ProfileContent } from '@/blobbi/core/lib/missions';
 
+// Item cooldown
+export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from './lib/item-cooldown';
+export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from './lib/item-cooldown';
+export { useItemCooldown } from './hooks/useItemCooldown';
+
+// Action XP
+export {
+  ACTION_XP,
+  INVENTORY_ACTION_XP,
+  DIRECT_ACTION_XP,
+  POOP_CLEANUP_XP,
+  calculateActionXP,
+  calculateInventoryActionXP,
+  applyXPGain,
+  formatXPGain,
+} from './lib/blobbi-xp';
+
 // Streak tracking
 export {
   calculateStreakUpdate,
