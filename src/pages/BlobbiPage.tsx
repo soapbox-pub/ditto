@@ -3,11 +3,10 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -47,7 +46,6 @@ import {
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { ShopItem } from '@/blobbi/shop/types/shop.types';
 
 import {
   BlobbiActionInventoryModal,
@@ -89,6 +87,20 @@ import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/com
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import {
+  BlobbiRoomShell,
+  BlobbiRoomHero,
+  ItemCarousel,
+  RoomActionButton,
+  type BlobbiRoomId,
+  type CarouselEntry,
+  type PoopState,
+  isValidRoomId,
+  DEFAULT_INITIAL_ROOM,
+  getPoopsInRoom,
+  hasAnyPoop,
+} from '@/blobbi/rooms';
+import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
@@ -122,14 +134,7 @@ function companionNeedsCare(companion: BlobbiCompanion): boolean {
   );
 }
 
-/** Map stat keys to indicator colors */
-const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
-  hunger: 'orange',
-  happiness: 'yellow',
-  health: 'green',
-  hygiene: 'blue',
-  energy: 'violet',
-};
+
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
@@ -814,8 +819,8 @@ function DashboardShell({ children }: DashboardShellProps) {
 
 // ─── Dashboard Drawer Type ────────────────────────────────────────────────────
 
-/** Which drawer is open; 'none' = all closed */
-type DashboardDrawer = 'none' | 'care' | 'items' | 'missions' | 'more';
+/** Which drawer is open; 'none' = room view visible */
+type DashboardDrawer = 'none' | 'missions' | 'more';
 
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
@@ -895,7 +900,13 @@ function BlobbiDashboard({
   
   // ─── Active Drawer ───
   const isMobile = useIsMobile();
-  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>(isMobile ? 'none' : 'care');
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
+
+  // ─── Room Navigation ───
+  const [currentRoom, setCurrentRoom] = useState<BlobbiRoomId>(
+    isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
+  );
+  const poopStateRef = useRef<PoopState | null>(null);
   
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
@@ -1353,10 +1364,9 @@ function BlobbiDashboard({
     }
   };
   
-  // Handle opening shop from empty state (switches to items drawer)
+  // Handle opening shop from empty state
   const handleOpenShopFromAction = () => {
     setInventoryAction(null);
-    setActiveDrawer('items');
   };
 
   // ─── Daily Missions (for missions tab) ───
@@ -1392,34 +1402,14 @@ function BlobbiDashboard({
         />
       )}
 
-      {/* ─── Drawer + Tab Bar — overlays the hero ─── */}
+      {/* ─── Drawer + Tab Bar — overlays the room ─── */}
       <div className="absolute top-0 left-0 right-0 z-20">
-        {/* Sliding drawer — in flow, pushes tabs down when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
         >
           <ScrollArea style={{ height: 248 }}>
             <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
-              {activeDrawer === 'care' && (
-                <CareTabContent
-                  isEgg={isEgg}
-                  isSleeping={isSleeping}
-                  onOpenItems={() => setActiveDrawer('items')}
-                  onDirectAction={handleDirectAction}
-                  onRest={onRest}
-                  actionInProgress={actionInProgress}
-                  isPublishing={isPublishing}
-                />
-              )}
-              {activeDrawer === 'items' && (
-                <ItemsTabContent
-                  allShopItems={getLiveShopItems()}
-                  onUseItem={handleUseItemFromTab}
-                  isUsingItem={isUsingItem}
-                  usingItemId={usingItemId}
-                />
-              )}
               {activeDrawer === 'missions' && (
                 <MissionsTabContent
                   isIncubating={isIncubating}
@@ -1437,7 +1427,7 @@ function BlobbiDashboard({
                   onStopEvolution={handleStopEvolution}
                   isStoppingEvolution={isStoppingEvolution}
                   onOpenPostModal={() => setShowPostModal(true)}
-                   dailyMissions={dailyMissions}
+                  dailyMissions={dailyMissions}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -1466,21 +1456,8 @@ function BlobbiDashboard({
           </ScrollArea>
         </div>
 
-        {/* The arc tab bar — below the drawer */}
         <SubHeaderBar pinned className="relative !top-0">
-          <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
-            <span className="flex items-center gap-1.5">
-              <HeartHandshake className="size-4" />
-              <span className="text-sm">Care</span>
-            </span>
-          </TabButton>
-          <TabButton label="Items" active={activeDrawer === 'items'} onClick={() => toggleDrawer('items')}>
-            <span className="flex items-center gap-1.5">
-              <Package className="size-4" />
-              <span className="text-sm">Items</span>
-            </span>
-          </TabButton>
-          <TabButton label="Missions" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
+          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
@@ -1495,209 +1472,88 @@ function BlobbiDashboard({
         </SubHeaderBar>
       </div>
 
-      {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div ref={heroRef} className="relative flex-1 min-h-0 flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden">
-
-
-        {/* Main Blobbi Visual with stats crown + action buttons */}
-        {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <Footprints className="size-16 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">
-              {companion.name} is out exploring right now.
-            </p>
-            <button
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              className={cn(
-                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
-                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                isUpdatingCompanion && 'opacity-50 pointer-events-none',
-              )}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
-            >
-              {isUpdatingCompanion ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : (
-                <Footprints className="size-5" />
-              )}
-              <span>Bring {companion.name} home</span>
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center">
-            {/* Stats crown — arced above the Blobbi */}
-            {(() => {
-              const allStats = getVisibleStats(companion.stage).map(stat => ({
-                stat,
-                value: currentStats[stat] ?? 100,
-                status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
-                color: STAT_COLOR_MAP[stat],
-              }));
-              if (allStats.length === 0) return null;
-
-              const count = allStats.length;
-              const isSmall = heroWidth < 400;
-              const arcSpread = isSmall
-                ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
-                : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
-              const arcHalf = arcSpread / 2;
-              const angles = count === 1
-                ? [0]
-                : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
-
-              return (
-                <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
-                  {allStats.map((s, i) => {
-                    const angleDeg = angles[i];
-                    const angleRad = (angleDeg * Math.PI) / 180;
-                    // Scale radius based on container width: ~140 at 340px, ~210 at 640px+
-                    const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
-                    const x = Math.sin(angleRad) * radius;
-                    // Inverted: center (cos=1) is highest, edges droop down
-                    const y = Math.cos(angleRad) * radius - radius;
-
-                    return (
-                      <div
-                        key={s.stat}
-                        className="absolute transition-all duration-500"
-                        style={{
-                          transform: `translate(-50%, 0)`,
-                          left: `calc(50% + ${x.toFixed(1)}px)`,
-                          bottom: `${y.toFixed(1)}px`,
-                        }}
-                      >
-                        <StatIndicator
-                          stat={s.stat}
-                          value={s.value}
-                          color={s.color}
-                          status={s.status}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {/* Blobbi visual */}
-            <div
-              className="relative transition-all duration-500"
-              style={!isSleeping ? {
-                animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
-              } : undefined}
-            >
-              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-              <BlobbiStageVisual
-                companion={companion}
-                size="lg"
-                animated={!isSleeping}
-                reaction={blobbiReaction}
-                recipe={hasDevOverride ? undefined : statusRecipe}
-                recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
-                emotion={effectiveEmotion}
-                className={isEgg
-                  ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
-                  : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
-                }
-              />
-            </div>
-
-            {/* Blobbi Name — hidden for eggs */}
-            {!isEgg && (
-              <h2
-                className="text-2xl sm:text-3xl font-bold text-center -mt-2"
-                style={{ color: companion.visualTraits.baseColor }}
-              >
-                {companion.name}
-              </h2>
-            )}
-          </div>
-        )}
-
-        {/* ── Action circles — below the Blobbi ── */}
-        {!isActiveFloatingCompanion && (
-          <div className="relative z-10 w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
-            {/* Photo — lower left */}
-            <button
-              onClick={() => setShowPhotoModal(true)}
-              className={cn(
-                'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                'hover:-translate-y-1 hover:scale-110 active:scale-95',
-              )}
-            >
-              <div
-                className="size-20 sm:size-24 rounded-full flex items-center justify-center text-pink-500"
-                style={{
-                  background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #ec4899 14%, transparent), color-mix(in srgb, #ec4899 4%, transparent) 70%)',
-                }}
-              >
-                <Camera className="size-9 sm:size-10" />
+      {/* ─── Room View (always visible behind drawer) ─── */}
+      <BlobbiRoomShell
+        roomId={currentRoom}
+        onChangeRoom={setCurrentRoom}
+        isSleeping={isSleeping}
+        hunger={currentStats.hunger}
+        lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
+        poopStateRef={poopStateRef}
+        hero={
+          <BlobbiRoomHero
+            companion={companion}
+            currentStats={currentStats}
+            isSleeping={isSleeping}
+            isEgg={isEgg}
+            statusRecipe={statusRecipe}
+            statusRecipeLabel={statusRecipeLabel}
+            effectiveEmotion={effectiveEmotion}
+            hasDevOverride={hasDevOverride}
+            blobbiReaction={blobbiReaction}
+            isActiveFloatingCompanion={isActiveFloatingCompanion}
+            isUpdatingCompanion={isUpdatingCompanion}
+            handleSetAsCompanion={handleSetAsCompanion}
+            heroRef={heroRef}
+            heroWidth={heroWidth}
+          />
+        }
+        middleSlot={
+          <>
+            {inlineActivity.type === 'music' && (
+              <div className="px-4 sm:px-6 pb-2">
+                <InlineMusicPlayer
+                  selection={inlineActivity.selection}
+                  onChangeTrack={handleChangeTrack}
+                  onClose={handleCloseInlineActivity}
+                  onPlaybackStart={handleMusicPlaybackStart}
+                  onPlaybackStop={handleMusicPlaybackStop}
+                  isPublished={inlineActivity.isPublished}
+                  isPublishing={isDirectActionPending}
+                />
               </div>
-              <span className="text-xs font-medium text-muted-foreground">Photo</span>
-            </button>
-
-            {/* Companion — lower right */}
-            {canBeCompanion && (
-              <button
-                onClick={handleSetAsCompanion}
-                disabled={isUpdatingCompanion}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
-                  isUpdatingCompanion && 'opacity-50',
-                )}
-              >
-                <div
-                  className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
-                  style={{
-                    background: isCurrentCompanion
-                      ? 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #10b981 14%, transparent), color-mix(in srgb, #10b981 4%, transparent) 70%)'
-                      : 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 14%, transparent), color-mix(in srgb, #8b5cf6 4%, transparent) 70%)',
-                  }}
-                >
-                  {isUpdatingCompanion ? (
-                    <Loader2 className="size-9 sm:size-10 animate-spin" />
-                  ) : (
-                    <Footprints className="size-9 sm:size-10" />
-                  )}
-                </div>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {isCurrentCompanion ? 'With you' : 'Take along'}
-                </span>
-              </button>
             )}
-          </div>
+            {inlineActivity.type === 'sing' && (
+              <div className="px-4 sm:px-6 pb-2">
+                <InlineSingCard
+                  onConfirm={handleConfirmSing}
+                  onClose={handleCloseInlineActivity}
+                  onRecordingStart={handleSingRecordingStart}
+                  onRecordingStop={handleSingRecordingStop}
+                  isPublishing={isDirectActionPending}
+                />
+              </div>
+            )}
+          </>
+        }
+      >
+        {/* Per-room bottom bar */}
+        {!isActiveFloatingCompanion && (
+          <RoomBottomBar
+            room={currentRoom}
+            companion={companion}
+            profile={profile}
+            isEgg={isEgg}
+            isSleeping={isSleeping}
+            isUsingItem={isUsingItem}
+            usingItemId={usingItemId}
+            isPublishing={isPublishing}
+            actionInProgress={actionInProgress}
+            isDirectActionPending={isDirectActionPending}
+            isCurrentCompanion={isCurrentCompanion}
+            canBeCompanion={canBeCompanion}
+            isUpdatingCompanion={isUpdatingCompanion}
+            handleSetAsCompanion={handleSetAsCompanion}
+            handleUseItemFromTab={handleUseItemFromTab}
+            handleDirectAction={handleDirectAction}
+            onUseItem={onUseItem}
+            onRest={onRest}
+            setShowPhotoModal={setShowPhotoModal}
+            setInventoryAction={setInventoryAction}
+            poopStateRef={poopStateRef}
+          />
         )}
-      </div>
-
-      {/* ─── Inline Activity Area (music/sing — floats above tabs) ─── */}
-      {inlineActivity.type === 'music' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineMusicPlayer
-            selection={inlineActivity.selection}
-            onChangeTrack={handleChangeTrack}
-            onClose={handleCloseInlineActivity}
-            onPlaybackStart={handleMusicPlaybackStart}
-            onPlaybackStop={handleMusicPlaybackStop}
-            isPublished={inlineActivity.isPublished}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-      {inlineActivity.type === 'sing' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineSingCard
-            onConfirm={handleConfirmSing}
-            onClose={handleCloseInlineActivity}
-            onRecordingStart={handleSingRecordingStart}
-            onRecordingStop={handleSingRecordingStop}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-
-      {/* Tab content is now rendered in the drawer above */}
+      </BlobbiRoomShell>
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -1796,77 +1652,324 @@ function BlobbiDashboard({
   );
 }
 
-// ─── Care Tab Content ─────────────────────────────────────────────────────────
+// ─── Room Bottom Bar ──────────────────────────────────────────────────────────
 
-interface CareTabContentProps {
+interface RoomBottomBarProps {
+  room: BlobbiRoomId;
+  companion: BlobbiCompanion;
+  profile: BlobbonautProfile | null;
   isEgg: boolean;
   isSleeping: boolean;
-  onOpenItems: () => void;
-  onDirectAction: (action: DirectAction) => void;
-  onRest: () => void;
-  actionInProgress: string | null;
+  isUsingItem: boolean;
+  usingItemId: string | null;
   isPublishing: boolean;
+  actionInProgress: string | null;
+  isDirectActionPending: boolean;
+  isCurrentCompanion: boolean;
+  canBeCompanion: boolean;
+  isUpdatingCompanion: boolean;
+  handleSetAsCompanion: () => Promise<void>;
+  handleUseItemFromTab: (itemId: string) => void;
+  handleDirectAction: (action: DirectAction) => void;
+  onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
+  onRest: () => void;
+  setShowPhotoModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setInventoryAction: React.Dispatch<React.SetStateAction<InventoryAction | null>>;
+  poopStateRef: React.MutableRefObject<PoopState | null>;
 }
 
-function CareTabContent({
-  isEgg,
-  isSleeping,
-  onOpenItems,
-  onDirectAction,
-  onRest,
-  actionInProgress,
+function RoomBottomBar(props: RoomBottomBarProps) {
+  switch (props.room) {
+    case 'home': return <HomeBar {...props} />;
+    case 'kitchen': return <KitchenBar {...props} />;
+    case 'care': return <CareBar {...props} />;
+    case 'rest': return <RestBar {...props} />;
+    case 'closet': return <ClosetBar />;
+  }
+}
+
+// ── Home: toys + music/sing, photo left, companion right ──
+
+function HomeBar({
+  isUsingItem,
+  usingItemId,
   isPublishing,
-}: CareTabContentProps) {
-  const isDisabled = isPublishing || actionInProgress !== null;
+  actionInProgress,
+  isCurrentCompanion,
+  canBeCompanion,
+  isUpdatingCompanion,
+  handleSetAsCompanion,
+  handleUseItemFromTab,
+  handleDirectAction,
+  setShowPhotoModal,
+}: RoomBottomBarProps) {
+  const carouselItems = useMemo<CarouselEntry[]>(() => {
+    const toys = getLiveShopItems()
+      .filter(i => i.type === 'toy')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name }));
+    return [
+      ...toys,
+      {
+        id: '__action_music',
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-pink-500/15 text-pink-500"><Music className="size-5 sm:size-6" /></div>,
+        label: 'Music',
+      },
+      {
+        id: '__action_sing',
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-500"><Mic className="size-5 sm:size-6" /></div>,
+        label: 'Sing',
+      },
+    ];
+  }, []);
+
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  const handleCarouselUse = useCallback((id: string) => {
+    if (id === '__action_music') handleDirectAction('play_music');
+    else if (id === '__action_sing') handleDirectAction('sing');
+    else handleUseItemFromTab(id);
+  }, [handleDirectAction, handleUseItemFromTab]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[210px]">
-      <div className="flex items-center justify-center gap-3 min-[400px]:gap-6 sm:gap-10">
-        <CareActionButton
-          icon={<Package className="size-10 sm:size-12" />}
-          statIcon={<Sparkles className="size-3.5" />}
-          label="Items"
-          description="Feed, clean & heal"
-          color="text-sky-500"
-          onClick={onOpenItems}
-          disabled={isDisabled}
-        />
-
-        <CareActionButton
-          icon={<Music className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Music"
-          description="Play a tune"
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        <RoomActionButton
+          icon={<Camera className="size-7 sm:size-9" />}
+          label="Photo"
           color="text-pink-500"
-          onClick={() => onDirectAction('play_music')}
-          disabled={isDisabled}
+          glowHex="#ec4899"
+          onClick={() => setShowPhotoModal(true)}
         />
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={carouselItems}
+            onUse={handleCarouselUse}
+            activeItemId={isUsingItem ? usingItemId : null}
+            disabled={isDisabled}
+          />
+        </div>
+        {canBeCompanion ? (
+          <RoomActionButton
+            icon={<Footprints className="size-7 sm:size-9" />}
+            label={isCurrentCompanion ? 'With you' : 'Take along'}
+            color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
+            glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
+            onClick={handleSetAsCompanion}
+            disabled={isUpdatingCompanion}
+            loading={isUpdatingCompanion}
+          />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+}
 
-        <CareActionButton
-          icon={<Mic className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Sing"
-          description="Sing together"
-          color="text-purple-500"
-          onClick={() => onDirectAction('sing')}
-          disabled={isDisabled}
+// ── Kitchen: food carousel, shovel left (if poop), fridge right ──
+
+function KitchenBar({
+  companion,
+  profile,
+  isUsingItem,
+  usingItemId,
+  isPublishing,
+  actionInProgress,
+  onUseItem,
+  setInventoryAction,
+  poopStateRef,
+}: RoomBottomBarProps) {
+  const [showFridge, setShowFridge] = useState(false);
+  const poopState = poopStateRef.current;
+
+  const foodEntries = useMemo<CarouselEntry[]>(() =>
+    getLiveShopItems()
+      .filter(i => i.type === 'food')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+  []);
+
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+  const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
+  const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
+
+  const handleFridgeUseItem = useCallback((itemId: string) => {
+    if (isUsingItem) return;
+    onUseItem(itemId, 'feed').finally(() => setShowFridge(false));
+  }, [isUsingItem, onUseItem]);
+
+  return (
+    <>
+      {/* Poop display (above bottom bar, inside room area) */}
+      {kitchenPoops.map((poop) => (
+        <button
+          key={poop.id}
+          onClick={() => poopState?.shovelMode && poopState.onRemovePoop(poop.id)}
+          className={cn(
+            'absolute z-10 transition-all duration-300',
+            poopState?.shovelMode ? 'cursor-pointer hover:scale-150 active:scale-75' : 'pointer-events-none',
+          )}
+          style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
+        >
+          <span className={cn('text-2xl sm:text-3xl block', poopState?.shovelMode && 'drop-shadow-lg')}>💩</span>
+        </button>
+      ))}
+
+      <div className={ROOM_BOTTOM_BAR_CLASS}>
+        <div className="flex items-center justify-between gap-1 sm:gap-3">
+          {anyPoop && poopState ? (
+            <RoomActionButton
+              icon={<span className="text-2xl">🧹</span>}
+              label={poopState.shovelMode ? 'Done' : 'Shovel'}
+              color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
+              glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
+              onClick={() => poopState.setShovelMode(prev => !prev)}
+              className={poopState.shovelMode ? 'ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background rounded-full' : ''}
+            />
+          ) : (
+            <div className="w-14 sm:w-20 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0 flex justify-center">
+            <ItemCarousel
+              items={foodEntries}
+              onUse={(id) => handleFridgeUseItem(id)}
+              activeItemId={isUsingItem ? usingItemId : null}
+              disabled={isDisabled}
+            />
+          </div>
+          <RoomActionButton
+            icon={<span className="text-2xl">🧊</span>}
+            label="Fridge"
+            color="text-orange-500"
+            glowHex="#f97316"
+            onClick={() => setInventoryAction('feed')}
+            disabled={isDisabled}
+          />
+        </div>
+      </div>
+
+      {showFridge && (
+        <BlobbiActionInventoryModal
+          open={showFridge}
+          onOpenChange={setShowFridge}
+          action="feed"
+          companion={companion}
+          profile={profile}
+          onUseItem={handleFridgeUseItem}
+          onOpenShop={() => setShowFridge(false)}
+          isUsingItem={isUsingItem}
+          usingItemId={usingItemId}
         />
+      )}
+    </>
+  );
+}
 
+// ── Care: hygiene + medicine carousel, context-sensitive side buttons ──
+
+function CareBar({
+  isUsingItem,
+  usingItemId,
+  isPublishing,
+  actionInProgress,
+  handleUseItemFromTab,
+}: RoomBottomBarProps) {
+  const hygieneItems = useMemo(() => getLiveShopItems().filter(i => i.type === 'hygiene'), []);
+
+  const carouselEntries = useMemo<CarouselEntry[]>(() => {
+    const hygiene = getLiveShopItems()
+      .filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'hygiene' }));
+    const medicine = getLiveShopItems()
+      .filter(i => i.type === 'medicine')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'medicine' }));
+    return [...hygiene, ...medicine];
+  }, []);
+
+  const [focusedMeta, setFocusedMeta] = useState(carouselEntries[0]?.meta ?? 'hygiene');
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setFocusedMeta(entry.meta ?? 'hygiene'), []);
+  const isHygieneFocused = focusedMeta === 'hygiene';
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+  const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
+
+  return (
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        {isHygieneFocused ? (
+          towelItem ? (
+            <RoomActionButton
+              icon={<span className="text-2xl sm:text-3xl">{towelItem.icon}</span>}
+              label="Towel"
+              color="text-cyan-500"
+              glowHex="#06b6d4"
+              onClick={() => handleUseItemFromTab(towelItem.id)}
+              disabled={isDisabled}
+              loading={isUsingItem && usingItemId === towelItem.id}
+            />
+          ) : (
+            <div className="w-14 sm:w-20 shrink-0" />
+          )
+        ) : (
+          <RoomActionButton
+            icon={<span className="text-2xl">🍬</span>}
+            label="Treat"
+            color="text-pink-400"
+            glowHex="#f472b6"
+            onClick={() => {
+              const treat = getLiveShopItems().find(i => i.type === 'food');
+              if (treat) handleUseItemFromTab(treat.id);
+            }}
+            disabled={isDisabled}
+          />
+        )}
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={carouselEntries}
+            onUse={handleUseItemFromTab}
+            activeItemId={isUsingItem ? usingItemId : null}
+            disabled={isDisabled}
+            onFocusChange={handleFocusChange}
+          />
+        </div>
+        {isHygieneFocused ? (
+          <RoomActionButton
+            icon={<span className="text-2xl">🚿</span>}
+            label="Shower"
+            color="text-blue-500"
+            glowHex="#3b82f6"
+            onClick={() => {
+              const shampoo = hygieneItems.find(i => i.id === 'hyg_shampoo');
+              if (shampoo) handleUseItemFromTab(shampoo.id);
+            }}
+            disabled={isDisabled}
+          />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Rest: sleep/wake button centered ──
+
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem }: RoomBottomBarProps) {
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  return (
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-center">
         {!isEgg && (
-          <CareActionButton
+          <RoomActionButton
             icon={
-              actionInProgress === 'rest' ? (
-                <Loader2 className="size-10 sm:size-12 animate-spin" />
-              ) : isSleeping ? (
-                <Sun className="size-10 sm:size-12" />
-              ) : (
-                <Moon className="size-10 sm:size-12" />
-              )
+              actionInProgress === 'rest'
+                ? <Loader2 className="size-7 sm:size-9 animate-spin" />
+                : isSleeping
+                  ? <Sun className="size-7 sm:size-9" />
+                  : <Moon className="size-7 sm:size-9" />
             }
-            statIcon={<Zap className="size-3.5" />}
-            label={isSleeping ? 'Wake' : 'Sleep'}
-            description={isSleeping ? 'Rise and shine' : 'Rest & recharge'}
+            label={isSleeping ? 'Wake up' : 'Sleep'}
             color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
+            glowHex={isSleeping ? '#f59e0b' : '#8b5cf6'}
             onClick={onRest}
             disabled={isDisabled}
           />
@@ -1876,111 +1979,14 @@ function CareTabContent({
   );
 }
 
-// ─── Care Action Button ───────────────────────────────────────────────────────
+// ── Closet: placeholder ──
 
-function CareActionButton({
-  icon,
-  statIcon,
-  label,
-  description,
-  color,
-  onClick,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  statIcon: React.ReactNode;
-  label: string;
-  description: string;
-  color: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
+function ClosetBar() {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-        'hover:-translate-y-2 hover:scale-105 active:scale-95',
-        disabled && 'opacity-40 pointer-events-none',
-      )}
-    >
-      <div className="relative">
-        <div
-          className={cn('size-16 min-[400px]:size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
-          style={{
-            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 14%, transparent), color-mix(in srgb, currentColor 5%, transparent) 70%)',
-          }}
-        >
-          {icon}
-        </div>
-        <div className="absolute -bottom-1 -right-1 size-7 rounded-full flex items-center justify-center bg-background ring-2 ring-background">
-          <span className="text-muted-foreground">{statIcon}</span>
-        </div>
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-center gap-2 py-1">
+        <p className="text-xs text-muted-foreground/40 font-medium">Closet coming soon</p>
       </div>
-      <span className={cn('text-sm font-semibold', color)}>{label}</span>
-      <span className="text-[10px] leading-tight text-muted-foreground/70">{description}</span>
-    </button>
-  );
-}
-
-// ─── Items Tab Content ────────────────────────────────────────────────────────
-
-/** Lucide icon + color for each item category */
-function ItemTypeIndicator({ type }: { type: string }) {
-  switch (type) {
-    case 'food':
-      return <Utensils className="size-4 text-amber-400" strokeWidth={4} />;
-    case 'toy':
-      return <Gamepad2 className="size-4 text-rose-400" strokeWidth={4} />;
-    case 'medicine':
-      return <Heart className="size-4 text-emerald-400" strokeWidth={4} />;
-    case 'hygiene':
-      return <Droplets className="size-4 text-sky-400" strokeWidth={4} />;
-    default:
-      return null;
-  }
-}
-
-interface ItemsTabContentProps {
-  allShopItems: ShopItem[];
-  onUseItem: (itemId: string) => void;
-  isUsingItem: boolean;
-  usingItemId: string | null;
-}
-
-function ItemsTabContent({
-  allShopItems,
-  onUseItem,
-  isUsingItem,
-  usingItemId,
-}: ItemsTabContentProps) {
-  return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
-      {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
-        const isThisUsing = isUsingItem && usingItemId === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onUseItem(item.id)}
-            disabled={isUsingItem}
-            className={cn(
-              'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
-              'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
-              isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isUsingItem && !isThisUsing && 'opacity-40 pointer-events-none',
-            )}
-          >
-            {/* Stat category indicator — top-right */}
-            <span className="absolute top-1.5 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
-              <ItemTypeIndicator type={item.type} />
-            </span>
-            <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
-            <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
-            {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -2432,84 +2438,6 @@ function MoreTabContent({
               <span className="text-[10px]">Emote</span>
             </button>
           </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Stat Indicator ───────────────────────────────────────────────────────────
-
-interface StatIndicatorProps {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
-}
-
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green: 'text-green-500',
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10',
-  yellow: 'bg-yellow-500/10',
-  green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10',
-  violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  violet: '#8b5cf6',
-};
-
-/** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
-};
-
-function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
-  const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon with warning badge on its corner */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
         )}
       </div>
     </div>
