@@ -292,6 +292,9 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                         }}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended aspect ratio is 1:1 (max 1024x1024 px).
+                    </p>
                   </div>
 
                   {/* Badge name */}
