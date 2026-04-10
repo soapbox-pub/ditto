@@ -49,6 +49,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ditto needs access to your photo library to upload images to your posts and profile.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ditto needs camera access to take photos and videos for your posts.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Ditto needs access to your microphone to record voice messages.</string>
 </dict>
