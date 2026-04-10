@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import data from '@emoji-mart/data';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
+import { usePortalDropdown } from '@/hooks/usePortalDropdown';
 
 interface EmojiData {
   id: string;
@@ -187,6 +187,14 @@ export function EmojiShortcodeAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const handleClose = useCallback(() => setIsOpen(false), []);
+  const { computePosition, renderPortal } = usePortalDropdown({
+    textareaRef,
+    isOpen,
+    onClose: handleClose,
+    dropdownHeight: 280, // must match max-h-[280px] below
+  });
+
   const results = useMemo(() => searchEmojis(query, customEmojis), [query, customEmojis]);
 
   // Detect :shortcode query at cursor
@@ -241,21 +249,8 @@ export function EmojiShortcodeAutocomplete({
     // Position the dropdown using fixed viewport coordinates so it isn't
     // clipped by ancestor overflow containers (e.g. the compose modal).
     const coords = getCaretCoordinates(textarea, colonPos);
-    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
-    const rect = textarea.getBoundingClientRect();
-    const top = rect.top + coords.top - textarea.scrollTop + lineHeight + 4;
-    const left = rect.left + Math.max(0, Math.min(coords.left, textarea.clientWidth - 280));
-
-    // If the dropdown would overflow the bottom of the viewport, flip it above the cursor
-    const dropdownHeight = 280; // max-h-[280px]
-    const flippedTop = rect.top + coords.top - textarea.scrollTop - dropdownHeight - 4;
-    const useFlipped = top + dropdownHeight > window.innerHeight && flippedTop > 0;
-
-    setDropdownPos({
-      top: useFlipped ? flippedTop : top,
-      left: Math.max(8, Math.min(left, window.innerWidth - 288)),
-    });
-  }, [textareaRef]);
+    setDropdownPos(computePosition(coords));
+  }, [textareaRef, computePosition]);
 
   // Listen for input/cursor changes on the textarea element
   useEffect(() => {
@@ -289,19 +284,6 @@ export function EmojiShortcodeAutocomplete({
     if (!textarea) return;
     detectShortcode(content, textarea.selectionStart);
   }, [content, detectShortcode, textareaRef]);
-
-  // Dismiss the dropdown when any ancestor scrolls, since we use fixed
-  // positioning and the dropdown would become misaligned.
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleScroll = () => setIsOpen(false);
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleScroll);
-    };
-  }, [isOpen]);
 
   // Handle keyboard navigation within the dropdown
   useEffect(() => {
@@ -419,5 +401,5 @@ export function EmojiShortcodeAutocomplete({
 
   // Portal to document.body so the dropdown escapes any ancestor overflow
   // clipping and CSS transform containing blocks (e.g. Radix Dialog).
-  return createPortal(dropdown, document.body);
+  return renderPortal(dropdown, document.body);
 }
