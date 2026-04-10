@@ -297,11 +297,10 @@ export function AdvancedSettings() {
               <div className="px-3 pt-3 pb-4 space-y-4">
                 <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
                   <div>
-                    <h3 className="text-sm font-medium">Request to Vanish</h3>
+                    <h3 className="text-sm font-medium">Delete Account</h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Permanently request all relays to delete your data, including your profile,
-                      posts, reactions, and direct messages. This action is irreversible and legally
-                      binding in some jurisdictions (NIP-62).
+                      Permanently delete your data from the network, including your profile,
+                      posts, reactions, and direct messages. This action is irreversible.
                     </p>
                   </div>
                   <Button
@@ -310,7 +309,7 @@ export function AdvancedSettings() {
                     className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     onClick={() => setVanishDialogOpen(true)}
                   >
-                    Request to Vanish
+                    Delete Account
                   </Button>
                 </div>
               </div>
