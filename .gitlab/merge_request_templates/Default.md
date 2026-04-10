@@ -61,6 +61,7 @@ Closes #
 - [ ] New Nostr event kinds are documented in NIP.md (if applicable)
 - [ ] No large binary assets (images >100KB, fonts, videos) committed to git
 - [ ] No security issues (dangerouslySetInnerHTML, eval, innerHTML, unsanitized input)
+- [ ] Data from Nostr events is treated as untrusted user input (validated before use in href/src attributes, query filters, or trust decisions)
 
 ### Testing
 

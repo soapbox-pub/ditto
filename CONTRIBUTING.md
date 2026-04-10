@@ -130,6 +130,7 @@ maintain it long-term. For each finding, state the file, line, and issue.
 - [ ] Are new Nostr event kinds documented in NIP.md with links to relevant specs?
 - [ ] Are there any new images >100KB or other large binary assets that should be hosted externally?
 - [ ] Is there any use of dangerouslySetInnerHTML, eval, innerHTML, or SVG string interpolation?
+- [ ] Is any data from a Nostr event (tags, content, pubkey, URLs) used in a security-sensitive context (href, src, query filter, trust decision) without validation?
 
 Skip anything a linter or type checker would catch. Focus on logic, data flow, and intent.
 
