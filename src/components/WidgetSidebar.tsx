@@ -142,9 +142,9 @@ export function WidgetSidebar() {
   const updateWidgets = useCallback((updater: (current: WidgetConfig[]) => WidgetConfig[]) => {
     updateConfig((c) => ({
       ...c,
-      sidebarWidgets: updater(c.sidebarWidgets ?? []),
+      sidebarWidgets: updater(c.sidebarWidgets ?? widgets),
     }));
-  }, [updateConfig]);
+  }, [updateConfig, widgets]);
 
   const toggleCollapse = useCallback((id: string) => {
     updateWidgets((ws) => ws.map((w) => w.id === id ? { ...w, collapsed: !w.collapsed } : w));
