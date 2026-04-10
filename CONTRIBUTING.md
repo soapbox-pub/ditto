@@ -8,6 +8,36 @@ We welcome contributions, but we have high standards. Ditto is a carefully desig
 - [Contributing Guide](https://about.ditto.pub/contributing) -- the upstream contribution process.
 - `AGENTS.md` in this repo -- the codebase conventions. Your AI tool should load this file.
 
+## Understanding Ditto
+
+Ditto is a carnival, not a platform. Before contributing, you need to understand what that means.
+
+### The product decision filter
+
+Every change to Ditto should pass this test:
+
+> *Does this make Ditto more magnetic, more threatening to the status quo, and more peaceful to inhabit?*
+
+- **Magnetic** -- Ditto attracts through experience, not ideology. People don't need to understand Nostr to love it. They need to feel something they haven't felt online since the early web. Features should be odd, intriguing, and captivating -- not generic social media clones.
+- **Threatening to the status quo** -- Ditto threatens mainstream platforms when someone opens it and thinks: *"Why can't my platform do this?"* Theming, games, treasure hunts, interoperable micro-apps -- these are things walled gardens can't replicate.
+- **Peaceful to inhabit** -- Ditto displaces argument with creation, conformity with expression, and consumption with participation. No ads, no engagement-optimized algorithms, no outrage incentives.
+
+If a change does all three, it belongs. If it only does one, think harder. If it does none, it doesn't belong here.
+
+### What Ditto is NOT
+
+- A Twitter/X clone with decentralization bolted on
+- A place to replicate features that mainstream platforms already do well
+- A showcase for generic UI components or boilerplate social features
+
+### What Ditto IS
+
+- A convergence point for interoperable Nostr experiences (games, treasure hunts, magic decks, themes, color moments, live streams, and things nobody has imagined yet)
+- A place where profiles feel like worlds, not business cards
+- The most fun you've had on the internet in years
+
+Read the [full philosophy](https://about.ditto.pub/philosophy) for the complete vision.
+
 ## What we accept
 
 ### Bug fixes
@@ -36,19 +66,23 @@ If you have an idea for a feature that doesn't have an issue yet:
 
 Follow these steps in order. Skipping steps is the most common reason MRs are rejected.
 
-### 1. Understand the issue
+### 1. Ask: does anyone need this?
+
+Before writing a single line of code, answer this honestly. For bug fixes this is straightforward -- someone hit the bug. For features, it requires more thought. Is there evidence of real user demand? Is the underlying technology mature enough? A beautifully written feature for a nonexistent user base is the wrong thing to build. If you can't point to a concrete user need, reconsider.
+
+### 2. Understand the issue
 
 Read the issue thoroughly. If anything is unclear, ask in the issue comments before writing code. Understand not just *what* to change, but *why* -- what problem does this solve for users?
 
-### 2. Read the codebase conventions
+### 3. Read the codebase conventions
 
 Read `AGENTS.md` in the repo root. This is the single source of truth for how code should be written in this project. Your AI tool should load this file automatically. If it doesn't, paste it in or configure your tool to read it.
 
-### 3. Read the philosophy
+### 4. Read the philosophy
 
-Read the [Ditto Philosophy](https://about.ditto.pub/philosophy). Ditto is a carnival, not a platform. Your change should feel like it belongs in Ditto -- not like it was transplanted from a generic social media template.
+Read the [Ditto Philosophy](https://about.ditto.pub/philosophy). Ditto is a carnival, not a platform. Your change should feel like it belongs in Ditto -- not like it was transplanted from a generic social media template. Apply the product decision filter above.
 
-### 4. Plan before you code
+### 5. Plan before you code
 
 Start your AI tool in **plan mode** (or research/think mode). Spend the first few prompts:
 
@@ -58,11 +92,11 @@ Start your AI tool in **plan mode** (or research/think mode). Spend the first fe
 
 Do not write code until you have a plan. The most expensive mistake is implementing the wrong approach.
 
-### 5. Implement
+### 6. Implement
 
 Switch to code mode and implement your plan. Use Opus 4.6 or equivalent.
 
-### 6. Run the test suite
+### 7. Run the test suite
 
 ```sh
 npm run test
@@ -70,7 +104,7 @@ npm run test
 
 This runs type-checking, linting, unit tests, and a production build. All must pass. Do not submit an MR with a failing test suite.
 
-### 7. Self-review
+### 8. Self-review
 
 Run this prompt against your diff (copy the full `git diff` output and paste it to your AI tool along with this prompt):
 
@@ -93,6 +127,9 @@ maintain it long-term. For each finding, state the file, line, and issue.
 - [ ] Are secrets, keys, or env-specific values hardcoded?
 - [ ] Does the code use the `any` type anywhere?
 - [ ] Is the code Capacitor-compatible (no `<a download>`, no `window.open()`)?
+- [ ] Are new Nostr event kinds documented in NIP.md with links to relevant specs?
+- [ ] Are there any new images >100KB or other large binary assets that should be hosted externally?
+- [ ] Is there any use of dangerouslySetInnerHTML, eval, innerHTML, or SVG string interpolation?
 
 Skip anything a linter or type checker would catch. Focus on logic, data flow, and intent.
 
@@ -103,7 +140,7 @@ implementation?"
 
 Address every finding before submitting.
 
-### 8. Deploy a live preview
+### 9. Deploy a live preview
 
 Deploy your branch so reviewers can test it without pulling your code:
 
@@ -114,11 +151,11 @@ npx surge dist your-branch-name.surge.sh
 
 Or use Netlify, Vercel, or any static hosting. Include the live preview URL in your MR description.
 
-### 9. Take screenshots
+### 10. Take screenshots
 
 Capture before and after screenshots of any UI changes. Include them directly in the MR description. If your change has no visual component, state that explicitly.
 
-### 10. Submit
+### 11. Submit
 
 Fill out every field in the MR template. Incomplete MRs will not be reviewed.
 
@@ -126,13 +163,16 @@ Fill out every field in the MR template. Incomplete MRs will not be reviewed.
 
 - No linked issue
 - Feature MRs with no clear alignment with the [Ditto Philosophy](https://about.ditto.pub/philosophy)
+- Features that fail the product decision filter (not magnetic, not threatening to the status quo, not peaceful)
 - Incomplete MR template (missing checklist, screenshots, or preview URL)
 - Changes that go beyond what was asked for (scope creep)
 - Placeholder code, dead code, or debug artifacts
 - Evidence of low-quality AI generation ("In a real application..." comments, hallucinated APIs, generic template code)
 - Failing test suite
 - No evidence of planning (code-first, think-later approach produces recognizable patterns)
-- Changes that conflict with the [Ditto Philosophy](https://about.ditto.pub/philosophy)
+- Undocumented Nostr event kinds (new kinds must be in NIP.md)
+- Large binary assets committed to git (images >100KB, fonts, videos)
+- Security issues (dangerouslySetInnerHTML, eval, innerHTML, unsanitized user input)
 
 ## MR review process
 

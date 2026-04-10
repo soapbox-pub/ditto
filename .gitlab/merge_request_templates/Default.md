@@ -25,8 +25,10 @@ Closes #
 
 ## Philosophy Alignment
 
-<!-- How does this change align with the Ditto Philosophy? -->
-<!-- https://about.ditto.pub/philosophy -->
+<!-- Answer this question for your change: -->
+<!-- "Does this make Ditto more magnetic, more threatening to the status quo, -->
+<!-- and more peaceful to inhabit?" -->
+<!-- See: https://about.ditto.pub/philosophy -->
 <!-- For bug fixes: "Bug fix -- restores intended behavior" is acceptable. -->
 
 ## How to Test
@@ -56,6 +58,9 @@ Closes #
 - [ ] No placeholder comments (e.g. "// In a real app...")
 - [ ] Error, loading, and empty states are handled
 - [ ] Existing codebase patterns and conventions were followed
+- [ ] New Nostr event kinds are documented in NIP.md (if applicable)
+- [ ] No large binary assets (images >100KB, fonts, videos) committed to git
+- [ ] No security issues (dangerouslySetInnerHTML, eval, innerHTML, unsanitized input)
 
 ### Testing
 
