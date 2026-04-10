@@ -154,7 +154,8 @@ const hardcodedConfig: AppConfig = {
   sandboxDomain: 'iframe.diy',
   sidebarWidgets: [
     { id: 'trends' },
-    { id: 'blobbi' },
+    { id: 'bluesky' },
+    { id: 'wikipedia' },
   ],
 };
 
