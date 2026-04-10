@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { WidgetContext } from '@/contexts/WidgetContext';
 import { cn } from '@/lib/utils';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
@@ -115,7 +114,7 @@ export function WidgetCard({
 
       {/* Content */}
       {!collapsed && (
-        <WidgetContext.Provider value={true}>
+        <>
           <ScrollArea style={{ height: liveHeight }} className={cn(!resizing && 'transition-[height] duration-200')}>
             <div className="p-2">
               {children}
@@ -129,7 +128,7 @@ export function WidgetCard({
           >
             <div className="w-8 h-0.5 rounded-full bg-border group-hover:bg-muted-foreground/40 transition-colors" />
           </div>
-        </WidgetContext.Provider>
+        </>
       )}
     </div>
   );
