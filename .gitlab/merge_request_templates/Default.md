@@ -65,8 +65,3 @@ Copy-paste this into your AI tool and fix any findings before submitting:
 
 - [ ] I ran `npm run test` locally and it passes
 - [ ] I tested the change manually in the browser
-
-### Submission
-
-- [ ] I deployed a live preview and included the URL above (or marked N/A)
-- [ ] I included before/after screenshots above (or marked N/A)
