@@ -25,3 +25,5 @@ export {
 
 export { RoomActionButton } from './components/RoomActionButton';
 export { ItemCarousel, type CarouselEntry } from './components/ItemCarousel';
+export { BlobbiRoomHero, type BlobbiRoomHeroProps } from './components/BlobbiRoomHero';
+export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';
