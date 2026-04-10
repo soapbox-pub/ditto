@@ -65,6 +65,7 @@ import {
   trackDailyMissionProgress,
   getStreakTagUpdates,
   useDailyMissions,
+  useDailyMissionsPersistence,
   useClaimMissionReward,
   type InventoryAction,
   type DirectAction,
@@ -1311,6 +1312,9 @@ function BlobbiDashboard({
     availableStages,
     persistedDailyMissions: profile?.content.dailyMissions,
   });
+  // Debounced persistence of intermediate mission progress to kind 11125.
+  // Ensures progress, rerolls, and daily resets survive page refresh.
+  useDailyMissionsPersistence();
   const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
     profile,
     updateProfileEvent,

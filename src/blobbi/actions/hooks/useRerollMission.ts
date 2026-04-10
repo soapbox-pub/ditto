@@ -7,9 +7,9 @@
  * - Respecting stage-based mission filtering
  * - Updating the in-memory session store
  *
- * Note: Rerolled state is held in the session store until a claim
- * persists it to kind 11125. Rerolls that happen without a subsequent
- * claim are lost on page refresh — this is intentional.
+ * Dispatches `daily-missions-updated` after updating the session store.
+ * `useDailyMissionsPersistence` picks this up and debounces the write
+ * to kind 11125, so rerolled state now survives page refresh.
  */
 
 import { useMutation } from '@tanstack/react-query';

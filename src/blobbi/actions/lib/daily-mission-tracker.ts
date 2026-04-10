@@ -9,13 +9,12 @@
  *
  *   The in-memory session store (in daily-missions.ts) holds the current
  *   session's mission state. Kind 11125 content JSON is the persistent
- *   source of truth. This tracker updates the session store only — it does
- *   NOT persist to kind 11125 (that happens when rewards are claimed via
- *   useClaimMissionReward).
+ *   source of truth.
  *
- *   Consequence: unclaimed progress is lost on page refresh. This is
- *   intentional — it avoids cross-account leakage and keeps the tracker
- *   simple (no Nostr write path needed).
+ *   This tracker updates the session store and dispatches
+ *   `daily-missions-updated` custom DOM events. The `useDailyMissionsPersistence`
+ *   hook listens for these events and debounces writes to kind 11125, so
+ *   intermediate progress survives page refresh.
  */
 
 import {
