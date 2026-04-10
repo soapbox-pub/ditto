@@ -16,6 +16,14 @@ stages:
   - release
   - publish
 
+check-mr:
+  stage: test
+  timeout: 2 minutes
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - bash scripts/check-mr.sh
+
 test:
   stage: test
   timeout: 5 minutes
