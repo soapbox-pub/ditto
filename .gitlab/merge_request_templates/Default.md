@@ -21,9 +21,10 @@ Closes #
 <!-- REQUIRED for UI changes. Show before and after. -->
 <!-- Write "N/A -- no UI changes" only if this MR has zero visual impact. -->
 
-| Before | After |
-|--------|-------|
-|        |       |
+**Before:**
+
+
+**After:**
 
 ## Philosophy Alignment
 
@@ -65,8 +66,3 @@ Copy-paste this into your AI tool and fix any findings before submitting:
 
 - [ ] I ran `npm run test` locally and it passes
 - [ ] I tested the change manually in the browser
-
-### Submission
-
-- [ ] I deployed a live preview and included the URL above (or marked N/A)
-- [ ] I included before/after screenshots above (or marked N/A)
