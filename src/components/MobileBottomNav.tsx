@@ -1,6 +1,6 @@
 import { useCallback, useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { User } from 'lucide-react';
+import { Bot, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,8 @@ import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 import { MobileBuddySheet } from '@/components/AIChat/MobileBuddySheet';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useBuddy } from '@/hooks/useBuddy';
 import { getSidebarItem, isSidebarDivider, sidebarItemIcon, itemLabel, itemPath, isItemActive } from '@/lib/sidebarItems';
 
 /** Transform style applied when the bottom nav is hidden (scrolled away). */
@@ -31,6 +33,9 @@ export function MobileBottomNav() {
   const { orderedItems } = useFeedSettings();
   const { config } = useAppContext();
   const homePage = config.homePage;
+  const { buddy } = useBuddy();
+  const buddyAuthor = useAuthor(buddy?.pubkey);
+  const buddyMetadata = buddyAuthor.data?.metadata;
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [buddyOpen, setBuddyOpen] = useState(false);
@@ -126,6 +131,7 @@ export function MobileBottomNav() {
 
               // Buddy opens the AI chat sheet instead of navigating
               if (isBuddy) {
+                const hasBuddyPicture = !!buddyMetadata?.picture;
                 return (
                   <button
                     key={id}
@@ -135,8 +141,17 @@ export function MobileBottomNav() {
                       active ? 'text-primary' : 'text-muted-foreground',
                     )}
                   >
-                    {sidebarItemIcon(id, 'size-5')}
-                    <span className="text-[10px] font-medium">{label}</span>
+                    {hasBuddyPicture ? (
+                      <Avatar shape={getAvatarShape(buddyMetadata)} className="size-5">
+                        <AvatarImage src={buddyMetadata.picture} alt={buddy?.name} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+                          <Bot className="size-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      sidebarItemIcon(id, 'size-5')
+                    )}
+                    <span className="text-[10px] font-medium">{hasBuddyPicture ? buddy?.name ?? label : label}</span>
                   </button>
                 );
               }
