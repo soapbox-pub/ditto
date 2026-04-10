@@ -18,6 +18,8 @@ import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
+import type { BlobbiRoomId } from '../lib/room-config';
+import { ROOM_META, DEFAULT_ROOM_ORDER, getRoomIndex } from '../lib/room-config';
 import { cn } from '@/lib/utils';
 
 // ─── Stat colour maps ─────────────────────────────────────────────────────────
@@ -72,6 +74,10 @@ export interface BlobbiRoomHeroProps {
   handleSetAsCompanion: () => Promise<void>;
   heroRef: React.RefObject<HTMLDivElement | null>;
   heroWidth: number;
+  /** Current room (for indicator below name) */
+  roomId: BlobbiRoomId;
+  /** Room order for dot indicators */
+  roomOrder?: BlobbiRoomId[];
   className?: string;
 }
 
@@ -92,8 +98,12 @@ export function BlobbiRoomHero({
   handleSetAsCompanion,
   heroRef,
   heroWidth,
+  roomId,
+  roomOrder = DEFAULT_ROOM_ORDER,
   className,
 }: BlobbiRoomHeroProps) {
+  const roomMeta = ROOM_META[roomId];
+  const roomIndex = getRoomIndex(roomId, roomOrder);
   if (isActiveFloatingCompanion) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-4 text-center flex-1 px-4', className)}>
@@ -159,6 +169,25 @@ export function BlobbiRoomHero({
             {companion.name}
           </h2>
         )}
+
+        {/* Room indicator */}
+        <div className="flex flex-col items-center mt-2">
+          <div className="flex items-center gap-1.5">
+            <roomMeta.icon className="size-3.5 sm:size-4 text-foreground/50" />
+            <span className="text-xs sm:text-sm font-semibold text-foreground/60">{roomMeta.label}</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1">
+            {roomOrder.map((id, i) => (
+              <div
+                key={id}
+                className={cn(
+                  'rounded-full transition-all duration-300',
+                  i === roomIndex ? 'w-4 h-1 bg-primary' : 'w-1 h-1 bg-muted-foreground/20',
+                )}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

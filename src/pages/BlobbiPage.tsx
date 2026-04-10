@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -1496,6 +1496,7 @@ function BlobbiDashboard({
             handleSetAsCompanion={handleSetAsCompanion}
             heroRef={heroRef}
             heroWidth={heroWidth}
+            roomId={currentRoom}
           />
         }
         middleSlot={
@@ -1818,7 +1819,7 @@ function KitchenBar({
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {anyPoop && poopState ? (
             <RoomActionButton
-              icon={<span className="text-2xl">🧹</span>}
+              icon={<Shovel className="size-7 sm:size-9" />}
               label={poopState.shovelMode ? 'Done' : 'Shovel'}
               color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
               glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
@@ -1837,7 +1838,7 @@ function KitchenBar({
             />
           </div>
           <RoomActionButton
-            icon={<span className="text-2xl">🧊</span>}
+            icon={<Refrigerator className="size-7 sm:size-9" />}
             label="Fridge"
             color="text-orange-500"
             glowHex="#f97316"
@@ -1897,7 +1898,7 @@ function CareBar({
         {isHygieneFocused ? (
           towelItem ? (
             <RoomActionButton
-              icon={<span className="text-2xl sm:text-3xl">{towelItem.icon}</span>}
+              icon={<TowelRack className="size-7 sm:size-9" />}
               label="Towel"
               color="text-cyan-500"
               glowHex="#06b6d4"
@@ -1910,7 +1911,7 @@ function CareBar({
           )
         ) : (
           <RoomActionButton
-            icon={<span className="text-2xl">🍬</span>}
+            icon={<Candy className="size-7 sm:size-9" />}
             label="Treat"
             color="text-pink-400"
             glowHex="#f472b6"
@@ -1932,7 +1933,7 @@ function CareBar({
         </div>
         {isHygieneFocused ? (
           <RoomActionButton
-            icon={<span className="text-2xl">🚿</span>}
+            icon={<ShowerHead className="size-7 sm:size-9" />}
             label="Shower"
             color="text-blue-500"
             glowHex="#3b82f6"

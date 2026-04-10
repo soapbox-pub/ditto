@@ -6,9 +6,8 @@
  * The parent decides what bottom bar to render based on the active room.
  */
 
-import { useState, useCallback, useMemo, useEffect, type CSSProperties } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef as useReactRef, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/useToast';
 
@@ -18,7 +17,6 @@ import {
   DEFAULT_ROOM_ORDER,
   getNextRoom,
   getPreviousRoom,
-  getRoomIndex,
 } from '../lib/room-config';
 import {
   generateInitialPoops,
@@ -59,6 +57,9 @@ interface BlobbiRoomShellProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/** Minimum horizontal swipe distance (px) to trigger room change */
+const SWIPE_THRESHOLD = 50;
+
 export function BlobbiRoomShell({
   roomId,
   onChangeRoom,
@@ -71,10 +72,6 @@ export function BlobbiRoomShell({
   lastFeedTimestamp,
   poopStateRef,
 }: BlobbiRoomShellProps) {
-  const isMobile = useIsMobile();
-  const meta = ROOM_META[roomId];
-  const roomIndex = getRoomIndex(roomId, roomOrder);
-
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
   }, [roomId, roomOrder, onChangeRoom]);
@@ -83,14 +80,24 @@ export function BlobbiRoomShell({
     onChangeRoom(getNextRoom(roomId, roomOrder));
   }, [roomId, roomOrder, onChangeRoom]);
 
-  const dots = useMemo(() => roomOrder.map((id, i) => ({
-    id,
-    active: i === roomIndex,
-    label: ROOM_META[id].label,
-  })), [roomOrder, roomIndex]);
-
   const leftDest = ROOM_META[getPreviousRoom(roomId, roomOrder)];
   const rightDest = ROOM_META[getNextRoom(roomId, roomOrder)];
+
+  // ─── Touch swipe ───
+  const touchStartX = useReactRef<number | null>(null);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+    if (dx > 0) goLeft();
+    else goRight();
+  }, [goLeft, goRight]);
 
   // ─── Poop system (ephemeral) ───
   const [poops, setPoops] = useState<PoopInstance[]>([]);
@@ -117,11 +124,14 @@ export function BlobbiRoomShell({
     poops, shovelMode, setShovelMode, onRemovePoop,
   }), [poops, shovelMode, onRemovePoop]);
 
-  // Expose poop state to parent so bottom bars can access it
   if (poopStateRef) poopStateRef.current = poopState;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 relative">
+    <div
+      className="flex flex-col flex-1 min-h-0 relative"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Room content */}
       <div className="flex-1 min-h-0 flex flex-col relative">
         {hero}
@@ -137,71 +147,41 @@ export function BlobbiRoomShell({
         />
       )}
 
-      {/* Room header */}
-      <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
-        <div className="flex flex-col items-center pt-2 pb-1">
-          <div className="flex items-center gap-1.5 pointer-events-auto">
-            <span className="text-sm">{meta.icon}</span>
-            <span className="text-xs sm:text-sm font-semibold text-foreground/70">{meta.label}</span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            {dots.map(dot => (
-              <div
-                key={dot.id}
-                className={cn(
-                  'rounded-full transition-all duration-300',
-                  dot.active ? 'w-4 h-1 bg-primary' : 'w-1 h-1 bg-muted-foreground/20',
-                )}
-                title={dot.label}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Navigation arrows */}
       <button
         onClick={goLeft}
         className={cn(
-          'group absolute left-0 top-1/2 -translate-y-1/2 z-40',
-          'flex items-center gap-0',
-          'text-muted-foreground/40 hover:text-foreground/70',
-          'transition-all duration-200 active:scale-95',
-          'cursor-pointer select-none rounded-r-full pl-0.5 pr-1 py-1 hover:bg-accent/40',
+          'group absolute left-1 top-1/2 -translate-y-1/2 z-40',
+          'flex items-center justify-center',
+          'size-10 sm:size-12 rounded-full',
+          'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
+          'transition-all duration-200 active:scale-90',
+          'cursor-pointer select-none',
         )}
         aria-label={`Go to ${leftDest.label}`}
       >
         <ChevronLeft
-          className="size-5 shrink-0 transition-transform duration-300 group-hover:scale-110"
+          className="size-7 sm:size-8 shrink-0"
+          strokeWidth={4}
           style={{ animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties}
         />
-        <span className={cn(
-          'text-[10px] font-medium leading-none whitespace-nowrap transition-all duration-200 overflow-hidden',
-          isMobile ? 'max-w-[60px] opacity-60' : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70',
-        )}>
-          {leftDest.label}
-        </span>
       </button>
 
       <button
         onClick={goRight}
         className={cn(
-          'group absolute right-0 top-1/2 -translate-y-1/2 z-40',
-          'flex items-center gap-0',
-          'text-muted-foreground/40 hover:text-foreground/70',
-          'transition-all duration-200 active:scale-95',
-          'cursor-pointer select-none rounded-l-full pr-0.5 pl-1 py-1 hover:bg-accent/40',
+          'group absolute right-1 top-1/2 -translate-y-1/2 z-40',
+          'flex items-center justify-center',
+          'size-10 sm:size-12 rounded-full',
+          'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
+          'transition-all duration-200 active:scale-90',
+          'cursor-pointer select-none',
         )}
         aria-label={`Go to ${rightDest.label}`}
       >
-        <span className={cn(
-          'text-[10px] font-medium leading-none whitespace-nowrap transition-all duration-200 overflow-hidden',
-          isMobile ? 'max-w-[60px] opacity-60' : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-70',
-        )}>
-          {rightDest.label}
-        </span>
         <ChevronRight
-          className="size-5 shrink-0 transition-transform duration-300 group-hover:scale-110"
+          className="size-7 sm:size-8 shrink-0"
+          strokeWidth={4}
           style={{ animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties}
         />
       </button>

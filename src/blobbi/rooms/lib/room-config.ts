@@ -5,6 +5,8 @@
  * The current room is persisted as a tag on kind 11125.
  */
 
+import { Home, Refrigerator, Cross, Moon, Shirt, type LucideIcon } from 'lucide-react';
+
 // ─── Room IDs ─────────────────────────────────────────────────────────────────
 
 export type BlobbiRoomId = 'home' | 'kitchen' | 'care' | 'rest' | 'closet';
@@ -15,7 +17,7 @@ export interface BlobbiRoomMeta {
   id: BlobbiRoomId;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
@@ -23,31 +25,31 @@ export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
     id: 'home',
     label: 'Home',
     description: 'Main living room',
-    icon: '🏠',
+    icon: Home,
   },
   kitchen: {
     id: 'kitchen',
     label: 'Kitchen',
     description: 'Feed your Blobbi',
-    icon: '🍳',
+    icon: Refrigerator,
   },
   care: {
     id: 'care',
     label: 'Care Room',
     description: 'Hygiene, care, and medicine',
-    icon: '🩹',
+    icon: Cross,
   },
   rest: {
     id: 'rest',
     label: 'Bedroom',
     description: 'Rest and recharge',
-    icon: '🌙',
+    icon: Moon,
   },
   closet: {
     id: 'closet',
     label: 'Closet',
     description: 'Wardrobe and accessories',
-    icon: '👗',
+    icon: Shirt,
   },
 };
 
