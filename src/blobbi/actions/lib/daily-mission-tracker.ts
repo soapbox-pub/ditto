@@ -1,21 +1,23 @@
 /**
  * Daily Mission Tracker - Standalone progress tracking utility
- * 
- * This module provides a simple way to track daily mission progress
- * without requiring React hooks or context. It directly manipulates
- * localStorage for immediate persistence.
- * 
- * This approach allows action hooks (which may be called outside of
- * the daily missions hook context) to record progress.
+ *
+ * Provides a way to record daily mission progress from anywhere
+ * (hooks, event handlers, etc.) without requiring React context.
+ * Reads/writes the missions content from localStorage as a session cache.
+ * The authoritative source is kind 11125 content JSON; localStorage
+ * is a fast local mirror that gets synced by the persistence layer.
+ *
+ * Dispatches 'daily-missions-updated' CustomEvent so React hooks re-render.
  */
 
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import type { DailyMissionAction } from './daily-missions';
 import {
-  type DailyMissionsState,
-  type DailyMissionAction,
   getTodayDateString,
   needsDailyReset,
-  createDailyMissionsState,
-  updateMissionProgress,
+  createDailyMissionsContent,
+  trackTally,
+  trackEvent,
 } from './daily-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -24,86 +26,96 @@ const STORAGE_KEY = 'blobbi:daily-missions';
 
 // ─── Storage Utilities ────────────────────────────────────────────────────────
 
-/**
- * Read the current daily missions state from localStorage
- */
-function readState(): DailyMissionsState | null {
+function readMissions(): MissionsContent | undefined {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return undefined;
+    const parsed = JSON.parse(stored);
+    // Validate new format: must have date + daily array
+    if (typeof parsed !== 'object' || typeof parsed.date !== 'string' || !Array.isArray(parsed.daily)) {
+      return undefined;
+    }
+    return parsed as MissionsContent;
   } catch {
-    return null;
+    return undefined;
   }
 }
 
-/**
- * Write the daily missions state to localStorage
- */
-function writeState(state: DailyMissionsState): void {
+function writeMissions(missions: MissionsContent): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(missions));
   } catch (error) {
     console.warn('[DailyMissionTracker] Failed to write state:', error);
   }
 }
 
-/**
- * Ensure we have a valid state for today, creating one if necessary
- */
-function ensureCurrentState(pubkey?: string): DailyMissionsState {
-  const current = readState();
-  
-  if (needsDailyReset(current)) {
-    const previousCoins = current?.totalCoinsEarned ?? 0;
-    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousCoins);
-    writeState(newState);
-    return newState;
-  }
-  
-  return current!;
+function ensureCurrent(pubkey?: string): MissionsContent {
+  const current = readMissions();
+  if (!needsDailyReset(current)) return current!;
+  const fresh = createDailyMissionsContent(
+    getTodayDateString(),
+    current?.evolution ?? [],
+    pubkey,
+  );
+  writeMissions(fresh);
+  return fresh;
+}
+
+function notify(detail?: Record<string, unknown>): void {
+  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail }));
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Record progress for a daily mission action.
- * This function can be called from anywhere (hooks, event handlers, etc.)
- * and will immediately persist to localStorage.
- * 
- * @param action - The action type that was performed
- * @param count - Number of times the action was performed (default: 1)
- * @param pubkey - Optional user pubkey for personalized mission selection
+ * Record a tally-based action (feed, clean, interact, etc.).
  */
 export function trackDailyMissionProgress(
   action: DailyMissionAction,
   count: number = 1,
-  pubkey?: string
+  pubkey?: string,
 ): void {
-  const current = ensureCurrentState(pubkey);
-  const updated = updateMissionProgress(current, action, count);
-  writeState(updated);
-  
-  // Dispatch a custom event so React components can re-render if needed
-  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { action, count } }));
+  const current = ensureCurrent(pubkey);
+  const updated = trackTally(current, action, count);
+  writeMissions(updated);
+  notify({ action, count });
 }
 
 /**
- * Convenience function to track multiple actions at once.
- * Useful when an action should count toward multiple missions.
- * 
- * @param actions - Array of actions to track
- * @param pubkey - Optional user pubkey
+ * Record an event-based action (take_photo, etc.) with its Nostr event ID.
+ */
+export function trackDailyMissionEvent(
+  action: DailyMissionAction,
+  eventId: string,
+  pubkey?: string,
+): void {
+  const current = ensureCurrent(pubkey);
+  const updated = trackEvent(current, action, eventId);
+  writeMissions(updated);
+  notify({ action, eventId });
+}
+
+/**
+ * Track multiple tally actions at once.
  */
 export function trackMultipleDailyMissionActions(
   actions: DailyMissionAction[],
-  pubkey?: string
+  pubkey?: string,
 ): void {
-  let current = ensureCurrentState(pubkey);
-  
+  let current = ensureCurrent(pubkey);
   for (const action of actions) {
-    current = updateMissionProgress(current, action, 1);
+    current = trackTally(current, action, 1);
   }
-  
-  writeState(current);
-  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { actions } }));
+  writeMissions(current);
+  notify({ actions });
+}
+
+/** Expose read for hooks that need to hydrate from localStorage */
+export function readMissionsFromStorage(): MissionsContent | undefined {
+  return readMissions();
+}
+
+/** Expose write for hooks that need to sync to localStorage */
+export function writeMissionsToStorage(missions: MissionsContent): void {
+  writeMissions(missions);
 }

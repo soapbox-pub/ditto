@@ -1,11 +1,8 @@
 /**
- * useRerollMission - Hook for rerolling daily missions
- * 
- * Handles:
- * - Replacing a mission with a new one from the pool
- * - Tracking reroll usage (max 3 per day)
- * - Respecting stage-based mission filtering
- * - Persisting state to localStorage
+ * useRerollMission - Replace a daily mission with a new one from the pool
+ *
+ * Persists to localStorage session cache. The persistence layer
+ * syncs to kind 11125 content on the next debounced write.
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -13,17 +10,12 @@ import { useMutation } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 
+import type { BlobbiStage } from '../lib/daily-missions';
+import { rerollMission, getDefinition } from '../lib/daily-missions';
 import {
-  type DailyMissionsState,
-  type DailyMission,
-  type BlobbiStage,
-  getTodayDateString,
-  needsDailyReset,
-  createDailyMissionsState,
-  rerollMission,
-  canRerollMission,
-  getRerollsRemaining,
-} from '../lib/daily-missions';
+  readMissionsFromStorage,
+  writeMissionsToStorage,
+} from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,118 +26,51 @@ export interface RerollMissionRequest {
 
 export interface RerollMissionResult {
   oldMissionId: string;
-  newMission: DailyMission;
+  newMissionId: string;
   rerollsRemaining: number;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    
-    const state = JSON.parse(stored) as DailyMissionsState;
-    
-    // Migration: ensure rerollsRemaining is set for old state
-    if (state.rerollsRemaining === undefined) {
-      state.rerollsRemaining = 3; // MAX_DAILY_REROLLS
-    }
-    
-    return state;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useRerollMission] Failed to write state:', error);
-  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * Hook to reroll a daily mission.
- * 
- * Replaces the specified mission with a new one from the pool,
- * respecting stage-based filtering and avoiding duplicates.
- */
 export function useRerollMission() {
   const { user } = useCurrentUser();
 
   return useMutation({
     mutationFn: async ({ missionId, availableStages }: RerollMissionRequest): Promise<RerollMissionResult> => {
-      if (!user?.pubkey) {
-        throw new Error('You must be logged in to reroll missions');
-      }
+      if (!user?.pubkey) throw new Error('Must be logged in');
 
-      // Read current missions state from localStorage
-      let missionsState = readMissionsState();
-      
-      // Ensure we have valid state for today
-      if (needsDailyReset(missionsState)) {
-        const previousCoins = missionsState?.totalCoinsEarned ?? 0;
-        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousCoins, availableStages);
-      }
+      const current = readMissionsFromStorage();
+      if (!current) throw new Error('No missions state');
 
-      // Check if reroll is allowed
-      if (!canRerollMission(missionsState!, missionId)) {
-        const rerollsLeft = getRerollsRemaining(missionsState!);
-        if (rerollsLeft <= 0) {
-          throw new Error('No rerolls remaining today');
-        }
-        
-        const mission = missionsState!.missions.find(m => m.id === missionId);
-        if (mission?.completed || mission?.claimed) {
-          throw new Error('Cannot reroll completed or claimed missions');
-        }
-        
-        throw new Error('Cannot reroll this mission');
-      }
+      const updated = rerollMission(current, missionId, availableStages);
+      if (!updated) throw new Error('Cannot reroll this mission');
 
-      // Perform the reroll
-      const result = rerollMission(missionsState!, missionId, availableStages);
-      
-      if (!result) {
-        throw new Error('No replacement missions available. All alternative missions may already be in your daily list.');
-      }
+      writeMissionsToStorage(updated);
 
-      // Persist the updated state
-      writeMissionsState(result.state);
-
-      // Dispatch event for React components to re-render
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { 
-        detail: { 
-          missionId, 
-          rerolled: true,
-          newMissionId: result.newMission.id,
-        } 
+      // Notify React
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', {
+        detail: { missionId, rerolled: true },
       }));
+
+      // Find the new mission ID at the same index
+      const oldIdx = current.daily.findIndex((m) => m.id === missionId);
+      const newMissionId = updated.daily[oldIdx]?.id ?? missionId;
 
       return {
         oldMissionId: missionId,
-        newMission: result.newMission,
-        rerollsRemaining: getRerollsRemaining(result.state),
+        newMissionId,
+        rerollsRemaining: updated.rerolls,
       };
     },
-    onSuccess: ({ newMission, rerollsRemaining }) => {
-      const rerollText = rerollsRemaining === 1 
-        ? '1 reroll left' 
-        : rerollsRemaining === 0 
-          ? 'No rerolls left'
-          : `${rerollsRemaining} rerolls left`;
-      
+    onSuccess: ({ newMissionId, rerollsRemaining }) => {
+      const def = getDefinition(newMissionId);
+      const rerollText = rerollsRemaining === 0
+        ? 'No rerolls left'
+        : `${rerollsRemaining} reroll${rerollsRemaining === 1 ? '' : 's'} left`;
+
       toast({
         title: 'Mission Replaced',
-        description: `New mission: ${newMission.title}. ${rerollText}.`,
+        description: `New mission: ${def?.title ?? newMissionId}. ${rerollText}.`,
       });
     },
     onError: (error: Error) => {

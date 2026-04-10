@@ -76,7 +76,6 @@ import {
   trackDailyMissionProgress,
   getStreakTagUpdates,
   useDailyMissions,
-  useClaimMissionReward,
   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
@@ -1362,10 +1361,6 @@ function BlobbiDashboard({
 
   // ─── Daily Missions (for missions tab) ───
   const dailyMissions = useDailyMissions({ availableStages });
-  const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
-    profile,
-    updateProfileEvent,
-  );
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
@@ -1442,9 +1437,7 @@ function BlobbiDashboard({
                   onStopEvolution={handleStopEvolution}
                   isStoppingEvolution={isStoppingEvolution}
                   onOpenPostModal={() => setShowPostModal(true)}
-                  dailyMissions={dailyMissions}
-                  onClaimReward={(id) => claimReward({ missionId: id })}
-                  isClaimingReward={isClaimingReward}
+                   dailyMissions={dailyMissions}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -2011,8 +2004,6 @@ interface MissionsTabContentProps {
   isStoppingEvolution: boolean;
   onOpenPostModal: () => void;
   dailyMissions: ReturnType<typeof useDailyMissions>;
-  onClaimReward: (id: string) => void;
-  isClaimingReward: boolean;
   canStartIncubation: boolean;
   canStartEvolution: boolean;
   isStartingIncubation: boolean;
@@ -2040,8 +2031,6 @@ function MissionsTabContent({
   isStoppingEvolution,
   onOpenPostModal,
   dailyMissions,
-  onClaimReward,
-  isClaimingReward,
   canStartIncubation,
   canStartEvolution,
   isStartingIncubation,
@@ -2061,7 +2050,7 @@ function MissionsTabContent({
   const totalCount = tasks.length;
 
   const { missions } = dailyMissions;
-  const dailyCompleted = missions.filter(m => m.claimed).length;
+  const dailyCompleted = missions.filter(m => m.complete).length;
   const dailyTotal = missions.length;
 
   return (
@@ -2225,58 +2214,43 @@ function MissionsTabContent({
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && missions.map(mission => {
-              const canClaim = mission.completed && !mission.claimed;
-              return (
-                <div
-                  key={mission.id}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
-                    canClaim && 'bg-amber-500/[0.06]',
-                  )}
-                >
-                  <DailyMissionIcon action={mission.action} claimed={mission.claimed} canClaim={canClaim} />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', mission.claimed && 'text-muted-foreground line-through')}>{mission.title}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
-                  </div>
-                  {!mission.claimed && (
-                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.currentCount}/{mission.requiredCount}</span>
-                  )}
-                  {canClaim && (
-                    <button
-                      onClick={() => onClaimReward(mission.id)}
-                      disabled={isClaimingReward}
-                      className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                    >
-                      Claim
-                    </button>
-                  )}
+            {!dailyMissions.noMissionsAvailable && missions.map(mission => (
+              <div
+                key={mission.id}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
+                  mission.complete && 'bg-emerald-500/[0.06]',
+                )}
+              >
+                <DailyMissionIcon action={mission.action} complete={mission.complete} />
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{mission.title}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
                 </div>
-              );
-            })}
+                {!mission.complete && (
+                  <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.progress}/{mission.target}</span>
+                )}
+                {mission.complete && (
+                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0">+{mission.xp} XP</span>
+                )}
+              </div>
+            ))}
 
             {/* Bonus row */}
-            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusAvailable && !dailyMissions.bonusClaimed && (
-              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-amber-500/[0.06]">
-                <div className="size-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="size-4 text-amber-500" />
+            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusUnlocked && (
+              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/[0.06]">
+                <div className="size-8 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
+                  <Sparkles className="size-4 text-violet-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium leading-tight">Daily Champion</p>
                   <p className="text-[10px] text-muted-foreground">All missions complete!</p>
                 </div>
-                <button
-                  onClick={() => onClaimReward('bonus_daily_complete')}
-                  disabled={isClaimingReward}
-                  className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Claim
-                </button>
+                <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400 shrink-0">+{dailyMissions.bonusXp} XP</span>
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.bonusClaimed && (
+            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
                 <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
@@ -2316,7 +2290,7 @@ function QuestTaskIcon({ taskId, completed }: { taskId: string; completed: boole
 
 // ─── Daily mission icon ───────────────────────────────────────────────────────
 
-function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claimed: boolean; canClaim: boolean }) {
+function DailyMissionIcon({ action, complete }: { action: string; complete: boolean }) {
   const iconClass = 'size-4';
   const icon = (() => {
     switch (action) {
@@ -2334,9 +2308,9 @@ function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claim
   return (
     <div className={cn(
       'size-8 rounded-full flex items-center justify-center shrink-0',
-      claimed ? 'bg-emerald-500/15 text-emerald-500' : canClaim ? 'bg-amber-500/15 text-amber-500' : 'bg-muted/60 text-muted-foreground',
+      complete ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted/60 text-muted-foreground',
     )}>
-      {claimed ? <Check className="size-4" /> : icon}
+      {complete ? <Check className="size-4" /> : icon}
     </div>
   );
 }

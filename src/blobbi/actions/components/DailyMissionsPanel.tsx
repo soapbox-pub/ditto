@@ -2,16 +2,16 @@
  * DailyMissionsPanel — card-grid layout for daily bounties.
  *
  * Each mission is a compact card in a 2-col grid.
- * Tapping a card expands it to show progress, claim button, and reroll.
+ * Tapping a card expands it to show progress and reroll.
  * Only one card expanded at a time.
+ * Completion is implicit (derived from progress vs target).
  */
 
 import { useState } from 'react';
 import {
   Check,
-  Coins,
-  Gift,
   Sparkles,
+  Gift,
   Egg,
   Trophy,
   RefreshCw,
@@ -24,13 +24,13 @@ import {
   Music,
   Pill,
   CircleDot,
+  Zap,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn, formatCompactNumber } from '@/lib/utils';
-import type { DailyMission, DailyMissionAction } from '../lib/daily-missions';
-import { BONUS_MISSION_ID } from '../hooks/useClaimMissionReward';
+import type { DailyMissionAction } from '../lib/daily-missions';
+import type { DailyMissionView } from '../hooks/useDailyMissions';
 import {
   ExpandableMissionCard,
   MissionDescription,
@@ -40,14 +40,12 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DailyMissionsPanelProps {
-  missions: DailyMission[];
-  onClaimReward: (missionId: string) => void;
+  missions: DailyMissionView[];
   onRerollMission?: (missionId: string) => void;
-  todayCoins: number;
+  todayXp: number;
   disabled?: boolean;
-  bonusAvailable?: boolean;
-  bonusClaimed?: boolean;
-  bonusReward?: number;
+  bonusUnlocked?: boolean;
+  bonusXp?: number;
   noMissionsAvailable?: boolean;
   rerollsRemaining?: number;
   isRerolling?: boolean;
@@ -82,51 +80,34 @@ function DailyMissionIcon({ action }: { action: DailyMissionAction }) {
 // ─── Bonus Card ───────────────────────────────────────────────────────────────
 
 interface BonusCardProps {
-  isAvailable: boolean;
-  isClaimed: boolean;
-  reward: number;
-  onClaim: () => void;
-  disabled?: boolean;
+  isUnlocked: boolean;
+  xp: number;
   isExpanded: boolean;
   onToggle: (id: string) => void;
 }
 
-function BonusCard({ isAvailable, isClaimed, reward, onClaim, disabled, isExpanded, onToggle }: BonusCardProps) {
-  const progress = isClaimed ? 1 : isAvailable ? 1 : 0;
-
+function BonusCard({ isUnlocked, xp, isExpanded, onToggle }: BonusCardProps) {
   return (
     <ExpandableMissionCard
       id="bonus"
       category="daily"
       icon={<Trophy className="size-5" />}
       title="Daily Champion"
-      completed={isClaimed}
-      progress={progress}
+      completed={isUnlocked}
+      progress={isUnlocked ? 1 : 0}
       isExpanded={isExpanded}
       onToggle={onToggle}
     >
       <MissionDescription>
-        {isAvailable || isClaimed
-          ? 'Bonus reward for completing all daily missions!'
+        {isUnlocked
+          ? 'Bonus XP for completing all daily missions!'
           : 'Complete all missions to unlock this bonus'}
       </MissionDescription>
 
-      <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-        <Coins className="size-3" />
-        +{formatCompactNumber(reward)}
+      <div className="flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400">
+        <Zap className="size-3" />
+        +{formatCompactNumber(xp)} XP
       </div>
-
-      {isAvailable && !isClaimed && (
-        <Button
-          size="sm"
-          onClick={onClaim}
-          disabled={disabled}
-          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white h-8 text-xs"
-        >
-          <Trophy className="size-3.5 mr-1.5" />
-          Claim Bonus {formatCompactNumber(reward)} Coins
-        </Button>
-      )}
     </ExpandableMissionCard>
   );
 }
@@ -147,7 +128,7 @@ function NoMissionsState() {
   );
 }
 
-function AllClaimedState({ todayCoins }: { todayCoins: number }) {
+function AllCompleteState({ todayXp }: { todayXp: number }) {
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
       <Sparkles className="size-5 text-primary/60" />
@@ -155,8 +136,8 @@ function AllClaimedState({ todayCoins }: { todayCoins: number }) {
         <p className="text-sm font-medium">All done for today</p>
         <p className="text-xs text-muted-foreground mt-0.5">
           Earned{' '}
-          <span className="font-medium text-amber-600 dark:text-amber-400">
-            {formatCompactNumber(todayCoins)} coins
+          <span className="font-medium text-violet-600 dark:text-violet-400">
+            {formatCompactNumber(todayXp)} XP
           </span>{' '}
           — come back tomorrow!
         </p>
@@ -187,13 +168,11 @@ function RerollCounter({ remaining }: { remaining: number }) {
 
 export function DailyMissionsPanel({
   missions,
-  onClaimReward,
   onRerollMission,
-  todayCoins,
+  todayXp,
   disabled,
-  bonusAvailable = false,
-  bonusClaimed = false,
-  bonusReward = 50,
+  bonusUnlocked = false,
+  bonusXp = 50,
   noMissionsAvailable = false,
   rerollsRemaining = 0,
   isRerolling = false,
@@ -202,10 +181,8 @@ export function DailyMissionsPanel({
 
   if (noMissionsAvailable) return <NoMissionsState />;
 
-  const allRegularClaimed = missions.every((m) => m.claimed);
-  const allDone = allRegularClaimed && bonusClaimed;
-
-  if (allDone) return <AllClaimedState todayCoins={todayCoins} />;
+  const allComplete = missions.every((m) => m.complete);
+  if (allComplete && bonusUnlocked) return <AllCompleteState todayXp={todayXp} />;
 
   const canReroll = rerollsRemaining > 0 && !!onRerollMission;
 
@@ -220,9 +197,8 @@ export function DailyMissionsPanel({
 
       {/* Regular mission cards */}
       {missions.map((mission) => {
-        const progress = mission.requiredCount > 0 ? mission.currentCount / mission.requiredCount : 0;
-        const canClaim = mission.completed && !mission.claimed;
-        const showReroll = onRerollMission && !mission.completed && !mission.claimed && canReroll;
+        const progressFrac = mission.target > 0 ? mission.progress / mission.target : 0;
+        const showReroll = onRerollMission && !mission.complete && canReroll;
 
         return (
           <ExpandableMissionCard
@@ -231,8 +207,8 @@ export function DailyMissionsPanel({
             category="daily"
             icon={<DailyMissionIcon action={mission.action} />}
             title={mission.title}
-            completed={mission.claimed}
-            progress={Math.min(progress, 1)}
+            completed={mission.complete}
+            progress={Math.min(progressFrac, 1)}
             isExpanded={expandedId === mission.id}
             onToggle={handleToggle}
           >
@@ -240,19 +216,19 @@ export function DailyMissionsPanel({
             <MissionDescription>{mission.description}</MissionDescription>
 
             {/* Progress */}
-            {!mission.claimed && (
+            {!mission.complete && (
               <MissionProgress
-                current={mission.currentCount}
-                required={mission.requiredCount}
-                completed={mission.completed}
+                current={mission.progress}
+                required={mission.target}
+                completed={mission.complete}
               />
             )}
 
-            {/* Reward + reroll row */}
+            {/* XP + reroll row */}
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                <Coins className="size-3" />
-                {formatCompactNumber(mission.reward)}
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+                <Zap className="size-3" />
+                {formatCompactNumber(mission.xp)} XP
               </span>
 
               {showReroll && (
@@ -277,7 +253,7 @@ export function DailyMissionsPanel({
                 </TooltipProvider>
               )}
 
-              {mission.claimed && (
+              {mission.complete && (
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary">
                   <Check className="size-2.5" />
                   Done
@@ -285,20 +261,12 @@ export function DailyMissionsPanel({
               )}
             </div>
 
-            {/* Claim button */}
-            {canClaim && (
-              <Button
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClaimReward(mission.id);
-                }}
-                disabled={disabled}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
-              >
-                <Gift className="size-3.5 mr-1.5" />
-                Claim {formatCompactNumber(mission.reward)} Coins
-              </Button>
+            {/* Complete indicator */}
+            {mission.complete && (
+              <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                <Gift className="size-3.5" />
+                +{formatCompactNumber(mission.xp)} XP earned
+              </div>
             )}
           </ExpandableMissionCard>
         );
@@ -306,11 +274,8 @@ export function DailyMissionsPanel({
 
       {/* Bonus card */}
       <BonusCard
-        isAvailable={bonusAvailable}
-        isClaimed={bonusClaimed}
-        reward={bonusReward}
-        onClaim={() => onClaimReward(BONUS_MISSION_ID)}
-        disabled={disabled}
+        isUnlocked={bonusUnlocked}
+        xp={bonusXp}
         isExpanded={expandedId === 'bonus'}
         onToggle={handleToggle}
       />

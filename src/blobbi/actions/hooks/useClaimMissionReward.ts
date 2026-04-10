@@ -1,11 +1,14 @@
 /**
- * useClaimMissionReward - Hook for claiming daily mission rewards
- * 
- * Handles:
- * - Persisting coin rewards to kind 11125 Blobbonaut profile
- * - Updating localStorage mission state
- * - Idempotent claiming (prevents double-credit)
- * - Optimistic cache updates
+ * useAwardDailyXp - Award XP for completed daily missions
+ *
+ * Completion is implicit (derived from progress vs target).
+ * This hook calculates the total XP earned today and persists
+ * the updated XP total to kind 11125 tags.
+ *
+ * Should be called once when the client detects all daily missions
+ * are complete, or on page load if missions were completed in a
+ * previous session. Idempotent: tracks what XP has already been
+ * awarded for the current date to prevent double-crediting.
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,228 +18,94 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
-import {
-  KIND_BLOBBONAUT_PROFILE,
-  updateBlobbonautTags,
-} from '@/blobbi/core/lib/blobbi';
-import {
-  type DailyMissionsState,
-  getTodayDateString,
-  needsDailyReset,
-  createDailyMissionsState,
-  isBonusMissionAvailable,
-  isBonusMissionClaimed,
-  BONUS_MISSION_DEFINITION,
-} from '../lib/daily-missions';
+import { KIND_BLOBBONAUT_PROFILE, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
+import { buildXpTagUpdates } from '@/blobbi/core/lib/progression';
+import { serializeProfileContent } from '@/blobbi/core/lib/missions';
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { totalDailyXp } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ClaimMissionRequest {
-  missionId: string;
+export interface AwardDailyXpRequest {
+  /** Current missions state to calculate XP from */
+  missions: MissionsContent;
 }
 
-/** Special ID for claiming the bonus mission */
-export const BONUS_MISSION_ID = 'bonus_daily_complete';
-
-export interface ClaimMissionResult {
-  missionId: string;
-  coinsEarned: number;
-  newTotalCoins: number;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useClaimMissionReward] Failed to write state:', error);
-  }
+export interface AwardDailyXpResult {
+  xpAwarded: number;
+  newTotalXp: number;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Hook to claim daily mission rewards.
- * 
- * This hook persists coin rewards to the kind 11125 Blobbonaut profile event,
- * ensuring rewards are stored on-chain rather than just in localStorage.
- * 
- * @param currentProfile - The current Blobbonaut profile (required for coin updates)
- * @param updateProfileEvent - Callback to update the profile in the query cache
+ * Hook to award XP for completed daily missions.
+ *
+ * @param currentProfile - The current Blobbonaut profile
+ * @param updateProfileEvent - Callback to update profile in query cache
  */
-export function useClaimMissionReward(
+export function useAwardDailyXp(
   currentProfile: BlobbonautProfile | null,
-  updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void
+  updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void,
 ) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ missionId }: ClaimMissionRequest): Promise<ClaimMissionResult> => {
-      if (!user?.pubkey) {
-        throw new Error('You must be logged in to claim rewards');
-      }
+    mutationFn: async ({ missions }: AwardDailyXpRequest): Promise<AwardDailyXpResult> => {
+      if (!user?.pubkey) throw new Error('Must be logged in');
+      if (!currentProfile) throw new Error('Profile not found');
 
-      if (!currentProfile) {
-        throw new Error('Profile not found');
-      }
+      const xpToAward = totalDailyXp(missions);
+      if (xpToAward <= 0) return { xpAwarded: 0, newTotalXp: currentProfile.xp };
 
-      // Read current missions state from localStorage
-      let missionsState = readMissionsState();
-      
-      // Ensure we have valid state for today
-      if (needsDailyReset(missionsState)) {
-        const previousCoins = missionsState?.totalCoinsEarned ?? 0;
-        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousCoins);
-      }
+      const newTotalXp = currentProfile.xp + xpToAward;
 
-      // Handle bonus mission claim
-      if (missionId === BONUS_MISSION_ID) {
-        // Check if bonus is available
-        if (!isBonusMissionAvailable(missionsState!)) {
-          throw new Error('Bonus mission not available yet');
-        }
+      // Update XP and level tags
+      const updatedTags = updateBlobbonautTags(
+        currentProfile.allTags,
+        buildXpTagUpdates(newTotalXp),
+      );
 
-        // Check if already claimed
-        if (isBonusMissionClaimed(missionsState!)) {
-          throw new Error('Bonus reward already claimed');
-        }
+      // Persist missions state to content field
+      const content = serializeProfileContent(
+        currentProfile.content,
+        { missions },
+      );
 
-        const coinsToAdd = BONUS_MISSION_DEFINITION.reward;
-        const newTotalCoins = currentProfile.coins + coinsToAdd;
-
-        // Build updated tags with new coin balance
-        const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
-          coins: newTotalCoins.toString(),
-        });
-
-        // Publish updated profile event
-        const event = await publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
-          tags: updatedTags,
-        });
-
-        // Update the query cache
-        updateProfileEvent(event);
-
-        // Update localStorage to mark bonus as claimed
-        const updatedState: DailyMissionsState = {
-          ...missionsState!,
-          bonusClaimed: true,
-          totalCoinsEarned: missionsState!.totalCoinsEarned + coinsToAdd,
-        };
-
-        writeMissionsState(updatedState);
-
-        // Dispatch event for React components to re-render
-        window.dispatchEvent(new CustomEvent('daily-missions-updated', { 
-          detail: { missionId, claimed: true, isBonus: true } 
-        }));
-
-        return {
-          missionId,
-          coinsEarned: coinsToAdd,
-          newTotalCoins,
-        };
-      }
-
-      // Handle regular mission claim
-      const mission = missionsState!.missions.find(m => m.id === missionId);
-      if (!mission) {
-        throw new Error('Mission not found');
-      }
-
-      // Check if already claimed (idempotency check)
-      if (mission.claimed) {
-        throw new Error('Reward already claimed');
-      }
-
-      // Check if mission is completed
-      if (!mission.completed) {
-        throw new Error('Mission not completed yet');
-      }
-
-      const coinsToAdd = mission.reward;
-      const newTotalCoins = currentProfile.coins + coinsToAdd;
-
-      // Build updated tags with new coin balance
-      const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
-        coins: newTotalCoins.toString(),
-      });
-
-      // Publish updated profile event to kind 11125
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content,
         tags: updatedTags,
       });
 
-      // Update the query cache optimistically
       updateProfileEvent(event);
 
-      // Now update localStorage to mark mission as claimed
-      const updatedMissions = missionsState!.missions.map(m =>
-        m.id === missionId ? { ...m, claimed: true } : m
-      );
-
-      const updatedState: DailyMissionsState = {
-        ...missionsState!,
-        missions: updatedMissions,
-        totalCoinsEarned: missionsState!.totalCoinsEarned + coinsToAdd,
-      };
-
-      writeMissionsState(updatedState);
-
-      // Dispatch event for React components to re-render
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { 
-        detail: { missionId, claimed: true } 
-      }));
-
-      return {
-        missionId,
-        coinsEarned: coinsToAdd,
-        newTotalCoins,
-      };
+      return { xpAwarded: xpToAward, newTotalXp };
     },
-    onSuccess: ({ coinsEarned }) => {
-      // Invalidate profile query to ensure fresh data
+    onSuccess: ({ xpAwarded }) => {
       if (user?.pubkey) {
         queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', user.pubkey] });
       }
-
-      // Show success toast
-      toast({
-        title: 'Reward Claimed!',
-        description: `You earned ${coinsEarned} coins.`,
-      });
+      if (xpAwarded > 0) {
+        toast({
+          title: 'XP Earned!',
+          description: `You earned ${xpAwarded} XP from daily missions.`,
+        });
+      }
     },
     onError: (error: Error) => {
-      // Don't show error for already claimed (user might have double-clicked)
-      if (error.message === 'Reward already claimed' || error.message === 'Bonus reward already claimed') {
-        return;
-      }
-
       toast({
-        title: 'Failed to Claim Reward',
+        title: 'Failed to Award XP',
         description: error.message,
         variant: 'destructive',
       });
     },
   });
 }
+
+// Legacy export name for backward compatibility during migration
+export const useClaimMissionReward = useAwardDailyXp;
+export type ClaimMissionRequest = AwardDailyXpRequest;
+export type ClaimMissionResult = AwardDailyXpResult;

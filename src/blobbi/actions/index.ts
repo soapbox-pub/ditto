@@ -155,19 +155,47 @@ export {
 
 // Daily Missions
 export { useDailyMissions } from './hooks/useDailyMissions';
-export type { UseDailyMissionsResult } from './hooks/useDailyMissions';
-export { useClaimMissionReward } from './hooks/useClaimMissionReward';
-export type { ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
+export type { DailyMissionView, UseDailyMissionsResult } from './hooks/useDailyMissions';
+export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
+export type { AwardDailyXpRequest, AwardDailyXpResult, ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
+export { useRerollMission } from './hooks/useRerollMission';
+export type { RerollMissionRequest, RerollMissionResult } from './hooks/useRerollMission';
 export {
   trackDailyMissionProgress,
+  trackDailyMissionEvent,
   trackMultipleDailyMissionActions,
 } from './lib/daily-mission-tracker';
 export type {
-  DailyMission,
   DailyMissionAction,
   DailyMissionDefinition,
-  DailyMissionsState,
+  Mission,
+  TallyMission,
+  EventMission,
+  MissionsContent,
 } from './lib/daily-missions';
+
+// Progression
+export {
+  xpToLevel,
+  levelToXp,
+  xpProgress,
+  xpToNextLevel,
+  getUnlocks,
+  buildXpTagUpdates,
+  MAX_LEVEL,
+} from '@/blobbi/core/lib/progression';
+export type { Unlocks } from '@/blobbi/core/lib/progression';
+
+// Missions content model
+export {
+  parseProfileContent,
+  serializeProfileContent,
+  isMissionComplete,
+  isTallyMission,
+  isEventMission,
+  missionProgress,
+} from '@/blobbi/core/lib/missions';
+export type { ProfileContent } from '@/blobbi/core/lib/missions';
 
 // Streak tracking
 export {
