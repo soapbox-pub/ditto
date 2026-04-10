@@ -1,3 +1,5 @@
+Thanks for contributing to Ditto! Please read [CONTRIBUTING.md](CONTRIBUTING.md) in full before submitting -- it covers everything you need to get your MR accepted.
+
 ## Related Issue
 
 <!-- Link the GitLab issue. MRs without a linked issue will not be reviewed. -->
@@ -50,18 +52,6 @@ Closes #
 - [ ] I read the [Ditto Philosophy](https://about.ditto.pub/philosophy)
 - [ ] I used plan/research mode before writing code
 - [ ] I used Claude Opus 4.6 (or equivalent frontier model)
-
-### Code quality
-
-- [ ] My diff contains ONLY changes related to the linked issue
-- [ ] No dead code, commented-out blocks, or debug artifacts
-- [ ] No placeholder comments (e.g. "// In a real app...")
-- [ ] Error, loading, and empty states are handled
-- [ ] Existing codebase patterns and conventions were followed
-- [ ] New Nostr event kinds are documented in NIP.md (if applicable)
-- [ ] No large binary assets (images >100KB, fonts, videos) committed to git
-- [ ] No security issues (dangerouslySetInnerHTML, eval, innerHTML, unsanitized input)
-- [ ] Data from Nostr events is treated as untrusted user input (validated before use in href/src attributes, query filters, or trust decisions)
 
 ### Self-review
 

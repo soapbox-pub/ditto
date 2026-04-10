@@ -1335,6 +1335,10 @@ Run available tools in this priority order:
 
 The validation ensures code quality and catches errors before deployment, regardless of the development environment.
 
+### Contributing Guide
+
+When preparing changes for a merge request, also follow the guidelines in `CONTRIBUTING.md`. It includes a self-review checklist (step 8) that should be run against your diff before committing.
+
 ### Using Git
 
 If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
