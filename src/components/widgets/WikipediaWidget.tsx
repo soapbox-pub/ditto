@@ -2,6 +2,7 @@ import { Star, ExternalLink } from 'lucide-react';
 
 import { useWikipediaFeatured } from '@/hooks/useWikipediaFeatured';
 import { Skeleton } from '@/components/ui/skeleton';
+import { openUrl } from '@/lib/downloadFile';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
@@ -25,13 +26,13 @@ export function WikipediaWidget() {
 
   const imageUrl = tfa.originalimage?.source ?? tfa.thumbnail?.source;
   const excerpt = tfa.extract.length > 200 ? tfa.extract.slice(0, 200) + '...' : tfa.extract;
+  const articleUrl = tfa.content_urls.desktop.page;
 
   return (
-    <a
-      href={tfa.content_urls.desktop.page}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block group"
+    <button
+      type="button"
+      onClick={() => openUrl(articleUrl)}
+      className="block w-full text-left group"
     >
       {/* Image */}
       {imageUrl && (
@@ -61,6 +62,6 @@ export function WikipediaWidget() {
           <span>Wikipedia</span>
         </div>
       </div>
-    </a>
+    </button>
   );
 }

@@ -13,6 +13,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFollowList } from '@/hooks/useFollowActions';
 import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
@@ -33,14 +35,24 @@ interface FeedWidgetProps {
 /** Compact feed widget showing recent events for given kind(s). */
 export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage = 'No content yet.' }: FeedWidgetProps) {
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  const followPubkeys = followData?.pubkeys;
 
   const kindsKey = kinds.join(',');
+
+  // Scope to followed authors when logged in, global otherwise.
+  const authors = user && followPubkeys?.length ? followPubkeys : undefined;
+  const authorsKey = authors ? 'follows' : 'global';
+
   const { data: events, isLoading } = useQuery({
-    queryKey: ['widget-feed', kindsKey, limit],
+    queryKey: ['widget-feed', kindsKey, authorsKey, limit],
     queryFn: async () => {
-      return nostr.query([{ kinds, limit: limit * 2 }]);
+      return nostr.query([{ kinds, limit, ...(authors ? { authors } : {}) }]);
     },
     staleTime: 5 * 60_000,
+    // Don't run until follow list is resolved (or user is logged out)
+    enabled: !user || followPubkeys !== undefined,
   });
 
   const filtered = useMemo(() => (events ?? []).slice(0, limit), [events, limit]);

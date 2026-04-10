@@ -1,19 +1,47 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Repeat2, Heart } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
-import { useBlueskyTrending, type BlueskyPost } from '@/hooks/useBlueskyTrending';
+import type { BlueskyPost } from '@/hooks/useBlueskyTrending';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/formatNumber';
 
+const BSKY_PUBLIC_API = 'https://api.bsky.app/xrpc';
+const DISCOVER_FEED_URI = 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot';
+const WIDGET_LIMIT = 5;
+
+/**
+ * Dedicated query for the widget — fetches a single page of 5 posts.
+ * Uses a separate query key from the full BlueskyPage infinite query
+ * so they don't share cached pages.
+ */
+function useBlueskyWidgetPosts() {
+  return useQuery({
+    queryKey: ['bluesky-widget'],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({
+        feed: DISCOVER_FEED_URI,
+        limit: String(WIDGET_LIMIT),
+      });
+      const res = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getFeed?${params}`, {
+        signal,
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!data.feed) return [];
+      return (data.feed as Array<{ post: BlueskyPost }>).map((item) => item.post);
+    },
+    staleTime: 15 * 60_000, // 15 minutes
+    gcTime: 60 * 60_000,    // 1 hour
+    retry: 2,
+  });
+}
+
 /** Bluesky trending posts widget for the sidebar. */
 export function BlueskyWidget() {
-  const { data, isLoading } = useBlueskyTrending();
-
-  const posts = useMemo(() => {
-    if (!data?.pages) return [];
-    return data.pages.flatMap((p) => p.posts).slice(0, 5);
-  }, [data]);
+  const { data: posts, isLoading } = useBlueskyWidgetPosts();
 
   if (isLoading) {
     return (
@@ -32,7 +60,7 @@ export function BlueskyWidget() {
     );
   }
 
-  if (posts.length === 0) {
+  if (!posts || posts.length === 0) {
     return <p className="text-sm text-muted-foreground p-1">No trending posts right now.</p>;
   }
 
