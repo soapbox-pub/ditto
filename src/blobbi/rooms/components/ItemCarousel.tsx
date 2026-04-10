@@ -1,0 +1,139 @@
+/**
+ * ItemCarousel — Single-focus carousel for room items.
+ *
+ * Fixed-size slots prevent layout reflow on item switch.
+ * Mobile: focused item only. Desktop: prev/next previews.
+ */
+
+import { useState, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CarouselEntry {
+  id: string;
+  icon: React.ReactNode;
+  label: string;
+  meta?: string;
+}
+
+interface ItemCarouselProps {
+  items: CarouselEntry[];
+  onUse: (id: string) => void;
+  activeItemId?: string | null;
+  disabled?: boolean;
+  onFocusChange?: (entry: CarouselEntry) => void;
+  className?: string;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function ItemCarousel({
+  items,
+  onUse,
+  activeItemId,
+  disabled,
+  onFocusChange,
+  className,
+}: ItemCarouselProps) {
+  const [index, setIndex] = useState(0);
+  const count = items.length;
+
+  const prev = useCallback(() => {
+    setIndex(i => {
+      const n = (i - 1 + count) % count;
+      onFocusChange?.(items[n]);
+      return n;
+    });
+  }, [count, items, onFocusChange]);
+
+  const next = useCallback(() => {
+    setIndex(i => {
+      const n = (i + 1) % count;
+      onFocusChange?.(items[n]);
+      return n;
+    });
+  }, [count, items, onFocusChange]);
+
+  if (count === 0) {
+    return (
+      <div className={cn('flex items-center justify-center h-[4.5rem] sm:h-[5.5rem]', className)}>
+        <p className="text-xs text-muted-foreground/50">Nothing here yet</p>
+      </div>
+    );
+  }
+
+  const current = items[index];
+  const prevItem = items[(index - 1 + count) % count];
+  const nextItem = items[(index + 1) % count];
+  const isThisActive = activeItemId === current.id;
+  const showPreviews = count >= 3;
+
+  return (
+    <div className={cn('flex items-center justify-center', className)}>
+      <button
+        onClick={prev}
+        disabled={disabled}
+        className={cn(
+          'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
+          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
+          'transition-all duration-200 active:scale-90',
+          disabled && 'opacity-30 pointer-events-none',
+        )}
+        aria-label="Previous item"
+      >
+        <ChevronLeft className="size-4" />
+      </button>
+
+      {showPreviews && (
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
+          <div className="opacity-20 scale-[0.6]">
+            <span className="text-2xl leading-none block">{prevItem.icon}</span>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={() => onUse(current.id)}
+        disabled={disabled}
+        className={cn(
+          'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
+          'w-20 h-[4.5rem] sm:w-24 sm:h-[5.5rem] rounded-2xl',
+          'transition-colors duration-200',
+          'hover:bg-accent/20 active:scale-95',
+          isThisActive && 'bg-accent/40',
+          disabled && !isThisActive && 'opacity-50 pointer-events-none',
+        )}
+      >
+        <span className="text-4xl sm:text-5xl leading-none">{current.icon}</span>
+        <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 w-16 sm:w-20 text-center truncate">
+          {current.label}
+        </span>
+        {isThisActive && <Loader2 className="size-3.5 animate-spin text-primary absolute bottom-0.5" />}
+      </button>
+
+      {showPreviews && (
+        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
+          <div className="opacity-20 scale-[0.6]">
+            <span className="text-2xl leading-none block">{nextItem.icon}</span>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={next}
+        disabled={disabled}
+        className={cn(
+          'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
+          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
+          'transition-all duration-200 active:scale-90',
+          disabled && 'opacity-30 pointer-events-none',
+        )}
+        aria-label="Next item"
+      >
+        <ChevronRight className="size-4" />
+      </button>
+    </div>
+  );
+}
