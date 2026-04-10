@@ -112,7 +112,6 @@ function resolveItemsForAction(
       name: shopItem.name,
       emoji: shopItem.icon,
       category: shopItem.type,
-      quantity: Infinity,
       effect: shopItem.effect,
     });
   }

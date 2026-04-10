@@ -136,7 +136,7 @@ export {
   clampStat,
   applyStat,
   applyItemEffects,
-  filterInventoryByAction,
+  getItemsForAction,
   decrementStorageItem,
   canUseAction,
   canUseDirectAction,

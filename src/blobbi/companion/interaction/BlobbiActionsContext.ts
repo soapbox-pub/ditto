@@ -40,7 +40,8 @@ export {
  * 1. Registered function from BlobbiPage (if available) - better cache access
  * 2. Built-in useBlobbiItemUse hook as fallback - works anywhere
  * 
- * Uses subscription pattern to only re-render when necessary.
+ * Cooldown is enforced via the shared item-cooldown module, which is
+ * consistent across both the registered and fallback paths.
  */
 export function useBlobbiActions(): BlobbiActionsContextValue {
   const context = useContext(BlobbiActionsContext);
@@ -103,8 +104,7 @@ export function useBlobbiActions(): BlobbiActionsContextValue {
     isUsingItem,
     canUseItems,
     isItemOnCooldown: fallbackItemUse.isItemOnCooldown,
-    clearItemCooldown: fallbackItemUse.clearItemCooldown,
-  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown, fallbackItemUse.clearItemCooldown]);
+  }), [useItem, isUsingItem, canUseItems, fallbackItemUse.isItemOnCooldown]);
 }
 
 // ─── Registration Hook ────────────────────────────────────────────────────────
@@ -187,5 +187,3 @@ export function useBlobbiActionsRegistration(
     };
   }, [context]);
 }
-
-

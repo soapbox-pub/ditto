@@ -29,11 +29,12 @@ import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
+import { isItemOnCooldown, setItemCooldown } from '../lib/item-cooldown';
 import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
 import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 /**
- * Request payload for using an item on a Blobbi companion
+ * Request payload for using an item on a Blobbi companion.
  */
 export interface UseItemRequest {
   itemId: string;
@@ -41,7 +42,7 @@ export interface UseItemRequest {
 }
 
 /**
- * Result of using an item on a Blobbi companion
+ * Result of using an item on a Blobbi companion.
  */
 export interface UseItemResult {
   itemName: string;
@@ -79,15 +80,19 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * Hook to use an item on a Blobbi companion.
- * 
+ *
  * Items are reusable abilities sourced from the shop catalog — no
- * inventory ownership or quantity is required.
- * 
+ * ownership or quantity is required. Each use applies effects once.
+ *
+ * Cooldown is enforced via the shared item-cooldown module so that
+ * rapid repeated clicks are blocked consistently across all UIs.
+ *
  * This hook:
  * 1. Validates the companion and item compatibility
- * 2. Ensures canonical format before action
- * 3. Applies accumulated decay, then item effects to Blobbi stats
- * 4. Updates Blobbi state (kind 31124)
+ * 2. Checks the shared per-item cooldown
+ * 3. Ensures canonical format before action
+ * 4. Applies accumulated decay, then item effects to Blobbi stats
+ * 5. Updates Blobbi state (kind 31124)
  */
 export function useBlobbiUseInventoryItem({
   companion,
@@ -101,6 +106,11 @@ export function useBlobbiUseInventoryItem({
 
   return useMutation({
     mutationFn: async ({ itemId, action }: UseItemRequest): Promise<UseItemResult> => {
+      // ─── Cooldown guard (shared across all UIs) ───
+      if (isItemOnCooldown(itemId)) {
+        throw new Error('Please wait before using this item again');
+      }
+
       // ─── Validation ───
       if (!user?.pubkey) {
         throw new Error('You must be logged in to use items');
@@ -147,9 +157,6 @@ export function useBlobbiUseInventoryItem({
       }
 
       // ─── Apply Accumulated Decay First ───
-      // Per decay-system.md: Always apply accumulated decay from persisted state
-      // before any user interaction updates stats.
-      // CRITICAL: Use canonical.companion for decay calculations, not the stale outer companion
       const now = Math.floor(Date.now() / 1000);
       const decayResult = applyBlobbiDecay({
         stage: canonical.companion.stage,
@@ -163,7 +170,6 @@ export function useBlobbiUseInventoryItem({
       const statsAfterDecay = decayResult.stats;
       
       // ─── Validate Play Energy Requirements ───
-      // For play actions, validate the Blobbi has enough energy AFTER decay
       if (action === 'play') {
         const energyCost = Math.abs(shopItem.effect.energy ?? 0);
         const currentEnergy = statsAfterDecay.energy;
@@ -174,8 +180,6 @@ export function useBlobbiUseInventoryItem({
           );
         }
         
-        // Also check if playing would have any effect at all
-        // If happiness is maxed AND we can't spend energy, playing is pointless
         const happinessGain = shopItem.effect.happiness ?? 0;
         const currentHappiness = statsAfterDecay.happiness;
         const wouldGainHappiness = happinessGain > 0 && currentHappiness < 100;
@@ -194,8 +198,7 @@ export function useBlobbiUseInventoryItem({
       const statsChanged: Record<string, number> = {};
 
       if (isEggCompanion && action === 'medicine') {
-        const healthDelta = shopItem.effect.health ?? 0;
-        const currentHealth = applyStat(statsAfterDecay.health ?? 0, healthDelta);
+        const currentHealth = applyStat(statsAfterDecay.health ?? 0, shopItem.effect.health ?? 0);
         
         statsUpdate.health = currentHealth.toString();
         statsChanged.health = currentHealth - (statsAfterDecay.health ?? 0);
@@ -243,7 +246,6 @@ export function useBlobbiUseInventoryItem({
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // If incubating or evolving, increment the interaction counter for tasks
       const companionState = canonical.companion.state;
       let updatedTags = canonical.allTags;
       if (companionState === 'incubating') {
@@ -252,7 +254,6 @@ export function useBlobbiUseInventoryItem({
         updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
       }
       
-      // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
       // ─── Apply XP Gain ───
@@ -276,11 +277,6 @@ export function useBlobbiUseInventoryItem({
 
       updateCompanionEvent(blobbiEvent);
 
-      // Items are free to use — no storage decrement needed.
-      // No query invalidation needed — the optimistic update above keeps the
-      // cache correct, and ensureCanonicalBeforeAction fetches fresh from relays
-      // before every mutation (read-modify-write pattern).
-
       return {
         itemName: shopItem.name,
         action,
@@ -289,7 +285,7 @@ export function useBlobbiUseInventoryItem({
         newXP,
       };
     },
-    onSuccess: ({ itemName, action, xpGained }) => {
+    onSuccess: ({ itemName, action, xpGained }, { itemId }) => {
       const actionMeta = ACTION_METADATA[action];
       const xpText = formatXPGain(xpGained);
       toast({
@@ -297,19 +293,24 @@ export function useBlobbiUseInventoryItem({
         description: `Used ${itemName} on your Blobbi. ${xpText}`,
       });
 
+      // Set shared cooldown (success — short)
+      setItemCooldown(itemId, true);
+
       // Track daily mission progress
-      // 'interact' is always tracked, plus the specific action if it maps to a daily mission
       const dailyActions: DailyMissionAction[] = ['interact'];
       if (action === 'feed') dailyActions.push('feed');
       if (action === 'clean') dailyActions.push('clean');
       trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, { itemId }) => {
       toast({
         title: 'Failed to use item',
         description: error.message,
         variant: 'destructive',
       });
+
+      // Set shared cooldown (failure — longer)
+      setItemCooldown(itemId, false);
     },
   });
 }

@@ -63,7 +63,7 @@ export function getItemCategoryForAction(actionId: CompanionMenuAction): ShopIte
 
 /**
  * Normalized item representation for the companion UI.
- * This is a simplified view of shop catalog items optimized for rendering.
+ * A simplified view of shop catalog items optimized for rendering.
  */
 export interface CompanionItem {
   /** Unique item ID (matches shop item ID) */
@@ -74,8 +74,6 @@ export interface CompanionItem {
   emoji: string;
   /** Item category */
   category: ShopItemCategory;
-  /** Availability (always Infinity — items are reusable abilities) */
-  quantity: number;
   /** Item effects when used */
   effect?: ItemEffect;
 }

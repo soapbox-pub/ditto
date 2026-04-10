@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap, Clock } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -87,6 +87,7 @@ import {
 // DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
+import { useItemCooldown } from '@/blobbi/actions/hooks/useItemCooldown';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
@@ -1962,20 +1963,24 @@ function ItemsTabContent({
   isUsingItem,
   usingItemId,
 }: ItemsTabContentProps) {
+  const { isOnCooldown } = useItemCooldown();
+
   return (
     <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
       {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
         const isThisUsing = isUsingItem && usingItemId === item.id;
+        const isCoolingDown = isOnCooldown(item.id);
+        const isDisabled = isUsingItem || isCoolingDown;
         return (
           <button
             key={item.id}
             onClick={() => onUseItem(item.id)}
-            disabled={isUsingItem}
+            disabled={isDisabled}
             className={cn(
               'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
               'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
               isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isUsingItem && !isThisUsing && 'opacity-40 pointer-events-none',
+              isDisabled && !isThisUsing && 'opacity-40 pointer-events-none',
             )}
           >
             {/* Stat category indicator — top-right */}
@@ -1985,6 +1990,7 @@ function ItemsTabContent({
             <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
             <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
             {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
+            {isCoolingDown && !isThisUsing && <Clock className="size-3 text-muted-foreground absolute bottom-1" />}
           </button>
         );
       })}

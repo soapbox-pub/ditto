@@ -215,7 +215,7 @@ export function BlobbiInventoryModal({
               <div className="size-9 sm:size-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center shrink-0">
                 <Package className="size-4 sm:size-5 text-primary" />
               </div>
-              <DialogTitle className="text-xl sm:text-2xl">Inventory</DialogTitle>
+              <DialogTitle className="text-xl sm:text-2xl">Items</DialogTitle>
             </div>
             <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
               <X className="size-5" />

@@ -1,7 +1,7 @@
 // src/blobbi/actions/components/BlobbiActionInventoryModal.tsx
 
 import { useMemo } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Clock } from 'lucide-react';
 
 import {
   Dialog,
@@ -16,7 +16,7 @@ import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobb
 import { cn } from '@/lib/utils';
 
 import {
-  filterInventoryByAction,
+  getItemsForAction,
   previewStatChanges,
   previewMedicineForEgg,
   previewCleanForEgg,
@@ -27,6 +27,7 @@ import {
   type ResolvedInventoryItem,
   type EggStatPreview,
 } from '../lib/blobbi-action-utils';
+import { useItemCooldown } from '../hooks/useItemCooldown';
 
 interface BlobbiActionInventoryModalProps {
   open: boolean;
@@ -53,11 +54,11 @@ export function BlobbiActionInventoryModal({
   usingItemId,
 }: BlobbiActionInventoryModalProps) {
   const actionMeta = ACTION_METADATA[action];
+  const { isOnCooldown } = useItemCooldown();
 
-  // Get all available items for this action from the catalog (not inventory).
-  // Items are abilities/tools — no ownership required.
+  // Get all available items for this action from the catalog.
   const availableItems = useMemo(() => {
-    return filterInventoryByAction([], action, { stage: companion.stage });
+    return getItemsForAction(action, { stage: companion.stage });
   }, [action, companion.stage]);
 
   // Check stage restrictions for this specific action
@@ -68,6 +69,7 @@ export function BlobbiActionInventoryModal({
 
   const handleUseItem = (item: ResolvedInventoryItem) => {
     if (isUsingItem) return;
+    if (isOnCooldown(item.itemId)) return;
     onUseItem(item.itemId);
   };
 
@@ -126,17 +128,22 @@ export function BlobbiActionInventoryModal({
           {/* Item List */}
           {canUse && !isEmpty && (
             <div className="grid gap-3">
-              {availableItems.map((item) => (
-                <BlobbiInventoryUseRow
-                  key={item.itemId}
-                  item={item}
-                  companion={companion}
-                  action={action}
-                  onUse={() => handleUseItem(item)}
-                  isUsing={isUsingItem && usingItemId === item.itemId}
-                  disabled={isUsingItem}
-                />
-              ))}
+              {availableItems.map((item) => {
+                const isCoolingDown = isOnCooldown(item.itemId);
+                const isThisUsing = isUsingItem && usingItemId === item.itemId;
+                return (
+                  <BlobbiItemUseRow
+                    key={item.itemId}
+                    item={item}
+                    companion={companion}
+                    action={action}
+                    onUse={() => handleUseItem(item)}
+                    isUsing={isThisUsing}
+                    disabled={isUsingItem || isCoolingDown}
+                    isCoolingDown={isCoolingDown}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -145,30 +152,32 @@ export function BlobbiActionInventoryModal({
   );
 }
 
-// ─── Inventory Use Row ────────────────────────────────────────────────────────
+// ─── Item Use Row ─────────────────────────────────────────────────────────────
 
-interface BlobbiInventoryUseRowProps {
+interface BlobbiItemUseRowProps {
   item: ResolvedInventoryItem;
   companion: BlobbiCompanion;
   action: InventoryAction;
   onUse: () => void;
   isUsing: boolean;
   disabled: boolean;
+  isCoolingDown: boolean;
 }
 
-function BlobbiInventoryUseRow({
+function BlobbiItemUseRow({
   item,
   companion,
   action,
   onUse,
   isUsing,
   disabled,
-}: BlobbiInventoryUseRowProps) {
+  isCoolingDown,
+}: BlobbiItemUseRowProps) {
   const isEgg = companion.stage === 'egg';
   const isMedicine = action === 'medicine';
   const isClean = action === 'clean';
 
-  // Preview stat changes - handle egg-specific preview for medicine and clean
+  // Preview stat changes — single-use effect preview
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
       return {
@@ -217,38 +226,18 @@ function BlobbiInventoryUseRow({
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 {normalStatChanges.map(({ stat, delta }) => (
                   <span key={stat} className="text-xs">
-                    <span
-                      className={cn(
-                        'font-medium',
-                        delta > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}
-                    >
-                      {delta > 0 ? '+' : ''}
-                      {delta}
+                    <span className={cn('font-medium', delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                      {delta > 0 ? '+' : ''}{delta}
                     </span>{' '}
-                    <span className="text-muted-foreground capitalize">
-                      {stat.replace('_', ' ')}
-                    </span>
+                    <span className="text-muted-foreground capitalize">{stat.replace('_', ' ')}</span>
                   </span>
                 ))}
                 {eggStatChanges.map(({ stat, delta }) => (
                   <span key={stat} className="text-xs">
-                    <span
-                      className={cn(
-                        'font-medium',
-                        delta > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}
-                    >
-                      {delta > 0 ? '+' : ''}
-                      {delta}
+                    <span className={cn('font-medium', delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                      {delta > 0 ? '+' : ''}{delta}
                     </span>{' '}
-                    <span className="text-muted-foreground capitalize">
-                      {stat.replace('_', ' ')}
-                    </span>
+                    <span className="text-muted-foreground capitalize">{stat.replace('_', ' ')}</span>
                   </span>
                 ))}
               </div>
@@ -261,10 +250,13 @@ function BlobbiInventoryUseRow({
           size="sm"
           onClick={onUse}
           disabled={disabled}
-          className="shrink-0"
+          variant={isCoolingDown ? 'outline' : 'default'}
+          className="shrink-0 min-w-14"
         >
           {isUsing ? (
             <Loader2 className="size-4 animate-spin" />
+          ) : isCoolingDown ? (
+            <Clock className="size-3.5 text-muted-foreground" />
           ) : (
             'Use'
           )}
@@ -276,38 +268,18 @@ function BlobbiInventoryUseRow({
         <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 pl-13">
           {normalStatChanges.map(({ stat, delta }) => (
             <span key={stat} className="text-xs">
-              <span
-                className={cn(
-                  'font-medium',
-                  delta > 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                )}
-              >
-                {delta > 0 ? '+' : ''}
-                {delta}
+              <span className={cn('font-medium', delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                {delta > 0 ? '+' : ''}{delta}
               </span>{' '}
-              <span className="text-muted-foreground capitalize">
-                {stat.replace('_', ' ')}
-              </span>
+              <span className="text-muted-foreground capitalize">{stat.replace('_', ' ')}</span>
             </span>
           ))}
           {eggStatChanges.map(({ stat, delta }) => (
             <span key={stat} className="text-xs">
-              <span
-                className={cn(
-                  'font-medium',
-                  delta > 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                )}
-              >
-                {delta > 0 ? '+' : ''}
-                {delta}
+              <span className={cn('font-medium', delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                {delta > 0 ? '+' : ''}{delta}
               </span>{' '}
-              <span className="text-muted-foreground capitalize">
-                {stat.replace('_', ' ')}
-              </span>
+              <span className="text-muted-foreground capitalize">{stat.replace('_', ' ')}</span>
             </span>
           ))}
         </div>

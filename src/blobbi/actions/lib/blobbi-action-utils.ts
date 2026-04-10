@@ -12,8 +12,8 @@ import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop
 export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine';
 
 /**
- * Direct actions that don't use items.
- * These actions affect stats directly without selecting a shop item.
+ * Direct actions that don't use items
+ * These actions affect stats directly without using shop items.
  */
 export type DirectAction = 'play_music' | 'sing';
 
@@ -273,11 +273,10 @@ export function hasHappinessEffectForEgg(effects: ItemEffect | undefined): boole
 // ─── Item Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Resolved catalog item with shop metadata
+ * Resolved catalog item with shop metadata.
  */
 export interface ResolvedInventoryItem {
   itemId: string;
-  quantity: number;
   name: string;
   icon: string;
   type: ShopItemCategory;
@@ -285,7 +284,7 @@ export interface ResolvedInventoryItem {
 }
 
 /**
- * Options for filtering catalog items by action
+ * Options for filtering catalog items by action.
  */
 export interface FilterInventoryOptions {
   /** Companion stage - used to filter items by egg-compatible effects */
@@ -294,7 +293,7 @@ export interface FilterInventoryOptions {
 
 /**
  * Get all available items for an action type from the shop catalog.
- * Items are abilities/tools — no inventory ownership is required.
+ * Items are reusable abilities — no ownership is required.
  * 
  * Filtering rules:
  * - Only items matching the action's item type are included
@@ -303,8 +302,7 @@ export interface FilterInventoryOptions {
  *   - medicine action: only items with health effect
  *   - clean action: only items with hygiene or happiness effect
  */
-export function filterInventoryByAction(
-  _storage: StorageItem[],
+export function getItemsForAction(
   action: InventoryAction,
   options: FilterInventoryOptions = {}
 ): ResolvedInventoryItem[] {
@@ -324,16 +322,15 @@ export function filterInventoryByAction(
     // For eggs, filter items by egg-compatible effects
     if (isEgg) {
       if (action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
-        continue; // Skip medicine without health effect
+        continue;
       }
       if (action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) {
-        continue; // Skip hygiene items without hygiene or happiness effect
+        continue;
       }
     }
 
     result.push({
       itemId: shopItem.id,
-      quantity: Infinity,
       name: shopItem.name,
       icon: shopItem.icon,
       type: shopItem.type,

@@ -47,11 +47,8 @@ export interface BlobbiActionsContextValue {
   /** Whether items can be used (companion exists and profile loaded) */
   canUseItems: boolean;
 
-  /** Check if an item is on cooldown (recently attempted) */
+  /** Check if a specific item is on cooldown */
   isItemOnCooldown: (itemId: string) => boolean;
-
-  /** Clear cooldown for an item */
-  clearItemCooldown: (itemId: string) => void;
 }
 
 /**
