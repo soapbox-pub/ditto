@@ -905,9 +905,16 @@ function BlobbiDashboard({
 
   // ─── Room Navigation ───
   const [currentRoom, setCurrentRoom] = useState<BlobbiRoomId>(
-    isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
+    isSleeping ? 'rest' : isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
   );
   const poopStateRef = useRef<PoopState | null>(null);
+
+  // Auto-navigate to bedroom when blobbi falls asleep
+  useEffect(() => {
+    if (isSleeping) {
+      setCurrentRoom('rest');
+    }
+  }, [isSleeping]);
   
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
