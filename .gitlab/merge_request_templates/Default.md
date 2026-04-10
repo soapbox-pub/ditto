@@ -63,11 +63,18 @@ Closes #
 - [ ] No security issues (dangerouslySetInnerHTML, eval, innerHTML, unsanitized input)
 - [ ] Data from Nostr events is treated as untrusted user input (validated before use in href/src attributes, query filters, or trust decisions)
 
+### Self-review
+
+Copy-paste this into your AI tool and fix any findings before submitting:
+
+> Review this diff against the self-review checklist in CONTRIBUTING.md step 8. Read that file first, then check every item. For each finding, state the file, line, and issue.
+
+- [ ] I ran the self-review prompt above and addressed all findings
+
 ### Testing
 
 - [ ] I ran `npm run test` locally and it passes
 - [ ] I tested the change manually in the browser
-- [ ] I ran the self-review prompt from [CONTRIBUTING.md](CONTRIBUTING.md) and addressed all findings
 
 ### Submission
 
