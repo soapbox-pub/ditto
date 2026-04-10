@@ -11,6 +11,17 @@
 import type { ThemeFont } from '@/themes';
 import { findBundledFont, loadBundledFont, resolveCssFamily } from '@/lib/fonts';
 
+// ─── CSS string sanitisation ──────────────────────────────────────────
+
+/**
+ * Sanitize a string for safe interpolation into a double-quoted CSS context.
+ * Uses an allowlist approach — only Unicode letters, numbers, spaces, hyphens,
+ * underscores, apostrophes, and periods are permitted. Everything else is stripped.
+ */
+function sanitizeCssString(value: string): string {
+  return value.replace(/[^\p{L}\p{N} _\-'.]/gu, '');
+}
+
 // ─── @font-face injection for remote fonts ────────────────────────────
 
 /** Style element ID for injected @font-face rules. */
@@ -33,9 +44,10 @@ function injectFontFace(family: string, url: string): void {
     document.head.appendChild(style);
   }
 
+  const safeFamily = sanitizeCssString(family);
   const rule = `
 @font-face {
-  font-family: "${family}";
+  font-family: "${safeFamily}";
   src: url("${url}");
   font-display: swap;
 }`;
@@ -73,7 +85,7 @@ export function applyFontOverride(font: ThemeFont | undefined): void {
     document.head.appendChild(style);
   }
 
-  const cssFamily = resolveCssFamily(font.family);
+  const cssFamily = sanitizeCssString(resolveCssFamily(font.family));
   style.textContent = `html { font-family: "${cssFamily}", ${DEFAULT_FONT_STACK} !important; }\n`;
 }
 
@@ -133,7 +145,7 @@ export function applyTitleFontOverride(font: ThemeFont | undefined): void {
     document.head.appendChild(style);
   }
 
-  const cssFamily = resolveCssFamily(font.family);
+  const cssFamily = sanitizeCssString(resolveCssFamily(font.family));
   style.textContent = `:root { --title-font-family: "${cssFamily}", ${DEFAULT_FONT_STACK}; }\n`;
 }
 
