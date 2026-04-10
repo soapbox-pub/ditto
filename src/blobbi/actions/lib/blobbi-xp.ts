@@ -7,8 +7,8 @@
  * Design Philosophy:
  * - Different actions award different XP to reflect their complexity/value
  * - XP values are balanced to encourage variety in care activities
- * - Direct actions (sing, play_music) give moderate XP as they're free
- * - Inventory actions (feed, play, clean, medicine) give varied XP based on resource cost
+ * - Item actions (feed, play, clean, medicine) give varied XP per action type
+ * - Direct actions (sing, play_music) give moderate XP
  * - XP accumulates across all life stages and never resets
  */
 
@@ -17,19 +17,18 @@ import type { BlobbiAction, InventoryAction, DirectAction } from './blobbi-actio
 // ─── XP Values by Action ──────────────────────────────────────────────────────
 
 /**
- * Base XP values for inventory actions (feed, play, clean, medicine).
- * These actions consume items from the player's storage.
+ * Base XP values for item-based care actions (feed, play, clean, medicine).
  */
 export const INVENTORY_ACTION_XP: Record<InventoryAction, number> = {
   feed: 5,      // Feeding is common and essential - moderate XP
   play: 8,      // Playing toys provides good interaction - higher XP
   clean: 6,     // Hygiene maintenance is important - moderate-high XP
-  medicine: 10, // Medicine is costly and critical - highest inventory XP
+  medicine: 10, // Medicine is critical - highest item XP
 };
 
 /**
  * Base XP values for direct actions (play_music, sing).
- * These actions don't consume items - they're free activities.
+ * These actions don't require selecting an item.
  */
 export const DIRECT_ACTION_XP: Record<DirectAction, number> = {
   play_music: 7,  // Playing music is engaging - good XP
@@ -58,11 +57,10 @@ export function calculateActionXP(action: BlobbiAction): number {
 }
 
 /**
- * Calculate total XP gain for using multiple items.
- * Each item use counts as a separate action for XP purposes.
+ * Calculate XP gain for an item-based care action.
  * 
  * @param action - The action performed
- * @param quantity - Number of items used (defaults to 1)
+ * @param quantity - Number of times performed (always 1 in current usage)
  * @returns Total XP points earned
  */
 export function calculateInventoryActionXP(action: InventoryAction, quantity: number = 1): number {
@@ -88,8 +86,8 @@ export function applyXPGain(currentXP: number | undefined, xpGain: number): numb
  * Get XP gain summary for displaying to the user.
  * 
  * @param action - The action performed
- * @param quantity - Number of times the action was performed (for inventory actions)
- * @returns Object with xpGained and total quantity
+ * @param quantity - Number of times the action was performed (always 1 in current usage)
+ * @returns Object with xpGained and quantity
  */
 export function getXPGainSummary(
   action: BlobbiAction,

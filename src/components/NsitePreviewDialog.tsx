@@ -1,13 +1,18 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { SandboxFrame } from '@/components/SandboxFrame';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { getPreviewInjectedScript } from '@/lib/previewInjectedScript';
+import { getMimeType } from '@/lib/sandbox';
+import type { FileResponse, InjectedScript } from '@/lib/sandbox';
 
 interface Rect { left: number; top: number; width: number; height: number }
 
@@ -31,38 +36,6 @@ function useElementRect(el: HTMLElement | null): Rect | null {
   }, [el]);
 
   return rect;
-}
-
-/** The wildcard-to-localhost preview domain used by Shakespeare's iframe-fetch-client. */
-const PREVIEW_DOMAIN = 'local-shakespeare.dev';
-
-interface JSONRPCFetchRequest {
-  jsonrpc: '2.0';
-  method: 'fetch';
-  params: {
-    request: {
-      url: string;
-      method: string;
-      headers: Record<string, string>;
-      body: string | null;
-    };
-  };
-  id: number;
-}
-
-interface JSONRPCResponse {
-  jsonrpc: '2.0';
-  result?: {
-    status: number;
-    statusText: string;
-    headers: Record<string, string>;
-    body: string | null;
-  };
-  error?: {
-    code: number;
-    message: string;
-  };
-  id: number;
 }
 
 /**
@@ -114,43 +87,6 @@ async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Resp
   throw lastError ?? new Error(`Failed to fetch blob ${sha256} from all servers`);
 }
 
-/**
- * Guess a MIME type from a file path extension.
- * Falls back to 'application/octet-stream' for unknown extensions.
- */
-function guessMimeType(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  const map: Record<string, string> = {
-    html: 'text/html',
-    htm: 'text/html',
-    css: 'text/css',
-    js: 'application/javascript',
-    mjs: 'application/javascript',
-    json: 'application/json',
-    svg: 'image/svg+xml',
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    ico: 'image/x-icon',
-    woff: 'font/woff',
-    woff2: 'font/woff2',
-    ttf: 'font/ttf',
-    otf: 'font/otf',
-    mp4: 'video/mp4',
-    webm: 'video/webm',
-    mp3: 'audio/mpeg',
-    ogg: 'audio/ogg',
-    wav: 'audio/wav',
-    wasm: 'application/wasm',
-    xml: 'application/xml',
-    txt: 'text/plain',
-    md: 'text/markdown',
-  };
-  return map[ext] ?? 'application/octet-stream';
-}
-
 interface NsitePreviewDialogProps {
   /** The nsite event (kind 15128 or 35128) containing path and server tags. */
   event: NostrEvent;
@@ -164,30 +100,25 @@ interface NsitePreviewDialogProps {
 
 /**
  * An in-app preview panel that covers the center column and loads an nsite in
- * a sandboxed iframe, using the Shakespeare iframe-fetch-client protocol over
- * local-shakespeare.dev.
+ * a sandboxed iframe.
  *
- * Instead of proxying requests through an nsite gateway, this component serves
- * files directly from Blossom servers using the manifest data embedded in the
- * nsite event's `path` tags. Each path tag maps a file path to its sha256 hash,
- * which is used to construct a Blossom content-addressed URL.
+ * Files are served directly from Blossom servers using the manifest data
+ * embedded in the nsite event's `path` tags. Each path tag maps a file path
+ * to its sha256 hash, which is used to construct a Blossom content-addressed URL.
  *
  * The panel is portaled into the center column DOM element (via CenterColumnContext)
  * and uses `position: fixed` to fill the viewport column area.
- *
- * The parent window intercepts JSON-RPC `fetch` requests from the iframe and
- * serves them directly from Blossom, so the SPA can run without any gateway dependency.
  */
 export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
 
-  // Derive the iframe origin from the NIP-5A canonical subdomain for this event
-  const subdomain = getNsiteSubdomain(event);
-  const iframeOrigin = `https://${subdomain}.${PREVIEW_DOMAIN}`;
-  const iframeSrc = `${iframeOrigin}/`;
+  // Use the NIP-5A canonical subdomain as the stable identifier, then derive
+  // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
+  // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
+  const nsiteSubdomain = getNsiteSubdomain(event);
+  const previewSubdomain = useMemo(() => deriveIframeSubdomain('nsite', nsiteSubdomain), [nsiteSubdomain]);
 
   // Build the manifest and server list from the event (memoised per event identity)
   const manifest = useRef<Map<string, string>>(new Map());
@@ -202,127 +133,39 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     servers.current = resolveServers(event, appServers.length > 0 ? appServers : APP_BLOSSOM_SERVERS.servers);
   }, [event, config.blossomServerMetadata, config.useAppBlossomServers]);
 
-  /** Send a JSON-RPC response back to the iframe. */
-  const sendResponse = useCallback((message: JSONRPCResponse) => {
-    iframeRef.current?.contentWindow?.postMessage(message, iframeOrigin);
-  }, [iframeOrigin]);
+  /** Injected scripts: just the path normalisation snippet for SPA support. */
+  const injectedScripts = useMemo<InjectedScript[]>(() => [{
+    path: '__injected__/preview.js',
+    content: getPreviewInjectedScript(),
+  }], []);
 
-  /** Handle a fetch request from the iframe by serving files directly from Blossom. */
-  const handleFetch = useCallback(async (request: JSONRPCFetchRequest) => {
-    const { params, id } = request;
-    const { request: fetchRequest } = params;
+  /** Resolve a pathname to file content from the Blossom manifest. */
+  const resolveFile = useCallback(async (pathname: string): Promise<FileResponse | null> => {
+    // Look up the sha256 for this path in the manifest.
+    // If not found, fall back to /index.html (SPA client-side routing).
+    let sha256 = manifest.current.get(pathname);
+    let servingPath = pathname;
 
-    try {
-      const requestedUrl = new URL(fetchRequest.url);
-
-      // Only serve requests for our iframe origin
-      if (requestedUrl.origin !== iframeOrigin) {
-        sendResponse({
-          jsonrpc: '2.0',
-          error: { code: -32003, message: 'Origin mismatch' },
-          id,
-        });
-        return;
-      }
-
-      // Strip query string from path for manifest lookup
-      const requestedPath = requestedUrl.pathname;
-
-      // Look up the sha256 for this path in the manifest.
-      // If not found, fall back to /index.html (SPA client-side routing).
-      let sha256 = manifest.current.get(requestedPath);
-      let servingPath = requestedPath;
-
-      if (!sha256) {
-        sha256 = manifest.current.get('/index.html');
-        servingPath = '/index.html';
-      }
-
-      if (!sha256) {
-        sendResponse({
-          jsonrpc: '2.0',
-          result: {
-            status: 404,
-            statusText: 'Not Found',
-            headers: { 'Content-Type': 'text/plain' },
-            body: btoa('Not Found'),
-          },
-          id,
-        });
-        return;
-      }
-
-      // Fetch the blob from Blossom, trying each server in order
-      const res = await fetchFromBlossom(sha256, servers.current);
-
-      // Read as ArrayBuffer → base64 so binary assets work correctly
-      const buffer = await res.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const bodyBase64 = btoa(binary);
-
-      // Always determine content type from the file extension.
-      // Blossom servers commonly return incorrect types (e.g. text/plain for .js
-      // files), which causes browsers to reject module scripts. The file path from
-      // the manifest is authoritative for the correct MIME type.
-      const contentType = guessMimeType(servingPath);
-
-      // The iframe-fetch-client (main.js) checks headers with Title-Case keys
-      // (e.g. "Content-Type"), and does an exact equality check against "text/html"
-      // for routing decisions.
-      const responseHeaders: Record<string, string> = {
-        'Content-Type': contentType,
-        'Content-Length': String(bytes.byteLength),
-      };
-
-      sendResponse({
-        jsonrpc: '2.0',
-        result: {
-          status: 200,
-          statusText: 'OK',
-          headers: responseHeaders,
-          body: bodyBase64,
-        },
-        id,
-      });
-    } catch (err) {
-      sendResponse({
-        jsonrpc: '2.0',
-        error: { code: -32002, message: String(err) },
-        id,
-      });
+    if (!sha256) {
+      sha256 = manifest.current.get('/index.html');
+      servingPath = '/index.html';
     }
-  }, [iframeOrigin, sendResponse]);
 
-  /** Handle navigation state updates from the iframe (no-op). */
-  const handleNavigationState = useCallback((_params: {
-    currentUrl: string;
-    canGoBack: boolean;
-    canGoForward: boolean;
-  }) => {
-    // intentionally empty
+    if (!sha256) return null;
+
+    // Fetch the blob from Blossom, trying each server in order.
+    const res = await fetchFromBlossom(sha256, servers.current);
+    const buffer = await res.arrayBuffer();
+    const body = new Uint8Array(buffer);
+
+    // Always determine content type from the file extension.
+    // Blossom servers commonly return incorrect types (e.g. text/plain for .js
+    // files), which causes browsers to reject module scripts. The file path from
+    // the manifest is authoritative for the correct MIME type.
+    const contentType = getMimeType(servingPath);
+
+    return { status: 200, contentType, body };
   }, []);
-
-  // Listen for messages from the iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== iframeOrigin) return;
-      const message = event.data;
-      if (message?.jsonrpc !== '2.0') return;
-      if (message.method === 'fetch') {
-        handleFetch(message as JSONRPCFetchRequest);
-      } else if (message.method === 'updateNavigationState') {
-        handleNavigationState(message.params);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [iframeOrigin, handleFetch, handleNavigationState]);
-
-
 
   if (!open || !centerColumn || !columnRect) return null;
 
@@ -343,7 +186,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       }}
     >
       {/* Nav bar */}
-      <div className="h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0">
+      <div className="min-h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0 safe-area-top">
         {/* App icon + name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {appPicture ? (
@@ -372,15 +215,15 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
         </Button>
       </div>
 
-      {/* iframe */}
+      {/* Sandboxed iframe */}
       <div className="flex-1 min-h-0 bg-background">
-        <iframe
-          key={`${subdomain}-${open}`}
-          ref={iframeRef}
-          src={iframeSrc}
+        <SandboxFrame
+          key={`${previewSubdomain}-${open}`}
+          id={previewSubdomain}
+          resolveFile={resolveFile}
+          injectedScripts={injectedScripts}
           className="w-full h-full border-0"
           title={`${appName} preview`}
-          sandbox="allow-scripts allow-same-origin allow-forms"
         />
       </div>
     </div>,

@@ -16,6 +16,7 @@ import {
   Radio,
   Share2,
   SmilePlus,
+  PartyPopper,
   Sparkles,
   Users,
   Zap,
@@ -104,6 +105,7 @@ import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
+import { publishedAtAction } from "@/lib/publishedAtAction";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 
@@ -1040,7 +1042,7 @@ export const NoteCard = memo(function NoteCard({
                   ? isLive ? "text-primary" : "text-muted-foreground"
                   : cfg.iconClassName
               }
-              action={typeof cfg.action === "function" ? cfg.action(event.tags, event) : cfg.action}
+              action={typeof cfg.action === "function" ? cfg.action(event) : cfg.action}
               noun={cfg.noun}
               nounRoute={cfg.nounRoute}
             />
@@ -1059,39 +1061,29 @@ export const NoteCard = memo(function NoteCard({
         onAuxClick={handleAuxClick}
       >
         {threadedKindHeader}
-        {isFollowPack ? (
-          <div className={cn("min-w-0", threaded && "pb-3")}>
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            {avatarElement}
+            {threaded && (
+              <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+            )}
+          </div>
+          <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+            {authorInfo}
             {contentBlock}
-            <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
             {actionButtons}
-            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
           </div>
-        ) : (
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {avatarElement}
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-              {authorInfo}
-              {contentBlock}
-              {actionButtons}
-              <NoteMoreMenu
-                event={event}
-                open={moreMenuOpen}
-                onOpenChange={setMoreMenuOpen}
-              />
-              <ReplyComposeModal
-                event={event}
-                open={replyOpen}
-                onOpenChange={setReplyOpen}
-              />
-            </div>
-          </div>
-        )}
+        </div>
       </article>
     );
   }
@@ -1134,7 +1126,7 @@ export const NoteCard = memo(function NoteCard({
               }
               action={
                 typeof cfg.action === "function"
-                  ? cfg.action(event.tags, event)
+                  ? cfg.action(event)
                   : cfg.action
               }
               noun={cfg.noun}
@@ -1144,46 +1136,29 @@ export const NoteCard = memo(function NoteCard({
         })()
       )}
 
-      {/* For follow packs / lists: content-first layout with subtle author attribution */}
-      {isFollowPack ? (
-        <>
-          {contentBlock}
-          <FollowPackAuthorLine pubkey={event.pubkey} createdAt={event.created_at} />
-          {!compact && (
-            <>
-              {actionButtons}
-              <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-              <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {/* Header: avatar + name/handle stacked */}
-          <div className="flex items-center gap-3">
-            {avatarElement}
-            {authorInfo}
-            {isColor && <ColorMomentEyeButton event={event} />}
-          </div>
+      {/* Header: avatar + name/handle stacked */}
+      <div className="flex items-center gap-3">
+        {avatarElement}
+        {authorInfo}
+        {isColor && <ColorMomentEyeButton event={event} />}
+      </div>
 
-          {contentBlock}
+      {contentBlock}
 
-          {/* Action buttons — hidden in compact/embed mode */}
-          {!compact && (
-            <>
-              {actionButtons}
-              <NoteMoreMenu
-                event={event}
-                open={moreMenuOpen}
-                onOpenChange={setMoreMenuOpen}
-              />
-              <ReplyComposeModal
-                event={event}
-                open={replyOpen}
-                onOpenChange={setReplyOpen}
-              />
-            </>
-          )}
+      {/* Action buttons — hidden in compact/embed mode */}
+      {!compact && (
+        <>
+          {actionButtons}
+          <NoteMoreMenu
+            event={event}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+          <ReplyComposeModal
+            event={event}
+            open={replyOpen}
+            onOpenChange={setReplyOpen}
+          />
         </>
       )}
     </article>
@@ -1703,52 +1678,6 @@ function StreamContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Subtle author attribution line for follow pack / list cards. */
-function FollowPackAuthorLine({ pubkey, createdAt }: { pubkey: string; createdAt: number }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
-  return (
-    <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-      {author.isLoading ? (
-        <>
-          <Skeleton className="size-4 rounded-full shrink-0" />
-          <Skeleton className="h-3 w-20" />
-        </>
-      ) : (
-        <>
-          <ProfileHoverCard pubkey={pubkey} asChild>
-            <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar shape={avatarShape} className="size-4">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-[7px]">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          </ProfileHoverCard>
-          <ProfileHoverCard pubkey={pubkey} asChild>
-            <Link
-              to={profileUrl}
-              className="hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {author.data?.event ? (
-                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-              ) : displayName}
-            </Link>
-          </ProfileHoverCard>
-          <span className="shrink-0">·</span>
-          <span className="shrink-0">{timeAgo(createdAt)}</span>
-        </>
-      )}
-    </div>
-  );
-}
-
 export interface EventActionHeaderProps {
   /** Pubkey of the person performing the action. */
   pubkey: string;
@@ -1768,8 +1697,8 @@ export interface EventActionHeaderProps {
 interface KindHeaderConfig {
   icon: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
-  /** Static action string, or a function that computes it from the event's tags (and optionally the full event). */
-  action: string | ((tags: string[][], event?: NostrEvent) => string);
+  /** Static action string, or a function that computes it from the event. */
+  action: string | ((event: NostrEvent) => string);
   noun?: string;
   nounRoute?: string;
 }
@@ -1794,7 +1723,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   37516: {
     icon: ChestIcon,
-    action: "hid a",
+    action: (event) => publishedAtAction(event, { created: "hid a", updated: "updated a", fallback: "hid a" }),
     noun: "treasure",
     nounRoute: "/treasures",
   },
@@ -1806,61 +1735,61 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   37381: {
     icon: CardsIcon,
-    action: "shared a",
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "deck",
     nounRoute: "/decks",
   },
   36767: {
     icon: Sparkles,
-    action: "shared a",
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "theme",
     nounRoute: "/themes",
   },
   16767: {
     icon: Sparkles,
-    action: "updated their",
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "updated their" }),
     noun: "theme",
     nounRoute: "/themes",
   },
   30030: {
     icon: SmilePlus,
-    action: "shared an",
+    action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
     noun: "emoji pack",
     nounRoute: "/emojis",
   },
   30009: {
     icon: Award,
-    action: "created a",
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "created a" }),
     noun: "badge",
     nounRoute: "/badges",
   },
   10008: {
     icon: Award,
-    action: "updated their",
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
     noun: "badges",
     nounRoute: "/badges",
   },
   30008: {
     icon: Award,
-    action: "updated their",
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
     noun: "badges",
     nounRoute: "/badges",
   },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below
-    action: (_tags, event) =>
-      event && getEffectiveStreamStatus(event) === "live"
+    action: (event) =>
+      getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
   },
   32267: {
     icon: Package,
-    action: "published a Zapstore app",
+    action: (event) => publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" }),
   },
   30063: {
     icon: Package,
-    action: "published a Zapstore release",
+    action: (event) => publishedAtAction(event, { created: "published a Zapstore release", updated: "updated a Zapstore release", fallback: "published a Zapstore release" }),
   },
   3063: {
     icon: Package,
@@ -1868,11 +1797,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31990: {
     icon: Package,
-    action: "published an app",
+    action: (event) => publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" }),
   },
   30617: {
     icon: GitBranch,
-    action: "shared a",
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "repository",
     nounRoute: "/development",
   },
@@ -1890,19 +1819,19 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   30817: {
     icon: FileCode,
-    action: "proposed a",
+    action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
     noun: "NIP",
     nounRoute: "/development",
   },
   15128: {
     icon: Rocket,
-    action: "deployed an",
+    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
     noun: "nsite",
     nounRoute: "/development",
   },
   35128: {
     icon: Rocket,
-    action: "deployed an",
+    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
     noun: "nsite",
     nounRoute: "/development",
   },
@@ -1912,9 +1841,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31124: {
     icon: Egg,
-    action: "updated their",
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
     noun: "Blobbi",
     nounRoute: "/blobbi",
+  },
+  39089: {
+    icon: PartyPopper,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    noun: "follow pack",
+    nounRoute: "/packs",
+  },
+  30000: {
+    icon: PartyPopper,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    noun: "follow set",
+    nounRoute: "/packs",
   },
 };
 

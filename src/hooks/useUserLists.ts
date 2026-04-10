@@ -230,7 +230,7 @@ export function useUserLists() {
         kind: 30000,
         content: '',
         tags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+      });
       return { id, title: title.trim(), pubkeys };
     },
     onSuccess: () => {
@@ -244,26 +244,27 @@ export function useUserLists() {
       if (!user) throw new Error('Must be logged in');
 
       // Fetch the freshest version of this specific list from relays
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [30000],
         authors: [user.pubkey],
         '#d': [listId],
       });
 
-      if (!freshEvent) throw new Error('List not found');
+      if (!prev) throw new Error('List not found');
 
-      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
+      const freshList = await parseListEventWithDecryption(prev, user.signer, user.pubkey);
 
       // Guard against duplicates
       if (freshList.pubkeys.includes(pubkey)) return;
 
-      const newTags = [...freshEvent.tags, ['p', pubkey]];
+      const newTags = [...prev.tags, ['p', pubkey]];
       const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
       await publishEvent({
         kind: 30000,
         content,
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
@@ -276,18 +277,18 @@ export function useUserLists() {
       if (!user) throw new Error('Must be logged in');
 
       // Fetch the freshest version of this specific list from relays
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [30000],
         authors: [user.pubkey],
         '#d': [listId],
       });
 
-      if (!freshEvent) throw new Error('List not found');
+      if (!prev) throw new Error('List not found');
 
-      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
+      const freshList = await parseListEventWithDecryption(prev, user.signer, user.pubkey);
 
       // Remove from public tags
-      const newTags = freshEvent.tags.filter(
+      const newTags = prev.tags.filter(
         ([name, pk]) => !(name === 'p' && pk === pubkey),
       );
       // Remove from private pubkeys too
@@ -297,7 +298,8 @@ export function useUserLists() {
         kind: 30000,
         content,
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
@@ -310,17 +312,17 @@ export function useUserLists() {
       if (!user) throw new Error('Must be logged in');
 
       // Fetch the freshest version of this specific list from relays
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [30000],
         authors: [user.pubkey],
         '#d': [listId],
       });
 
-      if (!freshEvent) throw new Error('List not found');
+      if (!prev) throw new Error('List not found');
 
-      const freshList = await parseListEventWithDecryption(freshEvent, user.signer, user.pubkey);
+      const freshList = await parseListEventWithDecryption(prev, user.signer, user.pubkey);
 
-      const newTags = freshEvent.tags.map(([name, ...rest]) =>
+      const newTags = prev.tags.map(([name, ...rest]) =>
         name === 'title' ? ['title', title.trim(), ...rest] : [name, ...rest],
       );
       // If no title tag existed, add one
@@ -332,7 +334,8 @@ export function useUserLists() {
         kind: 30000,
         content,
         tags: newTags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
@@ -354,7 +357,7 @@ export function useUserLists() {
         kind: 30000,
         content: '',
         tags: [['d', listId]],
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+      });
 
       // Step 2: Publish the kind 5 deletion event with both 'e' and 'a' tags
       // so it works on relays that only support e-tag deletion as well as
@@ -364,7 +367,7 @@ export function useUserLists() {
         kind: 5,
         content: 'Deleted list',
         tags: [['e', list.event.id], ['a', coordTag], ['k', '30000']],
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+      });
 
       return { listId };
     },

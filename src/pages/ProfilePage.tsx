@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -55,7 +56,8 @@ import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { MiniAudioPlayer, isAudioUrl, isImageUrl, isVideoUrl } from '@/components/MiniAudioPlayer';
+import { MiniAudioPlayer } from '@/components/MiniAudioPlayer';
+import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
 import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
@@ -69,6 +71,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
+import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
@@ -93,9 +96,10 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { formatNumber } from '@/lib/formatNumber';
-import { SubHeaderBar, useSubHeaderBarHover } from '@/components/SubHeaderBar';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn } from '@/lib/utils';
@@ -163,6 +167,7 @@ interface ProfileMoreMenuProps {
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -173,6 +178,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
   const author = useAuthor(pubkey);
   const showZap = !isOwnProfile && authorEvent && canZap(author.data?.metadata);
@@ -182,6 +188,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
     setTimeout(() => setter(true), 150);
   };
+  const handleFollowQR = () => openAfterClose(setFollowQROpen);
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
@@ -226,6 +233,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   const handleRecovery = () => openAfterClose(setRecoveryOpen);
   const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
+  const handleWriteLetter = () => {
+    close();
+    navigate(`/letters/compose?to=${npubEncoded}`);
+  };
   const handleZap = () => {
     close();
     setTimeout(() => zapTriggerRef.current?.click(), 150);
@@ -266,6 +277,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
             <div className="py-1">
               <MenuRow
+                icon={<QrCode className="size-5" />}
+                label="Share follow link"
+                onClick={handleFollowQR}
+              />
+              <MenuRow
                 icon={<RotateCcw className="size-5" />}
                 label="Profile recovery"
                 onClick={handleRecovery}
@@ -291,6 +307,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                   icon={<Award className="size-5" />}
                   label="Award badge"
                   onClick={handleGiveBadge}
+                />
+              )}
+              {user && (
+                <MenuRow
+                  icon={<Mail className="size-5" />}
+                  label="Write a letter"
+                  onClick={handleWriteLetter}
                 />
               )}
               <MenuRow
@@ -332,10 +355,16 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     />
 
     {isOwnProfile && (
-      <ProfileRecoveryDialog
-        open={recoveryOpen}
-        onOpenChange={setRecoveryOpen}
-      />
+      <>
+        <ProfileRecoveryDialog
+          open={recoveryOpen}
+          onOpenChange={setRecoveryOpen}
+        />
+        <FollowQRDialog
+          open={followQROpen}
+          onOpenChange={setFollowQROpen}
+        />
+      </>
     )}
 
     {!isOwnProfile && (
@@ -464,28 +493,17 @@ function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: Follow
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
 function SortableTabChip({
-  tab, active, onSelect, onRemove,
+  tab, active, onSelect, onRemove, onEdit,
 }: {
   tab: EditableTab;
   active: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onEdit?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
   const chipRef = useRef<HTMLDivElement>(null);
-  const { onActive } = useSubHeaderBarHover();
-
-  // Report active slice to SubHeaderBar so the arc indicator renders instead of a flat bar.
-  // NOTE: intentionally excludes `transform` from deps — including it causes an infinite
-  // re-render loop (React error #185) because each onActive call re-renders SubHeaderBar,
-  // which re-renders this component, producing a new transform ref, re-triggering this effect.
-  useLayoutEffect(() => {
-    if (!active) return;
-    const el = chipRef.current;
-    if (!el) return;
-    onActive({ left: el.offsetLeft, width: el.offsetWidth });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  useActiveTabIndicator(active, chipRef);
 
   return (
     <div
@@ -493,7 +511,7 @@ function SortableTabChip({
         setNodeRef(node);
         (chipRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
-      style={{ transform: DndCSS.Transform.toString(transform), transition }}
+      style={{ transform: transform ? DndCSS.Transform.toString({ ...transform, x: Math.round(transform.x), y: Math.round(transform.y) }) : undefined, transition }}
       className={cn(
         'shrink-0 relative flex items-stretch group/chip px-1 text-sm font-medium select-none whitespace-nowrap',
         active ? 'text-foreground' : 'text-muted-foreground',
@@ -519,12 +537,24 @@ function SortableTabChip({
         {tab.label}
       </button>
 
+      {/* Edit — only rendered for active custom (non-core) tabs */}
+      {active && !tab.isCore && onEdit && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="shrink-0 flex items-center justify-center py-3.5 px-1.5 text-muted-foreground/50 hover:text-primary transition-colors"
+          aria-label={`Edit ${tab.label}`}
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      )}
+
       {/* × — only rendered when active */}
       {active && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
+          className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pl-1 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
           aria-label={`Remove ${tab.label}`}
         >
           ×
@@ -849,7 +879,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     openUrl(imageUrl);
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
       onClick={handleBackdropClick}
@@ -893,11 +923,21 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
           draggable={false}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 // ----- Main Component -----
+
+const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+
+// Map from display label → internal tab id for core tabs
+const CORE_TAB_IDS: Record<string, string> = {
+  'Posts': 'posts', 'Posts & replies': 'replies',
+  'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
+};
 
 export function ProfilePage() {
   const { config } = useAppContext();
@@ -912,6 +952,7 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1108,17 +1149,9 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
 }
 
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
-  const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-  const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
-
-  // Map from display label → internal tab id for core tabs
-  const CORE_TAB_IDS: Record<string, string> = {
-    'Posts': 'posts', 'Posts & replies': 'replies',
-    'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
-  };
 
   // The ordered tab list for view mode:
   // - null (no kind 16769 event) → show all 5 defaults
@@ -1135,7 +1168,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         ? { label: t.label, isCore: true }
         : { label: t.label, isCore: false, tab: t },
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileTabsData]);
 
   // Derive the ID of the first visible tab (used as default selection).
@@ -2106,6 +2138,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <Share2 className="size-5" />
                     </Button>
                   )}
+                  {/* Follow QR code button (own profile only) */}
+                  {isOwnProfile && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10"
+                      title="Share follow link"
+                      onClick={() => setFollowQROpen(true)}
+                    >
+                      <QrCode className="size-5" />
+                    </Button>
+                  )}
                   {/* Profile reaction button */}
                   {!isOwnProfile && authorEvent && (
                     <ProfileReactionButton profileEvent={authorEvent} />
@@ -2141,13 +2185,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ) : displayName}
               </h2>
               {metadata?.nip05 && (
-                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
-              )}
-              {(metadata?.lud16 || metadata?.lud06) && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-                  <Zap className="size-3.5 text-amber-500 shrink-0" />
-                  <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
-                </div>
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
               {metadata?.website && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
@@ -2158,7 +2196,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     rel="noopener noreferrer"
                     className="truncate text-primary hover:underline"
                   >
-                    {metadata.website.replace(/^https?:\/\//, '')}
+                    {metadata.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                   </a>
                 </div>
               )}
@@ -2270,7 +2308,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           {tabEditMode && (
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
               <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
-                <div className="flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-none">
                   {localTabs.length === 0 ? (
                     <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
                   ) : (
@@ -2283,11 +2320,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           active={activeTab === tabId}
                           onSelect={() => setActiveTab(tabId)}
                           onRemove={() => handleRemoveLocalTab(tab.label)}
+                          onEdit={!tab.isCore && tab.tab ? () => { setEditingTab(tab.tab); setTabModalOpen(true); } : undefined}
                         />
                       );
                     })
                   )}
-                </div>
               </SortableContext>
             </DndContext>
           )}
@@ -2608,6 +2645,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             isOwnProfile={isOwnProfile}
             authorEvent={authorEvent}
           />
+        )}
+
+        {/* Follow QR dialog (own profile action bar button) */}
+        {isOwnProfile && (
+          <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
         )}
 
         {/* Following List Modal */}
@@ -3035,10 +3077,21 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     }
   }, [tabInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data],
-  );
+  const items = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    const deduped: FeedItem[] = [];
+    for (const page of data.pages) {
+      for (const item of page.items) {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(item);
+        }
+      }
+    }
+    return deduped;
+  }, [data]);
 
   const isLoading = isResolving || isPending;
 

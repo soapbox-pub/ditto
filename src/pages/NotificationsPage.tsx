@@ -39,7 +39,8 @@ import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
 import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import { Button } from '@/components/ui/button';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
-import { BadgeContent, type BadgeData } from '@/components/BadgeContent';
+import { BadgeContent } from '@/components/BadgeContent';
+import type { BadgeData } from '@/lib/parseBadgeDefinition';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 
@@ -205,7 +206,7 @@ export function NotificationsPage() {
       });
     }
     return filtered;
-  }, [groupedItems, activeTab, muteItems]);
+  }, [groupedItems, activeTab, muteItems, user]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },

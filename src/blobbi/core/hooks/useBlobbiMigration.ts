@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -8,12 +9,18 @@ import { toast } from '@/hooks/useToast';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
+  BLOBBONAUT_PROFILE_KINDS,
+  getBlobbonautQueryDValues,
   buildMigrationTags,
   generatePetId10,
   getCanonicalBlobbiD,
+  isValidBlobbiEvent,
+  isValidBlobbonautEvent,
+  isLegacyBlobbonautKind,
   migratePetInHas,
   updateBlobbonautTags,
   parseBlobbiEvent,
+  parseBlobbonautEvent,
   parseStorageTags,
   type BlobbiCompanion,
   type BlobbonautProfile,
@@ -52,10 +59,6 @@ export interface EnsureCanonicalOptions {
   updateCompanionEvent: (event: NostrEvent) => void;
   /** Callback to update localStorage selection if it was pointing to legacy d */
   updateStoredSelectedD?: (newD: string) => void;
-  /** Callback to invalidate companion query */
-  invalidateCompanion?: () => void;
-  /** Callback to invalidate profile query */
-  invalidateProfile?: () => void;
 }
 
 /**
@@ -111,6 +114,7 @@ export interface EnsureCanonicalResult {
  * ```
  */
 export function useBlobbiMigration() {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   
@@ -134,8 +138,6 @@ export function useBlobbiMigration() {
       updateProfileEvent,
       updateCompanionEvent,
       updateStoredSelectedD,
-      invalidateCompanion,
-      invalidateProfile,
     } = options;
     
     if (!user?.pubkey) {
@@ -190,7 +192,8 @@ export function useBlobbiMigration() {
         tags: profileTags,
       });
       
-      // Update query caches
+      // Update query caches (optimistic — no invalidation needed since we
+      // fetch fresh from relays before every mutation)
       updateProfileEvent(profileEvent);
       updateCompanionEvent(canonicalEvent);
       
@@ -199,10 +202,6 @@ export function useBlobbiMigration() {
         console.log('[Blobbi Migration] Updating localStorage selection:', canonicalD);
         updateStoredSelectedD(canonicalD);
       }
-      
-      // Invalidate queries to refetch fresh data
-      invalidateCompanion?.();
-      invalidateProfile?.();
       
       toast({
         title: 'Pet upgraded!',
@@ -238,28 +237,101 @@ export function useBlobbiMigration() {
   }, [user?.pubkey, publishEvent]);
   
   /**
+   * Fetch the freshest companion event directly from relays, bypassing cache.
+   * This is the read step of the read-modify-write pattern.
+   */
+  const fetchFreshCompanion = useCallback(async (
+    pubkey: string,
+    dTag: string,
+  ): Promise<BlobbiCompanion | null> => {
+    const events = await nostr.query([{
+      kinds: [KIND_BLOBBI_STATE],
+      authors: [pubkey],
+      '#d': [dTag],
+    }]);
+
+    const validEvents = events
+      .filter(isValidBlobbiEvent)
+      .sort((a, b) => b.created_at - a.created_at);
+
+    if (validEvents.length === 0) return null;
+    return parseBlobbiEvent(validEvents[0]) ?? null;
+  }, [nostr]);
+
+  /**
+   * Fetch the freshest profile event directly from relays, bypassing cache.
+   */
+  const fetchFreshProfile = useCallback(async (
+    pubkey: string,
+  ): Promise<BlobbonautProfile | null> => {
+    const dValues = getBlobbonautQueryDValues(pubkey);
+    const events = await nostr.query([{
+      kinds: [...BLOBBONAUT_PROFILE_KINDS],
+      authors: [pubkey],
+      '#d': dValues,
+    }]);
+
+    const validEvents = events.filter(isValidBlobbonautEvent);
+    if (validEvents.length === 0) return null;
+
+    // Prefer current kind over legacy
+    const currentKindEvents = validEvents.filter(e => e.kind === KIND_BLOBBONAUT_PROFILE);
+    if (currentKindEvents.length > 0) {
+      const sorted = currentKindEvents.sort((a, b) => b.created_at - a.created_at);
+      return parseBlobbonautEvent(sorted[0]) ?? null;
+    }
+
+    const legacyKindEvents = validEvents.filter(e => isLegacyBlobbonautKind(e));
+    if (legacyKindEvents.length > 0) {
+      const sorted = legacyKindEvents.sort((a, b) => b.created_at - a.created_at);
+      return parseBlobbonautEvent(sorted[0]) ?? null;
+    }
+
+    return null;
+  }, [nostr]);
+
+  /**
    * Ensure a Blobbi is in canonical format before performing an action.
+   * 
+   * CRITICAL: This fetches fresh data from relays (read-modify-write pattern)
+   * instead of using potentially stale cache data. This prevents state resets
+   * caused by publishing over a newer event with stale cached data.
    * 
    * If the companion is legacy, it will be migrated first.
    * Returns the canonical companion to use for the action.
    * 
    * Flow:
-   * 1. Check if Blobbi is legacy
-   * 2. If legacy: migrate Blobbi
-   * 3. Return the resolved canonical Blobbi
+   * 1. Fetch fresh companion + profile from relays
+   * 2. Check if Blobbi is legacy
+   * 3. If legacy: migrate Blobbi
+   * 4. Return the resolved canonical Blobbi with fresh data
    * 
    * All interaction handlers should call this before publishing events.
    */
   const ensureCanonicalBlobbiBeforeAction = useCallback(async (
     options: EnsureCanonicalOptions
   ): Promise<EnsureCanonicalResult | null> => {
-    const { companion, profile } = options;
+    if (!user?.pubkey) return null;
+
+    const { companion: cachedCompanion, profile: cachedProfile } = options;
+
+    // Fetch fresh data from relays (read step of read-modify-write)
+    const [freshCompanion, freshProfile] = await Promise.all([
+      fetchFreshCompanion(user.pubkey, cachedCompanion.d),
+      fetchFreshProfile(user.pubkey),
+    ]);
+
+    // Use fresh data, falling back to cached only if relay fetch returned nothing
+    const companion = freshCompanion ?? cachedCompanion;
+    const profile = freshProfile ?? cachedProfile;
     
     // Check if the companion needs migration
     if (companion.isLegacy) {
       console.log('[Blobbi Migration] Legacy companion detected, migrating before action');
       
-      const migrationResult = await migrateLegacyBlobbi(options);
+      // Use fresh data in migration options
+      const migrationOptions = { ...options, companion, profile };
+      const migrationResult = await migrateLegacyBlobbi(migrationOptions);
       
       if (!migrationResult) {
         // Migration failed, cannot proceed with action
@@ -279,7 +351,7 @@ export function useBlobbiMigration() {
       };
     }
     
-    // Companion is already canonical, return profile as-is
+    // Companion is already canonical, return fresh data
     return {
       wasMigrated: false,
       companion,
@@ -288,7 +360,7 @@ export function useBlobbiMigration() {
       profileAllTags: profile.allTags,
       profileStorage: profile.storage,
     };
-  }, [migrateLegacyBlobbi]);
+  }, [user?.pubkey, fetchFreshCompanion, fetchFreshProfile, migrateLegacyBlobbi]);
   
   return {
     /** Migrate a legacy Blobbi to canonical format */

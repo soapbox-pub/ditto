@@ -102,7 +102,7 @@ export function useBlobbiCompanionState({
     setState('walking');
     setDirection('right');
     setTargetX(targetX);
-  }, [bounds.maxX]);
+  }, [bounds.maxX, motionRef]);
   
   /**
    * Generate a random observation target on screen.
@@ -136,7 +136,7 @@ export function useBlobbiCompanionState({
     setState('walking');
     setDirection(newDirection);
     setTargetX(targetXPos);
-  }, [bounds, generateObservationTarget]);
+  }, [bounds, generateObservationTarget, motionRef]);
   
   // Make a decision about what to do next
   const makeDecision = useCallback(() => {
@@ -176,7 +176,7 @@ export function useBlobbiCompanionState({
     // Schedule next decision
     const duration = transition.duration ?? randomDuration(config.idleTime);
     timerRef.current = window.setTimeout(makeDecision, duration);
-  }, [isActive, isSleeping, bounds, state, config, startObservation]);
+  }, [isActive, isSleeping, bounds, state, config, startObservation, motionRef]);
   
   // Handle reaching target
   const onReachedTarget = useCallback(() => {
@@ -255,7 +255,7 @@ export function useBlobbiCompanionState({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isActive, isSleeping, forceInitialWalk, startInitialWalk, makeDecision]);
+  }, [isActive, isSleeping, forceInitialWalk, startInitialWalk, makeDecision, motionRef]);
   
   // Pause decisions while dragging
   // We poll isDragging via interval since motionRef changes don't trigger re-renders

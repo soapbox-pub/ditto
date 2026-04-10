@@ -98,13 +98,6 @@ export function InlineSingCard({
     cleanup: cleanupPlayback,
   } = useAudioPlayback();
   
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupAll();
-    };
-  }, []);
-  
   // Cleanup all resources
   const cleanupAll = useCallback(() => {
     // Stop timer
@@ -137,6 +130,13 @@ export function InlineSingCard({
       URL.revokeObjectURL(audioUrl);
     }
   }, [audioUrl, cleanupPlayback]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAll();
+    };
+  }, [cleanupAll]);
   
   // Reset recording
   const resetRecording = useCallback(() => {

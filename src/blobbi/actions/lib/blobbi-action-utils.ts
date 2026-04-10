@@ -2,23 +2,23 @@
 
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 
 /**
- * Actions that consume inventory items
+ * Item-based care actions (use a shop catalog item on the companion)
  */
 export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine';
 
 /**
- * Non-inventory actions that don't consume items
- * These actions affect stats directly without using shop items.
+ * Direct actions that don't use items.
+ * These actions affect stats directly without selecting a shop item.
  */
 export type DirectAction = 'play_music' | 'sing';
 
 /**
- * All Blobbi actions (inventory + direct)
+ * All Blobbi actions (item-based + direct)
  */
 export type BlobbiAction = InventoryAction | DirectAction;
 
@@ -33,7 +33,7 @@ export const ACTION_TO_ITEM_TYPE: Record<InventoryAction, ShopItemCategory> = {
 };
 
 /**
- * Action metadata for UI display (inventory actions)
+ * Action metadata for UI display (item-based care actions)
  */
 export const ACTION_METADATA: Record<InventoryAction, { label: string; description: string; icon: string }> = {
   feed: {
@@ -59,7 +59,7 @@ export const ACTION_METADATA: Record<InventoryAction, { label: string; descripti
 };
 
 /**
- * Action metadata for direct actions (non-inventory)
+ * Action metadata for direct actions (no item required)
  */
 export const DIRECT_ACTION_METADATA: Record<DirectAction, { label: string; description: string; icon: string }> = {
   play_music: {
@@ -270,10 +270,10 @@ export function hasHappinessEffectForEgg(effects: ItemEffect | undefined): boole
   return effects.happiness !== undefined && effects.happiness !== 0;
 }
 
-// ─── Inventory Helpers ────────────────────────────────────────────────────────
+// ─── Item Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Resolved inventory item with shop metadata
+ * Resolved catalog item with shop metadata
  */
 export interface ResolvedInventoryItem {
   itemId: string;
@@ -285,7 +285,7 @@ export interface ResolvedInventoryItem {
 }
 
 /**
- * Options for filtering inventory by action
+ * Options for filtering catalog items by action
  */
 export interface FilterInventoryOptions {
   /** Companion stage - used to filter items by egg-compatible effects */
@@ -293,8 +293,8 @@ export interface FilterInventoryOptions {
 }
 
 /**
- * Filter inventory items by action type.
- * Returns resolved items with shop metadata.
+ * Get all available items for an action type from the shop catalog.
+ * Items are abilities/tools — no inventory ownership is required.
  * 
  * Filtering rules:
  * - Only items matching the action's item type are included
@@ -304,22 +304,20 @@ export interface FilterInventoryOptions {
  *   - clean action: only items with hygiene or happiness effect
  */
 export function filterInventoryByAction(
-  storage: StorageItem[],
+  _storage: StorageItem[],
   action: InventoryAction,
   options: FilterInventoryOptions = {}
 ): ResolvedInventoryItem[] {
   const allowedType = ACTION_TO_ITEM_TYPE[action];
   const result: ResolvedInventoryItem[] = [];
   const isEgg = options.stage === 'egg';
+  const allItems = getLiveShopItems();
 
-  for (const storageItem of storage) {
-    const shopItem = getShopItemById(storageItem.itemId);
-    if (!shopItem) continue;
+  for (const shopItem of allItems) {
     if (shopItem.type !== allowedType) continue;
-    if (storageItem.quantity <= 0) continue;
 
     // Shell Repair Kit: only show for eggs in medicine modal
-    if (storageItem.itemId === SHELL_REPAIR_KIT_ID && !isEgg) {
+    if (shopItem.id === SHELL_REPAIR_KIT_ID && !isEgg) {
       continue;
     }
 
@@ -334,8 +332,8 @@ export function filterInventoryByAction(
     }
 
     result.push({
-      itemId: storageItem.itemId,
-      quantity: storageItem.quantity,
+      itemId: shopItem.id,
+      quantity: Infinity,
       name: shopItem.name,
       icon: shopItem.icon,
       type: shopItem.type,
@@ -376,7 +374,7 @@ export function decrementStorageItem(
 // ─── Stage Restriction Helpers ────────────────────────────────────────────────
 
 /**
- * Stages that can use general inventory items (food, toys, hygiene)
+ * Stages that can use general items (food, toys, hygiene)
  */
 export const GENERAL_ITEM_USABLE_STAGES = ['baby', 'adult'] as const;
 
@@ -409,14 +407,14 @@ export const EGG_VISIBLE_ACTIONS: BlobbiAction[] = ['clean', 'medicine', 'play_m
 export const EGG_ALLOWED_ACTIONS = EGG_ALLOWED_INVENTORY_ACTIONS;
 
 /**
- * Check if a companion can use a specific inventory action.
+ * Check if a companion can use a specific item action.
  * 
  * Note: This function no longer hard-blocks egg actions at the domain layer.
  * UI visibility is handled separately by `isActionVisibleForStage()`.
  * The domain layer allows all actions - UI chooses what to show.
  */
 export function canUseAction(_companion: BlobbiCompanion, _action: InventoryAction): boolean {
-  // All stages can technically use all inventory actions at the domain layer.
+  // All stages can technically use all item actions at the domain layer.
   // UI filtering determines what actions are shown to users.
   return true;
 }
@@ -442,7 +440,7 @@ export function isActionVisibleForStage(stage: 'egg' | 'baby' | 'adult', action:
 }
 
 /**
- * Check if a companion can use general inventory items (feed, play, clean).
+ * Check if a companion can use general items (feed, play, clean).
  * Eggs cannot use food, toys, or hygiene items.
  * @deprecated Use canUseAction(companion, action) for action-specific checks
  */

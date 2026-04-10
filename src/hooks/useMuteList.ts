@@ -204,8 +204,8 @@ export function useMuteList() {
       }
 
       // ① Fetch the freshest kind 10000 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
-      const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
+      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
+      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
 
       // ② Add only if not already present (dedup)
       const alreadyMuted = currentItems.some(
@@ -218,7 +218,7 @@ export function useMuteList() {
       // Update localStorage immediately so it survives page refresh
       setCachedMuteItems(user.pubkey, newItems);
 
-      await updateMuteList(newItems);
+      await updateMuteList(newItems, prev);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
@@ -231,8 +231,8 @@ export function useMuteList() {
       if (!user) throw new Error('User not logged in');
 
       // ① Fetch the freshest kind 10000 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
-      const currentItems = await getAllMuteItems(freshEvent, user.signer, user.pubkey);
+      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
+      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
 
       // ② Remove the target item
       const newItems = currentItems.filter(
@@ -242,7 +242,7 @@ export function useMuteList() {
       // Update localStorage immediately so it survives page refresh
       setCachedMuteItems(user.pubkey, newItems);
 
-      await updateMuteList(newItems);
+      await updateMuteList(newItems, prev);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
@@ -250,7 +250,7 @@ export function useMuteList() {
   });
 
   // Update entire mute list
-  const updateMuteList = async (items: MuteListItem[]) => {
+  const updateMuteList = async (items: MuteListItem[], prev: NostrEvent | null) => {
     if (!user) throw new Error('User not logged in');
     if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported');
 
@@ -274,7 +274,8 @@ export function useMuteList() {
     await publishEvent({
       kind: 10000,
       content,
-      tags: [], // No public tags, everything encrypted
+      tags: [],
+      prev: prev ?? undefined,
     });
   };
 

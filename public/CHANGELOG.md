@@ -1,5 +1,66 @@
 # Changelog
 
+## [2.6.2] - 2026-04-08
+
+### Added
+- Share follow packs and follow sets via link -- recipients see an immersive preview with member avatars, a "Follow All" button, and a combined feed from everyone in the pack
+- Curated home feed with a mix of photos, short videos, livestreams, and music -- content types are spaced out so your timeline stays fresh and varied
+- "Write a letter" option on profile menus for a more personal way to reach out
+- Push vs persistent notification delivery option on Android
+
+### Changed
+- Webxdc games and apps always open fullscreen for a more immersive experience
+- Login credentials are now stored in the device's secure keychain on iOS and Android instead of plain local storage
+- Profile fields now appear inline instead of in a separate right sidebar
+- Trending hashtags removed from the logged-out homepage for a cleaner first impression
+
+### Fixed
+- Webxdc and nsites work natively on iOS and Android without relying on browser sandboxing tricks
+- File downloads now save directly to Documents on iOS and Android instead of silently failing
+- Mobile search no longer scrolls the page behind it and properly hides the bottom navigation bar
+- iOS swipe-back navigation works correctly throughout the app
+- Blobbi companions appear reliably on profiles instead of sometimes going missing
+- IndexedDB no longer crashes on devices with Lockdown Mode enabled
+
+## [2.6.1] - 2026-04-06
+
+### Added
+- Manage your interest tabs (hashtags and locations) from the settings page
+- Edit button on custom profile tabs so you can tweak them without recreating from scratch
+- Follow packs and follow sets now show author info and action headers in the feed
+- Posts now show whether they were created or updated, so you can tell when something's been edited
+
+### Changed
+- Webxdc games and apps run in a more secure sandbox with stricter content policies and private subdomains
+- Nsite previews now use the same secure sandbox as webxdc apps
+- Blobbi items work as instant abilities instead of consumable inventory -- no more fiddly quantity pickers
+
+### Fixed
+- Desktop tab bar no longer overflows when you have lots of tabs -- scroll arrows appear automatically
+- Mobile compose box no longer randomly collapses or becomes unclickable
+- Profile avatar and banner lightbox no longer hides behind the right sidebar
+- Infinite scroll on custom profile tab feeds no longer reloads the same content
+- Reaction emoji are now visible on each row in the interactions modal
+- Missing bottom border on collapsed thread expand button restored
+
+## [2.6.0] - 2026-04-05
+
+### Added
+- Follow links and QR codes -- share a link or scannable code that lets anyone follow you with one tap, complete with your themed profile preview and recent posts
+- Immersive Blobbi hatching ceremony -- crack your egg through cinematic stages with shaking animations, a burst of light, sparkles, typewriter dialog, and a naming moment
+
+### Changed
+- Footer links redesigned as compact icon chips for a cleaner look
+- Custom emoji now render crisp at small sizes with pixel-perfect scaling
+
+### Fixed
+- Custom themes now apply correctly when logging in on a new device
+- Settings and preferences sync reliably across devices
+- Mobile sidebar links no longer clip into the safe area
+- Blobbi page background overlay now appears properly on custom themes
+- Blobbi companion state no longer resets unexpectedly from stale cache data
+- Letter compose picker no longer gets hidden behind the top navigation arc
+
 ## [2.5.2] - 2026-04-04
 
 ### Added

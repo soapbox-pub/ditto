@@ -66,10 +66,6 @@ export interface UseStartIncubationParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration occurred) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -112,8 +108,6 @@ export function useStartIncubation({
   profile,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseStartIncubationParams) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
@@ -269,12 +263,6 @@ export function useStartIncubation({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         name: canonical.companion.name,
@@ -329,10 +317,6 @@ export interface UseStopIncubationParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration occurred) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -363,8 +347,6 @@ export function useStopIncubation({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseStopIncubationParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -435,12 +417,6 @@ export function useStopIncubation({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         name: canonical.companion.name,
@@ -480,10 +456,6 @@ export interface UseStartEvolutionParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration occurred) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -511,8 +483,6 @@ export function useStartEvolution({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseStartEvolutionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -585,12 +555,6 @@ export function useStartEvolution({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         name: canonical.companion.name,
@@ -631,10 +595,6 @@ export interface UseStopEvolutionParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration occurred) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -665,8 +625,6 @@ export function useStopEvolution({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseStopEvolutionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -736,12 +694,6 @@ export function useStopEvolution({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         name: canonical.companion.name,
@@ -784,10 +736,6 @@ export interface UseSyncTaskCompletionsParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -827,8 +775,6 @@ export function useSyncTaskCompletions({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseSyncTaskCompletionsParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -923,11 +869,6 @@ export function useSyncTaskCompletions({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       if (DEBUG_TASK_SYNC) {
         console.log('[TaskSync] Published successfully:', tagsToAdd);

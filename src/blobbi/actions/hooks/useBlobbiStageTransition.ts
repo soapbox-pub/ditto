@@ -69,10 +69,6 @@ export interface UseBlobbiStageTransitionParams {
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration occurred) */
-  invalidateProfile: () => void;
 }
 
 /**
@@ -113,8 +109,6 @@ export function useBlobbiHatch({
   profile,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseBlobbiStageTransitionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -220,12 +214,6 @@ export function useBlobbiHatch({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         previousStage: 'egg',
@@ -268,8 +256,6 @@ export function useBlobbiEvolve({
   profile,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseBlobbiStageTransitionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -376,12 +362,6 @@ export function useBlobbiEvolve({
       });
 
       updateCompanionEvent(event);
-      invalidateCompanion();
-      
-      // Invalidate profile if migration occurred
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         previousStage: 'baby',

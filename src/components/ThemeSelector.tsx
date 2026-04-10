@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
 function hsl(value: string): string {

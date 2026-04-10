@@ -7,7 +7,7 @@
  * IMPORTANT: This hook should only be used in development mode.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -24,8 +24,6 @@ interface UseBlobbiDevUpdateParams {
   companion: BlobbiCompanion | null;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
 }
 
 interface DevUpdateResult {
@@ -50,11 +48,9 @@ function generateBlobbiContent(name: string, stage: BlobbiStage): string {
 export function useBlobbiDevUpdate({
   companion,
   updateCompanionEvent,
-  invalidateCompanion,
 }: UseBlobbiDevUpdateParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (updates: BlobbiDevUpdates): Promise<DevUpdateResult> => {
@@ -169,12 +165,6 @@ export function useBlobbiDevUpdate({
 
       // ─── Update Caches ───
       updateCompanionEvent(event);
-      invalidateCompanion();
-
-      // Invalidate collection queries
-      queryClient.invalidateQueries({ 
-        queryKey: ['blobbi-collection', user.pubkey] 
-      });
 
       return {
         previousStage: companion.stage,

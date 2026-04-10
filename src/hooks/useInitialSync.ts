@@ -5,7 +5,7 @@ import { parseBlossomServerList } from "@/lib/appBlossom";
 import { EncryptedSettingsSchema } from "@/lib/schemas";
 import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
-import type { EncryptedSettings } from "./useEncryptedSettings";
+import { type EncryptedSettings, setLocalSettingsSync } from "./useEncryptedSettings";
 import {
   type MuteListItem,
   parseMuteTags,
@@ -206,6 +206,9 @@ export function useInitialSync() {
               if (parsed.theme) {
                 updates.theme = parsed.theme;
               }
+              if (parsed.customTheme) {
+                updates.customTheme = parsed.customTheme;
+              }
               if (parsed.autoShareTheme !== undefined) {
                 updates.autoShareTheme = parsed.autoShareTheme;
               }
@@ -227,6 +230,15 @@ export function useInitialSync() {
               if (parsed.homePage) {
                 updates.homePage = parsed.homePage;
               }
+              if (parsed.corsProxy) {
+                updates.corsProxy = parsed.corsProxy;
+              }
+              if (parsed.faviconUrl) {
+                updates.faviconUrl = parsed.faviconUrl;
+              }
+              if (parsed.linkPreviewUrl) {
+                updates.linkPreviewUrl = parsed.linkPreviewUrl;
+              }
 
               return updates;
             });
@@ -241,6 +253,11 @@ export function useInitialSync() {
               ["parsedSettings", settingsEvent.id],
               parsed,
             );
+
+            // Persist the sync timestamp so future reloads can skip the spinner
+            if (parsed.lastSync) {
+              setLocalSettingsSync(user.pubkey, parsed.lastSync);
+            }
 
             foundSettings = true;
           } catch (error) {
@@ -343,6 +360,7 @@ export function useInitialSync() {
     nostr,
     config.appId,
     config.relayMetadata.updatedAt,
+    config.blossomServerMetadata.updatedAt,
     updateConfig,
     queryClient,
     markSyncComplete,

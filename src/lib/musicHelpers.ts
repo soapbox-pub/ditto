@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import type { AudioTrack } from '@/contexts/AudioPlayerContext';
+import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {

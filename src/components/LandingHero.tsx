@@ -6,7 +6,6 @@ import { DittoLogo } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { useTrendingTags } from '@/hooks/useTrending';
 import { themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
 import { cn } from '@/lib/utils';
 
@@ -93,7 +92,6 @@ function ThemeSwatch({
 export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
   const { config } = useAppContext();
   const { theme, customTheme, applyCustomTheme, setTheme } = useTheme();
-  const { data: trendingData } = useTrendingTags();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -115,8 +113,6 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
     }
     return null;
   }, [theme, customTheme]);
-
-  const trendingTags = trendingData?.tags?.slice(0, 12) ?? [];
 
   const updateScrollButtons = () => {
     const el = scrollRef.current;
@@ -244,31 +240,6 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           )}
         </div>
       </div>
-
-      {/* ── Trending Hashtags ── */}
-      {trendingTags.length > 0 && (
-        <div className="px-4 pb-4 landing-hero-fade" style={{ animationDelay: '320ms' }}>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2.5">
-            Trending now
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {trendingTags.map(({ tag, accounts }) => (
-              <Link
-                key={tag}
-                to={`/t/${tag}`}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/60 hover:bg-secondary text-xs font-medium text-secondary-foreground transition-colors"
-              >
-                <span className="text-primary">#</span>{tag}
-                {accounts > 1 && (
-                  <span className="text-muted-foreground text-[10px] ml-0.5">
-                    {accounts}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Divider into feed ── */}
       <div className="border-b border-border" />

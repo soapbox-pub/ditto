@@ -9,7 +9,7 @@ import { Theater } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useEmotionDev } from './EmotionDevContext';
+import { useEmotionDev } from './useEmotionDev';
 import { isLocalhostDev } from './index';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 

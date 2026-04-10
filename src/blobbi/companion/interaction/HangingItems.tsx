@@ -1,26 +1,24 @@
 /**
  * HangingItems
  * 
- * Displays inventory items as hanging elements from the top of the screen.
+ * Displays available items as hanging elements from the top of the screen.
  * Each item appears as a circle connected to the top by a thin vertical line,
  * creating a playful, spatial feel.
  * 
+ * Items are reusable abilities sourced from the shop catalog — they are
+ * always available and not consumed on use.
+ * 
  * State Model:
  * - Container states: hidden → opening → open → closing → hidden
- * - Hanging items = available inventory that can still be released
+ * - Hanging items = catalog items available for the selected action
  * - Released/dropped items = instances currently in the world (tracked with unique IDs)
  * - Multiple instances of the same item type can exist simultaneously on the ground
- * 
- * Key Design Principle:
- * The hanging row represents "releasable quantity" - clicking releases ONE instance
- * and immediately decrements the visible quantity. A new hanging copy remains if
- * quantity > 1. The released instance tracks separately with a unique instance ID.
  * 
  * Features:
  * - Smooth open/close slide animations (items descend/ascend)
  * - Thin vertical lines from the top of screen
  * - Circular containers for hanging items
- * - Click releases item: one instance falls, remaining quantity stays hanging
+ * - Click releases item: one instance falls to the ground
  * - Multiple dropped instances of same item type can exist
  * - Contact detection: items auto-use when touching Blobbi
  * - Click-to-use: click landed items to use them
@@ -119,7 +117,7 @@ interface HangingItemsProps {
   onItemUse?: (item: CompanionItem) => Promise<ItemUseAttemptResult>;
   /** 
    * Callback when an item is collected by Blobbi (contact).
-   * @deprecated Use onItemUse instead for proper item consumption flow.
+   * @deprecated Use onItemUse instead for proper item-use flow.
    */
   onItemCollected?: (item: CompanionItem) => void;
   /**
@@ -156,7 +154,7 @@ const HANGING_CONFIG = {
   baseFallDistance: 500,
   /** Ground offset from bottom of viewport */
   defaultGroundOffset: 40,
-  /** Size of quantity badge */
+  /** Size of badge (unused — kept for config consistency) */
   badgeSize: 20,
   /** Size of landed item hitbox for contact detection */
   landedItemSize: 40,
@@ -406,7 +404,7 @@ export function HangingItems({
   
   // Track how many instances of each item type have been released (not yet used)
   // Key: item.id (type ID), Value: count of released instances
-  const [releasedCountByItemId, setReleasedCountByItemId] = useState<Map<string, number>>(new Map());
+  const [_releasedCountByItemId, setReleasedCountByItemId] = useState<Map<string, number>>(new Map());
   
   // Counter for generating unique instance IDs
   const instanceCounterRef = useRef(0);
@@ -566,7 +564,7 @@ export function HangingItems({
     
     // Start the loop
     animationRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [calculateFallDuration]);
   
   // Cleanup animation on unmount
   useEffect(() => {
@@ -670,7 +668,7 @@ export function HangingItems({
           });
           // Also remove from zone tracking
           itemsInZoneRef.current.delete(instanceId);
-          // Decrement the released count for this item type (since the instance is now consumed)
+          // Decrement the released count for this item type (instance removed from screen)
           setReleasedCountByItemId(prev => {
             const next = new Map(prev);
             const currentCount = next.get(item.id) || 0;
@@ -985,15 +983,9 @@ export function HangingItems({
     return viewportCenterX + startX + index * HANGING_CONFIG.itemSpacing;
   };
   
-  // Calculate hanging items with their remaining quantities
-  // An item appears in the hanging row if (quantity - releasedCount) > 0
-  const hangingItems = items
-    .map(item => {
-      const releasedCount = releasedCountByItemId.get(item.id) || 0;
-      const remainingQuantity = item.quantity - releasedCount;
-      return { ...item, quantity: remainingQuantity };
-    })
-    .filter(item => item.quantity > 0);
+  // All items are always visible — they are abilities, not consumable inventory.
+  // No quantity filtering needed.
+  const hangingItems = items;
   
   // Should we render the hanging container?
   const shouldRenderContainer = containerState !== 'hidden' || (isVisible && selectedAction);
@@ -1033,7 +1025,7 @@ export function HangingItems({
         >
           <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border">
             <p className="text-sm text-muted-foreground text-center">
-              No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items in your inventory
+              No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items available
             </p>
           </div>
         </div>
@@ -1102,8 +1094,8 @@ export function HangingItems({
                       marginLeft: (HANGING_CONFIG.circleSize / 2) * -1 + HANGING_CONFIG.lineWidth / 2,
                     }}
                     onClick={() => handleItemClick(item, itemX)}
-                    title={`${item.name} (x${item.quantity})`}
-                    aria-label={`${item.name}, quantity ${item.quantity}. Click to release.`}
+                    title={item.name}
+                    aria-label={`${item.name}. Click to release.`}
                   >
                     {/* Item emoji */}
                     <span 
@@ -1113,24 +1105,6 @@ export function HangingItems({
                       aria-hidden="true"
                     >
                       {item.emoji}
-                    </span>
-                    
-                    {/* Quantity badge */}
-                    <span
-                      className={cn(
-                        "absolute -top-1 -right-1",
-                        "flex items-center justify-center",
-                        "bg-primary text-primary-foreground",
-                        "text-xs font-semibold rounded-full",
-                        "shadow-md"
-                      )}
-                      style={{
-                        minWidth: HANGING_CONFIG.badgeSize,
-                        height: HANGING_CONFIG.badgeSize,
-                        padding: '0 5px',
-                      }}
-                    >
-                      {item.quantity}
                     </span>
                   </button>
                 </div>

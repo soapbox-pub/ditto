@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut,
-  Loader2,
+  Loader2, QrCode,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +15,7 @@ import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import LoginDialog from '@/components/auth/LoginDialog';
+import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
@@ -55,6 +56,7 @@ export function LeftSidebar() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
@@ -293,6 +295,10 @@ export function LeftSidebar() {
 
               {/* Actions */}
               <div className="py-1">
+                <button onClick={() => { setAccountPopoverOpen(false); setFollowQROpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
+                  <QrCode className="size-4 text-muted-foreground" />
+                  <span>Share profile</span>
+                </button>
                 <button onClick={() => { setAccountPopoverOpen(false); setLoginDialogOpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                   <UserPlus className="size-4 text-muted-foreground" />
                   <span>Add another account</span>
@@ -308,6 +314,7 @@ export function LeftSidebar() {
       )}
 
       <LoginDialog isOpen={loginDialogOpen} onClose={() => setLoginDialogOpen(false)} onLogin={() => setLoginDialogOpen(false)} onSignupClick={startSignup} />
+      <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
     </aside>
   );
 }

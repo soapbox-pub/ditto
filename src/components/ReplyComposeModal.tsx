@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PortalContainerProvider } from '@/contexts/PortalContainerContext';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -107,7 +107,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={dialogContentRef}
-        className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden flex flex-col"
+        className="max-w-[520px] max-h-[85dvh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden !flex !flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           const target = e.target as HTMLElement;

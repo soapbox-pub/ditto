@@ -245,6 +245,8 @@ export const AppConfigSchema = z.object({
     })
   ).optional().default([]),
   imageQuality: z.enum(['compressed', 'original']),
+  curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
+  sandboxDomain: z.string().optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -300,6 +302,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
   notificationsEnabled: z.boolean().optional(),
+  notificationStyle: z.enum(['push', 'persistent']).optional(),
   notificationsCursor: z.number().optional(),
   notificationPreferences: z.object({
     reactions: z.boolean().optional(),

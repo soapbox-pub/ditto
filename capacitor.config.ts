@@ -17,9 +17,14 @@ const config: CapacitorConfig = {
   },
   ios: {
     backgroundColor: '#14161f',
-    contentInset: 'automatic',
+    contentInset: 'never',
     scheme: 'Ditto'
-  }
+  },
+  plugins: {
+    Keyboard: {
+      resizeOnFullScreen: true,
+    },
+  },
 };
 
 export default config;

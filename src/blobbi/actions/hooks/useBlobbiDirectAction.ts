@@ -69,15 +69,11 @@ export interface UseBlobbiDirectActionParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
-  /** Invalidate companion queries */
-  invalidateCompanion: () => void;
-  /** Invalidate profile queries (needed if migration happened) */
-  invalidateProfile: () => void;
 }
 
 /**
  * Hook to execute a direct action on a Blobbi companion.
- * Direct actions (play_music, sing) don't consume inventory items.
+ * Direct actions (play_music, sing) don't require selecting an item.
  * They directly affect happiness stat.
  * 
  * This hook:
@@ -92,8 +88,6 @@ export function useBlobbiDirectAction({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
-  invalidateCompanion,
-  invalidateProfile,
 }: UseBlobbiDirectActionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -188,12 +182,6 @@ export function useBlobbiDirectAction({
       });
 
       updateCompanionEvent(blobbiEvent);
-
-      // ─── Invalidate Queries ───
-      invalidateCompanion();
-      if (canonical.wasMigrated) {
-        invalidateProfile();
-      }
 
       return {
         action,

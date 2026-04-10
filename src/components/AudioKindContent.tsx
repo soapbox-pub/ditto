@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { Play, Pause, Music, ListMusic, Podcast, Clock } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
 import { parsePodcastEpisode, parsePodcastTrailer, episodeToAudioTrack, trailerToAudioTrack } from '@/lib/podcastHelpers';
 import { useAuthor } from '@/hooks/useAuthor';

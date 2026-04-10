@@ -699,22 +699,46 @@ The `useCurrentUser` hook should be used to ensure that the user is logged in be
 
 Replaceable (kind 10000-19999) and addressable (kind 30000-39999) events require a read-modify-write cycle: fetch the current event, modify its tags, then publish a new version. **Never read from TanStack Query cache before mutating** -- the cache can be stale from another device or a rapid prior operation, and republishing stale data silently drops the user's data.
 
-Use `fetchFreshEvent()` from `src/lib/fetchFreshEvent.ts` inside every mutation:
+Use `fetchFreshEvent()` from `src/lib/fetchFreshEvent.ts` inside every mutation, and **always pass the fetched event as `prev`** so `useNostrPublish` can preserve `published_at`:
 
 ```typescript
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 // Inside a mutation function:
-const freshEvent = await fetchFreshEvent(nostr, {
+const prev = await fetchFreshEvent(nostr, {
   kinds: [10003],
   authors: [user.pubkey],
 });
-const currentTags = freshEvent?.tags ?? [];
+const currentTags = prev?.tags ?? [];
 // ...modify tags...
-await publishEvent({ kind: 10003, content: freshEvent?.content ?? '', tags: newTags });
+await publishEvent({
+  kind: 10003,
+  content: prev?.content ?? '',
+  tags: newTags,
+  prev: prev ?? undefined,
+});
 ```
 
 This applies to all list-type hooks (bookmarks, pins, interests, follow sets, badges, etc.). See `useFollowActions` and `useMuteList` for complete examples.
+
+#### The `prev` Property on Event Templates
+
+`useNostrPublish` accepts an optional `prev` property on the event template. This is the **previous version** of the event being replaced. The hook uses it to automatically manage the `published_at` tag (NIP-24) for replaceable and addressable events:
+
+- **First publish (no `prev`)**: `published_at` is set equal to `created_at`
+- **Update (`prev` provided)**: `published_at` is preserved from the old event
+- **Old event lacks `published_at`**: nothing is fabricated
+- **Caller already set `published_at` in tags**: left alone
+
+**Convention**: Name the local variable `prev` at the call site (not `freshEvent` or `latestEvent`) so it reads naturally when passed to `publishEvent`:
+
+```typescript
+const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+// ...
+await publishEvent({ kind: 3, content: prev?.content ?? '', tags: newTags, prev: prev ?? undefined });
+```
+
+`prev` is stripped from the template before signing — it never appears in the published Nostr event.
 
 ### D-Tag Collision Prevention for Addressable Events
 

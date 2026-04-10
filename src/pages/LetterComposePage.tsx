@@ -9,7 +9,7 @@ export function LetterComposePage() {
 
   const toPubkey = searchParams.get('to') ?? undefined;
 
-  useLayoutOptions({ showFAB: false, noOverscroll: true });
+  useLayoutOptions({ showFAB: false, noOverscroll: true, hasSubHeader: true });
   useSeoMeta({ title: 'Write a Letter' });
 
   return (

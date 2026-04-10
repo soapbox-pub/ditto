@@ -18,6 +18,28 @@ import { EncryptedSettingsSchema } from '@/lib/schemas';
 let lastWriteTs: number = 0;
 
 /**
+ * Persist the lastSync timestamp from encrypted settings into localStorage
+ * so that InitialSyncGate can decide whether to show a spinner on reload.
+ * If a local timestamp exists, localStorage is trustworthy and the app can
+ * render immediately while NostrSync fetches updates in the background.
+ */
+export function getLocalSettingsSync(pubkey: string): number {
+  try {
+    return Number(localStorage.getItem(`ditto:settings-lastSync:${pubkey}`)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function setLocalSettingsSync(pubkey: string, lastSync: number): void {
+  try {
+    localStorage.setItem(`ditto:settings-lastSync:${pubkey}`, String(lastSync));
+  } catch {
+    // localStorage may not be available
+  }
+}
+
+/**
  * Complete encrypted app settings stored in NIP-78
  */
 export interface EncryptedSettings {
@@ -37,6 +59,8 @@ export interface EncryptedSettings {
   contentWarningPolicy?: ContentWarningPolicy;
   /** Whether the user has enabled push notifications */
   notificationsEnabled?: boolean;
+  /** Notification delivery style on native: 'push' (default) or 'persistent' (foreground service) */
+  notificationStyle?: 'push' | 'persistent';
   /** Timestamp of last viewed notification (Unix timestamp in seconds) */
   notificationsCursor?: number;
   /** Per-type notification preferences (all default to true/enabled) */
@@ -112,10 +136,10 @@ export function useEncryptedSettings() {
       return events[0];
     },
     enabled: !!user,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes — allows window-focus refetch to pick up cross-device changes
     gcTime: Infinity,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchOnReconnect: false,
   });
 
@@ -147,7 +171,7 @@ export function useEncryptedSettings() {
       }
     },
     enabled: !!query.data && !!user,
-    staleTime: Infinity,
+    staleTime: 0, // Always re-derive when the upstream event changes
     gcTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -216,6 +240,10 @@ export function useEncryptedSettings() {
       queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
       // Cache is now up to date — pending ref no longer needed
       pendingSettings.current = null;
+      // Persist the sync timestamp so the next page load can skip the spinner
+      if (user && updatedSettings.lastSync) {
+        setLocalSettingsSync(user.pubkey, updatedSettings.lastSync);
+      }
     },
   });
 

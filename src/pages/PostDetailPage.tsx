@@ -54,6 +54,7 @@ import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
+import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -2015,19 +2016,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Kind action header for app handlers */}
           {isAppHandler && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published an app" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
           )}
           {isZapstoreApp && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore app" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" })} />
           )}
           {isZapstoreRelease && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore release" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a Zapstore release", updated: "updated a Zapstore release", fallback: "published a Zapstore release" })} />
           )}
           {isZapstoreAsset && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore asset" />
           )}
           {isNsite && (
-            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action="deployed an" noun="nsite" nounRoute="/development" />
+            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
           )}
 
           {/* Author row */}

@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { BadgeData } from '@/components/BadgeContent';
+import type { BadgeData } from '@/lib/parseBadgeDefinition';
 import { cn } from '@/lib/utils';
 
 interface BadgeDisplayItem {

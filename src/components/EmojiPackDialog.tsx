@@ -332,14 +332,15 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
 
       // For edit mode, fetch fresh event to preserve any tags we don't manage
       let preservedTags: string[][] = [];
+      let prev: NostrEvent | null = null;
       if (isEditMode) {
-        const fresh = await fetchFreshEvent(nostr, {
+        prev = await fetchFreshEvent(nostr, {
           kinds: [30030],
           authors: [user.pubkey],
           '#d': [resolvedId],
         });
-        if (fresh) {
-          preservedTags = fresh.tags.filter(
+        if (prev) {
+          preservedTags = prev.tags.filter(
             ([n]) => n !== 'd' && n !== 'name' && n !== 'about' && n !== 'emoji',
           );
         }
@@ -357,7 +358,8 @@ export function EmojiPackDialog({ open, onOpenChange, editEvent }: EmojiPackDial
         kind: 30030,
         content: '',
         tags,
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev: prev ?? undefined,
+      });
 
       // Clean up blob URLs
       for (const e of emojis) {

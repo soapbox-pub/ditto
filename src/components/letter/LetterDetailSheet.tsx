@@ -17,7 +17,7 @@ import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
 import { useTheme } from '@/hooks/useTheme';
 import { toast } from '@/hooks/useToast';
-import { paletteToTheme, getColors } from '@/components/ColorMomentContent';
+import { paletteToTheme, getColors } from '@/lib/colorMomentUtils';
 import { parseThemeDefinition } from '@/lib/themeEvent';
 import type { ThemeConfig } from '@/themes';
 import {

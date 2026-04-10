@@ -31,7 +31,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { NoteCard } from '@/components/NoteCard';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { parsePodcastEpisode, parsePodcastTrailer, episodeToAudioTrack, trailerToAudioTrack } from '@/lib/podcastHelpers';
 
 /** Format a full date. */

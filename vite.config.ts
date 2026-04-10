@@ -6,7 +6,7 @@ import path from "node:path";
 
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
 
@@ -120,11 +120,14 @@ function getCommitTag(): string {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
   return {
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: env.ALLOWED_HOSTS === "*" ? true : undefined,
   },
   plugins: [
     react(),
@@ -173,6 +176,7 @@ export default defineConfig(() => {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 };
 });

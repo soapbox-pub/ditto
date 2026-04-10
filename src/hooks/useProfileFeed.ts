@@ -278,6 +278,8 @@ interface TabFeedPage {
   items: FeedItem[];
   oldestQueryTimestamp: number;
   rawCount: number;
+  /** The limit used for the relay query — compared against rawCount to detect exhaustion. */
+  fetchLimit: number;
 }
 
 /**
@@ -311,7 +313,7 @@ export function useTabFeed(
   return useInfiniteQuery<TabFeedPage, Error>({
     queryKey: ['tab-feed', tabKey, kindsKey, authorsKey, searchKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!filter) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0 };
+      if (!filter) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0, fetchLimit: PAGE_SIZE };
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
@@ -383,10 +385,11 @@ export function useTabFeed(
       }
 
       const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-      return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length };
+      return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length, fetchLimit: PAGE_SIZE };
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.rawCount === 0) return undefined;
+      // Relay exhausted: returned fewer events than requested.
+      if (lastPage.rawCount < lastPage.fetchLimit) return undefined;
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,

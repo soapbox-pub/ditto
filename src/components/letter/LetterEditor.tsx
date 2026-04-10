@@ -143,7 +143,7 @@ export function LetterEditor({
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [cardRef]);
 
   // Load the currently-selected font on mount/change so the card preview renders correctly.
   useEffect(() => {

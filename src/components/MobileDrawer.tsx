@@ -1,6 +1,6 @@
 import { useState, useId, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -11,6 +11,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { LinkFooter } from '@/components/LinkFooter';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import LoginDialog from '@/components/auth/LoginDialog';
+import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -60,6 +61,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
   const { startSignup } = useOnboarding();
   const { theme, customTheme, themes } = useTheme();
 
@@ -270,6 +272,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     </button>
                   ))}
                   <button
+                    onClick={() => { handleClose(); setFollowQROpen(true); }}
+                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <QrCode className="size-5 shrink-0" />
+                    <span>Share profile</span>
+                  </button>
+                  <button
                     onClick={() => { handleClose(); setLoginDialogOpen(true); }}
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
@@ -318,7 +327,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              <div className="px-2">
+              <div className="px-2 safe-area-bottom">
                 <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
@@ -362,7 +371,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </div>
               </nav>
 
-              <div className="px-2">
+              <div className="px-2 safe-area-bottom">
                 <LinkFooter onNavigate={handleClose} />
               </div>
             </div>
@@ -376,6 +385,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         onLogin={() => setLoginDialogOpen(false)}
         onSignupClick={startSignup}
       />
+      <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
     </>
   );
 }

@@ -82,22 +82,6 @@ export function SingModal({
   // Track the actual MIME type used by the recorder
   const actualMimeTypeRef = useRef<string | undefined>(undefined);
   
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, []);
-  
-  // Reset state when modal opens
-  useEffect(() => {
-    if (open) {
-      resetRecording();
-    } else {
-      cleanup();
-    }
-  }, [open]);
-  
   const cleanup = useCallback(() => {
     // Stop timer
     if (timerRef.current) {
@@ -141,6 +125,22 @@ export function SingModal({
     actualMimeTypeRef.current = undefined;
     // Keep lyrics when re-recording so user can sing the same song
   }, [cleanup]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+  
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      resetRecording();
+    } else {
+      cleanup();
+    }
+  }, [open, cleanup, resetRecording]);
   
   // Handle getting random lyrics
   const handleRandomLyrics = useCallback(() => {

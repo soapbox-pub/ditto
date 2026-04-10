@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { downloadTextFile } from "@/lib/downloadFile";
+import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   type ReactNode,
   useCallback,
@@ -35,7 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
+import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
@@ -65,8 +65,12 @@ interface InitialSyncGateProps {
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { user } = useCurrentUser();
   const { phase, markComplete } = useInitialSync();
+  const { isLoading: settingsLoading } = useEncryptedSettings();
   const [preloadApp, setPreloadApp] = useState(false);
   const [signupActive, setSignupActive] = useState(false);
+  // Track whether we've shown the app at least once so we don't re-gate on
+  // subsequent background refetches (e.g. window focus).
+  const hasShownApp = useRef(false);
 
   const startSignup = useCallback(() => setSignupActive(true), []);
 
@@ -91,8 +95,10 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
     );
   }
 
-  // Don't show sync/onboarding when logged out — just show the app
+  // Don't show sync/onboarding when logged out — just show the app.
+  // Reset hasShownApp so that re-login shows the spinner until settings load.
   if (!user) {
+    hasShownApp.current = false;
     return (
       <OnboardingContext.Provider value={contextValue}>
         {children}
@@ -120,6 +126,28 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
       </OnboardingContext.Provider>
     );
   }
+
+  // For returning users (phase === "complete"), decide whether to gate:
+  // - If we have a local lastSync timestamp, localStorage is trustworthy and
+  //   we can render immediately. NostrSync will hot-swap any differences in
+  //   the background once the remote settings arrive.
+  // - If there's NO local timestamp (e.g. localStorage was cleared, or settings
+  //   were never synced on this browser), show the spinner until settings load
+  //   so the user sees correct state from the start.
+  // Only gate on the very first load — once the app has been shown, don't
+  // re-gate on background refetches (e.g. window focus).
+  if (phase === "complete" && settingsLoading && !hasShownApp.current) {
+    const hasLocalSync = user ? getLocalSettingsSync(user.pubkey) > 0 : false;
+    if (!hasLocalSync) {
+      return (
+        <OnboardingContext.Provider value={contextValue}>
+          <SyncScreen phase="syncing" />
+        </OnboardingContext.Provider>
+      );
+    }
+  }
+
+  hasShownApp.current = true;
 
   // idle or complete -> show app
   return (
@@ -279,11 +307,6 @@ function SetupQuestionnaire({
       const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
       await downloadTextFile(filename, nsec);
-
-      // Let the user know where the file ended up on Android
-      if (Capacitor.getPlatform() === "android") {
-        toast({ title: "Key saved", description: `Saved to Download/${filename}` });
-      }
 
       // Log in with the new key
       login.nsec(nsec);
@@ -643,7 +666,7 @@ function ProfileStep({
         );
         if (validFields.length > 0)
           data.fields = validFields.map((f) => [f.label, f.value]);
-        await publishEvent({ kind: 0, content: JSON.stringify(data) });
+        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -914,32 +937,28 @@ function FollowsStep({
           .filter(([n]) => n === "p")
           .map(([, pk]) => pk);
 
-        // Fetch current follow list
-        const followEvents: NostrEvent[] = await nostr
-          .query([{ kinds: [3], authors: [user.pubkey], limit: 1 }], {
-            signal: AbortSignal.timeout(10_000),
-          })
-          .catch((): NostrEvent[] => []);
+        // 1. Fetch freshest kind 3 from relays (not cache)
+        const prev = await fetchFreshEvent(nostr, {
+          kinds: [3],
+          authors: [user.pubkey],
+        });
 
-        const latestEvent =
-          followEvents.length > 0
-            ? followEvents.reduce((latest, current) =>
-                current.created_at > latest.created_at ? current : latest,
-              )
-            : null;
+        // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
+        const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
+        const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
+        const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
 
-        const existingFollows = latestEvent
-          ? latestEvent.tags
-              .filter(([name]) => name === "p")
-              .map(([, pk]) => pk)
-          : [];
+        // 3. Merge: add new pubkeys that aren't already followed
+        const newPTags = packPubkeys
+          .filter((pk) => !existingPubkeys.has(pk))
+          .map((pk) => ["p", pk]);
 
-        const allFollows = [...new Set([...existingFollows, ...packPubkeys])];
-
+        // 4. Publish with prev for published_at preservation
         await publishEvent({
           kind: 3,
-          content: latestEvent?.content ?? "",
-          tags: allFollows.map((pk) => ["p", pk]),
+          content: prev?.content ?? "",
+          tags: [...nonPTags, ...existingPTags, ...newPTags],
+          prev: prev ?? undefined,
         });
 
         setFollowedPacks((prev) => new Set([...prev, packId]));

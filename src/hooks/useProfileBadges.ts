@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { parseProfileBadges } from '@/components/ProfileBadgesContent';
+import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY } from '@/lib/badgeUtils';
 
 /**

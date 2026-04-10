@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 /** Hook to manage the user's NIP-51 bookmark list (kind 10003). */
 export function useBookmarks() {
@@ -63,12 +62,12 @@ export function useBookmarks() {
       if (!user) throw new Error('User is not logged in');
 
       // Fetch the freshest kind 10003 from relays before mutating
-      const freshEvent = await fetchFreshEvent(nostr, {
+      const prev = await fetchFreshEvent(nostr, {
         kinds: [10003],
         authors: [user.pubkey],
       });
 
-      const currentTags = freshEvent?.tags ?? [];
+      const currentTags = prev?.tags ?? [];
       const currentlyBookmarked = currentTags.some(
         ([name, id]) => name === 'e' && id === eventId,
       );
@@ -87,10 +86,11 @@ export function useBookmarks() {
 
       await publishEvent({
         kind: 10003,
-        content: freshEvent?.content ?? '',
+        content: prev?.content ?? '',
         tags: newTags,
         created_at: Math.floor(Date.now() / 1000),
-      } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+        prev: prev ?? undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.pubkey] });

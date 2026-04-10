@@ -18,14 +18,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { buildKindOptions, parseSelectedKinds } from '@/lib/feedFilterUtils';
 import {
-  buildKindOptions,
   MultiKindPicker,
   AuthorChip,
   AuthorFilterDropdown,
   ScopeToggle,
   ListPackPicker,
-  parseSelectedKinds,
 } from '@/components/SavedFeedFiltersEditor';
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';

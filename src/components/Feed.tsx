@@ -14,7 +14,7 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useFeed } from '@/hooks/useFeed';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useInfiniteHotFeed } from '@/hooks/useTrending';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
@@ -22,36 +22,21 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
+import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
-import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
 type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
-
-/** Curated kinds for the logged-out homepage: unique Ditto content types. */
-const LANDING_KINDS = [
-  36767, // Themes
-  37381, // Magic Decks
-  3367,  // Color Moments
-  37516, // Treasures
-  7516,  // Treasures (Found Logs)
-  30030, // Emoji Packs
-  30009, // Badge Definitions
-  10008, // Profile Badges
-  30008, // Profile Badges (legacy)
-  31124, // Blobbi
-];
-
-/** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
-const LANDING_WEBXDC_FILTER = { kinds: [1063], '#m': ['application/x-webxdc'] };
 
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
@@ -74,6 +59,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
+  const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -150,21 +136,17 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
   );
 
-  // "Hot" sorted feed query (used when logged out on the home page, or on the Ditto tab)
-  // Shows curated "otherstuff" kinds instead of kind 1. Webxdc needs a
-  // separate filter with a MIME-type tag constraint.
-  const topQuery = useInfiniteHotFeed(
-    LANDING_KINDS,
+  // Curated Ditto feed: latest content from the curator's follow list.
+  const topQuery = useCuratedDittoFeed(
+    curatorFollowList,
     useTopFeedForLoggedOut || !!useDittoTab,
-    undefined,
-    [LANDING_WEBXDC_FILTER],
   );
 
   // Unify the two query shapes behind a single interface
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
-    () => useDittoQuery ? ['infinite-hot-feed', LANDING_KINDS.join(',')] : ['feed', activeTab],
+    () => useDittoQuery ? ['ditto-curated-feed'] : ['feed', activeTab],
     [useDittoQuery, activeTab],
   );
 
@@ -204,16 +186,25 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const seen = new Set<string>();
 
     if (useDittoQuery) {
-      return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
-        .flat()
-        .filter((event) => {
-          if (seen.has(event.id)) return false;
-          seen.add(event.id);
-          if (shouldHideFeedEvent(event)) return false;
-          if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-          return true;
-        })
-        .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
+      // Deduplicate and filter each page independently, then diversify
+      // page-by-page so earlier pages never change when new pages arrive.
+      const dedupedPages = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
+        .map((page) =>
+          page
+            .filter((event) => {
+              if (seen.has(event.id)) return false;
+              seen.add(event.id);
+              if (shouldHideFeedEvent(event)) return false;
+              if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+              return true;
+            })
+            .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
+        );
+
+      // Reorder for content-type diversity: cap any single type at 20%
+      // per page and enforce a minimum gap of 4 positions between same-type
+      // items, with gap state carrying across page boundaries.
+      return diversifyFeedPages(dedupedPages);
     }
 
     return (rawData.pages as unknown as { items: FeedItem[] }[])
@@ -228,7 +219,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       });
   }, [rawData?.pages, muteItems, useDittoQuery]);
 
-  const showSkeleton = isPending || (isLoading && !rawData);
+  // Show skeletons while loading, but not if the curator list query errored
+  // (that would leave logged-out users staring at infinite skeletons).
+  const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
 
   // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
   // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.

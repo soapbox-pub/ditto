@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useSubHeaderBarHover } from '@/components/SubHeaderBar';
+import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 
 interface TabButtonProps {
   /** Tab display label. */
@@ -26,18 +26,25 @@ interface TabButtonProps {
  */
 export function TabButton({ label, active, onClick, disabled, className, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
-  const { onHover, onActive } = useSubHeaderBarHover();
+  const { onHover, scrollContainerRef } = useSubHeaderBarHover();
+  const { reportSlice } = useActiveTabIndicator(active, ref);
 
-  const reportSlice = () => {
-    const btn = ref.current;
-    if (!btn) return;
-    return { left: btn.offsetLeft, width: btn.offsetWidth };
-  };
-
+  // Auto-scroll the active tab into view when the container overflows
   useLayoutEffect(() => {
     if (!active) return;
-    const s = reportSlice();
-    if (s) onActive(s);
+    const btn = ref.current;
+    const container = scrollContainerRef.current;
+    if (btn && container) {
+      const btnLeft = btn.offsetLeft;
+      const btnRight = btnLeft + btn.offsetWidth;
+      const viewLeft = container.scrollLeft;
+      const viewRight = viewLeft + container.clientWidth;
+      if (btnLeft < viewLeft) {
+        container.scrollTo({ left: btnLeft - 8, behavior: 'smooth' });
+      } else if (btnRight > viewRight) {
+        container.scrollTo({ left: btnRight - container.clientWidth + 8, behavior: 'smooth' });
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 

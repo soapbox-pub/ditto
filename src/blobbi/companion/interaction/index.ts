@@ -76,10 +76,10 @@ export { useBlobbiItemUse } from './useBlobbiItemUse';
 // Context
 export {
   BlobbiActionsContext,
-  BlobbiActionsProvider,
   useBlobbiActions,
   useBlobbiActionsRegistration,
 } from './BlobbiActionsContext';
+export { BlobbiActionsProvider } from './BlobbiActionsProvider';
 
 // Components
 export { CompanionActionMenu } from './CompanionActionMenu';

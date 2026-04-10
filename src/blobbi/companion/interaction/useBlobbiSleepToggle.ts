@@ -69,14 +69,13 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
   /** Optimistically update the TanStack cache so the companion reacts immediately. */
   const updateCache = useCallback((event: import('@nostrify/nostrify').NostrEvent, pubkey: string) => {
     const parsed = parseBlobbiEvent(event);
-    if (!parsed) {
-      queryClient.invalidateQueries({ queryKey: ['blobbi-collection', pubkey] });
-      return;
-    }
+    if (!parsed) return;
 
     // Optimistically update ALL blobbi-collection queries for this user.
     // The cache key is ['blobbi-collection', pubkey, dListArray], so we use
     // partial matching to find all entries regardless of dList shape.
+    // No invalidation needed — we fetched fresh from relays before mutating,
+    // so the optimistic update is the correct state.
     type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
     const matchingQueries = queryClient.getQueriesData<CollectionData>({
       queryKey: ['blobbi-collection', pubkey],
@@ -90,9 +89,6 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
         companions: Object.values(newCompanionsByD),
       });
     }
-
-    // Also invalidate for background refetch to ensure eventual consistency
-    queryClient.invalidateQueries({ queryKey: ['blobbi-collection', pubkey] });
   }, [queryClient]);
 
   const toggleSleep = useCallback(async () => {

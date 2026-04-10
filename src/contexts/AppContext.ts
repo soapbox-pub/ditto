@@ -251,6 +251,10 @@ export interface AppConfig {
     soundId?: string;
     devMode?: boolean;
   };
+  /** Hex pubkey of the curator whose follow list defines the Ditto feed. */
+  curatorPubkey?: string;
+  /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
+  sandboxDomain: string;
 }
 
 export interface AppContextType {
