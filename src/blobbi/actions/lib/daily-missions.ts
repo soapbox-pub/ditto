@@ -3,7 +3,7 @@
  * 
  * This module defines the daily mission pool, selection logic, and types.
  * Daily missions are separate from hatch/evolve missions and provide
- * daily engagement loops with coin rewards.
+ * daily engagement loops with XP rewards applied to the active companion.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ export interface DailyMissionDefinition {
   action: DailyMissionAction;
   /** Number of times the action must be performed */
   requiredCount: number;
-  /** Coin reward for completing this mission */
+  /** XP reward for completing this mission (applied to active companion) */
   reward: number;
   /** Selection weight (higher = more likely to be selected) */
   weight: number;
@@ -61,15 +61,19 @@ export interface DailyMission extends DailyMissionDefinition {
 }
 
 /**
- * Stored state for daily missions (persisted in localStorage)
+ * Stored state for daily missions.
+ *
+ * Source of truth: Kind 11125 profile content JSON (`dailyMissions` section).
+ * During a session, state is held in an in-memory map for instant UI updates.
+ * On page load, the hook hydrates from kind 11125. localStorage is NOT used.
  */
 export interface DailyMissionsState {
   /** The date string (YYYY-MM-DD) when these missions were generated */
   date: string;
   /** The selected missions for this day */
   missions: DailyMission[];
-  /** Total coins earned from daily missions (lifetime) */
-  totalCoinsEarned: number;
+  /** Total XP earned from daily missions (lifetime) */
+  totalXpEarned: number;
   /** Whether the bonus mission has been claimed today */
   bonusClaimed?: boolean;
   /** Number of rerolls remaining for today (resets daily, max 3) */
@@ -80,6 +84,67 @@ export interface DailyMissionsState {
 
 /** Maximum number of mission rerolls allowed per day */
 export const MAX_DAILY_REROLLS = 3;
+
+// ─── In-Memory Session Store ──────────────────────────────────────────────────
+
+/**
+ * In-memory, pubkey-scoped store for daily missions state.
+ *
+ * ── Source-of-Truth Architecture ──────────────────────────────────────────────
+ *
+ *   Kind 11125 content JSON (`dailyMissions` section) is the ONLY persistent
+ *   source of truth. This in-memory map is a session cache:
+ *
+ *   • On page load / account switch, `useDailyMissions` hydrates this map
+ *     from `profile.content.dailyMissions` (parsed from the kind 11125 event).
+ *   • During the session, progress/rerolls update this map for instant UI.
+ *   • Claims persist to kind 11125 via `updateDailyMissionsContent()`.
+ *   • On page refresh the map is empty, so the hook re-hydrates from kind 11125.
+ *   • Unclaimed progress (feed counts, etc.) that hasn't been written to
+ *     kind 11125 is lost on refresh — this is intentional and preferable to
+ *     cross-account leakage through localStorage.
+ *
+ *   localStorage is NOT used for daily missions. This eliminates all
+ *   cross-account leakage bugs.
+ */
+const sessionStore = new Map<string, DailyMissionsState>();
+
+/**
+ * Read daily missions state from the in-memory session store.
+ *
+ * Returns null if:
+ *   - No state exists for this pubkey in the current session
+ *   - The pubkey is empty/undefined
+ */
+export function readDailyMissionsState(pubkey: string | undefined): DailyMissionsState | null {
+  if (!pubkey) return null;
+  return sessionStore.get(pubkey) ?? null;
+}
+
+/**
+ * Write daily missions state to the in-memory session store.
+ *
+ * This is the ONLY correct way to update session mission state.
+ * No-ops silently if pubkey is empty/undefined (logged-out users
+ * should not have mission state).
+ *
+ * Note: This does NOT persist to kind 11125. Persistence happens
+ * explicitly through `updateDailyMissionsContent()` in the claim
+ * and other write-path hooks.
+ */
+export function writeDailyMissionsState(pubkey: string | undefined, state: DailyMissionsState): void {
+  if (!pubkey) return;
+  sessionStore.set(pubkey, state);
+}
+
+/**
+ * Clear the session store entry for a pubkey.
+ * Used when the hook needs to re-hydrate from kind 11125 data.
+ */
+export function clearDailyMissionsState(pubkey: string | undefined): void {
+  if (!pubkey) return;
+  sessionStore.delete(pubkey);
+}
 
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
 
@@ -104,7 +169,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Interact with your Blobbi 3 times',
     action: 'interact',
     requiredCount: 3,
-    reward: 30,
+    reward: 15,
     weight: 10,
     requiredStages: ['baby', 'adult'],
   },
@@ -114,7 +179,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Interact with your Blobbi 6 times',
     action: 'interact',
     requiredCount: 6,
-    reward: 50,
+    reward: 30,
     weight: 8,
     requiredStages: ['baby', 'adult'],
   },
@@ -126,7 +191,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Feed your Blobbi once',
     action: 'feed',
     requiredCount: 1,
-    reward: 25,
+    reward: 10,
     weight: 10,
     requiredStages: ['baby', 'adult'],
   },
@@ -136,7 +201,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Feed your Blobbi 2 times',
     action: 'feed',
     requiredCount: 2,
-    reward: 45,
+    reward: 20,
     weight: 8,
     requiredStages: ['baby', 'adult'],
   },
@@ -146,7 +211,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Feed your Blobbi 3 times',
     action: 'feed',
     requiredCount: 3,
-    reward: 60,
+    reward: 35,
     weight: 5,
     requiredStages: ['baby', 'adult'],
   },
@@ -158,7 +223,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Put your Blobbi to sleep',
     action: 'sleep',
     requiredCount: 1,
-    reward: 30,
+    reward: 15,
     weight: 6,
     requiredStages: ['baby', 'adult'],
   },
@@ -170,7 +235,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Take a polaroid photo of your Blobbi',
     action: 'take_photo',
     requiredCount: 1,
-    reward: 55,
+    reward: 25,
     weight: 4,
     requiredStages: ['baby', 'adult'],
   },
@@ -180,7 +245,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Take 2 photos of your Blobbi',
     action: 'take_photo',
     requiredCount: 2,
-    reward: 70,
+    reward: 40,
     weight: 2,
     requiredStages: ['baby', 'adult'],
   },
@@ -197,7 +262,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Clean your Blobbi once',
     action: 'clean',
     requiredCount: 1,
-    reward: 25,
+    reward: 10,
     weight: 10,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -207,7 +272,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Clean your Blobbi 2 times',
     action: 'clean',
     requiredCount: 2,
-    reward: 45,
+    reward: 20,
     weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -219,7 +284,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Sing a song to your Blobbi',
     action: 'sing',
     requiredCount: 1,
-    reward: 30,
+    reward: 15,
     weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -229,7 +294,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Sing 2 songs to your Blobbi',
     action: 'sing',
     requiredCount: 2,
-    reward: 50,
+    reward: 25,
     weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -241,7 +306,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Play a song for your Blobbi',
     action: 'play_music',
     requiredCount: 1,
-    reward: 30,
+    reward: 15,
     weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -251,20 +316,19 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Play 2 songs for your Blobbi',
     action: 'play_music',
     requiredCount: 2,
-    reward: 50,
+    reward: 25,
     weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
 
   // ─── Medicine Missions (All stages) ────────────────────────────────────────
-  // Medicine rewards are higher since medicine costs coins to use
   {
     id: 'medicine_1',
     title: 'Health Check',
     description: 'Give medicine to your Blobbi',
     action: 'medicine',
     requiredCount: 1,
-    reward: 60,
+    reward: 20,
     weight: 5,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -274,7 +338,7 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
     description: 'Give medicine to your Blobbi 2 times',
     action: 'medicine',
     requiredCount: 2,
-    reward: 70,
+    reward: 35,
     weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
@@ -405,14 +469,14 @@ export function createMissionFromDefinition(def: DailyMissionDefinition): DailyM
 export function createDailyMissionsState(
   dateString: string,
   pubkey?: string,
-  previousTotalCoins: number = 0,
+  previousTotalXp: number = 0,
   availableStages?: BlobbiStage[]
 ): DailyMissionsState {
   const definitions = selectDailyMissions(3, dateString, pubkey, availableStages);
   return {
     date: dateString,
     missions: definitions.map(createMissionFromDefinition),
-    totalCoinsEarned: previousTotalCoins,
+    totalXpEarned: previousTotalXp,
     rerollsRemaining: MAX_DAILY_REROLLS,
   };
 }
@@ -461,8 +525,8 @@ export function updateMissionProgress(
 export function claimMissionReward(
   state: DailyMissionsState,
   missionId: string
-): { state: DailyMissionsState; coinsEarned: number } {
-  let coinsEarned = 0;
+): { state: DailyMissionsState; xpEarned: number } {
+  let xpEarned = 0;
   
   const updatedMissions = state.missions.map((mission) => {
     if (mission.id !== missionId) return mission;
@@ -470,7 +534,7 @@ export function claimMissionReward(
     // Can only claim if completed and not yet claimed
     if (!mission.completed || mission.claimed) return mission;
     
-    coinsEarned = mission.reward;
+    xpEarned = mission.reward;
     return {
       ...mission,
       claimed: true,
@@ -481,9 +545,9 @@ export function claimMissionReward(
     state: {
       ...state,
       missions: updatedMissions,
-      totalCoinsEarned: state.totalCoinsEarned + coinsEarned,
+      totalXpEarned: state.totalXpEarned + xpEarned,
     },
-    coinsEarned,
+    xpEarned,
   };
 }
 
@@ -526,10 +590,10 @@ export function areAllMissionsClaimed(state: DailyMissionsState): boolean {
 export const BONUS_MISSION_DEFINITION: DailyMissionDefinition = {
   id: 'bonus_daily_complete',
   title: 'Daily Champion',
-  description: 'Complete all daily missions to claim this bonus reward',
+  description: 'Complete all daily missions to claim this bonus XP',
   action: 'interact', // Not actually used - bonus is auto-completed
   requiredCount: 1,
-  reward: 80,
+  reward: 50,
   weight: 0, // Not part of random selection
 };
 
@@ -553,19 +617,19 @@ export function isBonusMissionClaimed(state: DailyMissionsState): boolean {
  */
 export function claimBonusMissionReward(
   state: DailyMissionsState
-): { state: DailyMissionsState; coinsEarned: number } {
+): { state: DailyMissionsState; xpEarned: number } {
   // Can only claim if bonus is available and not yet claimed
   if (!isBonusMissionAvailable(state) || isBonusMissionClaimed(state)) {
-    return { state, coinsEarned: 0 };
+    return { state, xpEarned: 0 };
   }
   
   return {
     state: {
       ...state,
       bonusClaimed: true,
-      totalCoinsEarned: state.totalCoinsEarned + BONUS_MISSION_DEFINITION.reward,
+      totalXpEarned: state.totalXpEarned + BONUS_MISSION_DEFINITION.reward,
     },
-    coinsEarned: BONUS_MISSION_DEFINITION.reward,
+    xpEarned: BONUS_MISSION_DEFINITION.reward,
   };
 }
 

@@ -1,11 +1,15 @@
 /**
  * useRerollMission - Hook for rerolling daily missions
- * 
+ *
  * Handles:
  * - Replacing a mission with a new one from the pool
  * - Tracking reroll usage (max 3 per day)
  * - Respecting stage-based mission filtering
- * - Persisting state to localStorage
+ * - Updating the in-memory session store
+ *
+ * Note: Rerolled state is held in the session store until a claim
+ * persists it to kind 11125. Rerolls that happen without a subsequent
+ * claim are lost on page refresh — this is intentional.
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -14,7 +18,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 
 import {
-  type DailyMissionsState,
   type DailyMission,
   type BlobbiStage,
   getTodayDateString,
@@ -23,6 +26,8 @@ import {
   rerollMission,
   canRerollMission,
   getRerollsRemaining,
+  readDailyMissionsState,
+  writeDailyMissionsState,
 } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,37 +43,7 @@ export interface RerollMissionResult {
   rerollsRemaining: number;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissionsState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    
-    const state = JSON.parse(stored) as DailyMissionsState;
-    
-    // Migration: ensure rerollsRemaining is set for old state
-    if (state.rerollsRemaining === undefined) {
-      state.rerollsRemaining = 3; // MAX_DAILY_REROLLS
-    }
-    
-    return state;
-  } catch {
-    return null;
-  }
-}
-
-function writeMissionsState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[useRerollMission] Failed to write state:', error);
-  }
-}
+// State is read/written via the in-memory session store in daily-missions.ts.
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -87,13 +62,13 @@ export function useRerollMission() {
         throw new Error('You must be logged in to reroll missions');
       }
 
-      // Read current missions state from localStorage
-      let missionsState = readMissionsState();
+      // Read current missions state from in-memory session store
+      let missionsState = readDailyMissionsState(user.pubkey);
       
       // Ensure we have valid state for today
       if (needsDailyReset(missionsState)) {
-        const previousCoins = missionsState?.totalCoinsEarned ?? 0;
-        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousCoins, availableStages);
+        const previousXp = missionsState?.totalXpEarned ?? (missionsState as unknown as { totalCoinsEarned?: number })?.totalCoinsEarned ?? 0;
+        missionsState = createDailyMissionsState(getTodayDateString(), user.pubkey, previousXp, availableStages);
       }
 
       // Check if reroll is allowed
@@ -118,8 +93,8 @@ export function useRerollMission() {
         throw new Error('No replacement missions available. All alternative missions may already be in your daily list.');
       }
 
-      // Persist the updated state
-      writeMissionsState(result.state);
+      // Update the in-memory session store
+      writeDailyMissionsState(user.pubkey, result.state);
 
       // Dispatch event for React components to re-render
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { 

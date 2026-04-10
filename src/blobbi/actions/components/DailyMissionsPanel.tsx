@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import {
   Check,
-  Coins,
+  Zap,
   Gift,
   Sparkles,
   Egg,
@@ -43,7 +43,7 @@ interface DailyMissionsPanelProps {
   missions: DailyMission[];
   onClaimReward: (missionId: string) => void;
   onRerollMission?: (missionId: string) => void;
-  todayCoins: number;
+  todayXp: number;
   disabled?: boolean;
   bonusAvailable?: boolean;
   bonusClaimed?: boolean;
@@ -112,7 +112,7 @@ function BonusCard({ isAvailable, isClaimed, reward, onClaim, disabled, isExpand
       </MissionDescription>
 
       <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-        <Coins className="size-3" />
+        <Zap className="size-3" />
         +{formatCompactNumber(reward)}
       </div>
 
@@ -124,7 +124,7 @@ function BonusCard({ isAvailable, isClaimed, reward, onClaim, disabled, isExpand
           className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white h-8 text-xs"
         >
           <Trophy className="size-3.5 mr-1.5" />
-          Claim Bonus {formatCompactNumber(reward)} Coins
+          Claim +{formatCompactNumber(reward)} XP
         </Button>
       )}
     </ExpandableMissionCard>
@@ -147,7 +147,7 @@ function NoMissionsState() {
   );
 }
 
-function AllClaimedState({ todayCoins }: { todayCoins: number }) {
+function AllClaimedState({ todayXp }: { todayXp: number }) {
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
       <Sparkles className="size-5 text-primary/60" />
@@ -156,7 +156,7 @@ function AllClaimedState({ todayCoins }: { todayCoins: number }) {
         <p className="text-xs text-muted-foreground mt-0.5">
           Earned{' '}
           <span className="font-medium text-amber-600 dark:text-amber-400">
-            {formatCompactNumber(todayCoins)} coins
+            {formatCompactNumber(todayXp)} XP earned
           </span>{' '}
           — come back tomorrow!
         </p>
@@ -189,7 +189,7 @@ export function DailyMissionsPanel({
   missions,
   onClaimReward,
   onRerollMission,
-  todayCoins,
+  todayXp,
   disabled,
   bonusAvailable = false,
   bonusClaimed = false,
@@ -205,7 +205,7 @@ export function DailyMissionsPanel({
   const allRegularClaimed = missions.every((m) => m.claimed);
   const allDone = allRegularClaimed && bonusClaimed;
 
-  if (allDone) return <AllClaimedState todayCoins={todayCoins} />;
+  if (allDone) return <AllClaimedState todayXp={todayXp} />;
 
   const canReroll = rerollsRemaining > 0 && !!onRerollMission;
 
@@ -251,7 +251,7 @@ export function DailyMissionsPanel({
             {/* Reward + reroll row */}
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                <Coins className="size-3" />
+                <Zap className="size-3" />
                 {formatCompactNumber(mission.reward)}
               </span>
 
@@ -297,7 +297,7 @@ export function DailyMissionsPanel({
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
               >
                 <Gift className="size-3.5 mr-1.5" />
-                Claim {formatCompactNumber(mission.reward)} Coins
+                Claim +{formatCompactNumber(mission.reward)} XP
               </Button>
             )}
           </ExpandableMissionCard>

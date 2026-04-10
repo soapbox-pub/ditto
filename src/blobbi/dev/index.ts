@@ -38,3 +38,6 @@ export { useBlobbiDevUpdate } from './useBlobbiDevUpdate';
 export { EmotionDevProvider } from './EmotionDevContext';
 export { useEmotionDev, useEffectiveEmotion } from './useEmotionDev';
 export { BlobbiEmotionPanel } from './BlobbiEmotionPanel';
+
+// Progression testing tools
+export { ProgressionDevPanel } from './ProgressionDevPanel';

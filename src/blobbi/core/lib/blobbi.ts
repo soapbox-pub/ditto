@@ -3,6 +3,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
+import { parseProfileContent } from './blobbonaut-content';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -312,7 +313,7 @@ export interface BlobbonautProfile {
   name: string | undefined;
   /** List of owned Blobbi d-tags */
   has: string[];
-  /** In-game currency balance */
+  /** In-game currency balance (legacy — daily missions now use XP) */
   coins: number;
   /** Petting level (interaction counter) */
   pettingLevel: number;
@@ -320,6 +321,8 @@ export interface BlobbonautProfile {
   storage: StorageItem[];
   /** All tags preserved for republishing */
   allTags: string[][];
+  /** Parsed content JSON (daily missions, future fields). Empty object if legacy/empty content. */
+  content: import('./blobbonaut-content').BlobbonautProfileContent;
 }
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
@@ -971,6 +974,9 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
   const pettingLevelValue = parseNumericTag(tags, 'pettingLevel') 
     ?? parseNumericTag(tags, 'petting_level') 
     ?? 0;
+
+  // Parse structured content JSON (daily missions, future fields)
+  const parsedContent = parseProfileContent(event.content);
   
   return {
     event,
@@ -984,6 +990,7 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     pettingLevel: pettingLevelValue,
     storage: parseStorageTags(tags),
     allTags: tags,
+    content: parsedContent,
   };
 }
 
@@ -1140,6 +1147,8 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
   'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'onboarding_done', 'has', 'storage',
+  // Progression: derived global level mirrored into a tag for relay queryability
+  'level',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',

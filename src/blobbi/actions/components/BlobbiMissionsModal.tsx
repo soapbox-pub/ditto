@@ -10,14 +10,14 @@
  * 4. Settings row — low emphasis toggle (not collapsible)
  *
  * Both main sections use lightweight Radix Collapsible wrappers.
- * Collapsed headers still show summary info (progress / coins).
+ * Collapsed headers still show summary info (progress / XP).
  */
 
 import {
   Loader2,
   XCircle,
   AlertTriangle,
-  Coins,
+  Zap,
   X,
   Eye,
   Scroll,
@@ -148,6 +148,8 @@ function MissionTypeLegend() {
 interface DailyMissionsSectionProps {
   profile: BlobbonautProfile | null;
   updateProfileEvent: (event: NostrEvent) => void;
+  companion?: import('@/blobbi/core/lib/blobbi').BlobbiCompanion | null;
+  updateCompanionEvent?: (event: NostrEvent) => void;
   availableStages?: ('egg' | 'baby' | 'adult')[];
   disabled?: boolean;
   defaultOpen?: boolean;
@@ -156,6 +158,8 @@ interface DailyMissionsSectionProps {
 function DailyMissionsSection({
   profile,
   updateProfileEvent,
+  companion,
+  updateCompanionEvent,
   availableStages,
   disabled,
   defaultOpen = true,
@@ -171,11 +175,16 @@ function DailyMissionsSection({
     bonusReward,
     noMissionsAvailable,
     rerollsRemaining,
-  } = useDailyMissions({ availableStages });
+  } = useDailyMissions({
+    availableStages,
+    persistedDailyMissions: profile?.content.dailyMissions,
+  });
 
   const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
     profile,
     updateProfileEvent,
+    companion,
+    updateCompanionEvent,
   );
 
   const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
@@ -194,7 +203,7 @@ function DailyMissionsSection({
           <div className="flex items-center gap-2">
             {/* Summary pill — always visible */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Coins className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
+              <Zap className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
               <span className="tabular-nums">
                 {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
               </span>
@@ -215,7 +224,7 @@ function DailyMissionsSection({
             missions={missions}
             onClaimReward={(id) => claimReward({ missionId: id })}
             onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
-            todayCoins={todayClaimedReward}
+            todayXp={todayClaimedReward}
             disabled={disabled || isClaiming || isRerolling}
             bonusAvailable={bonusAvailable}
             bonusClaimed={bonusClaimed}
