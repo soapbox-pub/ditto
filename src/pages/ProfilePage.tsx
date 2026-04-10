@@ -2185,13 +2185,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ) : displayName}
               </h2>
               {metadata?.nip05 && (
-                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
-              )}
-              {(metadata?.lud16 || metadata?.lud06) && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-                  <Zap className="size-3.5 text-amber-500 shrink-0" />
-                  <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
-                </div>
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
               {metadata?.website && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
@@ -2202,7 +2196,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     rel="noopener noreferrer"
                     className="truncate text-primary hover:underline"
                   >
-                    {metadata.website.replace(/^https?:\/\//, '')}
+                    {metadata.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                   </a>
                 </div>
               )}
