@@ -380,9 +380,11 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const augmentedFilter = useMemo(() => {
     if (!resolvedFilter) return null;
     const existing = resolvedFilter.search ?? '';
-    const search = existing
-      ? `${existing} protocol:nostr`
-      : 'protocol:nostr';
+    const search = existing.includes('protocol:nostr')
+      ? existing
+      : existing
+        ? `${existing} protocol:nostr`
+        : 'protocol:nostr';
     return { ...resolvedFilter, search };
   }, [resolvedFilter]);
 
@@ -396,6 +398,8 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 
   const isLoading = isResolving || isFeedLoading;
 
+  // Prefix key -- usePageRefresh does prefix matching, so this invalidates
+  // the full ['tab-feed', tabKey, kindsKey, authorsKey, searchKey] used by useTabFeed.
   const queryKey = useMemo(
     () => ['tab-feed', `saved-${feed.id}`],
     [feed.id],
