@@ -21,9 +21,10 @@ Closes #
 <!-- REQUIRED for UI changes. Show before and after. -->
 <!-- Write "N/A -- no UI changes" only if this MR has zero visual impact. -->
 
-| Before | After |
-|--------|-------|
-|        |       |
+**Before:**
+
+
+**After:**
 
 ## Philosophy Alignment
 
