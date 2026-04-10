@@ -49,7 +49,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const centerColumnRef = useRef<HTMLDivElement>(null);
@@ -104,8 +104,8 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {/* Right sidebar placeholder — preserves layout width */}
-          <div className="w-[300px] shrink-0 hidden xl:block" />
+          {/* Right sidebar — render page-provided sidebar, or an empty placeholder to preserve layout width */}
+          {rightSidebar ?? <div className="w-[300px] shrink-0 hidden xl:block" />}
         </Suspense>
       </div>
 
