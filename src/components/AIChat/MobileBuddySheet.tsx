@@ -72,12 +72,16 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
         className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4"
         style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px) + 70px)' }}
       >
-        <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-4">
           {visibleMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+            <div key={msg.id} onClick={(e) => e.stopPropagation()}>
+              <MessageBubble message={msg} />
+            </div>
           ))}
           {streamingText && (isStreaming || apiLoading) && (
-            <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
+            <div onClick={(e) => e.stopPropagation()}>
+              <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
