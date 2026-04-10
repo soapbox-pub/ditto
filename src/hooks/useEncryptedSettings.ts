@@ -5,7 +5,7 @@ import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
-import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed } from '@/contexts/AppContext';
+import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
@@ -78,6 +78,8 @@ export interface EncryptedSettings {
   lastSync?: number;
   /** Ordered list of sidebar item IDs (built-in + extra-kind) */
   sidebarOrder?: string[];
+  /** Ordered list of right sidebar widget configs. */
+  sidebarWidgets?: WidgetConfig[];
   /** Sidebar item ID to display on the homepage ("/") */
   homePage?: string;
   /** Whether the Global feed tab is shown */

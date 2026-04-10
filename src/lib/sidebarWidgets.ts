@@ -1,0 +1,171 @@
+import type { ComponentType } from 'react';
+import {
+  TrendingUp,
+  Egg,
+  SmilePlus,
+  Bot,
+  BookOpen,
+  Camera,
+  Music,
+  CalendarDays,
+  ScrollText,
+} from 'lucide-react';
+import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
+import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type IconComponent = ComponentType<{ className?: string }>;
+
+/** Metadata for a widget type that can be added to the right sidebar. */
+export interface WidgetDefinition {
+  /** Unique identifier matching WidgetConfig.id */
+  id: string;
+  /** Display label shown in the widget header and picker. */
+  label: string;
+  /** Short description for the widget picker. */
+  description: string;
+  /** Icon component for the widget header and picker. */
+  icon: IconComponent;
+  /** Default height in pixels. */
+  defaultHeight: number;
+  /** Minimum height in pixels. */
+  minHeight: number;
+  /** Maximum height in pixels. */
+  maxHeight: number;
+  /** Category for grouping in the picker. */
+  category: 'personal' | 'content' | 'discovery';
+}
+
+// ── Registry ──────────────────────────────────────────────────────────────────
+
+/** All available widget definitions. */
+export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
+  // Discovery
+  {
+    id: 'trends',
+    label: 'Trending',
+    description: 'Top trending hashtags with sparkline charts',
+    icon: TrendingUp,
+    defaultHeight: 320,
+    minHeight: 200,
+    maxHeight: 600,
+    category: 'discovery',
+  },
+  {
+    id: 'wikipedia',
+    label: 'Wikipedia',
+    description: "Today's featured article from Wikipedia",
+    icon: WikipediaIcon,
+    defaultHeight: 350,
+    minHeight: 200,
+    maxHeight: 600,
+    category: 'discovery',
+  },
+  {
+    id: 'bluesky',
+    label: 'Bluesky',
+    description: 'Trending posts from Bluesky',
+    icon: BlueskyIcon,
+    defaultHeight: 400,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'discovery',
+  },
+
+  // Personal
+  {
+    id: 'blobbi',
+    label: 'Blobbi',
+    description: 'Your virtual pet companion',
+    icon: Egg,
+    defaultHeight: 280,
+    minHeight: 200,
+    maxHeight: 500,
+    category: 'personal',
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    description: 'Your current status, editable inline',
+    icon: SmilePlus,
+    defaultHeight: 80,
+    minHeight: 60,
+    maxHeight: 120,
+    category: 'personal',
+  },
+  {
+    id: 'ai-chat',
+    label: 'AI Chat',
+    description: 'Chat with Shakespeare AI',
+    icon: Bot,
+    defaultHeight: 400,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'personal',
+  },
+
+  // Content feeds
+  {
+    id: 'feed:photos',
+    label: 'Photos',
+    description: 'Recent photos from your feed',
+    icon: Camera,
+    defaultHeight: 400,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'content',
+  },
+  {
+    id: 'feed:music',
+    label: 'Music',
+    description: 'Music tracks from your feed',
+    icon: Music,
+    defaultHeight: 350,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'content',
+  },
+  {
+    id: 'feed:articles',
+    label: 'Articles',
+    description: 'Long-form articles from your feed',
+    icon: ScrollText,
+    defaultHeight: 350,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'content',
+  },
+  {
+    id: 'feed:events',
+    label: 'Events',
+    description: 'Upcoming calendar events',
+    icon: CalendarDays,
+    defaultHeight: 300,
+    minHeight: 200,
+    maxHeight: 600,
+    category: 'content',
+  },
+  {
+    id: 'feed:books',
+    label: 'Books',
+    description: 'Book reviews and recommendations',
+    icon: BookOpen,
+    defaultHeight: 350,
+    minHeight: 250,
+    maxHeight: 700,
+    category: 'content',
+  },
+];
+
+/** Lookup a widget definition by ID. */
+export function getWidgetDefinition(id: string): WidgetDefinition | undefined {
+  return WIDGET_DEFINITIONS.find((w) => w.id === id);
+}
+
+/** Category labels for display in the picker. */
+export const WIDGET_CATEGORIES: Record<string, string> = {
+  personal: 'Personal',
+  content: 'Content',
+  discovery: 'Discovery',
+};
