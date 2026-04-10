@@ -14,20 +14,21 @@ We welcome contributions, but we have high standards. Ditto is a carefully desig
 
 One bug, one merge request. Fix exactly one thing. Don't bundle unrelated changes, don't sneak in refactors, don't "clean up while you're in there." Small, focused MRs get reviewed fast. Large ones sit.
 
-Bug fixes for issues labeled `good first issue` or `help wanted` are the best starting point.
+Before starting, comment on the issue saying you'd like to work on it. For straightforward bug fixes a maintainer may not respond -- that's fine, go ahead. But if there's any ambiguity about scope or approach, wait for confirmation.
 
-### New features
+### New features and significant changes
 
-New features require prior discussion. Do not submit a feature MR without an existing open issue that has been discussed and approved for external contribution.
+New features require explicit maintainer approval before you write any code. Comment on the issue explaining your intended approach and wait for a thumbs-up. MRs submitted without this confirmation will be closed.
 
-If you have an idea for a new feature:
+If you have an idea for a feature that doesn't have an issue yet:
 
 1. Build it as a standalone Nostr app first (see [Contributing Guide](https://about.ditto.pub/contributing)).
 2. Prove it works and get user feedback.
 3. Open an issue to discuss integration, or comment on an existing one.
-4. Only after maintainer approval: submit a merge request.
+4. Wait for a maintainer to approve the direction.
+5. Only then: submit a merge request.
 
-**Unsolicited feature MRs will be closed without review.** Our open issues are our internal roadmap. Just because an issue exists doesn't mean it's open for external contribution. Look for the `good first issue` or `help wanted` labels.
+**Unsolicited feature MRs will be closed without review.** Our open issues are our internal roadmap -- just because an issue exists doesn't mean we want an external contributor to implement it. Some issues require deep product context. When in doubt, ask first.
 
 ## Required tools
 
@@ -128,7 +129,7 @@ Fill out every field in the MR template. Incomplete MRs will not be reviewed.
 ## What gets your MR closed without review
 
 - No linked issue
-- Unsolicited features without prior discussion
+- Unsolicited features without maintainer approval on the issue
 - Incomplete MR template (missing checklist, screenshots, or preview URL)
 - Changes that go beyond what was asked for (scope creep)
 - Placeholder code, dead code, or debug artifacts
