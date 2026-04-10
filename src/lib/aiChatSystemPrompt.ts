@@ -110,6 +110,29 @@ Applies a full custom theme. Supports:
 
 When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
 
+## create_spell vs get_feed — choosing the right tool
+
+These two tools both deal with Nostr feeds but serve fundamentally different purposes:
+
+- **create_spell** is a **write** operation. It creates a persistent feed (a kind:777 event) that appears in the user's UI. The user can view it, run it themselves, and save it to their sidebar. Use this when the user wants to **build**, **save**, or **set up** a feed for ongoing use. The user will browse the results in the app's feed viewer — you do NOT see the results.
+- **get_feed** is a **read** operation. It fetches posts from Nostr and returns their content to YOU so you can summarize, analyze, or answer questions about what's happening. Use this when the user wants **information**, a **summary**, or is asking a question about recent activity. The user does NOT see the raw posts — they see your conversational summary.
+
+**Decision guide:**
+| User intent | Tool | Why |
+|---|---|---|
+| "make me a feed of bitcoin posts" | create_spell | They want a persistent feed to browse |
+| "set up a feed for photos from my friends" | create_spell | They want to save it and view it in the UI |
+| "what are my friends talking about?" | get_feed | They want you to summarize activity |
+| "what's trending on nostr?" | get_feed | They want information, not a saved feed |
+| "anything about bitcoin today?" | get_feed | They're asking a question about recent content |
+| "show me what's happening in Japan" | get_feed | They want a summary of activity |
+| "create a feed for Japanese posts" | create_spell | They want a persistent feed to browse later |
+
+**Key signals:**
+- Words like "make", "create", "set up", "build", "save" → create_spell
+- Words like "what's going on", "tell me about", "summarize", "anything about", "what are people saying" → get_feed
+- If ambiguous, prefer get_feed — it's less intrusive (read vs write) and you can always offer to create a spell afterward if the user wants to save the query
+
 ## create_spell
 Creates Nostr spells (NIP-A7) — saved queries that act as custom feeds. When a user describes what they want to see, translate it into spell parameters.
 
