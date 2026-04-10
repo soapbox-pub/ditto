@@ -253,18 +253,20 @@ The page is fetched through a CORS proxy so it works in the browser. Images are 
     type: 'function' as const,
     function: {
       name: 'upload_from_url',
-      description: `Download images from URLs and upload them to Blossom file servers. Returns the resulting Blossom URLs.
+      description: `Download files from URLs and upload them to Blossom file servers. Returns the resulting Blossom URLs.
 
-Use this after fetch_page to upload discovered images. Each image is fetched via CORS proxy, converted to a File, and uploaded to Blossom. The user must be logged in.
+Supports any file type: images (png, jpg, gif, webp, svg), WebXDC apps (.xdc), archives (.zip), video, audio, documents, etc. MIME types are detected from file extensions — .xdc files are uploaded as application/x-webxdc.
 
-Handles up to 50 images per call. Returns an array of objects with the original URL, the Blossom URL, and a suggested shortcode derived from the filename.`,
+Use this after fetch_page to upload discovered files, or directly with known URLs. Each file is fetched via CORS proxy and uploaded to Blossom. The user must be logged in.
+
+Handles up to 50 files per call. Returns an array of objects with the original URL, the Blossom URL, detected MIME type, and a suggested shortcode derived from the filename.`,
       parameters: {
         type: 'object' as const,
         properties: {
           urls: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Array of image URLs to download and upload (max 50).',
+            description: 'Array of file URLs to download and upload (max 50).',
           },
         },
         required: ['urls'],

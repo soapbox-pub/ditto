@@ -472,40 +472,63 @@ export function useAIChatTools() {
             }),
           });
 
-          const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; error?: string }> = [];
+          const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; mime_type?: string; error?: string }> = [];
 
-          for (const imageUrl of urls) {
+          for (const fileUrl of urls) {
             try {
-              // Fetch image via CORS proxy.
-              const proxied = proxyUrl({ template: config.corsProxy, url: imageUrl });
+              // Fetch file via CORS proxy.
+              const proxied = proxyUrl({ template: config.corsProxy, url: fileUrl });
               const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
 
               if (!response.ok) {
-                results.push({ original_url: imageUrl, shortcode: '', error: `HTTP ${response.status}` });
+                results.push({ original_url: fileUrl, shortcode: '', error: `HTTP ${response.status}` });
                 continue;
               }
 
               const blob = await response.blob();
 
               // Derive filename and shortcode from URL path.
-              const pathname = new URL(imageUrl).pathname;
-              const filename = pathname.split('/').pop() || 'image.png';
+              const pathname = new URL(fileUrl).pathname;
+              const filename = pathname.split('/').pop() || 'file';
               const dotIndex = filename.lastIndexOf('.');
               const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+              const ext = dotIndex > 0 ? filename.slice(dotIndex + 1).toLowerCase() : '';
               const shortcode = baseName
                 .replace(/[^a-zA-Z0-9_-]/g, '_')
                 .replace(/_+/g, '_')
                 .replace(/^_|_$/g, '')
                 .toLowerCase();
 
+              // Resolve MIME type: prefer the response content-type, then
+              // fall back to extension-based lookup, then octet-stream.
+              const MIME_BY_EXT: Record<string, string> = {
+                xdc: 'application/x-webxdc',
+                zip: 'application/zip',
+                png: 'image/png',
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+                gif: 'image/gif',
+                webp: 'image/webp',
+                svg: 'image/svg+xml',
+                mp4: 'video/mp4',
+                webm: 'video/webm',
+                mp3: 'audio/mpeg',
+                ogg: 'audio/ogg',
+                pdf: 'application/pdf',
+                json: 'application/json',
+              };
+              const mimeType = blob.type && blob.type !== 'application/octet-stream'
+                ? blob.type
+                : MIME_BY_EXT[ext] ?? 'application/octet-stream';
+
               // Upload to Blossom with buddy or user signer.
-              const file = new File([blob], filename, { type: blob.type || 'image/png' });
+              const file = new File([blob], filename, { type: mimeType });
               const tags = await uploader.upload(file);
               const blossomUrl = tags[0][1];
 
-              results.push({ original_url: imageUrl, blossom_url: blossomUrl, shortcode: shortcode || 'emoji' });
+              results.push({ original_url: fileUrl, blossom_url: blossomUrl, shortcode: shortcode || 'file', mime_type: mimeType });
             } catch (err) {
-              results.push({ original_url: imageUrl, shortcode: '', error: err instanceof Error ? err.message : 'Upload failed' });
+              results.push({ original_url: fileUrl, shortcode: '', error: err instanceof Error ? err.message : 'Upload failed' });
             }
           }
 
