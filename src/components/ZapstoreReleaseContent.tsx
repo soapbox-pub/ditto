@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { openUrl } from '@/lib/downloadFile';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Sanitize schema allowing only the subset needed for a CHANGELOG. */
 const CHANGELOG_SANITIZE_SCHEMA = {
@@ -203,7 +204,7 @@ function useReleaseApp(appIdentifier: string | undefined, releasePubkey: string)
 /** Single asset download row. */
 function AssetRow({ event }: { event: NostrEvent }) {
   const mime = getTag(event.tags, 'm') ?? '';
-  const url = getTag(event.tags, 'url');
+  const url = sanitizeUrl(getTag(event.tags, 'url'));
   const version = getTag(event.tags, 'version');
   const size = formatSize(getTag(event.tags, 'size'));
   const platforms = getAllTags(event.tags, 'f');
@@ -561,7 +562,7 @@ interface ZapstoreAssetContentProps {
 /** Renders a kind 3063 Zapstore software asset event. */
 export function ZapstoreAssetContent({ event, compact }: ZapstoreAssetContentProps) {
   const mime = getTag(event.tags, 'm') ?? '';
-  const url = getTag(event.tags, 'url');
+  const url = sanitizeUrl(getTag(event.tags, 'url'));
   const version = getTag(event.tags, 'version');
   const size = formatSize(getTag(event.tags, 'size'));
   const appIdentifier = getTag(event.tags, 'i');

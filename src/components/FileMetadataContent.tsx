@@ -10,6 +10,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -75,7 +76,7 @@ interface FileMetadataContentProps {
  * rounded card below it (similar to YouTube's description box).
  */
 export function FileMetadataContent({ event, compact }: FileMetadataContentProps) {
-  const url = getTag(event.tags, 'url');
+  const url = sanitizeUrl(getTag(event.tags, 'url'));
   const mime = getTag(event.tags, 'm') ?? '';
   const alt = getTag(event.tags, 'alt');
   const webxdcId = getTag(event.tags, 'webxdc');

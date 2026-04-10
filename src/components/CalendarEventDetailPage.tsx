@@ -34,6 +34,7 @@ import { usePublishRSVP } from '@/hooks/usePublishRSVP';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 // --- Helpers ---
@@ -159,7 +160,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
   const location = locationRaw ? parseLocation(locationRaw) : undefined;
   const summary = getTag(event.tags, 'summary');
   const hashtags = getAllTags(event.tags, 't').map(([, v]) => v).filter(Boolean);
-  const links = getAllTags(event.tags, 'r').map(([, v]) => v).filter(Boolean);
+  const links = getAllTags(event.tags, 'r').map(([, v]) => sanitizeUrl(v)).filter((v): v is string => !!v);
 
   const eventCoord = useMemo(() => getEventCoord(event), [event]);
   const dateStr = useMemo(() => formatDetailDate(event), [event]);

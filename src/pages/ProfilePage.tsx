@@ -102,8 +102,10 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
-import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { cn } from '@/lib/utils';
+
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -2187,11 +2189,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
-              {metadata?.website && (
+              {metadata?.website && sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`) && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                   <Globe className="size-3.5 text-muted-foreground shrink-0" />
                   <a
-                    href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`}
+                    href={sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="truncate text-primary hover:underline"

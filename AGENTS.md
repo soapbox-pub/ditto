@@ -409,6 +409,40 @@ Without filtering approvals by the moderator list, anyone could publish kind 455
 
 Author filtering is not needed for public user-generated content where anyone should be able to post (kind 1 notes, reactions, discovery queries, public feeds, etc.).
 
+#### Sanitizing URLs from Event Data
+
+**CRITICAL**: Any URL extracted from Nostr event tags or metadata fields (e.g. `r`, `url`, `repository`, `web`, `source` tags, or `metadata.website`) is **untrusted user input**. A malicious actor can publish an event containing a `javascript:` URI, which would execute arbitrary code if placed directly into an `href` attribute, `window.open()`, or `openUrl()` call.
+
+**Always use `sanitizeUrl()`** from `@/lib/sanitizeUrl` before passing any event-sourced URL to a navigable context:
+
+```typescript
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+// Single URL — returns the normalised href, or undefined if not valid https
+const url = sanitizeUrl(getTag(event.tags, 'url'));
+if (url) {
+  // safe to use in href, openUrl(), etc.
+}
+
+// Array of URLs — filter out invalid entries
+const links = getAllTags(event.tags, 'r')
+  .map(([, v]) => sanitizeUrl(v))
+  .filter((v): v is string => !!v);
+```
+
+`sanitizeUrl` accepts `string | undefined | null` and returns the normalised `href` string only when the URL parses successfully **and** uses the `https:` protocol. All other inputs (malformed URLs, `javascript:`, `data:`, `http:`, etc.) return `undefined`.
+
+**When sanitization is required:**
+- Any tag value used in `<a href={...}>` (e.g. `r`, `url`, `repository`, `web`, `source` tags)
+- Any tag value passed to `openUrl()` or `window.open()`
+- `metadata.website` or other `NostrMetadata` string fields used as navigation targets
+
+**When sanitization is NOT required:**
+- URLs extracted by regex that already constrains the protocol (e.g. `NoteContent` tokeniser matches only `https?://`)
+- URLs used only as `<img src={...}>` (browsers do not execute `javascript:` in image src)
+- Hardcoded or application-generated URLs (relay configs, internal routes, etc.)
+- URLs displayed as plain text without being placed in a navigable attribute
+
 ### The `useNostr` Hook
 
 The `useNostr` hook returns an object containing a `nostr` property, with `.query()` and `.event()` methods for querying and publishing Nostr events respectively.

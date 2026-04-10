@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
 export interface UserStatus {
   /** The status text, or null if no status / expired / cleared. */
   status: string | null;
@@ -44,7 +46,7 @@ export function useUserStatus(pubkey: string | undefined): UserStatus & { isLoad
       const content = event.content.trim();
       if (!content) return { status: null, url: null };
 
-      const url = event.tags.find(([n]) => n === 'r')?.[1] ?? null;
+      const url = sanitizeUrl(event.tags.find(([n]) => n === 'r')?.[1]) ?? null;
 
       return { status: content, url };
     },
