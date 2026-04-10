@@ -205,7 +205,7 @@ export function WidgetSidebar() {
             {/* Add widget button */}
             <button
               onClick={() => setPickerOpen(true)}
-              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-secondary/30 transition-colors text-xs"
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
             >
               <Plus className="size-3.5" />
               Add widget
