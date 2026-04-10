@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -73,6 +73,7 @@ import {
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
+  previewStatChanges,
   useDailyMissions,
   type InventoryAction,
   type DirectAction,
@@ -1475,7 +1476,13 @@ function BlobbiDashboard({
       {/* ─── Room View (always visible behind drawer) ─── */}
       <BlobbiRoomShell
         roomId={currentRoom}
-        onChangeRoom={setCurrentRoom}
+        onChangeRoom={(room) => {
+          if (isSleeping) {
+            toast({ title: 'Zzz...', description: `${companion.name} is sleeping. Wake up first!` });
+            return;
+          }
+          setCurrentRoom(room);
+        }}
         isSleeping={isSleeping}
         hunger={currentStats.hunger}
         lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
@@ -1550,7 +1557,6 @@ function BlobbiDashboard({
             onUseItem={onUseItem}
             onRest={onRest}
             setShowPhotoModal={setShowPhotoModal}
-            setInventoryAction={setInventoryAction}
             poopStateRef={poopStateRef}
           />
         )}
@@ -1675,7 +1681,6 @@ interface RoomBottomBarProps {
   onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
   onRest: () => void;
   setShowPhotoModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setInventoryAction: React.Dispatch<React.SetStateAction<InventoryAction | null>>;
   poopStateRef: React.MutableRefObject<PoopState | null>;
 }
 
@@ -1769,19 +1774,34 @@ function HomeBar({
 
 // ── Kitchen: food carousel, shovel left (if poop), fridge right ──
 
+/** Lucide icon for each stat key */
+const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  hunger: Utensils,
+  happiness: Gamepad2,
+  health: Heart,
+  hygiene: Droplets,
+  energy: Zap,
+};
+
 function KitchenBar({
   companion,
-  profile,
   isUsingItem,
   usingItemId,
   isPublishing,
   actionInProgress,
-  onUseItem,
-  setInventoryAction,
+  handleUseItemFromTab,
   poopStateRef,
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
+
+  const foodItems = useMemo(() => {
+    const items = getLiveShopItems().filter(i => i.type === 'food');
+    return items.map(item => ({
+      ...item,
+      statChanges: previewStatChanges(companion.stats, item.effect),
+    }));
+  }, [companion.stats]);
 
   const foodEntries = useMemo<CarouselEntry[]>(() =>
     getLiveShopItems()
@@ -1793,14 +1813,9 @@ function KitchenBar({
   const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
   const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
 
-  const handleFridgeUseItem = useCallback((itemId: string) => {
-    if (isUsingItem) return;
-    onUseItem(itemId, 'feed').finally(() => setShowFridge(false));
-  }, [isUsingItem, onUseItem]);
-
   return (
     <>
-      {/* Poop display (above bottom bar, inside room area) */}
+      {/* Poop display */}
       {kitchenPoops.map((poop) => (
         <button
           key={poop.id}
@@ -1815,6 +1830,62 @@ function KitchenBar({
         </button>
       ))}
 
+      {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
+      {showFridge && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
+          <button
+            onClick={() => setShowFridge(false)}
+            className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close fridge"
+          >
+            <X className="size-5" strokeWidth={4} />
+          </button>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Refrigerator className="size-5 text-orange-500" />
+            <h3 className="text-sm font-semibold">Fridge</h3>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
+            {foodItems.map(item => {
+              const isThisUsing = isUsingItem && usingItemId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleUseItemFromTab(item.id)}
+                  disabled={isDisabled}
+                  className={cn(
+                    'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
+                    'hover:bg-foreground/5 active:scale-95',
+                    isThisUsing && 'bg-foreground/5',
+                    isDisabled && !isThisUsing && 'opacity-40',
+                  )}
+                >
+                  <span className="text-4xl leading-none">{item.icon}</span>
+                  <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                    {item.statChanges.map(({ stat, delta }) => {
+                      const Icon = STAT_ICON[stat];
+                      const positive = delta > 0;
+                      return (
+                        <span key={stat} className="flex items-center gap-0.5">
+                          {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
+                          <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                            {positive ? '+' : ''}{delta}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Normal bottom bar */}
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {anyPoop && poopState ? (
@@ -1832,7 +1903,7 @@ function KitchenBar({
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
               items={foodEntries}
-              onUse={(id) => handleFridgeUseItem(id)}
+              onUse={handleUseItemFromTab}
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
             />
@@ -1842,25 +1913,11 @@ function KitchenBar({
             label="Fridge"
             color="text-orange-500"
             glowHex="#f97316"
-            onClick={() => setInventoryAction('feed')}
+            onClick={() => setShowFridge(true)}
             disabled={isDisabled}
           />
         </div>
       </div>
-
-      {showFridge && (
-        <BlobbiActionInventoryModal
-          open={showFridge}
-          onOpenChange={setShowFridge}
-          action="feed"
-          companion={companion}
-          profile={profile}
-          onUseItem={handleFridgeUseItem}
-          onOpenShop={() => setShowFridge(false)}
-          isUsingItem={isUsingItem}
-          usingItemId={usingItemId}
-        />
-      )}
     </>
   );
 }
