@@ -1,7 +1,6 @@
 ## Related Issue
 
 <!-- Link the GitLab issue. MRs without a linked issue will not be reviewed. -->
-<!-- For features: you must have maintainer approval on the issue BEFORE submitting. -->
 
 Closes #
 

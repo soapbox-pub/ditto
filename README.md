@@ -143,7 +143,7 @@ public/           Static assets, icons, manifest
 We welcome contributions but have high standards. Please read the full [Contributing Guide](CONTRIBUTING.md) before submitting a merge request. The short version:
 
 - **Bug fixes**: One bug, one MR. Keep it small and focused.
-- **New features**: Comment on the issue first and get maintainer approval before writing code. Unsolicited features will be closed.
+- **New features**: Must link to an existing issue and align with the [Ditto Philosophy](https://about.ditto.pub/philosophy).
 - **Required**: Live preview URL, before/after screenshots, completed self-review checklist.
 - **Required tools**: Claude Opus 4.6 (or latest frontier model), an AI coding agent with plan mode.
 
