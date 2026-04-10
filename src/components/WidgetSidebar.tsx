@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 
 import { WidgetCard } from '@/components/WidgetCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LinkFooter } from '@/components/LinkFooter';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -79,6 +80,21 @@ function WidgetSkeleton() {
   );
 }
 
+/** Compact fallback shown when a widget crashes. */
+function WidgetErrorFallback({ name }: { name: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
+      <p className="text-xs text-muted-foreground">{name} failed to load.</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="text-xs text-primary hover:underline"
+      >
+        Reload page
+      </button>
+    </div>
+  );
+}
+
 // ── Sortable widget wrapper ──────────────────────────────────────────────────
 
 interface SortableWidgetProps {
@@ -116,9 +132,11 @@ function SortableWidget({ config, definition, onToggleCollapse, onRemove, onHeig
         isDragging={isDragging}
         dragHandleProps={listeners}
       >
-        <Suspense fallback={<WidgetSkeleton />}>
-          <WidgetContent id={config.id} />
-        </Suspense>
+        <ErrorBoundary fallback={<WidgetErrorFallback name={definition.label} />} reportToSentry>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <WidgetContent id={config.id} />
+          </Suspense>
+        </ErrorBoundary>
       </WidgetCard>
     </div>
   );

@@ -40,6 +40,8 @@ export function StatusWidget() {
                 setEditing(false);
                 setDraft('');
                 toast({ title: text ? 'Status updated' : 'Status cleared' });
+              }).catch(() => {
+                toast({ title: 'Failed to update status', variant: 'destructive' });
               });
             } else if (e.key === 'Escape') {
               setEditing(false);
@@ -55,6 +57,8 @@ export function StatusWidget() {
                 setEditing(false);
                 setDraft('');
                 toast({ title: text ? 'Status updated' : 'Status cleared' });
+              }).catch(() => {
+                toast({ title: 'Failed to update status', variant: 'destructive' });
               });
             }}
             disabled={publishStatus.isPending}
@@ -69,6 +73,8 @@ export function StatusWidget() {
                   setEditing(false);
                   setDraft('');
                   toast({ title: 'Status cleared' });
+                }).catch(() => {
+                  toast({ title: 'Failed to clear status', variant: 'destructive' });
                 });
               }}
               disabled={publishStatus.isPending}

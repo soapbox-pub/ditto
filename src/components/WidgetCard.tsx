@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,36 +30,46 @@ export function WidgetCard({
   children,
 }: WidgetCardProps) {
   const collapsed = config.collapsed ?? false;
-  const height = config.height ?? definition.defaultHeight;
+  const configHeight = config.height ?? definition.defaultHeight;
   const Icon = definition.icon;
 
-  // Height resize state
+  // Local height for smooth resize — only commits to config on pointer up.
+  const [liveHeight, setLiveHeight] = useState(configHeight);
   const [resizing, setResizing] = useState(false);
+  const liveHeightRef = useRef(liveHeight);
+
+  // Sync local height when config changes externally (e.g. cross-device sync).
+  useEffect(() => {
+    if (!resizing) {
+      setLiveHeight(configHeight);
+    }
+  }, [configHeight, resizing]);
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     setResizing(true);
     const startY = e.clientY;
-    const startHeight = height;
+    const startHeight = liveHeightRef.current;
 
     const onMove = (ev: PointerEvent) => {
-      const delta = ev.clientY - startY;
       const newHeight = Math.max(
         definition.minHeight,
-        Math.min(definition.maxHeight, startHeight + delta),
+        Math.min(definition.maxHeight, startHeight + (ev.clientY - startY)),
       );
-      onHeightChange(newHeight);
+      liveHeightRef.current = newHeight;
+      setLiveHeight(newHeight);
     };
 
     const onUp = () => {
       setResizing(false);
+      onHeightChange(liveHeightRef.current);
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
     };
 
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
-  }, [height, definition.minHeight, definition.maxHeight, onHeightChange]);
+  }, [definition.minHeight, definition.maxHeight, onHeightChange]);
 
   return (
     <div
@@ -106,7 +116,7 @@ export function WidgetCard({
       {/* Content */}
       {!collapsed && (
         <WidgetContext.Provider value={true}>
-          <ScrollArea style={{ height }} className="transition-[height] duration-200">
+          <ScrollArea style={{ height: liveHeight }} className={cn(!resizing && 'transition-[height] duration-200')}>
             <div className="p-2">
               {children}
             </div>

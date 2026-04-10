@@ -7,13 +7,28 @@ import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
+/**
+ * Module-level cache so conversation survives collapse/expand (which unmounts
+ * the component). Keyed by user pubkey. Intentionally not persisted to
+ * localStorage — sidebar chat is ephemeral.
+ */
+const conversationCache = new Map<string, ChatMessage[]>();
+
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
   const { user } = useCurrentUser();
   const { sendStreamingMessage, isLoading, isAuthenticated } = useShakespeare();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const cacheKey = user?.pubkey ?? '';
+  const [messages, setMessages] = useState<ChatMessage[]>(() => conversationCache.get(cacheKey) ?? []);
   const [input, setInput] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
+
+  // Write back to cache whenever messages change.
+  useEffect(() => {
+    if (cacheKey) {
+      conversationCache.set(cacheKey, messages);
+    }
+  }, [messages, cacheKey]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
