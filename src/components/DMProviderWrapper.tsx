@@ -68,6 +68,7 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
   }, [messaging.discoveryRelays, config.relayMetadata.relays]);
 
   const relayMode = messaging.relayMode ?? 'hybrid';
+  const messagingEnabled = messaging.enabled ?? false;
   const renderInlineMedia = messaging.renderInlineMedia ?? true;
   const soundEnabled = messaging.soundEnabled ?? false;
   const soundId = messaging.soundId ?? APP_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
@@ -78,6 +79,7 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
       nostr={nostr}
       user={user ?? null}
       messagingConfig={{
+        enabled: messagingEnabled,
         discoveryRelays,
         relayMode,
         renderInlineMedia,

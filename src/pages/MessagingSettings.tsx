@@ -56,10 +56,18 @@ export default function MessagingSettings() {
   }, []);
 
   const relayMode = messaging.relayMode ?? 'hybrid';
+  const messagingEnabled = messaging.enabled ?? false;
   const renderInlineMedia = messaging.renderInlineMedia ?? true;
   const soundEnabled = messaging.soundEnabled ?? false;
   const soundId = messaging.soundId ?? APP_NEW_MESSAGE_SOUNDS[0]?.id ?? '';
   const devMode = messaging.devMode ?? false;
+
+  const handleMessagingEnabledChange = (checked: boolean) => {
+    updateConfig((prev) => ({
+      ...prev,
+      messaging: { ...messaging, enabled: checked },
+    }));
+  };
 
   const handleRelayModeChange = (mode: string) => {
     updateConfig((prev) => ({
@@ -157,6 +165,42 @@ export default function MessagingSettings() {
         </div>
 
         <div className="space-y-6">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader>
+            <CardTitle>Messaging</CardTitle>
+            <CardDescription>
+              Enable or disable chats in Ditto
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="messaging-enabled">Enable Messaging</Label>
+                <p className="text-sm text-muted-foreground">
+                  Turn chats on to use inbox, sync, and messaging features
+                </p>
+              </div>
+              <Switch
+                id="messaging-enabled"
+                checked={messagingEnabled}
+                onCheckedChange={handleMessagingEnabledChange}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {!messagingEnabled && (
+          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                Messaging is currently off. Enable it above to reveal relay, cache, and advanced chat settings.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {messagingEnabled && (
+          <>
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle>General</CardTitle>
@@ -400,6 +444,8 @@ export default function MessagingSettings() {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
         </div>
       </div>
     </main>

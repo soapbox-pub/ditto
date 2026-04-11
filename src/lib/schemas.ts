@@ -245,6 +245,16 @@ export const AppConfigSchema = z.object({
     })
   ).optional().default([]),
   imageQuality: z.enum(['compressed', 'original']),
+  messaging: z.object({
+    enabled: z.boolean().optional(),
+    customSoundUrl: z.string().optional(),
+    discoveryRelays: z.array(z.string().url()).optional(),
+    relayMode: z.enum(['discovery', 'hybrid', 'strict_outbox']).optional(),
+    renderInlineMedia: z.boolean().optional(),
+    soundEnabled: z.boolean().optional(),
+    soundId: z.string().optional(),
+    devMode: z.boolean().optional(),
+  }).optional(),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
 });
