@@ -219,7 +219,7 @@ publish-zapstore:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   variables:
     SIGN_WITH: $ZAPSTORE_BUNKER_URL
-    RELAY_URLS: "wss://relay.zapstore.dev,wss://relay.ditto.pub"
+    RELAY_URLS: "wss://relay.zapstore.dev,wss://relay.ditto.pub,wss://relay.dreamith.to,wss://relay.primal.net"
     BLOSSOM_URL: "https://blossom.ditto.pub"
   script:
     - go install github.com/zapstore/zsp@latest
