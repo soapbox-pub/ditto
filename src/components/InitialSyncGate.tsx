@@ -44,6 +44,7 @@ import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
 import { getAvatarShape } from "@/lib/avatarShape";
+import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -779,8 +780,10 @@ function ThemeStep({
   isFirst?: boolean;
   isSaving?: boolean;
 }) {
-  const { customTheme } = useTheme();
-  const bgUrl = customTheme?.background?.url;
+  const { theme, customTheme, themes } = useTheme();
+  const resolved = resolveTheme(theme);
+  const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+  const bgUrl = activeConfig?.background?.url;
 
   return (
     <>
