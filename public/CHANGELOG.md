@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.6.5] - 2026-04-11
+
+### Changed
+- Apps and games load significantly faster on Android with smarter prefetching and server affinity
+- Native loading spinners replace HTML-based ones on iOS and Android for a smoother experience
+
+### Fixed
+- External API requests on Android no longer fail due to hostname restrictions
+- iOS App Store compliance issues resolved
+
 ## [2.6.4] - 2026-04-11
 
 ### Added
