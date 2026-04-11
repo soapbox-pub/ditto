@@ -3,20 +3,19 @@
  *
  * Thin orchestration layer for page-transition reactions.
  *
- * On route change the companion briefly pauses and scans the layout areas
- * that changed (center content first, then right sidebar if present),
- * using the existing attention system for each step.
+ * On route change the companion briefly stops and looks toward the
+ * top-center of the main content area for a random 2-6 seconds,
+ * then resumes normal behavior automatically.
  *
  * Architecture:
  *   - Watches pathname for changes (after the initial entry has completed)
- *   - Determines which layout columns changed
- *   - Fires a sequence of triggerAttention calls with setTimeout chaining
- *   - Cancels the sequence on new route change, drag, or higher-priority attention
+ *   - Fires a single triggerAttention call targeting the main content area
+ *   - Cancels fully on new route change, drag, or component unmount
  *
  * Future custom reactions:
- *   Add entries to ROUTE_REACTIONS to override the generic scan for specific
- *   routes. Each entry receives a context object with triggerAttention and a
- *   timeouts array (auto-cancelled on next route change).
+ *   Add entries to ROUTE_REACTIONS to override the generic behavior for
+ *   specific routes. Each entry receives a context object with
+ *   triggerAttention and a timeouts array (auto-cancelled on next change).
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -47,8 +46,6 @@ interface UseRouteReactionOptions {
   isEntering: boolean;
   /** Whether the companion is being dragged */
   isDragging: boolean;
-  /** Current viewport dimensions */
-  viewport: { width: number; height: number };
 }
 
 /** Context passed to custom route-reaction functions. */
@@ -57,7 +54,6 @@ interface RouteReactionContext {
   prevPathname: string;
   triggerAttention: TriggerAttentionFn;
   clearAttention: () => void;
-  viewport: { width: number; height: number };
   /** Push timeout IDs here — they are auto-cancelled on next route change. */
   timeouts: ReturnType<typeof setTimeout>[];
 }
@@ -66,7 +62,7 @@ type RouteReactionFn = (ctx: RouteReactionContext) => void;
 
 // ─── Custom Route Reaction Map ────────────────────────────────────────────────
 //
-// Add entries here to override the generic scan for specific routes.
+// Add entries here to override the generic reaction for specific routes.
 //
 // Example (not implemented yet):
 //   '/treasures': (ctx) => { /* special treasure-chest reaction */ },
@@ -79,17 +75,23 @@ const ROUTE_REACTIONS: Record<string, RouteReactionFn> = {
 
 // ─── Timing ───────────────────────────────────────────────────────────────────
 
-/** Duration per area in the generic scan sequence (ms) */
-const SCAN_STEP_DURATION = 1200;
+/** Min/max duration for the generic route-change look (ms) */
+const LOOK_DURATION_MIN = 2000;
+const LOOK_DURATION_MAX = 6000;
 
 /** Delay before starting the reaction after route change (ms).
  *  Gives the new page's DOM time to mount. */
 const ROUTE_REACTION_DELAY = 250;
 
-// ─── Layout helpers ───────────────────────────────────────────────────────────
+// ─── Layout helper ────────────────────────────────────────────────────────────
 
-/** Find the center-top of the main content column. */
-function findMainContentPosition(viewport: { width: number; height: number }): Position | null {
+/**
+ * Find the center-top of the main content column.
+ *
+ * Reads live DOM rects so the position reflects the current layout.
+ * Falls back to viewport center-top if no content element is found.
+ */
+function findMainContentPosition(): Position {
   const selectors = [
     'main',
     '[role="main"]',
@@ -108,92 +110,28 @@ function findMainContentPosition(viewport: { width: number; height: number }): P
     }
   }
 
-  // Fallback: center-top of viewport
-  return { x: viewport.width / 2, y: viewport.height * 0.25 };
-}
-
-/**
- * Find the center-top of a visible right sidebar.
- *
- * Returns null when:
- *  - The sidebar is the empty 300px placeholder (no meaningful content)
- *  - The sidebar is not visible (below xl breakpoint)
- *  - No sidebar element is found at all
- *
- * Detection is conservative: we look for the element that MainLayout renders
- * *after* the center column, check that it is visible and has children beyond
- * a single empty placeholder div.
- */
-function findRightSidebarPosition(): Position | null {
-  // MainLayout renders: <div class="flex justify-center …"> → LeftSidebar | CenterColumn | RightSidebar
-  // The right sidebar is the last child of the flex container.
-  // When a page provides a custom sidebar, it replaces the placeholder entirely.
-  // The placeholder is: <div class="w-[300px] shrink-0 hidden xl:block" /> (no children).
-  const flexContainer = document.querySelector('.flex.justify-center');
-  if (!flexContainer) return null;
-
-  const lastChild = flexContainer.lastElementChild;
-  if (!lastChild) return null;
-
-  // The empty placeholder has no children — skip it
-  if (lastChild.children.length === 0) return null;
-
-  // Must be visible on screen (right sidebars are hidden below xl)
-  const rect = lastChild.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return null;
-
+  // Fallback: center-top of current viewport
   return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + Math.min(rect.height * 0.3, 200),
+    x: window.innerWidth / 2,
+    y: window.innerHeight * 0.25,
   };
 }
 
 // ─── Generic reaction ─────────────────────────────────────────────────────────
 
 /**
- * Default route reaction: scan changed layout areas left-to-right.
- *
- * Center content is always considered changed.
- * Right sidebar is included only if a non-placeholder sidebar is detected.
+ * Default route reaction: look at the top-center of the main content area
+ * for a random 2-6 seconds.
  */
 function genericRouteReaction(ctx: RouteReactionContext): void {
-  const targets: { position: Position; source: string }[] = [];
+  const position = findMainContentPosition();
+  const duration = LOOK_DURATION_MIN + Math.random() * (LOOK_DURATION_MAX - LOOK_DURATION_MIN);
 
-  // Center (always changes on route navigation)
-  const center = findMainContentPosition(ctx.viewport);
-  if (center) {
-    targets.push({ position: center, source: 'route:center' });
-  }
-
-  // Right sidebar (only if a real sidebar is rendered)
-  const right = findRightSidebarPosition();
-  if (right) {
-    targets.push({ position: right, source: 'route:right-sidebar' });
-  }
-
-  if (targets.length === 0) return;
-
-  // Fire the first target immediately
-  ctx.triggerAttention(targets[0].position, {
-    duration: SCAN_STEP_DURATION,
+  ctx.triggerAttention(position, {
+    duration,
     priority: 'normal',
-    source: targets[0].source,
+    source: 'route:center',
   });
-
-  // Chain remaining targets
-  let delay = SCAN_STEP_DURATION;
-  for (let i = 1; i < targets.length; i++) {
-    const target = targets[i];
-    const tid = setTimeout(() => {
-      ctx.triggerAttention(target.position, {
-        duration: SCAN_STEP_DURATION,
-        priority: 'normal',
-        source: target.source,
-      });
-    }, delay);
-    ctx.timeouts.push(tid);
-    delay += SCAN_STEP_DURATION;
-  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -205,25 +143,25 @@ export function useRouteReaction({
   hasEnteredOnce,
   isEntering,
   isDragging,
-  viewport,
 }: UseRouteReactionOptions): void {
   const prevPathnameRef = useRef(pathname);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  /** Cancel all queued sequence steps. */
-  const cancelSequence = useCallback(() => {
+  /** Cancel pending timeouts and clear active attention. */
+  const cancelReaction = useCallback(() => {
     for (const tid of timeoutsRef.current) {
       clearTimeout(tid);
     }
     timeoutsRef.current = [];
-  }, []);
+    clearAttention();
+  }, [clearAttention]);
 
-  // Cancel sequence on drag
+  // Cancel fully on drag (pending timeouts + active attention)
   useEffect(() => {
     if (isDragging) {
-      cancelSequence();
+      cancelReaction();
     }
-  }, [isDragging, cancelSequence]);
+  }, [isDragging, cancelReaction]);
 
   // Main route-change effect
   useEffect(() => {
@@ -245,22 +183,17 @@ export function useRouteReaction({
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
-    // Cancel any in-flight sequence from a previous route change
-    cancelSequence();
-    clearAttention();
+    // Cancel any in-flight reaction from a previous route change
+    cancelReaction();
 
-    // Small delay to let the new page's DOM mount
+    // Small delay to let the new page's DOM mount before querying positions
     const startTid = setTimeout(() => {
-      // Build shared timeout tracker for this sequence
-      const sequenceTimeouts = timeoutsRef.current;
-
       const ctx: RouteReactionContext = {
         pathname,
         prevPathname,
         triggerAttention,
         clearAttention,
-        viewport,
-        timeouts: sequenceTimeouts,
+        timeouts: timeoutsRef.current,
       };
 
       // Look up a custom reaction, falling back to generic
@@ -274,10 +207,9 @@ export function useRouteReaction({
 
     timeoutsRef.current.push(startTid);
 
-    // Cleanup on unmount
     return () => {
-      cancelSequence();
+      cancelReaction();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- triggerAttention/clearAttention are stable callbacks; viewport changes should not restart the effect
-  }, [pathname, hasEnteredOnce, isEntering, cancelSequence]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- triggerAttention/clearAttention are stable callbacks
+  }, [pathname, hasEnteredOnce, isEntering, cancelReaction]);
 }
