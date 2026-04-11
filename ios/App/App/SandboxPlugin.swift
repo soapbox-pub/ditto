@@ -59,10 +59,11 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
             )
             self.sandboxes[sandboxId] = sandbox
 
-            // Add the WebView on top of the Capacitor WebView.
+            // Add the container (WebView + spinner overlay) on top of
+            // the Capacitor WebView.
             if let bridge = self.bridge,
                let webView = bridge.webView {
-                webView.superview?.addSubview(sandbox.webView)
+                webView.superview?.addSubview(sandbox.containerView)
             }
 
             call.resolve()
@@ -104,7 +105,7 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("Sandbox not found: \(sandboxId)")
                 return
             }
-            sandbox.webView.frame = CGRect(x: x, y: y, width: width, height: height)
+            sandbox.containerView.frame = CGRect(x: x, y: y, width: width, height: height)
             call.resolve()
         }
     }
@@ -170,7 +171,7 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if let sandbox = self.sandboxes.removeValue(forKey: sandboxId) {
-                sandbox.webView.removeFromSuperview()
+                sandbox.containerView.removeFromSuperview()
                 sandbox.schemeHandler.cancelAll()
             }
             call.resolve()
@@ -200,12 +201,18 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
 // MARK: - SandboxInstance
 
 /// Manages a single sandboxed WKWebView instance.
-private class SandboxInstance: NSObject, WKScriptMessageHandler {
+private class SandboxInstance: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     let id: String
     let webView: WKWebView
     let schemeHandler: SandboxSchemeHandler
     private weak var plugin: SandboxPlugin?
     private let customScheme: String
+
+    /// Container view that holds the WebView and spinner overlay.
+    let containerView: UIView
+
+    /// Native spinner overlay, removed when the first page finishes loading.
+    private var spinnerOverlay: UIView?
 
     init(id: String, frame: CGRect, plugin: SandboxPlugin) {
         self.id = id
@@ -241,28 +248,54 @@ private class SandboxInstance: NSObject, WKScriptMessageHandler {
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
-        self.webView = WKWebView(frame: frame, configuration: config)
+        // Container view that holds the WebView + spinner overlay.
+        self.containerView = UIView(frame: frame)
+
+        self.webView = WKWebView(frame: containerView.bounds, configuration: config)
+        self.webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         self.webView.isOpaque = false
         self.webView.backgroundColor = UIColor(red: 0x14/255.0, green: 0x16/255.0, blue: 0x1f/255.0, alpha: 1)
         self.webView.scrollView.backgroundColor = self.webView.backgroundColor
         self.webView.scrollView.bounces = false
+        self.containerView.addSubview(self.webView)
+
+        // Dark overlay behind the spinner.
+        let overlay = UIView(frame: containerView.bounds)
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlay.backgroundColor = UIColor(red: 0x14/255.0, green: 0x16/255.0, blue: 0x1f/255.0, alpha: 1)
+        self.containerView.addSubview(overlay)
+
+        // Native spinner — uses UIActivityIndicatorView which animates on
+        // the render thread independently of JS/main-thread work.
+        let spinner = UIActivityIndicatorView(style: .medium)
+        spinner.color = UIColor(red: 124/255.0, green: 92/255.0, blue: 220/255.0, alpha: 1)
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+        overlay.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
+        ])
+
+        self.spinnerOverlay = overlay
 
         super.init()
 
-        // Register the message handler after super.init().
+        // Register the message handler and navigation delegate after super.init().
         userContentController.add(self, name: "sandboxBridge")
-
-        // Show an inline loading spinner while the real content is being
-        // fetched via the scheme handler round-trip. The spinner page
-        // renders instantly (no network). Navigation to the real page is
-        // deferred until the JS layer calls navigate().
-        self.webView.loadHTMLString(SandboxInstance.spinnerHTML, baseURL: nil)
+        self.webView.navigationDelegate = self
     }
 
     /// Navigate the WebView to the sandbox's entry point.
     func navigateToApp() {
         let initialURL = URL(string: "\(customScheme)://app/index.html")!
         webView.load(URLRequest(url: initialURL))
+    }
+
+    /// Remove the native loading overlay. Safe to call multiple times.
+    func hideSpinner() {
+        spinnerOverlay?.removeFromSuperview()
+        spinnerOverlay = nil
     }
 
     /// Post a JSON-RPC message to injected scripts inside the WebView.
@@ -296,31 +329,12 @@ private class SandboxInstance: NSObject, WKScriptMessageHandler {
         plugin?.emitScriptMessage(sandboxId: id, message: body)
     }
 
-    // MARK: - Spinner HTML
+    // MARK: - WKNavigationDelegate
 
-    /// Minimal inline HTML shown while the sandbox content loads.
-    /// Renders a centered spinning ring on a dark background, matching the
-    /// app's loading aesthetic. Replaced when the real content navigates in.
-    private static let spinnerHTML: String = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-    *{margin:0;padding:0}
-    html,body{height:100%;background:#14161f}
-    body{display:flex;align-items:center;justify-content:center}
-    .s{width:28px;height:28px;border:2.5px solid rgba(124,92,220,0.2);border-top-color:rgb(124,92,220);border-radius:50%;animation:r .7s linear infinite}
-    @keyframes r{to{transform:rotate(360deg)}}
-    @media(prefers-color-scheme:light){
-      html,body{background:#f6f0fc}
-      .s{border-color:rgba(130,80,200,0.2);border-top-color:rgb(130,80,200)}
+    /// Remove the spinner overlay once the first page finishes loading.
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        hideSpinner()
     }
-    </style>
-    </head>
-    <body><div class="s"></div></body>
-    </html>
-    """
 
     // MARK: - Bridge Script
 
