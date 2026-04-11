@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.6.4] - 2026-04-11
+
+### Added
+- iCloud Keychain integration on iOS -- your login credentials are now saved and restored automatically across devices
+
+### Changed
+- Empty feeds show a friendlier state with a discover button to help you find people to follow
+- Signup flow simplified -- cleaner profile step with a single Continue button
+
+### Fixed
+- Avatar fallback now shows the user's initial instead of a question mark
+- Android 16+ devices no longer have content hidden behind system bars
+- Signup dialog background clears properly when switching between light and dark themes
+- Sticky compose button stays anchored to the bottom even on empty feeds
+
 ## [2.6.3] - 2026-04-10
 
 ### Added
