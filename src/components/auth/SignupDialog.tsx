@@ -2,7 +2,7 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,8 +11,7 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
-import { storeNsecCredential } from '@/lib/credentialManager';
-import { downloadTextFile } from '@/lib/downloadFile';
+import { saveNsec } from '@/lib/credentialManager';
 import { ProfileCard } from '@/components/ProfileCard';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import type { NostrMetadata } from '@nostrify/nostrify';
@@ -39,22 +38,19 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
 
-  // Generate a proper nsec key using nostr-tools
+  // Generate a proper nsec key using nostr-tools.
+  // The credential manager / file download is deferred until the user clicks "Continue".
   const generateKey = () => {
     const sk = generateSecretKey();
     const encoded = nip19.nsecEncode(sk);
     setNsec(encoded);
-
-    // Progressive enhancement: offer to save in the browser's password manager
-    // while the user is looking at the key on the download step.
-    // (Chromium-only — silently skipped on Safari/Firefox)
-    const npub = nip19.npubEncode(getPublicKey(sk));
-    storeNsecCredential(npub, encoded).catch(() => {});
-
     setStep('download');
   };
 
-  const downloadKey = async () => {
+  // Continue handler for the save-key step — saves the key via the best
+  // available method (native credential manager on iOS/Android, file download
+  // on web), logs in, and advances to the profile step.
+  const handleContinue = async () => {
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== 'nsec') {
@@ -63,17 +59,15 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
 
-      await downloadTextFile(filename, nsec);
+      await saveNsec(npub, nsec);
 
-      // Continue to profile step
       login.nsec(nsec);
       setStep('profile');
     } catch {
       toast({
-        title: 'Download failed',
-        description: 'Could not download the key file. Please copy it manually.',
+        title: 'Save failed',
+        description: 'Could not save the key. Please copy it manually.',
         variant: 'destructive',
       });
     }
@@ -170,7 +164,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Download Step */}
+          {/* Save Key Step */}
           {step === 'download' && (
             <div className='space-y-4'>
               <div className="flex size-16 text-4xl bg-primary/10 rounded-full items-center justify-center justify-self-center">
@@ -201,10 +195,9 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
               <Button
                 className="w-full h-12 px-9"
-                onClick={downloadKey}
+                onClick={handleContinue}
               >
-                <Download className="size-4" />
-                Download key
+                Continue
               </Button>
 
               <div className='mx-auto max-w-sm'>
@@ -215,7 +208,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                     </span>
                   </div>
                   <p className='text-xs text-amber-900 dark:text-amber-300'>
-                    This key is your primary and only means of accessing your account. Store it safely and securely. Please download your key to continue.
+                    This key is your primary and only means of accessing your account. Store it safely and securely.
                   </p>
                 </div>
               </div>

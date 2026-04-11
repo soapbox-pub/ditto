@@ -301,7 +301,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
 
   // Progressive enhancement: attempt to retrieve a stored credential from the
-  // browser's password manager when the dialog opens (Chromium-only).
+  // platform's password manager when the dialog opens.
+  // On Capacitor iOS this shows the iCloud Keychain credential picker.
+  // On Chromium browsers this shows the native credential chooser.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;

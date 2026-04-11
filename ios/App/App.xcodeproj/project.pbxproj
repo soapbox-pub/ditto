@@ -32,6 +32,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		B1A2C3D40001000100000002 /* SandboxPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxPlugin.swift; sourceTree = "<group>"; };
 		B1A2C3D40002000100000002 /* DittoBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DittoBridgeViewController.swift; sourceTree = "<group>"; };
+		B1A2C3D40004000100000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
+				B1A2C3D40004000100000002 /* App.entitlements */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				B1A2C3D40001000100000002 /* SandboxPlugin.swift */,
 				B1A2C3D40002000100000002 /* DittoBridgeViewController.swift */,
@@ -303,6 +305,7 @@
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GZLTTH5DLM;
@@ -326,6 +329,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GZLTTH5DLM;

@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronRight,
-  Download,
   Eye,
   EyeOff,
   Heart,
@@ -13,8 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
-import { storeNsecCredential } from "@/lib/credentialManager";
-import { downloadTextFile } from "@/lib/downloadFile";
+import { saveNsec } from "@/lib/credentialManager";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   type ReactNode,
@@ -289,41 +287,35 @@ function SetupQuestionnaire({
     }
   }, [step, steps]);
 
-  // Keygen handler
+  // Keygen handler — generates the key and advances to the save step.
+  // The credential manager prompt is deferred until the user clicks "Continue".
   const handleGenerate = useCallback(() => {
     const sk = generateSecretKey();
     const encoded = nip19.nsecEncode(sk);
     setNsec(encoded);
-
-    // Progressive enhancement: offer to save in the browser's password manager
-    // while the user is looking at the key on the download step.
-    // (Chromium-only — silently skipped on Safari/Firefox)
-    const npub = nip19.npubEncode(getPublicKey(sk));
-    storeNsecCredential(npub, encoded).catch(() => {});
-
     next();
   }, [next]);
 
-  // Download + login handler
-  const handleDownloadAndLogin = useCallback(async () => {
+  // Continue handler for the download step — saves the key via the best
+  // available method (native credential manager on iOS/Android, file download
+  // on web), logs in, and advances to the next step.
+  const handleDownloadContinue = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== "nsec") throw new Error("Invalid nsec");
 
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
-      await downloadTextFile(filename, nsec);
+      await saveNsec(npub, nsec);
 
-      // Log in with the new key
       login.nsec(nsec);
       next();
     } catch {
       toast({
-        title: "Download failed",
+        title: "Save failed",
         description:
-          "Could not download the key file. Please copy it manually.",
+          "Could not save the key. Please copy it manually.",
         variant: "destructive",
       });
     }
@@ -455,7 +447,7 @@ function SetupQuestionnaire({
           {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
-            <DownloadStep nsec={nsec} onDownload={handleDownloadAndLogin} />
+            <DownloadStep nsec={nsec} onContinue={handleDownloadContinue} />
           )}
 
           {step === "profile" && (
@@ -522,10 +514,10 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
 
 function DownloadStep({
   nsec,
-  onDownload,
+  onContinue,
 }: {
   nsec: string;
-  onDownload: () => void;
+  onContinue: () => void;
 }) {
   const [showKey, setShowKey] = useState(false);
 
@@ -536,8 +528,7 @@ function DownloadStep({
           Save your secret key
         </h2>
         <p className="text-sm text-muted-foreground">
-          This is your only way to access your account. Download it and keep it
-          somewhere safe.
+          This is your only way to access your account. Keep it somewhere safe.
         </p>
       </div>
 
@@ -569,17 +560,17 @@ function DownloadStep({
         </p>
         <p className="text-xs text-amber-900 dark:text-amber-300">
           This key is your only means of accessing your account. If you lose it,
-          there is no way to recover it. Download it now to continue.
+          there is no way to recover it.
         </p>
       </div>
 
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12"
-        onClick={onDownload}
+        onClick={onContinue}
       >
-        <Download className="w-4 h-4" />
-        Download and continue
+        Continue
+        <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
   );
