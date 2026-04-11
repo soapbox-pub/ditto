@@ -224,11 +224,21 @@ Creates and publishes a WebXDC mini-app from scratch. WebXDC apps are self-conta
 
 You write the code, the tool handles the rest: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 event.
 
-**Two modes:**
+**Two modes for source code:**
 - **Simple (\`html\` param):** A single self-contained HTML string. Best for small apps.
 - **Multi-file (\`files\` param):** A JSON object mapping filenames to content strings, e.g. \`{"index.html": "<!DOCTYPE html>...", "engine.js": "...", "levels.json": "..."}\`. Must include \`index.html\`. Other files are loaded via relative paths (\`<script src="engine.js">\` or \`fetch('levels.json')\`). Use this when the code is large enough that splitting into separate files improves clarity.
 
 Only one of \`html\` or \`files\` is needed. If both are provided, \`files\` takes priority.
+
+**Bundling binary assets (\`asset_urls\` param, optional):**
+Include remote files (images, audio, ROMs, WASM, fonts, etc.) as binary assets in the archive. Provide a JSON object mapping filenames to URLs: \`{"game.gb": "https://blossom.example.com/abc123.bin"}\`. Each URL is fetched and bundled into the .xdc archive. The app loads them via relative paths at runtime (e.g. \`fetch('game.gb')\`, \`new Audio('sfx.wav')\`, \`<img src="cover.png">\`).
+
+Use \`upload_from_url\` first to upload the asset to Blossom, then pass the Blossom URL here. This is useful for bundling emulator ROMs, sprite sheets, audio samples, or any binary content the app needs.
+
+**Example workflow for a retro game:**
+1. \`upload_from_url\` the ROM file → get Blossom URL
+2. \`upload_from_url\` cover art → get Blossom URL
+3. \`create_webxdc\` with \`files\` containing the emulator HTML/JS and \`asset_urls\` containing the ROM and art
 
 **Critical constraints for the code you generate:**
 - Must include a complete HTML document with \`<!DOCTYPE html>\`

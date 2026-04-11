@@ -438,11 +438,13 @@ After receiving results, summarize the key topics, conversations, and notable po
 
 You provide the app name and source code. The tool handles everything else: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 Nostr event that other users can launch directly from their feed.
 
-**Two modes:**
+**Two modes for source code:**
 - **Simple (html param):** Provide a single self-contained HTML string. Best for small apps.
 - **Multi-file (files param):** Provide a map of filenames to content strings. The archive can contain index.html plus separate .js, .css, .json, or .svg files. index.html loads them via relative paths (e.g. <script src="game.js">). Use this when the code is large enough that splitting into separate files improves clarity.
 
 Only one of html or files is needed. If both are provided, files takes priority.
+
+**Binary assets (asset_urls param, optional):** Include remote files as binary assets in the archive. Map filenames to Blossom URLs (from prior upload_from_url calls). Each URL is fetched and bundled into the .xdc. The app loads them via relative paths (e.g. fetch("game.gb"), new Audio("sfx.wav")). Works for ROMs, images, audio, WASM, fonts, or any binary content.
 
 **Important constraints:**
 - NO external resources: no CDN links, no external CSS/JS, no Google Fonts
@@ -477,6 +479,11 @@ Only one of html or files is needed. If both are provided, files takes priority.
           files: {
             type: 'object',
             description: 'Map of filenames to text content for multi-file apps. Must include "index.html". Other files (e.g. "game.js", "style.css", "level-data.json") are loaded via relative paths. Example: {"index.html": "<!DOCTYPE html>...", "engine.js": "function update(){...}"}',
+            additionalProperties: { type: 'string' },
+          },
+          asset_urls: {
+            type: 'object',
+            description: 'Map of filenames to remote URLs for binary assets to bundle into the archive. Each URL is fetched and included as a raw file. The app loads them via relative paths (e.g. fetch("game.gb") or new Audio("sfx.wav")). Use with Blossom URLs from prior upload_from_url calls. Example: {"game.gb": "https://blossom.example.com/abc123.bin", "cover.png": "https://blossom.example.com/def456.png"}',
             additionalProperties: { type: 'string' },
           },
           description: {

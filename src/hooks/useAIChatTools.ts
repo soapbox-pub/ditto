@@ -997,8 +997,32 @@ export function useAIChatTools() {
             if (!entries['index.html']) {
               return { result: JSON.stringify({ error: 'The "files" map must include an "index.html" entry.' }) };
             }
-          } else {
+          } else if (html) {
             entries['index.html'] = strToU8(html);
+          }
+
+          // Fetch binary assets from URLs and add to the archive
+          const assetUrls = (args.asset_urls && typeof args.asset_urls === 'object' && !Array.isArray(args.asset_urls))
+            ? args.asset_urls as Record<string, string>
+            : null;
+
+          if (assetUrls) {
+            const assetEntries = await Promise.all(
+              Object.entries(assetUrls)
+                .filter(([, url]) => typeof url === 'string' && url.trim())
+                .map(async ([filename, url]) => {
+                  const res = await globalThis.fetch(url, { signal: AbortSignal.timeout(60_000) });
+                  if (!res.ok) throw new Error(`Failed to fetch asset "${filename}" from ${url}: ${res.status}`);
+                  return [filename, new Uint8Array(await res.arrayBuffer())] as const;
+                }),
+            );
+            for (const [filename, bytes] of assetEntries) {
+              entries[filename] = bytes;
+            }
+          }
+
+          if (!entries['index.html']) {
+            return { result: JSON.stringify({ error: 'An "index.html" entry is required. Provide "html", or include "index.html" in "files".' }) };
           }
 
           const zipped = zipSync(entries);
