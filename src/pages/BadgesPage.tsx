@@ -1017,6 +1017,9 @@ function EditBadgeForm({
             e.target.files?.[0] && handleFileSelect(e.target.files[0])
           }
         />
+        <p className="text-xs text-muted-foreground mt-1.5">
+          Recommended aspect ratio is 1:1 (max 1024x1024 px).
+        </p>
       </div>
       <div>
         <Label htmlFor="edit-name" className="text-sm font-medium mb-1.5 block">
