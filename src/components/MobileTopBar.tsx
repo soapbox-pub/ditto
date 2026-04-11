@@ -25,12 +25,12 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
   return (
     <header
       className="sticky top-0 z-20 sidebar:hidden safe-area-top transition-transform duration-300 ease-in-out"
-      style={navHidden ? { transform: 'translateY(calc(-100% - 20px - env(safe-area-inset-top, 0px)))' } : undefined}
+      style={navHidden ? { transform: 'translateY(calc(-100% - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))))' } : undefined}
     >
       {/* Safe-area fill — only covers the padding zone above the content with a single layer of bg. */}
       <div
         className="absolute top-0 left-0 right-0 bg-background/85"
-        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+        style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}
       />
       {/* Relative wrapper so ArcBackground only covers the content area, not the safe-area padding above it. */}
       <div className="relative">

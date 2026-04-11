@@ -20,29 +20,26 @@ import '@fontsource-variable/inter';
 // Runs before React so the very first paint matches the persisted theme.
 // Uses a MutationObserver so it reacts to all subsequent theme changes
 // (class changes for builtin themes, style-content changes for custom themes).
-import { Capacitor } from '@capacitor/core';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import { getBackgroundThemeMode, getBackgroundHex } from '@/lib/colorUtils';
+import { getBackgroundThemeMode } from '@/lib/colorUtils';
 
 if (Capacitor.isNativePlatform()) {
   // Hide the iOS keyboard accessory bar (prev/next/done toolbar above the keyboard)
   Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
   /**
-   * Read --background from the computed style of <html>, convert the HSL
-   * value to a hex color, and update the native status bar to match.
+   * Sync the native system bar icon style with the active CSS theme.
    *
-   * Style.Dark  = light/white icons (use on dark backgrounds)
-   * Style.Light = dark/black icons  (use on light backgrounds)
+   * SystemBarsStyle.Dark  = light/white icons (use on dark backgrounds)
+   * SystemBarsStyle.Light = dark/black icons  (use on light backgrounds)
+   *
+   * On Android 16+ (API 36) setBackgroundColor no longer works — the bars
+   * are transparent and the web content renders behind them. The app already
+   * draws its own safe-area backgrounds in CSS, so only icon style matters.
    */
   function updateStatusBar() {
-    const hex = getBackgroundHex();
-    if (!hex) return;
-
     const isDark = getBackgroundThemeMode() === 'dark';
-
-    StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
-    StatusBar.setBackgroundColor({ color: hex }).catch(() => {});
+    SystemBars.setStyle({ style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
   }
 
   // Apply immediately (theme class is set synchronously by AppProvider useLayoutEffect

@@ -17,9 +17,6 @@ project(':capacitor-local-notifications').projectDir = new File('../node_modules
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/share/android')
 
-include ':capacitor-status-bar'
-project(':capacitor-status-bar').projectDir = new File('../node_modules/@capacitor/status-bar/android')
-
 include ':capgo-capacitor-autofill-save-password'
 project(':capgo-capacitor-autofill-save-password').projectDir = new File('../node_modules/@capgo/capacitor-autofill-save-password/android')
 

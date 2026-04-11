@@ -527,7 +527,7 @@ export function VineCard({
 			{/* ── Mute toggle (bottom-right) — only shown once video is ready ──── */}
 			{isVideoReady && (
 				<button
-					className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+					className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
 					onClick={toggleMute}
 					aria-label={isMuted ? "Unmute" : "Mute"}
 				>
@@ -541,7 +541,7 @@ export function VineCard({
 
 			{/* ── Right action sidebar — only shown once video is ready ─────── */}
 			{isVideoReady && (
-				<div className="absolute right-3 bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] z-10 flex flex-col items-center gap-5">
+				<div className="absolute right-3 bottom-[calc(6rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] z-10 flex flex-col items-center gap-5">
 					{/* Author avatar */}
 					<ProfileHoverCard pubkey={event.pubkey} asChild>
 						<Link
@@ -619,7 +619,7 @@ export function VineCard({
 
 			{/* ── Bottom info strip — only shown once video is ready ────────── */}
 			{isVideoReady && (
-				<div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-4 right-20 z-10 space-y-1.5">
+				<div className="absolute bottom-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] left-4 right-20 z-10 space-y-1.5">
 					<ProfileHoverCard pubkey={event.pubkey} asChild>
 						<Link
 							to={profileUrl}
@@ -851,7 +851,7 @@ export function VinesFeedPage() {
 						{/* Bottom gradient */}
 						<div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
 						{/* Bottom info strip */}
-						<div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-4 right-20 space-y-2.5">
+						<div className="absolute bottom-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] left-4 right-20 space-y-2.5">
 							<Skeleton className="h-4 w-28 bg-white/20 rounded" />
 							<Skeleton className="h-3.5 w-48 bg-white/15 rounded" />
 							<div className="flex gap-1.5">
@@ -860,7 +860,7 @@ export function VinesFeedPage() {
 							</div>
 						</div>
 						{/* Right action buttons */}
-						<div className="absolute right-3 bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-5">
+						<div className="absolute right-3 bottom-[calc(6rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] flex flex-col items-center gap-5">
 							<Skeleton className="size-11 rounded-full bg-white/15" />
 							<Skeleton className="size-11 rounded-full bg-white/15" />
 							<Skeleton className="size-11 rounded-full bg-white/15" />
@@ -868,7 +868,7 @@ export function VinesFeedPage() {
 							<Skeleton className="size-11 rounded-full bg-white/15" />
 						</div>
 						{/* Mute button */}
-						<Skeleton className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 size-9 rounded-full bg-white/10" />
+						<Skeleton className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] right-4 size-9 rounded-full bg-white/10" />
 					</div>
 				</div>
 			</div>

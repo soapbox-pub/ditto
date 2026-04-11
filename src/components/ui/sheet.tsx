@@ -70,7 +70,7 @@ const SheetContent = React.forwardRef<
             ? "left-full ml-3 top-4"
             : "right-4 top-4 rounded-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 data-[state=open]:bg-secondary"
         )}
-        style={{ top: `calc(env(safe-area-inset-top, 0px) + 0.85rem)` }}
+        style={{ top: `calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 0.85rem)` }}
       >
         <X className={side === "left" ? "h-5 w-5 text-white" : "h-4 w-4"} strokeWidth={side === "left" ? 2.5 : 2} />
         <span className="sr-only">Close</span>

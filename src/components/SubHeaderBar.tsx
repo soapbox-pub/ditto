@@ -85,7 +85,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
 
     // Measure safe-area-inset-top once by reading it via a throw-away element.
     const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;top:env(safe-area-inset-top,0px);left:0;width:0;height:0;visibility:hidden;pointer-events:none';
+    probe.style.cssText = 'position:fixed;top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));left:0;width:0;height:0;visibility:hidden;pointer-events:none';
     document.body.appendChild(probe);
     const safeAreaTop = probe.getBoundingClientRect().top;
     document.body.removeChild(probe);
@@ -122,7 +122,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
         {showSafeAreaPadding && (
           <div
             className="absolute top-0 left-0 right-0 bg-background/85 sidebar:hidden"
-            style={{ height: 'env(safe-area-inset-top, 0px)' }}
+            style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}
           />
         )}
         {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above.
