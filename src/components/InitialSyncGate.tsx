@@ -736,31 +736,21 @@ function ProfileStep({
         </div>
       )}
 
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onNext}
-          className="flex-1 rounded-full h-11"
-          disabled={isPublishing || isSaving}
-        >
-          Skip
-        </Button>
-        <Button
-          onClick={handlePublishProfile}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isPublishing || isUploading || isSaving}
-        >
-          {isPublishing || isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Saving…
-            </>
-          ) : (
-            <>
-              Continue <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      <Button
+        onClick={handlePublishProfile}
+        className="w-full rounded-full h-11 gap-1.5"
+        disabled={isPublishing || isUploading || isSaving}
+      >
+        {isPublishing || isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            Continue <ChevronRight className="w-4 h-4" />
+          </>
+        )}
+      </Button>
     </div>
   );
 }
