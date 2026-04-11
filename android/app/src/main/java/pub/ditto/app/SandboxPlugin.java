@@ -96,10 +96,30 @@ public class SandboxPlugin extends Plugin {
             params.topMargin = pxY;
             parent.addView(sandbox.container, params);
 
-            // Load the initial page. The native spinner overlay sits on
-            // top of the WebView and animates independently.
-            sandbox.webView.loadUrl("https://" + sandboxId + ".sandbox.native/index.html");
+            // The spinner is now visible. Navigation is deferred until the
+            // JS layer calls navigate() — this allows the caller to
+            // pre-fetch blobs while the spinner animates.
 
+            call.resolve();
+        });
+    }
+
+    @PluginMethod
+    public void navigate(PluginCall call) {
+        String sandboxId = call.getString("id");
+        if (sandboxId == null) {
+            call.reject("Missing required parameter: id");
+            return;
+        }
+
+        mainHandler.post(() -> {
+            SandboxInstance sandbox = sandboxes.get(sandboxId);
+            if (sandbox == null) {
+                call.reject("Sandbox not found: " + sandboxId);
+                return;
+            }
+
+            sandbox.webView.loadUrl("https://" + sandboxId + ".sandbox.native/index.html");
             call.resolve();
         });
     }

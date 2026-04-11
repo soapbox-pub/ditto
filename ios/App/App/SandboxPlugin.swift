@@ -17,6 +17,7 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "SandboxPlugin"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "create", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "navigate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateFrame", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "respondToFetch", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "postMessage", returnType: CAPPluginReturnPromise),
@@ -64,6 +65,22 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
                 webView.superview?.addSubview(sandbox.webView)
             }
 
+            call.resolve()
+        }
+    }
+
+    @objc func navigate(_ call: CAPPluginCall) {
+        guard let sandboxId = call.getString("id") else {
+            call.reject("Missing required parameter: id")
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let sandbox = self?.sandboxes[sandboxId] else {
+                call.reject("Sandbox not found: \(sandboxId)")
+                return
+            }
+            sandbox.navigateToApp()
             call.resolve()
         }
     }
@@ -237,17 +254,15 @@ private class SandboxInstance: NSObject, WKScriptMessageHandler {
 
         // Show an inline loading spinner while the real content is being
         // fetched via the scheme handler round-trip. The spinner page
-        // renders instantly (no network), then the real navigation
-        // replaces it once the JS layer is ready to serve files.
+        // renders instantly (no network). Navigation to the real page is
+        // deferred until the JS layer calls navigate().
         self.webView.loadHTMLString(SandboxInstance.spinnerHTML, baseURL: nil)
+    }
 
-        // Navigate to the real page after a brief delay so the spinner
-        // paints before the scheme handler blocks on the fetch round-trip.
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let initialURL = URL(string: "\(self.customScheme)://app/index.html")!
-            self.webView.load(URLRequest(url: initialURL))
-        }
+    /// Navigate the WebView to the sandbox's entry point.
+    func navigateToApp() {
+        let initialURL = URL(string: "\(customScheme)://app/index.html")!
+        webView.load(URLRequest(url: initialURL))
     }
 
     /// Post a JSON-RPC message to injected scripts inside the WebView.
