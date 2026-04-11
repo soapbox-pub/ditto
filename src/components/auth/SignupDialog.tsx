@@ -11,6 +11,7 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { storeNsecCredential } from '@/lib/credentialManager';
 import { downloadTextFile } from '@/lib/downloadFile';
 import { ProfileCard } from '@/components/ProfileCard';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
@@ -41,7 +42,15 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   // Generate a proper nsec key using nostr-tools
   const generateKey = () => {
     const sk = generateSecretKey();
-    setNsec(nip19.nsecEncode(sk));
+    const encoded = nip19.nsecEncode(sk);
+    setNsec(encoded);
+
+    // Progressive enhancement: offer to save in the browser's password manager
+    // while the user is looking at the key on the download step.
+    // (Chromium-only — silently skipped on Safari/Firefox)
+    const npub = nip19.npubEncode(getPublicKey(sk));
+    storeNsecCredential(npub, encoded).catch(() => {});
+
     setStep('download');
   };
 

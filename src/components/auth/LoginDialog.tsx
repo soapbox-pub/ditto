@@ -17,6 +17,7 @@ import {
   type NostrConnectParams,
 } from '@/hooks/useLoginActions';
 import { androidResume } from '@/lib/androidResume';
+import { getNsecCredential } from '@/lib/credentialManager';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -298,6 +299,22 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   };
 
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+
+  // Progressive enhancement: attempt to retrieve a stored credential from the
+  // browser's password manager when the dialog opens (Chromium-only).
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    getNsecCredential().then((cred) => {
+      if (cancelled || !cred) return;
+      if (validateNsec(cred.nsec)) {
+        executeLogin(cred.nsec);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderTabs = () => (
     <Tabs 

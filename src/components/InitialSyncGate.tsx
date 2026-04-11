@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { storeNsecCredential } from "@/lib/credentialManager";
 import { downloadTextFile } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
@@ -293,6 +294,13 @@ function SetupQuestionnaire({
     const sk = generateSecretKey();
     const encoded = nip19.nsecEncode(sk);
     setNsec(encoded);
+
+    // Progressive enhancement: offer to save in the browser's password manager
+    // while the user is looking at the key on the download step.
+    // (Chromium-only — silently skipped on Safari/Firefox)
+    const npub = nip19.npubEncode(getPublicKey(sk));
+    storeNsecCredential(npub, encoded).catch(() => {});
+
     next();
   }, [next]);
 
