@@ -43,6 +43,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useInsertText } from '@/hooks/useInsertText';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
+import { genUserName } from '@/lib/genUserName';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { resizeImage } from '@/lib/resizeImage';
 
@@ -1071,7 +1072,7 @@ export function ComposeBox({
               <Avatar shape={avatarShape} className="size-12 shrink-0 mt-0.5">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {(metadata?.name?.[0] || '?').toUpperCase()}
+                  {(metadata?.display_name || metadata?.name || genUserName(user?.pubkey))[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
             </Link>
