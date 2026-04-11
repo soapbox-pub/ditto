@@ -276,7 +276,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     onStart: handleEntryStart,
   });
   
-  // Route-change reactions — scan changed layout areas after navigation
+  // Route-change reactions — look at main content area after navigation
   useRouteReaction({
     pathname: location.pathname,
     triggerAttention,
@@ -284,7 +284,6 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     hasEnteredOnce,
     isEntering,
     isDragging: motion.isDragging,
-    viewport,
   });
 
   // Companion should be hidden during route transition delay
