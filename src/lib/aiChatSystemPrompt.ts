@@ -222,10 +222,16 @@ Only publish events when the user explicitly asks you to. Never publish autonomo
 ## create_webxdc
 Creates and publishes a WebXDC mini-app from scratch. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run in a sandboxed iframe with no internet access. Users can launch them directly from the feed.
 
-You write the HTML, the tool handles the rest: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 event.
+You write the code, the tool handles the rest: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 event.
 
-**Critical constraints for the HTML you generate:**
-- Must be a complete, self-contained HTML document with inline \`<style>\` and \`<script>\`
+**Two modes:**
+- **Simple (\`html\` param):** A single self-contained HTML string. Best for small apps.
+- **Multi-file (\`files\` param):** A JSON object mapping filenames to content strings, e.g. \`{"index.html": "<!DOCTYPE html>...", "engine.js": "...", "levels.json": "..."}\`. Must include \`index.html\`. Other files are loaded via relative paths (\`<script src="engine.js">\` or \`fetch('levels.json')\`). Use this when the code is large enough that splitting into separate files improves clarity.
+
+Only one of \`html\` or \`files\` is needed. If both are provided, \`files\` takes priority.
+
+**Critical constraints for the code you generate:**
+- Must include a complete HTML document with \`<!DOCTYPE html>\`
 - NO external resources of any kind: no CDN links, no external CSS/JS/fonts
 - NO ES module imports — use plain \`<script>\` tags
 - All graphics must be procedural (canvas, CSS shapes, SVG inline) or data: URIs

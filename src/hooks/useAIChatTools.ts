@@ -970,21 +970,38 @@ export function useAIChatTools() {
 
           const appName = typeof args.name === 'string' ? args.name.trim() : '';
           const html = typeof args.html === 'string' ? args.html : '';
+          const filesMap = (args.files && typeof args.files === 'object' && !Array.isArray(args.files))
+            ? args.files as Record<string, string>
+            : null;
           const description = typeof args.description === 'string' ? args.description.trim() : '';
 
           if (!appName) {
             return { result: JSON.stringify({ error: 'An app name is required.' }) };
           }
-          if (!html) {
-            return { result: JSON.stringify({ error: 'HTML source code is required.' }) };
+          if (!filesMap && !html) {
+            return { result: JSON.stringify({ error: 'Either "html" or "files" is required.' }) };
           }
 
           // Build the .xdc archive in memory using fflate
           const manifest = `name = "${appName.replace(/"/g, '\\"')}"\n`;
-          const zipped = zipSync({
-            'index.html': strToU8(html),
+          const entries: Record<string, Uint8Array> = {
             'manifest.toml': strToU8(manifest),
-          });
+          };
+
+          if (filesMap) {
+            for (const [filename, content] of Object.entries(filesMap)) {
+              if (typeof content === 'string') {
+                entries[filename] = strToU8(content);
+              }
+            }
+            if (!entries['index.html']) {
+              return { result: JSON.stringify({ error: 'The "files" map must include an "index.html" entry.' }) };
+            }
+          } else {
+            entries['index.html'] = strToU8(html);
+          }
+
+          const zipped = zipSync(entries);
 
           // Create a File from the ZIP bytes
           const slug = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

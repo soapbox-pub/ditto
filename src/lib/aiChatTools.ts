@@ -436,10 +436,15 @@ After receiving results, summarize the key topics, conversations, and notable po
       name: 'create_webxdc',
       description: `Create and publish a WebXDC mini-app. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run inside a sandboxed iframe with no internet access.
 
-You provide the app name and the full HTML source code. The tool handles everything else: packaging it into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 Nostr event that other users can launch directly from their feed.
+You provide the app name and source code. The tool handles everything else: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 Nostr event that other users can launch directly from their feed.
 
-**Important constraints for the HTML code:**
-- The app must be ENTIRELY self-contained in a single HTML file with inline <style> and <script> tags
+**Two modes:**
+- **Simple (html param):** Provide a single self-contained HTML string. Best for small apps.
+- **Multi-file (files param):** Provide a map of filenames to content strings. The archive can contain index.html plus separate .js, .css, .json, or .svg files. index.html loads them via relative paths (e.g. <script src="game.js">). Use this when the code is large enough that splitting into separate files improves clarity.
+
+Only one of html or files is needed. If both are provided, files takes priority.
+
+**Important constraints:**
 - NO external resources: no CDN links, no external CSS/JS, no Google Fonts
 - NO ES module imports — use plain <script> tags only
 - All assets (images, sounds) must be generated procedurally (canvas drawing, CSS shapes, Web Audio API) or embedded as data: URIs
@@ -467,7 +472,12 @@ You provide the app name and the full HTML source code. The tool handles everyth
           },
           html: {
             type: 'string',
-            description: 'The complete HTML source code for the app. Must be a full HTML document with <!DOCTYPE html>.',
+            description: 'Complete HTML source code for a single-file app. Must be a full HTML document with <!DOCTYPE html>. Ignored if "files" is provided.',
+          },
+          files: {
+            type: 'object',
+            description: 'Map of filenames to text content for multi-file apps. Must include "index.html". Other files (e.g. "game.js", "style.css", "level-data.json") are loaded via relative paths. Example: {"index.html": "<!DOCTYPE html>...", "engine.js": "function update(){...}"}',
+            additionalProperties: { type: 'string' },
           },
           description: {
             type: 'string',
@@ -478,7 +488,7 @@ You provide the app name and the full HTML source code. The tool handles everyth
             description: 'Optional icon/thumbnail image URL for the app card in the feed. Use a Blossom URL from a prior upload_from_url call. If omitted, a generic icon is shown.',
           },
         },
-        required: ['name', 'html'],
+        required: ['name'],
       },
     },
   },
