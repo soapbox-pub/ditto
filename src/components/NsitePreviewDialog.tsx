@@ -68,22 +68,52 @@ function resolveServers(event: NostrEvent, appServers: string[]): string[] {
 }
 
 /**
- * Fetch a blob from the given sha256 by trying each Blossom server in order.
- * Returns a Response from the first server that responds successfully, or
- * throws if all servers fail.
+ * Module-level preferred server. Once a Blossom server successfully serves
+ * a blob, it is promoted here so subsequent requests try it first — avoiding
+ * the round-trip penalty of 404s on servers that don't have the content.
+ */
+let preferredServer: string | null = null;
+
+/**
+ * Fetch a blob from the given sha256 by trying Blossom servers.
+ *
+ * If a server previously succeeded (the "preferred" server), it is tried
+ * first. On success the preferred server is reinforced; on failure we fall
+ * through to the remaining servers in order. Whichever server ultimately
+ * succeeds is promoted to preferred for the next call.
  */
 async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Response> {
   let lastError: unknown;
-  for (const server of servers) {
+
+  /** Try a single server. Returns the Response on success, or null. */
+  async function tryServer(server: string): Promise<Response | null> {
     const base = server.replace(/\/+$/, '');
     const url = `${base}/${sha256}`;
     try {
       const res = await fetch(url);
-      if (res.ok) return res;
+      if (res.ok) {
+        preferredServer = server;
+        return res;
+      }
     } catch (err) {
       lastError = err;
     }
+    return null;
   }
+
+  // Try the preferred server first if it's in the list.
+  if (preferredServer && servers.includes(preferredServer)) {
+    const res = await tryServer(preferredServer);
+    if (res) return res;
+  }
+
+  // Fall through to the full list, skipping the preferred (already tried).
+  for (const server of servers) {
+    if (server === preferredServer) continue;
+    const res = await tryServer(server);
+    if (res) return res;
+  }
+
   throw lastError ?? new Error(`Failed to fetch blob ${sha256} from all servers`);
 }
 
