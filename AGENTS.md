@@ -1484,7 +1484,7 @@ The project uses GitLab CI (`.gitlab-ci.yml`) with the following stages:
 2. **deploy** - Builds and deploys to nsite via nsyte (`deploy-nsite` job, default branch only)
 3. **build** - Builds a signed release APK (`build-apk` job, tags only)
 4. **release** - Creates a GitLab Release with the APK artifact (tags only)
-5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only)
+5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only) and AAB to Google Play (`publish-google-play` job, tags only)
 
 ### Creating a Release
 
@@ -1494,7 +1494,7 @@ Releases are triggered by pushing a version tag. Use the npm script:
 npm run release
 ```
 
-This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, and `publish-zapstore` stages.
+This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, `publish-zapstore`, and `publish-google-play` stages.
 
 ### Zapstore Publishing
 
@@ -1587,3 +1587,28 @@ To rotate the nsite credential:
 1. Revoke the old bunker connection in your signer app
 2. Run `nsyte ci` again to generate a new `nbunksec1...` string
 3. Update the `NSITE_NBUNKSEC` variable in GitLab CI/CD settings
+
+### Google Play Publishing
+
+The project automatically publishes Android AABs (App Bundles) to [Google Play](https://play.google.com/store/apps/details?id=pub.ditto.app) using [fastlane supply](https://docs.fastlane.tools/actions/supply/). The `publish-google-play` CI job runs after a successful AAB build and uploads directly to the production track.
+
+**GitLab CI/CD Variables** (Settings > CI/CD > Variables):
+
+| Variable | Description | Protected | Masked | Raw |
+|---|---|---|---|---|
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Full JSON contents of the Google Play API service account key file | Yes | Yes | No |
+
+#### Initial Setup (one-time)
+
+1. Create or reuse a project in the [Google Cloud Console](https://console.cloud.google.com/projectcreate)
+2. Enable the [Google Play Developer API](https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/) for that project
+3. In Google Cloud Console, go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), create a service account, and download a JSON key file for it
+4. In Google Play Console, go to [Users & Permissions](https://play.google.com/console/users-and-permissions), click **Invite new users**, enter the service account email, and grant it permission to manage releases for `pub.ditto.app`
+5. Add the full JSON contents of the key file as the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` variable in GitLab CI/CD settings (Settings > CI/CD > Variables). Mark it as **Protected** and **Masked**.
+
+#### Key Points
+
+- The job uploads the signed AAB (not APK) since Google Play requires App Bundles
+- Uploads go directly to the **production** track -- Google's review process still applies before the update reaches users
+- Metadata, screenshots, and changelogs are managed in the Play Console, not via CI (the job uses `--skip_upload_metadata` etc.)
+- The same signing keystore used for Zapstore is used here (`ANDROID_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`)
