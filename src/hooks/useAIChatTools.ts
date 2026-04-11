@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { generateSecretKey, getPublicKey, finalizeEvent, nip19 } from 'nostr-tools';
+import { zipSync, strToU8 } from 'fflate';
 import { NSecSigner } from '@nostrify/nostrify';
 import { BlossomUploader } from '@nostrify/nostrify/uploaders';
 import { useNostr } from '@nostrify/react';
@@ -958,6 +959,121 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'Request timed out. Try reducing the time window or limit.' }) };
           }
           return { result: JSON.stringify({ error: `Failed to fetch feed: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
+        }
+      }
+
+      case 'create_webxdc': {
+        try {
+          if (!user) {
+            return { result: JSON.stringify({ error: 'Must be logged in to create a WebXDC app.' }) };
+          }
+
+          const appName = typeof args.name === 'string' ? args.name.trim() : '';
+          const html = typeof args.html === 'string' ? args.html : '';
+          const description = typeof args.description === 'string' ? args.description.trim() : '';
+
+          if (!appName) {
+            return { result: JSON.stringify({ error: 'An app name is required.' }) };
+          }
+          if (!html) {
+            return { result: JSON.stringify({ error: 'HTML source code is required.' }) };
+          }
+
+          // Build the .xdc archive in memory using fflate
+          const manifest = `name = "${appName.replace(/"/g, '\\"')}"\n`;
+          const zipped = zipSync({
+            'index.html': strToU8(html),
+            'manifest.toml': strToU8(manifest),
+          });
+
+          // Create a File from the ZIP bytes
+          const slug = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const xdcFile = new File([zipped], `${slug}.xdc`, { type: 'application/x-webxdc' });
+
+          // Upload to Blossom
+          const buddySk = getBuddySecretKey();
+          const signer = buddySk ? new NSecSigner(buddySk) : user.signer;
+          const servers = getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers);
+
+          const uploader = new BlossomUploader({
+            servers,
+            signer,
+            fetch: (input, init) => globalThis.fetch(input, {
+              ...init,
+              signal: AbortSignal.any([
+                init?.signal ?? AbortSignal.timeout(30_000),
+                AbortSignal.timeout(30_000),
+              ]),
+            }),
+          });
+
+          const uploadTags = await uploader.upload(xdcFile);
+          let blossomUrl = uploadTags[0][1];
+
+          // Ensure URL ends with .xdc
+          if (!blossomUrl.endsWith('.xdc')) {
+            blossomUrl = blossomUrl + '.xdc';
+          }
+
+          // Build the kind 1063 event tags
+          const uuid = crypto.randomUUID();
+          const eventTags: string[][] = [
+            ['url', blossomUrl],
+            ['m', 'application/x-webxdc'],
+            ['alt', `Webxdc app: ${appName}`],
+            ['webxdc', uuid],
+          ];
+
+          // Add hash from upload tags
+          const hashTag = uploadTags.find(t => t[0] === 'x');
+          if (hashTag) eventTags.push(['x', hashTag[1]]);
+
+          // Add file size
+          const sizeTag = uploadTags.find(t => t[0] === 'size');
+          if (sizeTag) eventTags.push(['size', sizeTag[1]]);
+
+          // Sign and publish the kind 1063 event
+          const sk = buddySk ?? generateSecretKey();
+          const pubkey = getPublicKey(sk);
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+
+          const webxdcEvent = finalizeEvent({
+            kind: 1063,
+            content: description || appName,
+            tags: eventTags,
+            created_at: currentTimestamp,
+          }, sk) as NostrEvent;
+
+          const publishes: Promise<void>[] = [
+            nostr.event(webxdcEvent, { signal: AbortSignal.timeout(5000) }),
+          ];
+
+          // Only publish a throwaway profile for ephemeral keys
+          if (!buddySk) {
+            const profileEvent = finalizeEvent({
+              kind: 0,
+              content: JSON.stringify({ name: 'Dork App Maker', about: 'WebXDC apps created by Dork AI' }),
+              tags: [],
+              created_at: currentTimestamp,
+            }, sk) as NostrEvent;
+            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
+          }
+
+          await Promise.all(publishes);
+
+          return {
+            result: JSON.stringify({
+              success: true,
+              event_id: webxdcEvent.id,
+              pubkey,
+              name: appName,
+              url: blossomUrl,
+              size: xdcFile.size,
+            }),
+            nostrEvent: webxdcEvent,
+          };
+        } catch (err) {
+          return { result: JSON.stringify({ error: `Failed to create WebXDC app: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
         }
       }
 

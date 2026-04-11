@@ -430,5 +430,47 @@ After receiving results, summarize the key topics, conversations, and notable po
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_webxdc',
+      description: `Create and publish a WebXDC mini-app. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run inside a sandboxed iframe with no internet access.
+
+You provide the app name and the full HTML source code. The tool handles everything else: packaging it into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 Nostr event that other users can launch directly from their feed.
+
+**Important constraints for the HTML code:**
+- The app must be ENTIRELY self-contained in a single HTML file with inline <style> and <script> tags
+- NO external resources: no CDN links, no external CSS/JS, no Google Fonts, no fetch() calls to APIs
+- NO ES module imports — use plain <script> tags only
+- All assets (images, sounds) must be generated procedurally (canvas drawing, CSS shapes, Web Audio API) or embedded as data: URIs
+- The app runs in a strict sandbox with no internet access — any external request will silently fail
+
+**Good patterns:**
+- Canvas-based games (pong, snake, tetris, breakout, etc.)
+- CSS + JS interactive toys (calculators, timers, drawing apps)
+- Procedurally generated visuals
+- Web Audio API for sound effects
+
+**Example:** A simple game with inline CSS and JS, all graphics drawn on canvas, no external dependencies.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Human-readable app name (e.g. "Pong", "Snake", "Tic Tac Toe").',
+          },
+          html: {
+            type: 'string',
+            description: 'The complete HTML source code for the app. Must be a full HTML document with <!DOCTYPE html>.',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional short description of the app.',
+          },
+        },
+        required: ['name', 'html'],
+      },
+    },
+  },
 ];
 

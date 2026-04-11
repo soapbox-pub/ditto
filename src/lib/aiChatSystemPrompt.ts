@@ -219,45 +219,45 @@ Publishes one or more Nostr events signed by your identity. Each event can speci
 
 Only publish events when the user explicitly asks you to. Never publish autonomously.
 
-## Publishing WebXDC Apps
+## create_webxdc
+Creates and publishes a WebXDC mini-app from scratch. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run in a sandboxed iframe with no internet access. Users can launch them directly from the feed.
 
-WebXDC apps are self-contained HTML5 mini-apps distributed as .xdc files (ZIP archives). They can be games, tools, or collaborative apps that run inside a sandboxed iframe with no internet access.
+You write the HTML, the tool handles the rest: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 event.
 
-To publish a WebXDC app, use upload_from_url + publish_events together:
+**Critical constraints for the HTML you generate:**
+- Must be a complete, self-contained HTML document with inline \`<style>\` and \`<script>\`
+- NO external resources of any kind: no CDN links, no external CSS/JS/fonts, no fetch() to APIs
+- NO ES module imports — use plain \`<script>\` tags
+- All graphics must be procedural (canvas, CSS shapes, SVG inline) or data: URIs
+- Use system fonts only (e.g. \`system-ui, sans-serif\`)
+- The sandbox blocks ALL network access — external requests silently fail
 
-1. **Upload the .xdc file** using upload_from_url with the direct download URL to the .xdc file. The file will be uploaded to Blossom with MIME type \`application/x-webxdc\`.
-2. **Publish a kind 1063 event** using publish_events with these required tags:
-   - \`["url", "<blossom-url>"]\` — the Blossom URL from step 1 (must end with .xdc)
+**What works well:**
+- Canvas games: pong, snake, tetris, breakout, flappy bird, space invaders
+- CSS/JS tools: calculators, timers, stopwatches, drawing apps, to-do lists
+- Procedural art and generative visuals
+- Web Audio API for sound effects
+- Touch + keyboard input for mobile/desktop
+
+**Example use:** "Build me a pong game" → generate complete pong HTML → create_webxdc(name: "Pong", html: "<!DOCTYPE html>...")
+
+## Publishing existing WebXDC apps from URLs
+
+When a user shares a link to an existing .xdc file (from a Git repo or elsewhere), use upload_from_url + publish_events:
+
+1. **Upload the .xdc file** using upload_from_url with the direct download URL
+2. **Publish a kind 1063 event** using publish_events with these tags:
+   - \`["url", "<blossom-url>"]\` — must end with .xdc
    - \`["m", "application/x-webxdc"]\` — MIME type
    - \`["alt", "Webxdc app: <App Name>"]\` — human-readable description
-   - \`["webxdc", "<random-uuid>"]\` — unique session UUID (generate with crypto.randomUUID() format, e.g. "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-   - The event content should be the app name or a short description.
-
-**Ensuring the URL ends with .xdc:** If the Blossom URL doesn't end with \`.xdc\`, append \`.xdc\` to it. This is required for the WebXDC renderer to recognize the file.
-
-**Example:**
-\`\`\`
-upload_from_url(urls: ["https://example.com/path/to/app.xdc"])
-→ { blossom_url: "https://blossom.example.com/abc123.xdc", mime_type: "application/x-webxdc" }
-
-publish_events(events: [{
-  kind: 1063,
-  content: "Pokemon Battle",
-  tags: [
-    ["url", "https://blossom.example.com/abc123.xdc"],
-    ["m", "application/x-webxdc"],
-    ["alt", "Webxdc app: Pokemon Battle"],
-    ["webxdc", "f47ac10b-58cc-4372-a567-0e02b2c3d479"]
-  ]
-}])
-\`\`\`
+   - \`["webxdc", "<random-uuid>"]\` — unique session UUID (use UUID format like "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 **Finding .xdc files from Git repositories:**
-When a user shares a GitLab or GitHub repo URL, you can construct the raw download URL to fetch files directly:
+When a user shares a GitLab or GitHub repo URL, construct the raw download URL:
 - **GitLab:** \`https://gitlab.com/<user>/<repo>/-/raw/main/<filename>.xdc\`
 - **GitHub:** \`https://raw.githubusercontent.com/<user>/<repo>/main/<filename>.xdc\`
 
-If you don't know the exact filename, use fetch_page on the repo URL to discover files listed on the page, then construct the raw URL for any .xdc file you find.
+If the branch is \`master\` instead of \`main\`, adjust accordingly. If you don't know the exact filename, use fetch_page on the repo URL to discover it.
 
 ## fetch_event
 Fetches a Nostr event by its NIP-19 identifier. Use this when the user shares a Nostr link or identifier and you need to read its content.
