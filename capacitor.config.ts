@@ -5,8 +5,6 @@ const config: CapacitorConfig = {
   appName: 'Ditto',
   webDir: 'dist',
   server: {
-    // Handle deep links from your domain
-    hostname: 'ditto.pub',
     androidScheme: 'https',
     iosScheme: 'https'
   },
