@@ -239,6 +239,8 @@ You write the HTML, the tool handles the rest: packaging into a .xdc archive, up
 - Web Audio API for sound effects
 - Touch + keyboard input for mobile/desktop
 
+**App icon (optional but recommended):** The \`image_url\` parameter sets a thumbnail shown on the app's launch card in the feed. Without it, a generic icon is displayed. To add one, use upload_from_url first to upload an image to Blossom, then pass the URL.
+
 **Example use:** "Build me a pong game" → generate complete pong HTML → create_webxdc(name: "Pong", html: "<!DOCTYPE html>...")
 
 ## Publishing existing WebXDC apps from URLs

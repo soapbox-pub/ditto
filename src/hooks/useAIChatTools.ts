@@ -1024,13 +1024,20 @@ export function useAIChatTools() {
             ['webxdc', uuid],
           ];
 
-          // Add hash from upload tags
+          // Add hash tags from upload
           const hashTag = uploadTags.find(t => t[0] === 'x');
           if (hashTag) eventTags.push(['x', hashTag[1]]);
+
+          const oxTag = uploadTags.find(t => t[0] === 'ox');
+          if (oxTag) eventTags.push(['ox', oxTag[1]]);
 
           // Add file size
           const sizeTag = uploadTags.find(t => t[0] === 'size');
           if (sizeTag) eventTags.push(['size', sizeTag[1]]);
+
+          // Add icon/thumbnail image if provided
+          const imageUrl = typeof args.image_url === 'string' ? args.image_url.trim() : '';
+          if (imageUrl) eventTags.push(['image', imageUrl]);
 
           // Sign and publish the kind 1063 event
           const sk = buddySk ?? generateSecretKey();

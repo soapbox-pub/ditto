@@ -467,6 +467,10 @@ You provide the app name and the full HTML source code. The tool handles everyth
             type: 'string',
             description: 'Optional short description of the app.',
           },
+          image_url: {
+            type: 'string',
+            description: 'Optional icon/thumbnail image URL for the app card in the feed. Use a Blossom URL from a prior upload_from_url call. If omitted, a generic icon is shown.',
+          },
         },
         required: ['name', 'html'],
       },
