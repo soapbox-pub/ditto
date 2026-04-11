@@ -5,14 +5,20 @@
  * Progress tracking is done via the tracker module (non-React).
  * Completion is implicit (derived from count/events vs target).
  * XP is awarded automatically when missions complete.
+ *
+ * State lives in a pubkey-scoped in-memory Map. On mount or account
+ * switch, hydrates from kind 11125 content JSON if the session store
+ * is empty. Completed missions are persisted by `useAwardDailyXp`;
+ * intermediate progress resets on page refresh.
  */
 
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 import type { MissionsContent } from '@/blobbi/core/lib/missions';
 import { isMissionComplete, missionProgress } from '@/blobbi/core/lib/missions';
+import { parseProfileContent } from '@/blobbi/core/lib/missions';
 
 import {
   type BlobbiStage,
@@ -30,6 +36,7 @@ import {
 import {
   readMissionsFromStorage,
   writeMissionsToStorage,
+  hydrateFromPersisted,
 } from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,6 +63,12 @@ export interface DailyMissionView {
 export interface UseDailyMissionsOptions {
   /** Available Blobbi stages the user has (filters eligible missions) */
   availableStages?: BlobbiStage[];
+  /**
+   * Raw content string from the kind 11125 profile event.
+   * Pass `profile.content` here. The hook parses it to extract
+   * persisted missions and hydrates the session store on first load.
+   */
+  profileContent?: string;
 }
 
 export interface UseDailyMissionsResult {
@@ -84,12 +97,38 @@ export interface UseDailyMissionsResult {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDailyMissionsResult {
-  const { availableStages } = options;
+  const { availableStages, profileContent } = options;
   const { user } = useCurrentUser();
   const pubkey = user?.pubkey;
 
-  // Version counter to trigger re-reads from localStorage
+  // Version counter to trigger re-reads from session store
   const [version, setVersion] = useState(0);
+
+  // Track whether we've hydrated for this pubkey
+  const hydratedRef = useRef<string | null>(null);
+
+  // Hydrate session store from kind 11125 content on mount / account switch
+  useEffect(() => {
+    if (!pubkey || !profileContent) return;
+    if (hydratedRef.current === pubkey) return; // already hydrated this session
+
+    // Check if session store already has data for this pubkey
+    const existing = readMissionsFromStorage(pubkey);
+    if (existing) {
+      hydratedRef.current = pubkey;
+      return;
+    }
+
+    // Parse persisted missions from profile content
+    const parsed = parseProfileContent(profileContent);
+    if (parsed.missions && !needsDailyReset(parsed.missions)) {
+      hydrateFromPersisted(parsed.missions, pubkey);
+      hydratedRef.current = pubkey;
+      setVersion((v) => v + 1);
+    } else {
+      hydratedRef.current = pubkey;
+    }
+  }, [pubkey, profileContent]);
 
   // Listen for tracker events
   useEffect(() => {
@@ -104,7 +143,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   // Read and ensure current state
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const raw = useMemo((): MissionsContent | undefined => {
-    const stored = readMissionsFromStorage();
+    const stored = readMissionsFromStorage(pubkey);
 
     if (!needsDailyReset(stored)) return stored;
 
@@ -115,7 +154,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh);
+    writeMissionsToStorage(fresh, pubkey);
     return fresh;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, pubkey, stagesKey]);
@@ -151,7 +190,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh);
+    writeMissionsToStorage(fresh, pubkey);
     setVersion((v) => v + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pubkey, stagesKey, raw?.evolution]);

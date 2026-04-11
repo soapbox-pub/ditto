@@ -1,8 +1,7 @@
 /**
  * useRerollMission - Replace a daily mission with a new one from the pool
  *
- * Persists to localStorage session cache. The persistence layer
- * syncs to kind 11125 content on the next debounced write.
+ * Updates the in-memory session store.
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -39,13 +38,13 @@ export function useRerollMission() {
     mutationFn: async ({ missionId, availableStages }: RerollMissionRequest): Promise<RerollMissionResult> => {
       if (!user?.pubkey) throw new Error('Must be logged in');
 
-      const current = readMissionsFromStorage();
+      const current = readMissionsFromStorage(user.pubkey);
       if (!current) throw new Error('No missions state');
 
       const updated = rerollMission(current, missionId, availableStages);
       if (!updated) throw new Error('Cannot reroll this mission');
 
-      writeMissionsToStorage(updated);
+      writeMissionsToStorage(updated, user.pubkey);
 
       // Notify React
       window.dispatchEvent(new CustomEvent('daily-missions-updated', {

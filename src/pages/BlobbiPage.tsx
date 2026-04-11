@@ -1378,7 +1378,7 @@ function BlobbiDashboard({
   };
 
   // ─── Daily Missions (for missions tab) ───
-  const dailyMissions = useDailyMissions({ availableStages });
+  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);

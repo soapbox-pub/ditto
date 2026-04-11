@@ -3,9 +3,10 @@
  *
  * Provides a way to record daily mission progress from anywhere
  * (hooks, event handlers, etc.) without requiring React context.
- * Reads/writes the missions content from localStorage as a session cache.
- * The authoritative source is kind 11125 content JSON; localStorage
- * is a fast local mirror that gets synced by the persistence layer.
+ *
+ * Uses a pubkey-scoped in-memory Map. Kind 11125 content JSON is the
+ * persistent source of truth. Completed missions are persisted by
+ * `useAwardDailyXp`; intermediate progress resets on page refresh.
  *
  * Dispatches 'daily-missions-updated' CustomEvent so React hooks re-render.
  */
@@ -20,44 +21,27 @@ import {
   trackEvent,
 } from './daily-missions';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── In-Memory Session Store ──────────────────────────────────────────────────
 
-const STORAGE_KEY = 'blobbi:daily-missions';
+/**
+ * Pubkey-scoped session cache. Each logged-in user gets their own entry.
+ * Cleared on page refresh (intentional — kind 11125 is the persistent store).
+ */
+const sessionStore = new Map<string, MissionsContent>();
 
-// ─── Storage Utilities ────────────────────────────────────────────────────────
-
-function readMissions(): MissionsContent | undefined {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return undefined;
-    const parsed = JSON.parse(stored);
-    // Validate new format: must have date + daily array
-    if (typeof parsed !== 'object' || typeof parsed.date !== 'string' || !Array.isArray(parsed.daily)) {
-      return undefined;
-    }
-    return parsed as MissionsContent;
-  } catch {
-    return undefined;
-  }
-}
-
-function writeMissions(missions: MissionsContent): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(missions));
-  } catch (error) {
-    console.warn('[DailyMissionTracker] Failed to write state:', error);
-  }
+function key(pubkey: string | undefined): string {
+  return pubkey ?? '';
 }
 
 function ensureCurrent(pubkey?: string): MissionsContent {
-  const current = readMissions();
+  const current = sessionStore.get(key(pubkey));
   if (!needsDailyReset(current)) return current!;
   const fresh = createDailyMissionsContent(
     getTodayDateString(),
     current?.evolution ?? [],
     pubkey,
   );
-  writeMissions(fresh);
+  sessionStore.set(key(pubkey), fresh);
   return fresh;
 }
 
@@ -77,7 +61,7 @@ export function trackDailyMissionProgress(
 ): void {
   const current = ensureCurrent(pubkey);
   const updated = trackTally(current, action, count);
-  writeMissions(updated);
+  sessionStore.set(key(pubkey), updated);
   notify({ action, count });
 }
 
@@ -91,7 +75,7 @@ export function trackDailyMissionEvent(
 ): void {
   const current = ensureCurrent(pubkey);
   const updated = trackEvent(current, action, eventId);
-  writeMissions(updated);
+  sessionStore.set(key(pubkey), updated);
   notify({ action, eventId });
 }
 
@@ -106,16 +90,26 @@ export function trackMultipleDailyMissionActions(
   for (const action of actions) {
     current = trackTally(current, action, 1);
   }
-  writeMissions(current);
+  sessionStore.set(key(pubkey), current);
   notify({ actions });
 }
 
-/** Expose read for hooks that need to hydrate from localStorage */
-export function readMissionsFromStorage(): MissionsContent | undefined {
-  return readMissions();
+/** Read current session state for a pubkey. */
+export function readMissionsFromStorage(pubkey?: string): MissionsContent | undefined {
+  return sessionStore.get(key(pubkey));
 }
 
-/** Expose write for hooks that need to sync to localStorage */
-export function writeMissionsToStorage(missions: MissionsContent): void {
-  writeMissions(missions);
+/** Write state to session store for a pubkey. */
+export function writeMissionsToStorage(missions: MissionsContent, pubkey?: string): void {
+  sessionStore.set(key(pubkey), missions);
+}
+
+/**
+ * Hydrate the session store from kind 11125 persisted data.
+ * Called once on mount / account switch when the session store is empty.
+ * No-op if the store already has data for this pubkey.
+ */
+export function hydrateFromPersisted(missions: MissionsContent, pubkey: string): void {
+  if (sessionStore.has(pubkey)) return;
+  sessionStore.set(pubkey, missions);
 }
