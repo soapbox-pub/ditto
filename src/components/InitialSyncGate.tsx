@@ -599,9 +599,6 @@ function ProfileStep({
     banner: "",
     website: "",
   });
-  const [extraFields, setExtraFields] = useState<
-    Array<{ label: string; value: string }>
-  >([]);
   const [cropState, setCropState] = useState<{
     imageSrc: string;
     aspect: number;
@@ -656,17 +653,10 @@ function ProfileStep({
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
-    const hasData =
-      Object.values(profileData).some((v) => v) || extraFields.length > 0;
+    const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
       try {
-        const data: Record<string, unknown> = { ...profileData };
-        const validFields = extraFields.filter(
-          (f) => f.label.trim() && f.value.trim(),
-        );
-        if (validFields.length > 0)
-          data.fields = validFields.map((f) => [f.label, f.value]);
-        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
+        await publishEvent({ kind: 0, content: JSON.stringify(profileData), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -679,7 +669,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, extraFields, publishEvent, queryClient, onNext]);
+  }, [user, profileData, publishEvent, queryClient, onNext]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -725,8 +715,6 @@ function ProfileStep({
           }
           onPickImage={handlePickImage}
           showNip05={false}
-          extraFields={extraFields}
-          onExtraFieldsChange={setExtraFields}
         />
       </div>
 
