@@ -440,10 +440,16 @@ You provide the app name and the full HTML source code. The tool handles everyth
 
 **Important constraints for the HTML code:**
 - The app must be ENTIRELY self-contained in a single HTML file with inline <style> and <script> tags
-- NO external resources: no CDN links, no external CSS/JS, no Google Fonts, no fetch() calls to APIs
+- NO external resources: no CDN links, no external CSS/JS, no Google Fonts
 - NO ES module imports — use plain <script> tags only
 - All assets (images, sounds) must be generated procedurally (canvas drawing, CSS shapes, Web Audio API) or embedded as data: URIs
-- The app runs in a strict sandbox with no internet access — any external request will silently fail
+- The sandbox blocks all external network access — remote requests silently fail
+- fetch() to relative paths within the archive DOES work; localStorage is available and scoped to the app
+
+**Input handling:**
+- The host app provides a built-in virtual gamepad — do NOT build touch controls or on-screen gamepads
+- Only use keydown/keyup listeners. The host gamepad maps to: ArrowUp/Down/Left/Right for D-pad, x (88) = A, z (90) = B, Enter (13) = Start, Shift (16) = Select
+- Fill the entire viewport with the app canvas — no space needed for controls
 
 **Good patterns:**
 - Canvas-based games (pong, snake, tetris, breakout, etc.)

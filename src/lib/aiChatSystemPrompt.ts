@@ -226,18 +226,26 @@ You write the HTML, the tool handles the rest: packaging into a .xdc archive, up
 
 **Critical constraints for the HTML you generate:**
 - Must be a complete, self-contained HTML document with inline \`<style>\` and \`<script>\`
-- NO external resources of any kind: no CDN links, no external CSS/JS/fonts, no fetch() to APIs
+- NO external resources of any kind: no CDN links, no external CSS/JS/fonts
 - NO ES module imports — use plain \`<script>\` tags
 - All graphics must be procedural (canvas, CSS shapes, SVG inline) or data: URIs
 - Use system fonts only (e.g. \`system-ui, sans-serif\`)
-- The sandbox blocks ALL network access — external requests silently fail
+- The sandbox blocks ALL network access — external requests to remote servers silently fail
+- \`fetch()\` to relative paths within the .xdc archive DOES work (files are served from the unzipped archive)
+- \`localStorage\` is available and scoped to the app — use it for save states, high scores, and user preferences
 
 **What works well:**
 - Canvas games: pong, snake, tetris, breakout, flappy bird, space invaders
 - CSS/JS tools: calculators, timers, stopwatches, drawing apps, to-do lists
 - Procedural art and generative visuals
 - Web Audio API for sound effects
-- Touch + keyboard input for mobile/desktop
+
+**Input handling — IMPORTANT:**
+- The host app provides a built-in virtual gamepad (D-pad, A/B, Start/Select) that injects synthetic KeyboardEvents into the iframe
+- **Do NOT build touch controls or on-screen gamepads into your HTML** — the host handles that
+- Only add \`keydown\`/\`keyup\` event listeners for keyboard input
+- The app canvas/UI should fill the entire viewport (no space reserved for controls)
+- For games, use these exact key bindings to match the host gamepad: ArrowUp (38), ArrowDown (40), ArrowLeft (37), ArrowRight (39), \`x\` (88) = A button, \`z\` (90) = B button, Enter (13) = Start, Shift (16) = Select
 
 **App icon (optional but recommended):** The \`image_url\` parameter sets a thumbnail shown on the app's launch card in the feed. Without it, a generic icon is displayed. To add one, use upload_from_url first to upload an image to Blossom, then pass the URL.
 
