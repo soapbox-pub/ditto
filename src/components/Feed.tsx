@@ -327,10 +327,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               message={
                 emptyMessage ?? (
                   activeTab === 'follows'
-                    ? 'No posts yet. Follow some people to see their content here.'
+                    ? 'Your feed is empty. Follow some people to see their posts here.'
                     : 'No posts found. Check your relay connections or come back soon.'
                 )
               }
+              showDiscover={!emptyMessage && activeTab === 'follows'}
               onSwitchToGlobal={
                 activeTab === 'follows' && showGlobalFeed
                   ? () => handleSetActiveTab('global')
