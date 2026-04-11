@@ -143,6 +143,8 @@ export function useBlobbiAttention({
   
   /**
    * Clear UI attention and any pending timeouts.
+   * Also resets the cooldown timestamp so a subsequent triggerAttention
+   * is not blocked by the cooldown of the attention that was just cancelled.
    * Note: Typing attention clears itself via its own timeout.
    */
   const clearAttention = useCallback(() => {
@@ -150,6 +152,9 @@ export function useBlobbiAttention({
       clearTimeout(attentionTimeoutRef.current);
       attentionTimeoutRef.current = null;
     }
+    
+    // Reset cooldown so an immediate re-trigger is not blocked
+    lastAttentionTimeRef.current = 0;
     
     setUiAttention(prev => {
       if (prev) {
