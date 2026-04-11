@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.6.3] - 2026-04-10
+
+### Added
+- Lightning invoices embedded in posts now render as tappable payment cards
+- Blobbi companions in the feed reflect their current condition and projected health
+
+### Changed
+- Profile headers are cleaner -- lightning addresses and verification badges moved out of the way, and website URLs no longer show a trailing slash
+- Login credentials are saved to your browser's built-in password manager for easier sign-in across sessions
+- "Request to Vanish" renamed to "Delete Account" for clarity
+
+### Fixed
+- Badge image uploads now show a recommended 1:1 aspect ratio hint so your badges don't get cropped unexpectedly
+- Security hardening for URLs and styles sourced from the network
+
 ## [2.6.2] - 2026-04-08
 
 ### Added
