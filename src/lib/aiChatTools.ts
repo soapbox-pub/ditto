@@ -433,6 +433,48 @@ After receiving results, summarize the key topics, conversations, and notable po
   {
     type: 'function' as const,
     function: {
+      name: 'make_it_rain',
+      description: `Trigger a fun visual weather effect on the user's screen. This is a playful easter egg — use it when the mood calls for it!
+
+Use "start" to activate rain or snow, and "stop" to turn it off. The effect persists across the entire app (all pages) until the user asks to stop it.
+
+**When to use this (be creative!):**
+- The user literally says "make it rain" or asks for rain/snow
+- Celebrating something (use heavy rain or snow for dramatic flair)
+- The conversation has a moody, dramatic, or cozy vibe
+- The user is feeling down (gentle rain can be soothing)
+- Discussing weather, seasons, or nature
+- Any moment where a visual flourish would delight
+
+**When to stop:**
+- The user asks to stop, turn off, or clear the effect
+- The user says "enough" or seems annoyed by it`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          action: {
+            type: 'string',
+            description: 'Whether to start or stop the effect.',
+            enum: ['start', 'stop'],
+          },
+          type: {
+            type: 'string',
+            description: 'The type of precipitation. Defaults to "rain".',
+            enum: ['rain', 'snow'],
+          },
+          intensity: {
+            type: 'string',
+            description: 'How intense the effect should be. "light" for gentle ambiance, "moderate" for noticeable effect, "heavy" for dramatic downpour. Defaults to "moderate".',
+            enum: ['light', 'moderate', 'heavy'],
+          },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_webxdc',
       description: `Create and publish a WebXDC mini-app. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run inside a sandboxed iframe with no internet access.
 

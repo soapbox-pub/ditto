@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useMCPTools } from '@/hooks/useMCPTools';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
+import { useScreenEffect } from '@/contexts/ScreenEffectContext';
 import { bundledFonts } from '@/lib/fonts';
 import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
 import { buildSpellTags, buildUnsignedSpell, resolveSpell } from '@/lib/spellEngine';
@@ -39,6 +40,7 @@ export function useAIChatTools() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { savedFeeds } = useSavedFeeds();
+  const { setScreenEffect } = useScreenEffect();
 
   const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
   const { getBuddySecretKey } = useBuddy();
@@ -1125,10 +1127,29 @@ export function useAIChatTools() {
         }
       }
 
+      case 'make_it_rain': {
+        const action = typeof args.action === 'string' ? args.action : 'start';
+
+        if (action === 'stop') {
+          setScreenEffect(null);
+          return { result: JSON.stringify({ success: true, message: 'Screen effect stopped.' }) };
+        }
+
+        const effectType = (args.type === 'snow' ? 'snow' : 'rain') as 'rain' | 'snow';
+        const intensity = (['light', 'moderate', 'heavy'].includes(args.intensity as string)
+          ? args.intensity
+          : 'moderate') as 'light' | 'moderate' | 'heavy';
+
+        setScreenEffect({ type: effectType, intensity });
+
+        const label = `${intensity} ${effectType}`;
+        return { result: JSON.stringify({ success: true, message: `${label} effect activated!` }) };
+      }
+
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey, savedFeeds]);
+  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey, savedFeeds, setScreenEffect]);
 
   return { executeToolCall, mcpTools, mcpToolsLoading, savedFeeds };
 }

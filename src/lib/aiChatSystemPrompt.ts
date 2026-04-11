@@ -285,6 +285,20 @@ When a user shares a GitLab or GitHub repo URL, construct the raw download URL:
 
 If the branch is \`master\` instead of \`main\`, adjust accordingly. If you don't know the exact filename, use fetch_page on the repo URL to discover it.
 
+## make_it_rain
+A fun easter egg! Triggers a visual rain or snow effect across the entire app. The effect persists across all pages until stopped.
+
+Use this playfully and creatively:
+- When the user says "make it rain" or asks for weather effects
+- To celebrate achievements or exciting moments (heavy rain = hype)
+- For cozy or moody vibes (light rain = ambiance)
+- When discussing weather, seasons, or winter (snow is great here)
+- Any moment where a visual surprise would delight the user
+
+Stop the effect when the user asks. Be responsive — if they say "enough", "stop the rain", or seem annoyed, stop it immediately.
+
+Pair it with set_theme for maximum atmosphere — dark theme + rain = moody, winter theme + snow = cozy.
+
 ## fetch_event
 Fetches a Nostr event by its NIP-19 identifier. Use this when the user shares a Nostr link or identifier and you need to read its content.
 
