@@ -1,10 +1,12 @@
 package pub.ditto.app;
 
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
@@ -13,6 +15,8 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.getcapacitor.JSObject;
@@ -30,6 +34,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Capacitor plugin that creates isolated Android WebViews for sandboxed content.
@@ -79,17 +85,19 @@ public class SandboxPlugin extends Plugin {
             SandboxInstance sandbox = new SandboxInstance(sandboxId, this);
             sandboxes.put(sandboxId, sandbox);
 
-            // Add the WebView on top of the Capacitor WebView.
-            // The parent is a CoordinatorLayout — using the wrong LayoutParams
-            // type causes a ClassCastException when it intercepts touch events.
+            // Add the container (WebView + spinner overlay) on top of the
+            // Capacitor WebView. The parent is a CoordinatorLayout — using
+            // the wrong LayoutParams type causes a ClassCastException when
+            // it intercepts touch events.
             View capWebView = getBridge().getWebView();
             ViewGroup parent = (ViewGroup) capWebView.getParent();
             CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(pxWidth, pxHeight);
             params.leftMargin = pxX;
             params.topMargin = pxY;
-            parent.addView(sandbox.webView, params);
+            parent.addView(sandbox.container, params);
 
-            // Load the initial page.
+            // Load the initial page. The native spinner overlay sits on
+            // top of the WebView and animates independently.
             sandbox.webView.loadUrl("https://" + sandboxId + ".sandbox.native/index.html");
 
             call.resolve();
@@ -131,7 +139,7 @@ public class SandboxPlugin extends Plugin {
             CoordinatorLayout.LayoutParams params = new CoordinatorLayout.LayoutParams(pxWidth, pxHeight);
             params.leftMargin = pxX;
             params.topMargin = pxY;
-            sandbox.webView.setLayoutParams(params);
+            sandbox.container.setLayoutParams(params);
 
             call.resolve();
         });
@@ -214,9 +222,9 @@ public class SandboxPlugin extends Plugin {
         mainHandler.post(() -> {
             SandboxInstance sandbox = sandboxes.remove(sandboxId);
             if (sandbox != null) {
-                ViewGroup parent = (ViewGroup) sandbox.webView.getParent();
+                ViewGroup parent = (ViewGroup) sandbox.container.getParent();
                 if (parent != null) {
-                    parent.removeView(sandbox.webView);
+                    parent.removeView(sandbox.container);
                 }
                 sandbox.webView.destroy();
             }
@@ -244,13 +252,19 @@ public class SandboxPlugin extends Plugin {
      */
     private static class SandboxInstance {
         final String id;
+        /** Wrapper layout that holds the WebView and the loading overlay. */
+        final FrameLayout container;
         final WebView webView;
         final SandboxPlugin plugin;
         private final ConcurrentHashMap<String, PendingRequest> pendingRequests = new ConcurrentHashMap<>();
+        /** Native spinner overlay, shown while the sandbox content loads. */
+        private ProgressBar spinner;
 
         SandboxInstance(String id, SandboxPlugin plugin) {
             this.id = id;
             this.plugin = plugin;
+
+            this.container = new FrameLayout(plugin.getActivity());
             this.webView = new WebView(plugin.getActivity());
 
             WebSettings settings = webView.getSettings();
@@ -260,13 +274,53 @@ public class SandboxPlugin extends Plugin {
             settings.setAllowContentAccess(false);
             settings.setDatabaseEnabled(true);
 
-            webView.setBackgroundColor(Color.WHITE);
+            webView.setBackgroundColor(Color.parseColor("#14161f"));
 
             // Add JavaScript interface for script->native communication.
             webView.addJavascriptInterface(new SandboxBridge(this), "__sandboxNative");
 
             // Inject the bridge script and intercept requests.
             webView.setWebViewClient(new SandboxWebViewClient(this));
+
+            // Build the container: WebView fills it, spinner overlays on top.
+            container.addView(webView, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+
+            // Native spinner overlay — uses the Android indeterminate
+            // ProgressBar which animates on the render thread, so it keeps
+            // spinning even when the main/IO threads are busy.
+            spinner = new ProgressBar(plugin.getActivity());
+            spinner.setIndeterminate(true);
+            spinner.getIndeterminateDrawable().setColorFilter(
+                    Color.parseColor("#7c5cdc"), PorterDuff.Mode.SRC_IN);
+            FrameLayout.LayoutParams spinnerParams = new FrameLayout.LayoutParams(
+                    dpToPx(plugin, 32), dpToPx(plugin, 32), Gravity.CENTER);
+            container.addView(spinner, spinnerParams);
+
+            // Dark background behind the spinner.
+            View overlay = new View(plugin.getActivity());
+            overlay.setBackgroundColor(Color.parseColor("#14161f"));
+            // Insert the overlay between the WebView (index 0) and spinner (index 1)
+            // so it covers the WebView but sits behind the spinner.
+            container.addView(overlay, 1, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+
+        /** Remove the native loading overlay. Safe to call multiple times. */
+        void hideSpinner() {
+            if (spinner != null) {
+                // Remove spinner and overlay (indices 2 and 1 after WebView at 0).
+                if (container.getChildCount() > 2) container.removeViewAt(2); // spinner
+                if (container.getChildCount() > 1) container.removeViewAt(1); // overlay
+                spinner = null;
+            }
+        }
+
+        private static int dpToPx(SandboxPlugin plugin, int dp) {
+            float density = plugin.getActivity().getResources().getDisplayMetrics().density;
+            return Math.round(dp * density);
         }
 
         void postMessageToWebView(String jsonString) {
@@ -353,8 +407,11 @@ public class SandboxPlugin extends Plugin {
             // Emit to JS.
             sandbox.plugin.emitFetchRequest(sandbox.id, requestId, serialisedRequest);
 
-            // Block this thread until JS responds (with a timeout).
-            WebResourceResponse response = pending.awaitResponse(10000);
+            // Block until JS responds. Each asset is fetched from a Blossom
+            // server over the network, so we need a generous timeout.  The
+            // WebView IO thread pool has ~6 threads; if all are blocked,
+            // subsequent requests queue until a thread frees up.
+            WebResourceResponse response = pending.awaitResponse(60000);
 
             if (response != null) {
                 return response;
@@ -377,6 +434,11 @@ public class SandboxPlugin extends Plugin {
                 bridgeInjected = true;
                 view.evaluateJavascript(getBridgeScript(), null);
             }
+
+            // Remove the native spinner once the first page has finished
+            // loading (all initial resources resolved). This runs on the
+            // main thread, so the removal is safe.
+            sandbox.hideSpinner();
         }
 
         private String getBridgeScript() {
@@ -446,11 +508,12 @@ public class SandboxPlugin extends Plugin {
     }
 
     /**
-     * A pending request that blocks the WebViewClient thread until resolved.
+     * A pending request that blocks the WebViewClient IO thread until JS
+     * responds with the complete resource.
      */
     private static class PendingRequest {
-        private WebResourceResponse response;
-        private final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        private volatile WebResourceResponse response;
+        private final CountDownLatch latch = new CountDownLatch(1);
 
         void resolve(WebResourceResponse response) {
             this.response = response;
@@ -459,7 +522,7 @@ public class SandboxPlugin extends Plugin {
 
         WebResourceResponse awaitResponse(long timeoutMs) {
             try {
-                latch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+                latch.await(timeoutMs, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
