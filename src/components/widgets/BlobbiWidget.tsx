@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Egg, Utensils, Gamepad2, Droplets, Heart, Zap, Moon, Sun } from 'lucide-react';
+import { AlertTriangle, Egg, Utensils, Gamepad2, Droplets, Heart, Zap, Pill, Moon, Sun } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -60,6 +60,7 @@ const QUICK_ITEMS: Record<string, { itemId: string; action: InventoryAction }> =
   feed: { itemId: 'food_apple', action: 'feed' },
   play: { itemId: 'toy_ball', action: 'play' },
   clean: { itemId: 'hyg_soap', action: 'clean' },
+  medicine: { itemId: 'med_vitamins', action: 'medicine' },
 };
 
 /** localStorage key helper matching BlobbiPage pattern. */
@@ -227,6 +228,7 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
   const showFeed = isActionVisibleForStage(stage, 'feed');
   const showPlay = isActionVisibleForStage(stage, 'play');
   const showClean = isActionVisibleForStage(stage, 'clean');
+  const showMedicine = isActionVisibleForStage(stage, 'medicine');
   const showSleep = stage !== 'egg'; // eggs can't sleep
 
   const handleQuickAction = useCallback(async (key: string) => {
@@ -294,6 +296,15 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
             color="text-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
             disabled={isActionPending}
             onClick={() => handleQuickAction('clean')}
+          />
+        )}
+        {showMedicine && (
+          <QuickActionButton
+            icon={<Pill className="size-3.5" />}
+            label="Heal"
+            color="text-green-500 bg-green-500/10 hover:bg-green-500/20"
+            disabled={isActionPending}
+            onClick={() => handleQuickAction('medicine')}
           />
         )}
         {showSleep && (
