@@ -7,6 +7,7 @@ import { StatIndicator } from '@/blobbi/ui/StatIndicator';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
@@ -147,6 +148,8 @@ export function BlobbiWidget() {
   // Companion toggle handler (same logic as BlobbiPage)
   const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
   const isCurrentCompanion = companion ? profile?.currentCompanion === companion.d : false;
+  const { companion: activeCompanion } = useBlobbiCompanionData();
+  const isActiveFloatingCompanion = companion ? activeCompanion?.d === companion.d : false;
 
   const handleSetAsCompanion = useCallback(async () => {
     if (!profile || !companion) return;
@@ -227,6 +230,7 @@ export function BlobbiWidget() {
       onRest={handleRest}
       isActionPending={isActionPending}
       isCurrentCompanion={isCurrentCompanion}
+      isActiveFloatingCompanion={isActiveFloatingCompanion}
       isUpdatingCompanion={isUpdatingCompanion}
       onToggleCompanion={handleSetAsCompanion}
     />
@@ -239,11 +243,12 @@ interface BlobbiWidgetContentProps {
   onRest: () => Promise<void>;
   isActionPending: boolean;
   isCurrentCompanion: boolean;
+  isActiveFloatingCompanion: boolean;
   isUpdatingCompanion: boolean;
   onToggleCompanion: () => Promise<void>;
 }
 
-function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, isCurrentCompanion, isUpdatingCompanion, onToggleCompanion }: BlobbiWidgetContentProps) {
+function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, isCurrentCompanion, isActiveFloatingCompanion, isUpdatingCompanion, onToggleCompanion }: BlobbiWidgetContentProps) {
   const projected = useProjectedBlobbiState(companion);
   const defaultStats: BlobbiStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
   const stats = projected?.stats ?? defaultStats;
@@ -279,6 +284,32 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
       }
     }
   }, [onUseItem, onRest]);
+
+  // When this Blobbi is the active floating companion, show "out exploring" state
+  if (isActiveFloatingCompanion) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6">
+        <Footprints className="size-10 text-muted-foreground/30" />
+        <span className="text-sm font-semibold">{companion.name}</span>
+        <span className="text-xs text-muted-foreground">Out exploring with you</span>
+        <button
+          onClick={onToggleCompanion}
+          disabled={isUpdatingCompanion}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-semibold transition-all',
+            'hover:-translate-y-0.5 hover:scale-105 active:scale-95',
+            isUpdatingCompanion && 'opacity-50 pointer-events-none',
+          )}
+          style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
+        >
+          {isUpdatingCompanion
+            ? <Loader2 className="size-3.5 animate-spin" />
+            : <Footprints className="size-3.5" />}
+          <span>Bring home</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col items-center gap-3 py-3">
