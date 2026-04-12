@@ -193,11 +193,18 @@ export function useRouteReaction({
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
-    // Cancel pending timeouts from a previous route change but keep the
-    // current attention alive — the delayed reaction will override it.
-    // This prevents the gaze system from falling to random mode during
-    // the ROUTE_REACTION_DELAY gap.
+    // Cancel pending timeouts from a previous route change.
     cancelPendingTimeouts();
+
+    // Immediately set a preliminary attention target at viewport center-top
+    // so the gaze system never falls to random/mouse-follow mode during the
+    // delay.  This is a cheap viewport-only calculation (no DOM query) so it
+    // is safe to call synchronously.  The delayed reaction below will replace
+    // it with a precise DOM-measured position.
+    triggerAttention(
+      { x: window.innerWidth / 2, y: window.innerHeight * 0.25 },
+      { duration: LOOK_DURATION_MAX, priority: 'normal', source: 'route:preliminary', bypassCooldown: true },
+    );
 
     // Small delay to let the new page's DOM mount before querying positions
     const startTid = setTimeout(() => {
