@@ -95,7 +95,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     label: 'Blobbi',
     description: 'Your virtual pet companion',
     icon: Egg,
-    defaultHeight: 280,
+    defaultHeight: 350,
     minHeight: 200,
     maxHeight: 500,
     category: 'personal',

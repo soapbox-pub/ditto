@@ -4,6 +4,7 @@ import { Egg, Utensils, Gamepad2, Droplets, Moon, Sun } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
@@ -198,6 +199,11 @@ interface BlobbiWidgetContentProps {
 
 function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: BlobbiWidgetContentProps) {
   const projected = useProjectedBlobbiState(companion);
+  const defaultStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
+  const { recipe, recipeLabel } = useStatusReaction({
+    stats: projected?.stats ?? defaultStats,
+    enabled: companion.state !== 'sleeping',
+  });
   const stage = companion.stage;
   const isSleeping = companion.state === 'sleeping';
 
@@ -226,6 +232,8 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
           size="lg"
           animated
           lookMode="follow-pointer"
+          recipe={recipe}
+          recipeLabel={recipeLabel}
         />
       </Link>
 
