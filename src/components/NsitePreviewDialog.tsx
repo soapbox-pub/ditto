@@ -5,11 +5,16 @@ import { Package, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
 import { Button } from '@/components/ui/button';
+import { NsitePermissionManager } from '@/components/NsitePermissionManager';
+import { NsitePermissionPrompt } from '@/components/NsitePermissionPrompt';
 import { SandboxFrame } from '@/components/SandboxFrame';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNsiteSignerRpc } from '@/hooks/useNsiteSignerRpc';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
+import { getNsiteNostrProviderScript } from '@/lib/nsiteNostrProvider';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { getPreviewInjectedScript } from '@/lib/previewInjectedScript';
 import { getMimeType } from '@/lib/sandbox';
@@ -197,12 +202,19 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
 
   // Use the NIP-5A canonical subdomain as the stable identifier, then derive
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
   // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
   const nsiteSubdomain = getNsiteSubdomain(event);
   const previewSubdomain = useMemo(() => deriveIframeSubdomain('nsite', nsiteSubdomain), [nsiteSubdomain]);
+
+  // NIP-07 signer proxy — only active when a user is logged in.
+  const signerRpc = useNsiteSignerRpc({
+    siteId: nsiteSubdomain,
+    siteName: appName,
+  });
 
   // Build the manifest and server list from the event (memoised per event identity)
   const manifest = useRef<Map<string, string>>(new Map());
@@ -224,11 +236,24 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     servers.current = resolveServers(event, appServers.length > 0 ? appServers : APP_BLOSSOM_SERVERS.servers);
   }, [event, config.blossomServerMetadata, config.useAppBlossomServers]);
 
-  /** Injected scripts: just the path normalisation snippet for SPA support. */
-  const injectedScripts = useMemo<InjectedScript[]>(() => [{
-    path: '__injected__/preview.js',
-    content: getPreviewInjectedScript(),
-  }], []);
+  /** Injected scripts: SPA path normalisation + NIP-07 provider (when logged in). */
+  const injectedScripts = useMemo<InjectedScript[]>(() => {
+    const scripts: InjectedScript[] = [{
+      path: '__injected__/preview.js',
+      content: getPreviewInjectedScript(),
+    }];
+
+    // When a user is logged in, inject a NIP-07 provider so the nsite can
+    // use window.nostr to interact with the user's signer.
+    if (user) {
+      scripts.push({
+        path: '__injected__/nostr-provider.js',
+        content: getNsiteNostrProviderScript(user.pubkey),
+      });
+    }
+
+    return scripts;
+  }, [user]);
 
   /**
    * Called by SandboxFrame before the native WebView is created.
@@ -324,7 +349,10 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
           <span className="text-sm font-medium truncate">{appName}</span>
         </div>
 
-        {/* Close */}
+        {/* Permissions + Close */}
+        {user && (
+          <NsitePermissionManager siteId={nsiteSubdomain} siteName={appName} />
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -337,16 +365,27 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       </div>
 
       {/* Sandboxed iframe */}
-      <div className="flex-1 min-h-0 bg-background">
+      <div className="flex-1 min-h-0 bg-background relative">
         <SandboxFrame
           key={`${previewSubdomain}-${open}`}
           id={previewSubdomain}
           resolveFile={resolveFile}
           onReady={onReady}
+          onRpc={user ? signerRpc.onRpc : undefined}
           injectedScripts={injectedScripts}
           className="w-full h-full border-0"
           title={`${appName} preview`}
         />
+
+        {/* Permission prompt overlay */}
+        {signerRpc.pendingPrompt && (
+          <NsitePermissionPrompt
+            appPicture={appPicture}
+            appName={appName}
+            prompt={signerRpc.pendingPrompt}
+            onResolve={signerRpc.resolvePrompt}
+          />
+        )}
       </div>
     </div>,
     document.body,
