@@ -2,7 +2,7 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri } from "@/lib/sidebarItems";
+import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri, isNsiteUri } from "@/lib/sidebarItems";
 import { useCallback, useMemo } from "react";
 
 // ── Order computation ─────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ function computeOrderedItems(
     if (seen.has(item)) continue;
     seen.add(item);
 
-    if (SIDEBAR_ITEM_IDS.has(item) || isNostrUri(item) || isExternalUri(item)) {
+    if (SIDEBAR_ITEM_IDS.has(item) || isNostrUri(item) || isExternalUri(item) || isNsiteUri(item)) {
       ordered.push(item);
     }
     // else: unknown entry — skip

@@ -8,10 +8,11 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
+import { NsiteSidebarItem } from '@/components/NsiteSidebarItem';
 import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
@@ -178,6 +179,19 @@ export function SidebarNavList({
                 sortableId={sortableId}
                 editing={editing}
                 onRemove={() => onRemove(id, i)}
+              />
+            );
+          }
+          if (isNsiteUri(id)) {
+            return (
+              <NsiteSidebarItem
+                key={id}
+                id={id}
+                active={isActive(id)}
+                editing={editing}
+                onRemove={(removeId) => onRemove(removeId, i)}
+                onClick={getOnClick?.(id)}
+                linkClassName={linkClassName}
               />
             );
           }

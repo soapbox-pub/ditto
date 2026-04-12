@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 import { AudioVisualizer } from "@/components/AudioVisualizer";
@@ -929,10 +929,18 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const location = useLocation();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
+
+  // Auto-play nsite when navigated from a pinned nsite sidebar item.
+  // Uses React Router state (not URL params) so external URLs cannot trigger auto-launch.
+  // The state includes a timestamp so each sidebar click produces a distinct key,
+  // allowing the player to re-open even when already on the same page.
+  const routeState = location.state as Record<string, unknown> | null;
+  const nsiteAutoPlayKey = routeState?.nsiteAutoPlay ? (routeState.nsiteAutoPlayTs as number) || 1 : 0;
 
   // Refetch the author's profile whenever we navigate to a post by this author.
   useEffect(() => {
@@ -2130,7 +2138,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </Suspense>
             ) : isNsite ? (
               <div className="mt-3">
-                <NsiteCard event={event} />
+                <NsiteCard event={event} autoPlayKey={nsiteAutoPlayKey} />
               </div>
             ) : isZapstoreApp ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">

@@ -59,6 +59,16 @@ export function isNostrUri(id: string): boolean {
   return id.startsWith("nostr:");
 }
 
+/** Returns true if the given sidebar order ID is an `nsite://` URI. */
+export function isNsiteUri(id: string): boolean {
+  return id.startsWith("nsite://");
+}
+
+/** Extracts the nsite subdomain from an `nsite://` URI. */
+export function nsiteUriToSubdomain(uri: string): string {
+  return uri.slice("nsite://".length);
+}
+
 /** Extracts the NIP-19 bech32 identifier from a `nostr:` URI. Returns the raw string if not a nostr: URI. */
 export function nostrUriToNip19(uri: string): string {
   return uri.startsWith("nostr:") ? uri.slice(6) : uri;
@@ -276,6 +286,15 @@ export function isItemActive(
   if (isNostrUri(id)) {
     const nip19Id = nostrUriToNip19(id);
     return pathname === `/${nip19Id}`;
+  }
+
+  // Nsite URI items: active when the nsite preview is open for this subdomain.
+  // The pathname will be the naddr of the nsite event, which we can't cheaply
+  // derive here without async resolution. For now, nsite items are never
+  // highlighted as "active" via pathname — the visual indication comes from
+  // the nsite preview panel being open.
+  if (isNsiteUri(id)) {
+    return false;
   }
 
   // External content items: active when pathname matches /i/<encoded-value>

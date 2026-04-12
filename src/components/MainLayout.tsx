@@ -8,6 +8,7 @@ import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
@@ -138,10 +139,17 @@ function MainLayoutInner() {
  */
 export function MainLayout() {
   const store = useMemo(() => new LayoutStore(), []);
+  const [activeSubdomain, setActiveSubdomain] = useState<string | null>(null);
+  const nsitePlayer = useMemo<NsitePlayerState>(
+    () => ({ activeSubdomain, setActiveSubdomain }),
+    [activeSubdomain],
+  );
 
   return (
     <LayoutStoreContext.Provider value={store}>
-      <MainLayoutInner />
+      <NsitePlayerContext.Provider value={nsitePlayer}>
+        <MainLayoutInner />
+      </NsitePlayerContext.Provider>
     </LayoutStoreContext.Provider>
   );
 }
