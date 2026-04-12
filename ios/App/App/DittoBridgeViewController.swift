@@ -21,6 +21,8 @@ class DittoBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        NSLog("[DittoBridgeVC] capacitorDidLoad — webView=\(webView == nil ? "nil" : "present")")
+        NSLog("[DittoBridgeVC] capacitorDidLoad — sharedSchemeHandler=\(SandboxPlugin.sharedSchemeHandler == nil ? "nil" : "set"), plugin=\(SandboxPlugin.sharedSchemeHandler?.plugin == nil ? "nil" : "set")")
         webView?.allowsBackForwardNavigationGestures = true
     }
 }
