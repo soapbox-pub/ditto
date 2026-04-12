@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
-import { SidebarNavList, MORE_SEPARATOR_ID } from '@/components/SidebarNavItem';
+import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import LoginDialog from '@/components/auth/LoginDialog';
@@ -23,6 +23,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useSidebarEditing } from '@/hooks/useSidebarEditing';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { genUserName } from '@/lib/genUserName';
@@ -68,26 +69,9 @@ export function LeftSidebar() {
 
   const homePage = config.homePage;
 
-  // In editing mode, build a combined list: visible + __more__ + hidden
-  const editingItems = useMemo(() => {
-    if (!editing) return [];
-    return [...orderedItems, MORE_SEPARATOR_ID, ...hiddenItems.map((h) => h.id)];
-  }, [editing, orderedItems, hiddenItems]);
-
-  const handleEditReorder = useCallback((newOrder: string[]) => {
-    const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
-    if (moreIdx === -1) return;
-    const newVisible = newOrder.slice(0, moreIdx);
-    updateSidebarOrder(newVisible);
-  }, [updateSidebarOrder]);
-
-  const handleEditRemove = useCallback((id: string, index?: number) => {
-    if (id === 'divider' && index !== undefined) {
-      removeFromSidebar(id, index);
-    } else {
-      removeFromSidebar(id);
-    }
-  }, [removeFromSidebar]);
+  const { editingItems, handleEditReorder, handleEditRemove } = useSidebarEditing({
+    editing, items: orderedItems, hiddenItems, updateSidebarOrder, removeFromSidebar,
+  });
 
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
     if (location.pathname === to) {

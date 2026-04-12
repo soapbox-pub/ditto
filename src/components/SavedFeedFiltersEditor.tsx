@@ -14,56 +14,16 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useAuthor } from '@/hooks/useAuthor';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 import type { UserList } from '@/hooks/useUserLists';
 import type { FollowPack } from '@/hooks/useFollowPacks';
+import type { KindOption } from '@/lib/feedFilterUtils';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type KindOption = {
-  value: string;
-  label: string;
-  description: string;
-  parentId: string;
-  icon: React.ComponentType<{ className?: string }> | undefined;
-};
-
-// ─── Kind options (built once) ───────────────────────────────────────────────
-
-export function buildKindOptions(): KindOption[] {
-  const options: KindOption[] = [];
-  for (const def of EXTRA_KINDS) {
-    if (def.subKinds) {
-      for (const sub of def.subKinds) {
-        options.push({
-          value: String(sub.kind),
-          label: `${sub.label} (${sub.kind})`,
-          description: sub.description,
-          parentId: def.id,
-          icon: CONTENT_KIND_ICONS[def.id],
-        });
-      }
-    } else {
-      options.push({
-        value: String(def.kind),
-        label: `${def.label} (${def.kind})`,
-        description: def.description,
-        parentId: def.id,
-        icon: CONTENT_KIND_ICONS[def.id],
-      });
-    }
-  }
-  const seen = new Set<string>();
-  return options.filter((o) => {
-    if (seen.has(o.value)) return false;
-    seen.add(o.value);
-    return true;
-  });
-}
+// Re-export for consumers that were importing from this file
+export { buildKindOptions } from '@/lib/feedFilterUtils';
+export type { KindOption } from '@/lib/feedFilterUtils';
 
 // ─── useScrollCarets ─────────────────────────────────────────────────────────
 

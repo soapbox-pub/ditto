@@ -1,7 +1,5 @@
-import { bundledFonts } from '@/lib/fonts';
+import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
 import type { ChatMessage } from '@/hooks/useShakespeare';
-
-const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
 /** Minimal profile fields injected into the system prompt so the AI knows who it's talking to. */
 export interface UserIdentity {

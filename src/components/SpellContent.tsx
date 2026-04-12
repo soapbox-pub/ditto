@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Globe, Image, Languages, MessageSquareOff, Radio, Search, SortDesc, Terminal, Users, Video, WandSparkles } from 'lucide-react';
-import { buildKindOptions } from '@/components/SavedFeedFiltersEditor';
+import { buildKindOptions } from '@/lib/feedFilterUtils';
 
 /** Map from kind number string to friendly label like "Posts (1)". */
 const KIND_LABEL_MAP: Map<string, string> = new Map(

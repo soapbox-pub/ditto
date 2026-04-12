@@ -1,10 +1,11 @@
-import { useState, useId, useMemo, useCallback } from 'react';
+import { useState, useId, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { SidebarNavList, MORE_SEPARATOR_ID } from '@/components/SidebarNavItem';
+import { SidebarNavList } from '@/components/SidebarNavItem';
+import { useSidebarEditing } from '@/hooks/useSidebarEditing';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -98,26 +99,9 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
 
 
-  // In editing mode, build a combined list: visible + __more__ + hidden
-  const editingItems = useMemo(() => {
-    if (!editing) return [];
-    return [...visibleItems, MORE_SEPARATOR_ID, ...hiddenItems.map((h) => h.id)];
-  }, [editing, visibleItems, hiddenItems]);
-
-  const handleEditReorder = useCallback((newOrder: string[]) => {
-    const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
-    if (moreIdx === -1) return;
-    const newVisible = newOrder.slice(0, moreIdx);
-    updateSidebarOrder(newVisible);
-  }, [updateSidebarOrder]);
-
-  const handleEditRemove = useCallback((id: string, index?: number) => {
-    if (id === 'divider' && index !== undefined) {
-      removeFromSidebar(id, index);
-    } else {
-      removeFromSidebar(id);
-    }
-  }, [removeFromSidebar]);
+  const { editingItems, handleEditReorder, handleEditRemove } = useSidebarEditing({
+    editing, items: visibleItems, hiddenItems, updateSidebarOrder, removeFromSidebar,
+  });
 
   const handleClose = () => { onOpenChange(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };

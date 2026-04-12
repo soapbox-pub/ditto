@@ -1,7 +1,7 @@
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
-type KindOption = {
+export type KindOption = {
   value: string;
   label: string;
   description: string;
