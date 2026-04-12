@@ -30,6 +30,7 @@ interface TriggerAttentionFn {
     priority?: AttentionPriority;
     source?: string;
     isGlance?: boolean;
+    bypassCooldown?: boolean;
   }): void;
 }
 
@@ -131,6 +132,7 @@ function genericRouteReaction(ctx: RouteReactionContext): void {
     duration,
     priority: 'normal',
     source: 'route:center',
+    bypassCooldown: true, // Previous attention was kept alive during the delay
   });
 }
 
@@ -147,14 +149,22 @@ export function useRouteReaction({
   const prevPathnameRef = useRef(pathname);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  /** Cancel pending timeouts and clear active attention. */
-  const cancelReaction = useCallback(() => {
+  /** Cancel pending timeouts only — does NOT clear the active attention.
+   *  Used during route transitions so the previous gaze target stays alive
+   *  until the new one is ready (avoids a random-gaze gap). */
+  const cancelPendingTimeouts = useCallback(() => {
     for (const tid of timeoutsRef.current) {
       clearTimeout(tid);
     }
     timeoutsRef.current = [];
+  }, []);
+
+  /** Full cancel: pending timeouts + active attention.
+   *  Used when dragging or when the reaction should fully stop. */
+  const cancelReaction = useCallback(() => {
+    cancelPendingTimeouts();
     clearAttention();
-  }, [clearAttention]);
+  }, [cancelPendingTimeouts, clearAttention]);
 
   // Cancel fully on drag (pending timeouts + active attention)
   useEffect(() => {
@@ -183,8 +193,11 @@ export function useRouteReaction({
     const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
-    // Cancel any in-flight reaction from a previous route change
-    cancelReaction();
+    // Cancel pending timeouts from a previous route change but keep the
+    // current attention alive — the delayed reaction will override it.
+    // This prevents the gaze system from falling to random mode during
+    // the ROUTE_REACTION_DELAY gap.
+    cancelPendingTimeouts();
 
     // Small delay to let the new page's DOM mount before querying positions
     const startTid = setTimeout(() => {
@@ -208,8 +221,10 @@ export function useRouteReaction({
     timeoutsRef.current.push(startTid);
 
     return () => {
-      cancelReaction();
+      // Effect cleanup (re-fire or unmount): only cancel timeouts.
+      // Attention auto-clears via its own duration timeout.
+      cancelPendingTimeouts();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- triggerAttention/clearAttention are stable callbacks
-  }, [pathname, hasEnteredOnce, isEntering, cancelReaction]);
+  }, [pathname, hasEnteredOnce, isEntering, cancelPendingTimeouts]);
 }
