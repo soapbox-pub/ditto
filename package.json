@@ -67,7 +67,6 @@
     "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nostrify/nostrify": "^0.51.1",
     "@nostrify/react": "^0.5.1",
     "@nostrify/types": "^0.36.9",

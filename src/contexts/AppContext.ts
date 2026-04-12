@@ -151,13 +151,6 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
-/** Configuration for a Streamable HTTP MCP server. */
-export interface MCPServer {
-  type: 'streamable-http';
-  url: string;
-  headers?: Record<string, string>;
-}
-
 /** A named feed tab stored as a kind:777 spell event. */
 export interface SavedFeed {
   id: string;
@@ -239,8 +232,6 @@ export interface AppConfig {
   aiModel: string;
   /** Custom system prompt override for Buddy chat. Empty string means use the built-in default. */
   aiSystemPrompt: string;
-  /** Configured MCP (Model Context Protocol) servers for Buddy AI tool discovery. */
-  mcpServers: Record<string, MCPServer>;
 }
 
 /** Configuration for a single widget in the right sidebar. */

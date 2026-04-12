@@ -160,7 +160,6 @@ const hardcodedConfig: AppConfig = {
   ],
   aiModel: '',
   aiSystemPrompt: '',
-  mcpServers: {},
 };
 
 /**

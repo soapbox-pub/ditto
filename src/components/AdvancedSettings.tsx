@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Server, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -17,8 +17,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
 import { DEFAULT_SYSTEM_PROMPT_TEMPLATE } from '@/lib/aiChatSystemPrompt';
 
-import type { MCPServer } from '@/contexts/AppContext';
-
 /** The build-time default DSN from the environment variable. */
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 
@@ -35,8 +33,7 @@ export function AdvancedSettings() {
   const [sentryOpen, setSentryOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
-  const [mcpServerName, setMcpServerName] = useState('');
-  const [mcpServerUrl, setMcpServerUrl] = useState('');
+
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
@@ -236,78 +233,7 @@ export function AdvancedSettings() {
                   )}
                 </div>
 
-                {/* MCP Servers */}
-                <div className="space-y-3 pt-2 border-t border-border">
-                  <Label className="text-sm font-medium">MCP Servers</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Connect to MCP servers to give your buddy additional tools (web fetching, search, etc.).
-                  </p>
 
-                  {/* Existing servers list */}
-                  {Object.entries(config.mcpServers).length > 0 && (
-                    <div className="space-y-2">
-                      {Object.entries(config.mcpServers).map(([name, server]) => (
-                        <div key={name} className="flex items-center gap-2 rounded-md border border-border p-2">
-                          <Server className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{server.url}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => {
-                              const updated = { ...config.mcpServers };
-                              delete updated[name];
-                              updateConfig(() => ({ mcpServers: updated }));
-                              toast({ title: `Removed "${name}" MCP server` });
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add new server */}
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={mcpServerName}
-                        onChange={(e) => setMcpServerName(e.target.value)}
-                        placeholder="Name (e.g. web-tools)"
-                        className="flex-1 text-base md:text-sm"
-                      />
-                      <Input
-                        value={mcpServerUrl}
-                        onChange={(e) => setMcpServerUrl(e.target.value)}
-                        placeholder="https://mcp.example.com/mcp"
-                        className="flex-[2] font-mono text-base md:text-sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="shrink-0"
-                        disabled={!mcpServerName.trim() || !mcpServerUrl.trim() || !!config.mcpServers[mcpServerName.trim()]}
-                        onClick={() => {
-                          const name = mcpServerName.trim();
-                          const server: MCPServer = { type: 'streamable-http', url: mcpServerUrl.trim() };
-                          updateConfig(() => ({ mcpServers: { ...config.mcpServers, [name]: server } }));
-                          setMcpServerName('');
-                          setMcpServerUrl('');
-                          toast({ title: `Added "${name}" MCP server` });
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {mcpServerName.trim() && config.mcpServers[mcpServerName.trim()] && (
-                      <p className="text-xs text-destructive">A server with this name already exists</p>
-                    )}
-                  </div>
-                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>

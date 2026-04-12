@@ -115,7 +115,6 @@ export function TestApp({ children }: TestAppProps) {
     sidebarWidgets: [],
     aiModel: '',
     aiSystemPrompt: '',
-    mcpServers: {},
   };
 
   return (

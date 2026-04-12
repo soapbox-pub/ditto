@@ -198,15 +198,6 @@ export const SavedFeedSchema = z.object({
   createdAt: z.number(),
 });
 
-// ─── MCP Server Schema ───────────────────────────────────────────────
-
-/** Zod schema for a single MCP server configuration. */
-export const MCPServerSchema = z.object({
-  type: z.literal('streamable-http'),
-  url: z.string().url(),
-  headers: z.record(z.string(), z.string()).optional(),
-});
-
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
@@ -262,7 +253,6 @@ export const AppConfigSchema = z.object({
   })).optional(),
   aiModel: z.string().optional().default(''),
   aiSystemPrompt: z.string().optional().default(''),
-  mcpServers: z.record(z.string(), MCPServerSchema).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

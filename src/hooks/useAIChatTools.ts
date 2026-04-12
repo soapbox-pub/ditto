@@ -9,7 +9,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useMCPTools } from '@/hooks/useMCPTools';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useScreenEffect } from '@/contexts/ScreenEffectContext';
 import { bundledFonts } from '@/lib/fonts';
@@ -22,7 +21,6 @@ import { DITTO_RELAYS } from '@/lib/appRelays';
 import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
 import type { ToolExecutorResult } from '@/lib/aiChatTools';
-import type { OpenAITool } from '@/lib/MCPClient';
 
 // ─── Helpers ───
 
@@ -98,28 +96,9 @@ export function useAIChatTools() {
   const { savedFeeds } = useSavedFeeds();
   const { setScreenEffect } = useScreenEffect();
 
-  const { tools: mcpToolDefs, clients: mcpClients, isLoading: mcpLoading } = useMCPTools();
   const { getBuddySecretKey } = useBuddy();
 
-  /** MCP tool definitions in OpenAI format, ready to merge with built-in TOOLS. */
-  const mcpTools: OpenAITool[] = Object.values(mcpToolDefs);
-
-  /** Whether MCP tool discovery is still in progress. */
-  const mcpToolsLoading = mcpLoading;
-
   const executeToolCall = useCallback(async (name: string, args: Record<string, unknown>): Promise<ToolExecutorResult> => {
-    // Route MCP tool calls (prefixed with `serverName__`) to the appropriate MCPClient.
-    if (name.includes('__') && mcpClients[name]) {
-      try {
-        // Strip the server prefix to get the original tool name for the MCP server.
-        const originalName = name.split('__').slice(1).join('__');
-        const result = await mcpClients[name].callTool(originalName, args);
-        return { result: JSON.stringify({ success: true, content: result }) };
-      } catch (err) {
-        return { result: JSON.stringify({ error: `MCP tool error: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
-      }
-    }
-
     switch (name) {
       case 'set_theme': {
         const { background, text, primary, font, background_url, background_mode } = args;
@@ -1103,7 +1082,7 @@ export function useAIChatTools() {
       default:
         return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };
     }
-  }, [applyCustomTheme, nostr, user, mcpClients, config, getBuddySecretKey, savedFeeds, setScreenEffect]);
+  }, [applyCustomTheme, nostr, user, config, getBuddySecretKey, savedFeeds, setScreenEffect]);
 
-  return { executeToolCall, mcpTools, mcpToolsLoading, savedFeeds };
+  return { executeToolCall, savedFeeds };
 }
