@@ -24,11 +24,26 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
     /// Weak reference to the plugin so we can emit events.
     weak var plugin: SandboxPlugin?
 
+    /// Weak reference to the WKWebView so we can inject console.log calls.
+    weak var webView: WKWebView?
+
     private func log(_ message: String) {
-        NSLog("[SandboxSchemeHandler] %@", message)
+        CAPLog.print("⚡️  [SandboxSchemeHandler] \(message)")
+        // Also inject into the JS console so it appears in the Capacitor log stream.
+        let escaped = message
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript("console.log('[SandboxSchemeHandler-native] \(escaped)');", completionHandler: nil)
+        }
     }
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        // Capture the webView reference for JS console logging.
+        if self.webView == nil {
+            self.webView = webView
+        }
         let request = urlSchemeTask.request
         log("start — raw URL: \(request.url?.absoluteString ?? "nil")")
 
@@ -191,7 +206,15 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     static var sharedSchemeHandler: IframeSandboxSchemeHandler?
 
     private func log(_ message: String) {
-        NSLog("[SandboxPlugin] %@", message)
+        CAPLog.print("⚡️  [SandboxPlugin] \(message)")
+        // Also inject into the JS console so it appears in the Capacitor log stream.
+        let escaped = message
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        DispatchQueue.main.async { [weak self] in
+            self?.bridge?.webView?.evaluateJavaScript("console.log('[SandboxPlugin-native] \(escaped)');", completionHandler: nil)
+        }
     }
 
     public override func load() {
