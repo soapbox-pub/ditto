@@ -325,6 +325,7 @@ const SandboxFrameWeb = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       <iframe
         ref={iframeRef}
         src={`${origin}/`}
+        allow="clipboard-write"
         {...iframeProps}
       />
     );
@@ -546,6 +547,7 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         <iframe
           ref={iframeRef}
           onLoad={handleLoad}
+          allow="clipboard-write"
           style={{ width: '100%', height: '100%', border: 'none' }}
           {...iframeProps}
         />
