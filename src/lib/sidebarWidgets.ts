@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import {
   TrendingUp,
+  Flame,
   Egg,
   SmilePlus,
   Bot,
@@ -48,6 +49,16 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Top trending hashtags with sparkline charts',
     icon: TrendingUp,
     defaultHeight: 320,
+    minHeight: 200,
+    maxHeight: 600,
+    category: 'discovery',
+  },
+  {
+    id: 'hot-posts',
+    label: 'Hot Posts',
+    description: 'Top posts from the Hot feed',
+    icon: Flame,
+    defaultHeight: 350,
     minHeight: 200,
     maxHeight: 600,
     category: 'discovery',
