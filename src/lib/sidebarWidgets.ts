@@ -5,7 +5,6 @@ import {
   Egg,
   SmilePlus,
   Bot,
-  BookOpen,
   Camera,
   Music,
   CalendarDays,
@@ -170,17 +169,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     category: 'content',
     href: '/events',
   },
-  {
-    id: 'feed:books',
-    label: 'Books',
-    description: 'Book reviews and recommendations',
-    icon: BookOpen,
-    defaultHeight: 350,
-    minHeight: 250,
-    maxHeight: 700,
-    category: 'content',
-    href: '/books',
-  },
+
 ];
 
 /** Pre-built Map for O(1) widget definition lookup. */

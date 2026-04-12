@@ -65,8 +65,7 @@ function WidgetContent({ id }: { id: string }) {
       return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel="View all articles" />;
     case 'feed:events':
       return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel="View all events" />;
-    case 'feed:books':
-      return <FeedWidget kinds={[30040]} feedPath="/books" feedLabel="View all books" />;
+
     default:
       return <p className="text-xs text-muted-foreground p-1">Unknown widget.</p>;
   }
