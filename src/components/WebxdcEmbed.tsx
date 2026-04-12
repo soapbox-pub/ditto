@@ -127,43 +127,45 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       onClick={(e) => e.stopPropagation()}
     >
       {/* Nav bar */}
-      <div className="min-h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0 safe-area-top">
-        {/* App icon + name */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {icon ? (
-            <img
-              src={icon}
-              alt={name ?? 'Webxdc App'}
-              className="size-6 rounded-md object-cover shrink-0"
-            />
-          ) : (
-            <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <Blocks className="size-3.5 text-primary/50" />
-            </div>
-          )}
-          <span className="text-sm font-medium truncate">{name ?? 'Webxdc App'}</span>
-        </div>
+      <div className="min-h-11 border-b bg-muted/30 shrink-0 safe-area-top">
+        <div className="px-3 py-2 flex items-center gap-2 w-full">
+          {/* App icon + name */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {icon ? (
+              <img
+                src={icon}
+                alt={name ?? 'Webxdc App'}
+                className="size-6 rounded-md object-cover shrink-0"
+              />
+            ) : (
+              <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <Blocks className="size-3.5 text-primary/50" />
+              </div>
+            )}
+            <span className="text-sm font-medium truncate">{name ?? 'Webxdc App'}</span>
+          </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn('h-7 w-7 p-0 shrink-0', showGamepad && 'text-primary')}
-            onClick={toggleGamepad}
-            title={showGamepad ? 'Hide gamepad' : 'Show gamepad'}
-          >
-            <Gamepad2 className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 shrink-0"
-            onClick={handleClose}
-            title="Close"
-          >
-            <X className="size-3.5" />
-          </Button>
+          {/* Controls */}
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn('h-7 w-7 p-0 shrink-0', showGamepad && 'text-primary')}
+              onClick={toggleGamepad}
+              title={showGamepad ? 'Hide gamepad' : 'Show gamepad'}
+            >
+              <Gamepad2 className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 shrink-0"
+              onClick={handleClose}
+              title="Close"
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
