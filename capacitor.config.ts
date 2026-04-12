@@ -19,9 +19,6 @@ const config: CapacitorConfig = {
     scheme: 'Ditto'
   },
   plugins: {
-    Keyboard: {
-      resizeOnFullScreen: true,
-    },
     SystemBars: {
       // Inject --safe-area-inset-* CSS variables on Android to work around
       // a Chromium bug (<140) where env(safe-area-inset-*) reports 0.
