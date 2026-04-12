@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, KeyRound, Lock, Pen, ShieldAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
@@ -17,6 +18,8 @@ interface NsitePermissionPromptProps {
   appPicture?: string;
   /** Human-readable app name. */
   appName: string;
+  /** The nsite gateway URL, used to fetch the site favicon. */
+  siteUrl?: string;
   /** The pending prompt state from useNsiteSignerRpc. */
   prompt: NsitePromptState;
   /** Callback to resolve the prompt. */
@@ -87,6 +90,7 @@ function truncate(str: string, max: number): string {
 export function NsitePermissionPrompt({
   appPicture,
   appName,
+  siteUrl,
   prompt,
   onResolve,
 }: NsitePermissionPromptProps) {
@@ -110,7 +114,11 @@ export function NsitePermissionPrompt({
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           <div className="flex items-center justify-center size-10 rounded-full bg-muted">
-            <ShieldAlert className="size-5 text-muted-foreground" />
+            <ExternalFavicon
+              url={siteUrl}
+              size={22}
+              fallback={<ShieldAlert className="size-5 text-muted-foreground" />}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{appName}</p>

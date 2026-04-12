@@ -389,6 +389,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
           <NsitePermissionPrompt
             appPicture={appPicture}
             appName={appName}
+            siteUrl={siteUrl}
             prompt={signerRpc.pendingPrompt}
             onResolve={signerRpc.resolvePrompt}
           />
