@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -47,7 +47,6 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
-import { shareOrCopy } from '@/lib/share';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
@@ -102,8 +101,10 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
-import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { cn } from '@/lib/utils';
+
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -669,7 +670,8 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   const isBtc = field.label === '$BTC';
-  const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+  const safeUrl = sanitizeUrl(field.value);
+  const isUrl = !!safeUrl;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(field.value);
@@ -758,17 +760,17 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
-  if (isUrl && isAudioUrl(field.value)) {
-    return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
+  if (isUrl && safeUrl && isAudioUrl(safeUrl)) {
+    return <MiniAudioPlayer src={safeUrl} label={field.label || undefined} />;
   }
 
-  if (isUrl && isImageUrl(field.value)) {
+  if (isUrl && safeUrl && isImageUrl(safeUrl)) {
     return (
       <div className="min-w-0">
         {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
-        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
-            src={field.value}
+            src={safeUrl}
             alt={field.label || 'Profile image'}
             className="w-full max-w-sm rounded-lg object-cover"
             loading="lazy"
@@ -778,29 +780,29 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
-  if (isUrl && isVideoUrl(field.value)) {
+  if (isUrl && safeUrl && isVideoUrl(safeUrl)) {
     return (
       <div className="min-w-0">
         {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
         <div className="rounded-lg overflow-hidden max-w-sm">
-          <VideoPlayer src={field.value} />
+          <VideoPlayer src={safeUrl} />
         </div>
       </div>
     );
   }
 
-  if (isUrl) {
+  if (isUrl && safeUrl) {
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <ExternalFavicon url={field.value} size={16} className="shrink-0" />
+        <ExternalFavicon url={safeUrl} size={16} className="shrink-0" />
         <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
         <a
-          href={field.value}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-primary hover:underline truncate"
         >
-          {field.value.replace(/^https?:\/\//, '')}
+          {safeUrl.replace(/^https?:\/\//, '')}
         </a>
       </div>
     );
@@ -2121,23 +2123,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
-                  {/* Share button (mobile only) */}
-                  {pubkey && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full size-10 sidebar:hidden"
-                      title="Share profile"
-                      onClick={async () => {
-                        const npubId = nip19.npubEncode(pubkey);
-                        const url = `${window.location.origin}/${npubId}`;
-                        const result = await shareOrCopy(url);
-                        if (result === 'copied') toast({ title: 'Profile link copied to clipboard' });
-                      }}
-                    >
-                      <Share2 className="size-5" />
-                    </Button>
-                  )}
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button
@@ -2187,11 +2172,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
-              {metadata?.website && (
+              {metadata?.website && sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`) && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                   <Globe className="size-3.5 text-muted-foreground shrink-0" />
                   <a
-                    href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`}
+                    href={sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="truncate text-primary hover:underline"

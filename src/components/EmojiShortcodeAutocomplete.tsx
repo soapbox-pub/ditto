@@ -3,6 +3,7 @@ import data from '@emoji-mart/data';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
+import { usePortalDropdown } from '@/hooks/usePortalDropdown';
 
 interface EmojiData {
   id: string;
@@ -186,6 +187,14 @@ export function EmojiShortcodeAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const handleClose = useCallback(() => setIsOpen(false), []);
+  const { computePosition, renderPortal } = usePortalDropdown({
+    textareaRef,
+    isOpen,
+    onClose: handleClose,
+    dropdownHeight: 280, // must match max-h-[280px] below
+  });
+
   const results = useMemo(() => searchEmojis(query, customEmojis), [query, customEmojis]);
 
   // Detect :shortcode query at cursor
@@ -237,14 +246,11 @@ export function EmojiShortcodeAutocomplete({
     setIsOpen(true);
     setSelectedIndex(0);
 
-    // Position the dropdown below the : character
+    // Position the dropdown using fixed viewport coordinates so it isn't
+    // clipped by ancestor overflow containers (e.g. the compose modal).
     const coords = getCaretCoordinates(textarea, colonPos);
-    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
-    setDropdownPos({
-      top: coords.top + lineHeight + 4,
-      left: Math.max(0, Math.min(coords.left, textarea.clientWidth - 280)),
-    });
-  }, [textareaRef]);
+    setDropdownPos(computePosition(coords));
+  }, [textareaRef, computePosition]);
 
   // Listen for input/cursor changes on the textarea element
   useEffect(() => {
@@ -357,10 +363,10 @@ export function EmojiShortcodeAutocomplete({
     return null;
   }
 
-  return (
+  const dropdown = (
     <div
       ref={dropdownRef}
-      className="absolute z-[100] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+      className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
       <div ref={listRef} className="max-h-[280px] overflow-y-auto py-1">
@@ -382,7 +388,7 @@ export function EmojiShortcodeAutocomplete({
                 className="size-5 object-contain shrink-0"
               />
             ) : (
-              <span className="text-xl leading-none shrink-0">{emoji.native}</span>
+              <span className="text-xl leading-none shrink-0 font-emoji">{emoji.native}</span>
             )}
             <span className="text-sm truncate">
               :{emoji.id.replace('custom:', '')}:
@@ -392,4 +398,8 @@ export function EmojiShortcodeAutocomplete({
       </div>
     </div>
   );
+
+  // Portal to document.body so the dropdown escapes any ancestor overflow
+  // clipping and CSS transform containing blocks (e.g. Radix Dialog).
+  return renderPortal(dropdown, document.body);
 }

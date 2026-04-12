@@ -16,7 +16,7 @@ import {
   generateNostrConnectURI,
   type NostrConnectParams,
 } from '@/hooks/useLoginActions';
-import { androidResume } from '@/lib/androidResume';
+import { getNsecCredential } from '@/lib/credentialManager';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -78,22 +78,18 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   }, [login, config.appName]);
 
   // Start listening for connection (async) - runs after params are set.
-  //
-  // On Android, switching to Amber freezes the WebSocket so the NIP-46
-  // response is silently dropped. When Ditto returns to the foreground we
-  // abort the stale subscription and start a fresh one — the relay still
-  // has the response event so `limit: 1` picks it up immediately.
   useEffect(() => {
     if (!nostrConnectParams || isWaitingForConnect) return;
 
     let cancelled = false;
-    let stopWatching: (() => void) | undefined;
 
-    const attemptConnect = async (signal: AbortSignal) => {
+    const startListening = async () => {
+      setIsWaitingForConnect(true);
+      abortControllerRef.current = new AbortController();
+
       try {
-        await login.nostrconnect(nostrConnectParams, signal);
+        await login.nostrconnect(nostrConnectParams, abortControllerRef.current.signal);
         if (!cancelled) {
-          stopWatching?.();
           onLogin();
           onClose();
         }
@@ -101,42 +97,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         if (cancelled) return;
         // AbortError means we intentionally aborted (dialog closed or retry)
         if (error instanceof Error && error.name === 'AbortError') return;
-        throw error;
-      }
-    };
-
-    const startListening = async () => {
-      setIsWaitingForConnect(true);
-      abortControllerRef.current = new AbortController();
-
-      // On Android, watch for foreground resume and retry the subscription.
-      ({ destroy: stopWatching } = androidResume({
-        threshold: 0,
-        onResume: () => {
-          if (cancelled) return;
-          console.log('[LoginDialog] foreground resume — retrying nostrconnect');
-          // Abort the current (stale) subscription
-          abortControllerRef.current?.abort();
-          // Start a fresh subscription
-          abortControllerRef.current = new AbortController();
-          attemptConnect(abortControllerRef.current.signal).catch((error) => {
-            if (!cancelled) {
-              console.error('Nostrconnect retry failed:', error);
-              setConnectError(error instanceof Error ? error.message : String(error));
-              setIsWaitingForConnect(false);
-            }
-          });
-        },
-      }));
-
-      try {
-        await attemptConnect(abortControllerRef.current.signal);
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Nostrconnect failed:', error);
-          setConnectError(error instanceof Error ? error.message : String(error));
-          setIsWaitingForConnect(false);
-        }
+        console.error('Nostrconnect failed:', error);
+        setConnectError(error instanceof Error ? error.message : String(error));
+        setIsWaitingForConnect(false);
       }
     };
 
@@ -144,7 +107,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
     return () => {
       cancelled = true;
-      stopWatching?.();
     };
   }, [nostrConnectParams, login, onLogin, onClose, isWaitingForConnect]);
 
@@ -298,6 +260,24 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   };
 
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+
+  // Progressive enhancement: attempt to retrieve a stored credential from the
+  // platform's password manager when the dialog opens.
+  // On Capacitor iOS this shows the iCloud Keychain credential picker.
+  // On Chromium browsers this shows the native credential chooser.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    getNsecCredential().then((cred) => {
+      if (cancelled || !cred) return;
+      if (validateNsec(cred.nsec)) {
+        executeLogin(cred.nsec);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderTabs = () => (
     <Tabs 

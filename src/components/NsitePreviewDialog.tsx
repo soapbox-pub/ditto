@@ -2,6 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 import { Button } from '@/components/ui/button';
 import { SandboxFrame } from '@/components/SandboxFrame';
@@ -68,23 +69,106 @@ function resolveServers(event: NostrEvent, appServers: string[]): string[] {
 }
 
 /**
- * Fetch a blob from the given sha256 by trying each Blossom server in order.
- * Returns a Response from the first server that responds successfully, or
- * throws if all servers fail.
+ * Module-level preferred server. Once a Blossom server successfully serves
+ * a blob, it is promoted here so subsequent requests try it first — avoiding
+ * the round-trip penalty of 404s on servers that don't have the content.
+ */
+let preferredServer: string | null = null;
+
+/**
+ * Fetch a blob from the given sha256 by trying Blossom servers.
+ *
+ * If a server previously succeeded (the "preferred" server), it is tried
+ * first. On success the preferred server is reinforced; on failure we fall
+ * through to the remaining servers in order. Whichever server ultimately
+ * succeeds is promoted to preferred for the next call.
  */
 async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Response> {
   let lastError: unknown;
-  for (const server of servers) {
+
+  /** Try a single server. Returns the Response on success, or null. */
+  async function tryServer(server: string): Promise<Response | null> {
     const base = server.replace(/\/+$/, '');
     const url = `${base}/${sha256}`;
     try {
       const res = await fetch(url);
-      if (res.ok) return res;
+      if (res.ok) {
+        preferredServer = server;
+        return res;
+      }
     } catch (err) {
       lastError = err;
     }
+    return null;
   }
+
+  // Try the preferred server first if it's in the list.
+  if (preferredServer && servers.includes(preferredServer)) {
+    const res = await tryServer(preferredServer);
+    if (res) return res;
+  }
+
+  // Fall through to the full list, skipping the preferred (already tried).
+  for (const server of servers) {
+    if (server === preferredServer) continue;
+    const res = await tryServer(server);
+    if (res) return res;
+  }
+
   throw lastError ?? new Error(`Failed to fetch blob ${sha256} from all servers`);
+}
+
+/** Max concurrent Blossom fetches during pre-fetch. */
+const PREFETCH_CONCURRENCY = 12;
+
+/**
+ * Pre-fetch all unique blobs from the manifest into an in-memory cache.
+ *
+ * **Android only.** Android's WebView uses `shouldInterceptRequest` which
+ * blocks a pool of ~6 IO threads via `CountDownLatch` until JS responds.
+ * If each response requires a network round-trip to Blossom, the 6-at-a-time
+ * serialisation makes loading 200+ files extremely slow. By downloading
+ * every blob *before* the WebView starts loading, each bridge round-trip
+ * drops from seconds (network) to ~1-5ms (memory).
+ *
+ * iOS does NOT need this — `WKURLSchemeHandler` is fully async and can
+ * handle many concurrent requests without any thread pool bottleneck.
+ *
+ * Uses bounded concurrency to saturate the network without overwhelming it.
+ */
+async function prefetchAllBlobs(
+  manifest: Map<string, string>,
+  servers: string[],
+  cache: Map<string, Uint8Array>,
+): Promise<void> {
+  // Deduplicate — many paths may share the same hash (e.g. SPA fallbacks).
+  const uniqueHashes = [...new Set(manifest.values())];
+  // Skip hashes already in the cache (e.g. from a previous open).
+  const toFetch = uniqueHashes.filter((h) => !cache.has(h));
+  if (toFetch.length === 0) return;
+
+  let cursor = 0;
+  const total = toFetch.length;
+
+  async function worker(): Promise<void> {
+    while (cursor < total) {
+      const idx = cursor++;
+      const sha256 = toFetch[idx];
+      try {
+        const res = await fetchFromBlossom(sha256, servers);
+        const buffer = await res.arrayBuffer();
+        cache.set(sha256, new Uint8Array(buffer));
+      } catch {
+        // Non-fatal — resolveFile will fetch on demand for cache misses.
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(PREFETCH_CONCURRENCY, total) },
+    () => worker(),
+  );
+  await Promise.all(workers);
 }
 
 interface NsitePreviewDialogProps {
@@ -124,6 +208,13 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const manifest = useRef<Map<string, string>>(new Map());
   const servers = useRef<string[]>([]);
 
+  /**
+   * In-memory blob cache: sha256 → raw bytes.
+   * On Android, populated by a blocking pre-fetch in `onReady` so every
+   * `resolveFile` call is an instant cache hit with no network wait.
+   */
+  const blobCache = useRef<Map<string, Uint8Array>>(new Map());
+
   useEffect(() => {
     manifest.current = buildManifest(event);
     const appServers = getEffectiveBlossomServers(
@@ -139,6 +230,26 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     content: getPreviewInjectedScript(),
   }], []);
 
+  /**
+   * Called by SandboxFrame before the native WebView is created.
+   *
+   * On Android: blocks until all blobs are pre-fetched. Android's WebView
+   * uses `shouldInterceptRequest` which blocks ~6 IO threads — if each
+   * response requires a network fetch the whole thing is painfully slow.
+   * The native ProgressBar spinner (render thread) stays visible and
+   * animating during the download. Once the WebView starts, every
+   * resolveFile call is an instant cache hit.
+   *
+   * On iOS: no-op. WKURLSchemeHandler is async and handles concurrent
+   * requests without a thread pool bottleneck.
+   *
+   * On web: no-op. iframe.diy's service worker handles fetches efficiently.
+   */
+  const onReady = useCallback(async () => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    await prefetchAllBlobs(manifest.current, servers.current, blobCache.current);
+  }, []);
+
   /** Resolve a pathname to file content from the Blossom manifest. */
   const resolveFile = useCallback(async (pathname: string): Promise<FileResponse | null> => {
     // Look up the sha256 for this path in the manifest.
@@ -153,10 +264,20 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
     if (!sha256) return null;
 
-    // Fetch the blob from Blossom, trying each server in order.
+    // Serve from cache if available (pre-fetched on Android).
+    const cached = blobCache.current.get(sha256);
+    if (cached) {
+      const contentType = getMimeType(servingPath);
+      return { status: 200, contentType, body: cached };
+    }
+
+    // Cache miss — fetch from Blossom (normal path on iOS/web).
     const res = await fetchFromBlossom(sha256, servers.current);
     const buffer = await res.arrayBuffer();
     const body = new Uint8Array(buffer);
+
+    // Store in cache for future requests (e.g. SPA navigations).
+    blobCache.current.set(sha256, body);
 
     // Always determine content type from the file extension.
     // Blossom servers commonly return incorrect types (e.g. text/plain for .js
@@ -221,6 +342,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
           key={`${previewSubdomain}-${open}`}
           id={previewSubdomain}
           resolveFile={resolveFile}
+          onReady={onReady}
           injectedScripts={injectedScripts}
           className="w-full h-full border-0"
           title={`${appName} preview`}

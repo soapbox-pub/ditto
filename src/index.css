@@ -34,37 +34,43 @@
 }
 
 @layer utilities {
+  /* ── Safe-area inset utilities ────────────────────────────────────────────
+     Use var(--safe-area-inset-*, …) as the outer wrapper so that
+     Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS
+     variables on Android) takes precedence when available.  The inner
+     env(safe-area-inset-*, 0px) is the standard fallback for iOS / web. */
+
   .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   }
   
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
   
   .safe-area-inset-top {
-    top: env(safe-area-inset-top, 0px);
+    top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   }
   
   .safe-area-inset-bottom {
-    bottom: env(safe-area-inset-bottom, 0px);
+    bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
   
   /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
   .bottom-fab {
-    bottom: calc(1.5rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.5rem + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Position above mobile bottom nav + safe area + arc overhang (28px) */
   .bottom-mobile-nav {
-    bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--bottom-nav-height) + 28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Bottom overscroll padding for the center column:
      clears the mobile bottom nav + safe area + generous extra space
      so content can be scrolled well past the bottom bar */
   .pb-overscroll {
-    padding-bottom: calc(10vh + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(10vh + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   @media (min-width: 900px) {
@@ -75,12 +81,12 @@
 
   /* Mobile top bar height + safe area inset for sticky elements */
   .top-mobile-bar {
-    top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
+    top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   }
 
   /* New-posts pill: just below the SubHeaderBar on both mobile and desktop */
   .new-posts-pill {
-    top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px) + 3.5rem);
+    top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 3.5rem);
   }
   @media (min-width: 900px) {
     .new-posts-pill {
@@ -94,29 +100,29 @@
      Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
   @media (max-width: 899px) {
     .nav-hidden-slide {
-      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - env(safe-area-inset-top, 0px)));
+      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))));
     }
   }
 
   /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
   @media (max-width: 899px) {
     .-mt-mobile-bar {
-      margin-top: calc(-1 * var(--top-bar-height) - env(safe-area-inset-top, 0px));
-      padding-top: calc(var(--top-bar-height) + env(safe-area-inset-top, 0px));
+      margin-top: calc(-1 * var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      padding-top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
     }
   }
 
   /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
      Padding-bottom keeps input above the nav. */
   .ai-chat-height {
-    height: calc(100dvh - var(--top-bar-height) - env(safe-area-inset-top, 0px));
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
-    height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are

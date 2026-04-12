@@ -3,6 +3,7 @@ import { BookMarked, Copy, Check, ExternalLink, Globe, Wand2 } from "lucide-reac
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { openUrl } from "@/lib/downloadFile";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { NostrURI } from "@/lib/NostrURI";
 
 interface GitRepoCardProps {
@@ -23,7 +24,7 @@ function getFaviconUrl(webUrl: string): string | undefined {
 export function GitRepoCard({ event }: GitRepoCardProps) {
 	const name = event.tags.find(([n]) => n === "name")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
-	const webUrls = event.tags.filter(([n]) => n === "web").map(([, v]) => v);
+	const webUrls = event.tags.filter(([n]) => n === "web").map(([, v]) => sanitizeUrl(v)).filter((v): v is string => !!v);
 	const isPersonalFork = event.tags.some(
 		([n, v]) => n === "t" && v === "personal-fork",
 	);

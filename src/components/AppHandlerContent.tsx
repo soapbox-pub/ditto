@@ -9,6 +9,7 @@ import { NsitePreviewDialog } from '@/components/NsitePreviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { NostrURI } from '@/lib/NostrURI';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 /** Get a tag value by name. */
@@ -106,7 +107,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   const about = metadata.about;
   const picture = metadata.picture;
   const banner = metadata.banner;
-  const websiteUrl = getWebsiteUrl(event.tags, metadata);
+  const websiteUrl = sanitizeUrl(getWebsiteUrl(event.tags, metadata));
   const hashtags = getAllTags(event.tags, 't');
 
   const shakespeareUrl = useMemo(() => getShakespeareUrl(event.tags), [event.tags]);

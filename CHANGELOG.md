@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.6.6] - 2026-04-12
+
+### Fixed
+- Emoji and mention autocomplete dropdowns no longer get clipped by the compose box
+- Emoji shortcodes now render as color emoji instead of plain text glyphs
+- Dialogs and input fields on Android are no longer obscured by the virtual keyboard
+- Signing requests on Android are more reliable and no longer silently fail after switching apps
+
+## [2.6.5] - 2026-04-11
+
+### Changed
+- Apps and games load significantly faster on Android with smarter prefetching and server affinity
+- Native loading spinners replace HTML-based ones on iOS and Android for a smoother experience
+
+### Fixed
+- External API requests on Android no longer fail due to hostname restrictions
+- iOS App Store compliance issues resolved
+
+## [2.6.4] - 2026-04-11
+
+### Added
+- iCloud Keychain integration on iOS -- your login credentials are now saved and restored automatically across devices
+
+### Changed
+- Empty feeds show a friendlier state with a discover button to help you find people to follow
+- Signup flow simplified -- cleaner profile step with a single Continue button
+
+### Fixed
+- Avatar fallback now shows the user's initial instead of a question mark
+- Android 16+ devices no longer have content hidden behind system bars
+- Signup dialog background clears properly when switching between light and dark themes
+- Sticky compose button stays anchored to the bottom even on empty feeds
+
+## [2.6.3] - 2026-04-10
+
+### Added
+- Lightning invoices embedded in posts now render as tappable payment cards
+- Blobbi companions in the feed reflect their current condition and projected health
+
+### Changed
+- Profile headers are cleaner -- lightning addresses and verification badges moved out of the way, and website URLs no longer show a trailing slash
+- Login credentials are saved to your browser's built-in password manager for easier sign-in across sessions
+- "Request to Vanish" renamed to "Delete Account" for clarity
+
+### Fixed
+- Badge image uploads now show a recommended 1:1 aspect ratio hint so your badges don't get cropped unexpectedly
+- Security hardening for URLs and styles sourced from the network
+
 ## [2.6.2] - 2026-04-08
 
 ### Added

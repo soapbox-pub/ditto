@@ -25,6 +25,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/lib/mediaUtils';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
@@ -400,24 +401,24 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   }
 
   // Media fields: render inline players/previews based on file extension
-  const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+  const safeUrl = sanitizeUrl(field.value);
 
-  if (isUrl && isAudioUrl(field.value)) {
+  if (safeUrl && isAudioUrl(safeUrl)) {
     return (
       <div>
         <div className="font-semibold text-sm mb-1.5">{field.label}</div>
-        <MiniAudioPlayer src={field.value} />
+        <MiniAudioPlayer src={safeUrl} />
       </div>
     );
   }
 
-  if (isUrl && isImageUrl(field.value)) {
+  if (safeUrl && isImageUrl(safeUrl)) {
     return (
       <div>
         {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
-        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
-            src={field.value}
+            src={safeUrl}
             alt={field.label || 'Profile image'}
             className="w-full rounded-lg object-cover"
             loading="lazy"
@@ -427,12 +428,12 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  if (isUrl && isVideoUrl(field.value)) {
+  if (safeUrl && isVideoUrl(safeUrl)) {
     return (
       <div>
         {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
         <div className="rounded-lg overflow-hidden">
-          <VideoPlayer src={field.value} />
+          <VideoPlayer src={safeUrl} />
         </div>
       </div>
     );
@@ -442,15 +443,15 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   return (
     <div>
       <div className="font-semibold text-sm">{field.label}</div>
-      {isUrl ? (
+      {safeUrl ? (
         <a
-          href={field.value}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
         >
-          <ExternalFavicon url={field.value} size={16} className="shrink-0" />
-          <span className="truncate">{field.value.replace(/^https?:\/\//, '')}</span>
+          <ExternalFavicon url={safeUrl} size={16} className="shrink-0" />
+          <span className="truncate">{safeUrl.replace(/^https?:\/\//, '')}</span>
         </a>
       ) : (
         <p className="text-sm text-muted-foreground truncate">{field.value}</p>

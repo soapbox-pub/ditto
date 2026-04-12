@@ -409,6 +409,74 @@ Without filtering approvals by the moderator list, anyone could publish kind 455
 
 Author filtering is not needed for public user-generated content where anyone should be able to post (kind 1 notes, reactions, discovery queries, public feeds, etc.).
 
+#### Sanitizing URLs from Event Data
+
+**CRITICAL**: Any URL extracted from Nostr event tags, content, or metadata fields is **untrusted user input**. Malicious URLs can cause harm in many ways beyond `javascript:` XSS — `data:` URIs for resource exhaustion, `http://` URLs leaking user IPs without TLS, relative paths triggering unintended requests to the app's own origin, and more. Reasoning about which rendering context is "safe enough" to skip sanitization is fragile and error-prone.
+
+**Rule: sanitize every event-sourced URL unconditionally**, regardless of where it will be used (`href`, `img src`, `style`, etc.). Use `sanitizeUrl()` from `@/lib/sanitizeUrl`:
+
+```typescript
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+// Single URL — returns the normalised href, or undefined if not valid https
+const url = sanitizeUrl(getTag(event.tags, 'url'));
+if (url) {
+  // safe to use in any context
+}
+
+// Array of URLs — filter out invalid entries
+const links = getAllTags(event.tags, 'r')
+  .map(([, v]) => sanitizeUrl(v))
+  .filter((v): v is string => !!v);
+```
+
+`sanitizeUrl` accepts `string | undefined | null` and returns the normalised `href` string only when the URL parses successfully **and** uses the `https:` protocol. All other inputs (malformed URLs, `javascript:`, `data:`, `http:`, relative paths, etc.) return `undefined`.
+
+**Best practice — sanitize at the parse layer.** When writing a parser function that extracts URLs from event tags (e.g. `parseThemeDefinition`, `parseBadgeDefinition`), apply `sanitizeUrl()` before returning the parsed data. This way every downstream consumer is automatically protected without needing to remember to sanitize at each usage site.
+
+**When sanitization is NOT required:**
+- URLs extracted by regex that already constrains the protocol (e.g. `NoteContent` tokeniser matches only `https?://`)
+- Hardcoded or application-generated URLs (relay configs, internal routes, etc.)
+- URLs displayed as plain text without being placed into any HTML attribute or CSS value
+
+#### Preventing CSS Injection from Event Data
+
+**CRITICAL**: Any value from a Nostr event that is interpolated into a CSS string (inside a `<style>` element or inline `style` attribute) is a CSS injection vector. A malicious value containing `"`, `)`, `}`, or `;` can break out of the CSS context and inject arbitrary rules — for example, overlaying phishing content or hiding UI elements.
+
+**Common CSS injection surfaces:**
+- `background-image: url("${url}")` — a URL with `"); body { display:none }` breaks out
+- `font-family: "${family}"` — a family name with `"; } body { visibility:hidden } .x {` breaks out
+- `@font-face { src: url("${url}") }` — same risk as background URLs
+
+**Mitigation strategy — sanitize at the parse layer:**
+
+1. **URLs in CSS `url()` values**: Pass through `sanitizeUrl()` at parse time. The `URL` constructor normalises the string, percent-encoding characters like `"`, `)`, and `\` that could escape the CSS context. Invalid or non-`https:` URLs are rejected entirely. This is already done for theme event background and font URLs in `src/lib/themeEvent.ts`.
+
+2. **Strings in CSS declarations** (e.g. font family names): Use `sanitizeCssString()` from `src/lib/fontLoader.ts`, which uses an allowlist approach — only Unicode letters, numbers, spaces, hyphens, underscores, apostrophes, and periods are permitted. Everything else is stripped.
+
+```typescript
+// ❌ UNSAFE — raw event data interpolated into CSS
+const bgUrl = getTagValue(event.tags, 'bg');
+style.textContent = `body { background-image: url("${bgUrl}"); }`;
+
+const family = getTagValue(event.tags, 'f');
+style.textContent = `html { font-family: "${family}"; }`;
+
+// ✅ SAFE — URLs validated, strings sanitised
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+const bgUrl = sanitizeUrl(getTagValue(event.tags, 'bg'));
+if (bgUrl) {
+  style.textContent = `body { background-image: url("${bgUrl}"); }`;
+}
+
+// For non-URL strings, allowlist safe characters only
+const safeFamily = family.replace(/[^\p{L}\p{N} _\-'.]/gu, '');
+style.textContent = `html { font-family: "${safeFamily}"; }`;
+```
+
+**Rule of thumb**: Never interpolate untrusted strings into CSS without sanitisation. If it's a URL, use `sanitizeUrl()`. If it's any other string, strip characters that can break out of the CSS string context.
+
 ### The `useNostr` Hook
 
 The `useNostr` hook returns an object containing a `nostr` property, with `.query()` and `.event()` methods for querying and publishing Nostr events respectively.
@@ -1335,6 +1403,10 @@ Run available tools in this priority order:
 
 The validation ensures code quality and catches errors before deployment, regardless of the development environment.
 
+### Contributing Guide
+
+When preparing changes for a merge request, also follow the guidelines in `CONTRIBUTING.md`. It includes a self-review checklist (step 8) that should be run against your diff before committing.
+
 ### Using Git
 
 If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
@@ -1412,7 +1484,7 @@ The project uses GitLab CI (`.gitlab-ci.yml`) with the following stages:
 2. **deploy** - Builds and deploys to nsite via nsyte (`deploy-nsite` job, default branch only)
 3. **build** - Builds a signed release APK (`build-apk` job, tags only)
 4. **release** - Creates a GitLab Release with the APK artifact (tags only)
-5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only)
+5. **publish** - Publishes the APK to Zapstore (`publish-zapstore` job, tags only) and AAB to Google Play (`publish-google-play` job, tags only)
 
 ### Creating a Release
 
@@ -1422,7 +1494,7 @@ Releases are triggered by pushing a version tag. Use the npm script:
 npm run release
 ```
 
-This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, and `publish-zapstore` stages.
+This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, `publish-zapstore`, and `publish-google-play` stages.
 
 ### Zapstore Publishing
 
@@ -1515,3 +1587,28 @@ To rotate the nsite credential:
 1. Revoke the old bunker connection in your signer app
 2. Run `nsyte ci` again to generate a new `nbunksec1...` string
 3. Update the `NSITE_NBUNKSEC` variable in GitLab CI/CD settings
+
+### Google Play Publishing
+
+The project automatically publishes Android AABs (App Bundles) to [Google Play](https://play.google.com/store/apps/details?id=pub.ditto.app) using [fastlane supply](https://docs.fastlane.tools/actions/supply/). The `publish-google-play` CI job runs after a successful AAB build and uploads directly to the production track.
+
+**GitLab CI/CD Variables** (Settings > CI/CD > Variables):
+
+| Variable | Description | Protected | Masked | Raw |
+|---|---|---|---|---|
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Full JSON contents of the Google Play API service account key file | Yes | Yes | No |
+
+#### Initial Setup (one-time)
+
+1. Create or reuse a project in the [Google Cloud Console](https://console.cloud.google.com/projectcreate)
+2. Enable the [Google Play Developer API](https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/) for that project
+3. In Google Cloud Console, go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), create a service account, and download a JSON key file for it
+4. In Google Play Console, go to [Users & Permissions](https://play.google.com/console/users-and-permissions), click **Invite new users**, enter the service account email, and grant it permission to manage releases for `pub.ditto.app`
+5. Add the full JSON contents of the key file as the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` variable in GitLab CI/CD settings (Settings > CI/CD > Variables). Mark it as **Protected** and **Masked**.
+
+#### Key Points
+
+- The job uploads the signed AAB (not APK) since Google Play requires App Bundles
+- Uploads go directly to the **production** track -- Google's review process still applies before the update reaches users
+- Metadata, screenshots, and changelogs are managed in the Play Console, not via CI (the job uses `--skip_upload_metadata` etc.)
+- The same signing keystore used for Zapstore is used here (`ANDROID_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`)
