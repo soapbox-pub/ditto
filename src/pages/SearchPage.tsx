@@ -10,6 +10,7 @@ import {
   BookmarkPlus,
   Check,
   Loader2,
+  PanelLeft,
   Globe, Users, UserSearch,
   Clock, Flame, TrendingUp,
   Share2,
@@ -38,6 +39,7 @@ import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useFeed, type FeedItem } from '@/hooks/useFeed';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
@@ -355,6 +357,7 @@ export function SearchPage() {
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
+  const { addToSidebar } = useFeedSettings();
   const profileTabsQuery = useProfileTabs(user?.pubkey);
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -363,6 +366,7 @@ export function SearchPage() {
   const [saveFeedLabel, setSaveFeedLabel] = useState('');
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isAddingToSidebar, setIsAddingToSidebar] = useState(false);
 
   const listPickerValue = useMatchedListId(authorPubkeys);
 
@@ -464,6 +468,30 @@ export function SearchPage() {
       toast({ title: 'Failed to share spell', description: err instanceof Error ? err.message : undefined, variant: 'destructive' });
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleAddToSidebar = async () => {
+    if (!saveFeedLabel.trim() || isAddingToSidebar || !user) return;
+    setIsAddingToSidebar(true);
+    try {
+      const tags = currentSpellTags.map(([t, ...rest]) =>
+        t === 'name' ? ['name', saveFeedLabel.trim()] :
+        t === 'alt' ? ['alt', `Spell: ${saveFeedLabel.trim()}`] :
+        [t, ...rest]
+      );
+      const event = await publishEvent({ kind: 777, content: '', tags, created_at: Math.floor(Date.now() / 1000) });
+      const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey, kind: event.kind });
+      addToSidebar(`nostr:${neventId}`);
+      setSavePopoverOpen(false);
+      setSaveFeedLabel('');
+      setSavedJustNow(true);
+      setTimeout(() => setSavedJustNow(false), 2000);
+      toast({ title: 'Added to sidebar' });
+    } catch (err) {
+      toast({ title: 'Failed to add to sidebar', description: err instanceof Error ? err.message : undefined, variant: 'destructive' });
+    } finally {
+      setIsAddingToSidebar(false);
     }
   };
 
@@ -598,6 +626,14 @@ export function SearchPage() {
                             loading={isPublishingTabs}
                           />
                         )}
+                        <SaveDestinationRow
+                          icon={<PanelLeft className="size-4 text-muted-foreground" />}
+                          label="Sidebar"
+                          description="Pin to your sidebar"
+                          onClick={() => handleAddToSidebar()}
+                          disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs || isAddingToSidebar}
+                          loading={isAddingToSidebar}
+                        />
                         <SaveDestinationRow
                           icon={<Share2 className="size-4 text-muted-foreground" />}
                           label="Share"

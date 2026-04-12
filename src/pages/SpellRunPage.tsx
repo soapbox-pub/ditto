@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, BookmarkPlus, Check, Loader2, Share2, User, WandSparkles } from 'lucide-react';
+import { AlertCircle, BookmarkPlus, Check, Loader2, PanelLeft, Share2, User, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
@@ -99,6 +100,7 @@ export function SpellRunPage() {
 
   // ── Save popover state ───────────────────────────────────────────────
   const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
+  const { addToSidebar, orderedItems } = useFeedSettings();
   const profileTabsQuery = useProfileTabs(user?.pubkey);
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
   const { toast } = useToast();
@@ -126,6 +128,10 @@ export function SpellRunPage() {
   }, [savedFeeds, spellAsFilter]);
 
   const alreadySaved = !!matchingSavedFeed;
+
+  /** The nostr: URI for this spell (used for sidebar). */
+  const sidebarId = nevent ? `nostr:${nevent}` : undefined;
+  const alreadyInSidebar = sidebarId ? orderedItems.includes(sidebarId) : false;
 
   const handleSaveHomeFeed = useCallback(async () => {
     if (!spellAsFilter || !saveFeedLabel.trim()) return;
@@ -167,6 +173,16 @@ export function SpellRunPage() {
       setIsSharing(false);
     }
   }, [spellEvent, nevent, saveFeedLabel, toast]);
+
+  const handleAddToSidebar = useCallback(() => {
+    if (!sidebarId) return;
+    addToSidebar(sidebarId);
+    setSavePopoverOpen(false);
+    setSaveFeedLabel('');
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+    toast({ title: 'Added to sidebar' });
+  }, [sidebarId, addToSidebar, toast]);
 
   const handleRemoveSaved = useCallback(async () => {
     if (!matchingSavedFeed) return;
@@ -263,6 +279,14 @@ export function SpellRunPage() {
                         onClick={handleSaveProfileTab}
                         disabled={!saveFeedLabel.trim() || isPublishingTabs}
                         loading={isPublishingTabs}
+                      />
+                      <SaveDestinationRow
+                        icon={<PanelLeft className="size-4 text-muted-foreground" />}
+                        label="Sidebar"
+                        description="Pin to your sidebar"
+                        onClick={handleAddToSidebar}
+                        disabled={!sidebarId || alreadyInSidebar}
+                        loading={false}
                       />
                       <SaveDestinationRow
                         icon={<Share2 className="size-4 text-muted-foreground" />}
