@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
+import { z } from 'zod';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -21,17 +22,43 @@ export interface AIChatSessionOptions {
 
 const CHAT_STORAGE_KEY = 'ditto:ai-chat-messages';
 
-/** Serialized shape stored in localStorage (Date → ISO string). */
-interface StoredMessage extends Omit<DisplayMessage, 'timestamp'> {
-  timestamp: string;
-}
+/** Zod schema for a single persisted chat message. */
+const StoredToolCallSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  arguments: z.record(z.string(), z.unknown()),
+  result: z.string().optional(),
+});
+
+const StoredMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'assistant', 'system', 'tool_result']),
+  content: z.string(),
+  timestamp: z.string(),
+  toolCalls: z.array(StoredToolCallSchema).optional(),
+  toolCallId: z.string().optional(),
+  // nostrEvent is not validated in detail — just needs to be an object if present
+  nostrEvent: z.record(z.string(), z.unknown()).optional(),
+});
+
+const StoredMessagesSchema = z.array(StoredMessageSchema);
 
 function loadMessages(): DisplayMessage[] {
   try {
     const raw = localStorage.getItem(CHAT_STORAGE_KEY);
     if (!raw) return [];
-    const stored: StoredMessage[] = JSON.parse(raw);
-    return stored.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
+    const parsed = StoredMessagesSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) {
+      console.warn('Discarding corrupted AI chat history:', parsed.error.message);
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return [];
+    }
+    return parsed.data.map((m) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+      nostrEvent: m.nostrEvent as NostrEvent | undefined,
+      toolCalls: m.toolCalls as ToolCall[] | undefined,
+    }));
   } catch {
     return [];
   }
@@ -39,7 +66,7 @@ function loadMessages(): DisplayMessage[] {
 
 function saveMessages(messages: DisplayMessage[]): void {
   try {
-    const stored: StoredMessage[] = messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }));
+    const stored = messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }));
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(stored));
   } catch {
     // Storage full or unavailable — silently ignore
@@ -240,11 +267,18 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         for (const tc of rawMessage.tool_calls) {
           if (controller.signal.aborted) break;
 
-          let args: Record<string, unknown> = {};
+          let args: Record<string, unknown>;
           try {
             args = JSON.parse(tc.function.arguments);
           } catch {
-            // If parsing fails, pass empty args
+            // Return an error to the AI so it can retry instead of silently running with empty args
+            toolCalls.push({
+              id: tc.id,
+              name: tc.function.name,
+              arguments: {},
+              result: JSON.stringify({ error: `Invalid tool call arguments: could not parse JSON for ${tc.function.name}` }),
+            });
+            continue;
           }
 
           const execResult = await executeToolCall(tc.function.name, args);

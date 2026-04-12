@@ -3,11 +3,13 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { z } from 'zod';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { toast } from '@/hooks/useToast';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,6 +43,13 @@ export interface BuddyIdentity {
   /** The raw kind 30078 event (for reference). */
   event: NostrEvent;
 }
+
+/** Zod schema for validating decrypted buddy secrets. */
+const BuddySecretsSchema = z.object({
+  nsec: z.string().min(1),
+  name: z.string().min(1),
+  soul: z.string().min(1),
+});
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
@@ -185,7 +194,9 @@ export function useBuddy() {
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(secrets));
 
       // Publish buddy profile (signed by buddy key) in background
-      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {});
+      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {
+        toast({ title: 'Buddy profile publish failed', description: 'The buddy\'s profile could not be published to relays.', variant: 'destructive' });
+      });
 
       // Publish kind 30078 via useNostrPublish (handles client tag + published_at)
       const buddyEvent = await publishEvent({
@@ -264,7 +275,9 @@ export function useBuddy() {
         created_at: Math.floor(Date.now() / 1000),
       }, localSk) as NostrEvent;
 
-      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {});
+      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {
+        toast({ title: 'Buddy profile update failed', description: 'The buddy\'s updated profile could not be published to relays.', variant: 'destructive' });
+      });
 
       return { pubkey, name: currentName, soul: newSoul, event: buddyEvent } satisfies BuddyIdentity;
     },
@@ -349,9 +362,12 @@ async function decryptSecrets(
   if (!event.content || !user.signer.nip44) return null;
   try {
     const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-    const secrets = JSON.parse(decrypted) as BuddySecrets;
-    if (!secrets.nsec || !secrets.name || !secrets.soul) return null;
-    return secrets;
+    const parsed = BuddySecretsSchema.safeParse(JSON.parse(decrypted));
+    if (!parsed.success) {
+      console.warn('Buddy secrets failed validation:', parsed.error.message);
+      return null;
+    }
+    return parsed.data;
   } catch {
     return null;
   }
