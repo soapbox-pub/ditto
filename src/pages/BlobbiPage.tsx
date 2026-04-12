@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -28,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
+import { StatIndicator } from '@/blobbi/ui/StatIndicator';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -2464,83 +2465,8 @@ function MoreTabContent({
   );
 }
 
-// ─── Stat Indicator ───────────────────────────────────────────────────────────
-
-interface StatIndicatorProps {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
-}
-
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green: 'text-green-500',
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10',
-  yellow: 'bg-yellow-500/10',
-  green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10',
-  violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  violet: '#8b5cf6',
-};
-
-/** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
-};
-
-function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
-  const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon with warning badge on its corner */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
+// StatIndicator is imported from the shared component
+// See: src/blobbi/ui/StatIndicator.tsx
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 

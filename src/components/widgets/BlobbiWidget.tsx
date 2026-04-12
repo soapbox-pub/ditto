@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Egg, Utensils, Gamepad2, Droplets, Heart, Zap, Pill, Moon, Sun } from 'lucide-react';
+import { Egg } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { StatIndicator } from '@/blobbi/ui/StatIndicator';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
-import { isActionVisibleForStage, type InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
+import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
+import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { KIND_BLOBBI_STATE, updateBlobbiTags } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
@@ -18,49 +20,34 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 
-/** Stat icon components matching BlobbiPage. */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
+/** Stat-to-action mapping: each stat has an associated quick action + default item. */
+const STAT_ACTION_MAP: Record<string, { itemId: string; action: InventoryAction } | 'sleep'> = {
+  hunger: { itemId: 'food_apple', action: 'feed' },
+  happiness: { itemId: 'toy_ball', action: 'play' },
+  health: { itemId: 'med_vitamins', action: 'medicine' },
+  hygiene: { itemId: 'hyg_soap', action: 'clean' },
+  energy: 'sleep',
 };
 
-const STAT_TEXT_COLORS: Record<string, string> = {
-  hunger: 'text-orange-500',
-  happiness: 'text-yellow-500',
-  health: 'text-green-500',
-  hygiene: 'text-blue-500',
-  energy: 'text-violet-500',
+/** Stat-to-color mapping matching the BlobbiPage convention. */
+const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
+  hunger: 'orange',
+  happiness: 'yellow',
+  health: 'green',
+  hygiene: 'blue',
+  energy: 'violet',
 };
 
-const STAT_BG_COLORS: Record<string, string> = {
-  hunger: 'bg-orange-500/10',
-  happiness: 'bg-yellow-500/10',
-  health: 'bg-green-500/10',
-  hygiene: 'bg-blue-500/10',
-  energy: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  hunger: '#f97316',
-  happiness: '#eab308',
-  health: '#22c55e',
-  hygiene: '#3b82f6',
-  energy: '#8b5cf6',
-};
-
-/** Default item IDs for quick actions. */
-const QUICK_ITEMS: Record<string, { itemId: string; action: InventoryAction }> = {
-  feed: { itemId: 'food_apple', action: 'feed' },
-  play: { itemId: 'toy_ball', action: 'play' },
-  clean: { itemId: 'hyg_soap', action: 'clean' },
-  medicine: { itemId: 'med_vitamins', action: 'medicine' },
+/** Blobbi action name for stage visibility checks. */
+const STAT_ACTION_NAME: Record<string, BlobbiAction> = {
+  hunger: 'feed',
+  happiness: 'play',
+  health: 'medicine',
+  hygiene: 'clean',
 };
 
 /** localStorage key helper matching BlobbiPage pattern. */
@@ -82,15 +69,12 @@ export function BlobbiWidget() {
 
   const companion = useMemo<BlobbiCompanion | null>(() => {
     if (!companions || companions.length === 0) return null;
-    // Priority 1: localStorage selection
     if (storedSelectedD && companionsByD[storedSelectedD]) return companionsByD[storedSelectedD];
-    // Priority 2: first from profile.has
     if (profile) {
       for (const d of profile.has) {
         if (companionsByD[d]) return companionsByD[d];
       }
     }
-    // Priority 3: first companion
     return companions[0];
   }, [companions, companionsByD, storedSelectedD, profile]);
 
@@ -176,10 +160,10 @@ export function BlobbiWidget() {
     return (
       <div className="flex flex-col items-center gap-3 py-4">
         <Skeleton className="size-24 rounded-full" />
-        <div className="w-full space-y-2 px-4">
-          <Skeleton className="h-2 w-full rounded-full" />
-          <Skeleton className="h-2 w-full rounded-full" />
-          <Skeleton className="h-2 w-full rounded-full" />
+        <div className="flex items-center justify-center gap-1.5 pt-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="size-9 rounded-full" />
+          ))}
         </div>
       </div>
     );
@@ -216,30 +200,40 @@ interface BlobbiWidgetContentProps {
 
 function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: BlobbiWidgetContentProps) {
   const projected = useProjectedBlobbiState(companion);
-  const defaultStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
+  const defaultStats: BlobbiStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
+  const stats = projected?.stats ?? defaultStats;
   const { recipe, recipeLabel } = useStatusReaction({
-    stats: projected?.stats ?? defaultStats,
+    stats,
     enabled: companion.state !== 'sleeping',
   });
+
   const stage = companion.stage;
-  const isSleeping = companion.state === 'sleeping';
 
-  // Determine which quick actions are visible for this stage
-  const showFeed = isActionVisibleForStage(stage, 'feed');
-  const showPlay = isActionVisibleForStage(stage, 'play');
-  const showClean = isActionVisibleForStage(stage, 'clean');
-  const showMedicine = isActionVisibleForStage(stage, 'medicine');
-  const showSleep = stage !== 'egg'; // eggs can't sleep
+  // Get the stat keys relevant for this stage (eggs see fewer stats)
+  const relevantStats = getVisibleStats(stage);
 
-  const handleQuickAction = useCallback(async (key: string) => {
-    const item = QUICK_ITEMS[key];
-    if (!item) return;
-    try {
-      await onUseItem(item);
-    } catch {
-      // Error already toasted by the mutation hook
+  // Filter stats by stage-appropriate actions
+  const visibleStats = relevantStats.filter((stat) => {
+    // Energy maps to sleep, which eggs can't do
+    if (stat === 'energy') return stage !== 'egg';
+    const actionName = STAT_ACTION_NAME[stat];
+    if (!actionName) return false;
+    return isActionVisibleForStage(stage, actionName);
+  });
+
+  const handleStatClick = useCallback(async (stat: keyof BlobbiStats) => {
+    const mapping = STAT_ACTION_MAP[stat];
+    if (!mapping) return;
+    if (mapping === 'sleep') {
+      await onRest();
+    } else {
+      try {
+        await onUseItem(mapping);
+      } catch {
+        // Error already toasted by the mutation hook
+      }
     }
-  }, [onUseItem]);
+  }, [onUseItem, onRest]);
 
   return (
     <div className="flex flex-col items-center gap-3 py-3">
@@ -260,125 +254,20 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
         {companion.name}
       </Link>
 
-      {/* Stat rings */}
-      {projected && projected.visibleStats.length > 0 && (
-        <div className="flex items-center justify-center gap-1.5 px-2">
-          {projected.visibleStats.map(({ stat, value, status }) => (
-            <MiniStatRing key={stat} stat={stat} value={value} status={status} />
-          ))}
-        </div>
-      )}
-
-      {/* Quick action buttons */}
-      <div className="flex items-center justify-center gap-2 px-3 pt-1">
-        {showFeed && (
-          <QuickActionButton
-            icon={<Utensils className="size-3.5" />}
-            label="Feed"
-            color="text-orange-500 bg-orange-500/10 hover:bg-orange-500/20"
+      {/* Unified stat wheels — each is both a status indicator and an action button */}
+      <div className="flex items-center justify-center gap-1.5 px-2">
+        {visibleStats.map((stat) => (
+          <StatIndicator
+            key={stat}
+            stat={stat}
+            value={stats[stat]}
+            color={STAT_COLOR_MAP[stat]}
+            status={getStatStatus(stage, stat, stats[stat] ?? 100)}
+            size="sm"
+            onClick={() => handleStatClick(stat)}
             disabled={isActionPending}
-            onClick={() => handleQuickAction('feed')}
           />
-        )}
-        {showPlay && (
-          <QuickActionButton
-            icon={<Gamepad2 className="size-3.5" />}
-            label="Play"
-            color="text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"
-            disabled={isActionPending}
-            onClick={() => handleQuickAction('play')}
-          />
-        )}
-        {showClean && (
-          <QuickActionButton
-            icon={<Droplets className="size-3.5" />}
-            label="Clean"
-            color="text-blue-500 bg-blue-500/10 hover:bg-blue-500/20"
-            disabled={isActionPending}
-            onClick={() => handleQuickAction('clean')}
-          />
-        )}
-        {showMedicine && (
-          <QuickActionButton
-            icon={<Pill className="size-3.5" />}
-            label="Heal"
-            color="text-green-500 bg-green-500/10 hover:bg-green-500/20"
-            disabled={isActionPending}
-            onClick={() => handleQuickAction('medicine')}
-          />
-        )}
-        {showSleep && (
-          <QuickActionButton
-            icon={isSleeping ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-            label={isSleeping ? 'Wake' : 'Sleep'}
-            color="text-violet-500 bg-violet-500/10 hover:bg-violet-500/20"
-            disabled={isActionPending}
-            onClick={onRest}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface QuickActionButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-  disabled: boolean;
-  onClick: () => void;
-}
-
-function QuickActionButton({ icon, label, color, disabled, onClick }: QuickActionButtonProps) {
-  return (
-    <button
-      onClick={(e) => { e.preventDefault(); onClick(); }}
-      disabled={disabled}
-      className={cn(
-        'flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 transition-colors',
-        color,
-        disabled && 'opacity-40 pointer-events-none',
-      )}
-      title={label}
-    >
-      {icon}
-      <span className="text-[9px] font-medium leading-none">{label}</span>
-    </button>
-  );
-}
-
-/** Compact circular stat indicator matching BlobbiPage style. */
-function MiniStatRing({ stat, value, status }: { stat: string; value: number; status: 'normal' | 'warning' | 'critical' }) {
-  const displayValue = Math.max(0, Math.min(100, value));
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[stat];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-9 rounded-full flex items-center justify-center shrink-0',
-      STAT_BG_COLORS[stat],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-3.5', STAT_TEXT_COLORS[stat])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1 -right-1.5 size-2.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
-        )}
+        ))}
       </div>
     </div>
   );
