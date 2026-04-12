@@ -3,8 +3,8 @@ import { nip19 } from 'nostr-tools';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useAIChatTools } from '@/hooks/useAIChatTools';
-import { TOOLS, type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
+import { useAIChatTools, TOOLS } from '@/hooks/useAIChatTools';
+import { type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
 import { buildSystemPrompt, type UserIdentity } from '@/lib/aiChatSystemPrompt';
 
 import type { NostrEvent } from '@nostrify/nostrify';

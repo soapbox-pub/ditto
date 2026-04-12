@@ -1,5 +1,8 @@
-import { AVAILABLE_FONTS } from '@/lib/aiChatTools';
+import { bundledFonts } from '@/lib/fonts';
 import type { ChatMessage } from '@/hooks/useShakespeare';
+
+/** Comma-separated list of available bundled font names for the system prompt. */
+const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
 /** Minimal profile fields injected into the system prompt so the AI knows who it's talking to. */
 export interface UserIdentity {
