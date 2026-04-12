@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
 import { getBuddyOrEphemeralKey, signAndPublishWithProfile } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
@@ -39,6 +41,15 @@ After publishing, the emoji pack appears in the user's feed and can be added to 
       }
     }
 
+    // Sanitize emoji URLs -- reject any that aren't valid HTTPS
+    const sanitizedEmojis = args.emojis
+      .map((e) => ({ shortcode: e.shortcode, url: sanitizeUrl(e.url) }))
+      .filter((e): e is { shortcode: string; url: string } => !!e.url);
+
+    if (sanitizedEmojis.length === 0) {
+      return { result: JSON.stringify({ error: 'No emojis had valid HTTPS URLs. All emoji image URLs must be HTTPS.' }) };
+    }
+
     const dTag = packName
       .toLowerCase()
       .trim()
@@ -49,7 +60,7 @@ After publishing, the emoji pack appears in the user's feed and can be added to 
     const tags: string[][] = [
       ['d', dTag],
       ['title', packName],
-      ...args.emojis.map((e) => ['emoji', e.shortcode, e.url]),
+      ...sanitizedEmojis.map((e) => ['emoji', e.shortcode, e.url]),
     ];
 
     const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(ctx.getBuddySecretKey);
@@ -66,7 +77,7 @@ After publishing, the emoji pack appears in the user's feed and can be added to 
         pubkey,
         name: packName,
         slug: dTag,
-        emoji_count: args.emojis.length,
+        emoji_count: sanitizedEmojis.length,
       }),
       nostrEvent: emojiPackEvent,
     };

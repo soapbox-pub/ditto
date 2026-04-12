@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { zipSync, strToU8 } from 'fflate';
 
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
 import { getBuddyOrEphemeralKey, signAndPublishWithProfile, createBuddyUploader } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
@@ -93,8 +95,10 @@ Only one of html or files is needed. If both are provided, files takes priority.
         Object.entries(args.asset_urls)
           .filter(([, url]) => typeof url === 'string' && url.trim())
           .map(async ([filename, url]) => {
-            const res = await globalThis.fetch(url, { signal: AbortSignal.timeout(60_000) });
-            if (!res.ok) throw new Error(`Failed to fetch asset "${filename}" from ${url}: ${res.status}`);
+            const safeUrl = sanitizeUrl(url);
+            if (!safeUrl) throw new Error(`Invalid asset URL for "${filename}": must be a valid HTTPS URL.`);
+            const res = await globalThis.fetch(safeUrl, { signal: AbortSignal.timeout(60_000) });
+            if (!res.ok) throw new Error(`Failed to fetch asset "${filename}" from ${safeUrl}: ${res.status}`);
             return [filename, new Uint8Array(await res.arrayBuffer())] as const;
           }),
       );
@@ -139,7 +143,7 @@ Only one of html or files is needed. If both are provided, files takes priority.
     const sizeTag = uploadTags.find(t => t[0] === 'size');
     if (sizeTag) eventTags.push(['size', sizeTag[1]]);
 
-    const imageUrl = (args.image_url ?? '').trim();
+    const imageUrl = sanitizeUrl((args.image_url ?? '').trim());
     if (imageUrl) eventTags.push(['image', imageUrl]);
 
     const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(ctx.getBuddySecretKey);

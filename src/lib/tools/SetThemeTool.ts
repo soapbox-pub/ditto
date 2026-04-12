@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { bundledFonts } from '@/lib/fonts';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 import type { ThemeConfig } from '@/themes';
@@ -60,8 +61,12 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
     }
 
     if (background_url) {
+      const safeUrl = sanitizeUrl(background_url.trim());
+      if (!safeUrl) {
+        return { result: JSON.stringify({ error: 'Invalid background URL. Must be a valid HTTPS URL.' }) };
+      }
       themeConfig.background = {
-        url: background_url.trim(),
+        url: safeUrl,
         mode: background_mode === 'tile' ? 'tile' : 'cover',
       };
     }
