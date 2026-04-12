@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Egg } from 'lucide-react';
+import { Egg, Footprints, Loader2 } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { StatIndicator } from '@/blobbi/ui/StatIndicator';
@@ -11,7 +11,7 @@ import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
-import { KIND_BLOBBI_STATE, updateBlobbiTags } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -20,6 +20,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
@@ -59,7 +60,7 @@ function getSelectedBlobbiKey(pubkey: string): string {
 export function BlobbiWidget() {
   const { user } = useCurrentUser();
   const { companions, companionsByD, isLoading, updateCompanionEvent } = useBlobbisCollection();
-  const { profile, updateProfileEvent } = useBlobbonautProfile();
+  const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
@@ -143,6 +144,44 @@ export function BlobbiWidget() {
     }
   }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
+  // Companion toggle handler (same logic as BlobbiPage)
+  const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
+  const isCurrentCompanion = companion ? profile?.currentCompanion === companion.d : false;
+
+  const handleSetAsCompanion = useCallback(async () => {
+    if (!profile || !companion) return;
+    setIsUpdatingCompanion(true);
+    try {
+      let updatedTags: string[][];
+      if (isCurrentCompanion) {
+        updatedTags = updateBlobbonautTags(profile.allTags, {})
+          .filter(tag => tag[0] !== 'current_companion');
+      } else {
+        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
+          current_companion: companion.d,
+        });
+      }
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content: '',
+        tags: updatedTags,
+      });
+      updateProfileEvent(event);
+      invalidateProfile();
+      toast({
+        title: isCurrentCompanion ? 'Companion unset' : 'Companion set!',
+        description: isCurrentCompanion
+          ? `${companion.name} is no longer your companion`
+          : `${companion.name} is now your companion`,
+      });
+    } catch {
+      toast({ title: 'Failed to update companion', variant: 'destructive' });
+    } finally {
+      setIsUpdatingCompanion(false);
+    }
+  }, [profile, companion, isCurrentCompanion, publishEvent, updateProfileEvent, invalidateProfile]);
+
   const isActionPending = isUsingItem || isSleepPending;
 
   if (!user) {
@@ -187,6 +226,9 @@ export function BlobbiWidget() {
       onUseItem={executeUseItem}
       onRest={handleRest}
       isActionPending={isActionPending}
+      isCurrentCompanion={isCurrentCompanion}
+      isUpdatingCompanion={isUpdatingCompanion}
+      onToggleCompanion={handleSetAsCompanion}
     />
   );
 }
@@ -196,9 +238,12 @@ interface BlobbiWidgetContentProps {
   onUseItem: (req: { itemId: string; action: InventoryAction }) => Promise<unknown>;
   onRest: () => Promise<void>;
   isActionPending: boolean;
+  isCurrentCompanion: boolean;
+  isUpdatingCompanion: boolean;
+  onToggleCompanion: () => Promise<void>;
 }
 
-function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: BlobbiWidgetContentProps) {
+function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, isCurrentCompanion, isUpdatingCompanion, onToggleCompanion }: BlobbiWidgetContentProps) {
   const projected = useProjectedBlobbiState(companion);
   const defaultStats: BlobbiStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
   const stats = projected?.stats ?? defaultStats;
@@ -236,7 +281,25 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
   }, [onUseItem, onRest]);
 
   return (
-    <div className="flex flex-col items-center gap-3 py-3">
+    <div className="relative flex flex-col items-center gap-3 py-3">
+      {/* Take along button — top right */}
+      <button
+        onClick={onToggleCompanion}
+        disabled={isUpdatingCompanion || isActionPending}
+        className={cn(
+          'absolute top-2 right-1 size-7 rounded-full flex items-center justify-center transition-colors',
+          isCurrentCompanion
+            ? 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20'
+            : 'text-violet-500 bg-violet-500/10 hover:bg-violet-500/20',
+          (isUpdatingCompanion || isActionPending) && 'opacity-40 pointer-events-none',
+        )}
+        title={isCurrentCompanion ? 'With you' : 'Take along'}
+      >
+        {isUpdatingCompanion
+          ? <Loader2 className="size-3.5 animate-spin" />
+          : <Footprints className="size-3.5" />}
+      </button>
+
       {/* Pet visual — links to full page */}
       <Link to="/blobbi" className="relative hover:scale-105 transition-transform">
         <BlobbiStageVisual
