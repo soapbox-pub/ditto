@@ -114,3 +114,77 @@ export function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
   }
   return undefined;
 }
+
+/**
+ * Unwraps kind 6/16 reposts from a list of events into FeedItems.
+ *
+ * For each repost event, attempts to extract the original from the JSON
+ * content. If the content is missing or unparseable, the original event ID
+ * is collected for a batch fetch via `fetchMissing`.
+ *
+ * Non-repost events are passed through as direct FeedItems.
+ *
+ * @param events     - Pre-validated events (future timestamps already stripped).
+ * @param fetchMissing - Callback to fetch originals by ID (e.g. `nostr.query`).
+ * @param now        - Current unix timestamp for future-event rejection.
+ */
+export async function unwrapReposts(
+  events: NostrEvent[],
+  fetchMissing: (ids: string[]) => Promise<NostrEvent[]>,
+  now: number,
+): Promise<FeedItem[]> {
+  const items: FeedItem[] = [];
+  const repostMissingIds: string[] = [];
+  const repostMap = new Map<string, NostrEvent>();
+
+  for (const ev of events) {
+    if (isRepostKind(ev.kind)) {
+      const embedded = parseRepostContent(ev);
+      if (embedded && embedded.created_at <= now) {
+        items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
+      } else {
+        const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
+        if (repostedId) {
+          repostMissingIds.push(repostedId);
+          repostMap.set(repostedId, ev);
+        }
+      }
+    } else {
+      items.push({ event: ev, sortTimestamp: ev.created_at });
+    }
+  }
+
+  if (repostMissingIds.length > 0) {
+    try {
+      const originals = await fetchMissing(repostMissingIds);
+      for (const original of originals) {
+        const repost = repostMap.get(original.id);
+        if (repost && original.created_at <= now) {
+          items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
+        }
+      }
+    } catch {
+      // timeout or abort — just skip the missing reposts
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Deduplicates FeedItems by event ID, preferring the original post over a
+ * repost when both are present. Returns items sorted newest-first by
+ * `sortTimestamp`.
+ */
+export function deduplicateFeedItems(items: FeedItem[]): FeedItem[] {
+  const seen = new Map<string, FeedItem>();
+  for (const item of items) {
+    const existing = seen.get(item.event.id);
+    if (!existing) {
+      seen.set(item.event.id, item);
+    } else if (!item.repostedBy && existing.repostedBy) {
+      seen.set(item.event.id, item);
+    }
+  }
+  return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+}

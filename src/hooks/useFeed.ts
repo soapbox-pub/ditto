@@ -5,10 +5,9 @@ import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, isRepostKind, unwrapReposts, deduplicateFeedItems, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { setProfileCached } from '@/lib/profileCache';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
 
@@ -173,59 +172,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const oldestQueryTimestamp = getPaginationCursor(validFilteredEvents);
 
         // Process reposts same as follows feed
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        const items = await unwrapReposts(
+          validFilteredEvents,
+          (ids) => nostr.query([{ ids, limit: ids.length }], { signal }),
+          now,
+        );
 
-        for (const ev of validFilteredEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1 and extra kinds — direct post
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = deduplicateFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
@@ -258,59 +211,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
         const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        const items = await unwrapReposts(
+          validEvents,
+          (ids) => nostr.query([{ ids, limit: ids.length }], { signal }),
+          now,
+        );
 
-        for (const ev of validEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = deduplicateFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {

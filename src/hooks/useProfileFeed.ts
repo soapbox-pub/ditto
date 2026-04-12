@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, unwrapReposts, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -134,46 +134,11 @@ export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab
       const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
       // Process events into FeedItems, unwrapping kind 6/16 reposts
-      const items: FeedItem[] = [];
-      const repostMissingIds: string[] = [];
-      const repostMap = new Map<string, NostrEvent>();
-
-      for (const ev of validEvents) {
-        if (isRepostKind(ev.kind)) {
-          // Handle reposts (kind 6 for notes, kind 16 for generic)
-          const embedded = parseRepostContent(ev);
-          if (embedded && embedded.created_at <= now) {
-            items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-          } else {
-            const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-            if (repostedId) {
-              repostMissingIds.push(repostedId);
-              repostMap.set(repostedId, ev);
-            }
-          }
-        } else {
-          // Direct post or other kinds
-          items.push({ event: ev, sortTimestamp: ev.created_at });
-        }
-      }
-
-      // Fetch any missing reposted events in a single query
-      if (repostMissingIds.length > 0) {
-        try {
-          const originals = await nostr.query(
-            [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-            { signal: querySignal },
-          );
-          for (const original of originals) {
-            const repost = repostMap.get(original.id);
-            if (repost && original.created_at <= now) {
-              items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-            }
-          }
-        } catch {
-          // timeout or abort — just skip the missing reposts
-        }
-      }
+      const items = await unwrapReposts(
+        validEvents,
+        (ids) => nostr.query([{ ids, limit: ids.length }], { signal: querySignal }),
+        now,
+      );
 
       // Sort by timestamp
       const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
