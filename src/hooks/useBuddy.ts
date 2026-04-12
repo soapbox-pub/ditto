@@ -7,6 +7,8 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,6 +82,7 @@ export function useBuddy() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+  const { mutateAsync: publishEvent } = useNostrPublish();
 
   const dTag = `${config.appId}${BUDDY_DTAG_SUFFIX}`;
 
@@ -173,7 +176,7 @@ export function useBuddy() {
         created_at: Math.floor(Date.now() / 1000),
       }, sk) as NostrEvent;
 
-      // Build kind 30078 buddy identity event (signed by the user)
+      // Build kind 30078 buddy identity event (signed by the user via useNostrPublish)
       const secrets: BuddySecrets = {
         nsec: bytesToHex(sk),
         name,
@@ -181,23 +184,19 @@ export function useBuddy() {
       };
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(secrets));
 
-      const buddyEvent = await user.signer.signEvent({
+      // Publish buddy profile (signed by buddy key) in background
+      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {});
+
+      // Publish kind 30078 via useNostrPublish (handles client tag + published_at)
+      const buddyEvent = await publishEvent({
         kind: 30078,
         content: encrypted,
         tags: [
           ['d', dTag],
           ['p', pubkey],
           ['alt', 'Buddy AI agent identity'],
-          ['client', config.clientName ?? config.appName, ...(config.client ? [config.client] : [])],
         ],
-        created_at: Math.floor(Date.now() / 1000),
       });
-
-      // Publish both events
-      await Promise.all([
-        nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }),
-        nostr.event(buddyEvent, { signal: AbortSignal.timeout(5000) }),
-      ]);
 
       return { pubkey, name, soul, event: buddyEvent } satisfies BuddyIdentity;
     },
@@ -218,12 +217,22 @@ export function useBuddy() {
       // Get the current nsec (must exist if buddy exists)
       const localSk = getStoredNsec();
       if (!localSk) throw new Error('Buddy nsec not found in localStorage');
-      if (!buddyQuery.data) throw new Error('No existing buddy identity to update');
+
+      // Fetch fresh from relay — never read from cache for read-modify-write
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [30078],
+        authors: [user.pubkey],
+        '#d': [dTag],
+      });
+      if (!prev) throw new Error('No existing buddy identity to update');
+
+      const freshSecrets = await decryptSecrets(prev, user);
+      if (!freshSecrets) throw new Error('Failed to decrypt buddy secrets');
 
       const pubkey = getPublicKey(localSk);
-      const currentName = buddyQuery.data.name;
+      const currentName = freshSecrets.name;
 
-      // Encrypt updated secrets (preserve name)
+      // Encrypt updated secrets (preserve name from fresh event)
       const secrets: BuddySecrets = {
         nsec: bytesToHex(localSk),
         name: currentName,
@@ -231,22 +240,19 @@ export function useBuddy() {
       };
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(secrets));
 
-      // Publish updated kind 30078 event
-      const buddyEvent = await user.signer.signEvent({
+      // Publish updated kind 30078 via useNostrPublish (handles client tag + published_at)
+      const buddyEvent = await publishEvent({
         kind: 30078,
         content: encrypted,
         tags: [
           ['d', dTag],
           ['p', pubkey],
           ['alt', 'Buddy AI agent identity'],
-          ['client', config.clientName ?? config.appName, ...(config.client ? [config.client] : [])],
         ],
-        created_at: Math.floor(Date.now() / 1000),
+        prev,
       });
 
-      await nostr.event(buddyEvent, { signal: AbortSignal.timeout(5000) });
-
-      // Also update the buddy's kind 0 about field
+      // Also update the buddy's kind 0 about field (fire-and-forget)
       const profileEvent = finalizeEvent({
         kind: 0,
         content: JSON.stringify({
@@ -258,9 +264,7 @@ export function useBuddy() {
         created_at: Math.floor(Date.now() / 1000),
       }, localSk) as NostrEvent;
 
-      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch((err) => {
-        console.error('Failed to update buddy profile:', err);
-      });
+      nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {});
 
       return { pubkey, name: currentName, soul: newSoul, event: buddyEvent } satisfies BuddyIdentity;
     },
@@ -279,19 +283,23 @@ export function useBuddy() {
       // Clear localStorage
       clearStoredNsec();
 
+      // Fetch the current event so useNostrPublish can preserve published_at
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [30078],
+        authors: [user.pubkey],
+        '#d': [dTag],
+      });
+
       // Publish an empty kind 30078 event to overwrite on relays
-      const emptyEvent = await user.signer.signEvent({
+      const emptyEvent = await publishEvent({
         kind: 30078,
         content: '',
         tags: [
           ['d', dTag],
           ['alt', 'Buddy AI agent identity (cleared)'],
-          ['client', config.clientName ?? config.appName, ...(config.client ? [config.client] : [])],
         ],
-        created_at: Math.floor(Date.now() / 1000),
+        prev: prev ?? undefined,
       });
-
-      await nostr.event(emptyEvent, { signal: AbortSignal.timeout(5000) });
 
       return emptyEvent;
     },

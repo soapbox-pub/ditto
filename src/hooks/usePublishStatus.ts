@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -19,16 +19,15 @@ interface PublishStatusParams {
  * signals that the status is cleared.
  */
 export function usePublishStatus() {
-  const queryClient = useQueryClient();
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   const { mutateAsync: createEvent } = useNostrPublish();
   const { user } = useCurrentUser();
 
   return useMutation({
     mutationFn: async ({ status, url }: PublishStatusParams) => {
-      if (!user?.pubkey) return;
+      if (!user) throw new Error('User not logged in');
 
-      // Fetch the previous event to preserve published_at (addressable event convention)
       const prev = await fetchFreshEvent(nostr, {
         kinds: [30315],
         authors: [user.pubkey],
