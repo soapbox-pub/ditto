@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.6] - 2026-04-12
+
+### Fixed
+- Emoji and mention autocomplete dropdowns no longer get clipped by the compose box
+- Emoji shortcodes now render as color emoji instead of plain text glyphs
+- Dialogs and input fields on Android are no longer obscured by the virtual keyboard
+- Signing requests on Android are more reliable and no longer silently fail after switching apps
+
 ## [2.6.5] - 2026-04-11
 
 ### Changed
