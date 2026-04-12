@@ -35,6 +35,8 @@ const StatusWidget = lazy(() => import('@/components/widgets/StatusWidget').then
 const AIChatWidget = lazy(() => import('@/components/widgets/AIChatWidget').then((m) => ({ default: m.AIChatWidget })));
 const WikipediaWidget = lazy(() => import('@/components/widgets/WikipediaWidget').then((m) => ({ default: m.WikipediaWidget })));
 const BlueskyWidget = lazy(() => import('@/components/widgets/BlueskyWidget').then((m) => ({ default: m.BlueskyWidget })));
+const PhotoWidget = lazy(() => import('@/components/widgets/PhotoWidget').then((m) => ({ default: m.PhotoWidget })));
+const MusicWidget = lazy(() => import('@/components/widgets/MusicWidget').then((m) => ({ default: m.MusicWidget })));
 const FeedWidget = lazy(() => import('@/components/widgets/FeedWidget').then((m) => ({ default: m.FeedWidget })));
 
 const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').then((m) => ({ default: m.WidgetPickerDialog })));
@@ -58,9 +60,9 @@ function WidgetContent({ id }: { id: string }) {
     case 'bluesky':
       return <BlueskyWidget />;
     case 'feed:photos':
-      return <FeedWidget kinds={[20]} feedPath="/photos" feedLabel="View all photos" />;
+      return <PhotoWidget />;
     case 'feed:music':
-      return <FeedWidget kinds={[36787, 34139]} feedPath="/music" feedLabel="View all music" />;
+      return <MusicWidget />;
     case 'feed:articles':
       return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel="View all articles" />;
     case 'feed:events':
