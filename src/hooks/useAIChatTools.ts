@@ -204,35 +204,32 @@ export function useAIChatTools() {
               .map(([, pk]) => pk) ?? [];
 
             if (contactPubkeys.length > 0) {
-              // Fetch metadata for contacts in batches
-              const batchSize = 100;
-              for (let i = 0; i < contactPubkeys.length && matches.length < 5; i += batchSize) {
-                const batch = contactPubkeys.slice(i, i + batchSize);
-                const metaEvents = await nostr.query(
-                  [{ kinds: [0], authors: batch }],
-                  { signal: AbortSignal.timeout(8000) },
-                );
+              // Fetch metadata for all contacts in a single query
+              const metaEvents = await nostr.query(
+                [{ kinds: [0], authors: contactPubkeys }],
+                { signal: AbortSignal.timeout(8000) },
+              );
 
-                for (const event of metaEvents) {
-                  try {
-                    const meta = JSON.parse(event.content);
-                    const name = (meta.name || '').toLowerCase();
-                    const displayName = (meta.display_name || '').toLowerCase();
-                    const nip05 = (meta.nip05 || '').toLowerCase();
+              for (const event of metaEvents) {
+                if (matches.length >= 5) break;
+                try {
+                  const meta = JSON.parse(event.content);
+                  const name = (meta.name || '').toLowerCase();
+                  const displayName = (meta.display_name || '').toLowerCase();
+                  const nip05 = (meta.nip05 || '').toLowerCase();
 
-                    if (name.includes(query) || displayName.includes(query) || nip05.includes(query)) {
-                      matches.push({
-                        pubkey: event.pubkey,
-                        name: meta.name,
-                        display_name: meta.display_name,
-                        nip05: meta.nip05,
-                        about: meta.about ? meta.about.slice(0, 100) : undefined,
-                        source: 'contacts',
-                      });
-                    }
-                  } catch {
-                    // Skip events with invalid metadata JSON
+                  if (name.includes(query) || displayName.includes(query) || nip05.includes(query)) {
+                    matches.push({
+                      pubkey: event.pubkey,
+                      name: meta.name,
+                      display_name: meta.display_name,
+                      nip05: meta.nip05,
+                      about: meta.about ? meta.about.slice(0, 100) : undefined,
+                      source: 'contacts',
+                    });
                   }
+                } catch {
+                  // Skip events with invalid metadata JSON
                 }
               }
             }
@@ -892,24 +889,20 @@ export function useAIChatTools() {
           const profileMap = new Map<string, { name?: string; display_name?: string; nip05?: string }>();
 
           try {
-            // Fetch in batches of 100
-            for (let i = 0; i < uniquePubkeys.length; i += 100) {
-              const batch = uniquePubkeys.slice(i, i + 100);
-              const profiles = await nostr.query(
-                [{ kinds: [0], authors: batch }],
-                { signal: AbortSignal.timeout(5000) },
-              );
-              for (const p of profiles) {
-                try {
-                  const meta = JSON.parse(p.content);
-                  profileMap.set(p.pubkey, {
-                    name: meta.name,
-                    display_name: meta.display_name,
-                    nip05: meta.nip05,
-                  });
-                } catch {
-                  // Skip invalid metadata
-                }
+            const profiles = await nostr.query(
+              [{ kinds: [0], authors: uniquePubkeys }],
+              { signal: AbortSignal.timeout(5000) },
+            );
+            for (const p of profiles) {
+              try {
+                const meta = JSON.parse(p.content);
+                profileMap.set(p.pubkey, {
+                  name: meta.name,
+                  display_name: meta.display_name,
+                  nip05: meta.nip05,
+                });
+              } catch {
+                // Skip invalid metadata
               }
             }
           } catch {
