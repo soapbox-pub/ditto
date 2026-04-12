@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { ExternalLink, FileText, Globe, Play, Server } from "lucide-react";
+import { ExternalLink, FileText, Globe, Pin, PinOff, Play, Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,9 @@ import { ExternalFavicon } from "@/components/ExternalFavicon";
 import { NsitePreviewDialog } from "@/components/NsitePreviewDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNsitePlayer } from "@/contexts/NsitePlayerContext";
+import { useFeedSettings } from "@/hooks/useFeedSettings";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
+import { toast } from "@/hooks/useToast";
 import { getNsiteSubdomain } from "@/lib/nsiteSubdomain";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,10 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
 	const displayName = title || (isNamed ? dTag : "Root Site");
 
+	const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+	const sidebarUri = isNamed ? `nsite://${nsiteSubdomain}` : undefined;
+	const isPinned = sidebarUri ? orderedItems.includes(sidebarUri) : false;
+
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
@@ -47,6 +53,17 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	// guard against clearing a *different* nsite's active state.
 	const activeRef = useRef(activeSubdomain);
 	activeRef.current = activeSubdomain;
+
+	const handleTogglePin = useCallback(() => {
+		if (!sidebarUri) return;
+		if (isPinned) {
+			removeFromSidebar(sidebarUri);
+			toast({ title: 'Removed from sidebar' });
+		} else {
+			addToSidebar(sidebarUri);
+			toast({ title: 'Added to sidebar' });
+		}
+	}, [sidebarUri, isPinned, addToSidebar, removeFromSidebar]);
 
 	// Sync open/close state with the global NsitePlayerContext.
 	const handlePreviewOpenChange = useCallback((open: boolean) => {
@@ -178,6 +195,17 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							<ExternalLink className="size-3 mr-1" />
 							Visit
 						</a>
+					</Button>
+				)}
+				{sidebarUri && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="h-7 text-xs ml-auto text-muted-foreground"
+						onClick={(e) => { e.stopPropagation(); handleTogglePin(); }}
+					>
+						{isPinned ? <PinOff className="size-3 mr-1" /> : <Pin className="size-3 mr-1" />}
+						{isPinned ? 'Unpin' : 'Pin'}
 					</Button>
 				)}
 			</div>

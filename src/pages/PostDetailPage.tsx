@@ -935,12 +935,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
 
+  const navigate = useNavigate();
+
   // Auto-play nsite when navigated from a pinned nsite sidebar item.
   // Uses React Router state (not URL params) so external URLs cannot trigger auto-launch.
   // The state includes a timestamp so each sidebar click produces a distinct key,
   // allowing the player to re-open even when already on the same page.
   const routeState = location.state as Record<string, unknown> | null;
   const nsiteAutoPlayKey = routeState?.nsiteAutoPlay ? (routeState.nsiteAutoPlayTs as number) || 1 : 0;
+
+  // Clear the router state after consuming it so a page refresh doesn't re-trigger auto-play.
+  useEffect(() => {
+    if (routeState?.nsiteAutoPlay) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [routeState?.nsiteAutoPlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refetch the author's profile whenever we navigate to a post by this author.
   useEffect(() => {
