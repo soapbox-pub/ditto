@@ -450,6 +450,14 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           return;
         }
 
+        // Diagnose native state before setting iframe src.
+        try {
+          const diag = await SandboxPlugin.diagnose();
+          console.log(`${tag} setup — native diagnose BEFORE iframe.src:`, JSON.stringify(diag));
+        } catch (err) {
+          console.warn(`${tag} setup — diagnose() failed (may not be iOS):`, err);
+        }
+
         // Now set the iframe src to start loading content.
         // This triggers native fetch interception.
         readyRef.current = true;
@@ -460,6 +468,15 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           console.log(`${tag} setup — iframe.src set successfully`);
         } else {
           console.warn(`${tag} setup — WARNING: iframeRef.current is null, cannot set src`);
+        }
+
+        // Diagnose native state after setting iframe src.
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          const diag = await SandboxPlugin.diagnose();
+          console.log(`${tag} setup — native diagnose AFTER iframe.src (1s):`, JSON.stringify(diag));
+        } catch (err) {
+          console.warn(`${tag} setup — diagnose() after failed:`, err);
         }
       }
 

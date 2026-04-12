@@ -27,6 +27,14 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
     /// Weak reference to the WKWebView so we can inject console.log calls.
     weak var webView: WKWebView?
 
+    /// Number of pending tasks (for diagnostics).
+    var pendingTaskCount: Int {
+        lock.lock()
+        let count = pendingTasks.count
+        lock.unlock()
+        return count
+    }
+
     private func log(_ message: String) {
         CAPLog.print("⚡️  [SandboxSchemeHandler] \(message)")
         // Also inject into the JS console so it appears in the Capacitor log stream.
@@ -199,6 +207,7 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "SandboxPlugin"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "respondToFetch", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "diagnose", returnType: CAPPluginReturnPromise),
     ]
 
     /// The shared scheme handler — set by `DittoBridgeViewController` before
@@ -256,6 +265,31 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
 
         call.resolve()
     }
+
+    /// Diagnostic method callable from JS to inspect native state.
+    @objc func diagnose(_ call: CAPPluginCall) {
+        let handler = SandboxPlugin.sharedSchemeHandler
+        let hasHandler = handler != nil
+        let hasPlugin = handler?.plugin != nil
+        let hasWebView = handler?.webView != nil
+        let hasBridgeWebView = bridge?.webView != nil
+        let hasListenersFetch = hasListeners("fetch")
+
+        lock.lock()
+        let pendingCount = handler?.pendingTaskCount ?? 0
+        lock.unlock()
+
+        call.resolve([
+            "schemeHandlerSet": hasHandler,
+            "pluginConnected": hasPlugin,
+            "schemeHandlerHasWebView": hasWebView,
+            "bridgeHasWebView": hasBridgeWebView,
+            "hasListenersFetch": hasListenersFetch,
+            "pendingTaskCount": pendingCount,
+        ])
+    }
+
+    private let lock = NSLock()
 
     // MARK: - Event Forwarding
 

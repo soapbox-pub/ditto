@@ -59,9 +59,22 @@ export interface SandboxFetchEvent {
 // Plugin interface
 // ---------------------------------------------------------------------------
 
+/** Diagnostic state returned by the native plugin. */
+export interface SandboxDiagnostics {
+  schemeHandlerSet: boolean;
+  pluginConnected: boolean;
+  schemeHandlerHasWebView: boolean;
+  bridgeHasWebView: boolean;
+  hasListenersFetch: boolean;
+  pendingTaskCount: number;
+}
+
 export interface SandboxPluginInterface {
   /** Send a fetch response back to the native scheme handler for a pending request. */
   respondToFetch(options: SandboxRespondToFetchOptions): Promise<void>;
+
+  /** Return diagnostic state from the native side (iOS only). */
+  diagnose(): Promise<SandboxDiagnostics>;
 
   /** Listen for fetch requests from sandbox iframes intercepted by native code. */
   addListener(
