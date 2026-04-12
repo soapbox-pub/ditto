@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
-import type { PrecipitationIntensity, PrecipitationType } from '@/hooks/useWeather';
+import type { PrecipitationIntensity } from '@/hooks/useWeather';
 
 // ─── Types ───
 
