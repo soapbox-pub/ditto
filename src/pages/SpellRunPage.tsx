@@ -1,27 +1,32 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
-import { AlertCircle, BookmarkPlus, Loader2, Share2, WandSparkles } from 'lucide-react';
+import { AlertCircle, BookmarkPlus, Check, Loader2, Share2, User, WandSparkles } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
+import { SaveDestinationRow } from '@/components/SaveDestinationRow';
 import { SpellContent } from '@/components/SpellContent';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFollowList } from '@/hooks/useFollowActions';
+import { useProfileTabs } from '@/hooks/useProfileTabs';
+import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
 import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
 import { resolveSpell } from '@/lib/spellEngine';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFollowList } from '@/hooks/useFollowActions';
 import NotFound from './NotFound';
 
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -92,9 +97,15 @@ export function SpellRunPage() {
 
   const spellName = spellEvent?.tags.find(([t]) => t === 'name')?.[1];
 
-  // Home feed tab integration — toggle saving this spell as a home feed tab
+  // ── Save popover state ───────────────────────────────────────────────
   const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
+  const profileTabsQuery = useProfileTabs(user?.pubkey);
+  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
   const { toast } = useToast();
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+  const [saveFeedLabel, setSaveFeedLabel] = useState('');
+  const [savedJustNow, setSavedJustNow] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   /** Convert a spell event to a TabFilter for saving. */
   const spellAsFilter = useMemo(() => {
@@ -114,27 +125,54 @@ export function SpellRunPage() {
     return savedFeeds.find((f) => JSON.stringify(f.filter) === filterKey);
   }, [savedFeeds, spellAsFilter]);
 
-  const isSaved = !!matchingSavedFeed;
+  const alreadySaved = !!matchingSavedFeed;
 
-  const handleToggleSaved = useCallback(async () => {
-    if (!spellEvent || !spellAsFilter) return;
-    if (isSaved && matchingSavedFeed) {
-      await removeSavedFeed(matchingSavedFeed.id);
-      toast({ title: 'Removed from home feed' });
-    } else {
-      await addSavedFeed(spellName ?? 'Spell', spellAsFilter as Record<string, unknown>, []);
-      toast({ title: 'Added to home feed' });
-    }
-  }, [spellEvent, spellAsFilter, isSaved, matchingSavedFeed, spellName, addSavedFeed, removeSavedFeed, toast]);
+  const handleSaveHomeFeed = useCallback(async () => {
+    if (!spellAsFilter || !saveFeedLabel.trim()) return;
+    await addSavedFeed(saveFeedLabel.trim(), spellAsFilter as Record<string, unknown>, []);
+    setSavePopoverOpen(false);
+    setSaveFeedLabel('');
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+    toast({ title: 'Added to home feed' });
+  }, [spellAsFilter, saveFeedLabel, addSavedFeed, toast]);
+
+  const handleSaveProfileTab = useCallback(async () => {
+    if (!spellAsFilter || !saveFeedLabel.trim() || !user) return;
+    const tabFilter = spellAsFilter as Record<string, unknown>;
+    const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
+    await publishProfileTabs({
+      tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: tabFilter }],
+      vars: existing.vars,
+    });
+    setSavePopoverOpen(false);
+    setSaveFeedLabel('');
+    setSavedJustNow(true);
+    setTimeout(() => setSavedJustNow(false), 2000);
+    toast({ title: 'Added to profile tabs' });
+  }, [spellAsFilter, saveFeedLabel, user, profileTabsQuery.data, publishProfileTabs, toast]);
 
   const handleShare = useCallback(async () => {
-    if (!spellEvent || !nevent) return;
-    const url = `${window.location.origin}/${nevent}`;
-    const result = await shareOrCopy(url, spellName ?? 'Spell');
-    if (result === 'copied') {
-      toast({ title: 'Link copied to clipboard' });
+    if (!spellEvent || !nevent || !saveFeedLabel.trim()) return;
+    setIsSharing(true);
+    try {
+      const url = `${window.location.origin}/${nevent}`;
+      const result = await shareOrCopy(url, saveFeedLabel.trim());
+      if (result === 'copied') {
+        toast({ title: 'Link copied to clipboard' });
+      }
+      setSavePopoverOpen(false);
+      setSaveFeedLabel('');
+    } finally {
+      setIsSharing(false);
     }
-  }, [spellEvent, nevent, spellName, toast]);
+  }, [spellEvent, nevent, saveFeedLabel, toast]);
+
+  const handleRemoveSaved = useCallback(async () => {
+    if (!matchingSavedFeed) return;
+    await removeSavedFeed(matchingSavedFeed.id);
+    toast({ title: 'Removed from home feed' });
+  }, [matchingSavedFeed, removeSavedFeed, toast]);
 
   useSeoMeta({
     title: spellName ? `${spellName} | Spell Results` : 'Spell Results',
@@ -163,25 +201,83 @@ export function SpellRunPage() {
           <div className="flex-1 min-w-0">
             <SpellContent event={spellEvent} />
           </div>
-          <button
-            className="shrink-0 size-8 flex items-center justify-center group"
-            onClick={handleShare}
-            title="Share spell"
-          >
-            <Share2 className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-          </button>
-          <button
-            className="shrink-0 size-8 flex items-center justify-center group"
-            onClick={handleToggleSaved}
-            title={isSaved ? 'Remove from home feed' : 'Add to home feed'}
-          >
-            <BookmarkPlus className={cn(
-              'size-4 transition-colors',
-              isSaved
-                ? 'fill-primary text-primary'
-                : 'text-muted-foreground group-hover:text-primary',
-            )} />
-          </button>
+          {user && (
+            <Popover open={savePopoverOpen} onOpenChange={(o) => {
+              setSavePopoverOpen(o);
+              if (o && !saveFeedLabel) {
+                setSaveFeedLabel(spellName ?? '');
+              }
+            }}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    'shrink-0 size-8 flex items-center justify-center rounded-md transition-colors',
+                    alreadySaved || savedJustNow
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  aria-label="Save spell"
+                >
+                  {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className={cn(
+                    'size-4',
+                    alreadySaved && 'fill-primary text-primary',
+                  )} />}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3 space-y-3">
+                <p className="font-semibold text-sm">Save as tab</p>
+
+                {alreadySaved ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Already saved to home feed.</p>
+                    <button
+                      onClick={handleRemoveSaved}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      placeholder="Tab name…"
+                      value={saveFeedLabel}
+                      onChange={(e) => setSaveFeedLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveHomeFeed(); }}
+                      className="bg-secondary/50 border-border focus-visible:ring-1 text-base md:text-sm"
+                      autoFocus
+                    />
+                    <div className="space-y-1">
+                      <SaveDestinationRow
+                        icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
+                        label="Home feed"
+                        description="Tab on your home page"
+                        onClick={handleSaveHomeFeed}
+                        disabled={!saveFeedLabel.trim()}
+                        loading={false}
+                      />
+                      <SaveDestinationRow
+                        icon={<User className="size-4 text-muted-foreground" />}
+                        label="Profile tab"
+                        description="Tab on your profile"
+                        onClick={handleSaveProfileTab}
+                        disabled={!saveFeedLabel.trim() || isPublishingTabs}
+                        loading={isPublishingTabs}
+                      />
+                      <SaveDestinationRow
+                        icon={<Share2 className="size-4 text-muted-foreground" />}
+                        label="Share"
+                        description="Copy link to this spell"
+                        onClick={handleShare}
+                        disabled={!saveFeedLabel.trim() || isSharing}
+                        loading={isSharing}
+                      />
+                    </div>
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       )}
 

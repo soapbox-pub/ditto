@@ -60,6 +60,7 @@ import { shareOrCopy } from '@/lib/share';
 import { buildSpellTags } from '@/lib/spellEngine';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
+import { SaveDestinationRow } from '@/components/SaveDestinationRow';
 import { isRepostKind, parseRepostContent, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -1316,29 +1317,6 @@ function SearchInput({
   );
 }
 
-function SaveDestinationRow({
-  icon, label, description, onClick, disabled, loading,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  onClick: () => void;
-  disabled: boolean;
-  loading: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/60 disabled:opacity-40 disabled:pointer-events-none transition-colors text-left"
-    >
-      <span className="shrink-0">{loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : icon}</span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="block text-xs text-muted-foreground">{description}</span>
-      </span>
-    </button>
-  );
-}
+
 
 
