@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
@@ -37,13 +38,14 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
+  const { data: curatorFollows } = useCuratorFollowList();
   const followPubkeys = followData?.pubkeys;
 
   const kindsKey = kinds.join(',');
 
-  // Scope to followed authors when logged in, global otherwise.
-  const authors = user && followPubkeys?.length ? followPubkeys : undefined;
-  const authorsKey = authors ? 'follows' : 'global';
+  // Scope to followed authors when logged in, curator's follow list otherwise.
+  const authors = user && followPubkeys?.length ? followPubkeys : curatorFollows;
+  const authorsKey = user ? 'follows' : 'curator';
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['widget-feed', kindsKey, authorsKey, limit],
@@ -51,8 +53,8 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
       return nostr.query([{ kinds, limit, ...(authors ? { authors } : {}) }]);
     },
     staleTime: 5 * 60_000,
-    // Don't run until follow list is resolved (or user is logged out)
-    enabled: !user || followPubkeys !== undefined,
+    // Don't run until the appropriate follow list is resolved
+    enabled: user ? followPubkeys !== undefined : curatorFollows !== undefined,
   });
 
   const filtered = useMemo(() => (events ?? []).slice(0, limit), [events, limit]);
