@@ -6,7 +6,7 @@ import { openUrl } from '@/lib/downloadFile';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
-  const { data: feed, isLoading } = useWikipediaFeatured();
+  const { data: feed, isLoading, isError } = useWikipediaFeatured();
 
   if (isLoading) {
     return (
@@ -17,6 +17,10 @@ export function WikipediaWidget() {
         <Skeleton className="h-3 w-4/5" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <p className="text-sm text-muted-foreground p-1">Failed to load featured article.</p>;
   }
 
   const tfa = feed?.tfa;

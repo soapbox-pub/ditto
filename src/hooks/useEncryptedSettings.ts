@@ -5,6 +5,7 @@ import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
@@ -190,8 +191,30 @@ export function useEncryptedSettings() {
       if (!user) throw new Error('User not logged in');
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 
-      // Use the latest pending settings if available, otherwise fall back to cache.
-      const currentSettings = pendingSettings.current ?? settings.data ?? {};
+      // Use the latest pending settings if available (rapid successive mutations).
+      // Otherwise, fetch fresh from relays to avoid cross-device stale reads.
+      let currentSettings: EncryptedSettings;
+      if (pendingSettings.current) {
+        currentSettings = pendingSettings.current;
+      } else {
+        const freshEvent = await fetchFreshEvent(nostr, {
+          kinds: [30078],
+          authors: [user.pubkey],
+          '#d': [`${config.appId}/metadata`],
+        });
+        if (freshEvent?.content) {
+          try {
+            const decrypted = await user.signer.nip44.decrypt(user.pubkey, freshEvent.content);
+            const json = JSON.parse(decrypted);
+            const result = EncryptedSettingsSchema.safeParse(json);
+            currentSettings = result.success ? (result.data as EncryptedSettings) : (json ?? {}) as EncryptedSettings;
+          } catch {
+            currentSettings = settings.data ?? {};
+          }
+        } else {
+          currentSettings = settings.data ?? {};
+        }
+      }
       const updatedSettings: EncryptedSettings = {
         ...currentSettings,
         ...patch,

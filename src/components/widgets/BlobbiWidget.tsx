@@ -171,10 +171,12 @@ export function BlobbiWidget() {
           current_companion: companion.d,
         });
       }
+      const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',
         tags: updatedTags,
+        prev,
       });
       updateProfileEvent(event);
       invalidateProfile();

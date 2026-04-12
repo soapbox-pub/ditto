@@ -50,7 +50,7 @@ export interface BlueskyPost {
   indexedAt: string;
 }
 
-interface GetFeedResponse {
+export interface GetFeedResponse {
   feed: Array<{
     post: BlueskyPost;
     feedContext?: string;

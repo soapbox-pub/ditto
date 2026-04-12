@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Repeat2, Heart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-import type { BlueskyPost } from '@/hooks/useBlueskyTrending';
+import type { BlueskyPost, GetFeedResponse } from '@/hooks/useBlueskyTrending';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/formatNumber';
 
@@ -28,10 +28,10 @@ function useBlueskyWidgetPosts() {
         signal,
         headers: { Accept: 'application/json' },
       });
-      if (!res.ok) return [];
-      const data = await res.json();
+      if (!res.ok) throw new Error(`Bluesky API error: ${res.status}`);
+      const data: GetFeedResponse = await res.json();
       if (!data.feed) return [];
-      return (data.feed as Array<{ post: BlueskyPost }>).map((item) => item.post);
+      return data.feed.map((item) => item.post);
     },
     staleTime: 15 * 60_000, // 15 minutes
     gcTime: 60 * 60_000,    // 1 hour
@@ -41,7 +41,7 @@ function useBlueskyWidgetPosts() {
 
 /** Bluesky trending posts widget for the sidebar. */
 export function BlueskyWidget() {
-  const { data: posts, isLoading } = useBlueskyWidgetPosts();
+  const { data: posts, isLoading, isError } = useBlueskyWidgetPosts();
 
   if (isLoading) {
     return (
@@ -58,6 +58,10 @@ export function BlueskyWidget() {
         ))}
       </div>
     );
+  }
+
+  if (isError) {
+    return <p className="text-sm text-muted-foreground p-1">Failed to load Bluesky posts.</p>;
   }
 
   if (!posts || posts.length === 0) {

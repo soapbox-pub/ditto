@@ -842,7 +842,7 @@ interface BlobbiDashboardProps {
   isHatching: boolean;
   isEvolving: boolean;
   // Adoption flow props
-  publishEvent: (params: { kind: number; content: string; tags: string[][] }) => Promise<import('@nostrify/nostrify').NostrEvent>;
+  publishEvent: (params: { kind: number; content: string; tags: string[][]; prev?: import('@nostrify/nostrify').NostrEvent }) => Promise<import('@nostrify/nostrify').NostrEvent>;
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   invalidateProfile: () => void;
@@ -855,6 +855,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
+    profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
@@ -1210,10 +1211,12 @@ function BlobbiDashboard({
         });
       }
       
+      const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',
         tags: updatedTags,
+        prev,
       });
       
       updateProfileEvent(event);
