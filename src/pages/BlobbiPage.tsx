@@ -361,10 +361,12 @@ function BlobbiContent() {
         last_decay_at: nowStr,
       });
 
+      const prev = canonical.companion.event;
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
         tags: newTags,
+        prev,
       });
 
       updateCompanionEvent(event);
@@ -1190,16 +1192,19 @@ function BlobbiDashboard({
     setIsUpdatingCompanion(true);
     
     try {
+      // Fetch fresh profile data from relays to avoid stale-read-then-write
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) return;
+
       let updatedTags: string[][];
       
       if (isCurrentCompanion) {
         // Remove companion: filter out all current_companion tags entirely
-        // First apply any other updates (none in this case), then filter out the tag
-        updatedTags = updateBlobbonautTags(profile.allTags, {})
+        updatedTags = updateBlobbonautTags(canonical.profileAllTags, {})
           .filter(tag => tag[0] !== 'current_companion');
       } else {
         // Set companion: first remove any existing current_companion tags, then add the new one
-        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        const tagsWithoutCompanion = canonical.profileAllTags.filter(tag => tag[0] !== 'current_companion');
         updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
           current_companion: companion.d,
         });
@@ -1230,7 +1235,7 @@ function BlobbiDashboard({
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {

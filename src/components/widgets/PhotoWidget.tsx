@@ -15,8 +15,9 @@ import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-/** Parse the first imeta image URL from a kind 20 photo event. */
+/** Parse the first imeta image URL from a kind 20 photo event. Sanitizes the URL at the parse layer. */
 function parseFirstPhoto(tags: string[][]): { url: string; alt?: string } | undefined {
   for (const tag of tags) {
     if (tag[0] !== 'imeta') continue;
@@ -26,7 +27,8 @@ function parseFirstPhoto(tags: string[][]): { url: string; alt?: string } | unde
       const sp = p.indexOf(' ');
       if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
     }
-    if (parts.url) return { url: parts.url, alt: parts.alt };
+    const url = sanitizeUrl(parts.url);
+    if (url) return { url, alt: parts.alt };
   }
   return undefined;
 }

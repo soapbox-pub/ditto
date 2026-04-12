@@ -136,7 +136,8 @@ export function BlobbiWidget() {
         last_decay_at: nowStr,
       });
 
-      const event = await publishEvent({ kind: KIND_BLOBBI_STATE, content: canonical.content, tags: newTags });
+      const prev = canonical.companion.event;
+      const event = await publishEvent({ kind: KIND_BLOBBI_STATE, content: canonical.content, tags: newTags, prev });
       updateCompanionEvent(event);
       toast({ title: isCurrentlySleeping ? 'Woke up!' : 'Resting...' });
     } catch {
@@ -156,12 +157,16 @@ export function BlobbiWidget() {
     if (!profile || !companion) return;
     setIsUpdatingCompanion(true);
     try {
+      // Fetch fresh profile data from relays to avoid stale-read-then-write
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) return;
+
       let updatedTags: string[][];
       if (isCurrentCompanion) {
-        updatedTags = updateBlobbonautTags(profile.allTags, {})
+        updatedTags = updateBlobbonautTags(canonical.profileAllTags, {})
           .filter(tag => tag[0] !== 'current_companion');
       } else {
-        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        const tagsWithoutCompanion = canonical.profileAllTags.filter(tag => tag[0] !== 'current_companion');
         updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
           current_companion: companion.d,
         });
@@ -184,7 +189,7 @@ export function BlobbiWidget() {
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, companion, isCurrentCompanion, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, companion, isCurrentCompanion, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
 
   const isActionPending = isUsingItem || isSleepPending;
 
