@@ -29,6 +29,7 @@ import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 import { StatIndicator } from '@/blobbi/ui/StatIndicator';
+import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -1509,29 +1510,12 @@ function BlobbiDashboard({
 
         {/* Main Blobbi Visual with stats crown + action buttons */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <Footprints className="size-16 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">
-              {companion.name} is out exploring right now.
-            </p>
-            <button
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              className={cn(
-                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
-                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                isUpdatingCompanion && 'opacity-50 pointer-events-none',
-              )}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
-            >
-              {isUpdatingCompanion ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : (
-                <Footprints className="size-5" />
-              )}
-              <span>Bring {companion.name} home</span>
-            </button>
-          </div>
+          <BlobbiAwayState
+            name={companion.name}
+            size="md"
+            isUpdating={isUpdatingCompanion}
+            onBringHome={handleSetAsCompanion}
+          />
         ) : (
           <div className="relative flex flex-col items-center">
             {/* Stats crown — arced above the Blobbi */}
