@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, Loader2, Bot, Maximize2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
@@ -17,7 +18,23 @@ const conversationCache = new Map<string, ChatMessage[]>();
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
   const { user } = useCurrentUser();
-  const { sendStreamingMessage, isLoading, isAuthenticated } = useShakespeare();
+  const { sendStreamingMessage, getAvailableModels, isLoading, isAuthenticated } = useShakespeare();
+
+  // Fetch available models and select the cheapest as default
+  const { data: defaultModelId } = useQuery({
+    queryKey: ['shakespeare-default-model'],
+    queryFn: async () => {
+      const response = await getAvailableModels();
+      const sorted = response.data.sort((a, b) => {
+        const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
+        const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
+        return costA - costB;
+      });
+      return sorted[0]?.id ?? '';
+    },
+    staleTime: 10 * 60_000,
+    enabled: !!user,
+  });
   const cacheKey = user?.pubkey ?? '';
   const [messages, setMessages] = useState<ChatMessage[]>(() => conversationCache.get(cacheKey) ?? []);
   const [input, setInput] = useState('');
@@ -57,7 +74,7 @@ export function AIChatWidget() {
       let accumulated = '';
       await sendStreamingMessage(
         newMessages,
-        'shakespeare',
+        defaultModelId || 'shakespeare',
         (chunk) => {
           accumulated += chunk;
           setStreamingContent(accumulated);
@@ -69,7 +86,7 @@ export function AIChatWidget() {
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
       setStreamingContent('');
     }
-  }, [input, isLoading, messages, sendStreamingMessage]);
+  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId]);
 
   if (!user || !isAuthenticated) {
     return (
@@ -126,7 +143,7 @@ export function AIChatWidget() {
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !defaultModelId}
             className="shrink-0 p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="size-4" />
