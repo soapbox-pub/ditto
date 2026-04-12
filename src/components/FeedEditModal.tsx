@@ -2,7 +2,9 @@
  * FeedEditModal
  *
  * Modal for creating or editing a saved home feed tab.
- * Produces a kind:777 spell event from the filter UI.
+ * Mirrors the structure of ProfileTabEditModal: direct state management,
+ * MultiKindPicker for multi-select kinds, and a 3-way author scope toggle
+ * (Anyone / Follows / People) with list/pack picker.
  */
 import { useState, useMemo } from 'react';
 import { Loader2, Check, Globe, Users, UserSearch } from 'lucide-react';
@@ -16,7 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { buildKindOptions } from '@/lib/feedFilterUtils';
+import { buildKindOptions, parseSelectedKinds } from '@/lib/feedFilterUtils';
 import {
   MultiKindPicker,
   AuthorChip,
@@ -27,8 +29,9 @@ import {
 import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { buildSpellTags, buildUnsignedSpell, spellAuthors, spellAuthorPubkeys, spellKinds, spellSearch } from '@/lib/spellEngine';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { TabVarDef } from '@/lib/profileTabsEvent';
+import type { TabFilter } from '@/contexts/AppContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,18 +42,18 @@ interface FeedEditModalProps {
   onOpenChange: (open: boolean) => void;
   /** When provided, the modal is in "edit" mode. */
   initialLabel?: string;
-  /** Initial spell event (for edit mode — tags are parsed to seed the form). */
-  initialSpell?: NostrEvent;
+  /** Initial filter values (for edit mode). */
+  initialFilter?: TabFilter;
   /** Called when the user confirms. */
-  onSave: (label: string, spell: NostrEvent) => Promise<void>;
+  onSave: (label: string, filter: TabFilter, vars: TabVarDef[]) => Promise<void>;
   isPending?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Derive the author scope from a spell draft's authors array. */
-function draftToScope(authors: string[]): AuthorScope {
-  if (authors.includes('$contacts')) return 'follows';
+function filterToScope(filter: TabFilter): AuthorScope {
+  const authors = Array.isArray(filter.authors) ? (filter.authors as string[]) : [];
+  if (authors.includes('$follows')) return 'follows';
   if (authors.length > 0) return 'people';
   return 'anyone';
 }
@@ -67,7 +70,7 @@ export function FeedEditModal({
   open,
   onOpenChange,
   initialLabel,
-  initialSpell,
+  initialFilter,
   onSave,
   isPending = false,
 }: FeedEditModalProps) {
@@ -75,21 +78,33 @@ export function FeedEditModal({
   const kindOptions = useMemo(() => buildKindOptions(), []);
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
+  const { user } = useCurrentUser();
 
-  const [label, setLabel] = useState(() => initialLabel ?? '');
-  const [authorScope, setAuthorScope] = useState<AuthorScope>(() => draftToScope(spellAuthors(initialSpell)));
-  const [authorPubkeys, setAuthorPubkeys] = useState<string[]>(() => spellAuthorPubkeys(initialSpell));
-  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => spellKinds(initialSpell));
-  const [search, setSearch] = useState(() => spellSearch(initialSpell));
+  const initFrom = (filter: TabFilter | undefined) => ({
+    label: initialLabel ?? '',
+    scope: filterToScope(filter ?? {}),
+    authors: Array.isArray(filter?.authors)
+      ? (filter.authors as string[]).filter((a) => a !== '$follows')
+      : [],
+    kinds: parseSelectedKinds(filter ?? {}),
+    search: typeof filter?.search === 'string' ? filter.search : '',
+  });
+
+  const [label, setLabel] = useState(() => initFrom(initialFilter).label);
+  const [authorScope, setAuthorScope] = useState<AuthorScope>(() => initFrom(initialFilter).scope);
+  const [authorPubkeys, setAuthorPubkeys] = useState<string[]>(() => initFrom(initialFilter).authors);
+  const [selectedKinds, setSelectedKinds] = useState<string[]>(() => initFrom(initialFilter).kinds);
+  const [search, setSearch] = useState(() => initFrom(initialFilter).search);
 
   // Reset all state when the modal opens
   const handleOpenChange = (o: boolean) => {
     if (o) {
-      setLabel(initialLabel ?? '');
-      setAuthorScope(draftToScope(spellAuthors(initialSpell)));
-      setAuthorPubkeys(spellAuthorPubkeys(initialSpell));
-      setSelectedKinds(spellKinds(initialSpell));
-      setSearch(spellSearch(initialSpell));
+      const init = initFrom(initialFilter);
+      setLabel(init.label);
+      setAuthorScope(init.scope);
+      setAuthorPubkeys(init.authors);
+      setSelectedKinds(init.kinds);
+      setSearch(init.search);
     }
     onOpenChange(o);
   };
@@ -107,24 +122,30 @@ export function FeedEditModal({
   const handleSave = async () => {
     if (!label.trim() || isPending) return;
 
-    // Build authors array
-    let authors: string[] | undefined;
+    const filter: TabFilter = {};
+    const vars: TabVarDef[] = [];
+
+    if (search.trim()) filter.search = search.trim();
+
     if (authorScope === 'follows') {
-      authors = ['$contacts'];
+      filter.authors = ['$follows'];
+      // Emit a var definition so useResolveTabFilter can expand $follows
+      // via the current user's contact list (kind 3), matching profile tab behaviour.
+      if (user) {
+        vars.push({
+          name: '$follows',
+          tagName: 'p',
+          pointer: `a:3:${user.pubkey}:`,
+        });
+      }
     } else if (authorScope === 'people' && authorPubkeys.length > 0) {
-      authors = authorPubkeys;
+      filter.authors = authorPubkeys;
     }
 
     const kinds = selectedKinds.map(Number).filter((n) => !isNaN(n) && n > 0);
+    if (kinds.length > 0) filter.kinds = kinds;
 
-    const tags = buildSpellTags({
-      name: label.trim(),
-      kinds: kinds.length > 0 ? kinds : undefined,
-      authors,
-      search: search.trim() || undefined,
-    });
-
-    await onSave(label.trim(), buildUnsignedSpell(tags));
+    await onSave(label.trim(), filter, vars);
     onOpenChange(false);
   };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -21,6 +21,7 @@ import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
@@ -360,25 +361,39 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 }
 
-/** Renders a saved search feed using useStreamPosts with a spell event. */
+/** Renders a saved search feed using useStreamPosts (live streaming). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
-  const { posts, isLoading, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
+  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  // Resolve variable placeholders ($follows etc.) the same way profile tabs do
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
+    feed.filter,
+    feed.vars ?? [],
+    user?.pubkey ?? '',
+  );
+
+  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
+  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
+  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+
+  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
     includeReplies: true,
     mediaType: 'all',
-    spell: feed.spell,
+    kindsOverride,
+    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });
 
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  useEffect(() => {
-    if (inView && hasMore && !isLoadingMore) {
-      loadMore();
-    }
-  }, [inView, hasMore, isLoadingMore, loadMore]);
+  const isLoading = isResolving || isStreamLoading;
 
   const handleRefresh = useCallback(async () => {
-    flushStreamBuffer();
-  }, [flushStreamBuffer]);
+    await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
+  }, [queryClient]);
+
+  useEffect(() => {
+    // intentionally empty — useStreamPosts handles its own streaming
+  }, [inView]);
 
   if (isLoading && posts.length === 0) {
     return (
@@ -401,26 +416,10 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {newPostCount > 0 && (
-          <button
-            onClick={flushStreamBuffer}
-            className="w-full py-2 text-sm text-primary hover:bg-muted/50 border-b border-border transition-colors"
-          >
-            {newPostCount} new {newPostCount === 1 ? 'post' : 'posts'}
-          </button>
-        )}
         {posts.map((event) => (
           <NoteCard key={event.id} event={event} />
         ))}
-        {hasMore && (
-          <div ref={scrollRef} className="py-4">
-            {isLoadingMore && (
-              <div className="flex justify-center">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-          </div>
-        )}
+        <div ref={scrollRef} className="py-2" />
       </div>
     </PullToRefresh>
   );

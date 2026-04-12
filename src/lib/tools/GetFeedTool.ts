@@ -110,9 +110,15 @@ After receiving results, summarize the key topics, conversations, and notable po
         };
       }
       try {
-        const resolved = resolveSpell(match.spell, ctx.user?.pubkey, contactPubkeys);
-        filter = { ...resolved.filter, since: sinceTimestamp, limit };
-        needsDittoRelay = resolved.needsDittoRelay;
+        // Resolve the saved feed's TabFilter — substitute $follows with contact pubkeys
+        const savedFilter = { ...match.filter } as Record<string, unknown>;
+        if (Array.isArray(savedFilter.authors)) {
+          savedFilter.authors = (savedFilter.authors as string[]).flatMap((a) =>
+            a === '$follows' ? contactPubkeys : [a],
+          );
+        }
+        filter = { ...savedFilter, since: sinceTimestamp, limit } as NostrFilter;
+        needsDittoRelay = typeof savedFilter.search === 'string' && /sort:|protocol:|media:/.test(savedFilter.search as string);
         feedLabel = match.label;
       } catch (err) {
         return { result: JSON.stringify({ error: `Failed to resolve saved feed "${match.label}": ${err instanceof Error ? err.message : 'Unknown error'}` }) };

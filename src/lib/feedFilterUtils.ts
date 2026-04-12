@@ -40,3 +40,10 @@ export function buildKindOptions(): KindOption[] {
     return true;
   });
 }
+
+/** Extract selected kind strings from a TabFilter (for populating multi-select). */
+export function parseSelectedKinds(filter: Record<string, unknown>): string[] {
+  const kinds = filter.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return [];
+  return kinds.map(String);
+}

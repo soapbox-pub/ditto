@@ -77,9 +77,9 @@ import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
-import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { buildSpellTags, buildUnsignedSpell } from '@/lib/spellEngine';
-import type { ProfileTab, ProfileTabsData } from '@/lib/profileTabsEvent';
+import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import { useTabFeed } from '@/hooks/useProfileFeed';
+import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -1010,6 +1010,8 @@ export function ProfilePage() {
     return profileTabsData?.tabs ?? [];
   }, [profileTabsData]);
 
+  const profileVars = useMemo(() => profileTabsData?.vars ?? [], [profileTabsData]);
+
   const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
 
   // Tab edit mode (inline reorder/remove/add)
@@ -1206,28 +1208,23 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     setLocalTabs((prev) => prev.filter((t) => t.label !== label));
   };
 
-  // Build a spell event for a core tab so it can be stored in kind 16769
-  const buildCoreTabSpell = useCallback((label: string): NostrEvent => {
-    const coreDefs: Record<string, { kinds?: number[]; authors?: string[]; tag_filters?: Array<{ letter: string; values: string[] }> }> = pubkey ? {
-      'Posts': { kinds: [1, 6], authors: [pubkey] },
-      'Posts & replies': { authors: [pubkey] },
-      'Media': { kinds: [1], authors: [pubkey] },
-      'Badges': { kinds: [10008, 30008], authors: [pubkey] },
-      'Likes': { kinds: [7], authors: [pubkey] },
-      'Wall': { kinds: [1111], tag_filters: [{ letter: 'A', values: [`0:${pubkey}:`] }] },
-    } : {};
-    const def = coreDefs[label] ?? {};
-    const tags = buildSpellTags({ name: label, ...def });
-    return buildUnsignedSpell(tags);
-  }, [pubkey]);
+  // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
+  const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
+    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Posts & replies': { authors: [pubkey] },
+    'Media': { kinds: [1], authors: [pubkey] },
+    'Badges': { kinds: [10008, 30008], authors: [pubkey] },
+    'Likes': { kinds: [7], authors: [pubkey] },
+    'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
+  } : {};
 
   const handleSaveTabEdit = async () => {
-    // Publish ALL tabs in order — core tabs get spell events,
-    // custom tabs keep their existing spell objects
+    // Publish ALL tabs in order — core tabs get canonical filters,
+    // custom tabs keep their full filter objects
     const allTabs: ProfileTab[] = localTabs.map((t) =>
-      t.tab ?? { label: t.label, spell: buildCoreTabSpell(t.label) },
+      t.tab ?? { label: t.label, filter: CORE_TAB_FILTERS[t.label] ?? {} },
     );
-    await publishProfileTabs({ tabs: allTabs });
+    await publishProfileTabs({ tabs: allTabs, vars: profileVars });
     // If the active tab was removed, fall back to the first remaining tab
     const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
     if (!remainingIds.includes(activeTab)) {
@@ -1250,7 +1247,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       const base = editingTab
         ? profileSavedTabs.map((t) => t.label === editingTab.label ? tab : t)
         : [...profileSavedTabs, tab];
-      await publishProfileTabs({ tabs: base });
+      await publishProfileTabs({ tabs: base, vars: profileVars });
     }
   };
 
@@ -2573,6 +2570,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {hasTabs && !isCoreProfileTab && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
           <ProfileSavedFeedContent
             feed={profileSavedTabs.find((t) => t.label === activeTab)!}
+            vars={profileVars}
+            ownerPubkey={pubkey}
           />
         )}
 
@@ -3042,22 +3041,48 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
 
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
-function ProfileSavedFeedContent({ feed }: { feed: ProfileTab }) {
-  const { posts, isLoading, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
-    includeReplies: true,
-    mediaType: 'all',
-    spell: feed.spell,
-  });
+function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
+  feed: ProfileTab;
+  vars: TabVarDef[];
+  ownerPubkey: string;
+}) {
+  const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
 
-  const { ref: spellScrollRef, inView: spellInView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const {
+    data,
+    isPending,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTabFeed(resolvedFilter, feed.label, !isResolving);
+
+  const { ref: tabScrollRef, inView: tabInView } = useInView({ threshold: 0 });
 
   useEffect(() => {
-    if (spellInView && hasMore && !isLoadingMore) {
-      loadMore();
+    if (tabInView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-  }, [spellInView, hasMore, isLoadingMore, loadMore]);
+  }, [tabInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading && posts.length === 0) {
+  const items = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    const deduped: FeedItem[] = [];
+    for (const page of data.pages) {
+      for (const item of page.items) {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(item);
+        }
+      }
+    }
+    return deduped;
+  }, [data]);
+
+  const isLoading = isResolving || isPending;
+
+  if (isLoading && items.length === 0) {
     return (
       <div className="space-y-0">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -3076,7 +3101,7 @@ function ProfileSavedFeedContent({ feed }: { feed: ProfileTab }) {
     );
   }
 
-  if (posts.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground text-sm">
         No posts found for &ldquo;{feed.label}&rdquo;.
@@ -3086,20 +3111,17 @@ function ProfileSavedFeedContent({ feed }: { feed: ProfileTab }) {
 
   return (
     <div>
-      {newPostCount > 0 && (
-        <button
-          onClick={flushStreamBuffer}
-          className="w-full py-2 text-sm text-primary hover:bg-muted/50 border-b border-border transition-colors"
-        >
-          {newPostCount} new {newPostCount === 1 ? 'post' : 'posts'}
-        </button>
-      )}
-      {posts.map((event) => (
-        <NoteCard key={event.id} event={event} />
+      {items.map((item) => (
+        <NoteCard
+          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          event={item.event}
+          repostedBy={item.repostedBy}
+        />
       ))}
-      {hasMore && (
-        <div ref={spellScrollRef} className="py-4">
-          {isLoadingMore && (
+
+      {hasNextPage && (
+        <div ref={tabScrollRef} className="py-4">
+          {isFetchingNextPage && (
             <div className="flex justify-center">
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>

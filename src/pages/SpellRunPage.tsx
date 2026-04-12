@@ -19,7 +19,7 @@ import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useToast } from '@/hooks/useToast';
 import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
-import { resolveSpell, spellFingerprint } from '@/lib/spellEngine';
+import { resolveSpell } from '@/lib/spellEngine';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import NotFound from './NotFound';
@@ -96,25 +96,36 @@ export function SpellRunPage() {
   const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
   const { toast } = useToast();
 
-  /** Find an existing saved feed whose spell has the same semantic filter. */
-  const matchingSavedFeed = useMemo(() => {
+  /** Convert a spell event to a TabFilter for saving. */
+  const spellAsFilter = useMemo(() => {
     if (!spellEvent) return undefined;
-    const fp = spellFingerprint(spellEvent);
-    return savedFeeds.find((f) => spellFingerprint(f.spell) === fp);
-  }, [savedFeeds, spellEvent]);
+    try {
+      const resolved = resolveSpell(spellEvent, undefined, []);
+      return resolved.filter;
+    } catch {
+      return undefined;
+    }
+  }, [spellEvent]);
+
+  /** Find an existing saved feed that matches the spell's filter. */
+  const matchingSavedFeed = useMemo(() => {
+    if (!spellAsFilter) return undefined;
+    const filterKey = JSON.stringify(spellAsFilter);
+    return savedFeeds.find((f) => JSON.stringify(f.filter) === filterKey);
+  }, [savedFeeds, spellAsFilter]);
 
   const isSaved = !!matchingSavedFeed;
 
   const handleToggleSaved = useCallback(async () => {
-    if (!spellEvent) return;
+    if (!spellEvent || !spellAsFilter) return;
     if (isSaved && matchingSavedFeed) {
       await removeSavedFeed(matchingSavedFeed.id);
       toast({ title: 'Removed from home feed' });
     } else {
-      await addSavedFeed(spellName ?? 'Spell', spellEvent);
+      await addSavedFeed(spellName ?? 'Spell', spellAsFilter as Record<string, unknown>, []);
       toast({ title: 'Added to home feed' });
     }
-  }, [spellEvent, isSaved, matchingSavedFeed, spellName, addSavedFeed, removeSavedFeed, toast]);
+  }, [spellEvent, spellAsFilter, isSaved, matchingSavedFeed, spellName, addSavedFeed, removeSavedFeed, toast]);
 
   const handleShare = useCallback(async () => {
     if (!spellEvent || !nevent) return;

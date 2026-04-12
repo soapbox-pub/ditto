@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
-import type { SavedFeed } from '@/contexts/AppContext';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { SavedFeed, TabFilter, TabVarDef } from '@/contexts/AppContext';
 
 /**
  * CRUD hook for saved feed tabs.
@@ -41,14 +40,15 @@ export function useSavedFeeds() {
     }
   };
 
-  /** Add a new saved feed from a spell event. Returns the created feed. */
-  const addSavedFeed = async (label: string, spell: NostrEvent): Promise<SavedFeed> => {
+  /** Add a new saved feed. Returns the created feed. */
+  const addSavedFeed = async (label: string, filter: TabFilter, vars: TabVarDef[]): Promise<SavedFeed> => {
     if (!user) throw new Error('Must be logged in to save feeds');
 
     const newFeed: SavedFeed = {
       id: crypto.randomUUID(),
       label: label.trim(),
-      spell,
+      filter,
+      vars,
       createdAt: Date.now(),
     };
 
@@ -62,11 +62,17 @@ export function useSavedFeeds() {
     await persist(savedFeeds.filter((f) => f.id !== id));
   };
 
-  /** Update a saved feed's label and/or spell. */
-  const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'spell'>>): Promise<void> => {
+  /** Rename a saved feed. */
+  const renameSavedFeed = async (id: string, label: string): Promise<void> => {
+    if (!user) throw new Error('Must be logged in to rename feeds');
+    await persist(savedFeeds.map((f) => f.id === id ? { ...f, label: label.trim() } : f));
+  };
+
+  /** Update a saved feed's label, filter, and/or vars. */
+  const updateSavedFeed = async (id: string, changes: Partial<Pick<SavedFeed, 'label' | 'filter' | 'vars'>>): Promise<void> => {
     if (!user) throw new Error('Must be logged in to update feeds');
     await persist(savedFeeds.map((f) =>
-      f.id === id ? { ...f, ...changes, label: (changes.label ?? f.label).trim() } : f,
+      f.id === id ? { ...f, ...changes, label: (changes.label ?? f.label).trim(), vars: changes.vars ?? f.vars } : f,
     ));
   };
 
@@ -75,6 +81,7 @@ export function useSavedFeeds() {
     isLoading,
     addSavedFeed,
     removeSavedFeed,
+    renameSavedFeed,
     updateSavedFeed,
     isPending: updateSettings.isPending,
   };

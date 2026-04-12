@@ -151,12 +151,28 @@ export interface FeedSettings {
   followsFeedShowReplies: boolean;
 }
 
-/** A named feed tab stored as a kind:777 spell event. */
+/**
+ * A standard NIP-01 filter object that may contain variable placeholders
+ * (`$name`) in string positions. After resolution, becomes a `NostrFilter`.
+ */
+export type TabFilter = Record<string, unknown>;
+
+/** A variable definition for tab filters (extracted from `var` tags). */
+export interface TabVarDef {
+  /** Variable name including the `$` prefix, e.g. `"$follows"`. */
+  name: string;
+  /** Tag name to extract from the referenced event, e.g. `"p"`. */
+  tagName: string;
+  /** Event pointer: `e:<id>` or `a:<kind>:<pubkey>:<d-tag>`. May contain variables. */
+  pointer: string;
+}
+
+/** A named feed tab saved from the search page. */
 export interface SavedFeed {
   id: string;
   label: string;
-  /** The signed kind:777 spell event that drives this feed. */
-  spell: import('@nostrify/nostrify').NostrEvent;
+  filter: TabFilter;
+  vars: TabVarDef[];
   createdAt: number;
 }
 

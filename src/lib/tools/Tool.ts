@@ -52,7 +52,8 @@ export interface ToolContext {
   savedFeeds: Array<{
     id: string;
     label: string;
-    spell: NostrEvent;
+    filter: Record<string, unknown>;
+    vars: Array<{ name: string; tagName: string; pointer: string }>;
     createdAt: number;
   }>;
   /** Apply a custom theme to the app. */
