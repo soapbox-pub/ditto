@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Send, Bot, Maximize2 } from 'lucide-react';
+import { Send, Bot } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -149,12 +148,6 @@ export function AIChatWidget() {
           >
             <Send className="size-4" />
           </button>
-        </div>
-        <div className="flex justify-end">
-          <Link to="/ai-chat" className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-0.5">
-            <Maximize2 className="size-2.5" />
-            Full chat
-          </Link>
         </div>
       </div>
     </div>
