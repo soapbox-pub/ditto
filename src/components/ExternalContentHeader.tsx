@@ -26,6 +26,7 @@ import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { getKindLabel } from '@/lib/kindLabels';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
@@ -1080,16 +1081,7 @@ function hasVideo(tags: string[][]): boolean {
   return false;
 }
 
-/** Fallback labels for well-known kinds not in EXTRA_KINDS. */
-const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
-  31990: 'App',
-  32267: 'Zapstore App',
-  30063: 'Zapstore Release',
-  3063: 'Zapstore Asset',
-  15128: 'Nsite',
-  35128: 'Nsite',
-  31124: 'Blobbi',
-};
+
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
   const { data: event, isLoading } = useAddrEvent(addr);
@@ -1105,7 +1097,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef) return kindDef.label;
     const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
     if (sub) return sub.label;
-    return WELL_KNOWN_KIND_LABELS[addr.kind] ?? `Kind ${addr.kind}`;
+    return getKindLabel(addr.kind);
   }, [kindDef, addr.kind]);
 
   const KindIcon = useMemo(() => {

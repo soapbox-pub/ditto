@@ -2,6 +2,7 @@ import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { createElement } from 'react';
 import { toast } from '@/hooks/useToast';
 import { NudgeToastContent } from '@/components/SignerToastContent';
+import { getKindLabel } from '@/lib/kindLabels';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -25,18 +26,15 @@ function isAndroid(): boolean {
 
 type OpType = 'sign' | 'encrypt' | 'decrypt';
 
-/** Human-readable labels for event kinds shown in nudge toasts. */
-const KIND_LABELS: Record<number, string> = {
+/**
+ * Context-specific overrides for nudge toast descriptions.
+ * Falls back to the central kind label registry for kinds not listed here.
+ */
+const NUDGE_OVERRIDES: Record<number, string> = {
   0: 'profile update',
   1: 'post',
   3: 'contact list update',
-  5: 'deletion',
-  6: 'repost',
-  7: 'reaction',
   11: 'post',
-  16: 'repost',
-  1111: 'comment',
-  1984: 'report',
   4932: 'webxdc sync',
   10000: 'mute list update',
   10001: 'pinned notes update',
@@ -54,7 +52,11 @@ const KIND_LABELS: Record<number, string> = {
 };
 
 function labelForOp(kind: number | undefined, opType: OpType): string {
-  if (kind !== undefined && KIND_LABELS[kind]) return KIND_LABELS[kind];
+  if (kind !== undefined) {
+    if (NUDGE_OVERRIDES[kind]) return NUDGE_OVERRIDES[kind];
+    const central = getKindLabel(kind, '');
+    if (central) return central.toLowerCase();
+  }
   if (opType === 'encrypt') return 'encryption';
   if (opType === 'decrypt') return 'decryption';
   return 'signing';

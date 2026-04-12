@@ -8,6 +8,10 @@
  * `getPublicKey` is always allowed (clicking "Run" implies consent) and is
  * not tracked in this system.
  */
+import { getKindLabel } from '@/lib/kindLabels';
+
+// Re-export so existing consumers of `getKindLabel` from this module keep working.
+export { getKindLabel } from '@/lib/kindLabels';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -212,41 +216,6 @@ export function getNsiteAllowance(
 // Human-readable labels
 // ---------------------------------------------------------------------------
 
-/** Map of well-known event kinds to human-readable labels. */
-const KIND_LABELS: Record<number, string> = {
-  0: 'Profile metadata',
-  1: 'Short text note',
-  3: 'Follow list',
-  4: 'Encrypted DM (NIP-04)',
-  5: 'Deletion',
-  6: 'Repost',
-  7: 'Reaction',
-  8: 'Badge award',
-  9: 'Group chat message',
-  10: 'Group chat thread',
-  11: 'Group thread reply',
-  13: 'Sealed message',
-  16: 'Generic repost',
-  1059: 'Gift wrap',
-  1063: 'File metadata',
-  1111: 'Comment',
-  9734: 'Zap request',
-  9735: 'Zap receipt',
-  10000: 'Mute list',
-  10001: 'Pin list',
-  10002: 'Relay list',
-  10003: 'Bookmark list',
-  22242: 'Relay auth',
-  24133: 'Bunker request',
-  27235: 'HTTP auth',
-  30000: 'Follow set',
-  30001: 'Bookmark set',
-  30008: 'Profile badges',
-  30009: 'Badge definition',
-  30023: 'Long-form article',
-  30078: 'Application data',
-};
-
 /** Get a human-readable label for a permission type and optional kind. */
 export function getPermissionLabel(
   type: NsitePermissionType,
@@ -255,8 +224,7 @@ export function getPermissionLabel(
   switch (type) {
     case 'signEvent': {
       if (kind === null) return 'Sign event';
-      const label = KIND_LABELS[kind];
-      return label ? `Sign: ${label}` : `Sign: kind ${kind}`;
+      return `Sign: ${getKindLabel(kind)}`;
     }
     case 'nip04.encrypt':
       return 'Encrypt (NIP-04)';
@@ -267,9 +235,4 @@ export function getPermissionLabel(
     case 'nip44.decrypt':
       return 'Decrypt (NIP-44)';
   }
-}
-
-/** Get a human-readable label for an event kind. */
-export function getKindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? `Kind ${kind}`;
 }
