@@ -85,7 +85,7 @@ export function MobileBottomNav() {
       )}
 
       {/* Search and buddy sheets are independent */}
-      {searchOpen && <MobileSearchSheet hidden={false} onClose={handleClose} />}
+      {searchOpen && <MobileSearchSheet open onClose={handleClose} />}
       {buddyOpen && <MobileBuddySheet hidden={false} onClose={handleClose} />}
 
       <nav

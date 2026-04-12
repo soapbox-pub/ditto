@@ -24,11 +24,11 @@ import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
 interface MobileSearchSheetProps {
-  hidden: boolean;
+  open: boolean;
   onClose: () => void;
 }
 
-export function MobileSearchSheet({ hidden, onClose }: MobileSearchSheetProps) {
+export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -125,11 +125,11 @@ export function MobileSearchSheet({ hidden, onClose }: MobileSearchSheetProps) {
 
   // Focus input when opened
   useEffect(() => {
-    if (!hidden) {
+    if (open) {
       const t = setTimeout(() => inputRef.current?.focus(), 80);
       return () => clearTimeout(t);
     }
-  }, [hidden]);
+  }, [open]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -235,7 +235,7 @@ export function MobileSearchSheet({ hidden, onClose }: MobileSearchSheetProps) {
   return (
     <>
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
-      <div className={cn('fixed left-0 right-0 bottom-mobile-nav z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-2', hidden && 'hidden')}>
+      <div className={cn('fixed left-0 right-0 bottom-mobile-nav z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-2', !open && 'hidden')}>
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (

@@ -297,9 +297,8 @@ export function useBuddy() {
     },
     onSuccess: () => {
       queryClient.setQueryData(['buddy-event', user?.pubkey], null);
-      queryClient.setQueryData(['buddy-identity', undefined], null);
-      // Invalidate to force refetch
-      queryClient.invalidateQueries({ queryKey: ['buddy-event', user?.pubkey] });
+      // Clear all buddy-identity cache entries (the key includes a dynamic event ID)
+      queryClient.removeQueries({ queryKey: ['buddy-identity'] });
     },
   });
 

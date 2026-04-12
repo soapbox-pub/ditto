@@ -551,17 +551,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
 
+  // Pre-compute author set outside the per-event callback
+  const authorSet = useMemo(() => resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : null, [resolvedAuthorPubkeys]);
+
   // Shared predicate for client-side filtering (mute, content, search, media, author, etc.)
   const matchesFilters = useCallback((event: NostrEvent) => {
     if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
     if (shouldFilterEvent(event)) return false;
-    if (resolvedAuthorPubkeys) {
-      const authorSet = new Set(resolvedAuthorPubkeys);
-      if (!authorSet.has(event.pubkey)) return false;
-    }
+    if (authorSet && !authorSet.has(event.pubkey)) return false;
     return filterEvent(event, effectiveOptions, effectiveQuery);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific option fields and stabilized keys for granular reactivity
-  }, [effectiveOptions.includeReplies, effectiveOptions.mediaType, protocolsKey, effectiveQuery, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
+  }, [effectiveOptions.includeReplies, effectiveOptions.mediaType, protocolsKey, effectiveQuery, muteItems, authorSet, shouldFilterEvent, authorPubkeysKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {

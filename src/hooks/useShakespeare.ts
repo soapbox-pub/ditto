@@ -93,7 +93,10 @@ export interface ModelsResponse {
 }
 
 // Configuration
-const SHAKESPEARE_API_URL = 'https://ai.shakespeare.diy/v1';
+// Fetch URL goes through the Vite dev proxy to avoid CORS issues with local dev.
+// To test against production, change both to 'https://ai.shakespeare.diy/v1'.
+const SHAKESPEARE_API_URL = '/api/shakespeare/v1';
+const SHAKESPEARE_SERVER_URL = 'http://5.78.68.217:8000/v1';
 
 // Helper function to create NIP-98 token
 async function createNIP98Token(
@@ -156,7 +159,8 @@ async function handleAPIError(response: Response) {
         }
       }
       throw new Error(`Invalid request: ${error.error?.message || error.details || error.error || 'Please check your request parameters.'}`);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error) throw e;
       throw new Error('Invalid request. Please check your parameters and try again.');
     }
   } else if (response.status === 404) {
@@ -167,7 +171,8 @@ async function handleAPIError(response: Response) {
     try {
       const errorData = await response.json();
       throw new Error(`API error: ${errorData.error?.message || errorData.details || errorData.error || response.statusText}`);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error) throw e;
       throw new Error(`Network error: ${response.statusText}. Please check your connection and try again.`);
     }
   }
@@ -182,69 +187,6 @@ export function useShakespeare() {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
-
-  // Chat completion function
-  const sendChatMessage = useCallback(async (
-    messages: ChatMessage[], 
-    model: string = 'shakespeare',
-    options?: Partial<ChatCompletionRequest>,
-    signal?: AbortSignal,
-  ): Promise<ChatCompletionResponse> => {
-    if (!user) {
-      throw new Error('User must be logged in to use AI features');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const requestBody: ChatCompletionRequest = {
-        model,
-        messages,
-        ...options
-      };
-
-      const token = await createNIP98Token(
-        'POST',
-        `${SHAKESPEARE_API_URL}/chat/completions`,
-        requestBody,
-        user
-      );
-
-      const response = await fetch(`${SHAKESPEARE_API_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Nostr ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal,
-      });
-
-      await handleAPIError(response);
-      return await response.json();
-    } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      
-      // Add context for common issues
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
-        errorMessage = 'Network error: Please check your internet connection and try again.';
-      } else if (errorMessage.includes('signer')) {
-        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
 
   // Streaming chat completion function.
   // Streams text via `onChunk` and returns the fully-assembled response
@@ -274,7 +216,7 @@ export function useShakespeare() {
 
       const token = await createNIP98Token(
         'POST',
-        `${SHAKESPEARE_API_URL}/chat/completions`,
+        `${SHAKESPEARE_SERVER_URL}/chat/completions`,
         requestBody,
         user
       );
@@ -417,7 +359,7 @@ export function useShakespeare() {
 
     const token = await createNIP98Token(
       'GET',
-      `${SHAKESPEARE_API_URL}/credits`,
+      `${SHAKESPEARE_SERVER_URL}/credits`,
       undefined,
       user
     );
@@ -439,57 +381,30 @@ export function useShakespeare() {
       throw new Error('User must be logged in to use AI features');
     }
 
-    setIsLoading(true);
-    setError(null);
+    const token = await createNIP98Token(
+      'GET',
+      `${SHAKESPEARE_SERVER_URL}/models`,
+      undefined,
+      user
+    );
 
-    try {
-      const token = await createNIP98Token(
-        'GET',
-        `${SHAKESPEARE_API_URL}/models`,
-        undefined,
-        user
-      );
+    const response = await fetch(`${SHAKESPEARE_API_URL}/models`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Nostr ${token}`,
+      },
+    });
 
-      const response = await fetch(`${SHAKESPEARE_API_URL}/models`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Nostr ${token}`,
-        },
-      });
-
-      await handleAPIError(response);
-      return await response.json();
-    } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      
-      // Add context for common issues
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
-        errorMessage = 'Network error: Please check your internet connection and try again.';
-      } else if (errorMessage.includes('signer')) {
-        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+    await handleAPIError(response);
+    return await response.json();
   }, [user]);
 
   return {
     // State
     isLoading,
     error,
-    isAuthenticated: !!user,
     
     // Actions
-    sendChatMessage,
     sendStreamingMessage,
     getAvailableModels,
     getCredits,
