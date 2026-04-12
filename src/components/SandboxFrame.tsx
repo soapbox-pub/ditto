@@ -409,35 +409,57 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       let cancelled = false;
       const listeners: Array<{ remove: () => void }> = [];
 
+      const tag = `[SandboxFrameNative id=${id}]`;
+
       async function setup() {
+        console.log(`${tag} setup — registering fetch listener, origin=${origin}`);
+
         // Register the fetch listener BEFORE doing anything else.
         // On Android, shouldInterceptRequest fires on a background thread
         // as soon as the iframe src is set — the listener must be ready.
         const fetchListener = await SandboxPlugin.addListener(
           'fetch',
           (event: SandboxFetchEvent) => {
-            if (event.id !== id) return;
+            console.log(`${tag} fetch event received — event.id=${event.id} requestId=${event.requestId} url=${event.request.url}`);
+            if (event.id !== id) {
+              console.log(`${tag} fetch event SKIPPED (id mismatch: event.id=${event.id} !== ${id})`);
+              return;
+            }
             handleNativeFetch(event);
           },
         );
         listeners.push(fetchListener);
+        console.log(`${tag} setup — fetch listener registered`);
 
-        if (cancelled) return;
-
-        // Run onReady (e.g. Android pre-fetches all blobs here).
-        try {
-          await onReadyRef.current?.();
-        } catch (err) {
-          console.error('[SandboxFrame] onReady failed:', err);
+        if (cancelled) {
+          console.log(`${tag} setup — cancelled after listener registration`);
+          return;
         }
 
-        if (cancelled) return;
+        // Run onReady (e.g. Android pre-fetches all blobs here).
+        console.log(`${tag} setup — calling onReady`);
+        try {
+          await onReadyRef.current?.();
+          console.log(`${tag} setup — onReady completed`);
+        } catch (err) {
+          console.error(`${tag} onReady failed:`, err);
+        }
+
+        if (cancelled) {
+          console.log(`${tag} setup — cancelled after onReady`);
+          return;
+        }
 
         // Now set the iframe src to start loading content.
         // This triggers native fetch interception.
         readyRef.current = true;
+        const src = `${origin}/index.html`;
+        console.log(`${tag} setup — setting iframe.src=${src} iframeRef.current=${iframeRef.current ? 'present' : 'null'}`);
         if (iframeRef.current) {
-          iframeRef.current.src = `${origin}/index.html`;
+          iframeRef.current.src = src;
+          console.log(`${tag} setup — iframe.src set successfully`);
+        } else {
+          console.warn(`${tag} setup — WARNING: iframeRef.current is null, cannot set src`);
         }
       }
 
@@ -452,25 +474,30 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           pathname = pathMatch?.[1] ?? '/';
         }
 
+        console.log(`${tag} handleNativeFetch — requestId=${event.requestId} pathname=${pathname}`);
+
         await handleFetchRequest(
           pathname,
           resolveFileRef.current,
           injectedScriptsRef.current ?? [],
           cspRef.current,
           (result) => {
+            const r = result as {
+              status: number;
+              statusText: string;
+              headers: Record<string, string>;
+              body: string | null;
+            };
+            console.log(`${tag} handleNativeFetch — responding requestId=${event.requestId} status=${r.status} bodyLen=${r.body?.length ?? 0}`);
             SandboxPlugin.respondToFetch({
               requestId: event.requestId,
-              response: result as {
-                status: number;
-                statusText: string;
-                headers: Record<string, string>;
-                body: string | null;
-              },
+              response: r,
             }).catch((err) => {
-              console.error('[SandboxFrame] respondToFetch failed:', err);
+              console.error(`${tag} respondToFetch failed:`, err);
             });
           },
           (_code, message) => {
+            console.error(`${tag} handleNativeFetch — error for requestId=${event.requestId}: ${message}`);
             SandboxPlugin.respondToFetch({
               requestId: event.requestId,
               response: {
@@ -480,17 +507,18 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
                 body: btoa(message),
               },
             }).catch((err) => {
-              console.error('[SandboxFrame] respondToFetch error failed:', err);
+              console.error(`${tag} respondToFetch error failed:`, err);
             });
           },
         );
       }
 
       setup().catch((err) => {
-        console.error('[SandboxFrame] native setup failed:', err);
+        console.error(`${tag} native setup failed:`, err);
       });
 
       return () => {
+        console.log(`${tag} cleanup — removing ${listeners.length} listener(s)`);
         cancelled = true;
         for (const listener of listeners) {
           listener.remove();
@@ -503,13 +531,26 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
     // -----------------------------------------------------------------
 
     useEffect(() => {
+      const tag = `[SandboxFrameNative id=${id}]`;
+
       function onMessage(event: MessageEvent) {
         // On iOS the origin is "sbx://<id>", on Android "https://<id>.sandbox.native".
-        if (event.origin !== origin) return;
-        if (event.source !== iframeRef.current?.contentWindow) return;
+        if (event.origin !== origin) {
+          // Only log if it looks like it could be from a sandbox (avoid spamming for unrelated messages).
+          if (typeof event.data === 'object' && event.data?.jsonrpc) {
+            console.log(`${tag} postMessage — origin mismatch: event.origin=${event.origin} expected=${origin}`);
+          }
+          return;
+        }
+        if (event.source !== iframeRef.current?.contentWindow) {
+          console.log(`${tag} postMessage — source mismatch (not our iframe)`);
+          return;
+        }
 
         const msg = event.data;
         if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
+
+        console.log(`${tag} postMessage — received RPC: method=${msg.method} id=${msg.id}`);
 
         // Handle RPC requests from injected scripts.
         if (msg.id !== undefined && msg.method && onRpcRef.current) {
@@ -522,10 +563,12 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         method: string,
         params: unknown,
       ) {
+        console.log(`${tag} handleRpc — method=${method} rpcId=${rpcId}`);
         try {
           const result = await onRpcRef.current!(method, params, post);
           post({ jsonrpc: '2.0', id: rpcId, result: result ?? null });
         } catch (err) {
+          console.error(`${tag} handleRpc — error for method=${method}:`, err);
           post({
             jsonrpc: '2.0',
             id: rpcId,
@@ -536,10 +579,13 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
       window.addEventListener('message', onMessage);
       return () => window.removeEventListener('message', onMessage);
-    }, [origin, post]);
+    }, [id, origin, post]);
 
     // Hide the spinner once the iframe fires its load event (initial HTML parsed).
-    const handleLoad = useCallback(() => setLoading(false), []);
+    const handleLoad = useCallback(() => {
+      console.log(`[SandboxFrameNative id=${id}] iframe onLoad fired`);
+      setLoading(false);
+    }, [id]);
 
     // Don't set src initially — it's set after onReady completes in setup().
     return (
