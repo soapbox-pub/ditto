@@ -37,6 +37,8 @@ export interface WidgetDefinition {
   category: 'personal' | 'content' | 'discovery';
   /** Optional internal route the header links to. */
   href?: string;
+  /** When true, the widget uses a fixed height instead of max-height, allowing internal flex layouts to fill the container. */
+  fillHeight?: boolean;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     maxHeight: 700,
     category: 'personal',
     href: '/ai-chat',
+    fillHeight: true,
   },
 
   // Content feeds

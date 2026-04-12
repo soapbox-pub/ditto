@@ -125,7 +125,7 @@ export function WidgetCard({
       {/* Content */}
       {!collapsed && (
         <>
-          <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
+          <ScrollArea style={definition.fillHeight ? { height: liveHeight } : { maxHeight: liveHeight }} className={cn(!resizing && (definition.fillHeight ? 'transition-[height] duration-200' : 'transition-[max-height] duration-200'))}>
             <div className="p-2">
               {children}
             </div>
