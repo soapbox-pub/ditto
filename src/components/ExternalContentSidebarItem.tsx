@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, Plus, Globe, BookOpen } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { Globe, BookOpen } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
+import { SortableItemShell } from '@/components/SortableItemShell';
 import { parseExternalUri, headerLabel } from '@/lib/externalContent';
 import { getCountryInfo } from '@/lib/countries';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -71,27 +70,10 @@ function ExternalSidebarLabel({ id }: { id: string }) {
 export function ExternalContentSidebarItem({
   id, active, editing, onRemove, onAdd, belowMore, onClick, linkClassName,
 }: ExternalContentSidebarItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-
   const path = `/i/${encodeURIComponent(id)}`;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85 hover:bg-secondary/40', isDragging && 'z-10 opacity-80 shadow-lg')}
-    >
-      {editing && (
-        <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-      )}
-
+    <SortableItemShell id={id} editing={editing} onRemove={onRemove} onAdd={onAdd} belowMore={belowMore}>
       <Link
         to={path}
         onClick={onClick}
@@ -109,26 +91,6 @@ export function ExternalContentSidebarItem({
           <ExternalSidebarLabel id={id} />
         </span>
       </Link>
-
-      {editing && (
-        belowMore ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAdd?.(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-primary hover:bg-primary/10"
-            title="Add"
-          >
-            <Plus className="size-4" />
-          </button>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemove(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Remove"
-          >
-            <X className="size-4" />
-          </button>
-        )
-      )}
-    </div>
+    </SortableItemShell>
   );
 }

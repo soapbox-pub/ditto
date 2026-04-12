@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, Plus, FileText, Scroll, WandSparkles } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { FileText, Scroll, WandSparkles } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
 
 import { cn } from '@/lib/utils';
 import { nostrUriToNip19 } from '@/lib/sidebarItems';
+import { SortableItemShell } from '@/components/SortableItemShell';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getKindIcon } from '@/lib/extraKinds';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -134,9 +133,6 @@ function EventSidebarContent({ decoded, nip19Id, linkClassName, active, editing,
 export function NostrEventSidebarItem({
   id, active, editing, onRemove, onAdd, belowMore, onClick, linkClassName,
 }: NostrEventSidebarItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-
   const nip19Id = nostrUriToNip19(id);
   const decoded = decodeNostrId(nip19Id);
 
@@ -148,21 +144,7 @@ export function NostrEventSidebarItem({
   const isProfile = decoded.type === 'npub' || decoded.type === 'nprofile';
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85 hover:bg-secondary/40', isDragging && 'z-10 opacity-80 shadow-lg')}
-    >
-      {editing && (
-        <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-      )}
-
+    <SortableItemShell id={id} editing={editing} onRemove={onRemove} onAdd={onAdd} belowMore={belowMore}>
       {isProfile ? (
         <Link
           to={`/${nip19Id}`}
@@ -191,27 +173,7 @@ export function NostrEventSidebarItem({
           onClick={onClick}
         />
       )}
-
-      {editing && (
-        belowMore ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAdd?.(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-primary hover:bg-primary/10"
-            title="Add"
-          >
-            <Plus className="size-4" />
-          </button>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemove(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Remove"
-          >
-            <X className="size-4" />
-          </button>
-        )
-      )}
-    </div>
+    </SortableItemShell>
   );
 }
 

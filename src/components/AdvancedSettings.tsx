@@ -21,37 +21,73 @@ import { DEFAULT_SYSTEM_PROMPT_TEMPLATE } from '@/lib/aiChatSystemPrompt';
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 
 export function AdvancedSettings() {
+  const { user } = useCurrentUser();
+
+  return (
+    <div>
+      {user && <BuddySettingsSection />}
+      <SystemSettingsSection />
+      <SentrySettingsSection />
+      {user && <DangerSettingsSection />}
+    </div>
+  );
+}
+
+// ── Section components ────────────────────────────────────────────────────────
+
+function SettingsSection({
+  title, icon, open, onOpenChange, accentColor, children,
+}: {
+  title: string; icon?: React.ReactNode; open: boolean; onOpenChange: (v: boolean) => void;
+  accentColor?: string; children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+          >
+            <span className={`flex items-center gap-2 text-base font-semibold ${accentColor ?? ''}`}>
+              {icon}
+              {title}
+            </span>
+            {open ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+            <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-full ${accentColor === 'text-destructive' ? 'bg-destructive' : 'bg-primary'}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {children}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
+function BuddySettingsSection() {
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
-  const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
   const { getAvailableModels } = useShakespeare();
-  const [aiOpen, setAiOpen] = useState(false);
+  const { buddy, hasBuddy, updateSoul } = useBuddy();
+  const [open, setOpen] = useState(false);
   const [aiModels, setAiModels] = useState<Model[]>([]);
   const [aiModelsLoading, setAiModelsLoading] = useState(false);
-  const [systemOpen, setSystemOpen] = useState(true);
-  const [sentryOpen, setSentryOpen] = useState(false);
-  const [dangerOpen, setDangerOpen] = useState(false);
-  const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
-
-  const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
-  const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
-  const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
-  const [corsProxy, setCorsProxy] = useState(config.corsProxy);
-  const [sentryDsn, setSentryDsn] = useState(config.sentryDsn);
-  const { buddy, hasBuddy, updateSoul, resetBuddy } = useBuddy();
   const [soulDraft, setSoulDraft] = useState('');
   const [soulSaving, setSoulSaving] = useState(false);
   const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt || DEFAULT_SYSTEM_PROMPT_TEMPLATE);
 
-  // Sync soul draft with buddy data
   useEffect(() => {
     if (buddy?.soul) setSoulDraft(buddy.soul);
   }, [buddy?.soul]);
 
-  // Fetch AI models when the section opens
   useEffect(() => {
-    if (!aiOpen || !user || aiModels.length > 0) return;
+    if (!open || !user || aiModels.length > 0) return;
     let cancelled = false;
     setAiModelsLoading(true);
     getAvailableModels()
@@ -67,7 +103,152 @@ export function AdvancedSettings() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setAiModelsLoading(false); });
     return () => { cancelled = true; };
-  }, [aiOpen, user, aiModels.length, getAvailableModels]);
+  }, [open, user, aiModels.length, getAvailableModels]);
+
+  return (
+    <SettingsSection title="Buddy" open={open} onOpenChange={setOpen}>
+      <div className="px-4 py-4 space-y-4 border-b border-border">
+        <div className="space-y-2">
+          <Label htmlFor="ai-model">Model</Label>
+          <Select
+            value={config.aiModel || (aiModels.length > 0 ? aiModels[0].id : '')}
+            onValueChange={(value) => {
+              updateConfig(() => ({ aiModel: value }));
+              toast({ title: 'AI model updated' });
+            }}
+            disabled={aiModelsLoading || aiModels.length === 0}
+          >
+            <SelectTrigger id="ai-model">
+              <SelectValue placeholder={aiModelsLoading ? 'Loading models...' : 'Select model'} />
+            </SelectTrigger>
+            <SelectContent>
+              {aiModels.map((model) => {
+                const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
+                const isFree = totalCost === 0;
+                return (
+                  <SelectItem key={model.id} value={model.id}>
+                    <span className="flex items-center gap-1.5">
+                      {model.name}
+                      {isFree && (
+                        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
+                          FREE
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Choose which AI model your buddy uses for chat responses.
+          </p>
+        </div>
+
+        {hasBuddy && buddy && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <Label className="text-sm font-medium">Identity</Label>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-12 shrink-0">Name</span>
+                <span className="font-medium">{buddy.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-12 shrink-0">npub</span>
+                <span className="font-mono text-xs text-muted-foreground truncate">{nip19.npubEncode(buddy.pubkey)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="buddy-soul">Soul</Label>
+              <Textarea
+                id="buddy-soul"
+                value={soulDraft}
+                onChange={(e) => setSoulDraft(e.target.value)}
+                onBlur={async () => {
+                  const trimmed = soulDraft.trim();
+                  if (trimmed && trimmed !== buddy.soul) {
+                    setSoulSaving(true);
+                    try {
+                      await updateSoul.mutateAsync(trimmed);
+                      toast({ title: 'Buddy soul updated' });
+                    } catch {
+                      toast({ title: 'Failed to update soul', variant: 'destructive' });
+                    } finally {
+                      setSoulSaving(false);
+                    }
+                  }
+                }}
+                placeholder="Describe your buddy's personality..."
+                className="min-h-[100px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
+                disabled={soulSaving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your buddy's personality and behavior. Changes are saved when you click away.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!hasBuddy && (
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              No buddy configured. Visit the Buddy page to create one.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Label htmlFor="ai-system-prompt">System Prompt</Label>
+          <Textarea
+            id="ai-system-prompt"
+            value={systemPromptDraft}
+            onChange={(e) => setSystemPromptDraft(e.target.value)}
+            onBlur={() => {
+              const trimmed = systemPromptDraft.trim();
+              const defaultPrompt = DEFAULT_SYSTEM_PROMPT_TEMPLATE;
+              const valueToStore = trimmed === defaultPrompt ? '' : trimmed;
+              if (valueToStore !== config.aiSystemPrompt) {
+                updateConfig(() => ({ aiSystemPrompt: valueToStore }));
+                toast({ title: valueToStore ? 'System prompt updated' : 'System prompt reset to default' });
+              }
+            }}
+            className="min-h-[120px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
+          />
+          <p className="text-xs text-muted-foreground">
+            The base system prompt sent to the AI. Use <code className="bg-muted px-1 rounded">{'{{NAME}}'}</code> and <code className="bg-muted px-1 rounded">{'{{SOUL}}'}</code> as placeholders for your buddy's identity.
+          </p>
+          {config.aiSystemPrompt && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={() => {
+                setSystemPromptDraft(DEFAULT_SYSTEM_PROMPT_TEMPLATE);
+                updateConfig(() => ({ aiSystemPrompt: '' }));
+                toast({ title: 'System prompt reset to default' });
+              }}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset to default
+            </Button>
+          )}
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+function SystemSettingsSection() {
+  const { config, updateConfig } = useAppContext();
+  const { toast } = useToast();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+  const [open, setOpen] = useState(true);
+  const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
+  const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
+  const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
+  const [corsProxy, setCorsProxy] = useState(config.corsProxy);
 
   const handleStatsPubkeyChange = (value: string) => {
     setStatsPubkey(value);
@@ -81,474 +262,130 @@ export function AdvancedSettings() {
   };
 
   return (
-    <div>
-      {/* Buddy AI Section */}
-      {user && (
+    <SettingsSection title="System" open={open} onOpenChange={setOpen}>
+      <div className="px-3 pt-3 pb-4 space-y-5">
         <div>
-          <Collapsible open={aiOpen} onOpenChange={setAiOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-              >
-                <span className="text-base font-semibold">Buddy</span>
-                {aiOpen ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="px-4 py-4 space-y-4 border-b border-border">
-                <div className="space-y-2">
-                  <Label htmlFor="ai-model">Model</Label>
-                  <Select
-                    value={config.aiModel || (aiModels.length > 0 ? aiModels[0].id : '')}
-                    onValueChange={(value) => {
-                      updateConfig(() => ({ aiModel: value }));
-                      toast({ title: 'AI model updated' });
-                    }}
-                    disabled={aiModelsLoading || aiModels.length === 0}
-                  >
-                    <SelectTrigger id="ai-model">
-                      <SelectValue placeholder={aiModelsLoading ? 'Loading models...' : 'Select model'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {aiModels.map((model) => {
-                        const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
-                        const isFree = totalCost === 0;
-                        return (
-                          <SelectItem key={model.id} value={model.id}>
-                            <span className="flex items-center gap-1.5">
-                              {model.name}
-                              {isFree && (
-                                <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
-                                  FREE
-                                </span>
-                              )}
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Choose which AI model your buddy uses for chat responses.
-                  </p>
-                </div>
-
-                {/* Buddy Identity */}
-                {hasBuddy && buddy && (
-                  <div className="space-y-3 pt-2 border-t border-border">
-                    <Label className="text-sm font-medium">Identity</Label>
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-12 shrink-0">Name</span>
-                        <span className="font-medium">{buddy.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-12 shrink-0">npub</span>
-                        <span className="font-mono text-xs text-muted-foreground truncate">{nip19.npubEncode(buddy.pubkey)}</span>
-                      </div>
-                    </div>
-
-                    {/* Soul */}
-                    <div className="space-y-2 pt-2">
-                      <Label htmlFor="buddy-soul">Soul</Label>
-                      <Textarea
-                        id="buddy-soul"
-                        value={soulDraft}
-                        onChange={(e) => setSoulDraft(e.target.value)}
-                        onBlur={async () => {
-                          const trimmed = soulDraft.trim();
-                          if (trimmed && trimmed !== buddy.soul) {
-                            setSoulSaving(true);
-                            try {
-                              await updateSoul.mutateAsync(trimmed);
-                              toast({ title: 'Buddy soul updated' });
-                            } catch {
-                              toast({ title: 'Failed to update soul', variant: 'destructive' });
-                            } finally {
-                              setSoulSaving(false);
-                            }
-                          }
-                        }}
-                        placeholder="Describe your buddy's personality..."
-                        className="min-h-[100px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
-                        disabled={soulSaving}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Your buddy's personality and behavior. Changes are saved when you click away.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!hasBuddy && (
-                  <div className="pt-2 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      No buddy configured. Visit the Buddy page to create one.
-                    </p>
-                  </div>
-                )}
-
-                {/* System Prompt */}
-                <div className="space-y-2 pt-2 border-t border-border">
-                  <Label htmlFor="ai-system-prompt">System Prompt</Label>
-                  <Textarea
-                    id="ai-system-prompt"
-                    value={systemPromptDraft}
-                    onChange={(e) => setSystemPromptDraft(e.target.value)}
-                    onBlur={() => {
-                      const trimmed = systemPromptDraft.trim();
-                      const defaultPrompt = DEFAULT_SYSTEM_PROMPT_TEMPLATE;
-                      // Store empty string when it matches the default (no override)
-                      const valueToStore = trimmed === defaultPrompt ? '' : trimmed;
-                      if (valueToStore !== config.aiSystemPrompt) {
-                        updateConfig(() => ({ aiSystemPrompt: valueToStore }));
-                        toast({ title: valueToStore ? 'System prompt updated' : 'System prompt reset to default' });
-                      }
-                    }}
-                    className="min-h-[120px] max-h-[400px] resize-y font-mono text-xs leading-relaxed"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The base system prompt sent to the AI. Use <code className="bg-muted px-1 rounded">{'{{NAME}}'}</code> and <code className="bg-muted px-1 rounded">{'{{SOUL}}'}</code> as placeholders for your buddy's identity.
-                  </p>
-                  {config.aiSystemPrompt && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground"
-                      onClick={() => {
-                        setSystemPromptDraft(DEFAULT_SYSTEM_PROMPT_TEMPLATE);
-                        updateConfig(() => ({ aiSystemPrompt: '' }));
-                        toast({ title: 'System prompt reset to default' });
-                      }}
-                    >
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                      Reset to default
-                    </Button>
-                  )}
-                </div>
-
-
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          <Label htmlFor="stats-pubkey" className="text-sm font-medium">NIP-85 Stats Pubkey</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">Trusted pubkey for pre-computed engagement stats (likes, reposts, comments).</p>
+          <Input id="stats-pubkey" value={statsPubkey} onChange={(e) => handleStatsPubkeyChange(e.target.value)} placeholder="Enter 64-character hex pubkey" className="font-mono text-base md:text-sm" maxLength={64} />
+          {statsPubkey && statsPubkey.length !== 64 && <p className="text-xs text-destructive mt-1">Pubkey must be exactly 64 hexadecimal characters</p>}
+          <div className="text-xs text-muted-foreground mt-2"><span className="font-medium">Default: </span><span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span></div>
         </div>
-      )}
 
-      {/* System Section (includes Stats Source) */}
-      <div>
-        <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="text-base font-semibold">System</span>
-              {systemOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-3 pt-3 pb-4 space-y-5">
-
-              {/* Stats Source */}
-              <div>
-                <Label htmlFor="stats-pubkey" className="text-sm font-medium">
-                  NIP-85 Stats Pubkey
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Trusted pubkey for pre-computed engagement stats (likes, reposts, comments).
-                </p>
-                <Input
-                  id="stats-pubkey"
-                  value={statsPubkey}
-                  onChange={(e) => handleStatsPubkeyChange(e.target.value)}
-                  placeholder="Enter 64-character hex pubkey"
-                  className="font-mono text-base md:text-sm"
-                  maxLength={64}
-                />
-                {statsPubkey && statsPubkey.length !== 64 && (
-                  <p className="text-xs text-destructive mt-1">
-                    Pubkey must be exactly 64 hexadecimal characters
-                  </p>
-                )}
-                <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
-                </div>
-              </div>
-
-              {/* Favicon URL */}
-              <div>
-                <Label htmlFor="favicon-url" className="text-sm font-medium">
-                  Favicon URL
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  URI template for fetching site favicons. Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{href}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
-                </p>
-                <Input
-                  id="favicon-url"
-                  value={faviconUrl}
-                  onChange={(e) => setFaviconUrl(e.target.value)}
-                  onBlur={async () => {
-                    const trimmed = faviconUrl.trim();
-                    if (trimmed && trimmed !== config.faviconUrl) {
-                      updateConfig(() => ({ faviconUrl: trimmed }));
-                      if (user) await updateSettings.mutateAsync({ faviconUrl: trimmed });
-                      toast({ title: 'Favicon URL updated' });
-                    }
-                  }}
-                  placeholder="https://ditto.pub/api/favicon/{hostname}"
-                  className="font-mono text-base md:text-sm"
-                />
-                <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span>
-                </div>
-              </div>
-
-              {/* Link Preview URL */}
-              <div>
-                <Label htmlFor="link-preview-url" className="text-sm font-medium">
-                  Link Preview URL
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  URI template for fetching link previews (returns OEmbed JSON). Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{url}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
-                </p>
-                <Input
-                  id="link-preview-url"
-                  value={linkPreviewUrl}
-                  onChange={(e) => setLinkPreviewUrl(e.target.value)}
-                  onBlur={async () => {
-                    const trimmed = linkPreviewUrl.trim();
-                    if (trimmed && trimmed !== config.linkPreviewUrl) {
-                      updateConfig(() => ({ linkPreviewUrl: trimmed }));
-                      if (user) await updateSettings.mutateAsync({ linkPreviewUrl: trimmed });
-                      toast({ title: 'Link preview URL updated' });
-                    }
-                  }}
-                  placeholder="https://ditto.pub/api/link-preview/{url}"
-                  className="font-mono text-base md:text-sm"
-                />
-                <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span>
-                </div>
-              </div>
-
-              {/* CORS Proxy */}
-              <div>
-                <Label htmlFor="cors-proxy" className="text-sm font-medium">
-                  CORS Proxy
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Proxy for cross-origin requests (NIP-05 fallback). Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the target URL.
-                </p>
-                <Input
-                  id="cors-proxy"
-                  value={corsProxy}
-                  onChange={(e) => setCorsProxy(e.target.value)}
-                  onBlur={async () => {
-                    const trimmed = corsProxy.trim();
-                    if (trimmed && trimmed !== config.corsProxy) {
-                      updateConfig(() => ({ corsProxy: trimmed }));
-                      if (user) await updateSettings.mutateAsync({ corsProxy: trimmed });
-                      toast({ title: 'CORS proxy updated' });
-                    }
-                  }}
-                  placeholder="https://proxy.shakespeare.diy/?url={href}"
-                  className="font-mono text-base md:text-sm"
-                />
-                <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Error Reporting Section */}
-      <div>
-        <Collapsible open={sentryOpen} onOpenChange={setSentryOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-            >
-              <span className="flex items-center gap-2 text-base font-semibold">
-                <Bug className="h-4 w-4" />
-                Error Reporting
-              </span>
-              {sentryOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-3 pt-3 pb-4 space-y-5">
-
-              {/* Share error reports toggle */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="sentry-enabled" className="text-sm font-medium">
-                    Share error reports
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Help improve this app by automatically sending crash and error reports.
-                  </p>
-                </div>
-                <Switch
-                  id="sentry-enabled"
-                  checked={config.sentryEnabled}
-                  onCheckedChange={(checked) => {
-                    updateConfig((current) => ({ ...current, sentryEnabled: checked }));
-                  }}
-                />
-              </div>
-
-              {/* Sentry DSN */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="sentry-dsn" className="text-sm font-medium">
-                    Sentry DSN
-                    {sentryDsn !== DEFAULT_SENTRY_DSN && (
-                      <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400" title="Modified from default" />
-                    )}
-                  </Label>
-                  {sentryDsn !== DEFAULT_SENTRY_DSN && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Restore to default"
-                      onClick={async () => {
-                        setSentryDsn(DEFAULT_SENTRY_DSN);
-                        updateConfig((current) => ({ ...current, sentryDsn: DEFAULT_SENTRY_DSN }));
-                        if (user) await updateSettings.mutateAsync({ sentryDsn: DEFAULT_SENTRY_DSN });
-                        toast({ title: 'Sentry DSN restored to default' });
-                      }}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry.
-                </p>
-                <Input
-                  id="sentry-dsn"
-                  value={sentryDsn}
-                  onChange={(e) => setSentryDsn(e.target.value)}
-                  onBlur={async () => {
-                    const trimmed = sentryDsn.trim();
-                    if (trimmed !== config.sentryDsn) {
-                      updateConfig((current) => ({ ...current, sentryDsn: trimmed }));
-                      if (user) await updateSettings.mutateAsync({ sentryDsn: trimmed });
-                      toast({ title: trimmed ? 'Sentry DSN updated' : 'Sentry DSN cleared' });
-                    }
-                  }}
-                  placeholder="https://examplePublicKey@o0.ingest.sentry.io/0"
-                  className="font-mono text-base md:text-sm"
-                />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Danger Zone Section — only when logged in */}
-      {user && (
         <div>
-          <Collapsible open={dangerOpen} onOpenChange={setDangerOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-              >
-                <span className="flex items-center gap-2 text-base font-semibold text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  Danger Zone
-                </span>
-                {dangerOpen ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-destructive rounded-full" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="px-3 pt-3 pb-4 space-y-4">
-                {/* Reset Buddy */}
-                {hasBuddy && (
-                  <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
-                    <div>
-                      <h3 className="text-sm font-medium">Reset Buddy</h3>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Delete your buddy's identity and start over. The buddy's Nostr keypair and soul
-                        will be wiped from this device and relays. This cannot be undone.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      onClick={async () => {
-                        try {
-                          await resetBuddy.mutateAsync();
-                          toast({ title: 'Buddy has been reset' });
-                        } catch {
-                          toast({ title: 'Failed to reset buddy', variant: 'destructive' });
-                        }
-                      }}
-                      disabled={resetBuddy.isPending}
-                    >
-                      {resetBuddy.isPending ? 'Resetting...' : 'Reset Buddy'}
-                    </Button>
-                  </div>
-                )}
-
-                <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
-                  <div>
-                    <h3 className="text-sm font-medium">Delete Account</h3>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Permanently delete your data from the network, including your profile,
-                      posts, reactions, and direct messages. This action is irreversible.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => setVanishDialogOpen(true)}
-                  >
-                    Delete Account
-                  </Button>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          <RequestToVanishDialog
-            open={vanishDialogOpen}
-            onOpenChange={setVanishDialogOpen}
-          />
+          <Label htmlFor="favicon-url" className="text-sm font-medium">Favicon URL</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">URI template for fetching site favicons. Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{href}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.</p>
+          <Input id="favicon-url" value={faviconUrl} onChange={(e) => setFaviconUrl(e.target.value)} onBlur={async () => { const trimmed = faviconUrl.trim(); if (trimmed && trimmed !== config.faviconUrl) { updateConfig(() => ({ faviconUrl: trimmed })); if (user) await updateSettings.mutateAsync({ faviconUrl: trimmed }); toast({ title: 'Favicon URL updated' }); } }} placeholder="https://ditto.pub/api/favicon/{hostname}" className="font-mono text-base md:text-sm" />
+          <div className="text-xs text-muted-foreground mt-2"><span className="font-medium">Default: </span><span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span></div>
         </div>
-      )}
-    </div>
+
+        <div>
+          <Label htmlFor="link-preview-url" className="text-sm font-medium">Link Preview URL</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">URI template for fetching link previews (returns OEmbed JSON). Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{url}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.</p>
+          <Input id="link-preview-url" value={linkPreviewUrl} onChange={(e) => setLinkPreviewUrl(e.target.value)} onBlur={async () => { const trimmed = linkPreviewUrl.trim(); if (trimmed && trimmed !== config.linkPreviewUrl) { updateConfig(() => ({ linkPreviewUrl: trimmed })); if (user) await updateSettings.mutateAsync({ linkPreviewUrl: trimmed }); toast({ title: 'Link preview URL updated' }); } }} placeholder="https://ditto.pub/api/link-preview/{url}" className="font-mono text-base md:text-sm" />
+          <div className="text-xs text-muted-foreground mt-2"><span className="font-medium">Default: </span><span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span></div>
+        </div>
+
+        <div>
+          <Label htmlFor="cors-proxy" className="text-sm font-medium">CORS Proxy</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">Proxy for cross-origin requests (NIP-05 fallback). Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the target URL.</p>
+          <Input id="cors-proxy" value={corsProxy} onChange={(e) => setCorsProxy(e.target.value)} onBlur={async () => { const trimmed = corsProxy.trim(); if (trimmed && trimmed !== config.corsProxy) { updateConfig(() => ({ corsProxy: trimmed })); if (user) await updateSettings.mutateAsync({ corsProxy: trimmed }); toast({ title: 'CORS proxy updated' }); } }} placeholder="https://proxy.shakespeare.diy/?url={href}" className="font-mono text-base md:text-sm" />
+          <div className="text-xs text-muted-foreground mt-2"><span className="font-medium">Default: </span><span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span></div>
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+function SentrySettingsSection() {
+  const { config, updateConfig } = useAppContext();
+  const { toast } = useToast();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+  const [open, setOpen] = useState(false);
+  const [sentryDsn, setSentryDsn] = useState(config.sentryDsn);
+
+  return (
+    <SettingsSection title="Error Reporting" icon={<Bug className="h-4 w-4" />} open={open} onOpenChange={setOpen}>
+      <div className="px-3 pt-3 pb-4 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <Label htmlFor="sentry-enabled" className="text-sm font-medium">Share error reports</Label>
+            <p className="text-xs text-muted-foreground">Help improve this app by automatically sending crash and error reports.</p>
+          </div>
+          <Switch id="sentry-enabled" checked={config.sentryEnabled} onCheckedChange={(checked) => { updateConfig((current) => ({ ...current, sentryEnabled: checked })); }} />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label htmlFor="sentry-dsn" className="text-sm font-medium">
+              Sentry DSN
+              {sentryDsn !== DEFAULT_SENTRY_DSN && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400" title="Modified from default" />}
+            </Label>
+            {sentryDsn !== DEFAULT_SENTRY_DSN && (
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Restore to default" onClick={async () => { setSentryDsn(DEFAULT_SENTRY_DSN); updateConfig((current) => ({ ...current, sentryDsn: DEFAULT_SENTRY_DSN })); if (user) await updateSettings.mutateAsync({ sentryDsn: DEFAULT_SENTRY_DSN }); toast({ title: 'Sentry DSN restored to default' }); }}>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry.</p>
+          <Input id="sentry-dsn" value={sentryDsn} onChange={(e) => setSentryDsn(e.target.value)} onBlur={async () => { const trimmed = sentryDsn.trim(); if (trimmed !== config.sentryDsn) { updateConfig((current) => ({ ...current, sentryDsn: trimmed })); if (user) await updateSettings.mutateAsync({ sentryDsn: trimmed }); toast({ title: trimmed ? 'Sentry DSN updated' : 'Sentry DSN cleared' }); } }} placeholder="https://examplePublicKey@o0.ingest.sentry.io/0" className="font-mono text-base md:text-sm" />
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+function DangerSettingsSection() {
+  const { toast } = useToast();
+  const { hasBuddy, resetBuddy } = useBuddy();
+  const [open, setOpen] = useState(false);
+  const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
+
+  return (
+    <>
+      <SettingsSection title="Danger Zone" icon={<AlertTriangle className="h-4 w-4" />} accentColor="text-destructive" open={open} onOpenChange={setOpen}>
+        <div className="px-3 pt-3 pb-4 space-y-4">
+          {hasBuddy && (
+            <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium">Reset Buddy</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Delete your buddy's identity and start over. The buddy's Nostr keypair and soul
+                  will be wiped from this device and relays. This cannot be undone.
+                </p>
+              </div>
+              <Button
+                variant="outline" size="sm"
+                className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                onClick={async () => { try { await resetBuddy.mutateAsync(); toast({ title: 'Buddy has been reset' }); } catch { toast({ title: 'Failed to reset buddy', variant: 'destructive' }); } }}
+                disabled={resetBuddy.isPending}
+              >
+                {resetBuddy.isPending ? 'Resetting...' : 'Reset Buddy'}
+              </Button>
+            </div>
+          )}
+
+          <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Delete Account</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Permanently delete your data from the network, including your profile,
+                posts, reactions, and direct messages. This action is irreversible.
+              </p>
+            </div>
+            <Button
+              variant="outline" size="sm"
+              className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => setVanishDialogOpen(true)}
+            >
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <RequestToVanishDialog open={vanishDialogOpen} onOpenChange={setVanishDialogOpen} />
+    </>
   );
 }

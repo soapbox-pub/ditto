@@ -490,7 +490,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const PAGE_SIZE = initialFilter.limit ?? 40;
 
     // 1. Fetch initial batch with search filters
-    (async () => {
+    async function fetchInitialBatch() {
       try {
         const events = await initialStore.query(
           [{ ...initialFilter, limit: PAGE_SIZE }],
@@ -509,27 +509,27 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         initialLoadDoneRef.current = true;
         setIsLoading(false);
       }
-    })();
+    }
 
     // 2. Stream new events WITHOUT search (relays don't support streaming search)
     // Client-side filtering is applied via useMemo at the end
-    // 
+    //
     // CRITICAL: The pool has eoseTimeout: 500 which aborts req() subscriptions 500ms after
     // the first EOSE. This kills streaming! Solution: Use relay() directly for one relay
     // to avoid the pool's timeout logic.
-    (async () => {
+    async function startStreaming() {
       try {
         const now = Math.floor(Date.now() / 1000);
-        
+
         // Use Ditto relays directly for streaming to avoid pool's eoseTimeout
         const dittoRelay = nostr.group(DITTO_RELAYS);
-        
+
         for await (const msg of dittoRelay.req(
           [{ ...streamFilter, since: now, limit: 0 }],
           { signal: ac.signal }
         )) {
           if (!alive) break;
-          
+
           if (msg[0] === 'EVENT') {
             addEvent(msg[2], true);
           } else if (msg[0] === 'CLOSED') {
@@ -539,7 +539,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       } catch {
         // abort expected
       }
-    })();
+    }
+
+    fetchInitialBatch();
+    startStreaming();
 
     return () => {
       alive = false;

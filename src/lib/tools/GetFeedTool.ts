@@ -53,102 +53,14 @@ After receiving results, summarize the key topics, conversations, and notable po
     const limit = Math.min(Math.max(1, args.limit ?? 50), 100);
     const sinceTimestamp = Math.floor(Date.now() / 1000) - hours * 3600;
 
-    // Fetch user's contacts for resolving $contacts and the follows feed.
-    let contactPubkeys: string[] = [];
-    if (ctx.user) {
-      try {
-        const contactEvents = await ctx.nostr.query(
-          [{ kinds: [3], authors: [ctx.user.pubkey], limit: 1 }],
-          { signal: AbortSignal.timeout(5000) },
-        );
-        contactPubkeys = contactEvents[0]?.tags
-          .filter(([t]) => t === 'p')
-          .map(([, pk]) => pk) ?? [];
-      } catch {
-        // Contacts unavailable — continue without them
-      }
+    const contactPubkeys = await fetchContactPubkeys(ctx);
+
+    const resolved = resolveFilter(args, ctx, { feedName, country, hours, limit, sinceTimestamp, contactPubkeys });
+    if ('error' in resolved) {
+      return { result: JSON.stringify(resolved) };
     }
 
-    let filter: NostrFilter;
-    let needsDittoRelay = false;
-    let feedLabel = '';
-
-    if (country) {
-      filter = {
-        kinds: [1111],
-        '#I': [`iso3166:${country}`],
-        since: sinceTimestamp,
-        limit,
-      } as NostrFilter;
-      feedLabel = `country: ${country}`;
-    } else if (feedName === 'follows') {
-      if (!ctx.user) {
-        return { result: JSON.stringify({ error: 'Must be logged in to read the follows feed.' }) };
-      }
-      const authors = [ctx.user.pubkey, ...contactPubkeys];
-      if (authors.length <= 1) {
-        return { result: JSON.stringify({ error: 'The user is not following anyone yet.' }) };
-      }
-      filter = { kinds: [1], authors, since: sinceTimestamp, limit };
-      feedLabel = 'follows';
-    } else if (feedName === 'global') {
-      filter = { kinds: [1], since: sinceTimestamp, limit };
-      feedLabel = 'global';
-    } else if (feedName === 'ditto') {
-      filter = { kinds: [1], since: sinceTimestamp, limit, search: 'sort:hot protocol:nostr' };
-      needsDittoRelay = true;
-      feedLabel = 'ditto (hot)';
-    } else if (feedName) {
-      const match = ctx.savedFeeds.find((f) => f.label.toLowerCase() === feedName);
-      if (!match) {
-        const available = ctx.savedFeeds.map((f) => f.label).join(', ');
-        return {
-          result: JSON.stringify({
-            error: `No saved feed named "${args.feed_name}".`,
-            available_feeds: available ? `follows, global, ditto, ${available}` : 'follows, global, ditto',
-          }),
-        };
-      }
-      try {
-        // Resolve the saved feed's TabFilter — substitute $follows with contact pubkeys
-        const savedFilter = { ...match.filter } as Record<string, unknown>;
-        if (Array.isArray(savedFilter.authors)) {
-          savedFilter.authors = (savedFilter.authors as string[]).flatMap((a) =>
-            a === '$follows' ? contactPubkeys : [a],
-          );
-        }
-        filter = { ...savedFilter, since: sinceTimestamp, limit } as NostrFilter;
-        needsDittoRelay = typeof savedFilter.search === 'string' && /sort:|protocol:|media:/.test(savedFilter.search as string);
-        feedLabel = match.label;
-      } catch (err) {
-        return { result: JSON.stringify({ error: `Failed to resolve saved feed "${match.label}": ${err instanceof Error ? err.message : 'Unknown error'}` }) };
-      }
-    } else {
-      // Ad-hoc query
-      const spellArgs: Parameters<typeof buildSpellTags>[0] = {
-        name: 'ad-hoc',
-        kinds: args.kinds,
-        authors: args.authors,
-        search: args.search,
-      };
-
-      if (args.hashtag?.trim()) {
-        spellArgs.tag_filters = [{ letter: 't', values: [args.hashtag.trim().toLowerCase()] }];
-      }
-
-      const tags = buildSpellTags(spellArgs);
-      const unsigned = buildUnsignedSpell(tags);
-
-      try {
-        const resolved = resolveSpell(unsigned, ctx.user?.pubkey, contactPubkeys);
-        filter = { ...resolved.filter, since: sinceTimestamp, limit };
-        if (!filter.kinds) filter.kinds = [1];
-        needsDittoRelay = resolved.needsDittoRelay;
-        feedLabel = args.search ? `search: ${args.search}` : args.hashtag ? `#${args.hashtag}` : 'ad-hoc';
-      } catch (err) {
-        return { result: JSON.stringify({ error: `Failed to resolve query: ${err instanceof Error ? err.message : 'Unknown error'}` }) };
-      }
-    }
+    const { filter, needsDittoRelay, feedLabel } = resolved;
 
     const store = needsDittoRelay ? ctx.nostr.group(DITTO_RELAYS) : ctx.nostr;
     const events = await store.query(
@@ -170,55 +82,7 @@ After receiving results, summarize the key topics, conversations, and notable po
       };
     }
 
-    // Batch-fetch author profiles for display names
-    const uniquePubkeys = [...new Set(sorted.map((e) => e.pubkey))];
-    const profileMap = new Map<string, { name?: string; display_name?: string; nip05?: string }>();
-
-    try {
-      const profiles = await ctx.nostr.query(
-        [{ kinds: [0], authors: uniquePubkeys }],
-        { signal: AbortSignal.timeout(5000) },
-      );
-      for (const p of profiles) {
-        try {
-          const meta = JSON.parse(p.content);
-          profileMap.set(p.pubkey, {
-            name: meta.name,
-            display_name: meta.display_name,
-            nip05: meta.nip05,
-          });
-        } catch {
-          // Skip invalid metadata
-        }
-      }
-    } catch {
-      // Profiles unavailable — continue with pubkey-only display
-    }
-
-    const formatTimeAgo = (ts: number): string => {
-      const seconds = Math.floor(Date.now() / 1000) - ts;
-      if (seconds < 60) return 'just now';
-      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-      return `${Math.floor(seconds / 86400)}d ago`;
-    };
-
-    let text = `## ${feedLabel} — past ${hours}h (${sorted.length} posts)\n\n`;
-
-    for (const event of sorted) {
-      const profile = profileMap.get(event.pubkey);
-      const displayName = profile?.display_name || profile?.name || nip19.npubEncode(event.pubkey).slice(0, 16) + '...';
-
-      const hashtags = event.tags
-        .filter(([t]) => t === 't')
-        .map(([, v]) => `#${v}`)
-        .join(' ');
-
-      text += `**${displayName}** (${formatTimeAgo(event.created_at)}):\n`;
-      text += `${event.content.slice(0, 500)}${event.content.length > 500 ? '...' : ''}\n`;
-      if (hashtags) text += `Tags: ${hashtags}\n`;
-      text += '\n---\n\n';
-    }
+    const text = await formatEvents(sorted, feedLabel, hours, ctx);
 
     return {
       result: JSON.stringify({
@@ -231,3 +95,168 @@ After receiving results, summarize the key topics, conversations, and notable po
     };
   },
 };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Fetch the logged-in user's contact list pubkeys. */
+async function fetchContactPubkeys(ctx: ToolContext): Promise<string[]> {
+  if (!ctx.user) return [];
+  try {
+    const contactEvents = await ctx.nostr.query(
+      [{ kinds: [3], authors: [ctx.user.pubkey], limit: 1 }],
+      { signal: AbortSignal.timeout(5000) },
+    );
+    return contactEvents[0]?.tags
+      .filter(([t]) => t === 'p')
+      .map(([, pk]) => pk) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+interface ResolveContext {
+  feedName: string;
+  country: string;
+  hours: number;
+  limit: number;
+  sinceTimestamp: number;
+  contactPubkeys: string[];
+}
+
+type ResolvedFilter =
+  | { filter: NostrFilter; needsDittoRelay: boolean; feedLabel: string }
+  | { error: string; available_feeds?: string };
+
+/** Build the Nostr filter from the tool arguments. */
+function resolveFilter(
+  args: Params, ctx: ToolContext,
+  { feedName, country, limit, sinceTimestamp, contactPubkeys }: ResolveContext,
+): ResolvedFilter {
+  if (country) {
+    return {
+      filter: { kinds: [1111], '#I': [`iso3166:${country}`], since: sinceTimestamp, limit } as NostrFilter,
+      needsDittoRelay: false,
+      feedLabel: `country: ${country}`,
+    };
+  }
+
+  if (feedName === 'follows') {
+    if (!ctx.user) return { error: 'Must be logged in to read the follows feed.' };
+    const authors = [ctx.user.pubkey, ...contactPubkeys];
+    if (authors.length <= 1) return { error: 'The user is not following anyone yet.' };
+    return { filter: { kinds: [1], authors, since: sinceTimestamp, limit }, needsDittoRelay: false, feedLabel: 'follows' };
+  }
+
+  if (feedName === 'global') {
+    return { filter: { kinds: [1], since: sinceTimestamp, limit }, needsDittoRelay: false, feedLabel: 'global' };
+  }
+
+  if (feedName === 'ditto') {
+    return { filter: { kinds: [1], since: sinceTimestamp, limit, search: 'sort:hot protocol:nostr' }, needsDittoRelay: true, feedLabel: 'ditto (hot)' };
+  }
+
+  if (feedName) {
+    const match = ctx.savedFeeds.find((f) => f.label.toLowerCase() === feedName);
+    if (!match) {
+      const available = ctx.savedFeeds.map((f) => f.label).join(', ');
+      return {
+        error: `No saved feed named "${args.feed_name}".`,
+        available_feeds: available ? `follows, global, ditto, ${available}` : 'follows, global, ditto',
+      };
+    }
+    try {
+      const savedFilter = { ...match.filter } as Record<string, unknown>;
+      if (Array.isArray(savedFilter.authors)) {
+        savedFilter.authors = (savedFilter.authors as string[]).flatMap((a) =>
+          a === '$follows' ? contactPubkeys : [a],
+        );
+      }
+      const filter = { ...savedFilter, since: sinceTimestamp, limit } as NostrFilter;
+      const needsDittoRelay = typeof savedFilter.search === 'string' && /sort:|protocol:|media:/.test(savedFilter.search as string);
+      return { filter, needsDittoRelay, feedLabel: match.label };
+    } catch (err) {
+      return { error: `Failed to resolve saved feed "${match.label}": ${err instanceof Error ? err.message : 'Unknown error'}` };
+    }
+  }
+
+  // Ad-hoc query
+  const spellArgs: Parameters<typeof buildSpellTags>[0] = {
+    name: 'ad-hoc',
+    kinds: args.kinds,
+    authors: args.authors,
+    search: args.search,
+  };
+
+  if (args.hashtag?.trim()) {
+    spellArgs.tag_filters = [{ letter: 't', values: [args.hashtag.trim().toLowerCase()] }];
+  }
+
+  const tags = buildSpellTags(spellArgs);
+  const unsigned = buildUnsignedSpell(tags);
+
+  try {
+    const resolved = resolveSpell(unsigned, ctx.user?.pubkey, contactPubkeys);
+    const filter: NostrFilter = { ...resolved.filter, since: sinceTimestamp, limit };
+    if (!filter.kinds) filter.kinds = [1];
+    const feedLabel = args.search ? `search: ${args.search}` : args.hashtag ? `#${args.hashtag}` : 'ad-hoc';
+    return { filter, needsDittoRelay: resolved.needsDittoRelay, feedLabel };
+  } catch (err) {
+    return { error: `Failed to resolve query: ${err instanceof Error ? err.message : 'Unknown error'}` };
+  }
+}
+
+/** Format events into a markdown summary with author display names. */
+async function formatEvents(
+  sorted: NostrEvent[], feedLabel: string, hours: number, ctx: ToolContext,
+): Promise<string> {
+  const uniquePubkeys = [...new Set(sorted.map((e) => e.pubkey))];
+  const profileMap = new Map<string, { name?: string; display_name?: string; nip05?: string }>();
+
+  try {
+    const profiles = await ctx.nostr.query(
+      [{ kinds: [0], authors: uniquePubkeys }],
+      { signal: AbortSignal.timeout(5000) },
+    );
+    for (const p of profiles) {
+      try {
+        const meta = JSON.parse(p.content);
+        profileMap.set(p.pubkey, {
+          name: meta.name,
+          display_name: meta.display_name,
+          nip05: meta.nip05,
+        });
+      } catch {
+        // Skip invalid metadata
+      }
+    }
+  } catch {
+    // Profiles unavailable — continue with pubkey-only display
+  }
+
+  const formatTimeAgo = (ts: number): string => {
+    const seconds = Math.floor(Date.now() / 1000) - ts;
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  let text = `## ${feedLabel} — past ${hours}h (${sorted.length} posts)\n\n`;
+
+  for (const event of sorted) {
+    const profile = profileMap.get(event.pubkey);
+    const displayName = profile?.display_name || profile?.name || nip19.npubEncode(event.pubkey).slice(0, 16) + '...';
+
+    const hashtags = event.tags
+      .filter(([t]) => t === 't')
+      .map(([, v]) => `#${v}`)
+      .join(' ');
+
+    text += `**${displayName}** (${formatTimeAgo(event.created_at)}):\n`;
+    text += `${event.content.slice(0, 500)}${event.content.length > 500 ? '...' : ''}\n`;
+    if (hashtags) text += `Tags: ${hashtags}\n`;
+    text += '\n---\n\n';
+  }
+
+  return text;
+}

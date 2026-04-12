@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GripVertical, X, Plus, ChevronDown } from 'lucide-react';
+import { GripVertical, X, ChevronDown } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
 import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
+import { SortableItemShell } from '@/components/SortableItemShell';
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
 
@@ -36,28 +37,12 @@ export interface SidebarNavItemProps {
 export function SidebarNavItem({
   id, active, editing, onRemove, onAdd, belowMore, onClick, profilePath, showIndicator, linkClassName, homePage,
 }: SidebarNavItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
   const icon = sidebarItemIcon(id);
   const label = itemLabel(id);
   const path = itemPath(id, profilePath, homePage);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85 hover:bg-secondary/40', isDragging && 'z-10 opacity-80 shadow-lg')}
-    >
-      {editing && (
-        <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-      )}
-
+    <SortableItemShell id={id} editing={editing} onRemove={onRemove} onAdd={onAdd} belowMore={belowMore} label={label}>
       <Link
         to={path}
         onClick={onClick}
@@ -76,27 +61,7 @@ export function SidebarNavItem({
         </span>
         <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </Link>
-
-      {editing && (
-        belowMore ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAdd?.(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-primary hover:bg-primary/10"
-            title={`Add ${label}`}
-          >
-            <Plus className="size-4" />
-          </button>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemove(id); }}
-            className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title={`Remove ${label}`}
-          >
-            <X className="size-4" />
-          </button>
-        )
-      )}
-    </div>
+    </SortableItemShell>
   );
 }
 

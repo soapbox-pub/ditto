@@ -6,9 +6,9 @@ import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
 import { NoteCard } from '@/components/NoteCard';
+import { NoteCardSkeleton } from '@/components/NoteCardSkeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -296,9 +296,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Feed content — saved feed tab gets its own stream */}
       {user && <div style={{ height: ARC_OVERHANG_PX }} />}
       {activeHashtag ? (
-        <HashtagFeedContent tag={activeHashtag} />
+        <TagFeedContent tagKey="#t" tag={activeHashtag} emptyMessage={`No posts found with #${activeHashtag}.`} />
       ) : activeGeotag ? (
-        <GeotagFeedContent tag={activeGeotag} />
+        <TagFeedContent tagKey="#g" tag={activeGeotag} emptyMessage={`No posts found near ${activeGeotag}.`} />
       ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
@@ -425,80 +425,23 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   );
 }
 
-/** Renders a feed of posts tagged with a specific hashtag. */
-function HashtagFeedContent({ tag }: { tag: string }) {
+/** Renders a feed of posts matching a single-letter tag filter (#t for hashtags, #g for geotags). */
+function TagFeedContent({ tagKey, tag, emptyMessage }: { tagKey: '#t' | '#g'; tag: string; emptyMessage: string }) {
   const { nostr } = useNostr();
   const { muteItems } = useMuteList();
   const { feedSettings } = useFeedSettings();
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
 
-  const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey], [tag, kindsKey]);
+  const feedType = tagKey === '#t' ? 'hashtag' : 'geotag';
+  const queryKey = useMemo(() => [`${feedType}-feed`, tag, kindsKey], [feedType, tag, kindsKey]);
   const handleRefresh = usePageRefresh(queryKey);
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
-      return ditto.query(
-        [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
-      );
-    },
-  });
-
-  const filteredEvents = useMemo((): NostrEvent[] => {
-    if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
-
-  if (isLoading && filteredEvents.length === 0) {
-    return (
-      <div className="divide-y divide-border">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <NoteCardSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
-
-  if (filteredEvents.length === 0) {
-    return (
-      <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found with #${tag}.`} />
-      </PullToRefresh>
-    );
-  }
-
-  return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      <div>
-        {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
-        ))}
-      </div>
-    </PullToRefresh>
-  );
-}
-
-/** Renders a feed of posts tagged with a specific geohash. */
-function GeotagFeedContent({ tag }: { tag: string }) {
-  const { nostr } = useNostr();
-  const { muteItems } = useMuteList();
-  const { feedSettings } = useFeedSettings();
-  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
-  const kindsKey = [...kinds].sort().join(',');
-
-  const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey], [tag, kindsKey]);
-  const handleRefresh = usePageRefresh(queryKey);
-
-  const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey,
-    queryFn: async ({ signal }) => {
-      const ditto = nostr.group(DITTO_RELAYS);
-      const filter = { kinds, limit: 40 } as Record<string, unknown>;
-      filter['#g'] = [tag];
+      const filter = { kinds, limit: 40, [tagKey]: [tagKey === '#t' ? tag.toLowerCase() : tag] } as Record<string, unknown>;
       return ditto.query([filter as Parameters<typeof ditto.query>[0][number]], {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
       });
@@ -524,7 +467,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   if (filteredEvents.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found near ${tag}.`} />
+        <FeedEmptyState message={emptyMessage} />
       </PullToRefresh>
     );
   }
@@ -540,26 +483,4 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   );
 }
 
-function NoteCardSkeleton() {
-  return (
-    <div className="px-4 py-3 border-b border-border">
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-11 rounded-full shrink-0" />
-        <div className="min-w-0 space-y-1.5">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-36" />
-        </div>
-      </div>
-      <div className="mt-2 space-y-1.5">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-4/5" />
-      </div>
-      <div className="flex items-center gap-6 mt-3 -ml-2">
-        <Skeleton className="h-4 w-8" />
-        <Skeleton className="h-4 w-8" />
-        <Skeleton className="h-4 w-8" />
-        <Skeleton className="h-4 w-8" />
-      </div>
-    </div>
-  );
-}
+

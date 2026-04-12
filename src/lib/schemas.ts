@@ -198,6 +198,15 @@ export const SavedFeedSchema = z.object({
   createdAt: z.number(),
 });
 
+/** Shared transform for savedFeeds arrays: drops legacy destination items and validates each entry. */
+const savedFeedsTransform = (arr: unknown[]) =>
+  arr.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return [];
+    if ((item as Record<string, unknown>).destination !== undefined) return [];
+    const result = SavedFeedSchema.safeParse(item);
+    return result.success ? [result.data] : [];
+  });
+
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
@@ -236,14 +245,7 @@ export const AppConfigSchema = z.object({
   sentryEnabled: z.boolean(),
   plausibleDomain: z.string(),
   plausibleEndpoint: z.string(),
-  savedFeeds: z.array(z.unknown()).transform((arr) =>
-    arr.flatMap((item) => {
-      if (typeof item !== 'object' || item === null) return [];
-      if ((item as Record<string, unknown>).destination !== undefined) return [];
-      const result = SavedFeedSchema.safeParse(item);
-      return result.success ? [result.data] : [];
-    })
-  ).optional().default([]),
+  savedFeeds: z.array(z.unknown()).transform(savedFeedsTransform).optional().default([]),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
@@ -339,12 +341,5 @@ export const EncryptedSettingsSchema = z.looseObject({
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
   sentryDsn: z.string().optional(),
-  savedFeeds: z.array(z.unknown()).transform((arr) =>
-    arr.flatMap((item) => {
-      if (typeof item !== 'object' || item === null) return [];
-      if ((item as Record<string, unknown>).destination !== undefined) return [];
-      const result = SavedFeedSchema.safeParse(item);
-      return result.success ? [result.data] : [];
-    })
-  ).optional(),
+  savedFeeds: z.array(z.unknown()).transform(savedFeedsTransform).optional(),
 });
