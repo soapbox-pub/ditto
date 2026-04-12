@@ -49,6 +49,9 @@ interface TriggerOptions {
   source?: string;
   /** If true, uses shorter glance cooldown instead of default cooldown */
   isGlance?: boolean;
+  /** If true, skip the cooldown check entirely (used by route reactions that
+   *  keep the previous attention alive and need to override it immediately). */
+  bypassCooldown?: boolean;
 }
 
 // Selectors for UI elements that should trigger full attention (overlays)
@@ -130,6 +133,9 @@ export function useBlobbiAttention({
   onAttentionEnd,
 }: UseBlobbiAttentionOptions): UseBlobbiAttentionResult {
   const [uiAttention, setUiAttention] = useState<AttentionTarget | null>(null);
+  /** Ref mirror of uiAttention — lets triggerAttention read fresh state without
+   *  capturing it in its closure (keeps the callback referentially stable). */
+  const uiAttentionRef = useRef<AttentionTarget | null>(null);
   
   const config = DEFAULT_COMPANION_CONFIG;
   const lastAttentionTimeRef = useRef<number>(0);
@@ -156,6 +162,7 @@ export function useBlobbiAttention({
     // Reset cooldown so an immediate re-trigger is not blocked
     lastAttentionTimeRef.current = 0;
     
+    uiAttentionRef.current = null;
     setUiAttention(prev => {
       if (prev) {
         onAttentionEnd?.(prev.id);
@@ -179,23 +186,29 @@ export function useBlobbiAttention({
       priority = 'normal',
       source,
       isGlance = false,
+      bypassCooldown = false,
     } = options;
     
     // Respect cooldown to avoid spamming (shorter cooldown for glances)
-    const cooldown = isGlance ? config.attention.glanceCooldown : config.attention.cooldown;
-    if (timeSinceLastAttention < cooldown) {
-      return;
+    if (!bypassCooldown) {
+      const cooldown = isGlance ? config.attention.glanceCooldown : config.attention.cooldown;
+      if (timeSinceLastAttention < cooldown) {
+        return;
+      }
     }
     
+    // Read from ref instead of closure state — keeps this callback stable
+    const currentAttention = uiAttentionRef.current;
+    
     // If there's current UI attention, check priority
-    if (uiAttention) {
+    if (currentAttention) {
       const priorityOrder: Record<AttentionPriority, number> = {
         low: 0,
         normal: 1,
         high: 2,
       };
       
-      if (priorityOrder[priority] < priorityOrder[uiAttention.priority]) {
+      if (priorityOrder[priority] < priorityOrder[currentAttention.priority]) {
         return; // Current attention has higher priority
       }
       
@@ -213,6 +226,7 @@ export function useBlobbiAttention({
     };
     
     lastAttentionTimeRef.current = now;
+    uiAttentionRef.current = target;
     setUiAttention(target);
     onAttentionStart?.(target);
     
@@ -220,7 +234,7 @@ export function useBlobbiAttention({
     attentionTimeoutRef.current = setTimeout(() => {
       clearAttention();
     }, duration);
-  }, [config.attention, uiAttention, clearAttention, onAttentionStart]);
+  }, [config.attention, clearAttention, onAttentionStart]);
   
   /**
    * Handle overlay elements (modals, dialogs, sheets) - full attention.
