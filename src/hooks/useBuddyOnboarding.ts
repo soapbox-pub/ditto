@@ -97,8 +97,7 @@ export function useBuddyOnboarding() {
           try {
             await createBuddy.mutateAsync({ name: buddyName, soul: buddySoul });
             setStep('done');
-          } catch (err) {
-            console.error('Failed to create buddy:', err);
+          } catch {
             setError('Failed to create buddy. Please try again.');
             setStep('soul');
             addDorkMessage(dorkMessage(

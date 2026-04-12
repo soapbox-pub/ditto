@@ -138,8 +138,8 @@ export async function discoverMCPTools(
         };
         clients[prefixedName] = client;
       }
-    } catch (error) {
-      console.error(`Failed to discover tools from MCP server "${serverName}":`, error);
+    } catch {
+      // Tool discovery failed for this server — skip and continue with remaining servers
     }
   }
 

@@ -295,9 +295,9 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         apiMessages = buildApiMessages(currentMessages);
       }
     } catch (err) {
-      // Silently handle user-initiated abort
+      // Silently handle user-initiated abort and other errors
+      // (API-level errors are surfaced via apiError from useShakespeare)
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      console.error('Chat error:', err);
     } finally {
       abortRef.current = null;
       setIsStreaming(false);
