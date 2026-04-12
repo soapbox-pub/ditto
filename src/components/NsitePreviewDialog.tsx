@@ -2,6 +2,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
+
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Capacitor } from '@capacitor/core';
 
 import { Button } from '@/components/ui/button';
@@ -208,6 +210,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
   // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
   const nsiteSubdomain = getNsiteSubdomain(event);
+  const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
   const previewSubdomain = useMemo(() => deriveIframeSubdomain('nsite', nsiteSubdomain), [nsiteSubdomain]);
 
   // NIP-07 signer proxy — only active when a user is logged in.
@@ -343,7 +346,11 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
             />
           ) : (
             <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <Package className="size-3.5 text-primary/50" />
+              <ExternalFavicon
+                url={siteUrl}
+                size={18}
+                fallback={<Package className="size-3.5 text-primary/50" />}
+              />
             </div>
           )}
           <span className="text-sm font-medium truncate">{appName}</span>
