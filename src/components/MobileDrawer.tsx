@@ -1,12 +1,13 @@
 import { useState, useId, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, UserPlus, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { useSidebarEditing } from '@/hooks/useSidebarEditing';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { StatusEditor } from '@/components/StatusEditor';
 
 import { LoginArea } from '@/components/auth/LoginArea';
 import { LinkFooter } from '@/components/LinkFooter';
@@ -25,10 +26,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isItemActive } from '@/lib/sidebarItems';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { useUserStatus } from '@/hooks/useUserStatus';
-import { usePublishStatus } from '@/hooks/usePublishStatus';
-import { useToast } from '@/hooks/useToast';
-import { Input } from '@/components/ui/input';
+
 import { resolveTheme, resolveThemeConfig } from '@/themes';
 
 /** Total width of the drawer background layer: 300px drawer + 36px arc overhang. */
@@ -66,12 +64,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { startSignup } = useOnboarding();
   const { theme, customTheme, themes } = useTheme();
 
-  // NIP-38 status
-  const userStatus = useUserStatus(user?.pubkey);
-  const publishStatus = usePublishStatus();
-  const { toast } = useToast();
-  const [statusEditing, setStatusEditing] = useState(false);
-  const [statusDraft, setStatusDraft] = useState('');
+
 
   /** Compute the background image style for the drawer, mirroring the body background. */
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -174,83 +167,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 <div>
                   {/* Status editor */}
                   <div className="border-b border-border">
-                    {statusEditing ? (
-                      <div className="px-3 py-2 space-y-2">
-                        <Input
-                          value={statusDraft}
-                          onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
-                          placeholder="What are you up to?"
-                          className="h-8 text-base md:text-sm"
-                          maxLength={80}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const text = statusDraft.trim();
-                              publishStatus.mutateAsync({ status: text }).then(() => {
-                                setStatusEditing(false);
-                                setStatusDraft('');
-                                toast({ title: text ? 'Status updated' : 'Status cleared' });
-                              });
-                            } else if (e.key === 'Escape') {
-                              setStatusEditing(false);
-                              setStatusDraft('');
-                            }
-                          }}
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              const text = statusDraft.trim();
-                              publishStatus.mutateAsync({ status: text }).then(() => {
-                                setStatusEditing(false);
-                                setStatusDraft('');
-                                toast({ title: text ? 'Status updated' : 'Status cleared' });
-                              });
-                            }}
-                            disabled={publishStatus.isPending}
-                            className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                          >
-                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
-                          </button>
-                          {userStatus.status && (
-                            <button
-                              onClick={() => {
-                                publishStatus.mutateAsync({ status: '' }).then(() => {
-                                  setStatusEditing(false);
-                                  setStatusDraft('');
-                                  toast({ title: 'Status cleared' });
-                                });
-                              }}
-                              disabled={publishStatus.isPending}
-                              className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
-                            >
-                              Clear
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
-                            className="text-xs text-muted-foreground hover:underline ml-auto"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setStatusEditing(true);
-                          setStatusDraft(userStatus.status ?? '');
-                        }}
-                        className="flex items-center gap-3 w-full px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors"
-                      >
-                        {userStatus.status ? (
-                          <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Set a status</span>
-                        )}
-                      </button>
-                    )}
+                    <StatusEditor pubkey={user.pubkey} formClassName="px-3 py-2" buttonClassName="px-3" />
                   </div>
                   {otherUsers.map((account) => (
                     <button

@@ -19,7 +19,7 @@ import { proxyUrl } from '@/lib/proxyUrl';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
 import type { ThemeConfig } from '@/themes';
 import type { ToolExecutorResult } from '@/lib/aiChatTools';
 import type { OpenAITool } from '@/lib/MCPClient';
@@ -30,6 +30,62 @@ import type { OpenAITool } from '@/lib/MCPClient';
 function isValidHsl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
+}
+
+/** Get the buddy secret key or generate an ephemeral one. */
+function getBuddyOrEphemeralKey(getBuddySecretKey: () => Uint8Array | null) {
+  const buddySk = getBuddySecretKey();
+  const sk = buddySk ?? generateSecretKey();
+  return { sk, pubkey: getPublicKey(sk), isBuddy: !!buddySk };
+}
+
+/**
+ * Sign and publish a Nostr event, plus a throwaway kind-0 profile when using
+ * an ephemeral key (buddy already has a profile).
+ */
+async function signAndPublishWithProfile(
+  nostr: { event: (event: NostrEvent, opts?: { signal?: AbortSignal }) => Promise<void> },
+  sk: Uint8Array,
+  isBuddy: boolean,
+  event: { kind: number; content: string; tags: string[][]; created_at: number },
+  profileMeta: { name: string; about: string },
+): Promise<NostrEvent> {
+  const signed = finalizeEvent(event, sk) as NostrEvent;
+  const publishes: Promise<void>[] = [
+    nostr.event(signed, { signal: AbortSignal.timeout(5000) }),
+  ];
+  if (!isBuddy) {
+    const profileEvent = finalizeEvent({
+      kind: 0,
+      content: JSON.stringify(profileMeta),
+      tags: [],
+      created_at: event.created_at,
+    }, sk) as NostrEvent;
+    publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
+  }
+  await Promise.all(publishes);
+  return signed;
+}
+
+/** Create a BlossomUploader configured with buddy or user signer. */
+function createBuddyUploader(
+  getBuddySecretKey: () => Uint8Array | null,
+  userSigner: NostrSigner,
+  servers: string[],
+): BlossomUploader {
+  const buddySk = getBuddySecretKey();
+  const signer = buddySk ? new NSecSigner(buddySk) : userSigner;
+  return new BlossomUploader({
+    servers,
+    signer,
+    fetch: (input, init) => globalThis.fetch(input, {
+      ...init,
+      signal: AbortSignal.any([
+        init?.signal ?? AbortSignal.timeout(30_000),
+        AbortSignal.timeout(30_000),
+      ]),
+    }),
+  });
 }
 
 // ─── Hook ───
@@ -346,34 +402,12 @@ export function useAIChatTools() {
           });
           const content = typeof args.description === 'string' ? args.description : '';
 
-          // Use buddy key if available, otherwise ephemeral
-          const buddySk = getBuddySecretKey();
-          const sk = buddySk ?? generateSecretKey();
-          const pubkey = getPublicKey(sk);
-
-          const spellEvent = finalizeEvent({
-            kind: 777,
-            content,
-            tags,
-            created_at: Math.floor(Date.now() / 1000),
-          }, sk) as NostrEvent;
-
-          const publishes: Promise<void>[] = [
-            nostr.event(spellEvent, { signal: AbortSignal.timeout(5000) }),
-          ];
-
-          // Only publish a throwaway profile for ephemeral keys (buddy already has kind 0)
-          if (!buddySk) {
-            const profileEvent = finalizeEvent({
-              kind: 0,
-              content: JSON.stringify({ name: 'Dork Spellcaster', about: 'Spells created by Dork AI' }),
-              tags: [],
-              created_at: Math.floor(Date.now() / 1000),
-            }, sk) as NostrEvent;
-            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
-          }
-
-          await Promise.all(publishes);
+          const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(getBuddySecretKey);
+          const spellEvent = await signAndPublishWithProfile(
+            nostr, sk, isBuddy,
+            { kind: 777, content, tags, created_at: Math.floor(Date.now() / 1000) },
+            { name: 'Dork Spellcaster', about: 'Spells created by Dork AI' },
+          );
 
           return {
             result: JSON.stringify({
@@ -458,22 +492,8 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'At least one URL is required.' }) };
           }
 
-          // Use buddy signer for Blossom auth when available, otherwise user's signer
-          const buddySk = getBuddySecretKey();
-          const signer = buddySk ? new NSecSigner(buddySk) : user.signer;
           const servers = getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers);
-
-          const uploader = new BlossomUploader({
-            servers,
-            signer,
-            fetch: (input, init) => globalThis.fetch(input, {
-              ...init,
-              signal: AbortSignal.any([
-                init?.signal ?? AbortSignal.timeout(30_000),
-                AbortSignal.timeout(30_000),
-              ]),
-            }),
-          });
+          const uploader = createBuddyUploader(getBuddySecretKey, user.signer, servers);
 
           const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; mime_type?: string; error?: string }> = [];
 
@@ -583,34 +603,12 @@ export function useAIChatTools() {
             ...emojis.map((e) => ['emoji', e.shortcode, e.url]),
           ];
 
-          // Use buddy key if available, otherwise ephemeral
-          const buddySk = getBuddySecretKey();
-          const sk = buddySk ?? generateSecretKey();
-          const pubkey = getPublicKey(sk);
-
-          const emojiPackEvent = finalizeEvent({
-            kind: 30030,
-            content: '',
-            tags,
-            created_at: Math.floor(Date.now() / 1000),
-          }, sk) as NostrEvent;
-
-          const publishes: Promise<void>[] = [
-            nostr.event(emojiPackEvent, { signal: AbortSignal.timeout(5000) }),
-          ];
-
-          // Only publish a throwaway profile for ephemeral keys (buddy already has kind 0)
-          if (!buddySk) {
-            const profileEvent = finalizeEvent({
-              kind: 0,
-              content: JSON.stringify({ name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' }),
-              tags: [],
-              created_at: Math.floor(Date.now() / 1000),
-            }, sk) as NostrEvent;
-            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
-          }
-
-          await Promise.all(publishes);
+          const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(getBuddySecretKey);
+          const emojiPackEvent = await signAndPublishWithProfile(
+            nostr, sk, isBuddy,
+            { kind: 30030, content: '', tags, created_at: Math.floor(Date.now() / 1000) },
+            { name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' },
+          );
 
           return {
             result: JSON.stringify({
@@ -637,10 +635,7 @@ export function useAIChatTools() {
             return { result: JSON.stringify({ error: 'At least one event is required.' }) };
           }
 
-          // Use buddy key if available, otherwise ephemeral
-          const buddySk = getBuddySecretKey();
-          const sk = buddySk ?? generateSecretKey();
-          const pubkey = getPublicKey(sk);
+          const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(getBuddySecretKey);
           const currentTimestamp = Math.floor(Date.now() / 1000);
 
           const finalized: NostrEvent[] = events.map((partial) =>
@@ -652,8 +647,8 @@ export function useAIChatTools() {
             }, sk) as NostrEvent,
           );
 
-          // If ephemeral (no buddy), publish a fallback profile
-          if (!buddySk) {
+          // Publish ephemeral profile first (if needed), then all events
+          if (!isBuddy) {
             const profileEvent = finalizeEvent({
               kind: 0,
               content: JSON.stringify({ name: 'Dork Publisher', about: 'Events published by Dork AI' }),
@@ -1034,21 +1029,8 @@ export function useAIChatTools() {
           const xdcFile = new File([zipped], `${slug}.xdc`, { type: 'application/x-webxdc' });
 
           // Upload to Blossom
-          const buddySk = getBuddySecretKey();
-          const signer = buddySk ? new NSecSigner(buddySk) : user.signer;
           const servers = getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers);
-
-          const uploader = new BlossomUploader({
-            servers,
-            signer,
-            fetch: (input, init) => globalThis.fetch(input, {
-              ...init,
-              signal: AbortSignal.any([
-                init?.signal ?? AbortSignal.timeout(30_000),
-                AbortSignal.timeout(30_000),
-              ]),
-            }),
-          });
+          const uploader = createBuddyUploader(getBuddySecretKey, user.signer, servers);
 
           const uploadTags = await uploader.upload(xdcFile);
           let blossomUrl = uploadTags[0][1];
@@ -1083,33 +1065,12 @@ export function useAIChatTools() {
           if (imageUrl) eventTags.push(['image', imageUrl]);
 
           // Sign and publish the kind 1063 event
-          const sk = buddySk ?? generateSecretKey();
-          const pubkey = getPublicKey(sk);
-          const currentTimestamp = Math.floor(Date.now() / 1000);
-
-          const webxdcEvent = finalizeEvent({
-            kind: 1063,
-            content: description || appName,
-            tags: eventTags,
-            created_at: currentTimestamp,
-          }, sk) as NostrEvent;
-
-          const publishes: Promise<void>[] = [
-            nostr.event(webxdcEvent, { signal: AbortSignal.timeout(5000) }),
-          ];
-
-          // Only publish a throwaway profile for ephemeral keys
-          if (!buddySk) {
-            const profileEvent = finalizeEvent({
-              kind: 0,
-              content: JSON.stringify({ name: 'Dork App Maker', about: 'WebXDC apps created by Dork AI' }),
-              tags: [],
-              created_at: currentTimestamp,
-            }, sk) as NostrEvent;
-            publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
-          }
-
-          await Promise.all(publishes);
+          const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(getBuddySecretKey);
+          const webxdcEvent = await signAndPublishWithProfile(
+            nostr, sk, isBuddy,
+            { kind: 1063, content: description || appName, tags: eventTags, created_at: Math.floor(Date.now() / 1000) },
+            { name: 'Dork App Maker', about: 'WebXDC apps created by Dork AI' },
+          );
 
           return {
             result: JSON.stringify({
