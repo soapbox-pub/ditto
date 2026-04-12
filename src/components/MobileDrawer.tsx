@@ -96,13 +96,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     });
   }, [orderedItems]);
 
-  const visibleHiddenItems = hiddenItems;
+
 
   // In editing mode, build a combined list: visible + __more__ + hidden
   const editingItems = useMemo(() => {
     if (!editing) return [];
-    return [...visibleItems, MORE_SEPARATOR_ID, ...visibleHiddenItems.map((h) => h.id)];
-  }, [editing, visibleItems, visibleHiddenItems]);
+    return [...visibleItems, MORE_SEPARATOR_ID, ...hiddenItems.map((h) => h.id)];
+  }, [editing, visibleItems, hiddenItems]);
 
   const handleEditReorder = useCallback((newOrder: string[]) => {
     const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
@@ -335,7 +335,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                       />
                       <SidebarMoreMenu
                         editing
-                        hiddenItems={visibleHiddenItems}
+                        hiddenItems={hiddenItems}
                         onDoneEditing={() => setEditing(false)}
                         onStartEditing={() => setEditing(true)}
                         onAdd={addToSidebar}
@@ -360,7 +360,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                       />
                       <SidebarMoreMenu
                         editing={false}
-                        hiddenItems={visibleHiddenItems}
+                        hiddenItems={hiddenItems}
                         onDoneEditing={() => setEditing(false)}
                         onStartEditing={() => setEditing(true)}
                         onAdd={addToSidebar}
@@ -404,7 +404,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   />
                   <SidebarMoreMenu
                     editing={false}
-                    hiddenItems={visibleHiddenItems}
+                    hiddenItems={hiddenItems}
                     onDoneEditing={() => setEditing(false)}
                     onStartEditing={() => setEditing(true)}
                     onAdd={addToSidebar}

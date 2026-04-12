@@ -16,9 +16,6 @@ export type Theme = "light" | "dark" | "system" | "custom";
  */
 export type ContentWarningPolicy = "blur" | "hide" | "show";
 
-/** How to handle events with a NIP-36 content-warning tag. */
-export type NsfwPolicy = "blur" | "hide" | "show";
-
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];

@@ -349,6 +349,3 @@ When no existing feed matches, build a query using:
 
 /** The raw default template with {{NAME}} and {{SOUL}} placeholders (for display in settings). */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = DEFAULT_TEMPLATE;
-
-/** Default system prompt with placeholders resolved (empty name/soul). */
-export const SYSTEM_PROMPT = buildSystemPrompt();

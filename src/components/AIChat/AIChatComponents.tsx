@@ -17,9 +17,6 @@ export const BUDDY_ANIMATION = [
   '>[-_-]<',
 ];
 
-/** @deprecated Use BuddyThinking instead. */
-export const DORK_ANIMATION = BUDDY_ANIMATION;
-
 export function BuddyThinking() {
   const [frame, setFrame] = useState(0);
 
@@ -34,9 +31,6 @@ export function BuddyThinking() {
     <pre className="text-sm font-mono text-muted-foreground leading-none">{BUDDY_ANIMATION[frame]}</pre>
   );
 }
-
-/** @deprecated Use BuddyThinking instead. */
-export const DorkThinking = BuddyThinking;
 
 // ─── Message Bubble ───
 

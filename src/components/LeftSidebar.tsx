@@ -49,8 +49,7 @@ export function LeftSidebar() {
   } = useFeedSettings();
   const { config } = useAppContext();
 
-  const visibleItems = orderedItems;
-  const visibleHiddenItems = hiddenItems;
+
 
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
@@ -72,8 +71,8 @@ export function LeftSidebar() {
   // In editing mode, build a combined list: visible + __more__ + hidden
   const editingItems = useMemo(() => {
     if (!editing) return [];
-    return [...visibleItems, MORE_SEPARATOR_ID, ...visibleHiddenItems.map((h) => h.id)];
-  }, [editing, visibleItems, visibleHiddenItems]);
+    return [...orderedItems, MORE_SEPARATOR_ID, ...hiddenItems.map((h) => h.id)];
+  }, [editing, orderedItems, hiddenItems]);
 
   const handleEditReorder = useCallback((newOrder: string[]) => {
     const moreIdx = newOrder.indexOf(MORE_SEPARATOR_ID);
@@ -136,7 +135,7 @@ export function LeftSidebar() {
             />
             <SidebarMoreMenu
               editing
-              hiddenItems={visibleHiddenItems}
+              hiddenItems={hiddenItems}
               onDoneEditing={() => setEditing(false)}
               onStartEditing={() => setEditing(true)}
               onAdd={addToSidebar}
@@ -147,7 +146,7 @@ export function LeftSidebar() {
         ) : (
           <>
             <SidebarNavList
-              items={visibleItems}
+              items={orderedItems}
               editing={false}
               onRemove={removeFromSidebar}
               onReorder={updateSidebarOrder}
@@ -159,7 +158,7 @@ export function LeftSidebar() {
             />
             <SidebarMoreMenu
               editing={false}
-              hiddenItems={visibleHiddenItems}
+              hiddenItems={hiddenItems}
               onDoneEditing={() => setEditing(false)}
               onStartEditing={() => setEditing(true)}
               onAdd={addToSidebar}
