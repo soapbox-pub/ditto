@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -90,8 +91,17 @@ export function WidgetCard({
         </button>
 
         {/* Icon + label */}
-        <Icon className="size-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-semibold flex-1 truncate">{definition.label}</span>
+        {definition.href ? (
+          <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
+            <Icon className="size-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs font-semibold truncate">{definition.label}</span>
+          </Link>
+        ) : (
+          <>
+            <Icon className="size-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs font-semibold flex-1 truncate">{definition.label}</span>
+          </>
+        )}
 
         {/* Collapse toggle */}
         <button

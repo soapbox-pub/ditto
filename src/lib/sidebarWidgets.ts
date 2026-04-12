@@ -36,6 +36,8 @@ export interface WidgetDefinition {
   maxHeight: number;
   /** Category for grouping in the picker. */
   category: 'personal' | 'content' | 'discovery';
+  /** Optional internal route the header links to. */
+  href?: string;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 200,
     maxHeight: 600,
     category: 'discovery',
+    href: '/trends',
   },
   {
     id: 'hot-posts',
@@ -62,6 +65,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 200,
     maxHeight: 600,
     category: 'discovery',
+    href: '/trends',
   },
   {
     id: 'wikipedia',
@@ -72,6 +76,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 200,
     maxHeight: 600,
     category: 'discovery',
+    href: '/wikipedia',
   },
   {
     id: 'bluesky',
@@ -82,6 +87,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'discovery',
+    href: '/bluesky',
   },
 
   // Personal
@@ -94,6 +100,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 200,
     maxHeight: 500,
     category: 'personal',
+    href: '/blobbi',
   },
   {
     id: 'status',
@@ -104,6 +111,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 60,
     maxHeight: 120,
     category: 'personal',
+    href: '/profile',
   },
   {
     id: 'ai-chat',
@@ -114,6 +122,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'personal',
+    href: '/ai-chat',
   },
 
   // Content feeds
@@ -126,6 +135,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'content',
+    href: '/photos',
   },
   {
     id: 'feed:music',
@@ -136,6 +146,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'content',
+    href: '/music',
   },
   {
     id: 'feed:articles',
@@ -146,6 +157,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'content',
+    href: '/articles',
   },
   {
     id: 'feed:events',
@@ -156,6 +168,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 200,
     maxHeight: 600,
     category: 'content',
+    href: '/events',
   },
   {
     id: 'feed:books',
@@ -166,6 +179,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     minHeight: 250,
     maxHeight: 700,
     category: 'content',
+    href: '/books',
   },
 ];
 
