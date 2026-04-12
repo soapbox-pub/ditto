@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import type { ThemeConfig } from '@/themes';
@@ -471,7 +472,7 @@ export function AIChatPage() {
 
           {/* Loading indicator */}
           {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <DorkThinking />
+            <DorkThinking className="text-sm" />
           )}
 
           {/* Error display */}
@@ -514,27 +515,7 @@ export function AIChatPage() {
 
 // ─── Sub-Components ───
 
-const DORK_ANIMATION = [
-  '<[o_o]>',
-  '>[-_-]<',
-  '<[0_0]>',
-  '>[-_-]<',
-];
-
-function DorkThinking() {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((f) => (f + 1) % DORK_ANIMATION.length);
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <pre className="text-sm font-mono text-muted-foreground leading-none">{DORK_ANIMATION[frame]}</pre>
-  );
-}
+// DorkThinking is imported from the shared component
 
 const DORK_GREETINGS = [
   "Hi, I'm Dork! What would you like me to do?",

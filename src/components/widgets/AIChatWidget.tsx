@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Loader2, Bot, Maximize2 } from 'lucide-react';
+import { Send, Bot, Maximize2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DorkThinking } from '@/components/DorkThinking';
 import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
@@ -117,7 +118,7 @@ export function AIChatWidget() {
           {isLoading && !streamingContent && (
             <div className="flex gap-2 items-start">
               <div className="bg-secondary rounded-xl rounded-tl-sm px-3 py-2">
-                <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                <DorkThinking className="text-[10px]" />
               </div>
             </div>
           )}
