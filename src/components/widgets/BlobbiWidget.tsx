@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Egg, Utensils, Gamepad2, Droplets, Moon, Sun } from 'lucide-react';
+import { AlertTriangle, Egg, Utensils, Gamepad2, Droplets, Heart, Zap, Moon, Sun } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -22,21 +22,37 @@ import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
-/** Map stat keys to Tailwind color classes. */
-const STAT_COLORS: Record<string, string> = {
-  hunger: 'bg-orange-500',
-  happiness: 'bg-yellow-500',
-  health: 'bg-green-500',
-  hygiene: 'bg-blue-500',
-  energy: 'bg-violet-500',
+/** Stat icon components matching BlobbiPage. */
+const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+  hunger: Utensils,
+  happiness: Gamepad2,
+  health: Heart,
+  hygiene: Droplets,
+  energy: Zap,
 };
 
-const STAT_LABELS: Record<string, string> = {
-  hunger: 'Hunger',
-  happiness: 'Happy',
-  health: 'Health',
-  hygiene: 'Hygiene',
-  energy: 'Energy',
+const STAT_TEXT_COLORS: Record<string, string> = {
+  hunger: 'text-orange-500',
+  happiness: 'text-yellow-500',
+  health: 'text-green-500',
+  hygiene: 'text-blue-500',
+  energy: 'text-violet-500',
+};
+
+const STAT_BG_COLORS: Record<string, string> = {
+  hunger: 'bg-orange-500/10',
+  happiness: 'bg-yellow-500/10',
+  health: 'bg-green-500/10',
+  hygiene: 'bg-blue-500/10',
+  energy: 'bg-violet-500/10',
+};
+
+const STAT_RING_HEX: Record<string, string> = {
+  hunger: '#f97316',
+  happiness: '#eab308',
+  health: '#22c55e',
+  hygiene: '#3b82f6',
+  energy: '#8b5cf6',
 };
 
 /** Default item IDs for quick actions. */
@@ -242,30 +258,11 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending }: 
         {companion.name}
       </Link>
 
-      {/* Stat bars */}
+      {/* Stat rings */}
       {projected && projected.visibleStats.length > 0 && (
-        <div className="w-full space-y-1.5 px-3">
+        <div className="flex items-center justify-center gap-1.5 px-2">
           {projected.visibleStats.map(({ stat, value, status }) => (
-            <div key={stat} className="flex items-center gap-2">
-              <span className={cn(
-                'text-[10px] w-12 text-right shrink-0',
-                status === 'critical' ? 'text-destructive font-bold' :
-                status === 'warning' ? 'text-orange-500 font-medium' :
-                'text-muted-foreground',
-              )}>
-                {STAT_LABELS[stat] ?? stat}
-              </span>
-              <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all duration-1000',
-                    STAT_COLORS[stat] ?? 'bg-primary',
-                    status === 'critical' && 'animate-pulse',
-                  )}
-                  style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-                />
-              </div>
-            </div>
+            <MiniStatRing key={stat} stat={stat} value={value} status={status} />
           ))}
         </div>
       )}
@@ -336,5 +333,42 @@ function QuickActionButton({ icon, label, color, disabled, onClick }: QuickActio
       {icon}
       <span className="text-[9px] font-medium leading-none">{label}</span>
     </button>
+  );
+}
+
+/** Compact circular stat indicator matching BlobbiPage style. */
+function MiniStatRing({ stat, value, status }: { stat: string; value: number; status: 'normal' | 'warning' | 'critical' }) {
+  const displayValue = Math.max(0, Math.min(100, value));
+  const isLow = status === 'warning' || status === 'critical';
+  const ringHex = STAT_RING_HEX[stat];
+  const IconComponent = STAT_ICON_MAP[stat];
+
+  return (
+    <div className={cn(
+      'relative size-9 rounded-full flex items-center justify-center shrink-0',
+      STAT_BG_COLORS[stat],
+      status === 'critical' && 'animate-pulse',
+    )}>
+      {/* Progress ring */}
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/15" />
+        <circle
+          cx="18" cy="18" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+          stroke={ringHex}
+          strokeDasharray={`${displayValue * 0.94} 100`}
+          className="transition-all duration-500"
+        />
+      </svg>
+      {/* Icon */}
+      <div className="relative">
+        {IconComponent && <IconComponent className={cn('size-3.5', STAT_TEXT_COLORS[stat])} strokeWidth={2.5} />}
+        {isLow && (
+          <AlertTriangle
+            className={cn('absolute -top-1 -right-1.5 size-2.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            strokeWidth={3}
+          />
+        )}
+      </div>
+    </div>
   );
 }
