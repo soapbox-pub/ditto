@@ -1,5 +1,6 @@
 import {
   useRef,
+  useState,
   useEffect,
   useCallback,
   useMemo,
@@ -9,6 +10,7 @@ import {
 } from 'react';
 
 import { Capacitor } from '@capacitor/core';
+import { Loader2 } from 'lucide-react';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import {
@@ -25,7 +27,6 @@ import type {
 import {
   SandboxPlugin,
   type SandboxFetchEvent,
-  type SandboxScriptMessageEvent,
 } from '@/lib/sandboxPlugin';
 
 // ---------------------------------------------------------------------------
@@ -331,17 +332,35 @@ const SandboxFrameWeb = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 );
 
 // ---------------------------------------------------------------------------
-// Native (Capacitor) implementation
+// Native (Capacitor) implementation — uses a real <iframe> served by native
 // ---------------------------------------------------------------------------
+
+/**
+ * Compute the iframe origin for native platforms.
+ *
+ * - iOS: `sbx://<sandbox-id>` — served by IframeSandboxSchemeHandler on the
+ *   main WKWebView.
+ * - Android: `https://<sandbox-id>.sandbox.native` — intercepted by the
+ *   custom BridgeWebViewClient subclass.
+ */
+function getNativeOrigin(id: string): string {
+  if (Capacitor.getPlatform() === 'ios') {
+    return `sbx://${id}`;
+  }
+  // Android
+  return `https://${id}.sandbox.native`;
+}
 
 const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
   function SandboxFrameNative(
-    { id, resolveFile, onRpc, injectedScripts, csp, onReady, className, style, title },
+    { id, resolveFile, onRpc, injectedScripts, csp, onReady, className, style, ...iframeProps },
     ref,
   ) {
-    const placeholderRef = useRef<HTMLDivElement>(null);
-    const createdRef = useRef(false);
-    const destroyedRef = useRef(false);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const readyRef = useRef(false);
+    const [loading, setLoading] = useState(true);
+
+    const origin = useMemo(() => getNativeOrigin(id), [id]);
 
     // Keep latest callbacks in refs.
     const resolveFileRef = useRef(resolveFile);
@@ -357,17 +376,14 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
     useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
 
     // -----------------------------------------------------------------
-    // Post a message into the native sandbox
+    // Post a message to the iframe via postMessage
     // -----------------------------------------------------------------
 
-    const postToSandbox = useCallback(
+    const post = useCallback(
       (msg: Record<string, unknown>) => {
-        if (!createdRef.current || destroyedRef.current) return;
-        SandboxPlugin.postMessage({ id, message: msg }).catch((err) => {
-          console.error('[SandboxFrame] postMessage failed:', err);
-        });
+        iframeRef.current?.contentWindow?.postMessage(msg, '*');
       },
-      [id],
+      [],
     );
 
     // Expose imperative handle.
@@ -375,38 +391,27 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       ref,
       () => ({
         postMessage: (msg: Record<string, unknown>) => {
-          postToSandbox(msg);
+          post(msg);
         },
         focus: () => {
-          // No-op on native — the WebView is overlaid, not an iframe.
+          iframeRef.current?.focus();
         },
       }),
-      [postToSandbox],
+      [post],
     );
 
     // -----------------------------------------------------------------
-    // Lifecycle: onReady -> create WebView -> listen for events -> destroy
+    // Handle fetch events from the native scheme handler
     // -----------------------------------------------------------------
 
     useEffect(() => {
-      if (createdRef.current) return;
-
-      const listeners: Array<{ remove: () => void }> = [];
       let cancelled = false;
+      const listeners: Array<{ remove: () => void }> = [];
 
       async function setup() {
-        // Measure the placeholder position.
-        const el = placeholderRef.current;
-        if (!el) return;
-
-        const rect = el.getBoundingClientRect();
-
-        // Register listeners BEFORE creating the WebView. On Android,
-        // `shouldInterceptRequest` fires on a background thread as soon
-        // as the WebView starts loading — if the fetch listener isn't
-        // registered yet, the event is lost and the request times out
-        // (the thread blocks via CountDownLatch waiting for a response
-        // that never arrives).
+        // Register the fetch listener BEFORE doing anything else.
+        // On Android, shouldInterceptRequest fires on a background thread
+        // as soon as the iframe src is set — the listener must be ready.
         const fetchListener = await SandboxPlugin.addListener(
           'fetch',
           (event: SandboxFetchEvent) => {
@@ -416,56 +421,24 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         );
         listeners.push(fetchListener);
 
-        const scriptListener = await SandboxPlugin.addListener(
-          'scriptMessage',
-          (event: SandboxScriptMessageEvent) => {
-            if (event.id !== id) return;
-            handleNativeScriptMessage(event);
-          },
-        );
-        listeners.push(scriptListener);
+        if (cancelled) return;
 
-        if (cancelled || destroyedRef.current) return;
-
-        // Create the native WebView with a loading spinner — does NOT
-        // navigate yet, so no fetch events fire at this point.
-        await SandboxPlugin.create({
-          id,
-          frame: {
-            x: Math.round(rect.left),
-            y: Math.round(rect.top),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height),
-          },
-        });
-
-        if (cancelled || destroyedRef.current) {
-          SandboxPlugin.destroy({ id }).catch(() => {});
-          return;
-        }
-
-        createdRef.current = true;
-
-        // Run onReady while the spinner is visible and animating.
-        // On Android this pre-fetches all blobs so every resolveFile call
-        // after navigation is an instant cache hit.
-        // On iOS/web this is typically a no-op or instant.
+        // Run onReady (e.g. Android pre-fetches all blobs here).
         try {
           await onReadyRef.current?.();
         } catch (err) {
           console.error('[SandboxFrame] onReady failed:', err);
         }
 
-        if (cancelled || destroyedRef.current) return;
+        if (cancelled) return;
 
-        // Start loading the sandbox content — fetch events will now fire
-        // and be handled by the listeners registered above.
-        await SandboxPlugin.navigate({ id });
+        // Now set the iframe src to start loading content.
+        // This triggers native fetch interception.
+        readyRef.current = true;
+        if (iframeRef.current) {
+          iframeRef.current.src = `${origin}/index.html`;
+        }
       }
-
-      // ---------------------------------------------------------------
-      // Handle a fetch request from the native WebView
-      // ---------------------------------------------------------------
 
       async function handleNativeFetch(event: SandboxFetchEvent) {
         const reqUrl = event.request.url;
@@ -474,9 +447,6 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         try {
           pathname = new URL(reqUrl).pathname;
         } catch {
-          // The native handler rewrites custom-scheme URLs to
-          // https://<id>.sandbox.native/<path> so we can parse them.
-          // If that fails, try extracting the path directly.
           const pathMatch = reqUrl.match(/\/\/[^/]+(\/.*)/);
           pathname = pathMatch?.[1] ?? '/';
         }
@@ -488,7 +458,6 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           cspRef.current,
           (result) => {
             SandboxPlugin.respondToFetch({
-              id,
               requestId: event.requestId,
               response: result as {
                 status: number;
@@ -502,7 +471,6 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           },
           (_code, message) => {
             SandboxPlugin.respondToFetch({
-              id,
               requestId: event.requestId,
               response: {
                 status: 500,
@@ -517,104 +485,76 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         );
       }
 
-      // ---------------------------------------------------------------
-      // Handle a script message from the native WebView
-      // ---------------------------------------------------------------
-
-      async function handleNativeScriptMessage(event: SandboxScriptMessageEvent) {
-        const msg = event.message;
-        if (!msg || typeof msg !== 'object') return;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rpc = msg as any;
-        if (rpc.jsonrpc !== '2.0') return;
-
-        // Handle RPC requests (have both `id` and `method`).
-        if (rpc.id !== undefined && rpc.method && onRpcRef.current) {
-          try {
-            const result = await onRpcRef.current(
-              rpc.method,
-              rpc.params ?? {},
-              postToSandbox,
-            );
-            postToSandbox({
-              jsonrpc: '2.0',
-              id: rpc.id,
-              result: result ?? null,
-            });
-          } catch (err) {
-            postToSandbox({
-              jsonrpc: '2.0',
-              id: rpc.id,
-              error: { code: -1, message: String(err) },
-            });
-          }
-        }
-      }
-
       setup().catch((err) => {
         console.error('[SandboxFrame] native setup failed:', err);
       });
 
       return () => {
         cancelled = true;
-        destroyedRef.current = true;
         for (const listener of listeners) {
           listener.remove();
         }
-        if (createdRef.current) {
-          SandboxPlugin.destroy({ id }).catch((err) => {
-            console.error('[SandboxFrame] destroy failed:', err);
-          });
-          createdRef.current = false;
-        }
       };
-    }, [id, postToSandbox]);
+    }, [id, origin]);
 
     // -----------------------------------------------------------------
-    // Keep frame in sync with placeholder size/position
-    //
-    // Both consumers (WebxdcEmbed, NsitePreviewDialog) render inside
-    // position:fixed panels, so the placeholder never moves on scroll.
-    // A ResizeObserver is sufficient to track layout changes.
+    // Listen for postMessage from the iframe (RPC from injected scripts)
     // -----------------------------------------------------------------
 
     useEffect(() => {
-      const el = placeholderRef.current;
-      if (!el) return;
+      function onMessage(event: MessageEvent) {
+        // On iOS the origin is "sbx://<id>", on Android "https://<id>.sandbox.native".
+        if (event.origin !== origin) return;
+        if (event.source !== iframeRef.current?.contentWindow) return;
 
-      function updateFrame() {
-        if (!createdRef.current || destroyedRef.current) return;
-        const rect = el!.getBoundingClientRect();
-        SandboxPlugin.updateFrame({
-          id,
-          frame: {
-            x: Math.round(rect.left),
-            y: Math.round(rect.top),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height),
-          },
-        }).catch(() => {
-          // Ignore — WebView may not be created yet.
-        });
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
+
+        // Handle RPC requests from injected scripts.
+        if (msg.id !== undefined && msg.method && onRpcRef.current) {
+          handleRpc(msg.id, msg.method, msg.params ?? {});
+        }
       }
 
-      const ro = new ResizeObserver(updateFrame);
-      ro.observe(el);
+      async function handleRpc(
+        rpcId: string | number,
+        method: string,
+        params: unknown,
+      ) {
+        try {
+          const result = await onRpcRef.current!(method, params, post);
+          post({ jsonrpc: '2.0', id: rpcId, result: result ?? null });
+        } catch (err) {
+          post({
+            jsonrpc: '2.0',
+            id: rpcId,
+            error: { code: -1, message: String(err) },
+          });
+        }
+      }
 
-      return () => {
-        ro.disconnect();
-      };
-    }, [id]);
+      window.addEventListener('message', onMessage);
+      return () => window.removeEventListener('message', onMessage);
+    }, [origin, post]);
 
+    // Hide the spinner once the iframe fires its load event (initial HTML parsed).
+    const handleLoad = useCallback(() => setLoading(false), []);
+
+    // Don't set src initially — it's set after onReady completes in setup().
     return (
-      <div
-        ref={placeholderRef}
-        className={className}
-        style={style}
-        title={title}
-        data-sandbox-id={id}
-      />
+      <div className={className} style={{ ...style, position: 'relative' }}>
+        <iframe
+          ref={iframeRef}
+          onLoad={handleLoad}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          {...iframeProps}
+        />
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background">
+            <Loader2 className="size-10 animate-spin text-primary/70" />
+          </div>
+        )}
+      </div>
     );
   },
 );
@@ -629,9 +569,14 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
  * On web, this creates an iframe on a unique subdomain (`<id>.<sandboxDomain>`)
  * and implements the iframe.diy handshake + fetch proxy protocol.
  *
- * On native platforms (iOS/Android via Capacitor), this creates a native
- * WKWebView/WebView overlay with a custom URL scheme handler that intercepts
- * all requests and routes them through the same `resolveFile` callback.
+ * On native platforms (iOS/Android via Capacitor), this creates a regular
+ * `<iframe>` element whose requests are intercepted by native code:
+ *   - iOS: WKURLSchemeHandler for the `sbx` scheme on the main WKWebView
+ *   - Android: Custom BridgeWebViewClient intercepting `*.sandbox.native`
+ *
+ * Each sandbox gets a unique origin (via hostname), so localStorage/IndexedDB
+ * are isolated per sandbox. Since the sandbox is a regular DOM element, web UI
+ * (permission dialogs, popovers) naturally layers on top.
  *
  * All file serving is delegated to the `resolveFile` callback.
  * Custom RPC methods are delegated to the optional `onRpc` callback.

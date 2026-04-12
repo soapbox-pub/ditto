@@ -2,430 +2,27 @@ import Foundation
 import Capacitor
 import WebKit
 
-// MARK: - Plugin
+// MARK: - Scheme Handler (registered on the main Capacitor WKWebView)
 
-/// Capacitor plugin that creates isolated WKWebViews for sandboxed content.
+/// `WKURLSchemeHandler` for the `sbx` scheme, registered on the **main**
+/// Capacitor WKWebView via `DittoBridgeViewController.webViewConfiguration(for:)`.
 ///
-/// Each sandbox gets a unique custom URL scheme (`sbx-<id>://`) so that
-/// every embedded app has its own origin (separate localStorage, cookies, etc.).
-/// All requests on the custom scheme are intercepted via `WKURLSchemeHandler`
-/// and forwarded to the JS layer as fetch events — the same protocol
-/// iframe.diy uses. This lets the existing React code serve files identically.
-@objc(SandboxPlugin)
-public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "SandboxPlugin"
-    public let jsName = "SandboxPlugin"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "create", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "navigate", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "updateFrame", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "respondToFetch", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "postMessage", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "destroy", returnType: CAPPluginReturnPromise),
-    ]
-
-    /// Active sandbox instances, keyed by sandbox ID.
-    private var sandboxes: [String: SandboxInstance] = [:]
-
-    // MARK: - Plugin Methods
-
-    @objc func create(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-        guard let frame = call.getObject("frame"),
-              let x = frame["x"] as? Double,
-              let y = frame["y"] as? Double,
-              let width = frame["width"] as? Double,
-              let height = frame["height"] as? Double else {
-            call.reject("Missing or invalid parameter: frame")
-            return
-        }
-
-        if sandboxes[sandboxId] != nil {
-            call.reject("Sandbox already exists: \(sandboxId)")
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-
-            let webViewFrame = CGRect(x: x, y: y, width: width, height: height)
-            let sandbox = SandboxInstance(
-                id: sandboxId,
-                frame: webViewFrame,
-                plugin: self
-            )
-            self.sandboxes[sandboxId] = sandbox
-
-            // Add the container (WebView + spinner overlay) on top of
-            // the Capacitor WebView.
-            if let bridge = self.bridge,
-               let webView = bridge.webView {
-                webView.superview?.addSubview(sandbox.containerView)
-            }
-
-            call.resolve()
-        }
-    }
-
-    @objc func navigate(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let sandbox = self?.sandboxes[sandboxId] else {
-                call.reject("Sandbox not found: \(sandboxId)")
-                return
-            }
-            sandbox.navigateToApp()
-            call.resolve()
-        }
-    }
-
-    @objc func updateFrame(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-        guard let frame = call.getObject("frame"),
-              let x = frame["x"] as? Double,
-              let y = frame["y"] as? Double,
-              let width = frame["width"] as? Double,
-              let height = frame["height"] as? Double else {
-            call.reject("Missing or invalid parameter: frame")
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let sandbox = self?.sandboxes[sandboxId] else {
-                call.reject("Sandbox not found: \(sandboxId)")
-                return
-            }
-            sandbox.containerView.frame = CGRect(x: x, y: y, width: width, height: height)
-            call.resolve()
-        }
-    }
-
-    @objc func respondToFetch(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-        guard let requestId = call.getString("requestId") else {
-            call.reject("Missing required parameter: requestId")
-            return
-        }
-        guard let response = call.getObject("response") else {
-            call.reject("Missing required parameter: response")
-            return
-        }
-
-        guard let sandbox = sandboxes[sandboxId] else {
-            call.reject("Sandbox not found: \(sandboxId)")
-            return
-        }
-
-        sandbox.schemeHandler.resolveRequest(
-            requestId: requestId,
-            status: response["status"] as? Int ?? 200,
-            statusText: response["statusText"] as? String ?? "OK",
-            headers: response["headers"] as? [String: String] ?? [:],
-            bodyBase64: response["body"] as? String
-        )
-
-        call.resolve()
-    }
-
-    @objc func postMessage(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-        guard let message = call.getObject("message") else {
-            call.reject("Missing required parameter: message")
-            return
-        }
-
-        guard let sandbox = sandboxes[sandboxId] else {
-            call.reject("Sandbox not found: \(sandboxId)")
-            return
-        }
-
-        DispatchQueue.main.async {
-            sandbox.postMessageToWebView(message)
-        }
-
-        call.resolve()
-    }
-
-    @objc func destroy(_ call: CAPPluginCall) {
-        guard let sandboxId = call.getString("id") else {
-            call.reject("Missing required parameter: id")
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            if let sandbox = self.sandboxes.removeValue(forKey: sandboxId) {
-                sandbox.containerView.removeFromSuperview()
-                sandbox.schemeHandler.cancelAll()
-            }
-            call.resolve()
-        }
-    }
-
-    // MARK: - Event Forwarding
-
-    /// Forward a fetch request from the native WebView to JS.
-    func emitFetchRequest(sandboxId: String, requestId: String, request: [String: Any]) {
-        notifyListeners("fetch", data: [
-            "id": sandboxId,
-            "requestId": requestId,
-            "request": request,
-        ])
-    }
-
-    /// Forward a script message from the sandbox to JS.
-    func emitScriptMessage(sandboxId: String, message: [String: Any]) {
-        notifyListeners("scriptMessage", data: [
-            "id": sandboxId,
-            "message": message,
-        ])
-    }
-}
-
-// MARK: - SandboxInstance
-
-/// Manages a single sandboxed WKWebView instance.
-private class SandboxInstance: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
-    let id: String
-    let webView: WKWebView
-    let schemeHandler: SandboxSchemeHandler
-    private weak var plugin: SandboxPlugin?
-    private let customScheme: String
-
-    /// Container view that holds the WebView and spinner overlay.
-    let containerView: UIView
-
-    /// Native spinner overlay, removed when the first page finishes loading.
-    private var spinnerOverlay: UIView?
-
-    init(id: String, frame: CGRect, plugin: SandboxPlugin) {
-        self.id = id
-        self.plugin = plugin
-
-        // Each sandbox gets a unique custom URL scheme so that WKWebView
-        // assigns a distinct origin, isolating localStorage/IndexedDB/cookies.
-        self.customScheme = "sbx-\(id)"
-
-        self.schemeHandler = SandboxSchemeHandler(
-            sandboxId: id,
-            scheme: self.customScheme,
-            plugin: plugin
-        )
-
-        let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(self.schemeHandler, forURLScheme: self.customScheme)
-
-        // Add a script message handler for communication from injected scripts.
-        let userContentController = WKUserContentController()
-
-        // Inject a bridge script that:
-        // 1. Provides window.parent.postMessage()-like functionality
-        // 2. Routes messages through the native bridge
-        let bridgeScript = WKUserScript(
-            source: SandboxInstance.bridgeScript(scheme: self.customScheme),
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-        userContentController.addUserScript(bridgeScript)
-
-        config.userContentController = userContentController
-        config.preferences.javaScriptCanOpenWindowsAutomatically = false
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-
-        // Container view that holds the WebView + spinner overlay.
-        self.containerView = UIView(frame: frame)
-
-        self.webView = WKWebView(frame: containerView.bounds, configuration: config)
-        self.webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        self.webView.isOpaque = false
-        self.webView.backgroundColor = UIColor(red: 0x14/255.0, green: 0x16/255.0, blue: 0x1f/255.0, alpha: 1)
-        self.webView.scrollView.backgroundColor = self.webView.backgroundColor
-        self.webView.scrollView.bounces = false
-        self.containerView.addSubview(self.webView)
-
-        // Dark overlay behind the spinner.
-        let overlay = UIView(frame: containerView.bounds)
-        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        overlay.backgroundColor = UIColor(red: 0x14/255.0, green: 0x16/255.0, blue: 0x1f/255.0, alpha: 1)
-        self.containerView.addSubview(overlay)
-
-        // Native spinner — uses UIActivityIndicatorView which animates on
-        // the render thread independently of JS/main-thread work.
-        let spinner = UIActivityIndicatorView(style: .medium)
-        spinner.color = UIColor(red: 124/255.0, green: 92/255.0, blue: 220/255.0, alpha: 1)
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        spinner.startAnimating()
-        overlay.addSubview(spinner)
-        NSLayoutConstraint.activate([
-            spinner.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
-        ])
-
-        self.spinnerOverlay = overlay
-
-        super.init()
-
-        // Register the message handler and navigation delegate after super.init().
-        userContentController.add(self, name: "sandboxBridge")
-        self.webView.navigationDelegate = self
-    }
-
-    /// Navigate the WebView to the sandbox's entry point.
-    func navigateToApp() {
-        let initialURL = URL(string: "\(customScheme)://app/index.html")!
-        webView.load(URLRequest(url: initialURL))
-    }
-
-    /// Remove the native loading overlay. Safe to call multiple times.
-    func hideSpinner() {
-        spinnerOverlay?.removeFromSuperview()
-        spinnerOverlay = nil
-    }
-
-    /// Post a JSON-RPC message to injected scripts inside the WebView.
-    func postMessageToWebView(_ message: [String: Any]) {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: message),
-              let jsonString = String(data: jsonData, encoding: .utf8) else {
-            return
-        }
-
-        let js = """
-        (function() {
-            if (window.__sandboxBridge && window.__sandboxBridge.onMessage) {
-                window.__sandboxBridge.onMessage(\(jsonString));
-            }
-        })();
-        """
-        webView.evaluateJavaScript(js, completionHandler: nil)
-    }
-
-    // MARK: - WKScriptMessageHandler
-
-    /// Receive messages from injected scripts via webkit.messageHandlers.sandboxBridge.
-    func userContentController(
-        _ userContentController: WKUserContentController,
-        didReceive message: WKScriptMessage
-    ) {
-        guard message.name == "sandboxBridge",
-              let body = message.body as? [String: Any] else {
-            return
-        }
-        plugin?.emitScriptMessage(sandboxId: id, message: body)
-    }
-
-    // MARK: - WKNavigationDelegate
-
-    /// Remove the spinner overlay once the first page finishes loading.
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        hideSpinner()
-    }
-
-    // MARK: - Bridge Script
-
-    /// JavaScript injected at document start that provides:
-    ///   - `window.parent.postMessage()` emulation via WKScriptMessageHandler
-    ///   - `window.__sandboxBridge.onMessage()` for receiving messages from parent
-    ///   - `window.addEventListener("message", ...)` support for injected scripts
-    private static func bridgeScript(scheme: String) -> String {
-        return """
-        (function() {
-            'use strict';
-
-            // Message listeners registered by injected scripts.
-            var messageListeners = [];
-
-            // Bridge object for native communication.
-            window.__sandboxBridge = {
-                onMessage: function(data) {
-                    // Dispatch to all registered message listeners.
-                    var event = {
-                        data: data,
-                        origin: '\(scheme)://app',
-                        source: window.parent,
-                        type: 'message'
-                    };
-                    for (var i = 0; i < messageListeners.length; i++) {
-                        try {
-                            messageListeners[i](event);
-                        } catch (e) {
-                            console.error('[SandboxBridge] Listener error:', e);
-                        }
-                    }
-                }
-            };
-
-            // Override addEventListener to capture "message" listeners.
-            var originalAddEventListener = window.addEventListener;
-            window.addEventListener = function(type, listener, options) {
-                if (type === 'message' && typeof listener === 'function') {
-                    messageListeners.push(listener);
-                }
-                return originalAddEventListener.call(window, type, listener, options);
-            };
-
-            var originalRemoveEventListener = window.removeEventListener;
-            window.removeEventListener = function(type, listener, options) {
-                if (type === 'message') {
-                    var idx = messageListeners.indexOf(listener);
-                    if (idx !== -1) messageListeners.splice(idx, 1);
-                }
-                return originalRemoveEventListener.call(window, type, listener, options);
-            };
-
-            // Emulate window.parent.postMessage for scripts that use it
-            // (e.g. the webxdc bridge script, preview injected script).
-            if (!window.parent || window.parent === window) {
-                window.parent = {};
-            }
-            window.parent.postMessage = function(data, targetOrigin, transfer) {
-                if (data && typeof data === 'object' && data.jsonrpc === '2.0') {
-                    try {
-                        window.webkit.messageHandlers.sandboxBridge.postMessage(data);
-                    } catch (e) {
-                        console.error('[SandboxBridge] postMessage failed:', e);
-                    }
-                }
-            };
-        })();
-        """;
-    }
-}
-
-// MARK: - SandboxSchemeHandler
-
-/// WKURLSchemeHandler that intercepts all requests on the sandbox's custom
-/// URL scheme and forwards them to the JS layer as fetch events.
-private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
-    private let sandboxId: String
-    private let scheme: String
-    private weak var plugin: SandboxPlugin?
-
+/// Iframes inside the React app load from `sbx://<sandbox-id>/path`. Each
+/// hostname is a different web origin, so localStorage / IndexedDB / cookies
+/// are fully isolated per sandbox — without needing to create a separate
+/// WKWebView per sandbox.
+///
+/// Requests are forwarded to the JS layer as Capacitor plugin events. The JS
+/// layer resolves the file (e.g. from Blossom) and responds with
+/// `SandboxPlugin.respondToFetch()`.
+class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
     /// Pending scheme tasks waiting for a response from JS.
     /// Key: requestId (UUID string), Value: the WKURLSchemeTask to respond to.
     private var pendingTasks: [String: WKURLSchemeTask] = [:]
     private let lock = NSLock()
 
-    init(sandboxId: String, scheme: String, plugin: SandboxPlugin) {
-        self.sandboxId = sandboxId
-        self.scheme = scheme
-        self.plugin = plugin
-    }
+    /// Weak reference to the plugin so we can emit events.
+    weak var plugin: SandboxPlugin?
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         let request = urlSchemeTask.request
@@ -443,10 +40,10 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         pendingTasks[requestId] = urlSchemeTask
         lock.unlock()
 
-        // Serialise the request for the fetch event.
-        // Rewrite the URL so it looks like a normal HTTP URL to the parent
-        // (e.g. "sbx-abc123://app/index.html" -> "https://<sandboxId>.sandbox.native/index.html")
-        // The JS side only cares about the pathname.
+        // Extract the sandbox ID from the hostname.
+        let sandboxId = url.host ?? "unknown"
+
+        // Serialise the request for the JS layer.
         var headers: [String: String] = [:]
         if let allHeaders = request.allHTTPHeaderFields {
             headers = allHeaders
@@ -458,6 +55,8 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         }
 
         let path = url.path.isEmpty ? "/" : url.path
+
+        // Rewrite URL so JS sees a parseable URL with the sandbox ID as host.
         let rewrittenURL = "https://\(sandboxId).sandbox.native\(path)"
 
         let serialisedRequest: [String: Any] = [
@@ -475,7 +74,6 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
-        // Remove the task from pending — JS response will be ignored if it arrives later.
         lock.lock()
         let removed = pendingTasks.first(where: { $0.value === urlSchemeTask })
         if let key = removed?.key {
@@ -499,15 +97,12 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         }
         lock.unlock()
 
-        // Decode the base64 body.
         var bodyData: Data? = nil
         if let b64 = bodyBase64 {
             bodyData = Data(base64Encoded: b64)
         }
 
-        // Build the response.
-        // Use the task's original URL for the response.
-        let responseURL = task.request.url ?? URL(string: "\(scheme)://app/")!
+        let responseURL = task.request.url ?? URL(string: "sbx://unknown/")!
         let response = HTTPURLResponse(
             url: responseURL,
             statusCode: status,
@@ -524,7 +119,7 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         }
     }
 
-    /// Cancel all pending tasks (called on destroy).
+    /// Cancel all pending tasks (called on cleanup).
     func cancelAll() {
         lock.lock()
         let tasks = pendingTasks
@@ -537,5 +132,71 @@ private class SandboxSchemeHandler: NSObject, WKURLSchemeHandler {
                 userInfo: [NSLocalizedDescriptionKey: "Sandbox destroyed"]
             ))
         }
+    }
+}
+
+// MARK: - Plugin
+
+/// Capacitor plugin that handles sandbox fetch responses.
+///
+/// The actual request interception is done by `IframeSandboxSchemeHandler`,
+/// registered on the main WKWebView's configuration. This plugin provides:
+///   - `respondToFetch()`: JS calls this to respond to intercepted requests.
+///   - `fetch` event: Emitted when a sandbox iframe makes a request.
+///
+/// The old native-WebView-overlay approach (create/navigate/updateFrame/destroy)
+/// is no longer needed — sandboxes are now regular `<iframe>` elements in the DOM.
+@objc(SandboxPlugin)
+public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "SandboxPlugin"
+    public let jsName = "SandboxPlugin"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "respondToFetch", returnType: CAPPluginReturnPromise),
+    ]
+
+    /// The shared scheme handler — set by `DittoBridgeViewController` before
+    /// the plugin loads, so it's available when JS starts sending responses.
+    static var sharedSchemeHandler: IframeSandboxSchemeHandler?
+
+    public override func load() {
+        // Connect the scheme handler to this plugin so it can emit events.
+        SandboxPlugin.sharedSchemeHandler?.plugin = self
+    }
+
+    @objc func respondToFetch(_ call: CAPPluginCall) {
+        guard let requestId = call.getString("requestId") else {
+            call.reject("Missing required parameter: requestId")
+            return
+        }
+        guard let response = call.getObject("response") else {
+            call.reject("Missing required parameter: response")
+            return
+        }
+
+        guard let handler = SandboxPlugin.sharedSchemeHandler else {
+            call.reject("Scheme handler not initialised")
+            return
+        }
+
+        handler.resolveRequest(
+            requestId: requestId,
+            status: response["status"] as? Int ?? 200,
+            statusText: response["statusText"] as? String ?? "OK",
+            headers: response["headers"] as? [String: String] ?? [:],
+            bodyBase64: response["body"] as? String
+        )
+
+        call.resolve()
+    }
+
+    // MARK: - Event Forwarding
+
+    /// Forward a fetch request from the scheme handler to JS.
+    func emitFetchRequest(sandboxId: String, requestId: String, request: [String: Any]) {
+        notifyListeners("fetch", data: [
+            "id": sandboxId,
+            "requestId": requestId,
+            "request": request,
+        ])
     }
 }
