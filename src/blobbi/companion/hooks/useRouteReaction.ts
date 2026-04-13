@@ -161,14 +161,32 @@ export function useRouteReaction({
   const prevPathnameRef = useRef(pathname);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  /** Last pointerdown position + timestamp.  Updated on every pointerdown so
-   *  the route-change effect can check whether there was a recent click. */
-  const lastClickRef = useRef<{ position: Position; time: number } | null>(null);
+  /** Last pointerdown target + raw coordinates + timestamp.
+   *  We store the nearest clickable element so we can re-read its live
+   *  bounding rect at route-change time (accounts for scroll shifts
+   *  between click and React effect).  Raw coordinates serve as fallback
+   *  if the element is unmounted by the time the effect runs. */
+  const lastClickRef = useRef<{ element: Element | null; fallback: Position; time: number } | null>(null);
 
-  // Track pointer-down position (passive, no re-renders)
+  // Track pointer-down position + element (passive, no re-renders)
   useEffect(() => {
     const handler = (e: PointerEvent) => {
-      lastClickRef.current = { position: { x: e.clientX, y: e.clientY }, time: Date.now() };
+      // Walk up from the event target to find the nearest <a> or <button>.
+      // This gives us the full clickable area rather than a child icon/span.
+      let el: Element | null = e.target instanceof Element ? e.target : null;
+      while (el && el !== document.body) {
+        const tag = el.tagName;
+        if (tag === 'A' || tag === 'BUTTON') break;
+        el = el.parentElement;
+      }
+      // If we walked all the way to <body>, fall back to the direct target
+      if (el === document.body) el = e.target instanceof Element ? e.target : null;
+
+      lastClickRef.current = {
+        element: el,
+        fallback: { x: e.clientX, y: e.clientY },
+        time: Date.now(),
+      };
     };
     window.addEventListener('pointerdown', handler, { passive: true });
     return () => window.removeEventListener('pointerdown', handler);
@@ -232,9 +250,19 @@ export function useRouteReaction({
     let centerDelay: number;
 
     if (hasRecentClick) {
+      // Resolve the click position from the live element rect when possible.
+      // This accounts for scroll changes between pointerdown and now.
+      let clickPos: Position;
+      if (click.element && click.element.isConnected) {
+        const rect = click.element.getBoundingClientRect();
+        clickPos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      } else {
+        clickPos = click.fallback;
+      }
+
       // Glance at the click origin — keeps gaze occupied during the delay.
       triggerAttention(
-        click.position,
+        clickPos,
         { duration: CLICK_GLANCE_DURATION + ROUTE_REACTION_DELAY, priority: 'normal', source: 'route:click-origin', bypassCooldown: true },
       );
       centerDelay = Math.max(CLICK_GLANCE_DURATION, ROUTE_REACTION_DELAY);
