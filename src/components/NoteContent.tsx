@@ -37,6 +37,10 @@ interface NoteContentProps {
   /** When true, nested nostr:nevent/note/naddr embeds render as inline links instead of cards.
    *  Used inside embedded quote cards to prevent unbounded recursive nesting. */
   disableNoteEmbeds?: boolean;
+  /** When true, images, galleries, and video/audio players are suppressed (rendered as
+   *  whitespace) while link preview cards and other non-media embeds are preserved.
+   *  Used inside embedded quote cards to keep them lightweight. */
+  disableMediaEmbeds?: boolean;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -245,6 +249,7 @@ export function NoteContent({
   disableEmbeds = false,
   hideEmbedImages = false,
   disableNoteEmbeds = false,
+  disableMediaEmbeds = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -594,7 +599,7 @@ export function NoteContent({
           case 'text':
             return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined))}</span>;
           case 'image-embed': {
-            if (disableEmbeds) {
+            if (disableEmbeds || disableMediaEmbeds) {
               // In preview contexts (e.g. triple-dot menu), replace image URLs
               // with a newline so text flow is preserved without showing raw URLs.
               return <span key={i}>{'\n'}</span>;
@@ -609,7 +614,7 @@ export function NoteContent({
             );
           }
           case 'image-gallery': {
-            if (disableEmbeds) {
+            if (disableEmbeds || disableMediaEmbeds) {
               return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
             }
             const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
@@ -662,7 +667,7 @@ export function NoteContent({
               </a>
             );
           case 'media-embed': {
-            if (disableEmbeds) {
+            if (disableEmbeds || disableMediaEmbeds) {
               return <span key={i}>{'\n'}</span>;
             }
             const imeta = imetaMap.get(token.url);
@@ -697,10 +702,34 @@ export function NoteContent({
             );
           }
           case 'nevent-embed':
-            if (disableNoteEmbeds) return null;
+            if (disableNoteEmbeds) {
+              const neventId = nip19.neventEncode({ id: token.eventId, ...(token.author ? { author: token.author } : {}), ...(token.relays?.length ? { relays: token.relays } : {}) });
+              return (
+                <Link
+                  key={i}
+                  to={`/${neventId}`}
+                  className="text-primary hover:underline break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {neventId.slice(0, 16)}…
+                </Link>
+              );
+            }
             return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
           case 'naddr-embed':
-            if (disableNoteEmbeds) return null;
+            if (disableNoteEmbeds) {
+              const naddrId = nip19.naddrEncode({ kind: token.addr.kind, pubkey: token.addr.pubkey, identifier: token.addr.identifier });
+              return (
+                <Link
+                  key={i}
+                  to={`/${naddrId}`}
+                  className="text-primary hover:underline break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {naddrId.slice(0, 16)}…
+                </Link>
+              );
+            }
             return (
               <span key={i}>
                 {token.url && (

@@ -18,6 +18,7 @@ import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -201,6 +202,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
 
@@ -272,7 +274,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
           ) : (
             <>
               <Link
-                to={`/${nip19.npubEncode(event.pubkey)}`}
+                to={profileUrl}
                 className="shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -284,7 +286,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
                 </Avatar>
               </Link>
               <Link
-                to={`/${nip19.npubEncode(event.pubkey)}`}
+                to={profileUrl}
                 className="text-sm font-semibold truncate hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >

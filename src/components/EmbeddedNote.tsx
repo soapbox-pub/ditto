@@ -119,6 +119,17 @@ function EmbeddedNoteCard({
     return { label, Icon: getKindIcon(event.kind) };
   }, [event.kind]);
 
+  // Tag-based fallback metadata for events with empty content (articles, custom kinds, etc.)
+  const hasContent = event.content.trim().length > 0;
+  const tagMeta = useMemo(() => {
+    if (hasContent) return undefined;
+    const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+    const title = getTag('title') || getTag('name') || getTag('d');
+    const description = getTag('summary') || getTag('description');
+    if (!title && !description) return undefined;
+    return { title, description };
+  }, [hasContent, event.tags]);
+
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
   const hasCW = !!cwTag;
@@ -151,6 +162,15 @@ function EmbeddedNoteCard({
         <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
           <BlobbiStateCard event={event} />
         </Suspense>
+      ) : tagMeta ? (
+        <>
+          {tagMeta.title && (
+            <p className="text-sm font-semibold leading-snug line-clamp-2">{tagMeta.title}</p>
+          )}
+          {tagMeta.description && (
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
+          )}
+        </>
       ) : (
         <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} />
       )}
@@ -256,7 +276,7 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange }: {
       className="relative overflow-hidden"
       style={!expanded && overflows ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
     >
-      <NoteContent event={event} className="text-sm leading-relaxed" disableNoteEmbeds />
+      <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds />
       {!expanded && overflows && (
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       )}
