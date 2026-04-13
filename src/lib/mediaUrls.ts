@@ -40,6 +40,19 @@ export const IMETA_MEDIA_URL_REGEX = new RegExp(
   'gi',
 );
 
+/**
+ * Non-global variant of IMETA_MEDIA_URL_REGEX, safe for `.test()` calls.
+ *
+ * IMPORTANT: Never use the global (`g`) IMETA_MEDIA_URL_REGEX with `.test()` —
+ * the global flag makes `lastIndex` stateful, so repeated `.test()` calls
+ * (e.g. inside `.find()` or `.filter()`) will alternate between matching and
+ * not matching, causing every other URL to be misclassified.
+ */
+export const IMETA_MEDIA_URL_TEST_REGEX = new RegExp(
+  IMETA_MEDIA_URL_REGEX.source,
+  'i',
+);
+
 /** Infers a MIME type from a file extension string (lowercase). */
 export function mimeFromExt(ext: string): string {
   switch (ext) {
@@ -67,6 +80,7 @@ export function mimeFromExt(ext: string): string {
     default:     return 'application/octet-stream';
   }
 }
+
 
 /** Extracts all video URLs from a string. */
 export function extractVideoUrls(content: string): string[] {

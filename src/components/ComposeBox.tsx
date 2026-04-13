@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
-import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
 const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
@@ -346,7 +346,7 @@ export function ComposeBox({
       const url = match[0];
       // Skip media URLs that render inline
       // Note: SVGs not excluded - LinkPreview checks content-type and handles both cases
-      if (!IMETA_MEDIA_URL_REGEX.test(url)) {
+      if (!IMETA_MEDIA_URL_TEST_REGEX.test(url)) {
         embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }

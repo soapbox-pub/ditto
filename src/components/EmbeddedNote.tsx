@@ -1,74 +1,30 @@
-import { type ReactNode, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmojifiedText } from '@/components/CustomEmoji';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { NoteContent } from '@/components/NoteContent';
 import { useEvent } from '@/hooks/useEvent';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
-import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
-import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
-import { LinkPreview } from '@/components/LinkPreview';
-import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
+
+const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
 
-/** Bech32 charset used by NIP-19 identifiers. */
-const B32 = '023456789acdefghjklmnpqrstuvwxyz';
-
-/** Regex that matches nostr:npub1… and nostr:nprofile1… inside text. */
-const MENTION_REGEX = new RegExp(`nostr:(npub1|nprofile1)[${B32}]+`, 'g');
-
-/** A parsed segment of embedded-note text. */
-type EmbedSegment =
-  | { type: 'text'; value: string }
-  | { type: 'mention'; pubkey: string; npub: string };
-
-/** Split text into plain strings and mention segments. */
-function parseEmbedSegments(text: string): EmbedSegment[] {
-  const segments: EmbedSegment[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-
-  MENTION_REGEX.lastIndex = 0;
-  while ((m = MENTION_REGEX.exec(text)) !== null) {
-    if (m.index > last) {
-      segments.push({ type: 'text', value: text.slice(last, m.index) });
-    }
-    try {
-      const bech32 = m[0].slice('nostr:'.length);
-      const decoded = nip19.decode(bech32);
-      const pubkey = decoded.type === 'npub'
-        ? (decoded.data as string)
-        : (decoded.data as { pubkey: string }).pubkey;
-      const npub = nip19.npubEncode(pubkey);
-      segments.push({ type: 'mention', pubkey, npub });
-    } catch {
-      // If decode fails, keep as plain text
-      segments.push({ type: 'text', value: m[0] });
-    }
-    last = m.index + m[0].length;
-  }
-
-  if (last < text.length) {
-    segments.push({ type: 'text', value: text.slice(last) });
-  }
-
-  return segments;
-}
+/** Max-height (px) for the content area before it gets clipped. */
+const EMBED_MAX_HEIGHT = 260;
 
 interface EmbeddedNoteProps {
   /** Hex event ID to fetch and display. */
@@ -81,9 +37,6 @@ interface EmbeddedNoteProps {
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
 }
-
-/** Maximum characters of note content to show in the embedded preview. */
-const MAX_CONTENT_LENGTH = 280;
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
 export function EmbeddedNote({ eventId, relays, authorHint, className, disableHoverCards }: EmbeddedNoteProps) {
@@ -126,67 +79,26 @@ function EmbeddedNoteCard({
   className,
   disableHoverCards,
 }: {
-  event: { id: string; kind: number; pubkey: string; content: string; created_at: number; tags: string[][] };
+  event: NostrEvent;
   className?: string;
   disableHoverCards?: boolean;
 }) {
   const { config } = useAppContext();
-  const navigate = useNavigate();
-  const author = useAuthor(event.pubkey);
 
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const profileUrl = useProfileUrl(event.pubkey, metadata);
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
     [event.id, event.pubkey],
   );
 
-  // Extract the first non-media URL for a link preview card
-  const firstLinkUrl = useMemo(() => {
-    const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    return allUrls.find((u) => !IMETA_MEDIA_URL_REGEX.test(u)) ?? null;
-  }, [event.content]);
+  const [contentOverflows, setContentOverflows] = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(false);
 
-  // Truncate long content, stripping media URLs, the previewed link, and nested nostr event references
-  const truncatedContent = useMemo(() => {
-    let text = event.content
-      // Strip media URLs (same extensions as NoteContent's MEDIA_URL_REGEX)
-      .replace(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'), '')
-      // Strip embedded event references (nevent / note) so they don't nest
-      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '');
-    // Strip the URL that will be shown as a link preview card
-    if (firstLinkUrl) {
-      text = text.replace(firstLinkUrl, '');
-    }
-    const cleaned = text
-      // Collapse leftover whitespace
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    if (cleaned.length <= MAX_CONTENT_LENGTH) return cleaned;
-    return cleaned.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
-  }, [event.content, firstLinkUrl]);
-
-  // For non-text kinds with empty content, extract title/description from tags
-  const tagMeta = useMemo(() => {
-    if (truncatedContent) return undefined;
-    const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-    const title = getTag('title') || getTag('name') || getTag('d');
-    const description = getTag('summary') || getTag('description');
-
-    // Build a kind label line for context (e.g. "nsite")
-    const kindLabel = getKindLabel(event.kind);
-    const KindIcon = getKindIcon(event.kind);
-
-    if (!title && !description && !kindLabel) return undefined;
-    return { title, description, kindLabel, KindIcon };
-  }, [truncatedContent, event.tags, event.kind]);
-
-  // Detect stripped attachments to show indicator chips
+  const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
+
+  // Attachment counts for indicator chips
   const attachments = useMemo(() => {
-    // Kind 20 (NIP-68 photo events): count images from imeta tags instead of content
+    if (isBlobbiState) return { imgs: 0, vids: 0, auds: 0, apps: 0, links: 0, photos: 0 };
     if (isPhoto) {
       const photoCount = event.tags.filter(([n]) => n === 'imeta').length;
       return { imgs: 0, vids: 0, auds: 0, apps: 0, links: 0, photos: photoCount };
@@ -196,11 +108,16 @@ function EmbeddedNoteCard({
     const auds = extractAudioUrls(event.content).length;
     const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
     const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    const nonMediaLinks = allUrls.filter((u) => !IMETA_MEDIA_URL_REGEX.test(u)).length;
-    // Subtract 1 if we're showing a link preview card for the first URL
-    const links = firstLinkUrl ? nonMediaLinks - 1 : nonMediaLinks;
+    const links = allUrls.filter((u) => !IMETA_MEDIA_URL_TEST_REGEX.test(u)).length;
     return { imgs, vids, auds, apps, links, photos: 0 };
-  }, [event.content, event.tags, isPhoto, firstLinkUrl]);
+  }, [event.content, event.tags, isPhoto, isBlobbiState]);
+
+  // Kind label for non-text-note kinds
+  const kindMeta = useMemo(() => {
+    const label = getKindLabel(event.kind);
+    if (!label) return undefined;
+    return { label, Icon: getKindIcon(event.kind) };
+  }, [event.kind]);
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -211,199 +128,139 @@ function EmbeddedNoteCard({
     return null;
   }
 
+  const hasChips = !hasCW && (
+    attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 ||
+    attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0 || kindMeta
+  );
+  const hasFooter = hasChips || contentOverflows;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      {/* Content — rendered identically to a normal NoteCard, just height-capped */}
+      {hasCW && config.contentWarningPolicy === 'blur' ? (
+        <p className="text-xs text-muted-foreground italic">
+          Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
+        </p>
+      ) : isBlobbiState ? (
+        <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+          <BlobbiStateCard event={event} />
+        </Suspense>
+      ) : (
+        <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} />
+      )}
+
+      {/* Attachment / kind indicator chips + Read more toggle */}
+      {hasFooter && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {kindMeta && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
+              {kindMeta.label}
+            </span>
+          )}
+          {attachments.photos > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Image className="size-3" />
+              {attachments.photos > 1 ? `${attachments.photos} photos` : 'Photo'}
+            </span>
+          )}
+          {attachments.imgs > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Image className="size-3" />
+              {attachments.imgs > 1 ? `${attachments.imgs} images` : 'Image'}
+            </span>
+          )}
+          {attachments.vids > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Film className="size-3" />
+              {attachments.vids > 1 ? `${attachments.vids} videos` : 'Video'}
+            </span>
+          )}
+          {attachments.auds > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Music className="size-3" />
+              {attachments.auds > 1 ? `${attachments.auds} audio files` : 'Audio'}
+            </span>
+          )}
+          {attachments.apps > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Blocks className="size-3" />
+              App
+            </span>
+          )}
+          {attachments.links > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <ExternalLink className="size-3" />
+              {attachments.links > 1 ? `${attachments.links} links` : 'Link'}
+            </span>
+          )}
+          {contentOverflows && (
+            <button
+              className="ml-auto text-xs text-primary hover:underline shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setContentExpanded((v) => !v);
+              }}
+            >
+              {contentExpanded ? 'Show less' : 'Read more'}
+            </button>
+          )}
+        </div>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/** Truncated content area with overflow detection. Toggle is rendered externally. */
+function EmbedTruncatedContent({ event, expanded, onOverflowChange }: {
+  event: NostrEvent;
+  expanded: boolean;
+  onOverflowChange: (overflows: boolean) => void;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const doesOverflow = el.scrollHeight > EMBED_MAX_HEIGHT;
+    setOverflows(doesOverflow);
+    onOverflowChange(doesOverflow);
+  }, [onOverflowChange]);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  // Re-measure after images load
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const imgs = el.querySelectorAll('img');
+    if (imgs.length === 0) return;
+    imgs.forEach((img) => img.addEventListener('load', measure, { once: true }));
+    return () => imgs.forEach((img) => img.removeEventListener('load', measure));
+  }, [measure]);
+
   return (
     <div
-      className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors cursor-pointer',
-        className,
-      )}
-      role="link"
-      tabIndex={0}
-      onClick={(e) => {
-        e.stopPropagation();
-        navigate(`/${neventId}`);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          e.stopPropagation();
-          navigate(`/${neventId}`);
-        }
-      }}
+      ref={contentRef}
+      className="relative overflow-hidden"
+      style={!expanded && overflows ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
     >
-      {/* Note content */}
-      <div className="px-3 py-2 space-y-1">
-        {/* Author row */}
-        <div className="flex items-center gap-2 min-w-0">
-          {author.isLoading ? (
-            <>
-              <Skeleton className="size-5 rounded-full shrink-0" />
-              <Skeleton className="h-3.5 w-24" />
-            </>
-          ) : (
-            <>
-              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-                <Link
-                  to={profileUrl}
-                  className="shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Avatar shape={avatarShape} className="size-5">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                      {displayName[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-              </MaybeProfileHoverCard>
-
-              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-                <Link
-                  to={profileUrl}
-                  className="text-sm font-semibold truncate hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {author.data?.event ? (
-                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                  ) : displayName}
-                </Link>
-              </MaybeProfileHoverCard>
-            </>
-          )}
-
-          <span className="text-xs text-muted-foreground shrink-0">
-            · {timeAgo(event.created_at)}
-          </span>
-        </div>
-
-        {/* Content warning notice or text preview or tag-based metadata */}
-        {hasCW && config.contentWarningPolicy === 'blur' ? (
-          <p className="text-xs text-muted-foreground italic">
-            Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
-          </p>
-        ) : truncatedContent ? (
-          <EmbedContentPreview text={truncatedContent} disableHoverCards={disableHoverCards} />
-        ) : tagMeta ? (
-          <>
-            {tagMeta.title && (
-              <p className="text-sm font-semibold leading-snug line-clamp-2">{tagMeta.title}</p>
-            )}
-            {tagMeta.description && (
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
-            )}
-            {tagMeta.kindLabel && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                {tagMeta.KindIcon && <tagMeta.KindIcon className="size-3 shrink-0" />}
-                {tagMeta.kindLabel}
-              </p>
-            )}
-          </>
-        ) : null}
-
-        {/* Link preview card for the first non-media URL */}
-        {!hasCW && firstLinkUrl && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <LinkPreview url={firstLinkUrl} className="mt-1.5" />
-          </div>
-        )}
-
-        {/* Attachment indicators for stripped media/links */}
-        {!hasCW && (attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 || attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {attachments.photos > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Image className="size-3" />
-                {attachments.photos > 1 ? `${attachments.photos} photos` : 'Photo'}
-              </span>
-            )}
-            {attachments.imgs > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Image className="size-3" />
-                {attachments.imgs > 1 ? `${attachments.imgs} images` : 'Image'}
-              </span>
-            )}
-            {attachments.vids > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Film className="size-3" />
-                {attachments.vids > 1 ? `${attachments.vids} videos` : 'Video'}
-              </span>
-            )}
-            {attachments.auds > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Music className="size-3" />
-                {attachments.auds > 1 ? `${attachments.auds} audio files` : 'Audio'}
-              </span>
-            )}
-            {attachments.apps > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Blocks className="size-3" />
-                App
-              </span>
-            )}
-            {attachments.links > 0 && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <ExternalLink className="size-3" />
-                {attachments.links > 1 ? `${attachments.links} links` : 'Link'}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      <NoteContent event={event} className="text-sm leading-relaxed" disableNoteEmbeds />
+      {!expanded && overflows && (
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      )}
     </div>
-  );
-}
-
-/** Renders embedded-note text with @mentions resolved inline. */
-function EmbedContentPreview({ text, disableHoverCards }: { text: string; disableHoverCards?: boolean }) {
-  const segments = useMemo(() => parseEmbedSegments(text), [text]);
-
-  return (
-    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words overflow-hidden line-clamp-3">
-      {segments.map((seg, i) => {
-        if (seg.type === 'text') {
-          return <span key={i}>{seg.value}</span>;
-        }
-        return <EmbedMention key={i} pubkey={seg.pubkey} npub={seg.npub} disableHoverCards={disableHoverCards} />;
-      })}
-    </p>
-  );
-}
-
-/** Inline @mention inside an embedded note preview. */
-function EmbedMention({ pubkey, disableHoverCards }: { pubkey: string; npub: string; disableHoverCards?: boolean }) {
-  const author = useAuthor(pubkey);
-  const hasRealName = !!author.data?.metadata?.name;
-  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
-  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <MaybeProfileHoverCard pubkey={pubkey} disabled={disableHoverCards}>
-      <Link
-        to={profileUrl}
-        className={cn(
-          'font-medium hover:underline',
-          hasRealName ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{author.data?.event ? (
-          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-        ) : displayName}
-      </Link>
-    </MaybeProfileHoverCard>
-  );
-}
-
-/** Conditionally wraps children in a ProfileHoverCard. When disabled, renders children directly. */
-function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string; disabled?: boolean; children: ReactNode }) {
-  if (disabled) {
-    return <>{children}</>;
-  }
-  return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
-      {children}
-    </ProfileHoverCard>
   );
 }
 

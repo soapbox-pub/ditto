@@ -34,6 +34,9 @@ interface NoteContentProps {
   disableEmbeds?: boolean;
   /** When true, hides thumbnail images in link preview cards (useful when a cover image is already shown). */
   hideEmbedImages?: boolean;
+  /** When true, nested nostr:nevent/note/naddr embeds render as inline links instead of cards.
+   *  Used inside embedded quote cards to prevent unbounded recursive nesting. */
+  disableNoteEmbeds?: boolean;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -241,6 +244,7 @@ export function NoteContent({
   className,
   disableEmbeds = false,
   hideEmbedImages = false,
+  disableNoteEmbeds = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -693,8 +697,10 @@ export function NoteContent({
             );
           }
           case 'nevent-embed':
+            if (disableNoteEmbeds) return null;
             return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
           case 'naddr-embed':
+            if (disableNoteEmbeds) return null;
             return (
               <span key={i}>
                 {token.url && (
