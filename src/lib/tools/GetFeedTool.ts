@@ -165,15 +165,27 @@ function resolveFilter(
       };
     }
     try {
-      const savedFilter = { ...match.filter } as Record<string, unknown>;
-      if (Array.isArray(savedFilter.authors)) {
-        savedFilter.authors = (savedFilter.authors as string[]).flatMap((a) =>
-          a === '$follows' ? contactPubkeys : [a],
-        );
-      }
-      const filter = { ...savedFilter, since: sinceTimestamp, limit } as NostrFilter;
-      const needsDittoRelay = typeof savedFilter.search === 'string' && /sort:|protocol:|media:/.test(savedFilter.search as string);
-      return { filter, needsDittoRelay, feedLabel: match.label };
+      const sf = match.filter as Record<string, unknown>;
+
+      // Map the saved feed's NostrFilter shape into buildSpellTags args,
+      // translating $follows → $contacts so resolveSpell handles variable
+      // expansion and needsDittoRelay detection consistently.
+      const authors = Array.isArray(sf.authors)
+        ? (sf.authors as string[]).map((a) => a === '$follows' ? '$contacts' : a)
+        : undefined;
+
+      const kinds = Array.isArray(sf.kinds) ? (sf.kinds as number[]) : undefined;
+
+      const tags = buildSpellTags({
+        name: match.label,
+        kinds,
+        authors,
+        search: typeof sf.search === 'string' ? sf.search : undefined,
+      });
+      const unsigned = buildUnsignedSpell(tags);
+      const resolved = resolveSpell(unsigned, ctx.user?.pubkey, contactPubkeys);
+      const filter = { ...resolved.filter, since: sinceTimestamp, limit } as NostrFilter;
+      return { filter, needsDittoRelay: resolved.needsDittoRelay, feedLabel: match.label };
     } catch (err) {
       return { error: `Failed to resolve saved feed "${match.label}": ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
