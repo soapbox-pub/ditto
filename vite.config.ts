@@ -128,6 +128,13 @@ export default defineConfig(({ mode }) => {
     host: "::",
     port: 8080,
     allowedHosts: env.ALLOWED_HOSTS === "*" ? true : undefined,
+    proxy: {
+      '/api/shakespeare': {
+        target: 'http://5.78.68.217:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/shakespeare/, ''),
+      },
+    },
   },
   plugins: [
     react(),

@@ -93,9 +93,8 @@ export interface ModelsResponse {
 }
 
 // Configuration
-// Fetch URL goes through the Vite dev proxy to avoid CORS issues with local dev.
-// To test against production, change both to 'https://ai.shakespeare.diy/v1'.
-const SHAKESPEARE_API_URL = '/api/shakespeare/v1';
+// REMOVE BEFORE ALEX SEE THIS
+const SHAKESPEARE_API_URL = 'http://5.78.68.217:8000/v1';
 const SHAKESPEARE_SERVER_URL = 'http://5.78.68.217:8000/v1';
 
 // Helper function to create NIP-98 token
