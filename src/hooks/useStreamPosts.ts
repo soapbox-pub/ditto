@@ -172,10 +172,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     };
   }, [resolved, options]);
 
-  // Whether the initial query should be routed exclusively to Ditto relays
-  // (spell uses NIP-50 extensions, or spell specifies since/until which need
-  // to be applied at query level).
-  const useDittoOnly = resolved?.needsDittoRelay ?? false;
+  // Whether the initial query should be routed exclusively to Ditto relays.
+  // True when NIP-50 extensions are used that only Ditto relays understand
+  // (sort:hot, language:en, protocol:activitypub, media filters).
+  // Applies to both spell-driven and direct option-driven queries.
+  const useDittoOnly = resolved?.needsDittoRelay ?? !!(
+    (effectiveOptions.sort && effectiveOptions.sort !== 'recent')
+    || (effectiveOptions.language && effectiveOptions.language !== 'global')
+    || (effectiveOptions.protocols && effectiveOptions.protocols.some(p => p !== 'nostr'))
+  );
 
   // Extra filter fields from the spell (since, until, limit, tag filters)
   const spellExtraFilter: Partial<NostrFilter> | undefined = useMemo(() => {
@@ -419,11 +424,16 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // protocol:nostr = native Nostr only (no bridged events).
     // When bridged protocols are selected, omit protocol:nostr so the relay
     // returns both native and bridged events matching the selected protocols.
+    // When the caller doesn't explicitly pass protocols (e.g. Feeds/Packs tabs
+    // that query Nostr-native kinds only), skip the protocol term entirely so
+    // the relay doesn't filter through NIP-50 search for kinds it may not index.
     const protocols = effectiveOptions.protocols ?? ['nostr'];
     const bridged = protocols.filter(p => p !== 'nostr');
     const searchParts: string[] = bridged.length > 0
       ? bridged.map(p => `protocol:${p}`)
-      : ['protocol:nostr'];
+      : effectiveOptions.protocols
+        ? ['protocol:nostr']
+        : [];
     
     if (effectiveQuery.trim()) {
       searchParts.push(effectiveQuery.trim());
