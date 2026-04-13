@@ -36,10 +36,18 @@ private var _originalStopIMP: IMP?
 private let startSelector = Selector(("webView:startURLSchemeTask:"))
 private let stopSelector  = Selector(("webView:stopURLSchemeTask:"))
 
+/// Counter for swizzle invocations (for diagnostics).
+private var _swizzleCallCount: Int = 0
+/// Last URL seen by the swizzled handler (for diagnostics).
+private var _swizzleLastURL: String = "(none)"
+
 /// Swizzled replacement for `webView(_:start:)`.
 /// If the request targets `*.sandbox.local`, route it to JS. Otherwise call
 /// the original Capacitor implementation.
 private let swizzledStart: @convention(block) (AnyObject, WKWebView, WKURLSchemeTask) -> Void = { selfObj, webView, task in
+    _swizzleCallCount += 1
+    _swizzleLastURL = task.request.url?.absoluteString ?? "(nil)"
+
     if let url = task.request.url,
        let host = url.host,
        host.hasSuffix(sandboxHostSuffix) {
@@ -280,6 +288,8 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
             "hasListenersFetch": hasListenersFetch,
             "pendingTaskCount": pendingCount,
             "swizzleInstalled": swizzled,
+            "swizzleCallCount": _swizzleCallCount,
+            "swizzleLastURL": _swizzleLastURL,
         ])
     }
 
