@@ -112,6 +112,7 @@ export function TestApp({ children }: TestAppProps) {
     savedFeeds: [],
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
+    sidebarWidgets: [],
   };
 
   return (

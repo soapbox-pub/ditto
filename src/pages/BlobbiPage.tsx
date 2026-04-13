@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -27,9 +27,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
+
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { useIsMobile } from '@/hooks/useIsMobile';
+
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
@@ -364,10 +365,12 @@ function BlobbiContent() {
         last_decay_at: nowStr,
       });
 
+      const prev = canonical.companion.event;
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
         tags: newTags,
+        prev,
       });
 
       updateCompanionEvent(event);
@@ -843,7 +846,7 @@ interface BlobbiDashboardProps {
   isHatching: boolean;
   isEvolving: boolean;
   // Adoption flow props
-  publishEvent: (params: { kind: number; content: string; tags: string[][] }) => Promise<import('@nostrify/nostrify').NostrEvent>;
+  publishEvent: (params: { kind: number; content: string; tags: string[][]; prev?: import('@nostrify/nostrify').NostrEvent }) => Promise<import('@nostrify/nostrify').NostrEvent>;
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   invalidateProfile: () => void;
@@ -856,6 +859,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
+    profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
@@ -900,7 +904,6 @@ function BlobbiDashboard({
   const isEgg = companion.stage === 'egg';
   
   // ─── Active Drawer ───
-  const isMobile = useIsMobile();
   const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
 
   // ─── Room Navigation ───
@@ -1206,25 +1209,30 @@ function BlobbiDashboard({
     setIsUpdatingCompanion(true);
     
     try {
+      // Fetch fresh profile data from relays to avoid stale-read-then-write
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) return;
+
       let updatedTags: string[][];
       
       if (isCurrentCompanion) {
         // Remove companion: filter out all current_companion tags entirely
-        // First apply any other updates (none in this case), then filter out the tag
-        updatedTags = updateBlobbonautTags(profile.allTags, {})
+        updatedTags = updateBlobbonautTags(canonical.profileAllTags, {})
           .filter(tag => tag[0] !== 'current_companion');
       } else {
         // Set companion: first remove any existing current_companion tags, then add the new one
-        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        const tagsWithoutCompanion = canonical.profileAllTags.filter(tag => tag[0] !== 'current_companion');
         updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
           current_companion: companion.d,
         });
       }
       
+      const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',
         tags: updatedTags,
+        prev,
       });
       
       updateProfileEvent(event);
@@ -1246,7 +1254,7 @@ function BlobbiDashboard({
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -2508,6 +2516,7 @@ function MoreTabContent({
     </div>
   );
 }
+
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 

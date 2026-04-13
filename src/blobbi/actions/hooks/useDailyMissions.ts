@@ -141,7 +141,6 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const stagesKey = availableStages?.sort().join(',') ?? '';
 
   // Read and ensure current state
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const raw = useMemo((): MissionsContent | undefined => {
     const stored = readMissionsFromStorage(pubkey);
 

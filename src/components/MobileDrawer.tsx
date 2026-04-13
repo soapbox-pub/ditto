@@ -140,7 +140,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <button
                 onClick={() => setAccountExpanded((v) => !v)}
                 className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left"
-                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                style={{ minHeight: `calc(3rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))`, paddingTop: `var(--safe-area-inset-top, env(safe-area-inset-top, 0px))` }}
               >
                 <Avatar shape={currentUserAvatarShape} className="size-7 shrink-0">
                   <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -336,7 +336,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               {/* Login prompt */}
               <div
                 className="flex items-center gap-3 px-4 border-b border-border"
-                style={{ minHeight: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
+                style={{ minHeight: `calc(3rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))`, paddingTop: `var(--safe-area-inset-top, env(safe-area-inset-top, 0px))` }}
               >
                 <LoginArea className="w-full flex" />
               </div>

@@ -14,12 +14,36 @@ export interface ChatMessage {
   }>;
 }
 
+/** Tool function definition for chat completions. */
+export interface ChatCompletionTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+/** A tool call returned by the model. */
+export interface ChatCompletionToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+
 export interface ChatCompletionRequest {
   model: string;
   messages: ChatMessage[];
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;
+  tools?: ChatCompletionTool[];
+}
+
+/** A message in a chat completion response, possibly including tool calls. */
+export interface ChatCompletionResponseMessage {
+  role: 'assistant';
+  content?: string;
+  tool_calls?: ChatCompletionToolCall[];
 }
 
 export interface ChatCompletionResponse {
@@ -29,7 +53,7 @@ export interface ChatCompletionResponse {
   model: string;
   choices: Array<{
     index: number;
-    message: ChatMessage;
+    message: ChatCompletionResponseMessage;
     finish_reason: string;
   }>;
   usage: {

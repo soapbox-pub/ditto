@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo, useCallback, useRef } from 'react';
+import { Suspense, useState, useMemo, useCallback, useRef, lazy } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
@@ -11,6 +11,8 @@ import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, Na
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
+
+const WidgetSidebar = lazy(() => import('@/components/WidgetSidebar').then((m) => ({ default: m.WidgetSidebar })));
 
 /** Skeleton shown in the content area while a lazy page chunk is loading. */
 function PageSkeleton() {
@@ -104,8 +106,8 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {/* Right sidebar — render page-provided sidebar, or an empty placeholder to preserve layout width */}
-          {rightSidebar ?? <div className="w-[300px] shrink-0 hidden xl:block" />}
+          {/* Right sidebar — render page-provided sidebar, or the widget sidebar */}
+          {rightSidebar ?? <Suspense fallback={<div className="w-[300px] shrink-0 hidden xl:block" />}><WidgetSidebar /></Suspense>}
         </Suspense>
       </div>
 
@@ -118,7 +120,7 @@ function MainLayoutInner() {
       {showFAB && (
         <div
           className="fixed bottom-fab right-6 z-30 pointer-events-none transition-transform duration-300 ease-in-out sidebar:hidden"
-          style={navHidden ? { transform: `translateY(calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)))` } : undefined}
+          style={navHidden ? { transform: `translateY(calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))))` } : undefined}
         >
           <div className="pointer-events-auto">
             <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />

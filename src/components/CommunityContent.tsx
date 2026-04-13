@@ -15,6 +15,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // --- Helpers ---
 
@@ -92,7 +93,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   // Extract website URL from description if present
   const descriptionUrl = useMemo(() => {
     const urlMatch = description.match(/https?:\/\/[^\s]+/);
-    return urlMatch?.[0];
+    return sanitizeUrl(urlMatch?.[0]);
   }, [description]);
 
   // Description text without trailing URL (if the URL is the last thing)

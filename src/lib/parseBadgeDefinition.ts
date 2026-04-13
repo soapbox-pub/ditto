@@ -1,5 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
 /** Parsed NIP-58 badge definition data. */
 export interface BadgeData {
   identifier: string;
@@ -20,13 +22,16 @@ export function parseBadgeDefinition(event: NostrEvent): BadgeData | null {
   const name = event.tags.find(([n]) => n === 'name')?.[1] || identifier;
   const description = event.tags.find(([n]) => n === 'description')?.[1];
   const imageTag = event.tags.find(([n]) => n === 'image');
-  const image = imageTag?.[1];
+  const image = sanitizeUrl(imageTag?.[1]);
   const imageDimensions = imageTag?.[2];
 
   const thumbs: Array<{ url: string; dimensions?: string }> = [];
   for (const tag of event.tags) {
     if (tag[0] === 'thumb' && tag[1]) {
-      thumbs.push({ url: tag[1], dimensions: tag[2] });
+      const url = sanitizeUrl(tag[1]);
+      if (url) {
+        thumbs.push({ url, dimensions: tag[2] });
+      }
     }
   }
 

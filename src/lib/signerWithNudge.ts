@@ -1,7 +1,6 @@
 import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { createElement } from 'react';
 import { toast } from '@/hooks/useToast';
-import { androidResume } from '@/lib/androidResume';
 import { NudgeToastContent } from '@/components/SignerToastContent';
 
 // ---------------------------------------------------------------------------
@@ -15,9 +14,6 @@ const NUDGE_DELAY_MS = 4_000;
 /** Hard timeout — reject the op entirely after this long with no response. */
 const HARD_TIMEOUT_MS = 45_000;
 
-
-/** Max number of automatic retries on Android foreground resume. */
-const MAX_RETRIES = 2;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -70,9 +66,8 @@ function labelForOp(kind: number | undefined, opType: OpType): string {
 
 const CANCEL = Symbol('cancel');
 const TIMEOUT = Symbol('timeout');
-const RESUME = Symbol('resume');
 
-type Signal = typeof CANCEL | typeof TIMEOUT | typeof RESUME;
+type Signal = typeof CANCEL | typeof TIMEOUT;
 
 // ---------------------------------------------------------------------------
 // Toast deduplication — prevent a storm of identical nudge toasts
@@ -98,10 +93,9 @@ function showNudgeToast(opts: {
   kind: number | undefined;
   opType: OpType;
   isBunkerConnected: (() => boolean) | undefined;
-  afterForegroundResume: boolean;
   onCancel: () => void;
 }): { dismiss: () => void } {
-  const { kind, opType, isBunkerConnected, afterForegroundResume, onCancel } = opts;
+  const { kind, opType, isBunkerConnected, onCancel } = opts;
   const android = isAndroid();
   const relayOk = isBunkerConnected ? isBunkerConnected() : true;
   const subject = labelForOp(kind, opType);
@@ -120,9 +114,6 @@ function showNudgeToast(opts: {
   if (!relayOk) {
     title = 'Signer relay unreachable';
     descriptionText = 'Check your connection and try again.';
-  } else if (android && afterForegroundResume) {
-    title = `Approve ${subject} — try again`;
-    descriptionText = 'Use the button below. Switching apps manually can interrupt the connection.';
   } else if (android) {
     title = `Approve ${subject}`;
     descriptionText = 'Set to auto-approve for a smoother experience.';
@@ -184,11 +175,6 @@ interface RunResult<T> {
  * Runs `op` with:
  * - A nudge toast after NUDGE_DELAY_MS if still pending.
  * - A hard timeout at HARD_TIMEOUT_MS.
- * - On Android, automatic retry when the app returns to the foreground
- *   (WebSocket connections are frozen while backgrounded, so NIP-46 responses
- *   are missed).
- *
- * Uses an iterative retry loop instead of recursion.
  */
 async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<RunResult<T>> {
   const { kind, opType, isBunkerConnected } = opts;
@@ -200,96 +186,61 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
     | { tag: 'signal'; signal: Signal };
 
   let nudgeFired = false;
-  let afterForegroundResume = false;
 
-  // Previous op promises that are still in-flight. On Android foreground
-  // resume we issue a fresh `op()` but keep racing previous ones so a late
-  // response from an earlier attempt is still accepted (avoids duplicate
-  // signer prompts).
-  const pendingOps: Promise<Outcome>[] = [];
+  // Signal channels — each resolves with a sentinel when its condition fires.
+  const cancelSignal = deferred<typeof CANCEL>();
+  const timeoutSignal = deferred<typeof TIMEOUT>();
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Signal channels — each resolves with a sentinel when its condition fires.
-    const cancelSignal = deferred<typeof CANCEL>();
-    const timeoutSignal = deferred<typeof TIMEOUT>();
-    const resumeSignal = deferred<typeof RESUME>();
-
-    // --- Nudge timer ---
-    let dismissNudge: (() => void) | undefined;
-    const delay = NUDGE_DELAY_MS;
-    const nudgeTimer = setTimeout(() => {
-      nudgeFired = true;
-      const handle = showNudgeToast({
-        kind, opType, isBunkerConnected, afterForegroundResume,
-        onCancel: () => cancelSignal.resolve(CANCEL),
-      });
-      dismissNudge = handle.dismiss;
-    }, delay);
-
-    // --- Hard timeout ---
-    const hardTimer = setTimeout(() => timeoutSignal.resolve(TIMEOUT), HARD_TIMEOUT_MS);
-
-    // --- Android foreground resume watcher ---
-    const { destroy: stopWatching } = androidResume({
-      threshold: 0,
-      onResume: () => {
-        toast({ title: 'Checking for signer response\u2026', duration: 4000 });
-        resumeSignal.resolve(RESUME);
-      },
+  // --- Nudge timer ---
+  let dismissNudge: (() => void) | undefined;
+  const nudgeTimer = setTimeout(() => {
+    nudgeFired = true;
+    const handle = showNudgeToast({
+      kind, opType, isBunkerConnected,
+      onCancel: () => cancelSignal.resolve(CANCEL),
     });
+    dismissNudge = handle.dismiss;
+  }, NUDGE_DELAY_MS);
 
-    function cleanup() {
-      clearTimeout(nudgeTimer);
-      clearTimeout(hardTimer);
-      stopWatching();
-      dismissNudge?.();
-    }
+  // --- Hard timeout ---
+  const hardTimer = setTimeout(() => timeoutSignal.resolve(TIMEOUT), HARD_TIMEOUT_MS);
 
-    // Start a new op and add it to the pending set.
-    const newOp: Promise<Outcome> = op().then(
-      (value): Outcome => ({ tag: 'value', value }),
-      (error): Outcome => ({ tag: 'error', error }),
-    );
-    pendingOps.push(newOp);
-
-    const signalOutcome: Promise<Outcome> = Promise.race([
-      cancelSignal.promise,
-      timeoutSignal.promise,
-      resumeSignal.promise,
-    ]).then((signal): Outcome => ({ tag: 'signal', signal }));
-
-    // Race all pending ops (current + any still in-flight from prior
-    // attempts) against the signal channels.
-    const outcome = await Promise.race([...pendingOps, signalOutcome]);
-    cleanup();
-
-    // --- Handle outcome ---
-
-    if (outcome.tag === 'value') {
-      if (nudgeFired) showSuccessToast(opType);
-      return { value: outcome.value, nudgeFired };
-    }
-
-    if (outcome.tag === 'error') {
-      throw outcome.error;
-    }
-
-    // outcome.tag === 'signal'
-    switch (outcome.signal) {
-      case CANCEL:
-        throw new Error('Signing cancelled by user');
-
-      case TIMEOUT:
-        throw new Error('Signer timed out');
-
-      case RESUME:
-        afterForegroundResume = true;
-        console.log('[signerWithNudge] retrying after foreground resume');
-        continue;
-    }
+  function cleanup() {
+    clearTimeout(nudgeTimer);
+    clearTimeout(hardTimer);
+    dismissNudge?.();
   }
 
-  throw new Error('Signer timed out after retries');
+  const opOutcome: Promise<Outcome> = op().then(
+    (value): Outcome => ({ tag: 'value', value }),
+    (error): Outcome => ({ tag: 'error', error }),
+  );
+
+  const signalOutcome: Promise<Outcome> = Promise.race([
+    cancelSignal.promise,
+    timeoutSignal.promise,
+  ]).then((signal): Outcome => ({ tag: 'signal', signal }));
+
+  const outcome = await Promise.race([opOutcome, signalOutcome]);
+  cleanup();
+
+  if (outcome.tag === 'value') {
+    if (nudgeFired) showSuccessToast(opType);
+    return { value: outcome.value, nudgeFired };
+  }
+
+  if (outcome.tag === 'error') {
+    throw outcome.error;
+  }
+
+  // outcome.tag === 'signal'
+  switch (outcome.signal) {
+    case CANCEL:
+      throw new Error('Signing cancelled by user');
+
+    case TIMEOUT:
+      throw new Error('Signer timed out');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -301,9 +252,6 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
  *
  * - Shows a nudge toast after 4s if a signing or encryption op is still
  *   pending, so the user knows to check their signer app.
- * - On Android, automatically retries when the app returns to the foreground,
- *   recovering from missed NIP-46 responses dropped while the WebSocket was
- *   frozen in the background.
  * - When a nip44 encrypt is immediately followed by a signEvent (e.g. saving
  *   encrypted settings), shows a phase-transition toast so the user knows to
  *   approve the second request.

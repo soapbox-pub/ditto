@@ -8,6 +8,7 @@ import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { cn } from '@/lib/utils';
+import { usePortalDropdown } from '@/hooks/usePortalDropdown';
 
 interface MentionAutocompleteProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -89,6 +90,14 @@ export function MentionAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  const handleClose = useCallback(() => setIsOpen(false), []);
+  const { computePosition, renderPortal } = usePortalDropdown({
+    textareaRef,
+    isOpen,
+    onClose: handleClose,
+    dropdownHeight: 240, // must match max-h-[240px] below
+  });
+
   const { data: profiles, followedPubkeys } = useSearchProfiles(
     isOpen ? mentionQuery : '',
   );
@@ -140,15 +149,11 @@ export function MentionAutocomplete({
     setIsOpen(true);
     setSelectedIndex(0);
 
-    // Position the dropdown below the @ character, relative to the textarea's
-    // offsetParent (the `relative` wrapper div) so it stays inside the modal.
+    // Position the dropdown using fixed viewport coordinates so it isn't
+    // clipped by ancestor overflow containers (e.g. the compose modal).
     const coords = getCaretCoordinates(textarea, atPos);
-    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
-    setDropdownPos({
-      top: coords.top + lineHeight + 4,
-      left: Math.max(0, Math.min(coords.left, textarea.clientWidth - 280)),
-    });
-  }, [textareaRef]);
+    setDropdownPos(computePosition(coords));
+  }, [textareaRef, computePosition]);
 
   // Listen for input/cursor changes on the textarea element.
   // Re-attaches whenever the underlying DOM element changes (e.g. after
@@ -254,10 +259,10 @@ export function MentionAutocomplete({
     return null;
   }
 
-  return (
+  const dropdown = (
     <div
       ref={dropdownRef}
-      className="absolute z-[100] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+      className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
       <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
@@ -273,6 +278,10 @@ export function MentionAutocomplete({
       </div>
     </div>
   );
+
+  // Portal to document.body so the dropdown escapes any ancestor overflow
+  // clipping and CSS transform containing blocks (e.g. Radix Dialog).
+  return renderPortal(dropdown, document.body);
 }
 
 function MentionItem({

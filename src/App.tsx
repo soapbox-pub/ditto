@@ -1,8 +1,7 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
-import { Capacitor } from "@capacitor/core";
-import { StatusBar, Style } from "@capacitor/status-bar";
+import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
@@ -152,6 +151,11 @@ const hardcodedConfig: AppConfig = {
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
+  sidebarWidgets: [
+    { id: 'trends' },
+    { id: 'hot-posts' },
+    { id: 'wikipedia' },
+  ],
 };
 
 /**
@@ -184,13 +188,13 @@ export function App() {
   useNsecPasteGuard();
 
   useEffect(() => {
-    // Initialize StatusBar for mobile apps
+    // Initialize system bars for mobile apps.
+    // On Android 16+ (API 36), edge-to-edge is enforced by the OS so
+    // setOverlaysWebView / setBackgroundColor no longer work. The new
+    // SystemBars API (bundled with @capacitor/core 8+) is the replacement.
     if (Capacitor.isNativePlatform()) {
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {
-        // StatusBar may not be available on all platforms
-      });
-      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {
-        // Ignore errors on unsupported platforms
+      SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {
+        // SystemBars may not be available on all platforms
       });
     }
   }, []);

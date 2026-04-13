@@ -88,7 +88,7 @@ export function BlobbiRoomShell({
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
-  }, []);
+  }, [touchStartX]);
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
@@ -97,7 +97,7 @@ export function BlobbiRoomShell({
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
     if (dx > 0) goLeft();
     else goRight();
-  }, [goLeft, goRight]);
+  }, [touchStartX, goLeft, goRight]);
 
   // ─── Poop system (ephemeral) ───
   const [poops, setPoops] = useState<PoopInstance[]>([]);

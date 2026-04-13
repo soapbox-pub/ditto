@@ -206,9 +206,11 @@ export function ProfileCard({
                 <Pencil className="size-3.5" /> {metadata.banner ? 'Change banner' : 'Add banner'}
               </span>
             </div>
-            <div className="absolute bottom-2 right-2 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
-              <Pencil className="size-3.5 text-muted-foreground" />
-            </div>
+            {metadata.banner && (
+              <div className="absolute bottom-2 right-2 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
+                <Pencil className="size-3.5 text-muted-foreground" />
+              </div>
+            )}
           </>
         )}
       </div>
@@ -240,9 +242,11 @@ export function ProfileCard({
                     >
                       <Pencil className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                     </div>
-                    <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
-                      <Pencil className="size-3.5 text-muted-foreground" />
-                    </div>
+                    {metadata.picture && (
+                      <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
+                        <Pencil className="size-3.5 text-muted-foreground" />
+                      </div>
+                    )}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" sideOffset={6}>

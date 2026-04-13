@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
@@ -8,6 +8,8 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
+
+const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
 interface SettingsSection {
   id: string;
@@ -79,6 +81,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const [sigilFlash, setSigilFlash] = useState(false);
   const [sigilVisible, setSigilVisible] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -163,6 +166,24 @@ export function SettingsPage() {
           );
         })}
       </div>
+
+      {/* Delete Account */}
+      {user && (
+        <div className="flex justify-center pt-4 pb-1">
+          <button
+            onClick={() => setDeleteAccountOpen(true)}
+            className="text-xs text-destructive-foreground bg-destructive/80 hover:bg-destructive rounded-full px-4 py-1.5 transition-colors"
+          >
+            Delete Account
+          </button>
+        </div>
+      )}
+
+      {user && (
+        <Suspense fallback={null}>
+          <RequestToVanishDialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen} />
+        </Suspense>
+      )}
 
       {/* Bottom ornament */}
       <div className="flex items-center gap-3 px-6 pt-4 pb-2">
