@@ -9,7 +9,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef as useReactRef, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from '@/hooks/useToast';
 
 import {
   type BlobbiRoomId,
@@ -53,6 +52,8 @@ interface BlobbiRoomShellProps {
   lastFeedTimestamp: number | undefined;
   /** Expose poop state to children via render prop or context */
   poopStateRef?: React.MutableRefObject<PoopState | null>;
+  /** Called when a poop is cleaned. Parent handles toast/XP persistence. */
+  onPoopCleaned?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ export function BlobbiRoomShell({
   hunger,
   lastFeedTimestamp,
   poopStateRef,
+  onPoopCleaned,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -111,14 +113,14 @@ export function BlobbiRoomShell({
 
   const onRemovePoop = useCallback((poopId: string) => {
     setPoops(prev => {
-      const { remaining, xpReward } = removePoop(prev, poopId);
-      if (xpReward > 0) {
-        toast({ title: `+${xpReward} XP`, description: 'Cleaned up!' });
+      const { remaining } = removePoop(prev, poopId);
+      if (remaining.length < prev.length) {
+        onPoopCleaned?.();
       }
       if (remaining.length === 0) setShovelMode(false);
       return remaining;
     });
-  }, []);
+  }, [onPoopCleaned]);
 
   const poopState: PoopState = useMemo(() => ({
     poops, shovelMode, setShovelMode, onRemovePoop,

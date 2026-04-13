@@ -74,9 +74,10 @@ import {
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
-  previewStatChanges,
-  useDailyMissions,
-  type InventoryAction,
+   previewStatChanges,
+   useDailyMissions,
+   useAwardDailyXp,
+   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
   type SelectedTrack,
@@ -1380,13 +1381,27 @@ function BlobbiDashboard({
     }
   };
   
-  // Handle opening shop from empty state
+  // Handle opening shop from empty state — navigate to kitchen room
   const handleOpenShopFromAction = () => {
     setInventoryAction(null);
+    setCurrentRoom('kitchen');
   };
 
   // ─── Daily Missions (for missions tab) ───
   const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+
+  // Award XP when all daily missions are complete
+  const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
+  const dailyXpAwardedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dailyMissions.allComplete || !dailyMissions.raw) return;
+    // Only award once per date
+    const dateKey = dailyMissions.raw.date;
+    if (dailyXpAwardedRef.current === dateKey) return;
+    dailyXpAwardedRef.current = dateKey;
+    awardDailyXp({ missions: dailyMissions.raw });
+  }, [dailyMissions.allComplete, dailyMissions.raw, awardDailyXp]);
+
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
@@ -1502,6 +1517,9 @@ function BlobbiDashboard({
         hunger={currentStats.hunger}
         lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
         poopStateRef={poopStateRef}
+        onPoopCleaned={() => {
+          toast({ title: 'Cleaned up!', description: `${companion.name} appreciates it.` });
+        }}
         hero={
           <BlobbiRoomHero
             companion={companion}
@@ -1819,10 +1837,8 @@ function KitchenBar({
   }, [companion.stats]);
 
   const foodEntries = useMemo<CarouselEntry[]>(() =>
-    getLiveShopItems()
-      .filter(i => i.type === 'food')
-      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
-  []);
+    foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+  [foodItems]);
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
@@ -1946,17 +1962,19 @@ function CareBar({
   actionInProgress,
   handleUseItemFromTab,
 }: RoomBottomBarProps) {
-  const hygieneItems = useMemo(() => getLiveShopItems().filter(i => i.type === 'hygiene'), []);
+  const allShopItems = useMemo(() => getLiveShopItems(), []);
+  const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
+  const treatItem = useMemo(() => allShopItems.find(i => i.type === 'food'), [allShopItems]);
 
   const carouselEntries = useMemo<CarouselEntry[]>(() => {
-    const hygiene = getLiveShopItems()
-      .filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel')
+    const hygiene = hygieneItems
+      .filter(i => i.id !== 'hyg_towel')
       .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'hygiene' }));
-    const medicine = getLiveShopItems()
+    const medicine = allShopItems
       .filter(i => i.type === 'medicine')
       .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'medicine' }));
     return [...hygiene, ...medicine];
-  }, []);
+  }, [hygieneItems, allShopItems]);
 
   const [focusedMeta, setFocusedMeta] = useState(carouselEntries[0]?.meta ?? 'hygiene');
   const handleFocusChange = useCallback((entry: CarouselEntry) => setFocusedMeta(entry.meta ?? 'hygiene'), []);
@@ -1981,18 +1999,17 @@ function CareBar({
           ) : (
             <div className="w-14 sm:w-20 shrink-0" />
           )
-        ) : (
+        ) : treatItem ? (
           <RoomActionButton
             icon={<Candy className="size-7 sm:size-9" />}
-            label="Treat"
+            label={treatItem.name}
             color="text-pink-400"
             glowHex="#f472b6"
-            onClick={() => {
-              const treat = getLiveShopItems().find(i => i.type === 'food');
-              if (treat) handleUseItemFromTab(treat.id);
-            }}
+            onClick={() => handleUseItemFromTab(treatItem.id)}
             disabled={isDisabled}
           />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
         )}
         <div className="flex-1 min-w-0 flex justify-center">
           <ItemCarousel

@@ -15,21 +15,24 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 import { isItemOnCooldown, subscribeCooldowns } from '../lib/item-cooldown';
 
+/** Monotonic version counter bumped by the subscription callback. */
 let snapshotVersion = 0;
 
-function bumpVersion(): void {
-  snapshotVersion++;
+function subscribe(onStoreChange: () => void): () => void {
+  // subscribeCooldowns returns an unsubscribe function.
+  // The callback bumps the version AND notifies React.
+  return subscribeCooldowns(() => {
+    snapshotVersion++;
+    onStoreChange();
+  });
 }
-
-// Wire bump into the cooldown module (Set prevents duplicates)
-subscribeCooldowns(bumpVersion);
 
 function getSnapshot(): number {
   return snapshotVersion;
 }
 
 export function useItemCooldown() {
-  useSyncExternalStore(subscribeCooldowns, getSnapshot);
+  useSyncExternalStore(subscribe, getSnapshot);
 
   const isOnCooldown = useCallback((itemId: string): boolean => {
     return isItemOnCooldown(itemId);

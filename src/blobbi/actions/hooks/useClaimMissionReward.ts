@@ -5,20 +5,23 @@
  * This hook calculates the total XP earned today and persists
  * the updated XP total to kind 11125 tags.
  *
- * Should be called once when the client detects all daily missions
- * are complete, or on page load if missions were completed in a
- * previous session. Idempotent: tracks what XP has already been
- * awarded for the current date to prevent double-crediting.
+ * Uses fetchFreshEvent to avoid stale-read overwrites when
+ * multiple mutations race (e.g. item use XP + daily XP).
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
-import type { BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
-import { KIND_BLOBBONAUT_PROFILE, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
+import {
+  KIND_BLOBBONAUT_PROFILE,
+  updateBlobbonautTags,
+  parseBlobbonautEvent,
+} from '@/blobbi/core/lib/blobbi';
 import { buildXpTagUpdates } from '@/blobbi/core/lib/progression';
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
 import type { MissionsContent } from '@/blobbi/core/lib/missions';
@@ -41,36 +44,42 @@ export interface AwardDailyXpResult {
 /**
  * Hook to award XP for completed daily missions.
  *
- * @param currentProfile - The current Blobbonaut profile
  * @param updateProfileEvent - Callback to update profile in query cache
  */
 export function useAwardDailyXp(
-  currentProfile: BlobbonautProfile | null,
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void,
 ) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ missions }: AwardDailyXpRequest): Promise<AwardDailyXpResult> => {
       if (!user?.pubkey) throw new Error('Must be logged in');
-      if (!currentProfile) throw new Error('Profile not found');
 
       const xpToAward = totalDailyXp(missions);
-      if (xpToAward <= 0) return { xpAwarded: 0, newTotalXp: currentProfile.xp };
+      if (xpToAward <= 0) return { xpAwarded: 0, newTotalXp: 0 };
 
-      const newTotalXp = currentProfile.xp + xpToAward;
+      // Fetch fresh profile from relays to avoid stale-read overwrites
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [KIND_BLOBBONAUT_PROFILE],
+        authors: [user.pubkey],
+      });
 
-      // Update XP and level tags
+      const freshProfile = prev ? parseBlobbonautEvent(prev) : undefined;
+      const currentXp = freshProfile?.xp ?? 0;
+      const newTotalXp = currentXp + xpToAward;
+
+      // Update XP and level tags on the fresh event's tags
       const updatedTags = updateBlobbonautTags(
-        currentProfile.allTags,
+        prev?.tags ?? [],
         buildXpTagUpdates(newTotalXp),
       );
 
       // Persist missions state to content field
       const content = serializeProfileContent(
-        currentProfile.content,
+        prev?.content ?? '',
         { missions },
       );
 
@@ -78,6 +87,7 @@ export function useAwardDailyXp(
         kind: KIND_BLOBBONAUT_PROFILE,
         content,
         tags: updatedTags,
+        prev: prev ?? undefined,
       });
 
       updateProfileEvent(event);

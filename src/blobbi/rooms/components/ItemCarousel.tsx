@@ -5,7 +5,7 @@
  * Mobile: focused item only. Desktop: prev/next previews.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +39,11 @@ export function ItemCarousel({
 }: ItemCarouselProps) {
   const [index, setIndex] = useState(0);
   const count = items.length;
+
+  // Reset index when items change to avoid out-of-bounds access
+  useEffect(() => {
+    setIndex(0);
+  }, [items]);
 
   const prev = useCallback(() => {
     setIndex(i => {

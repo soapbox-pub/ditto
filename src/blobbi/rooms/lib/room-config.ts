@@ -2,7 +2,8 @@
  * Blobbi Room System — IDs, metadata, ordering, navigation.
  *
  * Room order is data, not control flow, so it can be customised per-user later.
- * The current room is persisted as a tag on kind 11125.
+ * The kind 11125 profile has a `room` tag for cross-session continuity.
+ * Currently read on mount but not yet written back on room change (session-local only).
  */
 
 import { Home, Refrigerator, Cross, Moon, Shirt, type LucideIcon } from 'lucide-react';
