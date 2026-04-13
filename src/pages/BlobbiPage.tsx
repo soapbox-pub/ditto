@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -28,6 +28,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
+import { StatIndicator } from '@/blobbi/ui/StatIndicator';
+import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -359,10 +361,12 @@ function BlobbiContent() {
         last_decay_at: nowStr,
       });
 
+      const prev = canonical.companion.event;
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
         tags: newTags,
+        prev,
       });
 
       updateCompanionEvent(event);
@@ -838,7 +842,7 @@ interface BlobbiDashboardProps {
   isHatching: boolean;
   isEvolving: boolean;
   // Adoption flow props
-  publishEvent: (params: { kind: number; content: string; tags: string[][] }) => Promise<import('@nostrify/nostrify').NostrEvent>;
+  publishEvent: (params: { kind: number; content: string; tags: string[][]; prev?: import('@nostrify/nostrify').NostrEvent }) => Promise<import('@nostrify/nostrify').NostrEvent>;
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   invalidateProfile: () => void;
@@ -851,6 +855,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
+    profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
@@ -1188,25 +1193,30 @@ function BlobbiDashboard({
     setIsUpdatingCompanion(true);
     
     try {
+      // Fetch fresh profile data from relays to avoid stale-read-then-write
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) return;
+
       let updatedTags: string[][];
       
       if (isCurrentCompanion) {
         // Remove companion: filter out all current_companion tags entirely
-        // First apply any other updates (none in this case), then filter out the tag
-        updatedTags = updateBlobbonautTags(profile.allTags, {})
+        updatedTags = updateBlobbonautTags(canonical.profileAllTags, {})
           .filter(tag => tag[0] !== 'current_companion');
       } else {
         // Set companion: first remove any existing current_companion tags, then add the new one
-        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        const tagsWithoutCompanion = canonical.profileAllTags.filter(tag => tag[0] !== 'current_companion');
         updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
           current_companion: companion.d,
         });
       }
       
+      const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',
         tags: updatedTags,
+        prev,
       });
       
       updateProfileEvent(event);
@@ -1228,7 +1238,7 @@ function BlobbiDashboard({
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1508,29 +1518,12 @@ function BlobbiDashboard({
 
         {/* Main Blobbi Visual with stats crown + action buttons */}
         {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <Footprints className="size-16 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">
-              {companion.name} is out exploring right now.
-            </p>
-            <button
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              className={cn(
-                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
-                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                isUpdatingCompanion && 'opacity-50 pointer-events-none',
-              )}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
-            >
-              {isUpdatingCompanion ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : (
-                <Footprints className="size-5" />
-              )}
-              <span>Bring {companion.name} home</span>
-            </button>
-          </div>
+          <BlobbiAwayState
+            name={companion.name}
+            size="md"
+            isUpdating={isUpdatingCompanion}
+            onBringHome={handleSetAsCompanion}
+          />
         ) : (
           <div className="relative flex flex-col items-center">
             {/* Stats crown — arced above the Blobbi */}
@@ -2464,83 +2457,8 @@ function MoreTabContent({
   );
 }
 
-// ─── Stat Indicator ───────────────────────────────────────────────────────────
-
-interface StatIndicatorProps {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
-}
-
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green: 'text-green-500',
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10',
-  yellow: 'bg-yellow-500/10',
-  green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10',
-  violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  violet: '#8b5cf6',
-};
-
-/** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
-};
-
-function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
-  const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon with warning badge on its corner */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
+// StatIndicator is imported from the shared component
+// See: src/blobbi/ui/StatIndicator.tsx
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 

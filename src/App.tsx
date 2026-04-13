@@ -151,6 +151,11 @@ const hardcodedConfig: AppConfig = {
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
+  sidebarWidgets: [
+    { id: 'trends' },
+    { id: 'hot-posts' },
+    { id: 'wikipedia' },
+  ],
 };
 
 /**

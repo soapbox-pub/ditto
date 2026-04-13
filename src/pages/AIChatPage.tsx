@@ -5,7 +5,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
+import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -18,7 +18,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { ThemeConfig } from '@/themes';
 
@@ -27,9 +29,9 @@ import type { ThemeConfig } from '@/themes';
 /** Build the list of available bundled font names for the tool description. */
 const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
-const TOOLS = [
+const TOOLS: ChatCompletionTool[] = [
   {
-    type: 'function' as const,
+    type: 'function',
     function: {
       name: 'set_theme',
       description: `Set a custom theme for the application. You can set colors, a font, and a background image — all in one call. Colors are required; font and background are optional.
@@ -136,12 +138,15 @@ function useToolExecutor() {
           }
         }
 
-        // Add background if provided
+        // Add background if provided (sanitize to prevent CSS injection via url())
         if (typeof background_url === 'string' && background_url.trim()) {
-          themeConfig.background = {
-            url: background_url.trim(),
-            mode: background_mode === 'tile' ? 'tile' : 'cover',
-          };
+          const safeUrl = sanitizeUrl(background_url.trim());
+          if (safeUrl) {
+            themeConfig.background = {
+              url: safeUrl,
+              mode: background_mode === 'tile' ? 'tile' : 'cover',
+            };
+          }
         }
 
         applyCustomTheme(themeConfig);
@@ -289,23 +294,14 @@ export function AIChatPage() {
       // Send with tools
       const response = await sendChatMessage(apiMessages, selectedModel, {
         tools: TOOLS,
-      } as Partial<Record<string, unknown>>);
+      });
 
       const choice = response.choices[0];
       const assistantMsg = choice.message;
 
-      // Check for tool calls
-      const rawMessage = assistantMsg as unknown as {
-        content?: string;
-        tool_calls?: Array<{
-          id: string;
-          function: { name: string; arguments: string };
-        }>;
-      };
-
-      if (rawMessage.tool_calls && rawMessage.tool_calls.length > 0) {
+      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
         // Execute tool calls
-        const toolCalls: ToolCall[] = rawMessage.tool_calls.map((tc) => {
+        const toolCalls: ToolCall[] = assistantMsg.tool_calls.map((tc) => {
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(tc.function.arguments);
@@ -327,7 +323,7 @@ export function AIChatPage() {
         const toolMsg: DisplayMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: rawMessage.content || '',
+           content: assistantMsg.content || '',
           timestamp: new Date(),
           toolCalls,
         };
@@ -340,7 +336,7 @@ export function AIChatPage() {
         // Add the assistant message with tool_calls
         followUpMessages.push({
           role: 'assistant',
-          content: rawMessage.content || '',
+          content: assistantMsg.content || '',
         });
 
         // Add tool results
@@ -471,7 +467,7 @@ export function AIChatPage() {
 
           {/* Loading indicator */}
           {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <DorkThinking />
+            <DorkThinking className="text-sm" />
           )}
 
           {/* Error display */}
@@ -514,27 +510,7 @@ export function AIChatPage() {
 
 // ─── Sub-Components ───
 
-const DORK_ANIMATION = [
-  '<[o_o]>',
-  '>[-_-]<',
-  '<[0_0]>',
-  '>[-_-]<',
-];
-
-function DorkThinking() {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((f) => (f + 1) % DORK_ANIMATION.length);
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <pre className="text-sm font-mono text-muted-foreground leading-none">{DORK_ANIMATION[frame]}</pre>
-  );
-}
+// DorkThinking is imported from the shared component
 
 const DORK_GREETINGS = [
   "Hi, I'm Dork! What would you like me to do?",
