@@ -4,11 +4,16 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LightningInvoiceCard } from '@/components/LightningInvoiceCard';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { AudioVisualizer } from '@/components/AudioVisualizer';
+import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
@@ -17,6 +22,8 @@ import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
+import { parseImetaMap } from '@/lib/imeta';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -170,6 +177,7 @@ type ContentToken =
   | { type: 'text'; value: string }
   | { type: 'image-embed'; url: string }
   | { type: 'image-gallery'; urls: string[] }
+  | { type: 'media-embed'; url: string }
   | { type: 'link-embed'; url: string }
   | { type: 'inline-link'; url: string }
   | { type: 'mention'; pubkey: string }
@@ -302,7 +310,7 @@ export function NoteContent({
           continue;
         }
 
-        // Skip non-image media URLs — rendered as embedded media by the parent.
+        // Non-image media URLs (video, audio, webxdc) — render inline at their position.
         if (EMBED_MEDIA_URL_REGEX.test(url)) {
           if (result.length > 0) {
             const prev = result[result.length - 1];
@@ -310,8 +318,9 @@ export function NoteContent({
               prev.value = prev.value.replace(/\s+$/, '');
             }
           }
+          result.push({ type: 'media-embed', url });
           lastIndex = index + fullMatch.length;
-          // Also strip leading whitespace that follows the skipped URL
+          // Strip leading whitespace that follows the media URL
           const remaining = text.substring(lastIndex);
           const leadingWs = remaining.match(/^\s+/);
           if (leadingWs) {
@@ -411,11 +420,42 @@ export function NoteContent({
       }
     }
 
+    // Append media-embed tokens for imeta-declared media URLs not found in the content.
+    // Some clients attach audio/video/webxdc via imeta tags without including the URL in
+    // the content string. Without this, those attachments would be silently dropped.
+    // Only scan for text note kinds — other kinds (DMs, calendar events, etc.) may use
+    // imeta tags for different purposes.
+    const TEXT_NOTE_KINDS = new Set([1, 11, 1111]);
+    if (TEXT_NOTE_KINDS.has(event.kind)) {
+      const contentMediaUrls = new Set(
+        result.filter((t): t is { type: 'media-embed'; url: string } => t.type === 'media-embed').map((t) => t.url),
+      );
+      for (const tag of event.tags) {
+        if (tag[0] !== 'imeta') continue;
+        let rawUrl: string | undefined;
+        let mime: string | undefined;
+        for (let j = 1; j < tag.length; j++) {
+          const sp = tag[j].indexOf(' ');
+          if (sp === -1) continue;
+          const key = tag[j].slice(0, sp);
+          if (key === 'url') rawUrl = tag[j].slice(sp + 1);
+          else if (key === 'm') mime = tag[j].slice(sp + 1);
+        }
+        const url = sanitizeUrl(rawUrl);
+        if (!url || contentMediaUrls.has(url)) continue;
+        const isEmbeddableMedia = mime?.startsWith('audio/') || mime?.startsWith('video/')
+          || mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip';
+        if (isEmbeddableMedia) {
+          result.push({ type: 'media-embed', url });
+        }
+      }
+    }
+
     // Collapse excessive whitespace around block-level tokens (link-preview, youtube-embed)
     // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'image-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
+      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
         || (token.type === 'naddr-embed' && !token.url) || token.type === 'lightning-invoice';
 
       if (isBlock) {
@@ -469,21 +509,17 @@ export function NoteContent({
     return map;
   }, [event.tags, viewerEmojis]);
 
-  // Parse imeta tags for dim/blurhash to pass to ImageGallery
-  const imetaMap = useMemo(() => {
-    const map = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const tag of event.tags) {
-      if (tag[0] !== 'imeta') continue;
-      const parts: Record<string, string> = {};
-      for (let i = 1; i < tag.length; i++) {
-        const p = tag[i];
-        const sp = p.indexOf(' ');
-        if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-      }
-      if (parts.url) map.set(parts.url, { dim: parts.dim, blurhash: parts.blurhash });
-    }
-    return map;
-  }, [event.tags]);
+  // Parse imeta tags — used by ImageGallery (dim/blurhash) and inline media embeds
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
+
+  // Only fetch author data when there are media embeds that need it (video artist, audio avatar)
+  const hasMedia = tokens.some((t) => t.type === 'media-embed');
+  const author = useAuthor(hasMedia ? event.pubkey : undefined);
+  const authorMetadata = author.data?.metadata;
+  const authorDisplayName = useMemo(
+    () => getDisplayName(authorMetadata, event.pubkey) ?? genUserName(event.pubkey),
+    [authorMetadata, event.pubkey],
+  );
 
   // Group consecutive image-embed tokens (≥2) into image-gallery tokens
   const groupedTokens = useMemo(() => {
@@ -621,6 +657,41 @@ export function NoteContent({
                 {token.url}
               </a>
             );
+          case 'media-embed': {
+            if (disableEmbeds) {
+              return <span key={i}>{'\n'}</span>;
+            }
+            const imeta = imetaMap.get(token.url);
+            const mime = imeta?.mime ?? '';
+            const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
+            const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
+            if (isWebxdc && imeta) {
+              return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
+            }
+            if (isAudio) {
+              return (
+                <AudioVisualizer
+                  key={i}
+                  src={token.url}
+                  mime={imeta?.mime}
+                  avatarUrl={authorMetadata?.picture}
+                  avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+                  avatarShape={getAvatarShape(authorMetadata)}
+                />
+              );
+            }
+            // Default: video
+            return (
+              <VideoPlayer
+                key={i}
+                src={token.url}
+                poster={imeta?.thumbnail}
+                dim={imeta?.dim}
+                blurhash={imeta?.blurhash}
+                artist={authorDisplayName}
+              />
+            );
+          }
           case 'nevent-embed':
             return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
           case 'naddr-embed':
