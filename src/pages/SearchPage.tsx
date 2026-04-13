@@ -39,7 +39,7 @@ import { KindPicker, AuthorChip, AuthorFilterDropdown } from '@/components/Saved
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useFeed, type FeedItem } from '@/hooks/useFeed';
+
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -64,9 +64,7 @@ import { buildSpellTags } from '@/lib/spellEngine';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
 import { SaveDestinationRow } from '@/components/SaveDestinationRow';
-import { isRepostKind, parseRepostContent, shouldHideFeedEvent } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
-import { useMuteList } from '@/hooks/useMuteList';
+import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'feeds' | 'packs' | 'posts' | 'accounts';
@@ -371,6 +369,11 @@ export function SearchPage() {
 
   const listPickerValue = useMatchedListId(authorPubkeys);
 
+  // Infinite scroll sentinels
+  const { ref: postsScrollRef, inView: postsInView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { ref: feedsScrollRef, inView: feedsInView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { ref: packsScrollRef, inView: packsInView } = useInView({ threshold: 0, rootMargin: '400px' });
+
   // 'people' scope with explicit authors = user-specific; not eligible for profile tab
   const isAuthorSpecific = authorScope === 'people' && authorPubkeys.length > 0;
 
@@ -503,7 +506,10 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds } = useStreamPosts(debouncedSearchQuery, {
+  const {
+    posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds,
+    loadMore: loadMorePosts, hasMore: hasMorePosts, isLoadingMore: isLoadingMorePosts,
+  } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -521,6 +527,7 @@ export function SearchPage() {
     newPostCount: feedsNewCount,
     flushStreamBuffer: flushFeedsBuffer,
     flushedIds: feedsFlushedIds,
+    loadMore: loadMoreFeeds, hasMore: hasMoreFeeds, isLoadingMore: isLoadingMoreFeeds,
   } = useStreamPosts(activeTab === 'feeds' ? debouncedSearchQuery : '', {
     includeReplies: true,
     mediaType: 'all',
@@ -529,26 +536,54 @@ export function SearchPage() {
     sort: activeTab === 'feeds' ? sort : 'recent',
   });
 
-  // Packs tab: use useFeed to get full events with all tags (including image)
-  const packsFeedQuery = useFeed('global', { kinds: [39089, 30000] });
+  // Packs tab: stream kind 39089/30000 with From + Sort filters
+  const {
+    posts: packPosts,
+    isLoading: packsLoading,
+    newPostCount: packsNewCount,
+    flushStreamBuffer: flushPacksBuffer,
+    flushedIds: packsFlushedIds,
+    loadMore: loadMorePacks,
+    hasMore: hasMorePacks,
+    isLoadingMore: isLoadingMorePacks,
+  } = useStreamPosts(activeTab === 'packs' ? debouncedSearchQuery : '', {
+    includeReplies: true,
+    mediaType: 'all',
+    kindsOverride: [39089, 30000],
+    authorPubkeys: activeTab === 'packs' ? streamAuthorPubkeys : undefined,
+    sort: activeTab === 'packs' ? sort : 'recent',
+  });
+
+  // Trigger infinite scroll when sentinels are visible
+  useEffect(() => {
+    if (postsInView && hasMorePosts && !isLoadingMorePosts) loadMorePosts();
+  }, [postsInView, hasMorePosts, isLoadingMorePosts, loadMorePosts]);
+
+  useEffect(() => {
+    if (feedsInView && hasMoreFeeds && !isLoadingMoreFeeds) loadMoreFeeds();
+  }, [feedsInView, hasMoreFeeds, isLoadingMoreFeeds, loadMoreFeeds]);
+
+  useEffect(() => {
+    if (packsInView && hasMorePacks && !isLoadingMorePacks) loadMorePacks();
+  }, [packsInView, hasMorePacks, isLoadingMorePacks, loadMorePacks]);
 
   const handleRefresh = useCallback(async () => {
     if (activeTab === 'feeds') {
       flushFeedsBuffer();
     } else if (activeTab === 'packs') {
-      packsFeedQuery.refetch();
+      flushPacksBuffer();
     } else {
       flushStreamBuffer();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab, flushStreamBuffer, flushFeedsBuffer, packsFeedQuery]);
+  }, [activeTab, flushStreamBuffer, flushFeedsBuffer, flushPacksBuffer]);
 
   return (
     <main className="flex-1 min-w-0">
       <PageHeader title="Discover" icon={<Compass className="size-5" />} />
       <SubHeaderBar>
         <TabButton label="Feeds" active={activeTab === 'feeds'} onClick={() => setActiveTab('feeds')} />
-        <TabButton label="Packs" active={activeTab === 'packs'} onClick={() => setActiveTab('packs')} />
+        <TabButton label="Follow Packs" active={activeTab === 'packs'} onClick={() => setActiveTab('packs')} />
         <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
       </SubHeaderBar>
@@ -899,61 +934,24 @@ export function SearchPage() {
       <PullToRefresh onRefresh={handleRefresh}>
         {/* ─── Posts Tab ─── */}
         {activeTab === 'posts' && (
-          <>
-            {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
-                Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
-                Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
-            {newPostCount > 0 && (
-              <div
-                className={cn(
-                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-                )}
-                style={{ marginBottom: '-3rem' }}
-              >
-                <button
-                  onClick={() => {
-                    flushStreamBuffer();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-            {/* Post results — stream */}
-            {postsLoading && posts.length === 0 ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <NoteCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : posts.length > 0 ? (
-              <div>
-                {posts.map((event) => {
-                  const isNew = flushedIds.has(event.id);
-                  if (isRepostKind(event.kind)) {
-                    const embedded = parseRepostContent(event);
-                    if (embedded) {
-                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
-                    }
-                    return null;
-                  }
-                  return <NoteCard key={event.id} event={event} highlight={isNew} />;
-                })}
-              </div>
-            ) : debouncedSearchQuery.trim() ? (
-              <EmptyState
-                message="No posts found matching your search."
-                activeFilters={activeFilterLabels}
-                onResetFilters={hasActiveFilters ? resetFilters : undefined}
-              />
-            ) : (
-              <EmptyState message="Enter a search query to find posts." />
-            )}
-          </>
+          <StreamingFeed
+            posts={posts}
+            isLoading={postsLoading}
+            newPostCount={newPostCount}
+            flushStreamBuffer={flushStreamBuffer}
+            flushedIds={flushedIds}
+            hasMore={hasMorePosts}
+            isLoadingMore={isLoadingMorePosts}
+            scrollRef={postsScrollRef}
+            navHidden={navHidden}
+            itemLabel="post"
+            hasSearch={!!debouncedSearchQuery.trim()}
+            emptySearchMessage="No posts found matching your search."
+            emptyNoSearchMessage="Enter a search query to find posts."
+            activeFilters={activeFilterLabels}
+            onResetFilters={hasActiveFilters ? resetFilters : undefined}
+            unwrapReposts
+          />
         )}
 
         {/* ─── Accounts Tab ─── */}
@@ -983,50 +981,46 @@ export function SearchPage() {
           </>
         )}
 
-        {/* ─── Packs Tab ─── */}
+        {/* ─── Follow Packs Tab ─── */}
         {activeTab === 'packs' && (
-          <PacksTabContent query={packsFeedQuery} />
+          <StreamingFeed
+            posts={packPosts}
+            isLoading={packsLoading}
+            newPostCount={packsNewCount}
+            flushStreamBuffer={flushPacksBuffer}
+            flushedIds={packsFlushedIds}
+            hasMore={hasMorePacks}
+            isLoadingMore={isLoadingMorePacks}
+            scrollRef={packsScrollRef}
+            navHidden={navHidden}
+            itemLabel="follow pack"
+            hasSearch={!!debouncedSearchQuery.trim()}
+            emptySearchMessage="No follow packs found matching your search."
+            emptyNoSearchMessage="Enter a search query to find follow packs."
+            activeFilters={activeFilterLabels}
+            onResetFilters={hasActiveFilters ? resetFilters : undefined}
+          />
         )}
 
         {/* ─── Feeds Tab ─── */}
         {activeTab === 'feeds' && (
-          <>
-            {feedsNewCount > 0 && (
-              <div
-                className={cn(
-                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-                )}
-                style={{ marginBottom: '-3rem' }}
-              >
-                <button
-                  onClick={() => {
-                    flushFeedsBuffer();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  {feedsNewCount} new feed{feedsNewCount !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-            {feedsLoading && feedSpells.length === 0 ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <NoteCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : feedSpells.length > 0 ? (
-              <div>
-                {feedSpells.map((event) => (
-                  <NoteCard key={event.id} event={event} highlight={feedsFlushedIds.has(event.id)} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState message={debouncedSearchQuery.trim() ? 'No feeds found matching your search.' : 'No feeds found. Check back soon!'} />
-            )}
-          </>
+          <StreamingFeed
+            posts={feedSpells}
+            isLoading={feedsLoading}
+            newPostCount={feedsNewCount}
+            flushStreamBuffer={flushFeedsBuffer}
+            flushedIds={feedsFlushedIds}
+            hasMore={hasMoreFeeds}
+            isLoadingMore={isLoadingMoreFeeds}
+            scrollRef={feedsScrollRef}
+            navHidden={navHidden}
+            itemLabel="feed"
+            hasSearch={!!debouncedSearchQuery.trim()}
+            emptySearchMessage="No feeds found matching your search."
+            emptyNoSearchMessage="Enter a search query to find feeds."
+            activeFilters={activeFilterLabels}
+            onResetFilters={hasActiveFilters ? resetFilters : undefined}
+          />
         )}
       </PullToRefresh>
     </main>
@@ -1034,6 +1028,109 @@ export function SearchPage() {
 }
 
 /* ── Shared sub-components ── */
+
+/** Reusable streaming feed panel used by the Posts, Feeds, and Follow Packs tabs. */
+function StreamingFeed({
+  posts,
+  isLoading,
+  newPostCount,
+  flushStreamBuffer,
+  flushedIds,
+  hasMore,
+  isLoadingMore,
+  scrollRef,
+  navHidden,
+  itemLabel,
+  hasSearch,
+  emptySearchMessage,
+  emptyNoSearchMessage,
+  activeFilters,
+  onResetFilters,
+  unwrapReposts = false,
+}: {
+  posts: import('@nostrify/nostrify').NostrEvent[];
+  isLoading: boolean;
+  newPostCount: number;
+  flushStreamBuffer: () => void;
+  flushedIds: Set<string>;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  scrollRef: (node?: Element | null) => void;
+  navHidden: boolean;
+  /** Singular label for the "N new ___" pill, e.g. "post", "feed", "follow pack". */
+  itemLabel: string;
+  /** Whether a search query is active (controls empty-state messaging). */
+  hasSearch: boolean;
+  emptySearchMessage: string;
+  emptyNoSearchMessage: string;
+  activeFilters?: string[];
+  onResetFilters?: () => void;
+  /** If true, kind 6/16 reposts are unwrapped into the embedded event. */
+  unwrapReposts?: boolean;
+}) {
+  return (
+    <>
+      {newPostCount > 0 && (
+        <div
+          className={cn(
+            'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
+            'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
+            navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
+          )}
+          style={{ marginBottom: '-3rem' }}
+        >
+          <button
+            onClick={() => {
+              flushStreamBuffer();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
+          >
+            {newPostCount} new {itemLabel}{newPostCount !== 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
+      {isLoading && posts.length === 0 ? (
+        <div className="divide-y divide-border">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <NoteCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : posts.length > 0 ? (
+        <div>
+          {posts.map((event) => {
+            const isNew = flushedIds.has(event.id);
+            if (unwrapReposts && isRepostKind(event.kind)) {
+              const embedded = parseRepostContent(event);
+              if (embedded) {
+                return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
+              }
+              return null;
+            }
+            return <NoteCard key={event.id} event={event} highlight={isNew} />;
+          })}
+          {hasMore && (
+            <div ref={scrollRef} className="py-4">
+              {isLoadingMore && (
+                <div className="flex justify-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : hasSearch ? (
+        <EmptyState
+          message={emptySearchMessage}
+          activeFilters={activeFilters}
+          onResetFilters={onResetFilters}
+        />
+      ) : (
+        <EmptyState message={emptyNoSearchMessage} />
+      )}
+    </>
+  );
+}
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
@@ -1168,72 +1265,6 @@ function FollowItem({ pubkey }: { pubkey: string }) {
         )}
       </div>
     </Link>
-  );
-}
-
-/** Renders the Packs tab using useFeed (same query path as /packs page). */
-function PacksTabContent({ query }: { query: ReturnType<typeof useFeed> }) {
-  const { muteItems } = useMuteList();
-  const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
-
-  const { data: rawData, isPending, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const packItems = useMemo(() => {
-    if (!rawData?.pages) return [];
-    const seen = new Set<string>();
-    return (rawData.pages as unknown as { items: FeedItem[] }[])
-      .flatMap((page) => page.items)
-      .filter((item) => {
-        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
-        return true;
-      });
-  }, [rawData?.pages, muteItems]);
-
-  const showSkeleton = isPending || (isLoading && !rawData);
-
-  if (showSkeleton) {
-    return (
-      <div className="divide-y divide-border">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <NoteCardSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
-
-  if (packItems.length === 0) {
-    return <EmptyState message="No follow packs found. Check back soon!" />;
-  }
-
-  return (
-    <div>
-      {packItems.map((item) => (
-        <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-          event={item.event}
-          repostedBy={item.repostedBy}
-        />
-      ))}
-      {hasNextPage && (
-        <div ref={scrollRef} className="py-4">
-          {isFetchingNextPage && (
-            <div className="flex justify-center">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 
