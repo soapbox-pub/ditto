@@ -316,8 +316,16 @@ export interface BlobbonautProfile {
   coins: number;
   /** Petting level (interaction counter) */
   pettingLevel: number;
+  /** Player lifetime XP (source of truth for progression) */
+  xp: number;
+  /** Player level (derived from xp, stored as queryable mirror) */
+  level: number;
+  /** Current room the player is in (persisted for cross-session continuity) */
+  room: string | undefined;
   /** Purchased items storage */
   storage: StorageItem[];
+  /** Raw content string for missions JSON */
+  content: string;
   /** All tags preserved for republishing */
   allTags: string[][];
 }
@@ -982,7 +990,11 @@ export function parseBlobbonautEvent(event: NostrEvent): BlobbonautProfile | und
     has: getTagValues(tags, 'has'),
     coins: parseNumericTag(tags, 'coins') ?? 0,
     pettingLevel: pettingLevelValue,
+    xp: parseNumericTag(tags, 'xp') ?? 0,
+    level: parseNumericTag(tags, 'level') ?? 1,
+    room: getTagValue(tags, 'room') ?? undefined,
     storage: parseStorageTags(tags),
+    content: event.content,
     allTags: tags,
   };
 }
@@ -1140,6 +1152,10 @@ export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
  */
 export const MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES = new Set([
   'd', 'b', 'name', 'current_companion', 'blobbi_onboarding_done', 'onboarding_done', 'has', 'storage',
+  // Progression tags
+  'xp', 'level',
+  // Room persistence
+  'room',
   // Legacy player progress tags (preserved for compatibility)
   'coins', 'petting_level', 'pettingLevel', 'lifetime_blobbis', 'lifetimeBlobbis',
   'starter_blobbi', 'starterBlobbi', 'favorite_blobbi', 'favoriteBlobbi',

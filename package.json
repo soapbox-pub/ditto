@@ -116,7 +116,7 @@
     "html-to-image": "^1.11.13",
     "idb": "^8.0.3",
     "input-otp": "^1.2.4",
-    "lucide-react": "^0.462.0",
+    "lucide-react": "^1.8.0",
     "nostr-tools": "^2.13.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",

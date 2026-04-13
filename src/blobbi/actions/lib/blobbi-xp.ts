@@ -44,6 +44,11 @@ export const ACTION_XP: Record<BlobbiAction, number> = {
   ...DIRECT_ACTION_XP,
 };
 
+/**
+ * XP awarded for cleaning up poop.
+ */
+export const POOP_CLEANUP_XP = 5;
+
 // ─── XP Calculation Utilities ─────────────────────────────────────────────────
 
 /**
