@@ -171,16 +171,12 @@ export function useRouteReaction({
   // Track pointer-down position + element (passive, no re-renders)
   useEffect(() => {
     const handler = (e: PointerEvent) => {
-      // Walk up from the event target to find the nearest <a> or <button>.
-      // This gives us the full clickable area rather than a child icon/span.
-      let el: Element | null = e.target instanceof Element ? e.target : null;
-      while (el && el !== document.body) {
-        const tag = el.tagName;
-        if (tag === 'A' || tag === 'BUTTON') break;
-        el = el.parentElement;
-      }
-      // If we walked all the way to <body>, fall back to the direct target
-      if (el === document.body) el = e.target instanceof Element ? e.target : null;
+      // Find the nearest clickable ancestor so we measure the full
+      // button/link area rather than a child icon or text span.
+      // Returns null when the click is not inside a recognized control.
+      const el = e.target instanceof Element
+        ? e.target.closest('a, button, [role="button"]')
+        : null;
 
       lastClickRef.current = {
         element: el,
@@ -258,6 +254,13 @@ export function useRouteReaction({
         clickPos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
       } else {
         clickPos = click.fallback;
+      }
+
+      // Clamp Y so Blobbi looks *across* toward the sidebar, not sharply
+      // downward when the clicked item is near the bottom of the viewport.
+      const maxY = window.innerHeight * 0.55;
+      if (clickPos.y > maxY) {
+        clickPos = { x: clickPos.x, y: maxY };
       }
 
       // Glance at the click origin — keeps gaze occupied during the delay.
