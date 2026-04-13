@@ -144,6 +144,12 @@ export function useBlobbiCompanionState({
       return;
     }
     
+    // Don't override gaze while the attention system owns the state.
+    // The attention-end handler (below) will resume decisions when it clears.
+    if (attentionTarget) {
+      return;
+    }
+    
     // Check if we should start observation behavior
     const now = Date.now();
     const timeSinceLastObservation = now - lastObservationTimeRef.current;
@@ -176,7 +182,7 @@ export function useBlobbiCompanionState({
     // Schedule next decision
     const duration = transition.duration ?? randomDuration(config.idleTime);
     timerRef.current = window.setTimeout(makeDecision, duration);
-  }, [isActive, isSleeping, bounds, state, config, startObservation, motionRef]);
+  }, [isActive, isSleeping, bounds, state, config, startObservation, motionRef, attentionTarget]);
   
   // Handle reaching target
   const onReachedTarget = useCallback(() => {
