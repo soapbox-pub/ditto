@@ -2,100 +2,24 @@ import Foundation
 import Capacitor
 import WebKit
 
-// MARK: - Asset Handler Swizzling
+// MARK: - Shared Handler Singleton
 
-/// On iOS, Capacitor registers a single `WebViewAssetHandler` for the
-/// `capacitor://` scheme. WKWebView only invokes `WKURLSchemeHandler` for
-/// requests whose scheme matches one registered on the configuration —
-/// and it does NOT invoke handlers for cross-scheme iframe loads.
+/// The sandbox request handler singleton.
+/// Created by `DittoBridgeViewController` at WKWebView configuration time,
+/// then connected to the `SandboxPlugin` when the plugin loads.
+var _sandboxHandler: SandboxRequestHandler?
+
+// MARK: - Sandbox Scheme Handler
+
+/// `WKURLSchemeHandler` for the `sbx://` custom scheme.
 ///
-/// Since `iosScheme: 'https'` in capacitor.config.ts is normalised to
-/// `capacitor://` by Capacitor (because `https` is a built-in scheme),
-/// sandbox iframes must also use the `capacitor://` scheme to be
-/// intercepted by the handler.
+/// Each sandbox iframe loads from `sbx://<sandbox-id>/path`, giving every
+/// sandbox a unique web origin with full localStorage / IndexedDB / cookie
+/// isolation.
 ///
-/// We swizzle `WebViewAssetHandler.webView(_:start:)` at runtime to
-/// intercept requests whose hostname ends with `.sandbox.local`, forwarding
-/// them to the JS layer for resolution. All other requests pass through to
-/// the original Capacitor implementation.
-///
-/// Sandbox iframes load from `capacitor://<sandbox-id>.sandbox.local/path`.
-/// Each hostname is a different web origin, giving full localStorage /
-/// IndexedDB / cookie isolation per sandbox.
-private let sandboxHostSuffix = ".sandbox.local"
-
-/// The sandbox request handler singleton, set up by the plugin.
-private var _sandboxHandler: SandboxRequestHandler?
-
-/// Original IMP of `WebViewAssetHandler.webView(_:start:)`.
-private var _originalStartIMP: IMP?
-/// Original IMP of `WebViewAssetHandler.webView(_:stop:)`.
-private var _originalStopIMP: IMP?
-
-/// ObjC selectors for `WKURLSchemeHandler` methods on `WebViewAssetHandler`.
-private let startSelector = Selector(("webView:startURLSchemeTask:"))
-private let stopSelector  = Selector(("webView:stopURLSchemeTask:"))
-
-/// Counter for swizzle invocations (for diagnostics).
-private var _swizzleCallCount: Int = 0
-/// Last URL seen by the swizzled handler (for diagnostics).
-private var _swizzleLastURL: String = "(none)"
-
-/// Swizzled replacement for `webView(_:start:)`.
-/// If the request targets `*.sandbox.local`, route it to JS. Otherwise call
-/// the original Capacitor implementation.
-private let swizzledStart: @convention(block) (AnyObject, WKWebView, WKURLSchemeTask) -> Void = { selfObj, webView, task in
-    _swizzleCallCount += 1
-    _swizzleLastURL = task.request.url?.absoluteString ?? "(nil)"
-
-    if let url = task.request.url,
-       let host = url.host,
-       host.hasSuffix(sandboxHostSuffix) {
-        _sandboxHandler?.handleStart(webView: webView, urlSchemeTask: task)
-        return
-    }
-    // Call the original Capacitor implementation.
-    typealias OriginalFunc = @convention(c) (AnyObject, Selector, WKWebView, WKURLSchemeTask) -> Void
-    let original = unsafeBitCast(_originalStartIMP!, to: OriginalFunc.self)
-    original(selfObj, startSelector, webView, task)
-}
-
-/// Swizzled replacement for `webView(_:stop:)`.
-private let swizzledStop: @convention(block) (AnyObject, WKWebView, WKURLSchemeTask) -> Void = { selfObj, webView, task in
-    if let url = task.request.url,
-       let host = url.host,
-       host.hasSuffix(sandboxHostSuffix) {
-        _sandboxHandler?.handleStop(urlSchemeTask: task)
-        return
-    }
-    typealias OriginalFunc = @convention(c) (AnyObject, Selector, WKWebView, WKURLSchemeTask) -> Void
-    let original = unsafeBitCast(_originalStopIMP!, to: OriginalFunc.self)
-    original(selfObj, stopSelector, webView, task)
-}
-
-/// Install the swizzle on `WebViewAssetHandler` (idempotent).
-private func installAssetHandlerSwizzle() {
-    guard _originalStartIMP == nil else { return }
-
-    let cls: AnyClass = WebViewAssetHandler.self
-
-    guard let startMethod = class_getInstanceMethod(cls, startSelector),
-          let stopMethod  = class_getInstanceMethod(cls, stopSelector) else {
-        return
-    }
-
-    _originalStartIMP = method_getImplementation(startMethod)
-    _originalStopIMP  = method_getImplementation(stopMethod)
-
-    method_setImplementation(startMethod, imp_implementationWithBlock(swizzledStart))
-    method_setImplementation(stopMethod, imp_implementationWithBlock(swizzledStop))
-}
-
-// MARK: - Sandbox Request Handler
-
-/// Handles sandbox iframe requests intercepted via the swizzled asset handler.
-/// Forwards requests to the JS layer and resolves responses back to WKWebView.
-class SandboxRequestHandler {
+/// Intercepted requests are forwarded to the JS layer via the Capacitor
+/// plugin bridge. JS resolves the file and responds with `respondToFetch()`.
+class SandboxRequestHandler: NSObject, WKURLSchemeHandler {
     private var pendingTasks: [String: WKURLSchemeTask] = [:]
     private let lock = NSLock()
 
@@ -109,7 +33,9 @@ class SandboxRequestHandler {
         return count
     }
 
-    func handleStart(webView: WKWebView, urlSchemeTask: WKURLSchemeTask) {
+    // MARK: WKURLSchemeHandler
+
+    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         let request = urlSchemeTask.request
         guard let url = request.url else {
             urlSchemeTask.didFailWithError(NSError(
@@ -125,9 +51,8 @@ class SandboxRequestHandler {
         pendingTasks[requestId] = urlSchemeTask
         lock.unlock()
 
-        // Extract the sandbox ID: "<sandbox-id>.sandbox.local" -> "<sandbox-id>"
-        let host = url.host ?? "unknown"
-        let sandboxId = String(host.dropLast(sandboxHostSuffix.count))
+        // Extract the sandbox ID from the hostname: sbx://<sandbox-id>/path
+        let sandboxId = url.host ?? "unknown"
 
         var headers: [String: String] = [:]
         if let allHeaders = request.allHTTPHeaderFields {
@@ -141,7 +66,7 @@ class SandboxRequestHandler {
 
         let path = url.path.isEmpty ? "/" : url.path
 
-        // Rewrite URL so JS sees a parseable URL with the sandbox ID as host.
+        // Rewrite URL so JS sees a consistent format matching Android.
         let rewrittenURL = "https://\(sandboxId).sandbox.native\(path)"
 
         let serialisedRequest: [String: Any] = [
@@ -158,7 +83,7 @@ class SandboxRequestHandler {
         )
     }
 
-    func handleStop(urlSchemeTask: WKURLSchemeTask) {
+    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
         lock.lock()
         let removed = pendingTasks.first(where: { $0.value === urlSchemeTask })
         if let key = removed?.key {
@@ -166,6 +91,8 @@ class SandboxRequestHandler {
         }
         lock.unlock()
     }
+
+    // MARK: Response Resolution
 
     func resolveRequest(
         requestId: String,
@@ -186,7 +113,7 @@ class SandboxRequestHandler {
             bodyData = Data(base64Encoded: b64)
         }
 
-        let responseURL = task.request.url ?? URL(string: "capacitor://unknown.sandbox.local/")!
+        let responseURL = task.request.url ?? URL(string: "sbx://unknown/")!
         let response = HTTPURLResponse(
             url: responseURL,
             statusCode: status,
@@ -220,14 +147,15 @@ class SandboxRequestHandler {
 
 // MARK: - Plugin
 
-/// Capacitor plugin that handles sandbox fetch responses.
+/// Capacitor plugin that bridges sandbox fetch events between native and JS.
 ///
-/// On iOS, sandbox iframes use the same `capacitor://` scheme as the parent
-/// app but with `*.sandbox.local` hostnames. Requests are intercepted by
-/// swizzling Capacitor's `WebViewAssetHandler` and forwarded to the JS layer.
+/// On iOS, sandbox iframes use the `sbx://` custom URL scheme, registered
+/// on the WKWebView configuration before the web view is created. Each
+/// sandbox loads from `sbx://<sandbox-id>/path`, providing full origin
+/// isolation (separate localStorage, cookies, etc.).
 ///
-/// On Android, a custom `BridgeWebViewClient` subclass intercepts requests to
-/// `*.sandbox.native` hostnames.
+/// On Android, a custom `BridgeWebViewClient` subclass intercepts requests
+/// to `https://<sandbox-id>.sandbox.native/path`.
 @objc(SandboxPlugin)
 public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "SandboxPlugin"
@@ -238,11 +166,8 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     public override func load() {
-        // Install the swizzle and create the handler.
-        let handler = SandboxRequestHandler()
-        handler.plugin = self
-        _sandboxHandler = handler
-        installAssetHandlerSwizzle()
+        // Connect the shared handler to this plugin so it can emit events.
+        _sandboxHandler?.plugin = self
     }
 
     @objc func respondToFetch(_ call: CAPPluginCall) {
@@ -274,22 +199,12 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Diagnostic method callable from JS to inspect native state.
     @objc func diagnose(_ call: CAPPluginCall) {
         let handler = _sandboxHandler
-        let hasHandler = handler != nil
-        let hasPlugin = handler?.plugin != nil
-        let hasBridgeWebView = bridge?.webView != nil
-        let hasListenersFetch = hasListeners("fetch")
-        let pendingCount = handler?.pendingTaskCount ?? 0
-        let swizzled = _originalStartIMP != nil
-
         call.resolve([
-            "sandboxHandlerSet": hasHandler,
-            "pluginConnected": hasPlugin,
-            "bridgeHasWebView": hasBridgeWebView,
-            "hasListenersFetch": hasListenersFetch,
-            "pendingTaskCount": pendingCount,
-            "swizzleInstalled": swizzled,
-            "swizzleCallCount": _swizzleCallCount,
-            "swizzleLastURL": _swizzleLastURL,
+            "sandboxHandlerSet": handler != nil,
+            "pluginConnected": handler?.plugin != nil,
+            "bridgeHasWebView": bridge?.webView != nil,
+            "hasListenersFetch": hasListeners("fetch"),
+            "pendingTaskCount": handler?.pendingTaskCount ?? 0,
         ])
     }
 

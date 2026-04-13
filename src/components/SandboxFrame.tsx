@@ -339,16 +339,16 @@ const SandboxFrameWeb = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 /**
  * Compute the iframe origin for native platforms.
  *
- * - iOS: `capacitor://<sandbox-id>.sandbox.local` — intercepted by the
- *   swizzled WebViewAssetHandler on the main WKWebView. Uses the same
- *   scheme as the parent app so WKWebView routes iframe requests through
- *   the scheme handler (cross-scheme iframe loads are silently ignored).
+ * - iOS: `sbx://<sandbox-id>` — intercepted by the `SandboxRequestHandler`
+ *   registered on the WKWebView configuration as a `WKURLSchemeHandler` for
+ *   the `sbx://` custom scheme. Each sandbox ID is a unique origin, giving
+ *   full localStorage / IndexedDB / cookie isolation.
  * - Android: `https://<sandbox-id>.sandbox.native` — intercepted by the
  *   custom BridgeWebViewClient subclass.
  */
 function getNativeOrigin(id: string): string {
   if (Capacitor.getPlatform() === 'ios') {
-    return `capacitor://${id}.sandbox.local`;
+    return `sbx://${id}`;
   }
   // Android
   return `https://${id}.sandbox.native`;
@@ -384,9 +384,9 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
     const post = useCallback(
       (msg: Record<string, unknown>) => {
-        iframeRef.current?.contentWindow?.postMessage(msg, '*');
+        iframeRef.current?.contentWindow?.postMessage(msg, origin);
       },
-      [],
+      [origin],
     );
 
     // Expose imperative handle.
@@ -435,30 +435,13 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
         if (cancelled) return;
 
-        // Diagnose native state before loading.
-        try {
-          const diag = await SandboxPlugin.diagnose();
-          console.log('[SandboxFrame] diagnose BEFORE src:', JSON.stringify(diag));
-        } catch (err) {
-          console.warn('[SandboxFrame] diagnose failed:', err);
-        }
-
-        // Now set the iframe src to start loading content.
-        // This triggers native fetch interception.
+        // Set the iframe src to start loading content.
+        // This triggers native fetch interception via the scheme handler.
         readyRef.current = true;
         const src = `${origin}/index.html`;
         console.log(`[SandboxFrame] setting iframe.src=${src}`);
         if (iframeRef.current) {
           iframeRef.current.src = src;
-        }
-
-        // Diagnose again after a delay.
-        await new Promise((r) => setTimeout(r, 1500));
-        try {
-          const diag = await SandboxPlugin.diagnose();
-          console.log('[SandboxFrame] diagnose AFTER src (1.5s):', JSON.stringify(diag));
-        } catch (err) {
-          console.warn('[SandboxFrame] diagnose after failed:', err);
         }
       }
 
@@ -525,7 +508,7 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
     useEffect(() => {
       function onMessage(event: MessageEvent) {
-        // On iOS the origin is "capacitor://<id>.sandbox.local",
+        // On iOS the origin is "sbx://<id>",
         // on Android "https://<id>.sandbox.native".
         if (event.origin !== origin) return;
         if (event.source !== iframeRef.current?.contentWindow) return;
@@ -595,13 +578,15 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
  *
  * On native platforms (iOS/Android via Capacitor), this creates a regular
  * `<iframe>` element whose requests are intercepted by native code:
- *   - iOS: Swizzled WebViewAssetHandler intercepting `*.sandbox.local`
- *     hostnames on the `capacitor://` scheme (same scheme as parent)
+ *   - iOS: `WKURLSchemeHandler` for the `sbx://` custom scheme, registered
+ *     on the WKWebView configuration. Each sandbox loads from
+ *     `sbx://<sandbox-id>/path` with full origin isolation.
  *   - Android: Custom BridgeWebViewClient intercepting `*.sandbox.native`
  *
- * Each sandbox gets a unique origin (via hostname), so localStorage/IndexedDB
- * are isolated per sandbox. Since the sandbox is a regular DOM element, web UI
- * (permission dialogs, popovers) naturally layers on top.
+ * Each sandbox gets a unique origin (via hostname or scheme+host), so
+ * localStorage/IndexedDB are isolated per sandbox. Since the sandbox is a
+ * regular DOM element, web UI (permission dialogs, popovers) naturally
+ * layers on top.
  *
  * All file serving is delegated to the `resolveFile` callback.
  * Custom RPC methods are delegated to the optional `onRpc` callback.

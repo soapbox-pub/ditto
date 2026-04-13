@@ -1,10 +1,10 @@
 /**
  * SandboxPlugin — Capacitor plugin for native sandbox iframe support.
  *
- * On iOS, sandbox iframes use `capacitor://<sandbox-id>.sandbox.local/path`
- * — the same scheme as the parent app, so WKWebView routes iframe requests
- * through the existing `WebViewAssetHandler`. The plugin swizzles the
- * handler at runtime to intercept `*.sandbox.local` hostnames.
+ * On iOS, sandbox iframes use the `sbx://` custom URL scheme, registered on
+ * the WKWebView configuration via `setURLSchemeHandler(_:forURLScheme:)` in
+ * `DittoBridgeViewController`. Each sandbox loads from `sbx://<sandbox-id>/path`,
+ * giving every sandbox a unique web origin with full storage isolation.
  *
  * On Android, a custom BridgeWebViewClient subclass intercepts requests to
  * `https://<sandbox-id>.sandbox.native/path` from iframes in the main WebView.
@@ -66,7 +66,6 @@ export interface SandboxDiagnostics {
   bridgeHasWebView: boolean;
   hasListenersFetch: boolean;
   pendingTaskCount: number;
-  swizzleInstalled: boolean;
 }
 
 export interface SandboxPluginInterface {
@@ -90,6 +89,6 @@ export interface SandboxPluginInterface {
 /**
  * The SandboxPlugin Capacitor plugin.
  * Only usable on native platforms (iOS/Android). On web, SandboxFrame
- * uses the iframe.diy service worker sandbox.
+ * uses the iframe.diy fetch proxy sandbox.
  */
 export const SandboxPlugin = registerPlugin<SandboxPluginInterface>('SandboxPlugin');
