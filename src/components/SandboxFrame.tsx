@@ -435,6 +435,14 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
         if (cancelled) return;
 
+        // Diagnose native state before loading.
+        try {
+          const diag = await SandboxPlugin.diagnose();
+          console.log('[SandboxFrame] diagnose BEFORE src:', JSON.stringify(diag));
+        } catch (err) {
+          console.warn('[SandboxFrame] diagnose failed:', err);
+        }
+
         // Set the iframe src to start loading content.
         // This triggers native fetch interception via the scheme handler.
         readyRef.current = true;
@@ -442,6 +450,17 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         console.log(`[SandboxFrame] setting iframe.src=${src}`);
         if (iframeRef.current) {
           iframeRef.current.src = src;
+        }
+
+        // Diagnose again after a delay to see if handler was called.
+        await new Promise((r) => setTimeout(r, 2000));
+        if (!cancelled) {
+          try {
+            const diag = await SandboxPlugin.diagnose();
+            console.log('[SandboxFrame] diagnose AFTER src (2s):', JSON.stringify(diag));
+          } catch (err) {
+            console.warn('[SandboxFrame] diagnose after failed:', err);
+          }
         }
       }
 

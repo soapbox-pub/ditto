@@ -25,6 +25,11 @@ class SandboxRequestHandler: NSObject, WKURLSchemeHandler {
 
     weak var plugin: SandboxPlugin?
 
+    /// Diagnostics: total number of start calls received.
+    var startCallCount: Int = 0
+    /// Diagnostics: last URL received by the handler.
+    var lastURL: String = "(none)"
+
     /// Number of pending tasks (for diagnostics).
     var pendingTaskCount: Int {
         lock.lock()
@@ -36,6 +41,9 @@ class SandboxRequestHandler: NSObject, WKURLSchemeHandler {
     // MARK: WKURLSchemeHandler
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        startCallCount += 1
+        lastURL = urlSchemeTask.request.url?.absoluteString ?? "(nil)"
+
         let request = urlSchemeTask.request
         guard let url = request.url else {
             urlSchemeTask.didFailWithError(NSError(
@@ -205,6 +213,8 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
             "bridgeHasWebView": bridge?.webView != nil,
             "hasListenersFetch": hasListeners("fetch"),
             "pendingTaskCount": handler?.pendingTaskCount ?? 0,
+            "startCallCount": handler?.startCallCount ?? 0,
+            "lastURL": handler?.lastURL ?? "(no handler)",
         ])
     }
 
