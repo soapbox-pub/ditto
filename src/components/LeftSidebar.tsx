@@ -101,7 +101,6 @@ export function LeftSidebar() {
               onReorder={handleEditReorder}
               isActive={() => false}
               homePage={homePage}
-              inlineSearch
             />
             <SidebarMoreMenu
               editing
@@ -125,7 +124,6 @@ export function LeftSidebar() {
               getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
               getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
               homePage={homePage}
-              inlineSearch
             />
             <SidebarMoreMenu
               editing={false}

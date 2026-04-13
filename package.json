@@ -28,6 +28,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
+    "@floating-ui/react": "^0.27.19",
     "@fontsource-variable/comfortaa": "^5.2.8",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/fredoka": "^5.2.10",

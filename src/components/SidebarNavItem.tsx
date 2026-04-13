@@ -10,7 +10,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isSidebarSearch, isNostrUri, isExternalUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
 import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
@@ -66,7 +66,7 @@ export function SidebarNavItem({
   );
 }
 
-// ── Search input item (desktop sidebar only) ─────────────────────────────────
+// ── Search input item (sidebar inline search) ────────────────────────────────
 
 interface SidebarSearchItemProps {
   id: string;
@@ -81,27 +81,20 @@ function SidebarSearchItem({
   id, editing, onRemove, onAdd, belowMore, linkClassName,
 }: SidebarSearchItemProps) {
   const [expanded, setExpanded] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Collapse when clicking outside the search container
-  useEffect(() => {
-    if (!expanded) return;
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setExpanded(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [expanded]);
+  const collapse = useCallback(() => setExpanded(false), []);
 
   const icon = sidebarItemIcon(id);
   const label = itemLabel(id);
 
+  // Font style matching: the collapsed label uses --title-font-family.
+  // Apply the same font to the expanded input so the row height stays constant.
+  const titleFontStyle: React.CSSProperties = { fontFamily: 'var(--title-font-family, inherit)' };
+
   return (
     <SortableItemShell id={id} editing={editing} onRemove={onRemove} onAdd={onAdd} belowMore={belowMore} label={label}>
-      <div ref={containerRef} className="flex-1 min-w-0 relative">
-        {/* Always render the sidebar-item-shaped row */}
+      <div className="flex-1 min-w-0 relative">
+        {/* Always render the sidebar-item-shaped row with a locked min-height
+            so toggling between label and input doesn't shift layout. */}
         <div
           role={expanded && !editing ? undefined : 'button'}
           tabIndex={expanded && !editing ? undefined : 0}
@@ -121,11 +114,13 @@ function SidebarSearchItem({
               autoFocus
               enableTextSearch
               hideIcon
+              onDismiss={collapse}
               className="flex-1 min-w-0"
-              inputClassName="!h-auto !py-0 !px-0 !pl-0 !pr-0 !bg-transparent !border-0 !rounded-none !shadow-none !ring-0 !ring-offset-0 !text-[inherit]"
+              inputClassName="h-auto py-0 px-0 bg-transparent border-0 rounded-none shadow-none ring-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-[length:inherit] md:text-[length:inherit]"
+              inputStyle={titleFontStyle}
             />
           ) : (
-            <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
+            <span className="truncate" style={titleFontStyle}>{label}</span>
           )}
         </div>
       </div>
@@ -227,12 +222,10 @@ export interface SidebarNavListProps {
   linkClassName?: string;
   /** Sidebar item ID configured as the homepage. */
   homePage?: string;
-  /** When true, the search item renders as an inline input with dropdown. */
-  inlineSearch?: boolean;
 }
 
 export function SidebarNavList({
-  items, editing, onRemove, onAdd, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage, inlineSearch,
+  items, editing, onRemove, onAdd, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
 }: SidebarNavListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -305,7 +298,7 @@ export function SidebarNavList({
               />
             );
           }
-          if (inlineSearch && isSidebarSearch(id)) {
+          if (isSidebarSearch(id)) {
             return (
               <SidebarSearchItem
                 key={id}

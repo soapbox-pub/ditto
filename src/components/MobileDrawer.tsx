@@ -1,4 +1,4 @@
-import { useState, useId, useMemo } from 'react';
+import { useState, useCallback, useId, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -26,6 +26,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isItemActive } from '@/lib/sidebarItems';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 
 import { resolveTheme, resolveThemeConfig } from '@/themes';
 
@@ -63,6 +64,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [followQROpen, setFollowQROpen] = useState(false);
   const { startSignup } = useOnboarding();
   const { theme, customTheme, themes } = useTheme();
+
+  // Portal container for dropdown popovers inside the Sheet so they scroll
+  // correctly and aren't blocked by Radix Dialog's RemoveScroll.
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const sheetContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
 
 
 
@@ -104,7 +112,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) { setEditing(false); } onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
+        <SheetContent ref={sheetContentRef} side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
           {/* SVG clip path definition for the drawer + arc shape.
               The clip path uses objectBoundingBox units so the arc scales with the
               background layer. The 0.893 ratio ≈ DRAWER_WIDTH / DRAWER_BG_WIDTH
@@ -131,6 +139,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             />
           )}
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <PortalContainerProvider value={portalContainer}>
 
           {user ? (
             <div className="flex flex-col h-full relative">
@@ -233,7 +242,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         isActive={() => false}
                         linkClassName="text-base"
                         homePage={homePage}
-                        inlineSearch
                       />
                       <SidebarMoreMenu
                         editing
@@ -259,7 +267,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                         linkClassName="text-base"
                         homePage={homePage}
-                        inlineSearch
                       />
                       <SidebarMoreMenu
                         editing={false}
@@ -304,7 +311,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                     linkClassName="text-base"
                     homePage={homePage}
-                    inlineSearch
                   />
                   <SidebarMoreMenu
                     editing={false}
@@ -324,6 +330,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </div>
             </div>
           )}
+          </PortalContainerProvider>
         </SheetContent>
       </Sheet>
 

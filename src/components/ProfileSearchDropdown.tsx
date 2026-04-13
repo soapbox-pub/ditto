@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useFloating, autoUpdate, flip, shift, size, offset, type Strategy } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
@@ -24,12 +25,18 @@ import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikip
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
+import { usePortalContainer } from '@/hooks/usePortalContainer';
 import { cn } from '@/lib/utils';
+
+/** Padding from viewport edge for dropdown max-height calculation. */
+const DROPDOWN_VIEWPORT_PADDING = 16;
 
 interface ProfileSearchDropdownProps {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  /** Inline styles applied directly to the <input> element (e.g. font-family overrides). */
+  inputStyle?: React.CSSProperties;
   autoFocus?: boolean;
   onSelect?: (profile: SearchProfile) => void;
   /** When true, pressing Enter without a profile selected navigates to the search page */
@@ -38,17 +45,22 @@ interface ProfileSearchDropdownProps {
   hideCountry?: boolean;
   /** When true, the search icon and loading spinner inside the input are hidden. */
   hideIcon?: boolean;
+  /** Called when the dropdown wants to fully dismiss (Escape, outside click, selection).
+   *  Useful for parent components that manage an expanded/collapsed state. */
+  onDismiss?: () => void;
 }
 
 export function ProfileSearchDropdown({
   placeholder = 'Search people...',
   className,
   inputClassName,
+  inputStyle,
   autoFocus,
   onSelect,
   enableTextSearch,
   hideCountry = false,
   hideIcon = false,
+  onDismiss,
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -58,46 +70,40 @@ export function ProfileSearchDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const portalRef = useRef<HTMLDivElement>(null);
 
-  // Portal-based dropdown positioning: escapes overflow containers by rendering
-  // at document.body with fixed coordinates derived from the input's bounding rect.
-  // Automatically flips upward when space below is limited, and caps max-height to
-  // the available viewport space so the dropdown never overflows the screen.
-  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
-  const [dropUp, setDropUp] = useState(false);
-  const DROPDOWN_GAP = 6; // px between input and dropdown
-  const DROPDOWN_PADDING = 16; // px gap from viewport edge
+  // Portal target: when inside a PortalContainerProvider (e.g. MobileDrawer's
+  // Sheet), portal into that container so scroll events aren't blocked by Radix
+  // Dialog's RemoveScroll. Otherwise fall back to document.body.
+  const portalContainer = usePortalContainer();
+  const portalTarget = portalContainer ?? document.body;
 
-  useEffect(() => {
-    if (!open || !containerRef.current) return;
-    function updatePosition() {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const shouldDropUp = spaceBelow < 200 && spaceAbove > spaceBelow;
-      setDropUp(shouldDropUp);
-      const maxH = Math.max(120, (shouldDropUp ? spaceAbove : spaceBelow) - DROPDOWN_PADDING - DROPDOWN_GAP);
-      setDropdownStyle({
-        position: 'fixed',
-        left: rect.left,
-        width: rect.width,
-        maxHeight: maxH,
-        ...(shouldDropUp
-          ? { bottom: window.innerHeight - rect.top + DROPDOWN_GAP }
-          : { top: rect.bottom + DROPDOWN_GAP }),
-      });
-    }
-    updatePosition();
-    window.addEventListener('scroll', updatePosition, true);
-    window.addEventListener('resize', updatePosition);
-    return () => {
-      window.removeEventListener('scroll', updatePosition, true);
-      window.removeEventListener('resize', updatePosition);
-    };
-  }, [open]);
+  // Use 'absolute' positioning when portaling into a container element (which
+  // may have CSS transforms from Sheet animations or dnd-kit), and 'fixed'
+  // when portaling to document.body where there's no transform ancestor.
+  const strategy: Strategy = portalContainer ? 'absolute' : 'fixed';
 
+  const { refs, floatingStyles, placement } = useFloating({
+    open,
+    strategy,
+    placement: 'bottom-start',
+    middleware: [
+      offset(6),
+      flip({ fallbackPlacements: ['top-start'], padding: DROPDOWN_VIEWPORT_PADDING }),
+      shift({ padding: DROPDOWN_VIEWPORT_PADDING }),
+      size({
+        padding: DROPDOWN_VIEWPORT_PADDING,
+        apply({ availableHeight, rects, elements }) {
+          Object.assign(elements.floating.style, {
+            maxHeight: `${Math.max(120, availableHeight)}px`,
+            width: `${rects.reference.width}px`,
+          });
+        },
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+
+  const dropUp = placement.startsWith('top');
   const dropdownBaseClass = dropUp
     ? 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-150'
     : 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150';
@@ -167,12 +173,14 @@ export function ProfileSearchDropdown({
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
       if (containerRef.current?.contains(target)) return;
-      if (portalRef.current?.contains(target)) return;
+      const floating = refs.floating.current;
+      if (floating?.contains(target)) return;
       setOpen(false);
+      onDismiss?.();
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [refs.floating, onDismiss]);
 
   const handleSelect = useCallback((profile: SearchProfile, profileUrl: string) => {
     setOpen(false);
@@ -265,6 +273,7 @@ export function ProfileSearchDropdown({
       e.preventDefault();
       setOpen(false);
       inputRef.current?.blur();
+      onDismiss?.();
       return;
     }
 
@@ -321,8 +330,15 @@ export function ProfileSearchDropdown({
     }
   }, [selectedIndex]);
 
+  // Merge the container ref (for outside-click detection) and Floating UI reference ref.
+  const { setReference } = refs;
+  const setReferenceRef = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setReference(node);
+  }, [setReference]);
+
   return (
-    <div ref={containerRef} className={cn('relative', className)}>
+    <div ref={setReferenceRef} className={cn('relative', className)}>
       {/* Search input */}
       <div className="relative flex items-center">
         {!hideIcon && <Search className="absolute left-3 size-4 text-muted-foreground pointer-events-none" />}
@@ -359,6 +375,7 @@ export function ProfileSearchDropdown({
             'pl-10 pr-10 rounded-full bg-secondary border-0 focus-visible:ring-0 focus-visible:ring-offset-0',
             inputClassName,
           )}
+          style={inputStyle}
           autoComplete="off"
           role="combobox"
           aria-expanded={open}
@@ -370,10 +387,10 @@ export function ProfileSearchDropdown({
       {/* Dropdown results — only when text search is not enabled */}
       {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0)) && createPortal(
         <div
-          ref={portalRef}
+          ref={refs.setFloating}
           role="listbox"
           className={dropdownBaseClass}
-          style={dropdownStyle}
+          style={floatingStyles}
         >
           <div ref={listRef} className="py-1">
             {navItems.map((item, index) => (
@@ -430,11 +447,11 @@ export function ProfileSearchDropdown({
             )}
           </div>
         </div>,
-      document.body)}
+      portalTarget)}
 
       {/* Text search option */}
       {enableTextSearch && open && query.trim().length > 0 && createPortal(
-        <div ref={portalRef} className={dropdownBaseClass} style={dropdownStyle}>
+        <div ref={refs.setFloating} className={dropdownBaseClass} style={floatingStyles}>
           <div ref={listRef} className="py-1">
             {/* Search text option */}
             <button
@@ -529,16 +546,16 @@ export function ProfileSearchDropdown({
             )}
           </div>
         </div>,
-      document.body)}
+      portalTarget)}
 
       {/* Empty state — only when text search is not enabled */}
       {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && navItemCount === 0 && profiles && profiles.length === 0 && createPortal(
-        <div ref={portalRef} className={dropdownBaseClass} style={dropdownStyle}>
+        <div ref={refs.setFloating} className={dropdownBaseClass} style={floatingStyles}>
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
           </div>
         </div>,
-      document.body)}
+      portalTarget)}
     </div>
   );
 }
