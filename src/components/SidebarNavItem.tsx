@@ -8,11 +8,12 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isSidebarSearch, isNostrUri, isExternalUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
-import { useCallback } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
 import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
+import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SortableItemShell } from '@/components/SortableItemShell';
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
@@ -61,6 +62,73 @@ export function SidebarNavItem({
         </span>
         <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </Link>
+    </SortableItemShell>
+  );
+}
+
+// ── Search input item (desktop sidebar only) ─────────────────────────────────
+
+interface SidebarSearchItemProps {
+  id: string;
+  editing: boolean;
+  onRemove: (id: string) => void;
+  onAdd?: (id: string) => void;
+  belowMore?: boolean;
+  linkClassName?: string;
+}
+
+function SidebarSearchItem({
+  id, editing, onRemove, onAdd, belowMore, linkClassName,
+}: SidebarSearchItemProps) {
+  const [expanded, setExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Collapse when clicking outside the search container
+  useEffect(() => {
+    if (!expanded) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [expanded]);
+
+  const icon = sidebarItemIcon(id);
+  const label = itemLabel(id);
+
+  return (
+    <SortableItemShell id={id} editing={editing} onRemove={onRemove} onAdd={onAdd} belowMore={belowMore} label={label}>
+      <div ref={containerRef} className="flex-1 min-w-0 relative">
+        {/* Always render the sidebar-item-shaped row */}
+        <div
+          role={expanded && !editing ? undefined : 'button'}
+          tabIndex={expanded && !editing ? undefined : 0}
+          onClick={() => { if (!editing && !expanded) setExpanded(true); }}
+          onKeyDown={(e) => { if (!editing && !expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setExpanded(true); } }}
+          className={cn(
+            'flex items-center gap-4 py-3 rounded-full transition-colors w-full text-left',
+            editing ? 'px-2' : 'px-3',
+            'font-normal text-foreground',
+            linkClassName ?? 'text-lg',
+          )}
+        >
+          <span className="shrink-0">{icon}</span>
+          {expanded && !editing ? (
+            <ProfileSearchDropdown
+              placeholder="Search..."
+              autoFocus
+              enableTextSearch
+              hideIcon
+              className="flex-1 min-w-0"
+              inputClassName="!h-auto !py-0 !px-0 !pl-0 !pr-0 !bg-transparent !border-0 !rounded-none !shadow-none !ring-0 !ring-offset-0 !text-[inherit]"
+            />
+          ) : (
+            <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
+          )}
+        </div>
+      </div>
     </SortableItemShell>
   );
 }
@@ -159,10 +227,12 @@ export interface SidebarNavListProps {
   linkClassName?: string;
   /** Sidebar item ID configured as the homepage. */
   homePage?: string;
+  /** When true, the search item renders as an inline input with dropdown. */
+  inlineSearch?: boolean;
 }
 
 export function SidebarNavList({
-  items, editing, onRemove, onAdd, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
+  items, editing, onRemove, onAdd, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage, inlineSearch,
 }: SidebarNavListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -231,6 +301,19 @@ export function SidebarNavList({
                 onAdd={onAdd}
                 belowMore={isBelowMore}
                 onClick={getOnClick?.(id)}
+                linkClassName={linkClassName}
+              />
+            );
+          }
+          if (inlineSearch && isSidebarSearch(id)) {
+            return (
+              <SidebarSearchItem
+                key={id}
+                id={id}
+                editing={editing}
+                onRemove={(removeId) => onRemove(removeId, i)}
+                onAdd={onAdd}
+                belowMore={isBelowMore}
                 linkClassName={linkClassName}
               />
             );

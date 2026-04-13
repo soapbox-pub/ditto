@@ -123,9 +123,10 @@ const hardcodedConfig: AppConfig = {
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
+    "search",
     "feed",
     "notifications",
-    "search",
+    "discover",
     "blobbi",
     "badges",
     "emojis",

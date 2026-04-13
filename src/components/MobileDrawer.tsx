@@ -233,6 +233,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         isActive={() => false}
                         linkClassName="text-base"
                         homePage={homePage}
+                        inlineSearch
                       />
                       <SidebarMoreMenu
                         editing
@@ -258,6 +259,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                         linkClassName="text-base"
                         homePage={homePage}
+                        inlineSearch
                       />
                       <SidebarMoreMenu
                         editing={false}
@@ -302,6 +304,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
                     linkClassName="text-base"
                     homePage={homePage}
+                    inlineSearch
                   />
                   <SidebarMoreMenu
                     editing={false}

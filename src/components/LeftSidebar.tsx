@@ -11,7 +11,6 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 import { StatusEditor } from '@/components/StatusEditor';
@@ -90,11 +89,6 @@ export function LeftSidebar() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="px-2 py-4">
-        <ProfileSearchDropdown placeholder="Search..." inputClassName="py-3.5" enableTextSearch />
-      </div>
-
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {editing ? (
@@ -107,6 +101,7 @@ export function LeftSidebar() {
               onReorder={handleEditReorder}
               isActive={() => false}
               homePage={homePage}
+              inlineSearch
             />
             <SidebarMoreMenu
               editing
@@ -130,6 +125,7 @@ export function LeftSidebar() {
               getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
               getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
               homePage={homePage}
+              inlineSearch
             />
             <SidebarMoreMenu
               editing={false}

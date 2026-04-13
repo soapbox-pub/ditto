@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -35,6 +36,8 @@ interface ProfileSearchDropdownProps {
   enableTextSearch?: boolean;
   /** When true, country suggestions are hidden from the dropdown */
   hideCountry?: boolean;
+  /** When true, the search icon and loading spinner inside the input are hidden. */
+  hideIcon?: boolean;
 }
 
 export function ProfileSearchDropdown({
@@ -45,6 +48,7 @@ export function ProfileSearchDropdown({
   onSelect,
   enableTextSearch,
   hideCountry = false,
+  hideIcon = false,
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -54,6 +58,49 @@ export function ProfileSearchDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+
+  // Portal-based dropdown positioning: escapes overflow containers by rendering
+  // at document.body with fixed coordinates derived from the input's bounding rect.
+  // Automatically flips upward when space below is limited, and caps max-height to
+  // the available viewport space so the dropdown never overflows the screen.
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
+  const [dropUp, setDropUp] = useState(false);
+  const DROPDOWN_GAP = 6; // px between input and dropdown
+  const DROPDOWN_PADDING = 16; // px gap from viewport edge
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    function updatePosition() {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const shouldDropUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+      setDropUp(shouldDropUp);
+      const maxH = Math.max(120, (shouldDropUp ? spaceAbove : spaceBelow) - DROPDOWN_PADDING - DROPDOWN_GAP);
+      setDropdownStyle({
+        position: 'fixed',
+        left: rect.left,
+        width: rect.width,
+        maxHeight: maxH,
+        ...(shouldDropUp
+          ? { bottom: window.innerHeight - rect.top + DROPDOWN_GAP }
+          : { top: rect.bottom + DROPDOWN_GAP }),
+      });
+    }
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [open]);
+
+  const dropdownBaseClass = dropUp
+    ? 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-150'
+    : 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150';
 
   const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
@@ -114,12 +161,14 @@ export function ProfileSearchDropdown({
     setSelectedIndex(-1);
   }, [profiles]);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click (check both the input container and the
+  // portaled dropdown, since the dropdown renders outside the DOM tree).
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (portalRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -276,8 +325,8 @@ export function ProfileSearchDropdown({
     <div ref={containerRef} className={cn('relative', className)}>
       {/* Search input */}
       <div className="relative flex items-center">
-        <Search className="absolute left-3 size-4 text-muted-foreground pointer-events-none" />
-        {isFetching && (
+        {!hideIcon && <Search className="absolute left-3 size-4 text-muted-foreground pointer-events-none" />}
+        {!hideIcon && isFetching && (
           <svg
             className="absolute right-3 size-4 text-muted-foreground"
             style={{ animation: 'spin 1s linear infinite' }}
@@ -319,13 +368,14 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0)) && (
+      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0)) && createPortal(
         <div
-          ref={listRef}
+          ref={portalRef}
           role="listbox"
-          className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+          className={dropdownBaseClass}
+          style={dropdownStyle}
         >
-          <div className="max-h-[320px] overflow-y-auto py-1">
+          <div ref={listRef} className="py-1">
             {navItems.map((item, index) => (
               <NavItem
                 key={item.id}
@@ -379,13 +429,13 @@ export function ProfileSearchDropdown({
               />
             )}
           </div>
-        </div>
-      )}
+        </div>,
+      document.body)}
 
       {/* Text search option */}
-      {enableTextSearch && open && query.trim().length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
-          <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
+      {enableTextSearch && open && query.trim().length > 0 && createPortal(
+        <div ref={portalRef} className={dropdownBaseClass} style={dropdownStyle}>
+          <div ref={listRef} className="py-1">
             {/* Search text option */}
             <button
               className={cn(
@@ -478,17 +528,17 @@ export function ProfileSearchDropdown({
               />
             )}
           </div>
-        </div>
-      )}
+        </div>,
+      document.body)}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && navItemCount === 0 && profiles && profiles.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && navItemCount === 0 && profiles && profiles.length === 0 && createPortal(
+        <div ref={portalRef} className={dropdownBaseClass} style={dropdownStyle}>
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
           </div>
-        </div>
-      )}
+        </div>,
+      document.body)}
     </div>
   );
 }

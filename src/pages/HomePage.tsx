@@ -10,6 +10,7 @@ import Index from './Index';
 const PAGE_LOADERS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   'notifications': lazy(() => import('./NotificationsPage').then(m => ({ default: m.NotificationsPage }))),
   'search': lazy(() => import('./SearchPage').then(m => ({ default: m.SearchPage }))),
+  'discover': lazy(() => import('./SearchPage').then(m => ({ default: m.SearchPage }))),
   'trends': lazy(() => import('./TrendsPage').then(m => ({ default: m.TrendsPage }))),
   'bookmarks': lazy(() => import('./BookmarksPage').then(m => ({ default: m.BookmarksPage }))),
   'settings': lazy(() => import('./SettingsPage').then(m => ({ default: m.SettingsPage }))),

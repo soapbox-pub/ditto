@@ -28,6 +28,7 @@ import {
   Repeat2,
   Scroll,
   ScrollText,
+  Search,
   Settings,
   Smile,
   SmilePlus,
@@ -53,6 +54,14 @@ export const SIDEBAR_DIVIDER_ID = "divider";
 /** Returns true if the given sidebar order ID is a divider sentinel. */
 export function isSidebarDivider(id: string): boolean {
   return id === SIDEBAR_DIVIDER_ID;
+}
+
+/** The sidebar item ID for the inline search input. */
+export const SIDEBAR_SEARCH_ID = 'search';
+
+/** Returns true if the given sidebar order ID is the search input item. */
+export function isSidebarSearch(id: string): boolean {
+  return id === SIDEBAR_SEARCH_ID;
 }
 
 /** Returns true if the given sidebar order ID is a `nostr:` URI. */
@@ -111,7 +120,8 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     icon: Bell,
     requiresAuth: true,
   },
-  { id: "search", label: "Discover", path: "/discover", icon: Compass },
+  { id: "search", label: "Search", path: "/search", icon: Search },
+  { id: "discover", label: "Discover", path: "/discover", icon: Compass },
   { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
   {
     id: "bookmarks",
