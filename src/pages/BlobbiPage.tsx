@@ -77,6 +77,8 @@ import {
    previewStatChanges,
    useDailyMissions,
    useAwardDailyXp,
+   applyXPGain,
+   POOP_CLEANUP_XP,
    type InventoryAction,
   type DirectAction,
   type InlineActivityState,
@@ -1402,6 +1404,46 @@ function BlobbiDashboard({
     awardDailyXp({ missions: dailyMissions.raw });
   }, [dailyMissions.allComplete, dailyMissions.raw, awardDailyXp]);
 
+  // ─── Poop Cleanup XP (debounced: batch multiple pickups into one publish) ───
+  const pendingPoopXpRef = useRef(0);
+  const poopXpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePoopCleaned = useCallback(() => {
+    pendingPoopXpRef.current += POOP_CLEANUP_XP;
+    toast({ title: `+${POOP_CLEANUP_XP} XP`, description: 'Cleaned up!' });
+
+    // Debounce: wait 1.5s after last pickup, then publish all accumulated XP
+    if (poopXpTimerRef.current) clearTimeout(poopXpTimerRef.current);
+    poopXpTimerRef.current = setTimeout(async () => {
+      const xpToAdd = pendingPoopXpRef.current;
+      pendingPoopXpRef.current = 0;
+      if (xpToAdd <= 0) return;
+
+      try {
+        const canonical = await ensureCanonicalBeforeAction();
+        if (!canonical) return;
+
+        const currentXP = canonical.companion.experience ?? 0;
+        const newXP = applyXPGain(currentXP, xpToAdd);
+
+        const newTags = updateBlobbiTags(canonical.allTags, {
+          experience: newXP.toString(),
+        });
+
+        const event = await publishEvent({
+          kind: KIND_BLOBBI_STATE,
+          content: canonical.content,
+          tags: newTags,
+          prev: canonical.companion.event,
+        });
+
+        updateCompanionEvent(event);
+      } catch (error) {
+        console.error('Failed to persist poop cleanup XP:', error);
+      }
+    }, 1500);
+  }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
@@ -1517,9 +1559,7 @@ function BlobbiDashboard({
         hunger={currentStats.hunger}
         lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
         poopStateRef={poopStateRef}
-        onPoopCleaned={() => {
-          toast({ title: 'Cleaned up!', description: `${companion.name} appreciates it.` });
-        }}
+        onPoopCleaned={handlePoopCleaned}
         hero={
           <BlobbiRoomHero
             companion={companion}
