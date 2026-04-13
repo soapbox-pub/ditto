@@ -3,13 +3,16 @@
  *
  * Thin orchestration layer for page-transition reactions.
  *
- * On route change the companion briefly stops and looks toward the
- * top-center of the main content area for a random 2-6 seconds,
- * then resumes normal behavior automatically.
+ * On route change the companion:
+ *   1. Glances briefly at the click origin (sidebar button, etc.) — ~700ms
+ *   2. Then looks at the top-center of the main content area for 2-6 seconds
+ * If no recent click is available (programmatic navigation), step 1 is
+ * skipped and the companion looks at center-top immediately.
  *
  * Architecture:
+ *   - Tracks the last pointerdown position in a ref (no re-renders)
  *   - Watches pathname for changes (after the initial entry has completed)
- *   - Fires a single triggerAttention call targeting the main content area
+ *   - Fires triggerAttention calls for the two-phase gaze sequence
  *   - Cancels fully on new route change, drag, or component unmount
  *
  * Future custom reactions:
@@ -80,8 +83,17 @@ const ROUTE_REACTIONS: Record<string, RouteReactionFn> = {
 const LOOK_DURATION_MIN = 2000;
 const LOOK_DURATION_MAX = 6000;
 
-/** Delay before starting the reaction after route change (ms).
- *  Gives the new page's DOM time to mount. */
+/** Duration of the initial click-origin glance (ms). */
+const CLICK_GLANCE_DURATION = 700;
+
+/** A click is considered "recent" if it happened within this window (ms).
+ *  Covers the time between pointerdown and React Router committing the
+ *  new pathname — usually <200ms, but we allow a generous margin. */
+const CLICK_RECENCY_THRESHOLD = 1000;
+
+/** Delay before starting the center-content reaction after route change (ms).
+ *  Gives the new page's DOM time to mount.  When the click-origin glance is
+ *  active this delay runs concurrently (the glance keeps gaze occupied). */
 const ROUTE_REACTION_DELAY = 250;
 
 // ─── Layout helper ────────────────────────────────────────────────────────────
@@ -149,6 +161,19 @@ export function useRouteReaction({
   const prevPathnameRef = useRef(pathname);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  /** Last pointerdown position + timestamp.  Updated on every pointerdown so
+   *  the route-change effect can check whether there was a recent click. */
+  const lastClickRef = useRef<{ position: Position; time: number } | null>(null);
+
+  // Track pointer-down position (passive, no re-renders)
+  useEffect(() => {
+    const handler = (e: PointerEvent) => {
+      lastClickRef.current = { position: { x: e.clientX, y: e.clientY }, time: Date.now() };
+    };
+    window.addEventListener('pointerdown', handler, { passive: true });
+    return () => window.removeEventListener('pointerdown', handler);
+  }, []);
+
   /** Cancel pending timeouts only — does NOT clear the active attention.
    *  Used during route transitions so the previous gaze target stays alive
    *  until the new one is ready (avoids a random-gaze gap). */
@@ -196,17 +221,33 @@ export function useRouteReaction({
     // Cancel pending timeouts from a previous route change.
     cancelPendingTimeouts();
 
-    // Immediately set a preliminary attention target at viewport center-top
-    // so the gaze system never falls to random/mouse-follow mode during the
-    // delay.  This is a cheap viewport-only calculation (no DOM query) so it
-    // is safe to call synchronously.  The delayed reaction below will replace
-    // it with a precise DOM-measured position.
-    triggerAttention(
-      { x: window.innerWidth / 2, y: window.innerHeight * 0.25 },
-      { duration: LOOK_DURATION_MAX, priority: 'normal', source: 'route:preliminary', bypassCooldown: true },
-    );
+    // ── Phase 1: Glance at click origin (if a recent click exists) ──────
+    // Check whether a recent pointer-down triggered this navigation.
+    const click = lastClickRef.current;
+    const hasRecentClick = click && (Date.now() - click.time) < CLICK_RECENCY_THRESHOLD;
 
-    // Small delay to let the new page's DOM mount before querying positions
+    // Delay before firing the center-content reaction.  When the click
+    // glance is active, this is the *longer* of glance duration and the
+    // DOM-mount delay so the glance is never cut short.
+    let centerDelay: number;
+
+    if (hasRecentClick) {
+      // Glance at the click origin — keeps gaze occupied during the delay.
+      triggerAttention(
+        click.position,
+        { duration: CLICK_GLANCE_DURATION + ROUTE_REACTION_DELAY, priority: 'normal', source: 'route:click-origin', bypassCooldown: true },
+      );
+      centerDelay = Math.max(CLICK_GLANCE_DURATION, ROUTE_REACTION_DELAY);
+    } else {
+      // No click — fall back to immediate center-top preliminary (programmatic navigation).
+      triggerAttention(
+        { x: window.innerWidth / 2, y: window.innerHeight * 0.25 },
+        { duration: LOOK_DURATION_MAX, priority: 'normal', source: 'route:preliminary', bypassCooldown: true },
+      );
+      centerDelay = ROUTE_REACTION_DELAY;
+    }
+
+    // ── Phase 2: Look at center-top of the new page ─────────────────────
     const startTid = setTimeout(() => {
       const ctx: RouteReactionContext = {
         pathname,
@@ -223,7 +264,7 @@ export function useRouteReaction({
       } else {
         genericRouteReaction(ctx);
       }
-    }, ROUTE_REACTION_DELAY);
+    }, centerDelay);
 
     timeoutsRef.current.push(startTid);
 
