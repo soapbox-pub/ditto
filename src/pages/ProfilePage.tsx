@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -47,7 +47,6 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
-import { shareOrCopy } from '@/lib/share';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
@@ -2124,23 +2123,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
-                  {/* Share button (mobile only) */}
-                  {pubkey && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full size-10 sidebar:hidden"
-                      title="Share profile"
-                      onClick={async () => {
-                        const npubId = nip19.npubEncode(pubkey);
-                        const url = `${window.location.origin}/${npubId}`;
-                        const result = await shareOrCopy(url);
-                        if (result === 'copied') toast({ title: 'Profile link copied to clipboard' });
-                      }}
-                    >
-                      <Share2 className="size-5" />
-                    </Button>
-                  )}
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button

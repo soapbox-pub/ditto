@@ -247,6 +247,11 @@ export const AppConfigSchema = z.object({
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
+  sidebarWidgets: z.array(z.object({
+    id: z.string(),
+    collapsed: z.boolean().optional(),
+    height: z.number().optional(),
+  })).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -316,6 +321,11 @@ export const EncryptedSettingsSchema = z.looseObject({
   }).optional(),
   lastSync: z.number().optional(),
   sidebarOrder: z.array(z.string()).optional(),
+  sidebarWidgets: z.array(z.object({
+    id: z.string(),
+    collapsed: z.boolean().optional(),
+    height: z.number().optional(),
+  })).optional(),
   homePage: z.string().optional(),
   showGlobalFeed: z.boolean().optional(),
   showCommunityFeed: z.boolean().optional(),

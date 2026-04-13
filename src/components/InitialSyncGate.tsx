@@ -44,6 +44,7 @@ import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
 import { getAvatarShape } from "@/lib/avatarShape";
+import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -598,9 +599,6 @@ function ProfileStep({
     banner: "",
     website: "",
   });
-  const [extraFields, setExtraFields] = useState<
-    Array<{ label: string; value: string }>
-  >([]);
   const [cropState, setCropState] = useState<{
     imageSrc: string;
     aspect: number;
@@ -655,17 +653,10 @@ function ProfileStep({
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
-    const hasData =
-      Object.values(profileData).some((v) => v) || extraFields.length > 0;
+    const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
       try {
-        const data: Record<string, unknown> = { ...profileData };
-        const validFields = extraFields.filter(
-          (f) => f.label.trim() && f.value.trim(),
-        );
-        if (validFields.length > 0)
-          data.fields = validFields.map((f) => [f.label, f.value]);
-        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
+        await publishEvent({ kind: 0, content: JSON.stringify(profileData), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -678,7 +669,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, extraFields, publishEvent, queryClient, onNext]);
+  }, [user, profileData, publishEvent, queryClient, onNext]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -724,8 +715,6 @@ function ProfileStep({
           }
           onPickImage={handlePickImage}
           showNip05={false}
-          extraFields={extraFields}
-          onExtraFieldsChange={setExtraFields}
         />
       </div>
 
@@ -735,31 +724,21 @@ function ProfileStep({
         </div>
       )}
 
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onNext}
-          className="flex-1 rounded-full h-11"
-          disabled={isPublishing || isSaving}
-        >
-          Skip
-        </Button>
-        <Button
-          onClick={handlePublishProfile}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isPublishing || isUploading || isSaving}
-        >
-          {isPublishing || isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Saving…
-            </>
-          ) : (
-            <>
-              Continue <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      <Button
+        onClick={handlePublishProfile}
+        className="w-full rounded-full h-11 gap-1.5"
+        disabled={isPublishing || isUploading || isSaving}
+      >
+        {isPublishing || isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            Continue <ChevronRight className="w-4 h-4" />
+          </>
+        )}
+      </Button>
     </div>
   );
 }
@@ -779,8 +758,10 @@ function ThemeStep({
   isFirst?: boolean;
   isSaving?: boolean;
 }) {
-  const { customTheme } = useTheme();
-  const bgUrl = customTheme?.background?.url;
+  const { theme, customTheme, themes } = useTheme();
+  const resolved = resolveTheme(theme);
+  const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+  const bgUrl = activeConfig?.background?.url;
 
   return (
     <>

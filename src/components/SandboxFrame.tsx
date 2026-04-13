@@ -395,18 +395,6 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       let cancelled = false;
 
       async function setup() {
-        // Run onReady first so the consumer can prepare (e.g. download and
-        // unzip a .xdc archive) before the native WebView starts loading
-        // resources. This mirrors the web behaviour where onReady runs
-        // before `init` is sent.
-        try {
-          await onReadyRef.current?.();
-        } catch (err) {
-          console.error('[SandboxFrame] onReady failed:', err);
-        }
-
-        if (cancelled || destroyedRef.current) return;
-
         // Measure the placeholder position.
         const el = placeholderRef.current;
         if (!el) return;
@@ -439,8 +427,8 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
         if (cancelled || destroyedRef.current) return;
 
-        // Create the native WebView. Fetch events from the initial load
-        // will be handled by the listeners registered above.
+        // Create the native WebView with a loading spinner — does NOT
+        // navigate yet, so no fetch events fire at this point.
         await SandboxPlugin.create({
           id,
           frame: {
@@ -452,12 +440,27 @@ const SandboxFrameNative = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         });
 
         if (cancelled || destroyedRef.current) {
-          // Component unmounted while we were awaiting — clean up immediately.
           SandboxPlugin.destroy({ id }).catch(() => {});
           return;
         }
 
         createdRef.current = true;
+
+        // Run onReady while the spinner is visible and animating.
+        // On Android this pre-fetches all blobs so every resolveFile call
+        // after navigation is an instant cache hit.
+        // On iOS/web this is typically a no-op or instant.
+        try {
+          await onReadyRef.current?.();
+        } catch (err) {
+          console.error('[SandboxFrame] onReady failed:', err);
+        }
+
+        if (cancelled || destroyedRef.current) return;
+
+        // Start loading the sandbox content — fetch events will now fire
+        // and be handled by the listeners registered above.
+        await SandboxPlugin.navigate({ id });
       }
 
       // ---------------------------------------------------------------

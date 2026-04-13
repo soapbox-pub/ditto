@@ -53,5 +53,7 @@
 	<string>Ditto needs camera access to take photos and videos for your posts.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Ditto needs access to your microphone to record voice messages.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

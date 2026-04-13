@@ -245,6 +245,18 @@ export interface AppConfig {
   curatorPubkey?: string;
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
+  /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
+  sidebarWidgets: WidgetConfig[];
+}
+
+/** Configuration for a single widget in the right sidebar. */
+export interface WidgetConfig {
+  /** Widget type identifier (e.g. "trends", "blobbi", "wikipedia", "bluesky"). */
+  id: string;
+  /** Whether the widget is collapsed by the user. */
+  collapsed?: boolean;
+  /** User-configured height in pixels. Overrides the widget's default height. */
+  height?: number;
 }
 
 export interface AppContextType {

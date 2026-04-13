@@ -21,12 +21,16 @@ import '@fontsource-variable/inter';
 // Uses a MutationObserver so it reacts to all subsequent theme changes
 // (class changes for builtin themes, style-content changes for custom themes).
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
-import { Keyboard } from '@capacitor/keyboard';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
 
 if (Capacitor.isNativePlatform()) {
-  // Hide the iOS keyboard accessory bar (prev/next/done toolbar above the keyboard)
-  Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+  // Hide the iOS keyboard accessory bar (prev/next/done toolbar above the keyboard).
+  // Only runs on iOS — setAccessoryBarVisible is unimplemented on Android.
+  if (Capacitor.getPlatform() === 'ios') {
+    import('@capacitor/keyboard').then(({ Keyboard }) => {
+      Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+    }).catch(() => {});
+  }
   /**
    * Sync the native system bar icon style with the active CSS theme.
    *

@@ -85,9 +85,17 @@ export interface SandboxScriptMessageEvent {
 // Plugin interface
 // ---------------------------------------------------------------------------
 
+/** Options for navigating the sandbox WebView to its entry point. */
+export interface SandboxNavigateOptions {
+  id: string;
+}
+
 export interface SandboxPluginInterface {
-  /** Create a new sandbox WebView with a unique custom URL scheme. */
+  /** Create a new sandbox WebView with a loading spinner (does not navigate). */
   create(options: SandboxCreateOptions): Promise<void>;
+
+  /** Navigate the sandbox WebView to its entry point (triggers resource loading). */
+  navigate(options: SandboxNavigateOptions): Promise<void>;
 
   /** Update the position/size of an existing sandbox WebView. */
   updateFrame(options: SandboxUpdateFrameOptions): Promise<void>;

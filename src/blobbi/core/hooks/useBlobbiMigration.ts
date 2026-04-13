@@ -80,6 +80,11 @@ export interface EnsureCanonicalResult {
    */
   profileAllTags: string[][];
   /**
+   * The previous profile event, for passing as `prev` to publishEvent
+   * to preserve `published_at` on replaceable events.
+   */
+  profileEvent: NostrEvent;
+  /**
    * The latest profile storage to use.
    * Use this as the base for storage modifications.
    */
@@ -347,6 +352,7 @@ export function useBlobbiMigration() {
         allTags: migrationResult.event.tags,
         content: migrationResult.event.content,
         profileAllTags: migrationResult.profileTags,
+        profileEvent: migrationResult.profileEvent,
         profileStorage: migrationResult.profileStorage,
       };
     }
@@ -358,6 +364,7 @@ export function useBlobbiMigration() {
       allTags: companion.allTags,
       content: companion.event.content,
       profileAllTags: profile.allTags,
+      profileEvent: profile.event,
       profileStorage: profile.storage,
     };
   }, [user?.pubkey, fetchFreshCompanion, fetchFreshProfile, migrateLegacyBlobbi]);

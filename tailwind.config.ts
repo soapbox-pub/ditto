@@ -32,6 +32,7 @@ export default {
 			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
+				emoji: ['Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'Android Emoji', 'EmojiSymbols', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

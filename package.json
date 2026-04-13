@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.6.3",
+  "version": "2.6.6",
   "type": "module",
   "scripts": {
     "dev": "npm i --silent && vite",
@@ -18,7 +18,7 @@
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/filesystem": "^8.1.2",
-    "@capacitor/keyboard": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.3",
     "@capacitor/local-notifications": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-autofill-save-password": "^8.0.22",
@@ -67,7 +67,7 @@
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
     "@nostrify/nostrify": "^0.51.1",
-    "@nostrify/react": "^0.5.0",
+    "@nostrify/react": "^0.5.1",
     "@nostrify/types": "^0.36.9",
     "@plausible-analytics/tracker": "^0.4.4",
     "@radix-ui/react-accordion": "^1.2.0",
