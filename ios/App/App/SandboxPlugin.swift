@@ -2,30 +2,96 @@ import Foundation
 import Capacitor
 import WebKit
 
-// MARK: - Scheme Handler (registered on the main Capacitor WKWebView)
+// MARK: - Asset Handler Swizzling
 
-/// `WKURLSchemeHandler` for the `sbx` scheme, registered on the **main**
-/// Capacitor WKWebView via `DittoBridgeViewController.webViewConfiguration(for:)`.
+/// On iOS, Capacitor registers a single `WebViewAssetHandler` for the
+/// `capacitor://` scheme. WKWebView only invokes `WKURLSchemeHandler` for
+/// requests whose scheme matches one registered on the configuration —
+/// and it does NOT invoke handlers for cross-scheme iframe loads.
 ///
-/// Iframes inside the React app load from `sbx://<sandbox-id>/path`. Each
-/// hostname is a different web origin, so localStorage / IndexedDB / cookies
-/// are fully isolated per sandbox — without needing to create a separate
-/// WKWebView per sandbox.
+/// Since `iosScheme: 'https'` in capacitor.config.ts is normalised to
+/// `capacitor://` by Capacitor (because `https` is a built-in scheme),
+/// sandbox iframes must also use the `capacitor://` scheme to be
+/// intercepted by the handler.
 ///
-/// Requests are forwarded to the JS layer as Capacitor plugin events. The JS
-/// layer resolves the file (e.g. from Blossom) and responds with
-/// `SandboxPlugin.respondToFetch()`.
-class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
-    /// Pending scheme tasks waiting for a response from JS.
-    /// Key: requestId (UUID string), Value: the WKURLSchemeTask to respond to.
+/// We swizzle `WebViewAssetHandler.webView(_:start:)` at runtime to
+/// intercept requests whose hostname ends with `.sandbox.local`, forwarding
+/// them to the JS layer for resolution. All other requests pass through to
+/// the original Capacitor implementation.
+///
+/// Sandbox iframes load from `capacitor://<sandbox-id>.sandbox.local/path`.
+/// Each hostname is a different web origin, giving full localStorage /
+/// IndexedDB / cookie isolation per sandbox.
+private let sandboxHostSuffix = ".sandbox.local"
+
+/// The sandbox request handler singleton, set up by the plugin.
+private var _sandboxHandler: SandboxRequestHandler?
+
+/// Original IMP of `WebViewAssetHandler.webView(_:start:)`.
+private var _originalStartIMP: IMP?
+/// Original IMP of `WebViewAssetHandler.webView(_:stop:)`.
+private var _originalStopIMP: IMP?
+
+/// ObjC selectors for `WKURLSchemeHandler` methods on `WebViewAssetHandler`.
+private let startSelector = Selector(("webView:startURLSchemeTask:"))
+private let stopSelector  = Selector(("webView:stopURLSchemeTask:"))
+
+/// Swizzled replacement for `webView(_:start:)`.
+/// If the request targets `*.sandbox.local`, route it to JS. Otherwise call
+/// the original Capacitor implementation.
+private let swizzledStart: @convention(block) (AnyObject, WKWebView, WKURLSchemeTask) -> Void = { selfObj, webView, task in
+    if let url = task.request.url,
+       let host = url.host,
+       host.hasSuffix(sandboxHostSuffix) {
+        _sandboxHandler?.handleStart(webView: webView, urlSchemeTask: task)
+        return
+    }
+    // Call the original Capacitor implementation.
+    typealias OriginalFunc = @convention(c) (AnyObject, Selector, WKWebView, WKURLSchemeTask) -> Void
+    let original = unsafeBitCast(_originalStartIMP!, to: OriginalFunc.self)
+    original(selfObj, startSelector, webView, task)
+}
+
+/// Swizzled replacement for `webView(_:stop:)`.
+private let swizzledStop: @convention(block) (AnyObject, WKWebView, WKURLSchemeTask) -> Void = { selfObj, webView, task in
+    if let url = task.request.url,
+       let host = url.host,
+       host.hasSuffix(sandboxHostSuffix) {
+        _sandboxHandler?.handleStop(urlSchemeTask: task)
+        return
+    }
+    typealias OriginalFunc = @convention(c) (AnyObject, Selector, WKWebView, WKURLSchemeTask) -> Void
+    let original = unsafeBitCast(_originalStopIMP!, to: OriginalFunc.self)
+    original(selfObj, stopSelector, webView, task)
+}
+
+/// Install the swizzle on `WebViewAssetHandler` (idempotent).
+private func installAssetHandlerSwizzle() {
+    guard _originalStartIMP == nil else { return }
+
+    let cls: AnyClass = WebViewAssetHandler.self
+
+    guard let startMethod = class_getInstanceMethod(cls, startSelector),
+          let stopMethod  = class_getInstanceMethod(cls, stopSelector) else {
+        return
+    }
+
+    _originalStartIMP = method_getImplementation(startMethod)
+    _originalStopIMP  = method_getImplementation(stopMethod)
+
+    method_setImplementation(startMethod, imp_implementationWithBlock(swizzledStart))
+    method_setImplementation(stopMethod, imp_implementationWithBlock(swizzledStop))
+}
+
+// MARK: - Sandbox Request Handler
+
+/// Handles sandbox iframe requests intercepted via the swizzled asset handler.
+/// Forwards requests to the JS layer and resolves responses back to WKWebView.
+class SandboxRequestHandler {
     private var pendingTasks: [String: WKURLSchemeTask] = [:]
     private let lock = NSLock()
 
-    /// Weak reference to the plugin so we can emit events.
     weak var plugin: SandboxPlugin?
-
-    /// Weak reference to the WKWebView so we can inject console.log calls.
-    weak var webView: WKWebView?
 
     /// Number of pending tasks (for diagnostics).
     var pendingTaskCount: Int {
@@ -35,28 +101,9 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         return count
     }
 
-    private func log(_ message: String) {
-        CAPLog.print("⚡️  [SandboxSchemeHandler] \(message)")
-        // Also inject into the JS console so it appears in the Capacitor log stream.
-        let escaped = message
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\n", with: "\\n")
-        DispatchQueue.main.async { [weak self] in
-            self?.webView?.evaluateJavaScript("console.log('[SandboxSchemeHandler-native] \(escaped)');", completionHandler: nil)
-        }
-    }
-
-    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
-        // Capture the webView reference for JS console logging.
-        if self.webView == nil {
-            self.webView = webView
-        }
+    func handleStart(webView: WKWebView, urlSchemeTask: WKURLSchemeTask) {
         let request = urlSchemeTask.request
-        log("start — raw URL: \(request.url?.absoluteString ?? "nil")")
-
         guard let url = request.url else {
-            log("start — FAILED: no URL in request")
             urlSchemeTask.didFailWithError(NSError(
                 domain: "SandboxPlugin", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "No URL in request"]
@@ -68,15 +115,12 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
 
         lock.lock()
         pendingTasks[requestId] = urlSchemeTask
-        let pendingCount = pendingTasks.count
         lock.unlock()
 
-        // Extract the sandbox ID from the hostname.
-        let sandboxId = url.host ?? "unknown"
+        // Extract the sandbox ID: "<sandbox-id>.sandbox.local" -> "<sandbox-id>"
+        let host = url.host ?? "unknown"
+        let sandboxId = String(host.dropLast(sandboxHostSuffix.count))
 
-        log("start — scheme=\(url.scheme ?? "nil") host=\(url.host ?? "nil") path=\(url.path) sandboxId=\(sandboxId) requestId=\(requestId) pendingCount=\(pendingCount)")
-
-        // Serialise the request for the JS layer.
         var headers: [String: String] = [:]
         if let allHeaders = request.allHTTPHeaderFields {
             headers = allHeaders
@@ -99,32 +143,22 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
             "body": bodyBase64 as Any,
         ]
 
-        if let p = plugin {
-            log("start — emitting fetch event to plugin (hasListeners=\(p.hasListeners("fetch"))) rewrittenURL=\(rewrittenURL)")
-            p.emitFetchRequest(
-                sandboxId: sandboxId,
-                requestId: requestId,
-                request: serialisedRequest
-            )
-        } else {
-            log("start — WARNING: plugin reference is nil, cannot emit fetch event for requestId=\(requestId)")
-        }
+        plugin?.emitFetchRequest(
+            sandboxId: sandboxId,
+            requestId: requestId,
+            request: serialisedRequest
+        )
     }
 
-    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
-        let stoppedURL = urlSchemeTask.request.url?.absoluteString ?? "nil"
+    func handleStop(urlSchemeTask: WKURLSchemeTask) {
         lock.lock()
         let removed = pendingTasks.first(where: { $0.value === urlSchemeTask })
         if let key = removed?.key {
             pendingTasks.removeValue(forKey: key)
-            log("stop — cancelled requestId=\(key) url=\(stoppedURL)")
-        } else {
-            log("stop — task not found in pending (already resolved?) url=\(stoppedURL)")
         }
         lock.unlock()
     }
 
-    /// Called by the plugin when JS responds to a fetch request.
     func resolveRequest(
         requestId: String,
         status: Int,
@@ -135,25 +169,16 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         lock.lock()
         guard let task = pendingTasks.removeValue(forKey: requestId) else {
             lock.unlock()
-            log("resolveRequest — WARNING: no pending task for requestId=\(requestId) (already cancelled?)")
             return
         }
-        let remainingCount = pendingTasks.count
         lock.unlock()
-
-        let bodyLen = bodyBase64.map { $0.count } ?? 0
-        let taskURL = task.request.url?.absoluteString ?? "nil"
-        log("resolveRequest — requestId=\(requestId) status=\(status) bodyBase64Len=\(bodyLen) remainingPending=\(remainingCount) url=\(taskURL)")
 
         var bodyData: Data? = nil
         if let b64 = bodyBase64 {
             bodyData = Data(base64Encoded: b64)
-            if bodyData == nil {
-                log("resolveRequest — WARNING: base64 decode failed for requestId=\(requestId)")
-            }
         }
 
-        let responseURL = task.request.url ?? URL(string: "sbx://unknown/")!
+        let responseURL = task.request.url ?? URL(string: "capacitor://unknown.sandbox.local/")!
         let response = HTTPURLResponse(
             url: responseURL,
             statusCode: status,
@@ -161,8 +186,7 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
             headerFields: headers
         )!
 
-        DispatchQueue.main.async { [weak self] in
-            self?.log("resolveRequest — delivering response on main thread for requestId=\(requestId) dataBytes=\(bodyData?.count ?? 0)")
+        DispatchQueue.main.async {
             task.didReceive(response)
             if let data = bodyData {
                 task.didReceive(data)
@@ -171,17 +195,13 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
         }
     }
 
-    /// Cancel all pending tasks (called on cleanup).
     func cancelAll() {
         lock.lock()
         let tasks = pendingTasks
         pendingTasks.removeAll()
         lock.unlock()
 
-        log("cancelAll — cancelling \(tasks.count) pending tasks")
-
-        for (requestId, task) in tasks {
-            log("cancelAll — failing requestId=\(requestId)")
+        for (_, task) in tasks {
             task.didFailWithError(NSError(
                 domain: "SandboxPlugin", code: -999,
                 userInfo: [NSLocalizedDescriptionKey: "Sandbox destroyed"]
@@ -194,13 +214,12 @@ class IframeSandboxSchemeHandler: NSObject, WKURLSchemeHandler {
 
 /// Capacitor plugin that handles sandbox fetch responses.
 ///
-/// The actual request interception is done by `IframeSandboxSchemeHandler`,
-/// registered on the main WKWebView's configuration. This plugin provides:
-///   - `respondToFetch()`: JS calls this to respond to intercepted requests.
-///   - `fetch` event: Emitted when a sandbox iframe makes a request.
+/// On iOS, sandbox iframes use the same `capacitor://` scheme as the parent
+/// app but with `*.sandbox.local` hostnames. Requests are intercepted by
+/// swizzling Capacitor's `WebViewAssetHandler` and forwarded to the JS layer.
 ///
-/// The old native-WebView-overlay approach (create/navigate/updateFrame/destroy)
-/// is no longer needed — sandboxes are now regular `<iframe>` elements in the DOM.
+/// On Android, a custom `BridgeWebViewClient` subclass intercepts requests to
+/// `*.sandbox.native` hostnames.
 @objc(SandboxPlugin)
 public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "SandboxPlugin"
@@ -210,57 +229,35 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "diagnose", returnType: CAPPluginReturnPromise),
     ]
 
-    /// The shared scheme handler — set by `DittoBridgeViewController` before
-    /// the plugin loads, so it's available when JS starts sending responses.
-    static var sharedSchemeHandler: IframeSandboxSchemeHandler?
-
-    private func log(_ message: String) {
-        CAPLog.print("⚡️  [SandboxPlugin] \(message)")
-        // Also inject into the JS console so it appears in the Capacitor log stream.
-        let escaped = message
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\n", with: "\\n")
-        DispatchQueue.main.async { [weak self] in
-            self?.bridge?.webView?.evaluateJavaScript("console.log('[SandboxPlugin-native] \(escaped)');", completionHandler: nil)
-        }
-    }
-
     public override func load() {
-        log("load — sharedSchemeHandler is \(SandboxPlugin.sharedSchemeHandler == nil ? "nil" : "set")")
-        // Connect the scheme handler to this plugin so it can emit events.
-        SandboxPlugin.sharedSchemeHandler?.plugin = self
-        log("load — plugin reference \(SandboxPlugin.sharedSchemeHandler?.plugin == nil ? "NOT set (handler nil)" : "connected")")
+        // Install the swizzle and create the handler.
+        let handler = SandboxRequestHandler()
+        handler.plugin = self
+        _sandboxHandler = handler
+        installAssetHandlerSwizzle()
     }
 
     @objc func respondToFetch(_ call: CAPPluginCall) {
         guard let requestId = call.getString("requestId") else {
-            log("respondToFetch — REJECTED: missing requestId")
             call.reject("Missing required parameter: requestId")
             return
         }
         guard let response = call.getObject("response") else {
-            log("respondToFetch — REJECTED: missing response for requestId=\(requestId)")
             call.reject("Missing required parameter: response")
             return
         }
 
-        guard let handler = SandboxPlugin.sharedSchemeHandler else {
-            log("respondToFetch — REJECTED: scheme handler not initialised for requestId=\(requestId)")
-            call.reject("Scheme handler not initialised")
+        guard let handler = _sandboxHandler else {
+            call.reject("Sandbox handler not initialised")
             return
         }
 
-        let status = response["status"] as? Int ?? 200
-        let bodyStr = response["body"] as? String
-        log("respondToFetch — requestId=\(requestId) status=\(status) hasBody=\(bodyStr != nil) bodyLen=\(bodyStr?.count ?? 0)")
-
         handler.resolveRequest(
             requestId: requestId,
-            status: status,
+            status: response["status"] as? Int ?? 200,
             statusText: response["statusText"] as? String ?? "OK",
             headers: response["headers"] as? [String: String] ?? [:],
-            bodyBase64: bodyStr
+            bodyBase64: response["body"] as? String
         )
 
         call.resolve()
@@ -268,35 +265,27 @@ public class SandboxPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Diagnostic method callable from JS to inspect native state.
     @objc func diagnose(_ call: CAPPluginCall) {
-        let handler = SandboxPlugin.sharedSchemeHandler
+        let handler = _sandboxHandler
         let hasHandler = handler != nil
         let hasPlugin = handler?.plugin != nil
-        let hasWebView = handler?.webView != nil
         let hasBridgeWebView = bridge?.webView != nil
         let hasListenersFetch = hasListeners("fetch")
-
-        lock.lock()
         let pendingCount = handler?.pendingTaskCount ?? 0
-        lock.unlock()
+        let swizzled = _originalStartIMP != nil
 
         call.resolve([
-            "schemeHandlerSet": hasHandler,
+            "sandboxHandlerSet": hasHandler,
             "pluginConnected": hasPlugin,
-            "schemeHandlerHasWebView": hasWebView,
             "bridgeHasWebView": hasBridgeWebView,
             "hasListenersFetch": hasListenersFetch,
             "pendingTaskCount": pendingCount,
+            "swizzleInstalled": swizzled,
         ])
     }
 
-    private let lock = NSLock()
-
     // MARK: - Event Forwarding
 
-    /// Forward a fetch request from the scheme handler to JS.
     func emitFetchRequest(sandboxId: String, requestId: String, request: [String: Any]) {
-        let url = request["url"] as? String ?? "unknown"
-        log("emitFetchRequest — sandboxId=\(sandboxId) requestId=\(requestId) url=\(url) hasListeners=\(hasListeners("fetch"))")
         notifyListeners("fetch", data: [
             "id": sandboxId,
             "requestId": requestId,

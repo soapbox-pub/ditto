@@ -1,9 +1,10 @@
 /**
  * SandboxPlugin — Capacitor plugin for native sandbox iframe support.
  *
- * On iOS, a single WKURLSchemeHandler for the `sbx` scheme is registered on
- * the main Capacitor WKWebView. Iframes load from `sbx://<sandbox-id>/path`
- * — each hostname is a different web origin with isolated storage.
+ * On iOS, sandbox iframes use `capacitor://<sandbox-id>.sandbox.local/path`
+ * — the same scheme as the parent app, so WKWebView routes iframe requests
+ * through the existing `WebViewAssetHandler`. The plugin swizzles the
+ * handler at runtime to intercept `*.sandbox.local` hostnames.
  *
  * On Android, a custom BridgeWebViewClient subclass intercepts requests to
  * `https://<sandbox-id>.sandbox.native/path` from iframes in the main WebView.
@@ -11,8 +12,7 @@
  * Both platforms forward intercepted requests to the JS layer as `fetch`
  * events. JS resolves the file and responds with `respondToFetch()`.
  *
- * This replaces the old approach of creating separate native WebView overlays.
- * Sandbox content now lives in regular `<iframe>` elements, so web UI
+ * Sandbox content lives in regular `<iframe>` elements, so web UI
  * (permission prompts, popovers) naturally layers on top.
  */
 
@@ -61,12 +61,12 @@ export interface SandboxFetchEvent {
 
 /** Diagnostic state returned by the native plugin. */
 export interface SandboxDiagnostics {
-  schemeHandlerSet: boolean;
+  sandboxHandlerSet: boolean;
   pluginConnected: boolean;
-  schemeHandlerHasWebView: boolean;
   bridgeHasWebView: boolean;
   hasListenersFetch: boolean;
   pendingTaskCount: number;
+  swizzleInstalled: boolean;
 }
 
 export interface SandboxPluginInterface {
