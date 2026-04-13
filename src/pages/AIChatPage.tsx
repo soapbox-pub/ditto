@@ -1,15 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Bot, Send, Square, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { PageHeader } from '@/components/PageHeader';
 import { MessageBubble, BuddyThinking } from '@/components/AIChat/AIChatComponents';
+import { BuddyOnboarding } from '@/components/AIChat/BuddyOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
 import { useBuddy } from '@/hooks/useBuddy';
-import { useBuddyOnboarding } from '@/hooks/useBuddyOnboarding';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,83 +58,15 @@ export function AIChatPage() {
   }
 
   if (!hasBuddy) {
-    return <BuddyOnboardingView />;
+    return (
+      <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
+        <PageHeader title="Buddy Setup" icon={<Bot className="size-5" />} className="shrink-0 py-3" />
+        <BuddyOnboarding className="flex-1" />
+      </main>
+    );
   }
 
   return <BuddyChatView buddy={buddy!} />;
-}
-
-// ─── Onboarding View ───
-
-function BuddyOnboardingView() {
-  const {
-    messages, handleSend, isCreating, isDone, placeholder, error,
-  } = useBuddyOnboarding();
-
-  const [input, setInput] = useState('');
-  const messagesEndRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
-
-  const onSend = useCallback(() => {
-    if (!input.trim() || isCreating) return;
-    handleSend(input);
-    setInput('');
-  }, [input, isCreating, handleSend]);
-
-  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSend();
-    }
-  }, [onSend]);
-
-  // Redirect to chat after creation (page will re-render with hasBuddy = true)
-  if (isDone) return null;
-
-  return (
-    <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
-      <PageHeader title="Buddy Setup" icon={<Bot className="size-5" />} className="shrink-0 py-3" />
-
-      <ScrollArea className="flex-1">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-          {messages.filter((msg) => msg.role !== 'tool_result').map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
-
-          {isCreating && <BuddyThinking />}
-
-          {error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          <div ref={(el) => { messagesEndRef.current = el; }} />
-        </div>
-      </ScrollArea>
-
-      <div className="shrink-0 p-4">
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder}
-            disabled={isCreating}
-            className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
-            rows={1}
-          />
-          <Button
-            onClick={onSend}
-            disabled={!input.trim() || isCreating}
-            size="icon"
-            className="size-11 shrink-0 rounded-xl"
-          >
-            <Send className="size-4" />
-          </Button>
-        </div>
-      </div>
-    </main>
-  );
 }
 
 // ─── Chat View (buddy exists) ───

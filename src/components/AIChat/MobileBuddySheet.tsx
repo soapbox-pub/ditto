@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot } from 'lucide-react';
 
 import { MessageBubble, BUDDY_ANIMATION } from '@/components/AIChat/AIChatComponents';
+import { BuddyOnboarding } from '@/components/AIChat/BuddyOnboarding';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
 import { useBuddy } from '@/hooks/useBuddy';
 import { cn } from '@/lib/utils';
@@ -12,12 +13,33 @@ interface MobileBuddySheetProps {
 }
 
 export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
-  const { buddy } = useBuddy();
+  const { buddy, hasBuddy } = useBuddy();
+
+  // Show the onboarding flow when no buddy exists yet
+  if (!hasBuddy) {
+    return (
+      <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')}>
+        <BuddyOnboarding
+          className="flex-1"
+          style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom, 0px))' }}
+        />
+      </div>
+    );
+  }
+
+  return <MobileBuddyChat buddy={buddy!} hidden={hidden} onClose={onClose} />;
+}
+
+// ─── Chat View (buddy exists) ───
+
+import type { BuddyIdentity } from '@/hooks/useBuddy';
+
+function MobileBuddyChat({ buddy, hidden, onClose }: { buddy: BuddyIdentity; hidden: boolean; onClose: () => void }) {
   const {
     messages, input, setInput, isStreaming, streamingText, selectedModel,
     apiLoading, messagesEndRef,
     handleSend, handleStop,
-  } = useAIChatSession(buddy ? { buddyName: buddy.name, buddySoul: buddy.soul } : {});
+  } = useAIChatSession({ buddyName: buddy.name, buddySoul: buddy.soul });
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [animFrame, setAnimFrame] = useState(0);
@@ -61,7 +83,7 @@ export function MobileBuddySheet({ hidden, onClose }: MobileBuddySheetProps) {
   }, [onClose, handleSend, handleStop, isStreaming]);
 
   const visibleMessages = messages.filter((msg) => msg.role !== 'tool_result');
-  const displayName = buddy?.name ?? 'Buddy';
+  const displayName = buddy.name;
 
   return (
     <div className={cn('fixed inset-0 z-[49] sidebar:hidden flex flex-col overflow-hidden', hidden && 'hidden')} onClick={onClose}>
