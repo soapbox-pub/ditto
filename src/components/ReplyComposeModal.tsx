@@ -86,6 +86,15 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
   const handleInteractOutside = useCallback((e: Event) => {
     if (isNestedDialogInteraction(e)) {
       e.preventDefault();
+      return;
+    }
+    // The emoji/mention autocomplete dropdowns are portaled to document.body
+    // (outside the Dialog DOM tree) to escape overflow clipping.  Clicks on
+    // them fire as "interact outside" the dialog — prevent dismissal so the
+    // user can select an emoji or mention with the mouse.
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('[data-autocomplete-dropdown]')) {
+      e.preventDefault();
     }
   }, [isNestedDialogInteraction]);
 
