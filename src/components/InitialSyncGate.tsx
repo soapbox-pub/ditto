@@ -8,12 +8,14 @@ import {
   EyeOff,
   Heart,
   Loader2,
+  Plus,
   UserPlus,
   Users,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { saveNsec } from "@/lib/credentialManager";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
+import { resolveSpell } from "@/lib/spellEngine";
 import {
   type ReactNode,
   useCallback,
@@ -26,6 +28,7 @@ import { DittoLogo } from "@/components/DittoLogo";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
+import { SpellContent } from "@/components/SpellContent";
 import { ThemeGrid } from "@/components/ThemeSelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,6 +41,7 @@ import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncrypted
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
+import { useSavedFeeds } from "@/hooks/useSavedFeeds";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
@@ -229,6 +233,25 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
       identifier: "k4p5w0n22suf",
     },
   ];
+
+/** Hardcoded spell event shown during onboarding for discovering content. */
+const ONBOARDING_SPELL: NostrEvent = {
+  id: "1455c2d0151446336eeb70e3a5640b715b8f1534db1b36ff9a7bcb0f57af91d3",
+  kind: 777,
+  pubkey: "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194",
+  tags: [
+    ["cmd", "REQ"],
+    ["name", "frensites"],
+    ["alt", "Grimoire REQ spell: the nsites your frens are publishing"],
+    ["k", "15128"],
+    ["k", "35128"],
+    ["authors", "$contacts"],
+    ["client", "grimoire", "31990:7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194:k50nvf8d85"],
+  ],
+  content: "the nsites your frens are publishing",
+  created_at: 1774618362,
+  sig: "210c02f343be457621b1a170e19945f663f45dbc155b4acaa85ebfd4911e75a499f0cefb6f02ae75c5d0e0dcb4af6497e1ca9bda9e4d24cbe5e93528f54d6b9d",
+};
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = "keygen" | "download" | "profile";
@@ -867,11 +890,20 @@ function FollowsStep({
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const { addSavedFeed, savedFeeds } = useSavedFeeds();
 
   const [packs, setPacks] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
   const [followingPack, setFollowingPack] = useState<string | null>(null);
+  const [addingSpell, setAddingSpell] = useState(false);
+  const [spellAdded, setSpellAdded] = useState(false);
+
+  // Check if the onboarding spell is already saved
+  const isSpellAlreadySaved = useMemo(
+    () => savedFeeds.some((f) => f.spellId === ONBOARDING_SPELL.id),
+    [savedFeeds],
+  );
 
   // Fetch the suggested follow packs
   useEffect(() => {
@@ -951,19 +983,80 @@ function FollowsStep({
     [user, nostr, publishEvent],
   );
 
+  const handleAddSpellToFeed = useCallback(async () => {
+    if (!user || isSpellAlreadySaved) return;
+    setAddingSpell(true);
+    try {
+      const resolved = resolveSpell(ONBOARDING_SPELL, undefined, []);
+      const filter: Record<string, unknown> = { ...resolved.filter };
+      const h = resolved.hints;
+      if (h.mediaType !== "all") filter._media = h.mediaType;
+      if (h.language && h.language !== "global") filter._language = h.language;
+      if (h.platform !== "nostr") filter._platform = h.platform;
+      if (h.sort !== "recent") filter._sort = h.sort;
+      if (!h.includeReplies) filter._includeReplies = false;
+
+      const spellName = ONBOARDING_SPELL.tags.find(([t]) => t === "name")?.[1] ?? "frensites";
+      await addSavedFeed(spellName, filter, [], ONBOARDING_SPELL.id);
+      setSpellAdded(true);
+    } catch (error) {
+      console.error("Failed to add spell to home feed:", error);
+    } finally {
+      setAddingSpell(false);
+    }
+  }, [user, isSpellAlreadySaved, addSavedFeed]);
+
+  const spellSaved = spellAdded || isSpellAlreadySaved;
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
+      <div className="space-y-1">
         <h2 className="text-xl font-semibold tracking-tight">
-          Find your people
+          Your feed is empty!
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Your feed is empty! Follow some people to get started. Here are some
-          curated packs to help you find interesting voices.
-        </p>
       </div>
 
+      {/* Discover content — spell section */}
       <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">
+          Discover content
+        </h3>
+        <div className="rounded-xl ring-1 ring-border overflow-hidden">
+          <div className="p-4 space-y-3">
+            <SpellContent event={ONBOARDING_SPELL} />
+            <Button
+              className="w-full gap-2"
+              size="sm"
+              variant={spellSaved ? "outline" : "default"}
+              onClick={handleAddSpellToFeed}
+              disabled={spellSaved || addingSpell}
+            >
+              {addingSpell ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Adding...
+                </>
+              ) : spellSaved ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Added to home feed
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" />
+                  Add to home feed
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Find your people — follow packs section */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">
+          Find your people
+        </h3>
         {loading ? (
           Array.from({ length: SUGGESTED_PACKS.length }).map((_, i) => (
             <PackCardSkeleton key={i} />
