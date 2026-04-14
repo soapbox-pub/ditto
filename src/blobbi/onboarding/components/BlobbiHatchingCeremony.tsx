@@ -18,6 +18,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+import { impactLight, impactMedium, impactHeavy, notificationSuccess } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
@@ -412,15 +413,19 @@ export function BlobbiHatchingCeremony({
   const handleEggClick = useCallback(() => {
     if (phase === 'egg') {
       triggerShake('animate-egg-onboard-shake-light');
+      impactLight();
       setPhase('crack_1');
     } else if (phase === 'crack_1') {
       triggerShake('animate-egg-onboard-shake-medium');
+      impactMedium();
       setPhase('crack_2');
     } else if (phase === 'crack_2') {
       triggerShake('animate-egg-onboard-shake-heavy');
+      impactHeavy();
       setPhase('crack_3');
     } else if (phase === 'crack_3') {
       // Final click -> hatch!
+      notificationSuccess();
       setPhase('hatching');
       setShowFlash(true);
 
