@@ -81,12 +81,12 @@ export function WidgetCard({
         {/* Icon + label */}
         {definition.href ? (
           <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
-            <Icon className="size-3.5 text-muted-foreground shrink-0" />
+            <Icon className="size-5 text-muted-foreground shrink-0" />
             <span className="text-xl font-semibold truncate">{definition.label}</span>
           </Link>
         ) : (
           <>
-            <Icon className="size-3.5 text-muted-foreground shrink-0" />
+            <Icon className="size-5 text-muted-foreground shrink-0" />
             <span className="text-xl font-semibold flex-1 truncate">{definition.label}</span>
           </>
         )}
