@@ -18,7 +18,7 @@ const conversationCache = new Map<string, ChatMessage[]>();
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
   const { user } = useCurrentUser();
-  const { sendStreamingMessage, getAvailableModels, isLoading, isAuthenticated } = useShakespeare();
+  const { sendStreamingMessage, getAvailableModels, isLoading } = useShakespeare();
 
   // Fetch available models and select the cheapest as default
   const { data: defaultModelId } = useQuery({
@@ -88,7 +88,7 @@ export function AIChatWidget() {
     }
   }, [input, isLoading, messages, sendStreamingMessage, defaultModelId]);
 
-  if (!user || !isAuthenticated) {
+  if (!user) {
     return (
       <div className="flex flex-col items-center gap-2 py-4 px-2 text-center">
         <Bot className="size-8 text-muted-foreground" />
@@ -156,7 +156,7 @@ export function AIChatWidget() {
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
-  const content = typeof message.content === 'string' ? message.content : message.content.map((c) => c.text ?? '').join('');
+  const content = typeof message.content === 'string' ? message.content : Array.isArray(message.content) ? message.content.map((c) => c.text ?? '').join('') : '';
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>

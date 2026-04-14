@@ -320,7 +320,7 @@ export function useShakespeare() {
           index: 0,
           message: {
             role: 'assistant',
-            content: content || null,
+            content: content || undefined,
             ...(assembledToolCalls ? { tool_calls: assembledToolCalls } : {}),
           },
           finish_reason: finishReason,

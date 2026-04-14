@@ -96,10 +96,7 @@ import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/u
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
-import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
-import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
-import { getParentEventHints, getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
+import { getParentEventId, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
 import { impactLight } from "@/lib/haptics";
