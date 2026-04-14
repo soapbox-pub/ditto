@@ -7,7 +7,10 @@
  * - PERSISTENT TASKS: Based on Nostr events, can be cached in tags
  * 
  * Tags are only cache for persistent tasks. Source of truth = Nostr events.
- * All persistent tasks are computed dynamically from events with created_at >= state_started_at.
+ * 
+ * Most tasks are RETROACTIVE — they query the user's full history without
+ * a `since:` filter. Only Blobbi-specific tasks (interactions) require
+ * actions performed on the current Blobbi instance.
  * 
  * Note: Egg stats no longer decay, so there are no dynamic tasks for hatching.
  */
@@ -120,35 +123,27 @@ export function buildHatchPhrase(blobbiName: string): string {
 }
 
 /**
- * Check if a post is a valid Blobbi hatch post.
- * The post must contain the required phrase: "Posting to hatch {Name} #blobbi"
- * The user may add extra text before or after it.
- * 
- * @param event - The Nostr event to validate
- * @param blobbiName - The Blobbi's name
+ * Check if a post is a valid Blobbi-related post.
+ *
+ * A post is valid if it mentions the "blobbi" hashtag in either:
+ * - A `["t", "blobbi"]` tag, OR
+ * - The literal text `#blobbi` anywhere in the content
+ *
+ * This is intentionally loose so that historical posts can count
+ * retroactively toward hatch requirements.
  */
-export function isValidHatchPost(event: NostrEvent, blobbiName: string): boolean {
-  const phrase = buildHatchPhrase(blobbiName);
-
-  // The phrase must appear somewhere in the content
-  if (!event.content.includes(phrase)) {
-    return false;
-  }
-  
-  // Check for required hashtags in tags
-  const hashtags = event.tags
-    .filter(tag => tag[0] === 't')
-    .map(tag => tag[1]?.toLowerCase());
-  
-  // All required hashtags must be present as t tags
-  const hasRequiredHashtags = BLOBBI_POST_REQUIRED_HASHTAGS.every(required => 
-    hashtags.includes(required.toLowerCase())
+export function isValidHatchPost(event: NostrEvent): boolean {
+  // Check for blobbi hashtag in t tags
+  const hasBlobbiTag = event.tags.some(
+    tag => tag[0] === 't' && tag[1]?.toLowerCase() === 'blobbi',
   );
-  
-  return hasRequiredHashtags;
+  if (hasBlobbiTag) return true;
+
+  // Fallback: check content for #blobbi (case-insensitive)
+  return /#blobbi\b/i.test(event.content);
 }
 
-// Legacy function name for backwards compatibility
+/** @deprecated Use isValidHatchPost instead. */
 export const isValidBlobbiPost = isValidHatchPost;
 
 // ─── Main Hook ────────────────────────────────────────────────────────────────
@@ -156,14 +151,13 @@ export const isValidBlobbiPost = isValidHatchPost;
 /**
  * Hook to compute hatch task progress from Nostr events and current stats.
  * 
- * PERSISTENT TASKS (event-based, can be cached):
- * 1. Create Theme (kind 36767) - ≥1 event after start
- * 2. Color Moment (kind 3367) - ≥1 event after start
- * 3. Create Post (kind 1) - ≥1 valid Blobbi hatch post after start
- * 4. Interactions - 7 total (tracked via companion.tasks cache)
+ * RETROACTIVE TASKS (count from full user history):
+ * 1. Create Theme (kind 36767) - ≥1 event ever
+ * 2. Color Moment (kind 3367) - ≥1 event ever
+ * 3. Create Post (kind 1) - ≥1 post with #blobbi hashtag ever
  * 
- * Note: Egg stats no longer decay, so the "maintain stats" dynamic task
- * has been removed. The baby/adult evolve equivalent is still in useEvolveTasks.
+ * BLOBBI-SPECIFIC TASKS (must be done for this Blobbi):
+ * 4. Interactions - 7 total (tracked via companion.tasks cache)
  * 
  * @param companion - The Blobbi companion (must be incubating)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -179,7 +173,11 @@ export function useHatchTasks(
   const stateStartedAt = companion?.stateStartedAt;
   const isIncubating = companion?.state === 'incubating';
   
-  // Query for all relevant events
+  // Query for all relevant events.
+  //
+  // RETROACTIVE tasks (theme, color moment, post) query the user's full
+  // history — no `since:` filter. This means completing the activity once
+  // satisfies the requirement for every future egg.
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['hatch-tasks', pubkey, stateStartedAt],
     queryFn: async () => {
@@ -189,38 +187,24 @@ export function useHatchTasks(
       
       // Build filters for events we need
       const filters: NostrFilter[] = [
-        // Theme definitions after start
+        // Theme definitions — retroactive (no since:)
         {
           kinds: [KIND_THEME_DEFINITION],
           authors: [pubkey],
-          since: stateStartedAt,
+          limit: 1, // Only need to know ≥1 exists
         },
-        // Color moments after start
+        // Color moments — retroactive (no since:)
         {
           kinds: [KIND_COLOR_MOMENT],
           authors: [pubkey],
-          since: stateStartedAt,
+          limit: 1,
         },
-        // Posts after start (will filter for valid Blobbi posts)
+        // Blobbi-tagged posts — retroactive (no since:)
+        // Relay-level filter by #t=blobbi; client-side fallback in isValidHatchPost
         {
           kinds: [KIND_SHORT_TEXT_NOTE],
           authors: [pubkey],
-          since: stateStartedAt,
-          limit: 50, // Reasonable limit
-        },
-        // Profile metadata - need both before and after start
-        // Get latest before start
-        {
-          kinds: [KIND_PROFILE_METADATA],
-          authors: [pubkey],
-          until: stateStartedAt,
-          limit: 1,
-        },
-        // Get latest after start
-        {
-          kinds: [KIND_PROFILE_METADATA],
-          authors: [pubkey],
-          since: stateStartedAt,
+          '#t': ['blobbi'],
           limit: 1,
         },
       ];
@@ -229,33 +213,14 @@ export function useHatchTasks(
       const events = await nostr.query(filters);
       
       // Categorize events
-      const themeEvents = events.filter(e => 
-        e.kind === KIND_THEME_DEFINITION && e.created_at >= stateStartedAt
-      );
-      
-      const colorMomentEvents = events.filter(e => 
-        e.kind === KIND_COLOR_MOMENT && e.created_at >= stateStartedAt
-      );
-      
-      const postEvents = events.filter(e => 
-        e.kind === KIND_SHORT_TEXT_NOTE && e.created_at >= stateStartedAt
-      );
-      
-      // Separate profile events into before and after
-      const profileEvents = events.filter(e => e.kind === KIND_PROFILE_METADATA);
-      const profileBefore = profileEvents
-        .filter(e => e.created_at < stateStartedAt)
-        .sort((a, b) => b.created_at - a.created_at)[0];
-      const profileAfter = profileEvents
-        .filter(e => e.created_at >= stateStartedAt)
-        .sort((a, b) => b.created_at - a.created_at)[0];
+      const themeEvents = events.filter(e => e.kind === KIND_THEME_DEFINITION);
+      const colorMomentEvents = events.filter(e => e.kind === KIND_COLOR_MOMENT);
+      const postEvents = events.filter(e => e.kind === KIND_SHORT_TEXT_NOTE);
       
       return {
         themeEvents,
         colorMomentEvents,
         postEvents,
-        profileBefore,
-        profileAfter,
       };
     },
     enabled: !!pubkey && !!stateStartedAt && isIncubating,
@@ -296,14 +261,13 @@ export function useHatchTasks(
     actionLabel: 'Open espy',
   });
   
-  // 3. Create Post (PERSISTENT)
-  const blobbiName = companion?.name ?? '';
-  const validPosts = data?.postEvents?.filter(e => isValidHatchPost(e, blobbiName)) ?? [];
+  // 3. Create Post (PERSISTENT) — retroactive: any post with #blobbi
+  const validPosts = data?.postEvents?.filter(e => isValidHatchPost(e)) ?? [];
   const hasValidPost = validPosts.length >= 1;
   tasks.push({
     id: 'create_post',
     name: 'Create Post',
-    description: 'Share a post about hatching your Blobbi',
+    description: 'Share a post with the #blobbi hashtag',
     current: hasValidPost ? 1 : 0,
     required: 1,
     completed: hasValidPost,
