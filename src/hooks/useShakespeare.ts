@@ -94,8 +94,8 @@ export interface ModelsResponse {
 
 // Configuration
 // REMOVE BEFORE ALEX SEE THIS
-const SHAKESPEARE_API_URL = 'http://5.78.68.217:8000/v1';
-const SHAKESPEARE_SERVER_URL = 'http://5.78.68.217:8000/v1';
+const SHAKESPEARE_API_URL = 'https://ai.pocketvibe.app/v1';
+const SHAKESPEARE_SERVER_URL = 'https://ai.pocketvibe.app/v1';
 
 // Helper function to create NIP-98 token
 async function createNIP98Token(
