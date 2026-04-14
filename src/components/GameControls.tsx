@@ -90,6 +90,7 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
         'flex flex-col gap-2 px-4 pb-4 pt-2 select-none touch-none',
         className,
       )}
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
       {/* Main controls row: D-pad on left, A/B on right */}
       <div className="flex items-center justify-between">
