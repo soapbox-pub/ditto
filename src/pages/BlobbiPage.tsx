@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, Bath, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -2028,7 +2028,7 @@ function CareBar({
         {isHygieneFocused ? (
           towelItem ? (
             <RoomActionButton
-              icon={<TowelRack className="size-7 sm:size-9" />}
+              icon={<Bath className="size-7 sm:size-9" />}
               label="Towel"
               color="text-cyan-500"
               glowHex="#06b6d4"
