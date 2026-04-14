@@ -49,12 +49,14 @@ function vibrate(ms: number) {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-const isNative = Capacitor.isNativePlatform();
+function warnHapticError(label: string, err: unknown) {
+  console.warn(`[haptics] ${label} failed:`, err);
+}
 
 /** Light tap — reactions, reposts, bookmarks, share. */
 export function impactLight(): void {
-  if (isNative) {
-    nativeImpact('Light').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeImpact('Light').catch((e) => warnHapticError('impactLight', e));
   } else {
     vibrate(10);
   }
@@ -62,8 +64,8 @@ export function impactLight(): void {
 
 /** Medium tap — zap button press, pull-to-refresh threshold, follow. */
 export function impactMedium(): void {
-  if (isNative) {
-    nativeImpact('Medium').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeImpact('Medium').catch((e) => warnHapticError('impactMedium', e));
   } else {
     vibrate(20);
   }
@@ -71,8 +73,8 @@ export function impactMedium(): void {
 
 /** Heavy tap — game button press, letter seal. */
 export function impactHeavy(): void {
-  if (isNative) {
-    nativeImpact('Heavy').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeImpact('Heavy').catch((e) => warnHapticError('impactHeavy', e));
   } else {
     vibrate(30);
   }
@@ -80,8 +82,8 @@ export function impactHeavy(): void {
 
 /** Success notification — zap payment success, post published. */
 export function notificationSuccess(): void {
-  if (isNative) {
-    nativeNotification('Success').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeNotification('Success').catch((e) => warnHapticError('notificationSuccess', e));
   } else {
     vibrate(15);
   }
@@ -89,8 +91,8 @@ export function notificationSuccess(): void {
 
 /** Warning notification. */
 export function notificationWarning(): void {
-  if (isNative) {
-    nativeNotification('Warning').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeNotification('Warning').catch((e) => warnHapticError('notificationWarning', e));
   } else {
     vibrate(20);
   }
@@ -98,8 +100,8 @@ export function notificationWarning(): void {
 
 /** Error notification. */
 export function notificationError(): void {
-  if (isNative) {
-    nativeNotification('Error').catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeNotification('Error').catch((e) => warnHapticError('notificationError', e));
   } else {
     vibrate(30);
   }
@@ -107,8 +109,8 @@ export function notificationError(): void {
 
 /** Selection changed — toggle switches, tab taps, picker changes. */
 export function selectionChanged(): void {
-  if (isNative) {
-    nativeSelectionChanged().catch(() => {});
+  if (Capacitor.isNativePlatform()) {
+    nativeSelectionChanged().catch((e) => warnHapticError('selectionChanged', e));
   } else {
     vibrate(5);
   }
