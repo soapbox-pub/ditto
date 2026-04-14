@@ -236,21 +236,20 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
 
 /** Hardcoded spell event shown during onboarding for discovering content. */
 const ONBOARDING_SPELL: NostrEvent = {
-  id: "1455c2d0151446336eeb70e3a5640b715b8f1534db1b36ff9a7bcb0f57af91d3",
+  id: "0edc3ccbdf18b062ee2480ba56001b34c5a2f3ce561d0e83d750d038e47020ec",
   kind: 777,
-  pubkey: "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194",
+  pubkey: "6242094731ec9129f22a5da9911c56b7813015ebf976bf177371fcffca4c0366",
   tags: [
+    ["name", "GLaDOS Post Replies"],
     ["cmd", "REQ"],
-    ["name", "frensites"],
-    ["alt", "Grimoire REQ spell: the nsites your frens are publishing"],
-    ["k", "15128"],
-    ["k", "35128"],
-    ["authors", "$contacts"],
-    ["client", "grimoire", "31990:7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194:k50nvf8d85"],
+    ["k", "1"],
+    ["tag", "e", "bd262773c292d6fc518c88d3bfe6f78c99116c1d90df00aaa8a09b87afe6ff5a"],
+    ["limit", "50"],
+    ["alt", "Spell: GLaDOS Post Replies"],
   ],
-  content: "the nsites your frens are publishing",
-  created_at: 1774618362,
-  sig: "210c02f343be457621b1a170e19945f663f45dbc155b4acaa85ebfd4911e75a499f0cefb6f02ae75c5d0e0dcb4af6497e1ca9bda9e4d24cbe5e93528f54d6b9d",
+  content: "Live replies to the GLaDOS test log kind 1 post",
+  created_at: 1775777464,
+  sig: "e7f2d3825f68173133c12a08a6b86b74925f7930a5b5ce7e1046ba0dbe2de9b103d48b298ad2ad1ccd231526639ba3ddd8c1f72d898f7a33cbc5d57100613e05",
 };
 
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
