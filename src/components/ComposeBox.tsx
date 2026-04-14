@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
+import { notificationSuccess } from '@/lib/haptics';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
@@ -715,6 +716,7 @@ export function ComposeBox({
           }
         }
       }
+      notificationSuccess();
       toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
       onSuccess?.();
     } catch {
@@ -972,6 +974,7 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
         queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
       }
+      notificationSuccess();
       toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.' });
       onSuccess?.();
     } catch {
@@ -1015,6 +1018,7 @@ export function ComposeBox({
       await createEvent({ kind: 1068, content: finalContent, tags });
       resetComposeState();
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      notificationSuccess();
       toast({ title: 'Poll published!' });
       onSuccess?.();
     } catch {
