@@ -188,7 +188,7 @@ export function BlobbiHatchingCeremony({
   // Baby companion (same visual data but stage=baby)
   const babyCompanion = useMemo((): BlobbiCompanion | null => {
     if (!eggCompanion) return null;
-    return { ...eggCompanion, stage: 'baby', state: 'active' };
+    return { ...eggCompanion, stage: 'baby', state: 'evolving' };
   }, [eggCompanion]);
 
   const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
@@ -211,7 +211,7 @@ export function BlobbiHatchingCeremony({
       ownerPubkey: user?.pubkey ?? '',
       name: existingCompanion.name,
       stage: 'egg',
-      state: 'active',
+      state: (existingCompanion.state === 'incubating' ? 'incubating' : 'active') as 'incubating' | 'active',
       seed: existingCompanion.seed ?? '',
       stats: {
         hunger: existingCompanion.stats.hunger ?? STAT_MAX,
@@ -387,7 +387,8 @@ export function BlobbiHatchingCeremony({
 
     const babyTags = updateBlobbiTags(tags, {
       stage: 'baby',
-      state: 'active',
+      state: 'evolving',
+      state_started_at: nowStr,
       hunger: STAT_MAX.toString(),
       happiness: STAT_MAX.toString(),
       health: STAT_MAX.toString(),

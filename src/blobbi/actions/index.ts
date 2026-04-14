@@ -54,7 +54,6 @@ export {
   useHatchTasks, 
   getInteractionCount,
   filterPersistentTasks,
-  sanitizeToHashtag,
   KIND_THEME_DEFINITION,
   KIND_COLOR_MOMENT,
   HATCH_REQUIRED_INTERACTIONS,
@@ -67,14 +66,11 @@ export type { HatchTask, HatchTasksResult, TaskType } from './hooks/useHatchTask
 export {
   useEvolveTasks,
   getEvolveInteractionCount,
-  isValidEvolvePost,
   KIND_PROFILE_TABS,
   EVOLVE_REQUIRED_THEMES,
   EVOLVE_REQUIRED_COLOR_MOMENTS,
-  EVOLVE_REQUIRED_POSTS,
   EVOLVE_REQUIRED_INTERACTIONS,
   EVOLVE_STAT_THRESHOLD,
-  BLOBBI_EVOLVE_POST_PREFIX,
 } from './hooks/useEvolveTasks';
 export type { EvolveTasksResult } from './hooks/useEvolveTasks';
 

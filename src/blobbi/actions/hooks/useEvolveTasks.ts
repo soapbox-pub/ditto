@@ -40,14 +40,8 @@ export const EVOLVE_REQUIRED_THEMES = 3;
 /** Required color moments for evolve task */
 export const EVOLVE_REQUIRED_COLOR_MOMENTS = 3;
 
-/** @deprecated Post task removed from evolve flow. Kept for barrel re-export compatibility. */
-export const EVOLVE_REQUIRED_POSTS = 1;
-
 /** Required interactions for evolve task */
 export const EVOLVE_REQUIRED_INTERACTIONS = 21;
-
-/** @deprecated Post task removed from evolve flow. Kept for barrel re-export compatibility. */
-export const BLOBBI_EVOLVE_POST_PREFIX = 'Hello Nostr! Posting to evolve';
 
 /** Stat threshold for evolve dynamic task (all stats >= 80) */
 export const EVOLVE_STAT_THRESHOLD = 80;
@@ -76,14 +70,6 @@ export interface EvolveTasksResult {
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-/**
- * @deprecated The evolve post task has been removed. This function is kept
- * for barrel re-export compatibility only.
- */
-export function isValidEvolvePost(): boolean {
-  return false;
-}
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
@@ -111,7 +97,6 @@ export function useEvolveTasks(
   const { nostr } = useNostr();
   
   const pubkey = user?.pubkey;
-  const stateStartedAt = companion?.stateStartedAt;
   const isEvolving = companion?.state === 'evolving';
   
   // Query for all relevant events.
@@ -120,9 +105,9 @@ export function useEvolveTasks(
   // history — no `since:` filter. Completing the activity once satisfies
   // the requirement for every future baby's evolution.
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['evolve-tasks', pubkey, stateStartedAt],
+    queryKey: ['evolve-tasks', pubkey],
     queryFn: async () => {
-      if (!pubkey || !stateStartedAt) {
+      if (!pubkey) {
         return null;
       }
       
@@ -170,7 +155,7 @@ export function useEvolveTasks(
         hasProfileMetadata: profileEvents.length > 0,
       };
     },
-    enabled: !!pubkey && !!stateStartedAt && isEvolving,
+    enabled: !!pubkey && isEvolving,
     staleTime: 30_000, // 30 seconds
     refetchInterval: 60_000, // Refetch every minute
   });

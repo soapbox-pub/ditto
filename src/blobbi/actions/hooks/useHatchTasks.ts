@@ -45,23 +45,6 @@ export const BLOBBI_POST_PREFIX = 'Posting to hatch';
 // Legacy export for backwards compatibility
 export const REQUIRED_INTERACTIONS = HATCH_REQUIRED_INTERACTIONS;
 
-/**
- * Sanitize a name into a valid hashtag format.
- * Must match the implementation in BlobbiPostModal.tsx.
- */
-export function sanitizeToHashtag(name: string): string {
-  return name
-    .toLowerCase()
-    // Remove emojis and special characters, keep letters, numbers, underscores
-    .replace(/[^\p{L}\p{N}_]/gu, '')
-    // Ensure it starts with a letter (prepend 'blobbi' if it starts with number)
-    .replace(/^(\d)/, 'blobbi$1')
-    // Limit length
-    .slice(0, 30)
-    // Fallback if empty
-    || 'myblobbi';
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -143,9 +126,6 @@ export function isValidHatchPost(event: NostrEvent): boolean {
   return /#blobbi\b/i.test(event.content);
 }
 
-/** @deprecated Use isValidHatchPost instead. */
-export const isValidBlobbiPost = isValidHatchPost;
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
@@ -170,7 +150,6 @@ export function useHatchTasks(
   const { nostr } = useNostr();
   
   const pubkey = user?.pubkey;
-  const stateStartedAt = companion?.stateStartedAt;
   const isIncubating = companion?.state === 'incubating';
   
   // Query for all relevant events.
@@ -179,9 +158,9 @@ export function useHatchTasks(
   // history — no `since:` filter. This means completing the activity once
   // satisfies the requirement for every future egg.
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['hatch-tasks', pubkey, stateStartedAt],
+    queryKey: ['hatch-tasks', pubkey],
     queryFn: async () => {
-      if (!pubkey || !stateStartedAt) {
+      if (!pubkey) {
         return null;
       }
       
@@ -223,7 +202,7 @@ export function useHatchTasks(
         postEvents,
       };
     },
-    enabled: !!pubkey && !!stateStartedAt && isIncubating,
+    enabled: !!pubkey && isIncubating,
     staleTime: 30_000, // 30 seconds
     refetchInterval: 60_000, // Refetch every minute
   });
