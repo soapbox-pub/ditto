@@ -78,7 +78,9 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
+import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTabFeed } from '@/hooks/useProfileFeed';
+import { buildUnsignedSpell } from '@/lib/spellEngine';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -3042,6 +3044,87 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
 function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
+  feed: ProfileTab;
+  vars: TabVarDef[];
+  ownerPubkey: string;
+}) {
+  // If the filter carries _spellTags, render via spell mode (same as SpellRunPage)
+  const rawFilter = feed.filter as Record<string, unknown>;
+  const spellTags = Array.isArray(rawFilter._spellTags) ? rawFilter._spellTags as string[][] : null;
+
+  if (spellTags) {
+    return <ProfileSpellFeedContent label={feed.label} spellTags={spellTags} />;
+  }
+
+  return <ProfileLegacyFeedContent feed={feed} vars={vars} ownerPubkey={ownerPubkey} />;
+}
+
+/** Spell-driven profile tab: reconstructs a spell from stored tags and streams results. */
+function ProfileSpellFeedContent({ label, spellTags }: { label: string; spellTags: string[][] }) {
+  const spellEvent = useMemo(() => buildUnsignedSpell(spellTags), [spellTags]);
+
+  const { ref: tabScrollRef, inView: tabInView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  const { posts, isLoading, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
+    includeReplies: true,
+    mediaType: 'all',
+    spell: spellEvent,
+  });
+
+  useEffect(() => {
+    if (tabInView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [tabInView, hasMore, isLoadingMore, loadMore]);
+
+  if (isLoading && posts.length === 0) {
+    return (
+      <div className="space-y-0">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="px-4 py-3 border-b border-border">
+            <div className="flex gap-3">
+              <Skeleton className="size-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground text-sm">
+        No posts found for &ldquo;{label}&rdquo;.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+
+      {hasMore && (
+        <div ref={tabScrollRef} className="py-4">
+          {isLoadingMore && (
+            <div className="flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Legacy profile tab without spell tags: resolves filter variables and queries directly. */
+function ProfileLegacyFeedContent({ feed, vars, ownerPubkey }: {
   feed: ProfileTab;
   vars: TabVarDef[];
   ownerPubkey: string;

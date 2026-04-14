@@ -161,8 +161,10 @@ export function SpellRunPage() {
   }, [spellAsFilter, saveFeedLabel, addSavedFeed, toast, spellEvent]);
 
   const handleSaveProfileTab = useCallback(async () => {
-    if (!spellAsFilter || !saveFeedLabel.trim() || !user) return;
-    const tabFilter = spellAsFilter as Record<string, unknown>;
+    if (!spellEvent || !saveFeedLabel.trim() || !user) return;
+    // Store the spell event's tags so ProfileSavedFeedContent can reconstruct
+    // the spell and render via useStreamPosts({ spell }).
+    const tabFilter: Record<string, unknown> = { _spellTags: spellEvent.tags };
     const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
     await publishProfileTabs({
       tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: tabFilter }],
@@ -173,7 +175,7 @@ export function SpellRunPage() {
     setSavedJustNow(true);
     setTimeout(() => setSavedJustNow(false), 2000);
     toast({ title: 'Added to profile tabs' });
-  }, [spellAsFilter, saveFeedLabel, user, profileTabsQuery.data, publishProfileTabs, toast]);
+  }, [spellEvent, saveFeedLabel, user, profileTabsQuery.data, publishProfileTabs, toast]);
 
   const handleShare = useCallback(async () => {
     if (!spellEvent || !nevent || !saveFeedLabel.trim()) return;

@@ -449,22 +449,20 @@ export function SearchPage() {
   const handleSaveProfileTab = async () => {
     if (!saveFeedLabel.trim() || isPublishingTabs || !user) return;
 
-    // Build filter for the profile tab
-    const tabFilter: Record<string, unknown> = {};
-    if (debouncedSearchQuery.trim()) tabFilter.search = debouncedSearchQuery.trim();
-    if (kindsOverride && kindsOverride.length > 0) tabFilter.kinds = kindsOverride;
-    if (authorScope === 'follows') tabFilter.authors = ['$follows'];
-    else if (authorScope === 'people' && authorPubkeys.length > 0) tabFilter.authors = authorPubkeys;
+    // Store spell tags in the filter so ProfileSavedFeedContent can reconstruct
+    // the spell and render via useStreamPosts({ spell }), preserving all filters.
+    const tags = currentSpellTags.map(([t, ...rest]) =>
+      t === 'name' ? ['name', saveFeedLabel.trim()] :
+      t === 'alt' ? ['alt', `Spell: ${saveFeedLabel.trim()}`] :
+      [t, ...rest]
+    );
+    const tabFilter: Record<string, unknown> = { _spellTags: tags };
 
     const existing = profileTabsQuery.data ?? { tabs: [], vars: [] };
-    const newVars = [...existing.vars];
-    if (authorScope === 'follows' && !newVars.find((v) => v.name === '$follows')) {
-      newVars.push({ name: '$follows', tagName: 'p', pointer: `a:3:${user.pubkey}:` });
-    }
 
     await publishProfileTabs({
       tabs: [...existing.tabs, { label: saveFeedLabel.trim(), filter: tabFilter }],
-      vars: newVars,
+      vars: existing.vars,
     });
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
