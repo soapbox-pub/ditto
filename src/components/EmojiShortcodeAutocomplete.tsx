@@ -366,6 +366,7 @@ export function EmojiShortcodeAutocomplete({
   const dropdown = (
     <div
       ref={dropdownRef}
+      data-autocomplete-dropdown
       className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
