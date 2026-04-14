@@ -89,8 +89,24 @@ const DEFAULT_FILTERS = {
   kindFilter: 'all',
   customKindText: '',
   authorScope: 'anyone' as AuthorScope,
+  authorPubkeys: [] as string[],
   sort: 'recent' as SortPref,
 };
+
+type TabDefaults = Partial<typeof DEFAULT_FILTERS>;
+
+/** Per-tab initial filter overrides. Tabs not listed here use DEFAULT_FILTERS. */
+const TAB_DEFAULTS: Partial<Record<TabType, TabDefaults>> = {
+  packs: {
+    authorScope: 'people',
+    authorPubkeys: ['532d830dffe09c13e75e8b145c825718fc12b0003f61d61e9077721c7fff93cb'],
+  },
+};
+
+/** Resolve the effective defaults for a given tab. */
+function getTabDefaults(tab: TabType): typeof DEFAULT_FILTERS {
+  return { ...DEFAULT_FILTERS, ...TAB_DEFAULTS[tab] };
+}
 
 /** Parse a boolean from a URL param, returning defaultVal if absent/invalid. */
 function parseBoolParam(value: string | null, defaultVal: boolean): boolean {
@@ -113,6 +129,40 @@ export function SearchPage() {
 
   // Derive tab directly from URL — single source of truth
   const activeTab = parseTab(searchParams.get('tab'));
+
+  // Apply tab-specific default filters on initial load or when the tab changes
+  // via direct URL navigation (e.g. /discover?tab=packs). Only applies defaults
+  // when no filter params are already present in the URL to avoid clobbering
+  // user-set filters on re-renders.
+  const appliedTabRef = useRef<string | null>(null);
+  useEffect(() => {
+    const tabKey = activeTab;
+    if (appliedTabRef.current === tabKey) return;
+    appliedTabRef.current = tabKey;
+
+    const defaults = TAB_DEFAULTS[tabKey];
+    if (!defaults) return;
+
+    // Only apply if no filter params are already set
+    const hasFilterParams = searchParams.has('authorScope') || searchParams.has('author') ||
+      searchParams.has('sort') || searchParams.has('media') || searchParams.has('lang') ||
+      searchParams.has('platform') || searchParams.has('kind');
+    if (hasFilterParams) return;
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (defaults.authorScope && defaults.authorScope !== DEFAULT_FILTERS.authorScope) {
+        next.set('authorScope', defaults.authorScope);
+      }
+      if (defaults.authorPubkeys && defaults.authorPubkeys.length > 0) {
+        defaults.authorPubkeys.forEach((pk) => next.append('author', pk));
+      }
+      if (defaults.sort && defaults.sort !== DEFAULT_FILTERS.sort) {
+        next.set('sort', defaults.sort);
+      }
+      return next;
+    }, { replace: true });
+  }, [activeTab, searchParams, setSearchParams]);
 
   // SearchPage only tracks the debounced value — raw keystroke state lives in
   // the SearchInput child component so typing doesn't re-render the whole page.
@@ -205,7 +255,7 @@ export function SearchPage() {
 
 
 
-  // Update tab in URL
+  // Update tab in URL and apply tab-specific default filters
   const setActiveTab = useCallback((tab: TabType) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -214,6 +264,31 @@ export function SearchPage() {
       } else {
         next.set('tab', tab);
       }
+      // Reset filter params to the new tab's defaults
+      const defaults = getTabDefaults(tab);
+      // Author scope + authors
+      if (defaults.authorScope === DEFAULT_FILTERS.authorScope) {
+        next.delete('authorScope');
+      } else {
+        next.set('authorScope', defaults.authorScope);
+      }
+      next.delete('author');
+      if (defaults.authorPubkeys.length > 0) {
+        defaults.authorPubkeys.forEach((pk) => next.append('author', pk));
+      }
+      // Sort
+      if (defaults.sort === DEFAULT_FILTERS.sort) {
+        next.delete('sort');
+      } else {
+        next.set('sort', defaults.sort);
+      }
+      // Other filters reset to global defaults
+      next.delete('replies');
+      next.delete('media');
+      next.delete('lang');
+      next.delete('platform');
+      next.delete('kind');
+      next.delete('customKind');
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -283,27 +358,44 @@ export function SearchPage() {
   // Detect kind + media type conflict: a specific kind is selected AND a media type is set
   const hasKindMediaConflict = kindFilter !== 'all' && kindsOverride.length > 0 && mediaType !== 'all';
 
-  // Determine if any filter differs from the default
-  const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
-    language !== DEFAULT_FILTERS.language || platform !== DEFAULT_FILTERS.platform ||
-    kindFilter !== DEFAULT_FILTERS.kindFilter || authorScope !== DEFAULT_FILTERS.authorScope ||
-    sort !== DEFAULT_FILTERS.sort || authorPubkeys.length > 0;
+  // Determine if any filter differs from the current tab's defaults
+  const tabDefaults = useMemo(() => getTabDefaults(activeTab), [activeTab]);
+  const hasActiveFilters = includeReplies !== tabDefaults.includeReplies ||
+    mediaType !== tabDefaults.mediaType ||
+    language !== tabDefaults.language || platform !== tabDefaults.platform ||
+    kindFilter !== tabDefaults.kindFilter || authorScope !== tabDefaults.authorScope ||
+    sort !== tabDefaults.sort ||
+    JSON.stringify(authorPubkeys) !== JSON.stringify(tabDefaults.authorPubkeys);
 
   const resetFilters = useCallback(() => {
+    const defaults = getTabDefaults(activeTab);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      // Reset all filter params
       next.delete('replies');
       next.delete('media');
       next.delete('lang');
       next.delete('platform');
       next.delete('kind');
       next.delete('customKind');
-      next.delete('authorScope');
-      next.delete('author');
       next.delete('sort');
+      // Restore tab-specific author defaults
+      if (defaults.authorScope === DEFAULT_FILTERS.authorScope) {
+        next.delete('authorScope');
+      } else {
+        next.set('authorScope', defaults.authorScope);
+      }
+      next.delete('author');
+      if (defaults.authorPubkeys.length > 0) {
+        defaults.authorPubkeys.forEach((pk) => next.append('author', pk));
+      }
+      // Restore tab-specific sort default
+      if (defaults.sort !== DEFAULT_FILTERS.sort) {
+        next.set('sort', defaults.sort);
+      }
       return next;
     }, { replace: true });
-  }, [setSearchParams]);
+  }, [setSearchParams, activeTab]);
 
   // Build the NIP-50 search string that will be sent to the relay (for display)
   const nip50SearchString = useMemo(() => {
