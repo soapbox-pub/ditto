@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.7.0] - 2026-04-14
+
+### Added
+- Customizable widget sidebar -- drag, drop, and rearrange widgets on your feed including Trending, Hot Posts, Bluesky, AI Chat, Blobbi, Music, Photos, Wikipedia, and more
+- Blobbi rooms -- swipe between living spaces, clean up after your pet, and earn XP from daily care routines
+- Native push notifications on iOS with author names, content previews, and smart grouping by category
+- Haptic feedback throughout the app -- taps, buzzes, and pulses when you react, zap, repost, pull to refresh, play games, and interact with your Blobbi
+- Hot Posts widget showing the most popular posts from your feed at a glance
+
+### Changed
+- Sidebar widgets are now clickable links that take you to their full pages
+- Blobbi widget shows live stats with circular ring indicators and quick action buttons
+
+### Fixed
+- Zaps embedded in posts now render as proper inline cards instead of blank space
+- Quote posts display media and Blobbi companions correctly
+- Deep linking on Google Play works again
+- Game controller buttons no longer trigger text selection on long-press on iOS
+
 ## [2.6.6] - 2026-04-12
 
 ### Fixed
