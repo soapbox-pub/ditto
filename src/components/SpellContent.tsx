@@ -133,7 +133,7 @@ export function SpellContent({ event }: SpellContentProps) {
         )}
         {tagFilters.map(([, letter, ...values], i) => (
           <Badge key={i} variant="outline" className="text-xs">
-            {tagFilterLabel(letter)}: {values.join(', ')}
+            {tagFilterLabel(letter)}: {values.map((v) => v.length > 12 ? v.slice(0, 12) + '…' : v).join(', ')}
           </Badge>
         ))}
         {media && media !== 'all' && (
