@@ -300,8 +300,9 @@ export function NotificationSettings() {
           )}
         </div>
 
-        {/* Notification Style — native only, visible when push is enabled */}
-        {isNative && pushEnabled && (
+        {/* Notification Style — Android only, visible when push is enabled.
+            On iOS both modes use BGAppRefreshTask so the choice is meaningless. */}
+        {Capacitor.getPlatform() === 'android' && pushEnabled && (
           <>
             <SectionHeader title="Delivery Method" />
             <div className="pb-4">
@@ -333,7 +334,7 @@ export function NotificationSettings() {
                       <span className="text-sm font-medium">Persistent</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Background service polls relays directly. Shows a persistent notification. Use this on devices that don't support push notifications (e.g. GrapheneOS).
+                      Polls relays directly in the background for new notifications. Use this for reliable delivery on devices without push notification support.
                     </p>
                   </Label>
                 </div>

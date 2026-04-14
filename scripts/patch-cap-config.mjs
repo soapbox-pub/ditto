@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 
 /** Local plugin class names to ensure are registered. */
-const LOCAL_PLUGINS = ['SandboxPlugin'];
+const LOCAL_PLUGINS = ['SandboxPlugin', 'DittoNotificationPlugin'];
 
 const platforms = ['ios/App/App', 'android/app/src/main/assets'];
 
