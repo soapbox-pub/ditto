@@ -105,8 +105,8 @@ export function ProfileSearchDropdown({
 
   const dropUp = placement.startsWith('top');
   const dropdownBaseClass = dropUp
-    ? 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-150'
-    : 'z-[100] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150';
+    ? 'z-[300] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-150'
+    : 'z-[300] rounded-xl border border-border bg-popover shadow-lg overflow-y-auto overscroll-contain animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150';
 
   const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
