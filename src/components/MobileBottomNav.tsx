@@ -4,6 +4,7 @@ import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
+import { selectionChanged } from '@/lib/haptics';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
@@ -37,6 +38,7 @@ export function MobileBottomNav() {
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    selectionChanged();
     setSearchOpen((v) => !v);
   }, []);
 
@@ -65,7 +67,7 @@ export function MobileBottomNav() {
           {/* Home */}
           <Link
             to="/"
-            onClick={() => setSearchOpen(false)}
+            onClick={() => { selectionChanged(); setSearchOpen(false); }}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
               (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
@@ -91,7 +93,7 @@ export function MobileBottomNav() {
           {user && (
             <Link
               to="/notifications"
-              onClick={() => setSearchOpen(false)}
+              onClick={() => { selectionChanged(); setSearchOpen(false); }}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
@@ -111,7 +113,7 @@ export function MobileBottomNav() {
           {user ? (
             <Link
               to={profileUrl}
-              onClick={() => setSearchOpen(false)}
+              onClick={() => { selectionChanged(); setSearchOpen(false); }}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 isOnProfile ? 'text-primary' : 'text-muted-foreground',

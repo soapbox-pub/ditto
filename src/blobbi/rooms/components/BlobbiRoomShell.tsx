@@ -9,6 +9,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef as useReactRef, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { impactLight } from '@/lib/haptics';
 
 import {
   type BlobbiRoomId,
@@ -97,6 +98,7 @@ export function BlobbiRoomShell({
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+    impactLight();
     if (dx > 0) goLeft();
     else goRight();
   }, [touchStartX, goLeft, goRight]);

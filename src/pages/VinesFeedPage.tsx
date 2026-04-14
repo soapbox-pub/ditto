@@ -46,6 +46,7 @@ import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
 import { getDisplayName } from "@/lib/getDisplayName";
+import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 
 const VINE_KIND = 34236;
@@ -144,6 +145,7 @@ export function VineHeartButton({
 	const handleClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		if (!user || hasReacted) return;
+		impactLight();
 
 		// Optimistically update stats cache
 		const prevStats = queryClient.getQueryData<EventStats>([
@@ -219,6 +221,7 @@ export function VineRepostButton({
 	const handleClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		if (!user) return;
+		impactLight();
 
 		const repostKind = getRepostKind(event.kind);
 		const prevStats = queryClient.getQueryData<EventStats>([

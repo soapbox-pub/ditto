@@ -1,8 +1,15 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "pub.ditto.app",
-    "sha256_cert_fingerprints": ["7C:05:A8:5A:07:0F:84:AE:43:DE:85:67:A4:5F:7F:FB:42:0A:05:05:27:CE:B6:8C:DA:AF:A5:E0:12:E0:9E:71"]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "pub.ditto.app",
+      "sha256_cert_fingerprints": [
+        "7C:05:A8:5A:07:0F:84:AE:43:DE:85:67:A4:5F:7F:FB:42:0A:05:05:27:CE:B6:8C:DA:AF:A5:E0:12:E0:9E:71",
+        "E5:B1:A9:13:C9:37:35:3C:A5:E7:27:89:C0:9D:3D:0D:A5:4F:F5:26:88:06:BD:24:46:21:AB:61:6B:CC:C5:E5"
+      ]
+    }
   }
-}]
+]

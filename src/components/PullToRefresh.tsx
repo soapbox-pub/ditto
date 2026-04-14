@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { impactMedium } from '@/lib/haptics';
 
 const THRESHOLD = 80; // raw px before triggering
 const MAX_PULL = 120; // max visual distance (after damping)
@@ -74,6 +75,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       const reached = currentPull.current >= THRESHOLD * RESISTANCE;
 
       if (reached) {
+        impactMedium();
         busy.current = true;
         currentPull.current = 40;
         setPullDistance(40);

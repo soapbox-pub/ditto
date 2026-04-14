@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useToast } from '@/hooks/useToast';
+import { impactLight } from '@/lib/haptics';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface ProfileReactionButtonProps {
@@ -33,6 +34,7 @@ export function ProfileReactionButton({ profileEvent, className }: ProfileReacti
 
   const handleReact = useCallback((emoji: string, emojiTag?: string[]) => {
     if (!user) return;
+    impactLight();
 
     trackEmojiUsage(emoji);
 

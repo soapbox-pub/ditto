@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { impactLight } from '@/lib/haptics';
 import type { WebxdcHandle } from '@/components/Webxdc';
 
 // ---------------------------------------------------------------------------
@@ -28,9 +29,9 @@ type GameButton = keyof typeof KEY_MAP;
 /** Buttons that trigger haptic feedback on press. */
 const HAPTIC_BUTTONS = new Set<GameButton>(['a', 'b']);
 
-/** Trigger a short vibration if the Vibration API is available. */
+/** Trigger a short vibration via the native haptic engine. */
 function haptic() {
-  navigator.vibrate?.(25);
+  impactLight();
 }
 
 // ---------------------------------------------------------------------------
