@@ -418,14 +418,28 @@ export function SearchPage() {
   const alreadySaved = savedFeeds.some((f) => JSON.stringify(f.filter) === currentFilterKey);
 
   const handleSaveFeed = async () => {
-    if (!saveFeedLabel.trim() || isSavingFeed) return;
+    if (!saveFeedLabel.trim() || isSavingFeed || !user) return;
 
     const vars: import('@/lib/profileTabsEvent').TabVarDef[] = [];
     if (authorScope === 'follows' && user) {
       vars.push({ name: '$follows', tagName: 'p', pointer: `a:3:${user.pubkey}:` });
     }
 
-    await addSavedFeed(saveFeedLabel.trim(), currentFilter, vars);
+    // Publish a kind:777 spell event so the home feed can render it via
+    // useStreamPosts({ spell }), which handles full resolution of all filters.
+    try {
+      const tags = currentSpellTags.map(([t, ...rest]) =>
+        t === 'name' ? ['name', saveFeedLabel.trim()] :
+        t === 'alt' ? ['alt', `Spell: ${saveFeedLabel.trim()}`] :
+        [t, ...rest]
+      );
+      const event = await publishEvent({ kind: 777, content: '', tags, created_at: Math.floor(Date.now() / 1000) });
+      await addSavedFeed(saveFeedLabel.trim(), currentFilter, vars, event.id);
+    } catch (err) {
+      toast({ title: 'Failed to save feed', description: err instanceof Error ? err.message : undefined, variant: 'destructive' });
+      return;
+    }
+
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);

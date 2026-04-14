@@ -130,12 +130,19 @@ export function SpellRunPage() {
     }
   }, [spellEvent]);
 
-  /** Find an existing saved feed that matches the spell's filter. */
+  /** Find an existing saved feed that matches the spell's filter or spell ID. */
   const matchingSavedFeed = useMemo(() => {
+    if (!spellEvent && !spellAsFilter) return undefined;
+    // Prefer matching by spell event ID (exact match)
+    if (spellEvent) {
+      const bySpellId = savedFeeds.find((f) => f.spellId === spellEvent.id);
+      if (bySpellId) return bySpellId;
+    }
+    // Fall back to filter comparison for legacy saved feeds without spellId
     if (!spellAsFilter) return undefined;
     const filterKey = JSON.stringify(spellAsFilter);
     return savedFeeds.find((f) => JSON.stringify(f.filter) === filterKey);
-  }, [savedFeeds, spellAsFilter]);
+  }, [savedFeeds, spellAsFilter, spellEvent]);
 
   const alreadySaved = !!matchingSavedFeed;
 
@@ -144,14 +151,14 @@ export function SpellRunPage() {
   const alreadyInSidebar = sidebarId ? orderedItems.includes(sidebarId) : false;
 
   const handleSaveHomeFeed = useCallback(async () => {
-    if (!spellAsFilter || !saveFeedLabel.trim()) return;
-    await addSavedFeed(saveFeedLabel.trim(), spellAsFilter as Record<string, unknown>, []);
+    if (!spellAsFilter || !saveFeedLabel.trim() || !spellEvent) return;
+    await addSavedFeed(saveFeedLabel.trim(), spellAsFilter as Record<string, unknown>, [], spellEvent.id);
     setSavePopoverOpen(false);
     setSaveFeedLabel('');
     setSavedJustNow(true);
     setTimeout(() => setSavedJustNow(false), 2000);
     toast({ title: 'Added to home feed' });
-  }, [spellAsFilter, saveFeedLabel, addSavedFeed, toast]);
+  }, [spellAsFilter, saveFeedLabel, addSavedFeed, toast, spellEvent]);
 
   const handleSaveProfileTab = useCallback(async () => {
     if (!spellAsFilter || !saveFeedLabel.trim() || !user) return;

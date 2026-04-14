@@ -196,6 +196,8 @@ export const SavedFeedSchema = z.object({
   filter: TabFilterSchema,
   vars: z.array(TabVarDefSchema).default([]),
   createdAt: z.number(),
+  /** Hex event ID of a kind:777 spell event that drives this feed. */
+  spellId: z.string().optional(),
 });
 
 /** Shared transform for savedFeeds arrays: drops legacy destination items and validates each entry. */

@@ -41,7 +41,7 @@ export function useSavedFeeds() {
   };
 
   /** Add a new saved feed. Returns the created feed. */
-  const addSavedFeed = async (label: string, filter: TabFilter, vars: TabVarDef[]): Promise<SavedFeed> => {
+  const addSavedFeed = async (label: string, filter: TabFilter, vars: TabVarDef[], spellId?: string): Promise<SavedFeed> => {
     if (!user) throw new Error('Must be logged in to save feeds');
 
     const newFeed: SavedFeed = {
@@ -50,6 +50,7 @@ export function useSavedFeeds() {
       filter,
       vars,
       createdAt: Date.now(),
+      ...(spellId ? { spellId } : {}),
     };
 
     await persist([...savedFeeds, newFeed]);

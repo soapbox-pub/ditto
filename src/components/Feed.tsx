@@ -361,9 +361,97 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 }
 
-/** Renders a saved search feed using useStreamPosts (live streaming). */
+/** Renders a saved search feed using useStreamPosts (live streaming).
+ *  When the feed has a spellId, the spell event is fetched and passed
+ *  directly to useStreamPosts({ spell }) — the same path SpellRunPage uses —
+ *  so all filter hints, tag filters, and variables resolve identically. */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
+  return feed.spellId
+    ? <SpellFeedContent feed={feed} spellId={feed.spellId} />
+    : <LegacyFeedContent feed={feed} />;
+}
+
+/** Spell-driven saved feed: fetches the kind:777 event and streams via spell mode. */
+function SpellFeedContent({ feed, spellId }: { feed: SavedFeed; spellId: string }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
+  const { nostr } = useNostr();
+
+  // Fetch the spell event by ID
+  const { data: spellEvent, isLoading: isLoadingSpell } = useQuery<NostrEvent | null>({
+    queryKey: ['spell-event', spellId],
+    queryFn: async ({ signal }) => {
+      const events = await nostr.query(
+        [{ ids: [spellId], kinds: [777], limit: 1 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+      return events[0] ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Use the exact same streaming path as SpellRunPage
+  const { posts, isLoading: isStreamLoading, newPostCount, flushStreamBuffer, loadMore, hasMore, isLoadingMore } = useStreamPosts('', {
+    includeReplies: true,
+    mediaType: 'all',
+    spell: spellEvent ?? undefined,
+  });
+
+  useEffect(() => {
+    if (inView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [inView, hasMore, isLoadingMore, loadMore]);
+
+  const isLoading = isLoadingSpell || (isStreamLoading && posts.length === 0);
+
+  if (isLoading) {
+    return (
+      <div className="divide-y divide-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+    );
+  }
+
+  return (
+    <div>
+      {newPostCount > 0 && (
+        <button
+          onClick={() => {
+            flushStreamBuffer();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="w-full py-2 text-sm text-primary hover:bg-muted/50 border-b border-border transition-colors"
+        >
+          {newPostCount} new {newPostCount === 1 ? 'post' : 'posts'}
+        </button>
+      )}
+      {posts.map((event) => (
+        <NoteCard key={event.id} event={event} />
+      ))}
+      {hasMore && (
+        <div ref={scrollRef} className="py-4">
+          {isLoadingMore && (
+            <div className="flex justify-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Legacy saved feed without a spell ID: resolves filter variables and streams. */
+function LegacyFeedContent({ feed }: { feed: SavedFeed }) {
+  const { ref: scrollRef } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
@@ -401,10 +489,6 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
   }, [queryClient]);
-
-  useEffect(() => {
-    // intentionally empty — useStreamPosts handles its own streaming
-  }, [inView]);
 
   if (isLoading && posts.length === 0) {
     return (

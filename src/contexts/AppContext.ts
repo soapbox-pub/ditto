@@ -174,6 +174,10 @@ export interface SavedFeed {
   filter: TabFilter;
   vars: TabVarDef[];
   createdAt: number;
+  /** Hex event ID of a kind:777 spell event. When present, the saved feed
+   *  is rendered by fetching this spell and passing it to useStreamPosts({ spell }),
+   *  which handles full resolution (variables, hints, tag filters, etc.). */
+  spellId?: string;
 }
 
 export interface AppConfig {
