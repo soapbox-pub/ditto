@@ -396,15 +396,23 @@ export function SearchPage() {
     });
   }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, includeReplies, mediaType, language, platform, sort, saveFeedLabel]);
 
-  // Build the current filter from the search state (for saving)
+  // Build the current filter from the search state (for saving).
+  // Includes client-hint fields (_media, _language, _platform, _sort,
+  // _includeReplies) so SavedFeedContent can faithfully reproduce the query.
   const currentFilter = useMemo(() => {
     const filter: Record<string, unknown> = {};
     if (debouncedSearchQuery.trim()) filter.search = debouncedSearchQuery.trim();
     if (kindsOverride && kindsOverride.length > 0) filter.kinds = kindsOverride;
     if (authorScope === 'follows') filter.authors = ['$follows'];
     else if (authorScope === 'people' && authorPubkeys.length > 0) filter.authors = authorPubkeys;
+    // Persist client-hint fields so saved tabs reproduce the full query
+    if (mediaType !== 'all') filter._media = mediaType;
+    if (language !== 'global') filter._language = language;
+    if (platform !== 'nostr') filter._platform = platform;
+    if (sort !== 'recent') filter._sort = sort;
+    if (!includeReplies) filter._includeReplies = false;
     return filter;
-  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys]);
+  }, [debouncedSearchQuery, kindsOverride, authorScope, authorPubkeys, mediaType, language, platform, sort, includeReplies]);
 
   const currentFilterKey = useMemo(() => JSON.stringify(currentFilter), [currentFilter]);
   const alreadySaved = savedFeeds.some((f) => JSON.stringify(f.filter) === currentFilterKey);

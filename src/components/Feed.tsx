@@ -378,9 +378,20 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
   const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
 
+  // Read client-hint fields persisted by the save paths (_media, _language, etc.)
+  const rawFilter = feed.filter as Record<string, unknown>;
+  const mediaType = (typeof rawFilter._media === 'string' ? rawFilter._media : 'all') as 'all' | 'images' | 'videos' | 'vines' | 'none';
+  const language = typeof rawFilter._language === 'string' ? rawFilter._language : undefined;
+  const platform = typeof rawFilter._platform === 'string' ? rawFilter._platform : undefined;
+  const sort = (typeof rawFilter._sort === 'string' ? rawFilter._sort : undefined) as 'recent' | 'hot' | 'trending' | undefined;
+  const includeReplies = rawFilter._includeReplies === false ? false : true;
+
   const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
+    includeReplies,
+    mediaType,
+    language,
+    protocols: platform ? [platform] : undefined,
+    sort,
     kindsOverride,
     authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
   });

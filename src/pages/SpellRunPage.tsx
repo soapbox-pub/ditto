@@ -109,12 +109,22 @@ export function SpellRunPage() {
   const [savedJustNow, setSavedJustNow] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
-  /** Convert a spell event to a TabFilter for saving. */
+  /** Convert a spell event to a TabFilter for saving.
+   *  Includes client-hint fields (_media, _language, _platform, _sort,
+   *  _includeReplies) so SavedFeedContent can faithfully reproduce the query. */
   const spellAsFilter = useMemo(() => {
     if (!spellEvent) return undefined;
     try {
       const resolved = resolveSpell(spellEvent, undefined, []);
-      return resolved.filter;
+      const filter: Record<string, unknown> = { ...resolved.filter };
+      // Persist spell hints into the saved filter
+      const h = resolved.hints;
+      if (h.mediaType !== 'all') filter._media = h.mediaType;
+      if (h.language && h.language !== 'global') filter._language = h.language;
+      if (h.platform !== 'nostr') filter._platform = h.platform;
+      if (h.sort !== 'recent') filter._sort = h.sort;
+      if (!h.includeReplies) filter._includeReplies = false;
+      return filter;
     } catch {
       return undefined;
     }
