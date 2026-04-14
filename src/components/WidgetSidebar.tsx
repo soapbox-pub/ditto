@@ -104,12 +104,11 @@ function WidgetErrorFallback({ name }: { name: string }) {
 interface SortableWidgetProps {
   config: WidgetConfig;
   definition: WidgetDefinition;
-  onToggleCollapse: (id: string) => void;
   onRemove: (id: string) => void;
   onHeightChange: (id: string, height: number) => void;
 }
 
-const SortableWidget = memo(function SortableWidget({ config, definition, onToggleCollapse, onRemove, onHeightChange }: SortableWidgetProps) {
+const SortableWidget = memo(function SortableWidget({ config, definition, onRemove, onHeightChange }: SortableWidgetProps) {
   const {
     attributes,
     listeners,
@@ -130,7 +129,6 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onTogg
       <WidgetCard
         definition={definition}
         config={config}
-        onToggleCollapse={() => onToggleCollapse(config.id)}
         onRemove={() => onRemove(config.id)}
         onHeightChange={(h) => onHeightChange(config.id, h)}
         isDragging={isDragging}
@@ -167,10 +165,6 @@ export function WidgetSidebar() {
       sidebarWidgets: updater(c.sidebarWidgets ?? widgets),
     }));
   }, [updateConfig, widgets]);
-
-  const toggleCollapse = useCallback((id: string) => {
-    updateWidgets((ws) => ws.map((w) => w.id === id ? { ...w, collapsed: !w.collapsed } : w));
-  }, [updateWidgets]);
 
   const removeWidget = useCallback((id: string) => {
     updateWidgets((ws) => ws.filter((w) => w.id !== id));
@@ -219,7 +213,6 @@ export function WidgetSidebar() {
                   key={w.id}
                   config={w}
                   definition={def}
-                  onToggleCollapse={toggleCollapse}
                   onRemove={removeWidget}
                   onHeightChange={changeHeight}
                 />
