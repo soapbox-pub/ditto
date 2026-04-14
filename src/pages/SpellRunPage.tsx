@@ -259,7 +259,7 @@ export function SpellRunPage() {
                   )} />}
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-3 space-y-3">
+              <PopoverContent align="end" className="w-64 p-3 space-y-3 overflow-y-auto">
                 <p className="font-semibold text-sm">Save as tab</p>
 
                 {alreadySaved ? (
