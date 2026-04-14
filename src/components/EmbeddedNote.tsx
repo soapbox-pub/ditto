@@ -1,17 +1,26 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff } from 'lucide-react';
+import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
 import { useEvent } from '@/hooks/useEvent';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
+import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
+import { getAvatarShape } from '@/lib/avatarShape';
+import { genUserName } from '@/lib/genUserName';
+import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -70,7 +79,111 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EmbeddedProfileBadgesCard event={event} className={className} />;
   }
 
+  // Kind 9735 zap receipts get a compact zap card instead of rendering raw JSON
+  if (event.kind === 9735) {
+    return <EmbeddedZapCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+}
+
+/** Compact inline card for kind 9735 zap receipts. */
+function EmbeddedZapCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+  const navigate = useNavigate();
+
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const senderPubkey = useMemo(() => extractZapSender(event), [event]);
+  const amountSats = useMemo(() => Math.floor(extractZapAmount(event) / 1000), [event]);
+  const message = useMemo(() => extractZapMessage(event), [event]);
+
+  const sender = useAuthor(senderPubkey || undefined);
+  const senderMeta = sender.data?.metadata;
+  const senderName = senderMeta?.name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
+  const senderShape = getAvatarShape(senderMeta);
+  const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
+        {/* Zap icon */}
+        <div className="flex items-center justify-center size-9 rounded-full bg-amber-500/10 shrink-0">
+          <Zap className="size-4 text-amber-500 fill-amber-500" />
+        </div>
+
+        {/* Sender avatar */}
+        {senderPubkey && (
+          <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+            <Link to={senderProfileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={senderShape} className="size-5">
+                <AvatarImage src={senderMeta?.picture} alt={senderName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                  {senderName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </MaybeHoverCard>
+        )}
+
+        {/* Text */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {senderPubkey ? (
+              <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+                <Link
+                  to={senderProfileUrl}
+                  className="text-sm font-semibold truncate hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {sender.data?.event ? (
+                    <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
+                  ) : senderName}
+                </Link>
+              </MaybeHoverCard>
+            ) : (
+              <span className="text-sm font-semibold truncate">Someone</span>
+            )}
+            <span className="text-sm text-muted-foreground">zapped</span>
+            {amountSats > 0 && (
+              <span className="text-sm font-semibold text-amber-500 shrink-0">
+                {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground shrink-0">
+              · {timeAgo(event.created_at)}
+            </span>
+          </div>
+          {message && (
+            <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-2">
+              &ldquo;{message}&rdquo;
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** The actual card once the event has been fetched. */
@@ -363,6 +476,16 @@ function EmbeddedNoteTombstone({ eventId, relays, authorHint, className }: { eve
         <span className="text-sm">This post could not be loaded</span>
       </div>
     </div>
+  );
+}
+
+/** Conditionally wraps children in a ProfileHoverCard. */
+function MaybeHoverCard({ pubkey, disabled, children }: { pubkey: string; disabled?: boolean; children: ReactNode }) {
+  if (disabled) return <>{children}</>;
+  return (
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      {children}
+    </ProfileHoverCard>
   );
 }
 
