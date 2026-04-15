@@ -14,11 +14,6 @@
  *   - Watches pathname for changes (after the initial entry has completed)
  *   - Fires triggerAttention calls for the two-phase gaze sequence
  *   - Cancels fully on new route change, drag, or component unmount
- *
- * Future custom reactions:
- *   Add entries to ROUTE_REACTIONS to override the generic behavior for
- *   specific routes. Each entry receives a context object with
- *   triggerAttention and a timeouts array (auto-cancelled on next change).
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -51,31 +46,6 @@ interface UseRouteReactionOptions {
   /** Whether the companion is being dragged */
   isDragging: boolean;
 }
-
-/** Context passed to custom route-reaction functions. */
-interface RouteReactionContext {
-  pathname: string;
-  prevPathname: string;
-  triggerAttention: TriggerAttentionFn;
-  clearAttention: () => void;
-  /** Push timeout IDs here — they are auto-cancelled on next route change. */
-  timeouts: ReturnType<typeof setTimeout>[];
-}
-
-type RouteReactionFn = (ctx: RouteReactionContext) => void;
-
-// ─── Custom Route Reaction Map ────────────────────────────────────────────────
-//
-// Add entries here to override the generic reaction for specific routes.
-//
-// Example (not implemented yet):
-//   '/treasures': (ctx) => { /* special treasure-chest reaction */ },
-//   '/blobbi': (ctx) => { /* special blobbi-page reaction */ },
-//
-
-const ROUTE_REACTIONS: Record<string, RouteReactionFn> = {
-  // intentionally empty — generic fallback handles all routes for now
-};
 
 // ─── Timing ───────────────────────────────────────────────────────────────────
 
@@ -136,11 +106,11 @@ function findMainContentPosition(): Position {
  * Default route reaction: look at the top-center of the main content area
  * for a random 2-6 seconds.
  */
-function genericRouteReaction(ctx: RouteReactionContext): void {
+function genericRouteReaction(triggerAttention: TriggerAttentionFn): void {
   const position = findMainContentPosition();
   const duration = LOOK_DURATION_MIN + Math.random() * (LOOK_DURATION_MAX - LOOK_DURATION_MIN);
 
-  ctx.triggerAttention(position, {
+  triggerAttention(position, {
     duration,
     priority: 'normal',
     source: 'route:center',
@@ -229,7 +199,6 @@ export function useRouteReaction({
       return;
     }
 
-    const prevPathname = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
 
     // Cancel pending timeouts from a previous route change.
@@ -263,6 +232,10 @@ export function useRouteReaction({
         clickPos = { x: clickPos.x, y: maxY };
       }
 
+      // Consume the click so a later programmatic navigation within the
+      // recency threshold doesn't accidentally reuse it.
+      lastClickRef.current = null;
+
       // Glance at the click origin — keeps gaze occupied during the delay.
       triggerAttention(
         clickPos,
@@ -280,21 +253,7 @@ export function useRouteReaction({
 
     // ── Phase 2: Look at center-top of the new page ─────────────────────
     const startTid = setTimeout(() => {
-      const ctx: RouteReactionContext = {
-        pathname,
-        prevPathname,
-        triggerAttention,
-        clearAttention,
-        timeouts: timeoutsRef.current,
-      };
-
-      // Look up a custom reaction, falling back to generic
-      const customReaction = ROUTE_REACTIONS[pathname];
-      if (customReaction) {
-        customReaction(ctx);
-      } else {
-        genericRouteReaction(ctx);
-      }
+      genericRouteReaction(triggerAttention);
     }, centerDelay);
 
     timeoutsRef.current.push(startTid);
