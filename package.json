@@ -97,7 +97,7 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@samthomson/nostr-messaging": "^0.12.0",
+    "@samthomson/nostr-messaging": "^0.14.0",
     "@sentry/react": "^10.42.0",
     "@tanstack/react-query": "^5.56.2",
     "@unhead/addons": "^2.0.10",
