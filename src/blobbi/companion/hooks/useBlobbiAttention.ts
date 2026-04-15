@@ -152,6 +152,10 @@ export function useBlobbiAttention({
    * Also resets the cooldown timestamp so a subsequent triggerAttention
    * is not blocked by the cooldown of the attention that was just cancelled.
    * Note: Typing attention clears itself via its own timeout.
+   *
+   * STABLE CALLBACK — external consumers (e.g. useRouteReaction) depend on
+   * this being referentially stable across renders. Avoid adding state
+   * variables to its dependency array.
    */
   const clearAttention = useCallback(() => {
     if (attentionTimeoutRef.current) {
@@ -173,6 +177,10 @@ export function useBlobbiAttention({
   
   /**
    * Manually trigger attention to a specific position.
+   *
+   * STABLE CALLBACK — external consumers (e.g. useRouteReaction) depend on
+   * this being referentially stable across renders. State is read via
+   * uiAttentionRef instead of the uiAttention closure for this reason.
    */
   const triggerAttention = useCallback((
     position: Position,
