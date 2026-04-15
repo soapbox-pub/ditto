@@ -103,6 +103,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 import type { FeedItem } from '@/lib/feedUtils';
@@ -1619,6 +1620,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       } else {
         await follow(pubkey);
       }
+      impactMedium();
       toast({ title: isFollowing ? `Unfollowed @${displayName}` : `Followed @${displayName}` });
     } catch (err) {
       console.error('Follow toggle failed:', err);

@@ -13,6 +13,7 @@ import {
   useExternalReactionCount,
 } from '@/hooks/useExternalReactions';
 import { formatNumber } from '@/lib/formatNumber';
+import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { ExternalContent } from '@/lib/externalContent';
 
@@ -88,6 +89,7 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
   // Publish kind 17 reaction
   const handleReact = useCallback((emoji: string, emojiTag?: string[]) => {
     if (!user) return;
+    impactLight();
 
     const tags: string[][] = [
       ['k', getExternalKTag(content)],

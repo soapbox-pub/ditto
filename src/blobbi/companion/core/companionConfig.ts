@@ -107,7 +107,7 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
     pause2Duration: 100,      // Short pause before falling
     
     // Truly stuck behavior
-    trulyStuckChance: 0.30,   // 30% chance to be truly stuck (needs user drag)
+    trulyStuckChance: 0.10,   // 10% chance to be truly stuck (needs user drag)
     
     fallDuration: 450,        // Fall after getting loose
     landingDuration: 200,     // Brief squash on landing

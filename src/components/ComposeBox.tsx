@@ -24,7 +24,7 @@ import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
-import { NoteMedia } from '@/components/NoteMedia';
+
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
@@ -34,11 +34,11 @@ import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
-import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { notificationSuccess } from '@/lib/haptics';
+import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
 const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
-import { parseImetaMap } from '@/lib/imeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useInsertText } from '@/hooks/useInsertText';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
@@ -347,7 +347,7 @@ export function ComposeBox({
       const url = match[0];
       // Skip media URLs that render inline
       // Note: SVGs not excluded - LinkPreview checks content-type and handles both cases
-      if (!IMETA_MEDIA_URL_REGEX.test(url)) {
+      if (!IMETA_MEDIA_URL_TEST_REGEX.test(url)) {
         embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }
@@ -716,6 +716,7 @@ export function ComposeBox({
           }
         }
       }
+      notificationSuccess();
       toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
       onSuccess?.();
     } catch {
@@ -973,6 +974,7 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
         queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
       }
+      notificationSuccess();
       toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.' });
       onSuccess?.();
     } catch {
@@ -1016,6 +1018,7 @@ export function ComposeBox({
       await createEvent({ kind: 1068, content: finalContent, tags });
       resetComposeState();
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      notificationSuccess();
       toast({ title: 'Poll published!' });
       onSuccess?.();
     } catch {
@@ -1116,31 +1119,13 @@ export function ComposeBox({
           </div>
         ) : (
           /* Preview mode - Show how post will look */
-          mockEvent && (() => {
-            const imetaMap = parseImetaMap(mockEvent.tags);
-            const videos = extractVideoUrls(mockEvent.content);
-            const imetaAudios = Array.from(imetaMap.values())
-              .filter((e) => e.mime?.startsWith('audio/'))
-              .map((e) => e.url);
-            const audios = imetaAudios.length > 0 ? imetaAudios : extractAudioUrls(mockEvent.content);
-            const webxdcApps = Array.from(imetaMap.values()).filter(
-              (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
-            );
-            return (
-              <div className="pt-2.5 pb-2 min-h-[100px]">
-                <div className="text-lg opacity-85">
-                  <NoteContent event={mockEvent} className="text-foreground" />
-                </div>
-                <NoteMedia
-                  videos={videos}
-                  audios={audios}
-                  imetaMap={imetaMap}
-                  webxdcApps={webxdcApps}
-                  event={mockEvent}
-                />
+          mockEvent && (
+            <div className="pt-2.5 pb-2 min-h-[100px]">
+              <div className="text-lg opacity-85">
+                <NoteContent event={mockEvent} className="text-foreground" />
               </div>
-            );
-          })()
+            </div>
+          )
         )}
 
         {/* Poll options + settings — shown below the normal textarea/preview */}

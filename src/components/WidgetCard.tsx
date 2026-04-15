@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,6 @@ import type { WidgetConfig } from '@/contexts/AppContext';
 interface WidgetCardProps {
   definition: WidgetDefinition;
   config: WidgetConfig;
-  onToggleCollapse: () => void;
   onRemove: () => void;
   onHeightChange: (height: number) => void;
   isDragging?: boolean;
@@ -18,18 +17,16 @@ interface WidgetCardProps {
   children: ReactNode;
 }
 
-/** Wrapper for each widget in the sidebar — header, collapse, height control. */
+/** Wrapper for each widget in the sidebar — header, height control. */
 export function WidgetCard({
   definition,
   config,
-  onToggleCollapse,
   onRemove,
   onHeightChange,
   isDragging,
   dragHandleProps,
   children,
 }: WidgetCardProps) {
-  const collapsed = config.collapsed ?? false;
   const configHeight = config.height ?? definition.defaultHeight;
   const Icon = definition.icon;
 
@@ -80,37 +77,19 @@ export function WidgetCard({
       )}
     >
       {/* Header */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/50">
-        {/* Drag handle */}
-        <button
-          className="p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing transition-colors"
-          {...dragHandleProps}
-          tabIndex={-1}
-        >
-          <GripVertical className="size-3.5" />
-        </button>
-
+      <div className="flex items-center gap-1.5 px-3 py-2">
         {/* Icon + label */}
         {definition.href ? (
           <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
-            <Icon className="size-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold truncate">{definition.label}</span>
+            <Icon className="size-5 text-muted-foreground shrink-0" />
+            <span className="text-xl font-semibold truncate">{definition.label}</span>
           </Link>
         ) : (
           <>
-            <Icon className="size-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold flex-1 truncate">{definition.label}</span>
+            <Icon className="size-5 text-muted-foreground shrink-0" />
+            <span className="text-xl font-semibold flex-1 truncate">{definition.label}</span>
           </>
         )}
-
-        {/* Collapse toggle */}
-        <button
-          onClick={onToggleCollapse}
-          className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={collapsed ? 'Expand' : 'Collapse'}
-        >
-          {collapsed ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
-        </button>
 
         {/* Remove */}
         <button
@@ -120,32 +99,35 @@ export function WidgetCard({
         >
           <X className="size-3.5" />
         </button>
+
+        {/* Drag handle */}
+        <button
+          className="p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing transition-colors"
+          {...dragHandleProps}
+          tabIndex={-1}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
       </div>
 
       {/* Content */}
-      {!collapsed && (
-        <>
-          {definition.fillHeight ? (
-            <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'transition-[height] duration-200')}>
-              {children}
-            </div>
-          ) : (
-            <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
-              <div className="p-2">
-                {children}
-              </div>
-            </ScrollArea>
-          )}
-
-          {/* Resize handle */}
-          <div
-            onPointerDown={handleResizeStart}
-            className="h-1.5 cursor-ns-resize flex items-center justify-center hover:bg-secondary/60 transition-colors group"
-          >
-            <div className="w-8 h-0.5 rounded-full bg-border group-hover:bg-muted-foreground/40 transition-colors" />
+      {definition.fillHeight ? (
+        <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'transition-[height] duration-200')}>
+          {children}
+        </div>
+      ) : (
+        <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
+          <div className="p-2">
+            {children}
           </div>
-        </>
+        </ScrollArea>
       )}
+
+      {/* Resize handle */}
+      <div
+        onPointerDown={handleResizeStart}
+        className="h-1.5 cursor-ns-resize flex items-center justify-center hover:bg-secondary/60 transition-colors"
+      />
     </div>
   );
 }

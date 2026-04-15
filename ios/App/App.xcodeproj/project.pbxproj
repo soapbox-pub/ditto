@@ -18,6 +18,8 @@
 		B1A2C3D40001000100000001 /* SandboxPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D40001000100000002 /* SandboxPlugin.swift */; };
 		B1A2C3D40002000100000001 /* DittoBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D40002000100000002 /* DittoBridgeViewController.swift */; };
 		B1A2C3D40005000100000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1A2C3D40005000100000002 /* PrivacyInfo.xcprivacy */; };
+		B1A2C3D40006000100000001 /* DittoNotificationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D40006000100000002 /* DittoNotificationPlugin.swift */; };
+		B1A2C3D40007000100000001 /* NostrPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A2C3D40007000100000002 /* NostrPoller.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +37,8 @@
 		B1A2C3D40002000100000002 /* DittoBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DittoBridgeViewController.swift; sourceTree = "<group>"; };
 		B1A2C3D40004000100000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		B1A2C3D40005000100000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B1A2C3D40006000100000002 /* DittoNotificationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DittoNotificationPlugin.swift; sourceTree = "<group>"; };
+		B1A2C3D40007000100000002 /* NostrPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NostrPoller.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +78,8 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				B1A2C3D40001000100000002 /* SandboxPlugin.swift */,
 				B1A2C3D40002000100000002 /* DittoBridgeViewController.swift */,
+				B1A2C3D40006000100000002 /* DittoNotificationPlugin.swift */,
+				B1A2C3D40007000100000002 /* NostrPoller.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -170,6 +176,8 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				B1A2C3D40001000100000001 /* SandboxPlugin.swift in Sources */,
 				B1A2C3D40002000100000001 /* DittoBridgeViewController.swift in Sources */,
+				B1A2C3D40006000100000001 /* DittoNotificationPlugin.swift in Sources */,
+				B1A2C3D40007000100000001 /* NostrPoller.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -319,7 +327,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6.6;
+				MARKETING_VERSION = 2.7.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = pub.ditto.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -343,7 +351,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6.6;
+				MARKETING_VERSION = 2.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = pub.ditto.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

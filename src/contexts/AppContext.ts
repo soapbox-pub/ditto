@@ -253,8 +253,6 @@ export interface AppConfig {
 export interface WidgetConfig {
   /** Widget type identifier (e.g. "trends", "blobbi", "wikipedia", "bluesky"). */
   id: string;
-  /** Whether the widget is collapsed by the user. */
-  collapsed?: boolean;
   /** User-configured height in pixels. Overrides the widget's default height. */
   height?: number;
 }

@@ -705,3 +705,14 @@
   100% { opacity: 1; }
 }
 
+/* Room navigation arrow nudge — subtle horizontal pulse */
+@keyframes room-arrow-nudge-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}
+
+@keyframes room-arrow-nudge-right {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+

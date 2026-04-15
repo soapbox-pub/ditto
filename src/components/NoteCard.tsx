@@ -58,7 +58,6 @@ import { LiveStreamPlayer } from "@/components/LiveStreamPlayer";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { Nip05Badge } from "@/components/Nip05Badge";
 import { NoteContent } from "@/components/NoteContent";
-import { NoteMedia } from "@/components/NoteMedia";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PollContent } from "@/components/PollContent";
@@ -97,12 +96,11 @@ import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/u
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
-import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
+import { impactLight } from "@/lib/haptics";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
@@ -469,35 +467,6 @@ export const NoteCard = memo(function NoteCard({
     !isProfile &&
     !isBlobbiState;
 
-  // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
-  const videos = useMemo(
-    () => (isTextNote ? extractVideoUrls(event.content) : []),
-    [event.content, isTextNote],
-  );
-  const audios = useMemo(() => {
-    if (!isTextNote) return [];
-    // Prefer imeta-declared audio over URL scraping
-    const imetaAudios = Array.from(parseImetaMap(event.tags).values())
-      .filter((e) => e.mime?.startsWith("audio/"))
-      .map((e) => e.url);
-    if (imetaAudios.length > 0) return imetaAudios;
-    return extractAudioUrls(event.content);
-  }, [event.content, event.tags, isTextNote]);
-  const imetaMap = useMemo(
-    () =>
-      isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(),
-    [event.tags, isTextNote],
-  );
-
-  // Extract webxdc attachments from imeta tags
-  const webxdcApps = useMemo(() => {
-    if (!isTextNote) return [];
-    return Array.from(imetaMap.values()).filter(
-      (entry) =>
-        entry.mime === "application/x-webxdc" ||
-        entry.mime === "application/vnd.webxdc+zip",
-    );
-  }, [imetaMap, isTextNote]);
   const isComment = event.kind === 1111;
   const isReply = isTextNote && !isComment && isReplyEvent(event);
 
@@ -695,10 +664,6 @@ export const NoteCard = memo(function NoteCard({
         ) : (
           <TruncatedNoteContent
             event={event}
-            videos={videos}
-            audios={audios}
-            imetaMap={imetaMap}
-            webxdcApps={webxdcApps}
           />
         )}
       </ContentWarningGuard>
@@ -836,6 +801,7 @@ export const NoteCard = memo(function NoteCard({
         title="Share"
         onClick={async (e) => {
           e.stopPropagation();
+          impactLight();
           const url = `${window.location.origin}/${encodedId}`;
           const result = await shareOrCopy(url);
           if (result === "copied") toast({ title: "Link copied to clipboard" });
@@ -1168,19 +1134,11 @@ export const NoteCard = memo(function NoteCard({
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
 /** Truncates long text note content with a "Read more" fade + button.
- *  Media attachments are also hidden behind the truncation and revealed on expand. */
+ *  Media attachments render inline within NoteContent at their original content position. */
 function TruncatedNoteContent({
   event,
-  videos,
-  audios = [],
-  imetaMap,
-  webxdcApps = [],
 }: {
   event: NostrEvent;
-  videos: string[];
-  audios?: string[];
-  imetaMap: Map<string, ImetaEntry>;
-  webxdcApps?: ImetaEntry[];
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -1212,8 +1170,6 @@ function TruncatedNoteContent({
       imgs.forEach((img) => img.removeEventListener("load", measure));
   }, [measure]);
 
-  const showMedia = !overflows || expanded;
-
   return (
     <div className="mt-2 break-words overflow-hidden">
       <div
@@ -1240,15 +1196,6 @@ function TruncatedNoteContent({
         >
           {expanded ? "Show less" : "Read more"}
         </button>
-      )}
-      {showMedia && (
-        <NoteMedia
-          videos={videos}
-          audios={audios}
-          imetaMap={imetaMap}
-          webxdcApps={webxdcApps}
-          event={event}
-        />
       )}
     </div>
   );

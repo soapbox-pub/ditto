@@ -10,6 +10,7 @@
 
 import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
+import { impactMedium } from '@/lib/haptics';
 import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
 
 // ---------------------------------------------------------------------------
@@ -101,8 +102,8 @@ function generateParticles(count: number, primaryHex: string): ConfettiParticle[
   }));
 }
 
-function haptic(pattern: number | number[] = 30) {
-  try { navigator?.vibrate?.(pattern); } catch { /* unsupported */ }
+function haptic() {
+  impactMedium();
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +183,7 @@ export function SendAnimation({
 
   if (impactT > 0 && !sealHapticFired.current) {
     sealHapticFired.current = true;
-    haptic([15, 30, 50]);
+    haptic();
   }
 
   // Fly

@@ -2,6 +2,7 @@ import { Quote, Undo2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { impactLight } from '@/lib/haptics';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -37,6 +38,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       toast({ title: 'Please log in to repost', variant: 'destructive' });
       return;
     }
+    impactLight();
 
     // Optimistically update stats cache immediately
     const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
@@ -98,6 +100,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
 
   const handleUnrepost = () => {
     if (!user || !repostEventId) return;
+    impactLight();
 
     // Optimistically update stats cache
     const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);

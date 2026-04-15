@@ -249,7 +249,6 @@ export const AppConfigSchema = z.object({
   sandboxDomain: z.string().optional(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),
-    collapsed: z.boolean().optional(),
     height: z.number().optional(),
   })).optional(),
 });
@@ -323,7 +322,6 @@ export const EncryptedSettingsSchema = z.looseObject({
   sidebarOrder: z.array(z.string()).optional(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),
-    collapsed: z.boolean().optional(),
     height: z.number().optional(),
   })).optional(),
   homePage: z.string().optional(),

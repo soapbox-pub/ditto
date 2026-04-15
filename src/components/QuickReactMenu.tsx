@@ -11,6 +11,7 @@ import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn } from '@/lib/utils';
+import { impactLight } from '@/lib/haptics';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/lib/customEmoji';
 
@@ -81,6 +82,7 @@ export function QuickReactMenu({
   /** Publish a reaction with a native Unicode emoji string. */
   const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
     if (!user) return;
+    impactLight();
 
     // Close the entire popover
     onClose?.();

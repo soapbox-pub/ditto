@@ -17,7 +17,6 @@ import {
   Loader2,
   XCircle,
   AlertTriangle,
-  Coins,
   X,
   Eye,
   Scroll,
@@ -25,7 +24,7 @@ import {
   HelpCircle,
   ChevronDown,
 } from 'lucide-react';
-import { formatCompactNumber, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -46,14 +45,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { HatchTasksResult } from '../hooks/useHatchTasks';
 import type { EvolveTasksResult } from '../hooks/useEvolveTasks';
 import { TasksPanel } from './TasksPanel';
 import { DailyMissionsPanel } from './DailyMissionsPanel';
 import { useDailyMissions } from '../hooks/useDailyMissions';
-import { useClaimMissionReward } from '../hooks/useClaimMissionReward';
 import { useRerollMission } from '../hooks/useRerollMission';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,8 +59,6 @@ interface BlobbiMissionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companion: BlobbiCompanion;
-  profile: BlobbonautProfile | null;
-  updateProfileEvent: (event: NostrEvent) => void;
   hatchTasks: HatchTasksResult;
   evolveTasks: EvolveTasksResult;
   onOpenPostModal: () => void;
@@ -146,16 +141,12 @@ function MissionTypeLegend() {
 // ─── Daily Missions Section ───────────────────────────────────────────────────
 
 interface DailyMissionsSectionProps {
-  profile: BlobbonautProfile | null;
-  updateProfileEvent: (event: NostrEvent) => void;
   availableStages?: ('egg' | 'baby' | 'adult')[];
   disabled?: boolean;
   defaultOpen?: boolean;
 }
 
 function DailyMissionsSection({
-  profile,
-  updateProfileEvent,
   availableStages,
   disabled,
   defaultOpen = true,
@@ -164,23 +155,17 @@ function DailyMissionsSection({
 
   const {
     missions,
-    todayClaimedReward,
-    totalPotentialReward,
-    bonusAvailable,
-    bonusClaimed,
-    bonusReward,
+    todayXp,
+    allComplete,
+    bonusUnlocked,
+    bonusXp,
     noMissionsAvailable,
     rerollsRemaining,
   } = useDailyMissions({ availableStages });
 
-  const { mutate: claimReward, isPending: isClaiming } = useClaimMissionReward(
-    profile,
-    updateProfileEvent,
-  );
-
   const { mutate: rerollMission, isPending: isRerolling } = useRerollMission();
 
-  const claimableCount = missions.filter((m) => m.completed && !m.claimed).length;
+  const completedCount = missions.filter((m) => m.complete).length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -194,13 +179,12 @@ function DailyMissionsSection({
           <div className="flex items-center gap-2">
             {/* Summary pill — always visible */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Coins className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
               <span className="tabular-nums">
-                {formatCompactNumber(todayClaimedReward)} / {formatCompactNumber(totalPotentialReward)}
+                {completedCount} / {missions.length}
               </span>
-              {claimableCount > 0 && (
+              {allComplete && (
                 <span className="size-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                  {claimableCount}
+                  ✓
                 </span>
               )}
             </div>
@@ -213,13 +197,11 @@ function DailyMissionsSection({
         <div className="pt-3">
           <DailyMissionsPanel
             missions={missions}
-            onClaimReward={(id) => claimReward({ missionId: id })}
             onRerollMission={(id) => rerollMission({ missionId: id, availableStages })}
-            todayCoins={todayClaimedReward}
-            disabled={disabled || isClaiming || isRerolling}
-            bonusAvailable={bonusAvailable}
-            bonusClaimed={bonusClaimed}
-            bonusReward={bonusReward}
+            todayXp={todayXp}
+            disabled={disabled || isRerolling}
+            bonusUnlocked={bonusUnlocked}
+            bonusXp={bonusXp}
             noMissionsAvailable={noMissionsAvailable}
             rerollsRemaining={rerollsRemaining}
             isRerolling={isRerolling}
@@ -442,8 +424,6 @@ export function BlobbiMissionsModal({
   open,
   onOpenChange,
   companion,
-  profile,
-  updateProfileEvent,
   hatchTasks,
   evolveTasks,
   onOpenPostModal,
@@ -527,8 +507,6 @@ export function BlobbiMissionsModal({
 
           {/* 2. Daily Bounties */}
           <DailyMissionsSection
-            profile={profile}
-            updateProfileEvent={updateProfileEvent}
             availableStages={availableStages}
             disabled={isProcessBusy}
           />

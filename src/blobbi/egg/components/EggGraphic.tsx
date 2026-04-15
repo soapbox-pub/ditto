@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { impactLight } from '@/lib/haptics';
 import type { EggVisualBlobbi } from '../types/egg.types';
 import { isValidBaseColor, isValidSecondaryColor } from '../lib/blobbi-egg-validation';
 import { SpecialMarkRenderer, SpecialMarkFallback } from './SpecialMarkRenderer';
@@ -184,10 +185,12 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
     // Tour interactive steps: forward click to tour controller
     if (onTourEggClick && (tourVisualState === 'glowing_waiting_click' || tourVisualState === 'crack_stage_1' || tourVisualState === 'crack_stage_2' || tourVisualState === 'crack_stage_3')) {
       setIsTapWiggling(true);
+      impactLight();
       onTourEggClick();
       return;
     }
     if (isTapWiggling || cracking) return; // Don't re-trigger during animation or cracking
+    impactLight();
     setIsTapWiggling(true);
   }, [isTapWiggling, cracking, onTourEggClick, tourVisualState]);
 

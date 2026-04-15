@@ -1,109 +1,115 @@
 /**
  * Daily Mission Tracker - Standalone progress tracking utility
- * 
- * This module provides a simple way to track daily mission progress
- * without requiring React hooks or context. It directly manipulates
- * localStorage for immediate persistence.
- * 
- * This approach allows action hooks (which may be called outside of
- * the daily missions hook context) to record progress.
+ *
+ * Provides a way to record daily mission progress from anywhere
+ * (hooks, event handlers, etc.) without requiring React context.
+ *
+ * Uses a pubkey-scoped in-memory Map. Kind 11125 content JSON is the
+ * persistent source of truth. Completed missions are persisted by
+ * `useAwardDailyXp`; intermediate progress resets on page refresh.
+ *
+ * Dispatches 'daily-missions-updated' CustomEvent so React hooks re-render.
  */
 
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import type { DailyMissionAction } from './daily-missions';
 import {
-  type DailyMissionsState,
-  type DailyMissionAction,
   getTodayDateString,
   needsDailyReset,
-  createDailyMissionsState,
-  updateMissionProgress,
+  createDailyMissionsContent,
+  trackTally,
+  trackEvent,
 } from './daily-missions';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'blobbi:daily-missions';
-
-// ─── Storage Utilities ────────────────────────────────────────────────────────
+// ─── In-Memory Session Store ──────────────────────────────────────────────────
 
 /**
- * Read the current daily missions state from localStorage
+ * Pubkey-scoped session cache. Each logged-in user gets their own entry.
+ * Cleared on page refresh (intentional — kind 11125 is the persistent store).
  */
-function readState(): DailyMissionsState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
+const sessionStore = new Map<string, MissionsContent>();
+
+function key(pubkey: string | undefined): string {
+  return pubkey ?? '';
 }
 
-/**
- * Write the daily missions state to localStorage
- */
-function writeState(state: DailyMissionsState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('[DailyMissionTracker] Failed to write state:', error);
-  }
+function ensureCurrent(pubkey?: string): MissionsContent {
+  const current = sessionStore.get(key(pubkey));
+  if (!needsDailyReset(current)) return current!;
+  const fresh = createDailyMissionsContent(
+    getTodayDateString(),
+    current?.evolution ?? [],
+    pubkey,
+  );
+  sessionStore.set(key(pubkey), fresh);
+  return fresh;
 }
 
-/**
- * Ensure we have a valid state for today, creating one if necessary
- */
-function ensureCurrentState(pubkey?: string): DailyMissionsState {
-  const current = readState();
-  
-  if (needsDailyReset(current)) {
-    const previousCoins = current?.totalCoinsEarned ?? 0;
-    const newState = createDailyMissionsState(getTodayDateString(), pubkey, previousCoins);
-    writeState(newState);
-    return newState;
-  }
-  
-  return current!;
+function notify(detail?: Record<string, unknown>): void {
+  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail }));
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Record progress for a daily mission action.
- * This function can be called from anywhere (hooks, event handlers, etc.)
- * and will immediately persist to localStorage.
- * 
- * @param action - The action type that was performed
- * @param count - Number of times the action was performed (default: 1)
- * @param pubkey - Optional user pubkey for personalized mission selection
+ * Record a tally-based action (feed, clean, interact, etc.).
  */
 export function trackDailyMissionProgress(
   action: DailyMissionAction,
   count: number = 1,
-  pubkey?: string
+  pubkey?: string,
 ): void {
-  const current = ensureCurrentState(pubkey);
-  const updated = updateMissionProgress(current, action, count);
-  writeState(updated);
-  
-  // Dispatch a custom event so React components can re-render if needed
-  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { action, count } }));
+  const current = ensureCurrent(pubkey);
+  const updated = trackTally(current, action, count);
+  sessionStore.set(key(pubkey), updated);
+  notify({ action, count });
 }
 
 /**
- * Convenience function to track multiple actions at once.
- * Useful when an action should count toward multiple missions.
- * 
- * @param actions - Array of actions to track
- * @param pubkey - Optional user pubkey
+ * Record an event-based action (take_photo, etc.) with its Nostr event ID.
+ */
+export function trackDailyMissionEvent(
+  action: DailyMissionAction,
+  eventId: string,
+  pubkey?: string,
+): void {
+  const current = ensureCurrent(pubkey);
+  const updated = trackEvent(current, action, eventId);
+  sessionStore.set(key(pubkey), updated);
+  notify({ action, eventId });
+}
+
+/**
+ * Track multiple tally actions at once.
  */
 export function trackMultipleDailyMissionActions(
   actions: DailyMissionAction[],
-  pubkey?: string
+  pubkey?: string,
 ): void {
-  let current = ensureCurrentState(pubkey);
-  
+  let current = ensureCurrent(pubkey);
   for (const action of actions) {
-    current = updateMissionProgress(current, action, 1);
+    current = trackTally(current, action, 1);
   }
-  
-  writeState(current);
-  window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { actions } }));
+  sessionStore.set(key(pubkey), current);
+  notify({ actions });
+}
+
+/** Read current session state for a pubkey. */
+export function readMissionsFromStorage(pubkey?: string): MissionsContent | undefined {
+  return sessionStore.get(key(pubkey));
+}
+
+/** Write state to session store for a pubkey. */
+export function writeMissionsToStorage(missions: MissionsContent, pubkey?: string): void {
+  sessionStore.set(key(pubkey), missions);
+}
+
+/**
+ * Hydrate the session store from kind 11125 persisted data.
+ * Called once on mount / account switch when the session store is empty.
+ * No-op if the store already has data for this pubkey.
+ */
+export function hydrateFromPersisted(missions: MissionsContent, pubkey: string): void {
+  if (sessionStore.has(pubkey)) return;
+  sessionStore.set(pubkey, missions);
 }

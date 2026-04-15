@@ -23,7 +23,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
-import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
 
@@ -83,7 +82,6 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
-import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
@@ -91,9 +89,7 @@ import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
-import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { formatNumber } from "@/lib/formatNumber";
-import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
@@ -1051,34 +1047,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isZap &&
     !isProfile &&
     !isBlobbiState;
-
-  const videos = useMemo(
-    () => (isTextNote ? extractVideoUrls(event.content) : []),
-    [event.content, isTextNote],
-  );
-  const imetaMap = useMemo(
-    () =>
-      isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(),
-    [event.tags, isTextNote],
-  );
-  const audios = useMemo(() => {
-    if (!isTextNote) return [];
-    const imetaAudios = Array.from(imetaMap.values())
-      .filter((e) => e.mime?.startsWith("audio/"))
-      .map((e) => e.url);
-    if (imetaAudios.length > 0) return imetaAudios;
-    return extractAudioUrls(event.content);
-  }, [event.content, imetaMap, isTextNote]);
-
-  // Extract webxdc attachments from imeta tags
-  const webxdcApps = useMemo(() => {
-    if (!isTextNote) return [];
-    return Array.from(imetaMap.values()).filter(
-      (entry) =>
-        entry.mime === "application/x-webxdc" ||
-        entry.mime === "application/vnd.webxdc+zip",
-    );
-  }, [imetaMap, isTextNote]);
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2183,43 +2151,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : (
-              <>
-                <div className="mt-3">
-                  <NoteContent
-                    event={event}
-                    className="text-[15px] leading-relaxed"
-                  />
-                </div>
-                {videos.map((url, i) => (
-                  <VideoPlayer
-                    key={`v-${i}`}
-                    src={url}
-                    poster={imetaMap.get(url)?.thumbnail}
-                    dim={imetaMap.get(url)?.dim}
-                    blurhash={imetaMap.get(url)?.blurhash}
-                    artist={displayName}
-                  />
-                ))}
-                {audios.map((url, i) => (
-                  <AudioVisualizer
-                    key={`a-${i}`}
-                    src={url}
-                    mime={imetaMap.get(url)?.mime}
-                    avatarUrl={metadata?.picture}
-                    avatarFallback={displayName[0]?.toUpperCase() ?? "?"}
-                    avatarShape={getAvatarShape(metadata)}
-                  />
-                ))}
-                {webxdcApps.map((app) => (
-                  <WebxdcEmbed
-                    key={app.url}
-                    url={app.url}
-                    uuid={app.webxdc}
-                    name={app.summary}
-                    icon={app.thumbnail}
-                  />
-                ))}
-              </>
+              <div className="mt-3">
+                <NoteContent
+                  event={event}
+                  className="text-[15px] leading-relaxed"
+                />
+              </div>
             )}
           </ContentWarningGuard>
 

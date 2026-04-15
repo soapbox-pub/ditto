@@ -19,7 +19,6 @@ import {
   ChevronRight,
   Egg,
   Sparkles,
-  Coins,
   CircleDot,
   X,
 } from 'lucide-react';
@@ -29,7 +28,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 import type { HatchTask } from '@/blobbi/actions/hooks/useHatchTasks';
-import type { DailyMission } from '@/blobbi/actions/lib/daily-missions';
+import type { DailyMissionView } from '@/blobbi/actions/hooks/useDailyMissions';
 
 // ─── Card Item Types ──────────────────────────────────────────────────────────
 
@@ -49,8 +48,8 @@ interface DailyCardItem {
   description: string;
   progress: number;
   progressLabel: string;
-  reward: number;
-  claimed: boolean;
+  xp: number;
+  complete: boolean;
 }
 
 type CardItem = TaskCardItem | DailyCardItem;
@@ -65,7 +64,7 @@ interface MissionSurfaceCardProps {
   /** Process type for badge label */
   processType: 'hatch' | 'evolve' | null;
   /** Daily missions */
-  dailyMissions: DailyMission[];
+  dailyMissions: DailyMissionView[];
   /** Called when user taps "View all" */
   onViewAll: () => void;
   /** Called when user dismisses the card */
@@ -97,22 +96,22 @@ function buildTaskCards(
   }));
 }
 
-function buildDailyCards(missions: DailyMission[]): DailyCardItem[] {
-  // Show unclaimed missions first, then claimed ones
-  const unclaimed = missions.filter((m) => !m.claimed);
-  const toShow = unclaimed.length > 0 ? unclaimed : [];
+function buildDailyCards(missions: DailyMissionView[]): DailyCardItem[] {
+  // Show incomplete missions first
+  const incomplete = missions.filter((m) => !m.complete);
+  const toShow = incomplete.length > 0 ? incomplete : [];
 
   return toShow.map((m) => ({
     kind: 'daily',
     badge: 'Daily',
     title: m.title,
     description: m.description,
-    progress: m.requiredCount > 0
-      ? Math.min(100, Math.round((m.currentCount / m.requiredCount) * 100))
+    progress: m.target > 0
+      ? Math.min(100, Math.round((m.progress / m.target) * 100))
       : 0,
-    progressLabel: `${m.currentCount}/${m.requiredCount}`,
-    reward: m.reward,
-    claimed: m.claimed,
+    progressLabel: `${m.progress}/${m.target}`,
+    xp: m.xp,
+    complete: m.complete,
   }));
 }
 
@@ -279,10 +278,9 @@ export function MissionSurfaceCard({
           <span className="text-[10px] text-muted-foreground font-mono shrink-0">
             {card.progressLabel}
           </span>
-          {card.kind === 'daily' && !card.claimed && (
-            <span className="flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium shrink-0">
-              <Coins className="size-2.5" />
-              {card.reward}
+          {card.kind === 'daily' && !card.complete && (
+            <span className="flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-medium shrink-0">
+              {card.xp} XP
             </span>
           )}
         </div>
