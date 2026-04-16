@@ -76,6 +76,7 @@ export function applyBodyEffects(svgText: string, spec: BodyEffectsSpec): string
           type: 'anger-rise',
           color: spec.angerRise.color,
           duration: spec.angerRise.duration,
+          level: spec.angerRise.level,
         },
         idSuffix,
       );

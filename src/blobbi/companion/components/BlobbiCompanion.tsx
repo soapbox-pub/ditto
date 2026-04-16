@@ -62,6 +62,8 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
+  /** When true, Blobbi ignores click interactions (overstimulation block). */
+  isClickBlocked?: boolean;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
   recipe?: BlobbiVisualRecipe;
   /** Label for the recipe (CSS class names). */
@@ -94,6 +96,7 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  isClickBlocked = false,
   recipe,
   recipeLabel,
   emotion,
@@ -105,9 +108,11 @@ export function BlobbiCompanion({
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
 
-  // Click detection - distinguishes click from drag
+  // Click detection - distinguishes click from drag.
+  // When overstimulation blocks clicks, suppress the onClick callback.
+  const effectiveOnClick = isClickBlocked ? undefined : onClick;
   const clickDetection = useClickDetection({
-    onClick,
+    onClick: effectiveOnClick,
     onDragStart: onStartDrag,
   });
   

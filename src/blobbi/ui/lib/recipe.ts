@@ -144,7 +144,7 @@ export interface BodyEffectsRecipe {
   /** Stink cloud puffs */
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay */
-  angerRise?: { color: string; duration: number };
+  angerRise?: { color: string; duration: number; level?: number };
 }
 
 /**

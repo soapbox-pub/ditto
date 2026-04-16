@@ -19,6 +19,7 @@ import { useCallback, useState, useMemo } from 'react';
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
 import { useActionEmotionOverride } from '../hooks/useActionEmotionOverride';
+import { useOverstimulationReaction } from '../hooks/useOverstimulationReaction';
 import { BlobbiCompanion } from './BlobbiCompanion';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
@@ -136,6 +137,15 @@ export function BlobbiCompanionLayer() {
 
   const { actionOverride, triggerOverride } = useActionEmotionOverride();
 
+  // ── Overstimulation reaction ───────────────────────────────────────────────
+  const {
+    recipe: overstimRecipe,
+    recipeLabel: overstimLabel,
+    isBlocked: isOverstimBlocked,
+  } = useOverstimulationReaction({
+    isActive: isVisible && !isEntering,
+  });
+
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
     const action = CATEGORY_TO_ACTION[item.category];
 
@@ -237,13 +247,24 @@ export function BlobbiCompanionLayer() {
     actionOverride: isSleeping ? null : actionOverride,
   });
 
-  // When sleeping, overlay the sleeping face on top of the status recipe.
-  // This keeps body effects (dirty, stink) and food icon while overriding
-  // eyes, mouth, and eyebrows with sleeping visuals.
-  const companionRecipe = isSleeping
-    ? buildSleepingRecipe(statusRecipe)
-    : statusRecipe;
-  const companionRecipeLabel = isSleeping ? 'sleeping' : statusRecipeLabel;
+  // Recipe priority chain (highest → lowest):
+  //   1. Sleeping (always wins when companion is asleep)
+  //   2. Overstimulation reaction (user spam-clicking)
+  //   3. Action override (item use: feed → happy, etc.)
+  //   4. Status recipe (stat-driven expressions)
+  let companionRecipe: typeof statusRecipe;
+  let companionRecipeLabel: string;
+
+  if (isSleeping) {
+    companionRecipe = buildSleepingRecipe(statusRecipe);
+    companionRecipeLabel = 'sleeping';
+  } else if (overstimRecipe && overstimLabel) {
+    companionRecipe = overstimRecipe;
+    companionRecipeLabel = overstimLabel;
+  } else {
+    companionRecipe = statusRecipe;
+    companionRecipeLabel = statusRecipeLabel;
+  }
 
   // ── Early return ───────────────────────────────────────────────────────────
 
@@ -288,6 +309,7 @@ export function BlobbiCompanionLayer() {
           onUpdateDrag={updateDrag}
           onEndDrag={endDrag}
           onClick={handleCompanionClick}
+          isClickBlocked={isOverstimBlocked}
           recipe={companionRecipe}
           recipeLabel={companionRecipeLabel}
           onPositionUpdate={handlePositionUpdate}

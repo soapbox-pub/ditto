@@ -632,7 +632,26 @@ export function generateAngerRiseEffect(
   const clipId = `blobbi-anger-clip-${suffix}`;
   const gradientId = `blobbi-anger-gradient-${suffix}`;
   
-  const defs = `
+  // When `level` is provided, render a static gradient at that offset (0–1)
+  // instead of using the SMIL rise animation. This lets external systems
+  // (e.g. overstimulation reaction) control exact fill height each frame.
+  const useStaticLevel = config.level !== undefined && config.level !== null;
+  const lvl = useStaticLevel ? Math.max(0, Math.min(1, config.level!)) : 0;
+
+  // Feather zone: percentage of the gradient used for the soft top edge
+  const feather = 0.08;
+
+  const defs = useStaticLevel
+    ? `
+    <clipPath id="${clipId}">
+      <path d="${pathD}" />
+    </clipPath>
+    <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="${config.color}" stop-opacity="${0.5 * lvl}" />
+      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${config.color}" stop-opacity="${0.4 * lvl}" />
+      <stop offset="${lvl}" stop-color="${config.color}" stop-opacity="0" />
+    </linearGradient>`
+    : `
     <clipPath id="${clipId}">
       <path d="${pathD}" />
     </clipPath>

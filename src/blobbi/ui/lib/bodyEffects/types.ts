@@ -71,6 +71,13 @@ export interface BodyEffectConfig {
   color: string;
   /** Animation duration in seconds */
   duration: number;
+  /**
+   * Static fill level (0–1). When provided, the gradient is rendered at
+   * this fixed offset instead of using the SMIL rise animation. This
+   * enables external systems (e.g. overstimulation) to control exactly
+   * how far up the body the color fill reaches.
+   */
+  level?: number;
 }
 
 /**
@@ -83,7 +90,7 @@ export interface BodyEffectsSpec {
   /** Stink/odor visuals around the body */
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay inside body */
-  angerRise?: { color: string; duration: number };
+  angerRise?: { color: string; duration: number; level?: number };
   /** 
    * Unique ID prefix for SVG defs (clip paths, gradients).
    * Required when multiple Blobbis render on the same page to avoid ID collisions.
