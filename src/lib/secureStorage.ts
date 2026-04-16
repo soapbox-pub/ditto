@@ -41,4 +41,17 @@ export const secureStorage = {
 
     await SecureStoragePlugin.set({ key, value });
   },
+
+  async removeItem(key: string): Promise<void> {
+    if (!Capacitor.isNativePlatform()) {
+      localStorage.removeItem(key);
+      return;
+    }
+
+    try {
+      await SecureStoragePlugin.remove({ key });
+    } catch {
+      // Key didn't exist — ignore.
+    }
+  },
 };
