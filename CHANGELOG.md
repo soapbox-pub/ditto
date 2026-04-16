@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.8.0] - 2026-04-16
+
+### Added
+- Back up your secret key right from Profile settings -- reveal, copy, and save it to iCloud Keychain, Android Credential Manager, or a local file
+- Blobbi mission progress now persists across page refreshes, so your hatching and evolution journey picks up right where you left off
+
+### Changed
+- AI chat has been overhauled with a cleaner layout, the Dork mascot across empty states, and a clear path to grab Shakespeare credits when you run out
+- Friendly error banners now explain when you've hit the rate limit or run out of AI credits, instead of cryptic failures
+
+### Fixed
+- Avatar shape selection during signup now actually saves to your profile
+- Blobbi interaction missions now tally correctly the moment you start incubating or evolving
+- Blobbi task progress displays the right numbers immediately on page load instead of showing 0 until everything catches up
+
 ## [2.7.1] - 2026-04-16
 
 ### Added
