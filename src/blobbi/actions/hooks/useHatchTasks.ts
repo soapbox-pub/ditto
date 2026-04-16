@@ -1,26 +1,33 @@
 // src/blobbi/actions/hooks/useHatchTasks.ts
 
 /**
- * Hook to compute hatch task progress from Nostr events.
- * 
- * CRITICAL ARCHITECTURE:
- * - PERSISTENT TASKS: Based on Nostr events, can be cached in tags
- * 
- * Tags are only cache for persistent tasks. Source of truth = Nostr events.
- * 
- * Most tasks are RETROACTIVE — they query the user's full history without
- * a `since:` filter. Only Blobbi-specific tasks (interactions) require
- * actions performed on the current Blobbi instance.
- * 
- * Note: Egg stats no longer decay, so there are no dynamic tasks for hatching.
+ * Hook to compute hatch task progress.
+ *
+ * Progress is stored in `MissionsContent.evolution[]` on kind 11125.
+ * - Interactions: TallyMission tracked via `trackEvolutionMissionTally`
+ * - Event-based tasks: EventMission, backfilled from retroactive Nostr queries
+ *
+ * The Nostr queries discover event IDs that satisfy event-based tasks and
+ * feed them into the evolution tracker. The evolution array is the source of
+ * truth for completion state.
  */
 
+import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
+import { trackEvolutionMissionEvent, readMissionsFromStorage, ensureSessionStore, writeMissionsToStorage } from '../lib/daily-mission-tracker';
+import {
+  HATCH_MISSIONS,
+  HATCH_REQUIRED_INTERACTIONS,
+  findEvolutionMission,
+  createHatchMissions,
+} from '../lib/evolution-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -33,9 +40,6 @@ export const KIND_PROFILE_METADATA = 0;
 /** Kind for short text notes */
 export const KIND_SHORT_TEXT_NOTE = 1;
 
-/** Required interactions to complete the hatch interactions task */
-export const HATCH_REQUIRED_INTERACTIONS = 7;
-
 /** Required hashtags for the Blobbi post (excludes Blobbi name, which is dynamic) */
 export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi'];
 
@@ -43,19 +47,20 @@ export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi'];
 export const BLOBBI_POST_PREFIX = 'Posting to hatch';
 
 // Legacy export for backwards compatibility
+export { HATCH_REQUIRED_INTERACTIONS };
 export const REQUIRED_INTERACTIONS = HATCH_REQUIRED_INTERACTIONS;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
  * Task type classification.
- * - persistent: Based on Nostr events, can be cached in tags
- * - dynamic: Based on current stats, NEVER stored in tags
+ * - persistent: Based on Nostr events or tallies, stored in evolution[]
+ * - dynamic: Based on current stats, NEVER stored
  */
 export type TaskType = 'persistent' | 'dynamic';
 
 /**
- * Individual task definition.
+ * Individual task view model for the UI.
  */
 export interface HatchTask {
   id: string;
@@ -67,7 +72,7 @@ export interface HatchTask {
   required: number;
   /** Whether the task is complete */
   completed: boolean;
-  /** Task type - persistent (event-based) or dynamic (stat-based) */
+  /** Task type - persistent or dynamic */
   type: TaskType;
   /** Action to perform (if applicable) */
   action?: 'navigate' | 'open_modal' | 'external_link';
@@ -107,177 +112,151 @@ export function buildHatchPhrase(blobbiName: string): string {
 
 /**
  * Check if a post is a valid Blobbi-related post.
- *
- * A post is valid if it mentions the "blobbi" hashtag in either:
- * - A `["t", "blobbi"]` tag, OR
- * - The literal text `#blobbi` anywhere in the content
- *
- * This is intentionally loose so that historical posts can count
- * retroactively toward hatch requirements.
  */
 export function isValidHatchPost(event: NostrEvent): boolean {
-  // Check for blobbi hashtag in t tags
   const hasBlobbiTag = event.tags.some(
     tag => tag[0] === 't' && tag[1]?.toLowerCase() === 'blobbi',
   );
   if (hasBlobbiTag) return true;
-
-  // Fallback: check content for #blobbi (case-insensitive)
   return /#blobbi\b/i.test(event.content);
 }
 
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
- * Hook to compute hatch task progress from Nostr events and current stats.
- * 
- * RETROACTIVE TASKS (count from full user history):
- * 1. Create Theme (kind 36767) - ≥1 event ever
- * 2. Color Moment (kind 3367) - ≥1 event ever
- * 3. Create Post (kind 1) - ≥1 post with #blobbi hashtag ever
- * 
- * BLOBBI-SPECIFIC TASKS (must be done for this Blobbi):
- * 4. Interactions - 7 total (tracked via companion.tasks cache)
- * 
+ * Hook to compute hatch task progress from evolution missions + Nostr event backfill.
+ *
  * @param companion - The Blobbi companion (must be incubating)
- * @param interactionCount - Current interaction count from companion tasks cache
+ * @param missions - Current MissionsContent from the session store
  */
 export function useHatchTasks(
   companion: BlobbiCompanion | null,
-  interactionCount?: number
+  missions: MissionsContent | undefined,
 ): HatchTasksResult {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  
+
   const pubkey = user?.pubkey;
   const isIncubating = companion?.state === 'incubating';
-  
-  // Query for all relevant events.
-  //
-  // RETROACTIVE tasks (theme, color moment, post) query the user's full
-  // history — no `since:` filter. This means completing the activity once
-  // satisfies the requirement for every future egg.
+  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
+
+  // ─── Ensure evolution missions exist in session store ───
+  // Safety net: if the companion is incubating but evolution[] is empty
+  // (e.g. persist didn't fire, hydration lost them), re-populate from
+  // the static definitions so tally tracking works immediately.
+  const ensuredRef = useRef(false);
+  useEffect(() => {
+    if (!isIncubating || !pubkey || ensuredRef.current) return;
+    if (evolution.length > 0) { ensuredRef.current = true; return; }
+
+    const store = ensureSessionStore(pubkey);
+    if (store.evolution.length === 0) {
+      writeMissionsToStorage({ ...store, evolution: createHatchMissions() }, pubkey);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    }
+    ensuredRef.current = true;
+  }, [isIncubating, pubkey, evolution]);
+
+  // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['hatch-tasks', pubkey],
     queryFn: async () => {
-      if (!pubkey) {
-        return null;
-      }
-      
-      // Build filters for events we need
+      if (!pubkey) return null;
+
       const filters: NostrFilter[] = [
-        // Theme definitions — retroactive (no since:)
-        {
-          kinds: [KIND_THEME_DEFINITION],
-          authors: [pubkey],
-          limit: 1, // Only need to know ≥1 exists
-        },
-        // Color moments — retroactive (no since:)
-        {
-          kinds: [KIND_COLOR_MOMENT],
-          authors: [pubkey],
-          limit: 1,
-        },
-        // Blobbi-tagged posts — retroactive (no since:)
-        // Relay-level filter by #t=blobbi; client-side fallback in isValidHatchPost
-        {
-          kinds: [KIND_SHORT_TEXT_NOTE],
-          authors: [pubkey],
-          '#t': ['blobbi'],
-          limit: 1,
-        },
+        { kinds: [KIND_THEME_DEFINITION], authors: [pubkey], limit: 1 },
+        { kinds: [KIND_COLOR_MOMENT], authors: [pubkey], limit: 1 },
+        { kinds: [KIND_SHORT_TEXT_NOTE], authors: [pubkey], '#t': ['blobbi'], limit: 1 },
       ];
-      
-      // Execute all queries
+
       const events = await nostr.query(filters);
-      
-      // Categorize events
-      const themeEvents = events.filter(e => e.kind === KIND_THEME_DEFINITION);
-      const colorMomentEvents = events.filter(e => e.kind === KIND_COLOR_MOMENT);
-      const postEvents = events.filter(e => e.kind === KIND_SHORT_TEXT_NOTE);
-      
+
       return {
-        themeEvents,
-        colorMomentEvents,
-        postEvents,
+        themeEvents: events.filter(e => e.kind === KIND_THEME_DEFINITION),
+        colorMomentEvents: events.filter(e => e.kind === KIND_COLOR_MOMENT),
+        postEvents: events.filter(e => e.kind === KIND_SHORT_TEXT_NOTE),
       };
     },
     enabled: !!pubkey && isIncubating,
-    staleTime: 30_000, // 30 seconds
-    refetchInterval: 60_000, // Refetch every minute
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
-  
-  // ─── Compute PERSISTENT Tasks ───
-  const tasks: HatchTask[] = [];
-  
-  // 1. Create Theme (PERSISTENT)
-  const hasTheme = (data?.themeEvents?.length ?? 0) >= 1;
-  tasks.push({
-    id: 'create_theme',
-    name: 'Create Theme',
-    description: 'Create a custom theme for your profile',
-    current: hasTheme ? 1 : 0,
-    required: 1,
-    completed: hasTheme,
-    type: 'persistent',
-    action: 'navigate',
-    actionTarget: '/themes',
-    actionLabel: 'Create Theme',
+
+  // ─── Compute event counts directly from Nostr query results ───
+  // These are the authoritative counts for event-based tasks.
+  const queryCounts: Record<string, number> = useMemo(() => {
+    if (!data) return {} as Record<string, number>;
+    const validPosts = data.postEvents.filter(e => isValidHatchPost(e));
+    return {
+      create_theme: data.themeEvents.length,
+      color_moment: data.colorMomentEvents.length,
+      create_post: validPosts.length,
+    };
+  }, [data]);
+
+  // ─── Backfill event IDs into evolution missions (for persistence only) ───
+  const lastBackfilledDataRef = useRef<typeof data>(null);
+
+  useEffect(() => {
+    if (!data || !pubkey || evolution.length === 0) return;
+    if (data === lastBackfilledDataRef.current) return;
+    lastBackfilledDataRef.current = data;
+
+    const current = readMissionsFromStorage(pubkey);
+    if (!current || current.evolution.length === 0) return;
+    const evo = current.evolution;
+
+    for (const event of data.themeEvents) {
+      const m = findEvolutionMission(evo, 'create_theme');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('create_theme', event.id, pubkey);
+      }
+    }
+    for (const event of data.colorMomentEvents) {
+      const m = findEvolutionMission(evo, 'color_moment');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('color_moment', event.id, pubkey);
+      }
+    }
+    for (const event of data.postEvents) {
+      if (!isValidHatchPost(event)) continue;
+      const m = findEvolutionMission(evo, 'create_post');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('create_post', event.id, pubkey);
+      }
+    }
+  }, [data, pubkey, evolution]);
+
+  // ─── Build task view models ───
+  // For event-based tasks, use the MAX of the Nostr query count and the
+  // evolution mission progress. The query is authoritative but the mission
+  // store may have progress from a previous session that hasn't been
+  // re-queried yet.
+  const tasks: HatchTask[] = HATCH_MISSIONS.map((def) => {
+    const mission = findEvolutionMission(evolution, def.id);
+    const missionCount = mission ? missionProgress(mission) : 0;
+    const queryCount = queryCounts[def.id] ?? 0;
+    const current = Math.max(missionCount, queryCount);
+    const completed = current >= def.target;
+
+    return {
+      id: def.id,
+      name: def.title,
+      description: def.description,
+      current: Math.min(current, def.target),
+      required: def.target,
+      completed,
+      type: 'persistent' as TaskType,
+      action: def.action,
+      actionTarget: def.actionTarget,
+      actionLabel: def.actionLabel,
+    };
   });
-  
-  // 2. Color Moment (PERSISTENT)
-  const hasColorMoment = (data?.colorMomentEvents?.length ?? 0) >= 1;
-  tasks.push({
-    id: 'color_moment',
-    name: 'Color Moment',
-    description: 'Share a color moment on espy',
-    current: hasColorMoment ? 1 : 0,
-    required: 1,
-    completed: hasColorMoment,
-    type: 'persistent',
-    action: 'external_link',
-    actionTarget: 'https://espy.you/',
-    actionLabel: 'Open espy',
-  });
-  
-  // 3. Create Post (PERSISTENT) — retroactive: any post with #blobbi
-  const validPosts = data?.postEvents?.filter(e => isValidHatchPost(e)) ?? [];
-  const hasValidPost = validPosts.length >= 1;
-  tasks.push({
-    id: 'create_post',
-    name: 'Create Post',
-    description: 'Share a post with the #blobbi hashtag',
-    current: hasValidPost ? 1 : 0,
-    required: 1,
-    completed: hasValidPost,
-    type: 'persistent',
-    action: 'open_modal',
-    actionTarget: 'blobbi_post',
-    actionLabel: 'Create Post',
-  });
-  
-  // 5. Interactions (PERSISTENT)
-  const interactions = interactionCount ?? 0;
-  const interactionsCompleted = interactions >= HATCH_REQUIRED_INTERACTIONS;
-  tasks.push({
-    id: 'interactions',
-    name: 'Interact with Blobbi',
-    description: `Care for your Blobbi ${HATCH_REQUIRED_INTERACTIONS} times`,
-    current: Math.min(interactions, HATCH_REQUIRED_INTERACTIONS),
-    required: HATCH_REQUIRED_INTERACTIONS,
-    completed: interactionsCompleted,
-    type: 'persistent',
-    // No action - just interact with Blobbi
-  });
-  
-  // ─── Compute Completion States ───
-  const persistentTasks = tasks.filter(t => t.type === 'persistent');
-  const dynamicTasks = tasks.filter(t => t.type === 'dynamic');
-  
-  const persistentTasksComplete = persistentTasks.every(t => t.completed);
-  const dynamicTaskComplete = dynamicTasks.every(t => t.completed);
+
+  const persistentTasksComplete = tasks.every(t => t.completed);
+  const dynamicTaskComplete = true; // No dynamic tasks for hatching
   const allCompleted = persistentTasksComplete && dynamicTaskComplete;
-  
+
   return {
     tasks,
     persistentTasksComplete,
@@ -287,15 +266,6 @@ export function useHatchTasks(
     error: error as Error | null,
     refetch,
   };
-}
-
-/**
- * Get the current interaction count from companion task cache.
- */
-export function getInteractionCount(companion: BlobbiCompanion | null): number {
-  if (!companion) return 0;
-  const interactionTask = companion.tasks.find(t => t.name === 'interactions');
-  return interactionTask?.value ?? 0;
 }
 
 /**

@@ -122,13 +122,23 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     // Parse persisted missions from profile content
     const parsed = parseProfileContent(profileContent);
     if (parsed.missions && !needsDailyReset(parsed.missions)) {
+      // Daily missions are still current — hydrate the full object
       hydrateFromPersisted(parsed.missions, pubkey);
-      hydratedRef.current = pubkey;
-      setVersion((v) => v + 1);
-    } else {
-      hydratedRef.current = pubkey;
+    } else if (parsed.missions?.evolution?.length) {
+      // Daily missions need a reset, but evolution missions survive across days.
+      // Seed the store with fresh dailies + persisted evolution so the raw memo
+      // picks them up instead of creating missions with evolution: [].
+      const fresh = createDailyMissionsContent(
+        getTodayDateString(),
+        parsed.missions.evolution,
+        pubkey,
+        availableStages,
+      );
+      writeMissionsToStorage(fresh, pubkey);
     }
-  }, [pubkey, profileContent]);
+    hydratedRef.current = pubkey;
+    setVersion((v) => v + 1);
+  }, [pubkey, profileContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for tracker events
   useEffect(() => {
@@ -140,11 +150,19 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   // Stable stages key for deps
   const stagesKey = availableStages?.sort().join(',') ?? '';
 
-  // Read and ensure current state
+  // Read and ensure current state.
+  // CRITICAL: Don't create a fresh store entry until hydration is complete.
+  // Creating one prematurely would overwrite persisted evolution missions
+  // because `hydrateFromPersisted` no-ops when the store already has data.
+  const hydrated = hydratedRef.current === pubkey;
   const raw = useMemo((): MissionsContent | undefined => {
     const stored = readMissionsFromStorage(pubkey);
 
     if (!needsDailyReset(stored)) return stored;
+
+    // If the store is empty and we haven't hydrated yet, wait for the
+    // hydration effect to seed persisted data before creating fresh missions.
+    if (!stored && !hydrated) return undefined;
 
     // Reset for new day, preserve evolution missions
     const fresh = createDailyMissionsContent(
@@ -156,7 +174,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     writeMissionsToStorage(fresh, pubkey);
     return fresh;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, pubkey, stagesKey]);
+  }, [version, pubkey, stagesKey, hydrated]);
 
   // Build view models
   const missions: DailyMissionView[] = useMemo(() => {

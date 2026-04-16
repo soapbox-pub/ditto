@@ -1,25 +1,33 @@
 // src/blobbi/actions/hooks/useEvolveTasks.ts
 
 /**
- * Hook to compute evolve task progress from Nostr events and current stats.
- * 
- * CRITICAL ARCHITECTURE:
- * - PERSISTENT TASKS: Based on Nostr events, can be cached in tags
- * - DYNAMIC TASKS: Based on current stats, NEVER stored in tags
- * 
- * Tags are only cache for persistent tasks. Source of truth = Nostr events.
+ * Hook to compute evolve task progress.
  *
- * Most persistent tasks are RETROACTIVE — they query the user's full history
- * without a `since:` filter. Only Blobbi-specific tasks (interactions,
- * maintain_stats) require actions on the current Blobbi instance.
+ * Progress is stored in `MissionsContent.evolution[]` on kind 11125.
+ * - Interactions: TallyMission tracked via `trackEvolutionMissionTally`
+ * - Event-based tasks: EventMission, backfilled from retroactive Nostr queries
+ * - Dynamic task (maintain_stats): computed from current companion stats, NEVER stored
  */
 
+import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
+import { trackEvolutionMissionEvent, readMissionsFromStorage, ensureSessionStore, writeMissionsToStorage } from '../lib/daily-mission-tracker';
+import {
+  EVOLVE_MISSIONS,
+  EVOLVE_REQUIRED_INTERACTIONS,
+  EVOLVE_REQUIRED_THEMES,
+  EVOLVE_REQUIRED_COLOR_MOMENTS,
+  EVOLVE_STAT_THRESHOLD,
+  findEvolutionMission,
+  createEvolveMissions,
+} from '../lib/evolution-missions';
 
 import {
   KIND_THEME_DEFINITION,
@@ -34,22 +42,18 @@ import {
 /** Kind for custom profile tabs event */
 export const KIND_PROFILE_TABS = 16769;
 
-/** Required themes for evolve task */
-export const EVOLVE_REQUIRED_THEMES = 3;
-
-/** Required color moments for evolve task */
-export const EVOLVE_REQUIRED_COLOR_MOMENTS = 3;
-
-/** Required interactions for evolve task */
-export const EVOLVE_REQUIRED_INTERACTIONS = 21;
-
-/** Stat threshold for evolve dynamic task (all stats >= 80) */
-export const EVOLVE_STAT_THRESHOLD = 80;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Re-export for backward compat
+export {
+  EVOLVE_REQUIRED_INTERACTIONS,
+  EVOLVE_REQUIRED_THEMES,
+  EVOLVE_REQUIRED_COLOR_MOMENTS,
+  EVOLVE_STAT_THRESHOLD,
+};
 
 // Re-export task types for convenience
 export type { HatchTask as EvolveTask, TaskType };
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
  * Result of computing evolve tasks.
@@ -68,183 +72,159 @@ export interface EvolveTasksResult {
   refetch: () => void;
 }
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
- * Hook to compute evolve task progress from Nostr events and current stats.
- * 
- * RETROACTIVE TASKS (count from full user history):
- * 1. Create 3 Themes (kind 36767) - ≥3 events ever
- * 2. Create 3 Color Moments (kind 3367) - ≥3 events ever
- * 3. Edit Profile once (kind 0 or kind 16769) - ≥1 event ever
- * 
- * BLOBBI-SPECIFIC TASKS (must be done for this Blobbi):
- * 4. Interact 21 times (tracked via companion.tasks cache)
- * 
- * DYNAMIC TASK (stat-based, NEVER cached):
- * 5. Maintain All Stats >= 80
- * 
+ * Hook to compute evolve task progress from evolution missions + Nostr event backfill.
+ *
  * @param companion - The Blobbi companion (must be in evolving state)
- * @param interactionCount - Current interaction count from companion tasks cache
+ * @param missions - Current MissionsContent from the session store
  */
 export function useEvolveTasks(
   companion: BlobbiCompanion | null,
-  interactionCount?: number
+  missions: MissionsContent | undefined,
 ): EvolveTasksResult {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  
+
   const pubkey = user?.pubkey;
   const isEvolving = companion?.state === 'evolving';
-  
-  // Query for all relevant events.
-  //
-  // RETROACTIVE tasks (theme, color moment, profile) query the user's full
-  // history — no `since:` filter. Completing the activity once satisfies
-  // the requirement for every future baby's evolution.
+  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
+
+  // ─── Ensure evolution missions exist in session store ───
+  // Safety net: if the companion is evolving but evolution[] is empty
+  // (e.g. persist didn't fire, hydration lost them), re-populate from
+  // the static definitions so tally tracking works immediately.
+  const ensuredRef = useRef(false);
+  useEffect(() => {
+    if (!isEvolving || !pubkey || ensuredRef.current) return;
+    if (evolution.length > 0) { ensuredRef.current = true; return; }
+
+    const store = ensureSessionStore(pubkey);
+    if (store.evolution.length === 0) {
+      writeMissionsToStorage({ ...store, evolution: createEvolveMissions() }, pubkey);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    }
+    ensuredRef.current = true;
+  }, [isEvolving, pubkey, evolution]);
+
+  // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['evolve-tasks', pubkey],
     queryFn: async () => {
-      if (!pubkey) {
-        return null;
-      }
-      
-      // Build filters for events we need
+      if (!pubkey) return null;
+
       const filters: NostrFilter[] = [
-        // Theme definitions — retroactive (no since:)
-        {
-          kinds: [KIND_THEME_DEFINITION],
-          authors: [pubkey],
-          limit: EVOLVE_REQUIRED_THEMES,
-        },
-        // Color moments — retroactive (no since:)
-        {
-          kinds: [KIND_COLOR_MOMENT],
-          authors: [pubkey],
-          limit: EVOLVE_REQUIRED_COLOR_MOMENTS,
-        },
-        // Custom profile tabs — retroactive (no since:)
-        {
-          kinds: [KIND_PROFILE_TABS],
-          authors: [pubkey],
-          limit: 1,
-        },
-        // Profile metadata — retroactive (no since:)
-        {
-          kinds: [KIND_PROFILE_METADATA],
-          authors: [pubkey],
-          limit: 1,
-        },
+        { kinds: [KIND_THEME_DEFINITION], authors: [pubkey], limit: EVOLVE_REQUIRED_THEMES },
+        { kinds: [KIND_COLOR_MOMENT], authors: [pubkey], limit: EVOLVE_REQUIRED_COLOR_MOMENTS },
+        { kinds: [KIND_PROFILE_TABS], authors: [pubkey], limit: 1 },
+        { kinds: [KIND_PROFILE_METADATA], authors: [pubkey], limit: 1 },
       ];
-      
-      // Execute all queries
+
       const events = await nostr.query(filters);
-      
-      // Categorize events
-      const themeEvents = events.filter(e => e.kind === KIND_THEME_DEFINITION);
-      const colorMomentEvents = events.filter(e => e.kind === KIND_COLOR_MOMENT);
-      const profileTabsEvents = events.filter(e => e.kind === KIND_PROFILE_TABS);
-      const profileEvents = events.filter(e => e.kind === KIND_PROFILE_METADATA);
-      
+
       return {
-        themeEvents,
-        colorMomentEvents,
-        profileTabsEvents,
-        hasProfileMetadata: profileEvents.length > 0,
+        themeEvents: events.filter(e => e.kind === KIND_THEME_DEFINITION),
+        colorMomentEvents: events.filter(e => e.kind === KIND_COLOR_MOMENT),
+        profileTabsEvents: events.filter(e => e.kind === KIND_PROFILE_TABS),
+        hasProfileMetadata: events.some(e => e.kind === KIND_PROFILE_METADATA),
       };
     },
     enabled: !!pubkey && isEvolving,
-    staleTime: 30_000, // 30 seconds
-    refetchInterval: 60_000, // Refetch every minute
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
-  
-  // ─── Compute PERSISTENT Tasks ───
-  const tasks: HatchTask[] = [];
-  
-  // 1. Create 3 Themes (PERSISTENT) — retroactive
-  const themeCount = data?.themeEvents?.length ?? 0;
-  const themesCompleted = themeCount >= EVOLVE_REQUIRED_THEMES;
-  tasks.push({
-    id: 'create_themes',
-    name: 'Create Themes',
-    description: `Create ${EVOLVE_REQUIRED_THEMES} custom themes`,
-    current: Math.min(themeCount, EVOLVE_REQUIRED_THEMES),
-    required: EVOLVE_REQUIRED_THEMES,
-    completed: themesCompleted,
-    type: 'persistent',
-    action: 'navigate',
-    actionTarget: '/themes',
-    actionLabel: 'Create Theme',
+
+  // ─── Compute event counts directly from Nostr query results ───
+  // These are the authoritative counts for event-based tasks.
+  const queryCounts: Record<string, number> = useMemo(() => {
+    if (!data) return {} as Record<string, number>;
+    return {
+      create_themes: data.themeEvents.length,
+      color_moments: data.colorMomentEvents.length,
+      edit_profile: (data.profileTabsEvents.length >= 1 || data.hasProfileMetadata) ? 1 : 0,
+    };
+  }, [data]);
+
+  // ─── Backfill event IDs into evolution missions (for persistence only) ───
+  const lastBackfilledDataRef = useRef<typeof data>(null);
+
+  useEffect(() => {
+    if (!data || !pubkey || evolution.length === 0) return;
+    if (data === lastBackfilledDataRef.current) return;
+    lastBackfilledDataRef.current = data;
+
+    const current = readMissionsFromStorage(pubkey);
+    if (!current || current.evolution.length === 0) return;
+    const evo = current.evolution;
+
+    for (const event of data.themeEvents) {
+      const m = findEvolutionMission(evo, 'create_themes');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('create_themes', event.id, pubkey);
+      }
+    }
+    for (const event of data.colorMomentEvents) {
+      const m = findEvolutionMission(evo, 'color_moments');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('color_moments', event.id, pubkey);
+      }
+    }
+    const profileEditEvents = [
+      ...data.profileTabsEvents,
+      ...(data.hasProfileMetadata ? [{ id: 'profile-metadata' }] : []),
+    ];
+    for (const event of profileEditEvents) {
+      const m = findEvolutionMission(evo, 'edit_profile');
+      if (m && isEventMission(m) && !m.events.includes(event.id)) {
+        trackEvolutionMissionEvent('edit_profile', event.id, pubkey);
+      }
+    }
+  }, [data, pubkey, evolution]);
+
+  // ─── Build task view models ───
+  // For event-based tasks, use the MAX of the Nostr query count and the
+  // evolution mission progress. The query is authoritative but the mission
+  // store may have progress from a previous session that hasn't been
+  // re-queried yet.
+  const tasks: HatchTask[] = EVOLVE_MISSIONS.map((def) => {
+    const mission = findEvolutionMission(evolution, def.id);
+    const missionCount = mission ? missionProgress(mission) : 0;
+    const queryCount = queryCounts[def.id] ?? 0;
+    const current = Math.max(missionCount, queryCount);
+    const completed = current >= def.target;
+
+    return {
+      id: def.id,
+      name: def.title,
+      description: def.description,
+      current: Math.min(current, def.target),
+      required: def.target,
+      completed,
+      type: 'persistent' as TaskType,
+      action: def.action,
+      actionTarget: def.actionTarget,
+      actionLabel: def.actionLabel,
+    };
   });
-  
-  // 2. Create 3 Color Moments (PERSISTENT) — retroactive
-  const colorMomentCount = data?.colorMomentEvents?.length ?? 0;
-  const colorMomentsCompleted = colorMomentCount >= EVOLVE_REQUIRED_COLOR_MOMENTS;
-  tasks.push({
-    id: 'color_moments',
-    name: 'Color Moments',
-    description: `Share ${EVOLVE_REQUIRED_COLOR_MOMENTS} color moments on espy`,
-    current: Math.min(colorMomentCount, EVOLVE_REQUIRED_COLOR_MOMENTS),
-    required: EVOLVE_REQUIRED_COLOR_MOMENTS,
-    completed: colorMomentsCompleted,
-    type: 'persistent',
-    action: 'external_link',
-    actionTarget: 'https://espy.you/',
-    actionLabel: 'Open espy',
-  });
-  
-  // 3. Interact 21 times (PERSISTENT) — Blobbi-specific
-  const interactions = interactionCount ?? 0;
-  const interactionsCompleted = interactions >= EVOLVE_REQUIRED_INTERACTIONS;
-  tasks.push({
-    id: 'interactions',
-    name: 'Interact with Blobbi',
-    description: `Care for your Blobbi ${EVOLVE_REQUIRED_INTERACTIONS} times`,
-    current: Math.min(interactions, EVOLVE_REQUIRED_INTERACTIONS),
-    required: EVOLVE_REQUIRED_INTERACTIONS,
-    completed: interactionsCompleted,
-    type: 'persistent',
-    // No action - just interact with Blobbi
-  });
-  
-  // 4. Edit Profile once (PERSISTENT) — retroactive
-  const hasTabsEdit = (data?.profileTabsEvents?.length ?? 0) >= 1;
-  const hasMetadataEdit = data?.hasProfileMetadata ?? false;
-  const hasProfileEdit = hasTabsEdit || hasMetadataEdit;
-  tasks.push({
-    id: 'edit_profile',
-    name: 'Edit Your Profile',
-    description: 'Update your profile info or customize your profile tabs',
-    current: hasProfileEdit ? 1 : 0,
-    required: 1,
-    completed: hasProfileEdit,
-    type: 'persistent',
-    action: 'navigate',
-    actionTarget: '/settings/profile',
-    actionLabel: 'Edit Profile',
-  });
-  
-  // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
-  // 5. Maintain All Stats >= 80 — Blobbi-specific
+
+  // ─── Dynamic Task: Maintain All Stats >= 80 ───
   const stats = companion?.stats ?? {};
   const hunger = stats.hunger ?? 0;
   const happiness = stats.happiness ?? 0;
   const health = stats.health ?? 0;
   const hygiene = stats.hygiene ?? 0;
   const energy = stats.energy ?? 0;
-  
-  const statsOk = 
+
+  const statsOk =
     hunger >= EVOLVE_STAT_THRESHOLD &&
     happiness >= EVOLVE_STAT_THRESHOLD &&
     health >= EVOLVE_STAT_THRESHOLD &&
     hygiene >= EVOLVE_STAT_THRESHOLD &&
     energy >= EVOLVE_STAT_THRESHOLD;
-  
-  // Calculate minimum stat for progress display
+
   const minStat = Math.min(hunger, happiness, health, hygiene, energy);
-  
+
   tasks.push({
     id: 'maintain_stats',
     name: 'Peak Condition',
@@ -252,18 +232,17 @@ export function useEvolveTasks(
     current: statsOk ? EVOLVE_STAT_THRESHOLD : minStat,
     required: EVOLVE_STAT_THRESHOLD,
     completed: statsOk,
-    type: 'dynamic', // CRITICAL: Never persist this task
-    // No action - just care for your Blobbi
+    type: 'dynamic',
   });
-  
-  // ─── Compute Completion States ───
+
+  // ─── Completion ───
   const persistentTasks = tasks.filter(t => t.type === 'persistent');
   const dynamicTasks = tasks.filter(t => t.type === 'dynamic');
-  
+
   const persistentTasksComplete = persistentTasks.every(t => t.completed);
   const dynamicTaskComplete = dynamicTasks.every(t => t.completed);
   const allCompleted = persistentTasksComplete && dynamicTaskComplete;
-  
+
   return {
     tasks,
     persistentTasksComplete,
@@ -275,11 +254,4 @@ export function useEvolveTasks(
   };
 }
 
-/**
- * Get the current interaction count for evolve from companion task cache.
- */
-export function getEvolveInteractionCount(companion: BlobbiCompanion | null): number {
-  if (!companion) return 0;
-  const interactionTask = companion.tasks.find(t => t.name === 'interactions');
-  return interactionTask?.value ?? 0;
-}
+

@@ -105,8 +105,12 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 
   const name = metadata.name || getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
   const about = metadata.about;
-  const picture = metadata.picture;
-  const banner = metadata.banner;
+  // Sanitize image URLs to reject non-https schemes (http IP leaks, data: URIs,
+  // etc.). The CSP \`img-src\` already blocks most of these, but sanitizing
+  // defense-in-depth matches the treatment of the website URL below and keeps
+  // the component safe if it is ever rendered outside the app's own CSP.
+  const picture = sanitizeUrl(metadata.picture);
+  const banner = sanitizeUrl(metadata.banner);
   const websiteUrl = sanitizeUrl(getWebsiteUrl(event.tags, metadata));
   const hashtags = getAllTags(event.tags, 't');
 

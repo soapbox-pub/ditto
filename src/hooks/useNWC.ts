@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useSecureLocalStorage } from '@/hooks/useSecureLocalStorage';
 import { useToast } from '@/hooks/useToast';
 import { LN } from '@getalby/sdk';
 
@@ -26,8 +26,12 @@ export function useNWCInternal(userPubkey?: string) {
   // be accessible without a user anyway since zap actions require login).
   const storagePrefix = userPubkey ? `nwc-connections:${userPubkey}` : 'nwc-connections';
   const activePrefix = userPubkey ? `nwc-active-connection:${userPubkey}` : 'nwc-active-connection';
-  const [connections, setConnections] = useLocalStorage<NWCConnection[]>(storagePrefix, []);
-  const [activeConnection, setActiveConnection] = useLocalStorage<string | null>(activePrefix, null);
+  // NWC connection strings embed a secret that authorizes Lightning payments,
+  // so on native platforms we store them in Keychain/KeyStore via secureStorage
+  // rather than plaintext localStorage. On web the behavior matches the
+  // previous useLocalStorage implementation (plaintext localStorage).
+  const [connections, setConnections] = useSecureLocalStorage<NWCConnection[]>(storagePrefix, []);
+  const [activeConnection, setActiveConnection] = useSecureLocalStorage<string | null>(activePrefix, null);
   const [connectionInfo, setConnectionInfo] = useState<Record<string, NWCInfo>>({});
 
   // Add new connection

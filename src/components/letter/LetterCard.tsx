@@ -11,6 +11,7 @@ import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { FONT_OPTIONS, LETTER_KIND, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
 import { ensureLetterFonts } from '@/lib/letterUtils';
+import { sanitizeCssString } from '@/lib/fontLoader';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -98,7 +99,10 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true });
 
   const { text: textColor, faint: faintColor, line: lineColor } = useStationeryColors(effectiveStationery);
-  const rawFont = effectiveStationery?.fontFamily;
+  // Sanitize event-sourced font family before CSS interpolation (M-6).
+  const rawFont = effectiveStationery?.fontFamily
+    ? sanitizeCssString(effectiveStationery.fontFamily)
+    : undefined;
   const letterFontFamily = rawFont
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;

@@ -905,6 +905,29 @@ export function DMProvider({ children, config }: DMProviderProps) {
       const messageContent = await user.signer.nip44.decrypt(sealEvent.pubkey, sealEvent.content);
       const messageEvent = JSON.parse(messageContent) as NostrEvent;
 
+      // NIP-17: clients MUST verify that the inner rumor's pubkey matches the
+      // seal's pubkey. Without this check, anyone can gift-wrap a rumor whose
+      // `pubkey` field claims to be someone else and impersonate that user.
+      // The seal signature authenticates only the seal author, not whatever
+      // pubkey appears inside the (unsigned) rumor.
+      if (messageEvent.pubkey !== sealEvent.pubkey) {
+        console.log(`[DM] ⚠️ NIP-17 IMPERSONATION ATTEMPT - inner pubkey does not match seal pubkey`, {
+          giftWrapId: event.id,
+          sealPubkey: sealEvent.pubkey,
+          innerPubkey: messageEvent.pubkey,
+        });
+        return {
+          processedMessage: {
+            ...event,
+            content: '',
+            decryptedContent: '',
+            error: 'Inner event pubkey does not match seal pubkey (possible impersonation)',
+          },
+          conversationPartner: event.pubkey,
+          sealEvent,
+        };
+      }
+
       // Accept both kind 14 (text) and kind 15 (files/attachments)
       if (messageEvent.kind !== 14 && messageEvent.kind !== 15) {
         console.log(`[DM] ⚠️ NIP-17 MESSAGE WITH UNSUPPORTED INNER EVENT KIND:`, {
