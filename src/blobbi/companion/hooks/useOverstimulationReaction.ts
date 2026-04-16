@@ -169,7 +169,14 @@ export function useOverstimulationReaction({
     }
   }, []);
 
-  /** Push visible state if the delta is meaningful. */
+  /**
+   * Push visible state if the delta is meaningful.
+   *
+   * This is the **single owner** of phase transitions — callers must NOT
+   * mutate phaseRef before calling pushVisible. The function compares the
+   * requested phase `p` against the current ref, commits the ref write,
+   * and then sets the React state.
+   */
   const pushVisible = useCallback((level: number, p: OverstimulationPhase) => {
     const delta = Math.abs(level - lastVisibleRef.current);
     const phaseChanged = p !== phaseRef.current;
@@ -208,9 +215,9 @@ export function useOverstimulationReaction({
       }
     } else if (currentPhase === 'rising') {
       // In rising, we just keep the loop alive to detect cooldown transition.
+      // pushVisible owns the phase transition — do NOT mutate phaseRef here.
       const elapsed = now - lastClickRef.current;
       if (elapsed >= COOLDOWN_DELAY_MS) {
-        phaseRef.current = 'cooling';
         pushVisible(levelRef.current, 'cooling');
       }
     } else {
@@ -308,10 +315,7 @@ export function useOverstimulationReaction({
         return;
       }
 
-      // Rising
-      if (phaseRef.current !== 'rising') {
-        phaseRef.current = 'rising';
-      }
+      // Rising — pushVisible owns the phase transition, do NOT mutate phaseRef here
       pushVisible(newLevel, 'rising');
 
       // Ensure rAF loop is running (for cooldown-delay detection)

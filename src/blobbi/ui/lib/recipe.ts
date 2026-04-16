@@ -956,6 +956,7 @@ export function applyVisualRecipe(
       bodySpec.angerRise = {
         color: recipe.bodyEffects.angerRise.color,
         duration: recipe.bodyEffects.angerRise.duration,
+        level: recipe.bodyEffects.angerRise.level,
       };
     }
     if (instanceId) {
