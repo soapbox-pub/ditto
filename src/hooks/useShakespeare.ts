@@ -183,21 +183,26 @@ async function handleAPIError(response: Response) {
   } else if (response.status === 402) {
     throw new Error('You\'ve run out of credits. Add more on shakespeare.diy to keep chatting.');
   } else if (response.status === 400) {
+    let parsed: Record<string, unknown> | undefined;
     try {
-      const error = await response.json();
-      if (error.error?.type === 'invalid_request_error') {
-        if (error.error.code === 'minimum_amount_not_met') {
-          throw new Error(`Minimum credit amount is $${error.error.minimum_amount}. Please increase your payment amount.`);
-        } else if (error.error.code === 'unsupported_method') {
+      parsed = await response.json();
+    } catch {
+      // JSON parse failed — fall through to generic message
+    }
+    if (parsed) {
+      const err = parsed.error as Record<string, unknown> | undefined;
+      if (err?.type === 'invalid_request_error') {
+        if (err.code === 'minimum_amount_not_met') {
+          throw new Error(`Minimum credit amount is $${err.minimum_amount}. Please increase your payment amount.`);
+        } else if (err.code === 'unsupported_method') {
           throw new Error('Payment method not supported. Please use "stripe" or "lightning".');
-        } else if (error.error.code === 'invalid_url') {
+        } else if (err.code === 'invalid_url') {
           throw new Error('Invalid redirect URL provided for Stripe payment.');
         }
       }
-      throw new Error(`Invalid request: ${error.error?.message || error.details || error.error || 'Please check your request parameters.'}`);
-    } catch {
-      throw new Error('Invalid request. Please check your parameters and try again.');
+      throw new Error(`Invalid request: ${err?.message || (parsed as Record<string, unknown>).details || err || 'Please check your request parameters.'}`);
     }
+    throw new Error('Invalid request. Please check your parameters and try again.');
   } else if (response.status === 404) {
     throw new Error('Resource not found. Please check the payment ID or try again.');
   } else if (response.status >= 500) {

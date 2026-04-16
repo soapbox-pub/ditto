@@ -235,13 +235,16 @@ export function AIChatPage() {
 
     Promise.all([
       getAvailableModels(),
-      getCreditsBalance().catch(() => ({ object: 'credits' as const, amount: 0 })),
+      getCreditsBalance().catch(() => null),
     ])
       .then(([modelsResponse, creditsResponse]) => {
         if (cancelled) return;
 
-        const userHasCredits = creditsResponse.amount > 0;
-        setHasCredits(userHasCredits);
+        // null means the credits request failed — leave hasCredits as null (unknown)
+        // so the UI stays in "loading" state rather than locking the user out.
+        if (creditsResponse) {
+          setHasCredits(creditsResponse.amount > 0);
+        }
 
         const sorted = modelsResponse.data.sort((a, b) => {
           const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
@@ -550,7 +553,7 @@ function DorkErrorBanner({ face, heading, body }: { face: string; heading: strin
   return (
     <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
       <p className="font-medium text-foreground">
-        <pre className="inline text-base font-mono text-primary leading-none">{face}</pre>
+        <code className="text-base font-mono text-primary leading-none whitespace-pre">{face}</code>
         {' '}{heading}
       </p>
       <p className="text-muted-foreground">
