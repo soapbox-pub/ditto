@@ -19,6 +19,8 @@ import {
   createDailyMissionsContent,
   trackTally,
   trackEvent,
+  trackEvolutionTally,
+  trackEvolutionEvent,
 } from './daily-missions';
 
 // ─── In-Memory Session Store ──────────────────────────────────────────────────
@@ -93,6 +95,44 @@ export function trackMultipleDailyMissionActions(
   sessionStore.set(key(pubkey), current);
   notify({ actions });
 }
+
+// ─── Evolution Mission Tracking ───────────────────────────────────────────────
+
+/**
+ * Increment tally for an evolution mission (e.g. interactions).
+ * No-ops if pubkey missing or session store empty.
+ */
+export function trackEvolutionMissionTally(
+  missionId: string,
+  count: number = 1,
+  pubkey?: string,
+): void {
+  const current = sessionStore.get(key(pubkey));
+  if (!current) return;
+
+  const updated = trackEvolutionTally(current, missionId, count);
+  sessionStore.set(key(pubkey), updated);
+  notify({ evolution: true, missionId, count });
+}
+
+/**
+ * Append a Nostr event ID to an evolution mission (e.g. create_theme).
+ * Deduplicates by event ID. No-ops if pubkey missing or session store empty.
+ */
+export function trackEvolutionMissionEvent(
+  missionId: string,
+  eventId: string,
+  pubkey?: string,
+): void {
+  const current = sessionStore.get(key(pubkey));
+  if (!current) return;
+
+  const updated = trackEvolutionEvent(current, missionId, eventId);
+  sessionStore.set(key(pubkey), updated);
+  notify({ evolution: true, missionId, eventId });
+}
+
+// ─── Storage Access ──────────────────────────────────────────────────────────
 
 /** Read current session state for a pubkey. */
 export function readMissionsFromStorage(pubkey?: string): MissionsContent | undefined {

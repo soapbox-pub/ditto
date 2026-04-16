@@ -21,16 +21,13 @@ import {
   applyStat,
   hasMedicineEffectForEgg,
   hasHygieneEffectForEgg,
-  incrementInteractionTaskTags,
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
-import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 /**
  * Request payload for using an item on a Blobbi companion
@@ -243,13 +240,11 @@ export function useBlobbiUseInventoryItem({
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // If incubating or evolving, increment the interaction counter for tasks
+      // If incubating or evolving, increment the interaction counter in evolution missions
       const companionState = canonical.companion.state;
-      let updatedTags = canonical.allTags;
-      if (companionState === 'incubating') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, HATCH_REQUIRED_INTERACTIONS).updatedTags;
-      } else if (companionState === 'evolving') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
+      const updatedTags = canonical.allTags;
+      if (companionState === 'incubating' || companionState === 'evolving') {
+        trackEvolutionMissionTally('interactions', 1, user?.pubkey);
       }
       
       // Get streak updates (will only update if needed based on day)

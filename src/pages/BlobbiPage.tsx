@@ -62,12 +62,9 @@ import {
   useStopIncubation,
   useStartEvolution,
   useStopEvolution,
-  useSyncTaskCompletions,
   useHatchTasks,
   useEvolveTasks,
   useActiveTaskProcess,
-  getInteractionCount,
-  getEvolveInteractionCount,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -1039,18 +1036,19 @@ function BlobbiDashboard({
   const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
+  // Daily missions (must be before hatch/evolve tasks which read evolution[] from it)
+  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  
   // Hatch tasks hook - only active when incubating (egg stage)
-  const hatchInteractionCount = getInteractionCount(companion);
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
-    hatchInteractionCount
+    dailyMissions.raw,
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
-  const evolveInteractionCount = getEvolveInteractionCount(companion);
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
-    evolveInteractionCount
+    dailyMissions.raw,
   );
   
   // ─── Unified Task Process Abstraction ───
@@ -1093,97 +1091,6 @@ function BlobbiDashboard({
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
   });
-  
-  // Sync hatch task completions hook
-  const { mutateAsync: syncTaskCompletions } = useSyncTaskCompletions({
-    companion,
-    ensureCanonicalBeforeAction,
-    updateCompanionEvent,
-  });
-  
-  // Anti-loop protection: track the last synced key to prevent infinite loops
-  const lastSyncedKeyRef = useRef<string>('');
-  
-  // ─── Extract values from taskProcess ───
-  // These replace the previous duplicated useMemo blocks
-  // IMPORTANT CHANGE: remainingTasksCount NOW includes dynamic tasks (for badge)
-  // This was a bug - dynamic tasks should count in badge but never sync to tags
-  const { 
-    completedPersistentTaskIds: completedTaskIds,  // Stable key for anti-loop
-    tasksToSync,                                    // Only persistent tasks (for sync)
-    isLoading: activeTasksLoading,                  // Loading state
-    config: { isActive: isInTaskProcess },          // Whether in a task process
-  } = taskProcess;
-  
-  // Memoize cached completion state for comparison
-  const cachedCompletedIds = useMemo(() => {
-    if (!companion) return '';
-    return [...companion.tasksCompleted].sort().join(',');
-  }, [companion]);
-  
-  // Sync task completions only when there's an actual diff
-  // CRITICAL: This effect uses multiple layers of protection against infinite loops:
-  // 1. Stable string keys (completedTaskIds) instead of array references
-  // 2. Anti-loop ref (lastSyncedKeyRef) to prevent re-triggering after publish
-  // 3. Early guards for loading/invalid states
-  // 4. Diff check against cached state
-  // 5. Dependencies are ONLY stable primitives - NO array references
-  // Works for BOTH incubating (hatch) and evolving processes
-  useEffect(() => {
-    // Guard: Not in an active task process
-    if (!isInTaskProcess) return;
-    
-    // Guard: Still loading
-    if (activeTasksLoading) return;
-    
-    // Guard: No completed tasks
-    if (!completedTaskIds) return;
-    
-    // Guard: Computed matches cached (no diff)
-    if (completedTaskIds === cachedCompletedIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: no diff', {
-          computed: completedTaskIds,
-          cached: cachedCompletedIds,
-        });
-      }
-      return;
-    }
-    
-    // ANTI-LOOP: Skip if we already synced this exact state
-    // This prevents the loop: publish -> cache update -> re-render -> publish again
-    if (lastSyncedKeyRef.current === completedTaskIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: already synced this key', completedTaskIds);
-      }
-      return;
-    }
-    
-    if (DEBUG_BLOBBI) {
-      console.log('[BlobbiPage] Task sync triggered:', {
-        computed: completedTaskIds,
-        cached: cachedCompletedIds,
-        lastSynced: lastSyncedKeyRef.current,
-      });
-    }
-    
-    // Mark as synced BEFORE calling sync to prevent race conditions
-    lastSyncedKeyRef.current = completedTaskIds;
-    
-    // Call sync (fire-and-forget, but log errors)
-    syncTaskCompletions(tasksToSync).catch(err => {
-      // On error, reset the ref so we can retry
-      lastSyncedKeyRef.current = '';
-      console.warn('Failed to sync task completions:', err);
-    });
-    // CRITICAL: Dependencies are ONLY stable primitives and memoized values
-    // - completedTaskIds: stable string key
-    // - cachedCompletedIds: stable string key  
-    // - tasksToSync: memoized, keyed off completedTaskIds
-    // - isInTaskProcess: derived boolean
-    // - activeTasksLoading: derived boolean
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds, cachedCompletedIds, isInTaskProcess, activeTasksLoading]);
   
   // ─── Set as Companion ───
   // Determines if this Blobbi is currently set as the user's companion
@@ -1388,9 +1295,6 @@ function BlobbiDashboard({
     setInventoryAction(null);
     setCurrentRoom('kitchen');
   };
-
-  // ─── Daily Missions (for missions tab) ───
-  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);

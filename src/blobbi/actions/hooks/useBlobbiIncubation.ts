@@ -27,6 +27,11 @@ import {
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
+import {
+  readMissionsFromStorage,
+  writeMissionsToStorage,
+} from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,6 +269,16 @@ export function useStartIncubation({
 
       updateCompanionEvent(event);
 
+      // ─── Populate evolution missions in session store ───
+      const currentMissions = readMissionsFromStorage(user.pubkey);
+      if (currentMissions) {
+        writeMissionsToStorage(
+          { ...currentMissions, evolution: createHatchMissions() },
+          user.pubkey,
+        );
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      }
+
       return {
         name: canonical.companion.name,
         stateStartedAt: now,
@@ -418,6 +433,16 @@ export function useStopIncubation({
 
       updateCompanionEvent(event);
 
+      // ─── Clear evolution missions in session store ───
+      const currentMissions = readMissionsFromStorage(user.pubkey);
+      if (currentMissions) {
+        writeMissionsToStorage(
+          { ...currentMissions, evolution: [] },
+          user.pubkey,
+        );
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      }
+
       return {
         name: canonical.companion.name,
       };
@@ -555,6 +580,16 @@ export function useStartEvolution({
       });
 
       updateCompanionEvent(event);
+
+      // ─── Populate evolution missions in session store ───
+      const currentMissions = readMissionsFromStorage(user.pubkey);
+      if (currentMissions) {
+        writeMissionsToStorage(
+          { ...currentMissions, evolution: createEvolveMissions() },
+          user.pubkey,
+        );
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      }
 
       return {
         name: canonical.companion.name,
@@ -694,6 +729,16 @@ export function useStopEvolution({
       });
 
       updateCompanionEvent(event);
+
+      // ─── Clear evolution missions in session store ───
+      const currentMissions = readMissionsFromStorage(user.pubkey);
+      if (currentMissions) {
+        writeMissionsToStorage(
+          { ...currentMissions, evolution: [] },
+          user.pubkey,
+        );
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      }
 
       return {
         name: canonical.companion.name,
