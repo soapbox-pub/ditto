@@ -33,7 +33,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface SandboxFrameProps
-  extends Omit<IframeHTMLAttributes<HTMLIFrameElement>, 'src' | 'id'> {
+  extends Omit<IframeHTMLAttributes<HTMLIFrameElement>, 'src' | 'id' | 'sandbox'> {
   /** HMAC-derived subdomain identifier. */
   id: string;
   /**
@@ -324,6 +324,20 @@ const SandboxFrameWeb = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
       <iframe
         ref={iframeRef}
         src={`${origin}/`}
+        // Defense-in-depth on top of the cross-origin subdomain isolation.
+        // - allow-scripts + allow-same-origin: required for apps to run JS and
+        //   use origin-keyed storage (localStorage, IndexedDB) and to register
+        //   the iframe.diy Service Worker that proxies fetches. Because the
+        //   iframe lives on a distinct HMAC-derived subdomain, it is still a
+        //   different origin from the parent app.
+        // - allow-forms / allow-modals / allow-popups(+escape-sandbox) /
+        //   allow-downloads: normal web-app affordances (form submission,
+        //   alert/confirm/prompt, opening links in new tabs, exporting files)
+        //   that webxdc/nsite content may legitimately rely on.
+        // Notably omitted: allow-top-navigation (prevents window.top.location
+        // phishing redirects) and allow-pointer-lock / allow-presentation /
+        // allow-orientation-lock (unused niche capabilities).
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
         {...iframeProps}
       />
     );

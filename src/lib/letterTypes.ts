@@ -1,4 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeCssString } from '@/lib/fontLoader';
 
 export const LETTER_KIND = 8211;
 export const COLOR_MOMENT_KIND = 3367;
@@ -96,11 +98,15 @@ export interface ResolvedStationery {
 
 /** Resolve a Stationery into full rendering attributes by reading event tags. */
 export function resolveStationery(s: Stationery): ResolvedStationery {
+  // Sanitize event-sourced font family before CSS interpolation (see SECURITY_AUDIT M-6).
+  // Applied at the parse layer so every consumer gets a safe value.
+  const safeFontFamily = s.fontFamily ? sanitizeCssString(s.fontFamily) : undefined;
+
   const base: ResolvedStationery = {
     color: s.color,
     emoji: s.emoji,
     emojiMode: s.emojiMode ?? 'tile',
-    fontFamily: s.fontFamily,
+    fontFamily: safeFontFamily,
     frame: s.frame,
     frameTint: s.frameTint,
     imageMode: 'cover',
@@ -131,22 +137,25 @@ export function resolveStationery(s: Stationery): ResolvedStationery {
     const bgTag = event.tags.find(([n]) => n === 'bg');
     if (bgTag) {
       for (const slot of bgTag.slice(1)) {
-        if (slot.startsWith('url ')) base.imageUrl = slot.slice(4);
+        // Sanitize event-sourced URL before CSS `url(...)` interpolation (H-2).
+        if (slot.startsWith('url ')) base.imageUrl = sanitizeUrl(slot.slice(4));
         else if (slot === 'mode tile') base.imageMode = 'tile';
         else if (slot === 'mode cover') base.imageMode = 'cover';
       }
     }
     if (!base.imageUrl) {
-      base.imageUrl = event.tags.find(([n]) => n === 'image')?.[1];
+      base.imageUrl = sanitizeUrl(event.tags.find(([n]) => n === 'image')?.[1]);
     }
     return base;
   }
 
-  // No event or unknown kind — use legacy flat fallbacks (old letters, presets)
+  // No event or unknown kind — use legacy flat fallbacks (old letters, presets).
+  // Legacy `imageUrl` may carry user-supplied URLs from pre-sanitization letters,
+  // so sanitize here as well for defense-in-depth.
   base.textColor = s.textColor;
   base.primaryColor = s.primaryColor;
   base.layout = s.layout;
-  base.imageUrl = s.imageUrl;
+  base.imageUrl = sanitizeUrl(s.imageUrl);
   base.imageMode = s.imageMode ?? 'cover';
   return base;
 }
