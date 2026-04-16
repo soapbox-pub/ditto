@@ -45,7 +45,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
-import { getAvatarShape } from "@/lib/avatarShape";
+import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
@@ -654,6 +654,7 @@ function ProfileStep({
     picture: "",
     banner: "",
     website: "",
+    shape: "",
   });
   const [cropState, setCropState] = useState<{
     imageSrc: string;
@@ -712,7 +713,16 @@ function ProfileStep({
     const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
       try {
-        await publishEvent({ kind: 0, content: JSON.stringify(profileData), tags: [] });
+        // Build the outgoing metadata, stripping empty strings and validating shape.
+        const { shape, ...rest } = profileData;
+        const data: Record<string, unknown> = { ...rest };
+        if (shape && isValidAvatarShape(shape)) {
+          data.shape = shape;
+        }
+        for (const key in data) {
+          if (data[key] === "") delete data[key];
+        }
+        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -770,6 +780,9 @@ function ProfileStep({
             setProfileData((prev) => ({ ...prev, ...patch }))
           }
           onPickImage={handlePickImage}
+          onAvatarShape={(shape) =>
+            setProfileData((prev) => ({ ...prev, shape }))
+          }
           showNip05={false}
         />
       </div>
