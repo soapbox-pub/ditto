@@ -64,12 +64,15 @@ export const ThemeColorsCompatSchema = z.union([
 /** Zod schema for ThemeFont */
 export const ThemeFontSchema = z.object({
   family: z.string(),
-  url: z.string().optional(),
+  // Reject non-URL strings at the schema layer. Downstream consumers still
+  // run the value through \`sanitizeUrl()\` to enforce \`https:\` and strip
+  // \`javascript:\`/\`data:\` URIs before use — this is defense-in-depth.
+  url: z.url().optional(),
 });
 
 /** Zod schema for ThemeBackground */
 export const ThemeBackgroundSchema = z.object({
-  url: z.string(),
+  url: z.url(),
   mode: z.enum(['cover', 'tile']).optional(),
   dimensions: z.string().optional(),
   mimeType: z.string().optional(),
