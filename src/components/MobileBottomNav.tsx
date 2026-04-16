@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -22,6 +23,7 @@ const hiddenStyle: React.CSSProperties = {
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
   const { scrollContainer, noArcs } = useLayoutSnapshot();
@@ -67,7 +69,16 @@ export function MobileBottomNav() {
           {/* Home */}
           <Link
             to="/"
-            onClick={() => { selectionChanged(); setSearchOpen(false); }}
+            onClick={() => {
+              selectionChanged();
+              setSearchOpen(false);
+              // When already on the home page, scroll to top and refresh the feed
+              if (location.pathname === '/' || location.pathname === homePath) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                void queryClient.invalidateQueries({ queryKey: ['feed'] });
+                void queryClient.invalidateQueries({ queryKey: ['ditto-curated-feed'] });
+              }
+            }}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
               (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',

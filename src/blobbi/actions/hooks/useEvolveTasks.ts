@@ -8,11 +8,15 @@
  * - DYNAMIC TASKS: Based on current stats, NEVER stored in tags
  * 
  * Tags are only cache for persistent tasks. Source of truth = Nostr events.
+ *
+ * Most persistent tasks are RETROACTIVE — they query the user's full history
+ * without a `since:` filter. Only Blobbi-specific tasks (interactions,
+ * maintain_stats) require actions on the current Blobbi instance.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
@@ -21,9 +25,6 @@ import {
   KIND_THEME_DEFINITION,
   KIND_COLOR_MOMENT,
   KIND_PROFILE_METADATA,
-  KIND_SHORT_TEXT_NOTE,
-  BLOBBI_POST_REQUIRED_HASHTAGS,
-  sanitizeToHashtag,
   type HatchTask,
   type TaskType,
 } from './useHatchTasks';
@@ -39,14 +40,8 @@ export const EVOLVE_REQUIRED_THEMES = 3;
 /** Required color moments for evolve task */
 export const EVOLVE_REQUIRED_COLOR_MOMENTS = 3;
 
-/** Required posts for evolve task (lighter than hatch - just 1 evolve-specific post) */
-export const EVOLVE_REQUIRED_POSTS = 1;
-
 /** Required interactions for evolve task */
 export const EVOLVE_REQUIRED_INTERACTIONS = 21;
-
-/** Prefix text for Blobbi evolve post */
-export const BLOBBI_EVOLVE_POST_PREFIX = 'Hello Nostr! Posting to evolve';
 
 /** Stat threshold for evolve dynamic task (all stats >= 80) */
 export const EVOLVE_STAT_THRESHOLD = 80;
@@ -75,52 +70,21 @@ export interface EvolveTasksResult {
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-/**
- * Check if a post is a valid Blobbi evolve post.
- * Must contain the evolve prefix and all required hashtags including the Blobbi name.
- * 
- * @param event - The Nostr event to validate
- * @param blobbiName - The Blobbi's name (will be sanitized and checked as hashtag)
- */
-export function isValidEvolvePost(event: NostrEvent, blobbiName: string): boolean {
-  // Check content starts with evolve prefix
-  if (!event.content.startsWith(BLOBBI_EVOLVE_POST_PREFIX)) {
-    return false;
-  }
-  
-  // Check for required hashtags in tags
-  const hashtags = event.tags
-    .filter(tag => tag[0] === 't')
-    .map(tag => tag[1]?.toLowerCase());
-  
-  // All required hashtags must be present
-  const hasRequiredHashtags = BLOBBI_POST_REQUIRED_HASHTAGS.every(required => 
-    hashtags.includes(required.toLowerCase())
-  );
-  
-  if (!hasRequiredHashtags) {
-    return false;
-  }
-  
-  // Blobbi name hashtag must also be present
-  const blobbiHashtag = sanitizeToHashtag(blobbiName);
-  return hashtags.includes(blobbiHashtag);
-}
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
  * Hook to compute evolve task progress from Nostr events and current stats.
  * 
- * PERSISTENT TASKS (event-based, can be cached):
- * 1. Create 3 Themes (kind 36767)
- * 2. Create 3 Color Moments (kind 3367)
- * 3. Create 1 Evolve Post (kind 1) - lighter than hatch, evolve-specific
+ * RETROACTIVE TASKS (count from full user history):
+ * 1. Create 3 Themes (kind 36767) - ≥3 events ever
+ * 2. Create 3 Color Moments (kind 3367) - ≥3 events ever
+ * 3. Edit Profile once (kind 0 or kind 16769) - ≥1 event ever
+ * 
+ * BLOBBI-SPECIFIC TASKS (must be done for this Blobbi):
  * 4. Interact 21 times (tracked via companion.tasks cache)
- * 5. Edit Profile once (kind 0 profile metadata OR kind 16769 custom tabs)
  * 
  * DYNAMIC TASK (stat-based, NEVER cached):
- * 6. Maintain All Stats >= 80
+ * 5. Maintain All Stats >= 80
  * 
  * @param companion - The Blobbi companion (must be in evolving state)
  * @param interactionCount - Current interaction count from companion tasks cache
@@ -133,50 +97,44 @@ export function useEvolveTasks(
   const { nostr } = useNostr();
   
   const pubkey = user?.pubkey;
-  const stateStartedAt = companion?.stateStartedAt;
   const isEvolving = companion?.state === 'evolving';
   
-  // Query for all relevant events
+  // Query for all relevant events.
+  //
+  // RETROACTIVE tasks (theme, color moment, profile) query the user's full
+  // history — no `since:` filter. Completing the activity once satisfies
+  // the requirement for every future baby's evolution.
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['evolve-tasks', pubkey, stateStartedAt],
+    queryKey: ['evolve-tasks', pubkey],
     queryFn: async () => {
-      if (!pubkey || !stateStartedAt) {
+      if (!pubkey) {
         return null;
       }
       
       // Build filters for events we need
       const filters: NostrFilter[] = [
-        // Theme definitions after start
+        // Theme definitions — retroactive (no since:)
         {
           kinds: [KIND_THEME_DEFINITION],
           authors: [pubkey],
-          since: stateStartedAt,
+          limit: EVOLVE_REQUIRED_THEMES,
         },
-        // Color moments after start
+        // Color moments — retroactive (no since:)
         {
           kinds: [KIND_COLOR_MOMENT],
           authors: [pubkey],
-          since: stateStartedAt,
+          limit: EVOLVE_REQUIRED_COLOR_MOMENTS,
         },
-        // Posts after start (will filter for valid evolve posts)
-        {
-          kinds: [KIND_SHORT_TEXT_NOTE],
-          authors: [pubkey],
-          since: stateStartedAt,
-          limit: 50, // Only need 1 valid evolve post
-        },
-        // Custom profile tabs after start
+        // Custom profile tabs — retroactive (no since:)
         {
           kinds: [KIND_PROFILE_TABS],
           authors: [pubkey],
-          since: stateStartedAt,
-          limit: 1, // Only need 1
+          limit: 1,
         },
-        // Profile metadata after start (for Blobbi shape check + profile edit mission)
+        // Profile metadata — retroactive (no since:)
         {
           kinds: [KIND_PROFILE_METADATA],
           authors: [pubkey],
-          since: stateStartedAt,
           limit: 1,
         },
       ];
@@ -185,37 +143,19 @@ export function useEvolveTasks(
       const events = await nostr.query(filters);
       
       // Categorize events
-      const themeEvents = events.filter(e => 
-        e.kind === KIND_THEME_DEFINITION && e.created_at >= stateStartedAt
-      );
-      
-      const colorMomentEvents = events.filter(e => 
-        e.kind === KIND_COLOR_MOMENT && e.created_at >= stateStartedAt
-      );
-      
-      const postEvents = events.filter(e => 
-        e.kind === KIND_SHORT_TEXT_NOTE && e.created_at >= stateStartedAt
-      );
-      
-      const profileTabsEvents = events.filter(e => 
-        e.kind === KIND_PROFILE_TABS && e.created_at >= stateStartedAt
-      );
-      
-      // Get latest profile after start
+      const themeEvents = events.filter(e => e.kind === KIND_THEME_DEFINITION);
+      const colorMomentEvents = events.filter(e => e.kind === KIND_COLOR_MOMENT);
+      const profileTabsEvents = events.filter(e => e.kind === KIND_PROFILE_TABS);
       const profileEvents = events.filter(e => e.kind === KIND_PROFILE_METADATA);
-      const profileAfter = profileEvents
-        .filter(e => e.created_at >= stateStartedAt)
-        .sort((a, b) => b.created_at - a.created_at)[0];
       
       return {
         themeEvents,
         colorMomentEvents,
-        postEvents,
         profileTabsEvents,
-        profileAfter,
+        hasProfileMetadata: profileEvents.length > 0,
       };
     },
-    enabled: !!pubkey && !!stateStartedAt && isEvolving,
+    enabled: !!pubkey && isEvolving,
     staleTime: 30_000, // 30 seconds
     refetchInterval: 60_000, // Refetch every minute
   });
@@ -223,7 +163,7 @@ export function useEvolveTasks(
   // ─── Compute PERSISTENT Tasks ───
   const tasks: HatchTask[] = [];
   
-  // 1. Create 3 Themes (PERSISTENT)
+  // 1. Create 3 Themes (PERSISTENT) — retroactive
   const themeCount = data?.themeEvents?.length ?? 0;
   const themesCompleted = themeCount >= EVOLVE_REQUIRED_THEMES;
   tasks.push({
@@ -239,7 +179,7 @@ export function useEvolveTasks(
     actionLabel: 'Create Theme',
   });
   
-  // 2. Create 3 Color Moments (PERSISTENT)
+  // 2. Create 3 Color Moments (PERSISTENT) — retroactive
   const colorMomentCount = data?.colorMomentEvents?.length ?? 0;
   const colorMomentsCompleted = colorMomentCount >= EVOLVE_REQUIRED_COLOR_MOMENTS;
   tasks.push({
@@ -255,25 +195,7 @@ export function useEvolveTasks(
     actionLabel: 'Open espy',
   });
   
-  // 3. Create 1 Evolve Post (PERSISTENT) - lighter than hatch
-  const blobbiName = companion?.name ?? '';
-  const validPosts = data?.postEvents?.filter(e => isValidEvolvePost(e, blobbiName)) ?? [];
-  const postCount = validPosts.length;
-  const postsCompleted = postCount >= EVOLVE_REQUIRED_POSTS;
-  tasks.push({
-    id: 'create_posts',
-    name: 'Share Evolution',
-    description: 'Post about your Blobbi evolving',
-    current: Math.min(postCount, EVOLVE_REQUIRED_POSTS),
-    required: EVOLVE_REQUIRED_POSTS,
-    completed: postsCompleted,
-    type: 'persistent',
-    action: 'open_modal',
-    actionTarget: 'blobbi_post',
-    actionLabel: 'Create Post',
-  });
-  
-  // 4. Interact 21 times (PERSISTENT)
+  // 3. Interact 21 times (PERSISTENT) — Blobbi-specific
   const interactions = interactionCount ?? 0;
   const interactionsCompleted = interactions >= EVOLVE_REQUIRED_INTERACTIONS;
   tasks.push({
@@ -287,9 +209,9 @@ export function useEvolveTasks(
     // No action - just interact with Blobbi
   });
   
-  // 5. Edit Profile once (PERSISTENT) — kind 0 profile metadata OR kind 16769 custom tabs
+  // 4. Edit Profile once (PERSISTENT) — retroactive
   const hasTabsEdit = (data?.profileTabsEvents?.length ?? 0) >= 1;
-  const hasMetadataEdit = !!data?.profileAfter;
+  const hasMetadataEdit = data?.hasProfileMetadata ?? false;
   const hasProfileEdit = hasTabsEdit || hasMetadataEdit;
   tasks.push({
     id: 'edit_profile',
@@ -305,7 +227,7 @@ export function useEvolveTasks(
   });
   
   // ─── Compute DYNAMIC Task (stat-based, NEVER cached) ───
-  // 7. Maintain All Stats >= 80
+  // 5. Maintain All Stats >= 80 — Blobbi-specific
   const stats = companion?.stats ?? {};
   const hunger = stats.hunger ?? 0;
   const happiness = stats.happiness ?? 0;
