@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
   Heart,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { saveNsec } from "@/lib/credentialManager";
+import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   type ReactNode,
@@ -255,7 +257,7 @@ function SetupQuestionnaire({
   isSignup?: boolean;
 }) {
   const { nostr } = useNostr();
-  const { updateConfig } = useAppContext();
+  const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
   const login = useLoginActions();
@@ -300,6 +302,18 @@ function SetupQuestionnaire({
   // Continue handler for the download step — saves the key via the best
   // available method (native credential manager on iOS/Android, file download
   // on web), logs in, and advances to the next step.
+  //
+  // If the user dismisses the iOS credential prompt, `saveNsec` resolves to
+  // `'dismissed'` and we still advance — dismissal is a legitimate choice
+  // (e.g. the user is saving the key in their own password manager).
+  //
+  // On Android, if no credential provider is available (e.g. GrapheneOS or
+  // other de-Googled devices), `saveNsec` falls back to writing the key to
+  // the app's Documents folder and returns `'saved-to-file'`. We surface a
+  // toast so the user knows where to find the backup file.
+  //
+  // Only unexpected errors (decode failure, filesystem write failure)
+  // surface as a destructive toast.
   const handleDownloadContinue = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
@@ -308,7 +322,15 @@ function SetupQuestionnaire({
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
 
-      await saveNsec(npub, nsec);
+      const result = await saveNsec(npub, nsec, config.appName);
+
+      if (result === "saved-to-file") {
+        toast({
+          title: "Secret key saved",
+          description:
+            "Your secret key was saved to the Documents folder on your device.",
+        });
+      }
 
       login.nsec(nsec);
       next();
@@ -320,7 +342,7 @@ function SetupQuestionnaire({
         variant: "destructive",
       });
     }
-  }, [nsec, login, next]);
+  }, [nsec, login, next, config.appName]);
 
   // Save settings and transition to the follows step (or outro if they have follows)
   const handleSaveAndContinue = useCallback(async () => {
@@ -496,7 +518,7 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
           Create your account
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key pair. We'll generate one
+          Your identity on Nostr is a cryptographic key. We'll generate one
           for you now.
         </p>
       </div>
@@ -506,7 +528,7 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onGenerate}
       >
-        Generate my keys
+        Generate my key
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -518,18 +540,34 @@ function DownloadStep({
   onContinue,
 }: {
   nsec: string;
-  onContinue: () => void;
+  onContinue: () => Promise<void> | void;
 }) {
+  const { config } = useAppContext();
   const [showKey, setShowKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Wrap the continue handler in an in-flight guard so rapid double-taps
+  // don't trigger multiple credential prompts. `finally` guarantees the
+  // button is re-enabled even if the handler throws, so users can never
+  // get stuck on a disabled button.
+  const handleClick = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await onContinue();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Save your secret key
+          Your secret key
         </h2>
         <p className="text-sm text-muted-foreground">
-          This is your only way to access your account. Keep it somewhere safe.
+          This secret key controls your account on {config.appName}. You'll need it to log in later. Without it, you'll lose your account.
         </p>
       </div>
 
@@ -538,6 +576,8 @@ function DownloadStep({
           type={showKey ? "text" : "password"}
           value={nsec}
           readOnly
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
           className="pr-10 font-mono text-base md:text-sm"
         />
         <Button
@@ -555,23 +595,39 @@ function DownloadStep({
         </Button>
       </div>
 
-      <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-        <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
-          Important
-        </p>
-        <p className="text-xs text-amber-900 dark:text-amber-300">
-          This key is your only means of accessing your account. If you lose it,
-          there is no way to recover it.
-        </p>
-      </div>
+      {showKey && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
+          <p className="text-xs text-amber-900 dark:text-amber-300">
+            NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account.{" "}
+            <a
+              href="https://soapbox.pub/blog/managing-nostr-keys/"
+              onClick={(e) => {
+                e.preventDefault();
+                openUrl("https://soapbox.pub/blog/managing-nostr-keys/");
+              }}
+              className="underline underline-offset-2 hover:no-underline"
+            >
+              Learn more
+            </a>
+          </p>
+        </div>
+      )}
 
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12"
-        onClick={onContinue}
+        onClick={handleClick}
+        disabled={isSaving}
       >
-        Continue
-        <ChevronRight className="w-4 h-4" />
+        {isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" /> Save Key
+          </>
+        )}
       </Button>
     </div>
   );
