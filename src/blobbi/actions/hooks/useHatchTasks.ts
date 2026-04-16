@@ -12,7 +12,7 @@
  * truth for completion state.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -24,7 +24,6 @@ import { isMissionComplete, missionProgress, isEventMission } from '@/blobbi/cor
 import { trackEvolutionMissionEvent } from '../lib/daily-mission-tracker';
 import {
   HATCH_MISSIONS,
-  getHatchDefinition,
   HATCH_REQUIRED_INTERACTIONS,
 } from '../lib/evolution-missions';
 
@@ -120,13 +119,6 @@ export function isValidHatchPost(event: NostrEvent): boolean {
   return /#blobbi\b/i.test(event.content);
 }
 
-/** Map of mission ID → Nostr event kind for event-based hatch tasks */
-const MISSION_KIND_MAP: Record<string, number> = {
-  create_theme: KIND_THEME_DEFINITION,
-  color_moment: KIND_COLOR_MOMENT,
-  create_post: KIND_SHORT_TEXT_NOTE,
-};
-
 /** Find an evolution mission by ID */
 function findMission(evolution: Mission[], id: string): Mission | undefined {
   return evolution.find((m) => m.id === id);
@@ -149,7 +141,7 @@ export function useHatchTasks(
 
   const pubkey = user?.pubkey;
   const isIncubating = companion?.state === 'incubating';
-  const evolution = missions?.evolution ?? [];
+  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({

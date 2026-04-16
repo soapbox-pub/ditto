@@ -9,7 +9,7 @@
  * - Dynamic task (maintain_stats): computed from current companion stats, NEVER stored
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
@@ -94,7 +94,7 @@ export function useEvolveTasks(
 
   const pubkey = user?.pubkey;
   const isEvolving = companion?.state === 'evolving';
-  const evolution = missions?.evolution ?? [];
+  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
