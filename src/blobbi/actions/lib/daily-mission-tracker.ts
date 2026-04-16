@@ -19,6 +19,8 @@ import {
   createDailyMissionsContent,
   trackTally,
   trackEvent,
+  trackEvolutionTally,
+  trackEvolutionEvent,
 } from './daily-missions';
 
 // ─── In-Memory Session Store ──────────────────────────────────────────────────
@@ -94,9 +96,59 @@ export function trackMultipleDailyMissionActions(
   notify({ actions });
 }
 
+// ─── Evolution Mission Tracking ───────────────────────────────────────────────
+
+/**
+ * Increment tally for an evolution mission (e.g. interactions).
+ * No-ops if pubkey missing or session store empty.
+ */
+export function trackEvolutionMissionTally(
+  missionId: string,
+  count: number = 1,
+  pubkey?: string,
+): void {
+  const current = sessionStore.get(key(pubkey));
+  if (!current) return;
+
+  const updated = trackEvolutionTally(current, missionId, count);
+  sessionStore.set(key(pubkey), updated);
+  notify({ evolution: true, missionId, count });
+}
+
+/**
+ * Append a Nostr event ID to an evolution mission (e.g. create_theme).
+ * Deduplicates by event ID. No-ops if pubkey missing or session store empty.
+ */
+export function trackEvolutionMissionEvent(
+  missionId: string,
+  eventId: string,
+  pubkey?: string,
+): void {
+  const current = sessionStore.get(key(pubkey));
+  if (!current) return;
+
+  const updated = trackEvolutionEvent(current, missionId, eventId);
+  sessionStore.set(key(pubkey), updated);
+  notify({ evolution: true, missionId, eventId });
+}
+
+// ─── Storage Access ──────────────────────────────────────────────────────────
+
 /** Read current session state for a pubkey. */
 export function readMissionsFromStorage(pubkey?: string): MissionsContent | undefined {
   return sessionStore.get(key(pubkey));
+}
+
+/**
+ * Ensure the session store has an entry for the given pubkey.
+ * If the store is empty or needs a daily reset, a fresh entry is created.
+ * Returns the current (possibly newly-created) MissionsContent.
+ *
+ * Use this before writing evolution missions into the store, to avoid
+ * silent no-ops when the store hasn't been hydrated yet.
+ */
+export function ensureSessionStore(pubkey?: string): MissionsContent {
+  return ensureCurrent(pubkey);
 }
 
 /** Write state to session store for a pubkey. */
