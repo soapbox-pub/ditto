@@ -5,7 +5,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -196,7 +196,8 @@ Be concise and friendly. When you use a tool, briefly describe the theme you cre
 export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
+  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const hasCredits = useShakespeareCredits();
   const { executeToolCall } = useToolExecutor();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -205,7 +206,6 @@ export function AIChatPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [modelsLoading, setModelsLoading] = useState(false);
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -234,16 +234,20 @@ export function AIChatPage() {
     setModelsLoading(true);
 
     getAvailableModels()
-      .then((response) => {
+      .then((modelsResponse) => {
         if (cancelled) return;
-        const sorted = response.data.sort((a, b) => {
+
+        const sorted = modelsResponse.data.sort((a, b) => {
           const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
           const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
           return costA - costB;
         });
+
         setModels(sorted);
+
+        // Default to the cheapest model
         if (sorted.length > 0 && !selectedModel) {
-          setSelectedModel(sorted[0].id);
+          setSelectedModel(sorted[0].fullId);
         }
       })
       .catch((err) => {
@@ -397,12 +401,12 @@ export function AIChatPage() {
   if (!user) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6">
-        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
-          <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Bot className="size-8 text-primary" />
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Dork AI</h1>
+            <p className="text-muted-foreground">Log in with your Nostr account to start chatting with Dork.</p>
           </div>
-          <h1 className="text-2xl font-bold">AI Chat</h1>
-          <p className="text-muted-foreground">Log in with your Nostr account to start chatting with AI.</p>
           <LoginArea className="mt-2" />
         </div>
       </main>
@@ -410,100 +414,112 @@ export function AIChatPage() {
   }
 
   return (
-    <main className="flex flex-col ai-chat-height sidebar:h-dvh bg-secondary/50">
+    <main className="flex flex-col ai-chat-height sidebar:h-dvh overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 flex flex-col sidebar:flex-row sidebar:items-center sidebar:justify-between gap-2 sidebar:gap-3">
-        <PageHeader title="AI Chat" icon={<Bot className="size-5" />} className="px-0 mt-0 mb-0" />
-
-        <div className="flex items-center gap-2">
-          {/* Model selector */}
-          <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-            <SelectTrigger className="w-full sidebar:w-44 h-8 text-base md:text-xs">
-              <SelectValue placeholder={modelsLoading ? 'Loading models...' : 'Select model'} />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => {
-                const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
-                const isFree = totalCost === 0;
-                return (
-                  <SelectItem key={model.id} value={model.id}>
-                    <span className="flex items-center gap-1.5">
-                      {model.name}
-                      {isFree && (
-                        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
-                          FREE
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={handleClear}
-            disabled={messages.length === 0}
-            title="Clear conversation"
-          >
-            <Trash2 className="size-4" />
-          </Button>
+      <PageHeader titleContent={
+        <div className="hidden sidebar:flex items-center gap-2 flex-1 min-w-0">
+          <Bot className="size-5" />
+          <h1 className="text-xl font-bold truncate">AI Chat</h1>
         </div>
-      </div>
+      }>
+        {hasCredits && (
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Model selector */}
+            <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
+              <SelectTrigger className="w-48 h-8 text-xs">
+                <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => (
+                  <SelectItem key={model.fullId} value={model.fullId}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleClear}
+              disabled={messages.length === 0}
+              title="Clear conversation"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        )}
+      </PageHeader>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-          {messages.length === 0 ? (
-            <EmptyState />
-          ) : (
-            messages.map((msg) => (
+      {messages.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center px-4">
+          <EmptyState hasCredits={hasCredits} />
+        </div>
+      ) : (
+        <ScrollArea className="flex-1" ref={scrollRef}>
+          <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+            {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
-            ))
-          )}
+            ))}
 
-          {/* Loading indicator */}
-          {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-            <DorkThinking className="text-sm" />
-          )}
+            {/* Loading indicator */}
+            {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
+              <DorkThinking className="text-sm" />
+            )}
 
-          {/* Error display */}
-          {apiError && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
-              {apiError}
-            </div>
-          )}
+            {/* Error display */}
+            {apiError && (
+              retryAfter ? (
+                <DorkErrorBanner
+                  face=">[~_~]<"
+                  heading="Whoa, slow down! Dork needs a breather."
+                  body="You're sending messages a bit too fast. Want more brainpower? Grab some credits on"
+                />
+              ) : apiError.includes('run out of credits') ? (
+                <DorkErrorBanner
+                  face=">[o_o]<"
+                  heading="You've run out of credits!"
+                  body="Grab some more on"
+                />
+              ) : (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
+                  {apiError}
+                </div>
+              )
+            )}
 
-          <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      )}
+
+      {/* Input Area — hidden when user has no credits */}
+      {(hasCredits || hasCredits === null) && (
+        <div className="shrink-0 px-4 pt-2 pb-4 sidebar:pb-3">
+          <div className="max-w-2xl mx-auto flex items-end gap-2">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={!selectedModel ? 'Select a model first...' : 'Send a message...'}
+              disabled={!selectedModel || isStreaming}
+              className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
+              rows={1}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || !selectedModel || isStreaming}
+              size="icon"
+              className="size-11 shrink-0 rounded-xl"
+            >
+              <Send className="size-4" />
+            </Button>
+          </div>
         </div>
-      </ScrollArea>
-
-      {/* Input Area */}
-      <div className="shrink-0 p-4">
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={!selectedModel ? 'Select a model first...' : 'Send a message...'}
-            disabled={!selectedModel || isStreaming}
-            className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
-            rows={1}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || !selectedModel || isStreaming}
-            size="icon"
-            className="size-11 shrink-0 rounded-xl"
-          >
-            <Send className="size-4" />
-          </Button>
-        </div>
-      </div>
+      )}
     </main>
   );
 }
@@ -512,22 +528,64 @@ export function AIChatPage() {
 
 // DorkThinking is imported from the shared component
 
+function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: string }) {
+  const shakespeareLink = (
+    <a
+      href="https://shakespeare.diy"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-primary hover:underline"
+    >
+      <span>&#x1F3AD;</span>
+      <span>Shakespeare</span>
+    </a>
+  );
+
+  return (
+    <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
+      <p className="font-medium text-foreground">
+        <code className="text-base font-mono text-primary leading-none whitespace-pre">{face}</code>
+        {' '}{heading}
+      </p>
+      <p className="text-muted-foreground">
+        {body} {shakespeareLink} to keep chatting with Dork.
+      </p>
+    </div>
+  );
+}
+
 const DORK_GREETINGS = [
   "Hi, I'm Dork! What would you like me to do?",
   "Dork here! What do you need?",
   "Hey, it's Dork! What do you want to do?",
 ];
 
-function EmptyState() {
+function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
 
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-8 text-center select-none animate-in fade-in duration-500">
+    <div className="flex flex-col items-center justify-center gap-8 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
         <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
         <p className="text-sm text-muted-foreground">{greeting}</p>
       </div>
+      {hasCredits === false && (
+        <div className="flex flex-col items-center gap-4 max-w-xs">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            You need credits to chat with Dork. Grab some on Shakespeare to get started.
+          </p>
+          <a
+            href="https://shakespeare.diy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <span>&#x1F3AD;</span>
+            Get Credits
+          </a>
+        </div>
+      )}
     </div>
   );
 }

@@ -118,6 +118,11 @@
     height: calc(100dvh - var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
     padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
+  @media (min-width: 900px) {
+    .ai-chat-height {
+      padding-bottom: 0;
+    }
+  }
 
   /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
   .livestream-height {
