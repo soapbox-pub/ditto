@@ -5,7 +5,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -196,7 +196,8 @@ Be concise and friendly. When you use a tool, briefly describe the theme you cre
 export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, getCreditsBalance, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const hasCredits = useShakespeareCredits();
   const { executeToolCall } = useToolExecutor();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -205,7 +206,6 @@ export function AIChatPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [modelsLoading, setModelsLoading] = useState(false);
-  const [hasCredits, setHasCredits] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -226,25 +226,16 @@ export function AIChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Fetch available models and credit balance on mount
+  // Fetch available models on mount
   useEffect(() => {
     if (!user) return;
 
     let cancelled = false;
     setModelsLoading(true);
 
-    Promise.all([
-      getAvailableModels(),
-      getCreditsBalance().catch(() => null),
-    ])
-      .then(([modelsResponse, creditsResponse]) => {
+    getAvailableModels()
+      .then((modelsResponse) => {
         if (cancelled) return;
-
-        // null means the credits request failed — leave hasCredits as null (unknown)
-        // so the UI stays in "loading" state rather than locking the user out.
-        if (creditsResponse) {
-          setHasCredits(creditsResponse.amount > 0);
-        }
 
         const sorted = modelsResponse.data.sort((a, b) => {
           const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
@@ -267,7 +258,7 @@ export function AIChatPage() {
       });
 
     return () => { cancelled = true; };
-  }, [user, getAvailableModels, getCreditsBalance]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build the chat messages array for the API (includes system prompt + conversation history)
   const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
@@ -410,12 +401,12 @@ export function AIChatPage() {
   if (!user) {
     return (
       <main className="flex flex-col items-center justify-center p-6 gap-6">
-        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
-          <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Bot className="size-8 text-primary" />
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Dork AI</h1>
+            <p className="text-muted-foreground">Log in with your Nostr account to start chatting with Dork.</p>
           </div>
-          <h1 className="text-2xl font-bold">AI Chat</h1>
-          <p className="text-muted-foreground">Log in with your Nostr account to start chatting with AI.</p>
           <LoginArea className="mt-2" />
         </div>
       </main>

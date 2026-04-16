@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import type { NUser } from '@nostrify/react/login';
 
@@ -497,4 +498,36 @@ export function useShakespeare() {
     getCreditsBalance,
     clearError,
   };
+}
+
+// ─── Shared Credits Hook ───
+
+/**
+ * Shared hook for checking Shakespeare credits balance.
+ *
+ * Returns `true` when the user has credits, `false` when they don't, and
+ * `null` while loading or when the request fails (so the UI doesn't lock the
+ * user out on transient errors).
+ */
+export function useShakespeareCredits(): boolean | null {
+  const { user } = useCurrentUser();
+  const { getCreditsBalance } = useShakespeare();
+
+  const { data } = useQuery({
+    queryKey: ['shakespeare-credits-check', user?.pubkey],
+    queryFn: async (): Promise<boolean | null> => {
+      try {
+        const response = await getCreditsBalance();
+        return response.amount > 0;
+      } catch {
+        // On failure return null so the UI stays in "unknown" state
+        // rather than locking the user out.
+        return null;
+      }
+    },
+    staleTime: 5 * 60_000,
+    enabled: !!user,
+  });
+
+  return data ?? null;
 }
