@@ -1,6 +1,18 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCurrentUser } from './useCurrentUser';
 import type { NUser } from '@nostrify/react/login';
+
+/** Error subclass carrying rate-limit metadata. */
+export class RateLimitError extends Error {
+  /** Unix-ms timestamp after which the client may retry. */
+  retryAfter: number;
+  constructor(retryAfter: number) {
+    const seconds = Math.max(0, Math.ceil((retryAfter - Date.now()) / 1000));
+    super(`Rate limited. Please wait ${seconds} second${seconds !== 1 ? 's' : ''} before trying again.`);
+    this.name = 'RateLimitError';
+    this.retryAfter = retryAfter;
+  }
+}
 
 // Types for Shakespeare API (compatible with OpenAI ChatCompletionMessageParam)
 export interface ChatMessage {
@@ -75,6 +87,10 @@ export interface Model {
     prompt: string;
     completion: string;
   };
+  /** Provider prefix for routing (e.g. "shakespeare"). */
+  provider: string;
+  /** Full provider/model identifier for selection (e.g. "shakespeare/model-name"). */
+  fullId: string;
 }
 
 export interface ModelsResponse {
@@ -82,10 +98,18 @@ export interface ModelsResponse {
   data: Model[];
 }
 
-// Configuration
+export interface CreditsResponse {
+  object: string;
+  amount: number;
+}
+
+// ─── Provider Configuration ───
+
 const SHAKESPEARE_API_URL = 'https://ai.shakespeare.diy/v1';
 
-// Helper function to create NIP-98 token
+// ─── Helpers ───
+
+/** Create a NIP-98 auth token for Shakespeare AI requests. */
 async function createNIP98Token(
   method: string,
   url: string,
@@ -96,13 +120,11 @@ async function createNIP98Token(
     throw new Error('User signer is required for NIP-98 authentication');
   }
 
-  // Create the tags array
   const tags: string[][] = [
     ['u', url],
     ['method', method]
   ];
 
-  // Add payload hash for requests with body (following NIP-98 spec)
   if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     const bodyString = JSON.stringify(body);
     const encoder = new TextEncoder();
@@ -114,29 +136,56 @@ async function createNIP98Token(
     tags.push(['payload', payloadHash]);
   }
 
-  // Create the HTTP request event
   const event = await user.signer.signEvent({
-    kind: 27235, // NIP-98 HTTP Auth
+    kind: 27235,
     content: '',
     tags,
     created_at: Math.floor(Date.now() / 1000)
   });
-  
-  // Return the token (base64 encoded event)
+
   return btoa(JSON.stringify(event));
 }
 
-// Helper function to handle API errors with user-friendly messages
+/** Parse the Retry-After header into a future Unix-ms timestamp. */
+function parseRetryAfter(response: Response): number {
+  const header = response.headers.get('Retry-After');
+  if (header) {
+    const seconds = Number(header);
+    if (!Number.isNaN(seconds) && seconds > 0) {
+      return Date.now() + seconds * 1000;
+    }
+    // Try HTTP-date format
+    const date = new Date(header).getTime();
+    if (!Number.isNaN(date) && date > Date.now()) {
+      return date;
+    }
+  }
+  // Default: 30-second cooldown when no header is present
+  return Date.now() + 30_000;
+}
+
+/** Handle API errors with user-friendly messages. */
 async function handleAPIError(response: Response) {
-  if (response.status === 401) {
+  if (response.status === 429) {
+    // Shakespeare returns 429 with code "insufficient_quota" when credits run out
+    try {
+      const body = await response.json();
+      if (body.error?.code === 'insufficient_quota' || body.code === 'insufficient_quota') {
+        throw new Error('You\'ve run out of credits. Add more on shakespeare.diy to keep chatting.');
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('run out of credits')) throw err;
+      // JSON parse failed or different shape — treat as a normal rate limit
+    }
+    throw new RateLimitError(parseRetryAfter(response));
+  } else if (response.status === 401) {
     throw new Error('Authentication failed. Please make sure you are logged in with a Nostr account.');
   } else if (response.status === 402) {
-    throw new Error('Insufficient credits. Please add credits to your account to use premium models, or use the free "tybalt" model.');
+    throw new Error('You\'ve run out of credits. Add more on shakespeare.diy to keep chatting.');
   } else if (response.status === 400) {
     try {
       const error = await response.json();
       if (error.error?.type === 'invalid_request_error') {
-        // Handle specific validation errors
         if (error.error.code === 'minimum_amount_not_met') {
           throw new Error(`Minimum credit amount is $${error.error.minimum_amount}. Please increase your payment amount.`);
         } else if (error.error.code === 'unsupported_method') {
@@ -163,20 +212,64 @@ async function handleAPIError(response: Response) {
   }
 }
 
+/** Parse "provider/model" into { provider, model }. */
+function parseProviderModel(fullId: string): { provider: string; model: string } {
+  const idx = fullId.indexOf('/');
+  if (idx === -1) return { provider: 'shakespeare', model: fullId };
+  return { provider: fullId.substring(0, idx), model: fullId.substring(idx + 1) };
+}
+
+/** Format an error for display. */
+function formatError(err: unknown): string {
+  let msg = 'An unexpected error occurred';
+  if (err instanceof Error) msg = err.message;
+  else if (typeof err === 'string') msg = err;
+
+  if (msg.includes('Failed to fetch') || msg.includes('Network')) {
+    return 'Network error: Please check your internet connection and try again.';
+  } else if (msg.includes('signer')) {
+    return 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
+  }
+  return msg;
+}
+
+// ─── Hook ───
+
 export function useShakespeare() {
   const { user } = useCurrentUser();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Unix-ms timestamp until which the client is rate-limited, or null. */
+  const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Clear error helper
+  // Auto-clear retryAfter once the cooldown expires.
+  useEffect(() => {
+    if (retryAfter === null) return;
+    clearTimeout(retryTimerRef.current);
+    const remaining = retryAfter - Date.now();
+    if (remaining <= 0) {
+      setRetryAfter(null);
+      setError(null);
+      return;
+    }
+    retryTimerRef.current = setTimeout(() => {
+      setRetryAfter(null);
+      setError(null);
+    }, remaining);
+    return () => clearTimeout(retryTimerRef.current);
+  }, [retryAfter]);
+
   const clearError = useCallback(() => {
     setError(null);
+    setRetryAfter(null);
   }, []);
 
-  // Chat completion function
+  // ─── Chat completions (non-streaming) ───
+
   const sendChatMessage = useCallback(async (
-    messages: ChatMessage[], 
-    model: string = 'shakespeare',
+    messages: ChatMessage[],
+    modelId: string,
     options?: Partial<ChatCompletionRequest>
   ): Promise<ChatCompletionResponse> => {
     if (!user) {
@@ -187,19 +280,20 @@ export function useShakespeare() {
     setError(null);
 
     try {
+      const { model } = parseProviderModel(modelId);
+
       const requestBody: ChatCompletionRequest = {
         model,
         messages,
-        ...options
+        ...options,
       };
 
       const token = await createNIP98Token(
         'POST',
         `${SHAKESPEARE_API_URL}/chat/completions`,
         requestBody,
-        user
+        user,
       );
-
       const response = await fetch(`${SHAKESPEARE_API_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -212,32 +306,24 @@ export function useShakespeare() {
       await handleAPIError(response);
       return await response.json();
     } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
+      if (err instanceof RateLimitError) {
+        setRetryAfter(err.retryAfter);
+        setError(err.message);
+        throw err;
       }
-      
-      // Add context for common issues
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
-        errorMessage = 'Network error: Please check your internet connection and try again.';
-      } else if (errorMessage.includes('signer')) {
-        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = formatError(err);
+      setError(msg);
+      throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
-  // Streaming chat completion function
+  // ─── Chat completions (streaming) ───
+
   const sendStreamingMessage = useCallback(async (
-    messages: ChatMessage[], 
-    model: string = 'shakespeare',
+    messages: ChatMessage[],
+    modelId: string,
     onChunk: (chunk: string) => void,
     options?: Partial<ChatCompletionRequest>
   ): Promise<void> => {
@@ -249,20 +335,21 @@ export function useShakespeare() {
     setError(null);
 
     try {
+      const { model } = parseProviderModel(modelId);
+
       const requestBody: ChatCompletionRequest = {
         model,
         messages,
         stream: true,
-        ...options
+        ...options,
       };
 
       const token = await createNIP98Token(
         'POST',
         `${SHAKESPEARE_API_URL}/chat/completions`,
         requestBody,
-        user
+        user,
       );
-
       const response = await fetch(`${SHAKESPEARE_API_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -293,7 +380,7 @@ export function useShakespeare() {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') return;
-              
+
               try {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
@@ -310,29 +397,48 @@ export function useShakespeare() {
         reader.releaseLock();
       }
     } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
+      if (err instanceof RateLimitError) {
+        setRetryAfter(err.retryAfter);
+        setError(err.message);
+        throw err;
       }
-      
-      // Add context for common issues
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
-        errorMessage = 'Network error: Please check your internet connection and try again.';
-      } else if (errorMessage.includes('signer')) {
-        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = formatError(err);
+      setError(msg);
+      throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
-  // Get available models
+  // ─── Credit balance (Shakespeare AI only) ───
+
+  const getCreditsBalance = useCallback(async (): Promise<CreditsResponse> => {
+    if (!user) {
+      throw new Error('User must be logged in to check credits');
+    }
+
+    try {
+      const token = await createNIP98Token(
+        'GET',
+        `${SHAKESPEARE_API_URL}/credits`,
+        undefined,
+        user,
+      );
+
+      const response = await fetch(`${SHAKESPEARE_API_URL}/credits`, {
+        method: 'GET',
+        headers: { 'Authorization': `Nostr ${token}` },
+      });
+
+      await handleAPIError(response);
+      return await response.json();
+    } catch (err) {
+      throw new Error(formatError(err));
+    }
+  }, [user]);
+
+  // ─── Available models (merged from both providers) ───
+
   const getAvailableModels = useCallback(async (): Promise<ModelsResponse> => {
     if (!user) {
       throw new Error('User must be logged in to use AI features');
@@ -346,36 +452,26 @@ export function useShakespeare() {
         'GET',
         `${SHAKESPEARE_API_URL}/models`,
         undefined,
-        user
+        user,
       );
-
       const response = await fetch(`${SHAKESPEARE_API_URL}/models`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Nostr ${token}`,
-        },
+        headers: { 'Authorization': `Nostr ${token}` },
       });
-
       await handleAPIError(response);
-      return await response.json();
+      const result = (await response.json()) as ModelsResponse;
+
+      const models: Model[] = result.data.map((m) => ({
+        ...m,
+        provider: 'shakespeare',
+        fullId: `shakespeare/${m.id}`,
+      }));
+
+      return { object: 'list', data: models };
     } catch (err) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      
-      // Add context for common issues
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
-        errorMessage = 'Network error: Please check your internet connection and try again.';
-      } else if (errorMessage.includes('signer')) {
-        errorMessage = 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = formatError(err);
+      setError(msg);
+      throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -385,12 +481,15 @@ export function useShakespeare() {
     // State
     isLoading,
     error,
+    /** Unix-ms timestamp until which the client is rate-limited, or null. */
+    retryAfter,
     isAuthenticated: !!user,
-    
+
     // Actions
     sendChatMessage,
     sendStreamingMessage,
     getAvailableModels,
+    getCreditsBalance,
     clearError,
   };
 }
