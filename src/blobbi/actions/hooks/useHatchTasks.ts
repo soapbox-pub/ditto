@@ -21,11 +21,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { MissionsContent } from '@/blobbi/core/lib/missions';
 import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
-import { trackEvolutionMissionEvent, readMissionsFromStorage } from '../lib/daily-mission-tracker';
+import { trackEvolutionMissionEvent, readMissionsFromStorage, ensureSessionStore, writeMissionsToStorage } from '../lib/daily-mission-tracker';
 import {
   HATCH_MISSIONS,
   HATCH_REQUIRED_INTERACTIONS,
   findEvolutionMission,
+  createHatchMissions,
 } from '../lib/evolution-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -138,6 +139,23 @@ export function useHatchTasks(
   const pubkey = user?.pubkey;
   const isIncubating = companion?.state === 'incubating';
   const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
+
+  // ─── Ensure evolution missions exist in session store ───
+  // Safety net: if the companion is incubating but evolution[] is empty
+  // (e.g. persist didn't fire, hydration lost them), re-populate from
+  // the static definitions so tally tracking works immediately.
+  const ensuredRef = useRef(false);
+  useEffect(() => {
+    if (!isIncubating || !pubkey || ensuredRef.current) return;
+    if (evolution.length > 0) { ensuredRef.current = true; return; }
+
+    const store = ensureSessionStore(pubkey);
+    if (store.evolution.length === 0) {
+      writeMissionsToStorage({ ...store, evolution: createHatchMissions() }, pubkey);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    }
+    ensuredRef.current = true;
+  }, [isIncubating, pubkey, evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
