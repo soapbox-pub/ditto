@@ -11,6 +11,17 @@
  * expressions, but future personalities can supply different profiles
  * (e.g. confused, nervous) without changing any of the core logic.
  *
+ * Escalation timeline (with default tuning):
+ *   -  4 rapid clicks → mild angry face (level > 0)
+ *   -  6 rapid clicks → red body fill begins rising (level crosses 0.2)
+ *   - 15 rapid clicks → max level, Blobbi blocks clicks for 2–4 s
+ *   - After block ends → level cools naturally back to zero
+ *
+ * Cooling timeline:
+ *   - 1.5 s after last click → cooling phase starts
+ *   - ~4 s to drain from full (1.0) to zero at 0.25/s
+ *   - Total recovery from max: ~5.5 s
+ *
  * Phases:
  *   - idle:    level = 0, no reaction active
  *   - rising:  user is clicking, level increasing
@@ -78,20 +89,24 @@ export const ANGRY_PROFILE: OverstimulationProfile = {
 /** Sliding window for counting clicks (ms). */
 const WINDOW_MS = 2000;
 
-/** Clicks in window to start the reaction. */
-const ACTIVATION_THRESHOLD = 5;
+/** Clicks in the sliding window to trigger the mild reaction. Click #4 is the
+ *  first to increment the level, so the angry face appears on the 4th rapid click. */
+const ACTIVATION_THRESHOLD = 4;
 
-/** Level at which the strong tier activates (face + body effect). */
-const STRONG_LEVEL = 0.3;
+/** Level at which the strong tier activates (face + red body fill).
+ *  With CLICK_INCREMENT = 0.09, this is crossed on the 6th rapid click (level 0.27). */
+const STRONG_LEVEL = 0.2;
 
-/** How much each click above threshold adds to the level. */
-const CLICK_INCREMENT = 0.06;
+/** Level added per click above the activation threshold.
+ *  11 clicks past threshold (15 total) reach 0.99 → clamped to 1.0 → blocked. */
+const CLICK_INCREMENT = 0.09;
 
-/** Seconds of no clicks before cooling starts. */
-const COOLDOWN_DELAY_MS = 2000;
+/** Milliseconds of no clicks before the cooling phase begins. */
+const COOLDOWN_DELAY_MS = 1500;
 
-/** Level units lost per second during cooling. */
-const COOLING_RATE = 0.15;
+/** Level units drained per second during cooling.
+ *  Full-to-zero takes ~4 s. Combined with the 1.5 s delay, total recovery is ~5.5 s. */
+const COOLING_RATE = 0.25;
 
 /** Minimum blocked duration (ms). */
 const BLOCK_MIN_MS = 2000;
