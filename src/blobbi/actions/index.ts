@@ -153,6 +153,7 @@ export {
 export { useDailyMissions } from './hooks/useDailyMissions';
 export type { DailyMissionView, UseDailyMissionsResult } from './hooks/useDailyMissions';
 export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
+export { usePersistEvolutionProgress } from './hooks/usePersistEvolutionProgress';
 export type { AwardDailyXpRequest, AwardDailyXpResult, ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
 export { useRerollMission } from './hooks/useRerollMission';
 export type { RerollMissionRequest, RerollMissionResult } from './hooks/useRerollMission';

@@ -74,6 +74,7 @@ import {
    previewStatChanges,
    useDailyMissions,
    useAwardDailyXp,
+   usePersistEvolutionProgress,
    applyXPGain,
    POOP_CLEANUP_XP,
    type InventoryAction,
@@ -1295,6 +1296,9 @@ function BlobbiDashboard({
     setInventoryAction(null);
     setCurrentRoom('kitchen');
   };
+
+  // Persist evolution mission progress (debounced) so it survives page refresh
+  usePersistEvolutionProgress(updateProfileEvent);
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
