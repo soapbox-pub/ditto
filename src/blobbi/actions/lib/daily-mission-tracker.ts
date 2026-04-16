@@ -139,6 +139,18 @@ export function readMissionsFromStorage(pubkey?: string): MissionsContent | unde
   return sessionStore.get(key(pubkey));
 }
 
+/**
+ * Ensure the session store has an entry for the given pubkey.
+ * If the store is empty or needs a daily reset, a fresh entry is created.
+ * Returns the current (possibly newly-created) MissionsContent.
+ *
+ * Use this before writing evolution missions into the store, to avoid
+ * silent no-ops when the store hasn't been hydrated yet.
+ */
+export function ensureSessionStore(pubkey?: string): MissionsContent {
+  return ensureCurrent(pubkey);
+}
+
 /** Write state to session store for a pubkey. */
 export function writeMissionsToStorage(missions: MissionsContent, pubkey?: string): void {
   sessionStore.set(key(pubkey), missions);

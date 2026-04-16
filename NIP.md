@@ -361,3 +361,21 @@ Kind 16158 (replaceable) describes a weather station's configuration: name, geoh
 
 NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and inventory.
 
+#### Kind 11125 `content` JSON — `missions` field
+
+The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions` field that tracks daily and evolution mission progress:
+
+```jsonc
+{
+  "missions": {
+    "date": "2026-04-16",       // ISO date string for the current daily mission set
+    "daily": [ /* Mission[] */ ],
+    "evolution": [ /* Mission[] — active hatch/evolve tasks, cleared on stage transition */ ],
+    "rerolls": 2                // remaining daily mission rerolls
+  }
+  // ...other profile fields (coins, achievements, inventory, etc.)
+}
+```
+
+Each `Mission` is either a **TallyMission** (`{ id, target, count }`) or an **EventMission** (`{ id, target, events: string[] }`) where `events` contains Nostr event IDs that satisfy the mission. Evolution missions are populated when incubation or evolution begins and cleared when the stage transition completes or is cancelled.
+

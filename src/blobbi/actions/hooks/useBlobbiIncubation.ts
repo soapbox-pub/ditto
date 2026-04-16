@@ -29,7 +29,7 @@ import {
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
 import {
-  readMissionsFromStorage,
+  ensureSessionStore,
   writeMissionsToStorage,
 } from '../lib/daily-mission-tracker';
 
@@ -270,14 +270,12 @@ export function useStartIncubation({
       updateCompanionEvent(event);
 
       // ─── Populate evolution missions in session store ───
-      const currentMissions = readMissionsFromStorage(user.pubkey);
-      if (currentMissions) {
-        writeMissionsToStorage(
-          { ...currentMissions, evolution: createHatchMissions() },
-          user.pubkey,
-        );
-        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-      }
+      const currentMissions = ensureSessionStore(user.pubkey);
+      writeMissionsToStorage(
+        { ...currentMissions, evolution: createHatchMissions() },
+        user.pubkey,
+      );
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
 
       return {
         name: canonical.companion.name,
@@ -434,31 +432,16 @@ export function useStopIncubation({
       updateCompanionEvent(event);
 
       // ─── Clear evolution missions in session store ───
-      const currentMissions = readMissionsFromStorage(user.pubkey);
-      if (currentMissions) {
-        writeMissionsToStorage(
-          { ...currentMissions, evolution: [] },
-          user.pubkey,
-        );
-        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-      }
+      const currentMissions = ensureSessionStore(user.pubkey);
+      writeMissionsToStorage(
+        { ...currentMissions, evolution: [] },
+        user.pubkey,
+      );
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
 
       return {
         name: canonical.companion.name,
       };
-    },
-    onSuccess: ({ name }) => {
-      toast({
-        title: 'Incubation stopped',
-        description: `${name} is no longer incubating. Task progress has been reset.`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Failed to stop incubation',
-        description: error.message,
-        variant: 'destructive',
-      });
     },
   });
 }
@@ -582,14 +565,12 @@ export function useStartEvolution({
       updateCompanionEvent(event);
 
       // ─── Populate evolution missions in session store ───
-      const currentMissions = readMissionsFromStorage(user.pubkey);
-      if (currentMissions) {
-        writeMissionsToStorage(
-          { ...currentMissions, evolution: createEvolveMissions() },
-          user.pubkey,
-        );
-        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-      }
+      const currentMissions = ensureSessionStore(user.pubkey);
+      writeMissionsToStorage(
+        { ...currentMissions, evolution: createEvolveMissions() },
+        user.pubkey,
+      );
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
 
       return {
         name: canonical.companion.name,
@@ -731,14 +712,12 @@ export function useStopEvolution({
       updateCompanionEvent(event);
 
       // ─── Clear evolution missions in session store ───
-      const currentMissions = readMissionsFromStorage(user.pubkey);
-      if (currentMissions) {
-        writeMissionsToStorage(
-          { ...currentMissions, evolution: [] },
-          user.pubkey,
-        );
-        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-      }
+      const currentMissions = ensureSessionStore(user.pubkey);
+      writeMissionsToStorage(
+        { ...currentMissions, evolution: [] },
+        user.pubkey,
+      );
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
 
       return {
         name: canonical.companion.name,
@@ -760,166 +739,4 @@ export function useStopEvolution({
   });
 }
 
-// ─── Sync Task Completions Hook ───────────────────────────────────────────────
 
-/** Enable debug logging in development only */
-const DEBUG_TASK_SYNC = import.meta.env.DEV;
-
-/**
- * Parameters for syncing task completions (works for both hatch and evolve).
- */
-export interface UseSyncTaskCompletionsParams {
-  companion: BlobbiCompanion | null;
-  /** Called to ensure companion is canonical */
-  ensureCanonicalBeforeAction: () => Promise<{
-    companion: BlobbiCompanion;
-    content: string;
-    allTags: string[][];
-    wasMigrated: boolean;
-    profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
-  } | null>;
-  /** Update companion event in local cache */
-  updateCompanionEvent: (event: NostrEvent) => void;
-}
-
-/**
- * Task completions to sync (from useHatchTasks or useEvolveTasks).
- */
-export interface TaskCompletionToSync {
-  taskId: string;
-  completed: boolean;
-}
-
-/**
- * Result of sync operation.
- */
-export interface SyncTaskCompletionsResult {
-  /** Task IDs that were synced (empty if nothing needed) */
-  synced: string[];
-  /** Whether sync was skipped (no diff) */
-  skipped: boolean;
-  /** Reason for skip (for debugging) */
-  skipReason?: string;
-}
-
-/**
- * Hook to sync persistent task completions to kind 31124 tags.
- * Works for both hatch (incubating) and evolve (evolving) processes.
- * 
- * CRITICAL: This is a cache-only sync. It must be:
- * 1. Fully idempotent - calling multiple times with same data = no-op
- * 2. Diff-based - only publish when tags would actually change
- * 3. Safe - no last_interaction update (this is cache sync, not user action)
- * 4. Only sync PERSISTENT tasks - dynamic tasks must NEVER be synced
- * 
- * Source of truth = computed task state from Nostr events.
- * Tags = cache layer for faster access.
- */
-export function useSyncTaskCompletions({
-  companion,
-  ensureCanonicalBeforeAction,
-  updateCompanionEvent,
-}: UseSyncTaskCompletionsParams) {
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-
-  return useMutation({
-    mutationFn: async (tasksToSync: TaskCompletionToSync[]): Promise<SyncTaskCompletionsResult> => {
-      // ─── Early Guards ───
-      if (!user?.pubkey) {
-        return { synced: [], skipped: true, skipReason: 'no_user' };
-      }
-
-      if (!companion) {
-        return { synced: [], skipped: true, skipReason: 'no_companion' };
-      }
-
-      // Must be in an active task process (incubating or evolving)
-      if (companion.state !== 'incubating' && companion.state !== 'evolving') {
-        return { synced: [], skipped: true, skipReason: 'not_in_task_process' };
-      }
-
-      // ─── Compute Diff ───
-      // Get cached completions from companion.tasksCompleted (parsed from tags)
-      const cachedCompletions = new Set(companion.tasksCompleted);
-      
-      // Get computed completions from tasks (works for both hatch and evolve)
-      const computedCompletions = tasksToSync
-        .filter(t => t.completed)
-        .map(t => t.taskId);
-      
-      // Find tasks that are computed as complete but NOT in cache
-      const missingFromCache = computedCompletions.filter(id => !cachedCompletions.has(id));
-
-      if (DEBUG_TASK_SYNC) {
-        console.log('[TaskSync] Diff check:', {
-          cachedCompletions: Array.from(cachedCompletions),
-          computedCompletions,
-          missingFromCache,
-        });
-      }
-
-      // If no diff, skip entirely
-      if (missingFromCache.length === 0) {
-        if (DEBUG_TASK_SYNC) {
-          console.log('[TaskSync] Skipped: no diff between computed and cached');
-        }
-        return { synced: [], skipped: true, skipReason: 'no_diff' };
-      }
-
-      // ─── Ensure Canonical ───
-      const canonical = await ensureCanonicalBeforeAction();
-      if (!canonical) {
-        return { synced: [], skipped: true, skipReason: 'canonical_failed' };
-      }
-
-      // ─── Build Updated Tags ───
-      // Re-check against canonical.allTags (may have updated since companion was parsed)
-      const existingCompletionTags = new Set(
-        canonical.allTags
-          .filter(tag => tag[0] === 'task_completed')
-          .map(tag => tag[1])
-      );
-
-      // Filter to only truly missing tags
-      const tagsToAdd = missingFromCache.filter(id => !existingCompletionTags.has(id));
-
-      if (tagsToAdd.length === 0) {
-        if (DEBUG_TASK_SYNC) {
-          console.log('[TaskSync] Skipped: all tags already exist in canonical');
-        }
-        return { synced: [], skipped: true, skipReason: 'tags_already_exist' };
-      }
-
-      // Add only the missing task_completed tags
-      // CRITICAL: Do NOT update last_interaction - this is cache sync, not user action
-      const updatedTags = [
-        ...canonical.allTags,
-        ...tagsToAdd.map(id => ['task_completed', id]),
-      ];
-
-      if (DEBUG_TASK_SYNC) {
-        console.log('[TaskSync] Publishing:', {
-          tagsToAdd,
-          totalTags: updatedTags.length,
-        });
-      }
-
-      // ─── Publish ───
-      const event = await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
-        tags: updatedTags,
-      });
-
-      updateCompanionEvent(event);
-
-      if (DEBUG_TASK_SYNC) {
-        console.log('[TaskSync] Published successfully:', tagsToAdd);
-      }
-
-      return { synced: tagsToAdd, skipped: false };
-    },
-  });
-}

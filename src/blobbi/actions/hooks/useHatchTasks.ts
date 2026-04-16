@@ -12,19 +12,20 @@
  * truth for completion state.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { MissionsContent, Mission } from '@/blobbi/core/lib/missions';
-import { isMissionComplete, missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
-import { trackEvolutionMissionEvent } from '../lib/daily-mission-tracker';
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
+import { trackEvolutionMissionEvent, readMissionsFromStorage } from '../lib/daily-mission-tracker';
 import {
   HATCH_MISSIONS,
   HATCH_REQUIRED_INTERACTIONS,
+  findEvolutionMission,
 } from '../lib/evolution-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -119,11 +120,6 @@ export function isValidHatchPost(event: NostrEvent): boolean {
   return /#blobbi\b/i.test(event.content);
 }
 
-/** Find an evolution mission by ID */
-function findMission(evolution: Mission[], id: string): Mission | undefined {
-  return evolution.find((m) => m.id === id);
-}
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
@@ -168,41 +164,62 @@ export function useHatchTasks(
     refetchInterval: 60_000,
   });
 
-  // ─── Backfill event IDs into evolution missions ───
+  // ─── Compute event counts directly from Nostr query results ───
+  // These are the authoritative counts for event-based tasks.
+  const queryCounts: Record<string, number> = useMemo(() => {
+    if (!data) return {} as Record<string, number>;
+    const validPosts = data.postEvents.filter(e => isValidHatchPost(e));
+    return {
+      create_theme: data.themeEvents.length,
+      color_moment: data.colorMomentEvents.length,
+      create_post: validPosts.length,
+    };
+  }, [data]);
+
+  // ─── Backfill event IDs into evolution missions (for persistence only) ───
+  const lastBackfilledDataRef = useRef<typeof data>(null);
+
   useEffect(() => {
     if (!data || !pubkey || evolution.length === 0) return;
+    if (data === lastBackfilledDataRef.current) return;
+    lastBackfilledDataRef.current = data;
 
-    // Backfill theme events
+    const current = readMissionsFromStorage(pubkey);
+    if (!current || current.evolution.length === 0) return;
+    const evo = current.evolution;
+
     for (const event of data.themeEvents) {
-      const m = findMission(evolution, 'create_theme');
+      const m = findEvolutionMission(evo, 'create_theme');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('create_theme', event.id, pubkey);
       }
     }
-
-    // Backfill color moment events
     for (const event of data.colorMomentEvents) {
-      const m = findMission(evolution, 'color_moment');
+      const m = findEvolutionMission(evo, 'color_moment');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('color_moment', event.id, pubkey);
       }
     }
-
-    // Backfill valid post events
     for (const event of data.postEvents) {
       if (!isValidHatchPost(event)) continue;
-      const m = findMission(evolution, 'create_post');
+      const m = findEvolutionMission(evo, 'create_post');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('create_post', event.id, pubkey);
       }
     }
   }, [data, pubkey, evolution]);
 
-  // ─── Build task view models from evolution missions ───
+  // ─── Build task view models ───
+  // For event-based tasks, use the MAX of the Nostr query count and the
+  // evolution mission progress. The query is authoritative but the mission
+  // store may have progress from a previous session that hasn't been
+  // re-queried yet.
   const tasks: HatchTask[] = HATCH_MISSIONS.map((def) => {
-    const mission = findMission(evolution, def.id);
-    const current = mission ? missionProgress(mission) : 0;
-    const completed = mission ? isMissionComplete(mission) : false;
+    const mission = findEvolutionMission(evolution, def.id);
+    const missionCount = mission ? missionProgress(mission) : 0;
+    const queryCount = queryCounts[def.id] ?? 0;
+    const current = Math.max(missionCount, queryCount);
+    const completed = current >= def.target;
 
     return {
       id: def.id,
@@ -231,16 +248,6 @@ export function useHatchTasks(
     error: error as Error | null,
     refetch,
   };
-}
-
-/**
- * Get the current interaction count from evolution missions.
- * @deprecated Use missionProgress on the evolution mission directly.
- */
-export function getInteractionCount(missions: MissionsContent | undefined): number {
-  if (!missions) return 0;
-  const m = missions.evolution.find(m => m.id === 'interactions');
-  return m ? missionProgress(m) : 0;
 }
 
 /**

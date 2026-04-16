@@ -13,6 +13,13 @@
 
 import type { Mission, TallyMission, EventMission } from '@/blobbi/core/lib/missions';
 
+// ─── Shared Helpers ──────────────────────────────────────────────────────────
+
+/** Find an evolution mission by ID in the given array. */
+export function findEvolutionMission(evolution: Mission[], id: string): Mission | undefined {
+  return evolution.find((m) => m.id === id);
+}
+
 // ─── Tracking Type ───────────────────────────────────────────────────────────
 
 export type EvolutionTrackingType = 'tally' | 'event';
@@ -121,26 +128,6 @@ export const EVOLVE_MISSIONS: readonly EvolutionMissionDefinition[] = [
     actionLabel: 'Edit Profile',
   },
 ] as const;
-
-// ─── Lookup Maps ─────────────────────────────────────────────────────────────
-
-const HATCH_BY_ID = new Map(HATCH_MISSIONS.map((d) => [d.id, d]));
-const EVOLVE_BY_ID = new Map(EVOLVE_MISSIONS.map((d) => [d.id, d]));
-
-/** Look up a hatch mission definition by ID */
-export function getHatchDefinition(id: string): EvolutionMissionDefinition | undefined {
-  return HATCH_BY_ID.get(id);
-}
-
-/** Look up an evolve mission definition by ID */
-export function getEvolveDefinition(id: string): EvolutionMissionDefinition | undefined {
-  return EVOLVE_BY_ID.get(id);
-}
-
-/** Look up any evolution mission definition by ID (checks both pools) */
-export function getEvolutionDefinition(id: string): EvolutionMissionDefinition | undefined {
-  return HATCH_BY_ID.get(id) ?? EVOLVE_BY_ID.get(id);
-}
 
 // ─── Instantiation ───────────────────────────────────────────────────────────
 

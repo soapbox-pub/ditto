@@ -9,22 +9,23 @@
  * - Dynamic task (maintain_stats): computed from current companion stats, NEVER stored
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { MissionsContent, Mission } from '@/blobbi/core/lib/missions';
-import { isMissionComplete, missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
-import { trackEvolutionMissionEvent } from '../lib/daily-mission-tracker';
+import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
+import { trackEvolutionMissionEvent, readMissionsFromStorage } from '../lib/daily-mission-tracker';
 import {
   EVOLVE_MISSIONS,
   EVOLVE_REQUIRED_INTERACTIONS,
   EVOLVE_REQUIRED_THEMES,
   EVOLVE_REQUIRED_COLOR_MOMENTS,
   EVOLVE_STAT_THRESHOLD,
+  findEvolutionMission,
 } from '../lib/evolution-missions';
 
 import {
@@ -68,13 +69,6 @@ export interface EvolveTasksResult {
   error: Error | null;
   /** Refetch task progress */
   refetch: () => void;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Find an evolution mission by ID */
-function findMission(evolution: Mission[], id: string): Mission | undefined {
-  return evolution.find((m) => m.id === id);
 }
 
 // ─── Main Hook ────────────────────────────────────────────────────────────────
@@ -123,44 +117,64 @@ export function useEvolveTasks(
     refetchInterval: 60_000,
   });
 
-  // ─── Backfill event IDs into evolution missions ───
+  // ─── Compute event counts directly from Nostr query results ───
+  // These are the authoritative counts for event-based tasks.
+  const queryCounts: Record<string, number> = useMemo(() => {
+    if (!data) return {} as Record<string, number>;
+    return {
+      create_themes: data.themeEvents.length,
+      color_moments: data.colorMomentEvents.length,
+      edit_profile: (data.profileTabsEvents.length >= 1 || data.hasProfileMetadata) ? 1 : 0,
+    };
+  }, [data]);
+
+  // ─── Backfill event IDs into evolution missions (for persistence only) ───
+  const lastBackfilledDataRef = useRef<typeof data>(null);
+
   useEffect(() => {
     if (!data || !pubkey || evolution.length === 0) return;
+    if (data === lastBackfilledDataRef.current) return;
+    lastBackfilledDataRef.current = data;
 
-    // Backfill theme events
+    const current = readMissionsFromStorage(pubkey);
+    if (!current || current.evolution.length === 0) return;
+    const evo = current.evolution;
+
     for (const event of data.themeEvents) {
-      const m = findMission(evolution, 'create_themes');
+      const m = findEvolutionMission(evo, 'create_themes');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('create_themes', event.id, pubkey);
       }
     }
-
-    // Backfill color moment events
     for (const event of data.colorMomentEvents) {
-      const m = findMission(evolution, 'color_moments');
+      const m = findEvolutionMission(evo, 'color_moments');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('color_moments', event.id, pubkey);
       }
     }
-
-    // Backfill profile edit (tabs or metadata — either satisfies)
     const profileEditEvents = [
       ...data.profileTabsEvents,
       ...(data.hasProfileMetadata ? [{ id: 'profile-metadata' }] : []),
     ];
     for (const event of profileEditEvents) {
-      const m = findMission(evolution, 'edit_profile');
+      const m = findEvolutionMission(evo, 'edit_profile');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('edit_profile', event.id, pubkey);
       }
     }
   }, [data, pubkey, evolution]);
 
-  // ─── Build persistent task view models from evolution missions ───
+  // ─── Build task view models ───
+  // For event-based tasks, use the MAX of the Nostr query count and the
+  // evolution mission progress. The query is authoritative but the mission
+  // store may have progress from a previous session that hasn't been
+  // re-queried yet.
   const tasks: HatchTask[] = EVOLVE_MISSIONS.map((def) => {
-    const mission = findMission(evolution, def.id);
-    const current = mission ? missionProgress(mission) : 0;
-    const completed = mission ? isMissionComplete(mission) : false;
+    const mission = findEvolutionMission(evolution, def.id);
+    const missionCount = mission ? missionProgress(mission) : 0;
+    const queryCount = queryCounts[def.id] ?? 0;
+    const current = Math.max(missionCount, queryCount);
+    const completed = current >= def.target;
 
     return {
       id: def.id,
@@ -222,12 +236,4 @@ export function useEvolveTasks(
   };
 }
 
-/**
- * Get the current interaction count for evolve from evolution missions.
- * @deprecated Use missionProgress on the evolution mission directly.
- */
-export function getEvolveInteractionCount(missions: MissionsContent | undefined): number {
-  if (!missions) return 0;
-  const m = missions.evolution.find(m => m.id === 'interactions');
-  return m ? missionProgress(m) : 0;
-}
+
