@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { parseMusicPlaylist } from '@/lib/musicHelpers';
+import { usePlaylistCoverArt } from '@/hooks/usePlaylistCoverArt';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface MusicPlaylistCardProps {
@@ -28,7 +29,12 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
     return '/' + nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
   }, [event]);
 
-  const [imgError, setImgError] = useState(false);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+
+  // Fall back to first track's artwork when playlist has none or it failed to load
+  const playlistArt = parsed?.artwork && !failedUrls.has(parsed.artwork) ? parsed.artwork : undefined;
+  const coverArt = usePlaylistCoverArt(playlistArt, parsed?.trackRefs ?? []);
+  const displayArt = coverArt && !failedUrls.has(coverArt) ? coverArt : undefined;
 
   if (!parsed) return null;
 
@@ -38,12 +44,12 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
     <Link to={naddrPath} className="w-[160px] shrink-0 cursor-pointer group">
       {/* Artwork */}
       <div className="w-full aspect-square rounded-xl overflow-hidden">
-        {parsed.artwork && !imgError ? (
+        {displayArt ? (
           <img
-            src={parsed.artwork}
+            src={displayArt}
             alt={parsed.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={() => setImgError(true)}
+            onError={() => setFailedUrls((prev) => new Set(prev).add(displayArt))}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">

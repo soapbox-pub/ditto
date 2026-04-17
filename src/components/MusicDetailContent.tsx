@@ -308,6 +308,14 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       .filter((t): t is NonNullable<typeof t> => t !== null);
   }, [trackEvents]);
 
+  // Cover art: playlist's own artwork, or first track's artwork as fallback
+  const coverArt = useMemo(() => {
+    if (parsed?.artwork && !imgError) return parsed.artwork;
+    if (!trackEvents || trackEvents.length === 0) return undefined;
+    const firstTrack = parseMusicTrack(trackEvents[0]);
+    return firstTrack?.artwork;
+  }, [parsed?.artwork, imgError, trackEvents]);
+
   const trackCount = parsed?.trackRefs.length ?? 0;
   const isAlbum = parsed?.isAlbum ?? false;
   const typeLabel = isAlbum ? 'Album' : 'Playlist';
@@ -348,8 +356,8 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       {/* Hero */}
       <div className="px-4 flex gap-5 items-start">
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
-          {parsed?.artwork && !imgError ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          {coverArt ? (
+            <img src={coverArt} alt={parsed?.title ?? ''} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <FallbackIcon className="size-12 text-primary/30" />
