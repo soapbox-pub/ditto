@@ -15,6 +15,8 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
+import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { isPeopleListKind } from '@/lib/packUtils';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -93,6 +95,12 @@ export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNa
   // Blobbi state events render the pet visual inline
   if (event.kind === 31124) {
     return <EmbeddedBlobbiCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // People-list events (kind 30000 follow sets, 39089 follow packs) get a
+  // dedicated card showing title + avatar stack + member count.
+  if (isPeopleListKind(event.kind)) {
+    return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;

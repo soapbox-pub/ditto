@@ -1,36 +1,49 @@
 import { useMemo } from 'react';
-import { Users, PartyPopper } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
-import { Badge } from '@/components/ui/badge';
-import { useAuthors } from '@/hooks/useAuthors';
-import { genUserName } from '@/lib/genUserName';
+import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-function getTag(tags: string[][], name: string): string | undefined {
-  return tags.find(([n]) => n === name)?.[1];
-}
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarShape } from '@/lib/avatarShape';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useAuthors } from '@/hooks/useAuthors';
+import { genUserName } from '@/lib/genUserName';
+import { parsePeopleList } from '@/lib/packUtils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-export function FollowPackContent({ event }: { event: NostrEvent }) {
-  const isFollowSet = event.kind === 30000;
-  const title = getTag(event.tags, 'title') || getTag(event.tags, 'name');
-  const description = getTag(event.tags, 'description') || getTag(event.tags, 'summary');
-  const image = getTag(event.tags, 'image');
-  const pubkeys = useMemo(
-    () => event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk),
-    [event.tags],
+/**
+ * Compact feed card for kind 3 (follow list), 30000 (follow set), or 39089 (follow pack).
+ * Shows title + optional description + optional cover image + member count + avatar stack.
+ *
+ * For kind 3 the event has no tags describing it, so we fetch the author's metadata
+ * and derive a title like "Alice's follows" with about/banner as description/image.
+ */
+export function PeopleListContent({ event }: { event: NostrEvent }) {
+  const needsAuthorMeta = event.kind === 3;
+  const author = useAuthor(needsAuthorMeta ? event.pubkey : '');
+  const authorMetadata = needsAuthorMeta ? author.data?.metadata : undefined;
+
+  const { title, description, image, pubkeys, variant } = useMemo(
+    () => parsePeopleList(event, {
+      authorMetadata,
+      authorDisplayName: authorMetadata?.name || authorMetadata?.display_name,
+    }),
+    [event, authorMetadata],
   );
 
   // Only fetch first few avatars for the preview
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 8), [pubkeys]);
   const { data: membersMap } = useAuthors(previewPubkeys);
 
+  const safeImage = useMemo(() => sanitizeUrl(image), [image]);
+
+  const TitleIcon = variant === 'follow-list' ? UserCheck : variant === 'follow-set' ? Users : PartyPopper;
+
   return (
     <div className="mt-2">
       {/* Title */}
       {title && (
         <div className="flex items-center gap-2 mb-2">
-          {!isFollowSet && <PartyPopper className="size-4 text-primary shrink-0" />}
+          <TitleIcon className="size-4 text-primary shrink-0" />
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
@@ -43,11 +56,11 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Cover image */}
-      {image && (
+      {safeImage && (
         <div className="rounded-2xl overflow-hidden mb-3">
           <img
-            src={image}
-            alt={title ?? 'Follow pack'}
+            src={safeImage}
+            alt={title}
             className="w-full max-h-[200px] object-cover"
             loading="lazy"
             onError={(e) => {
@@ -57,13 +70,9 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Member count pill + avatar stack */}
+      {/* Avatar stack */}
       {pubkeys.length > 0 && (
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-[11px] gap-1 font-medium shrink-0">
-            <Users className="size-3" />
-            {pubkeys.length}
-          </Badge>
           <div className="flex -space-x-2">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);

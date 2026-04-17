@@ -23,7 +23,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parsePackEvent } from '@/lib/packUtils';
-import { PackFeedTab, MemberCard, MemberCardSkeleton } from '@/components/FollowPackDetailContent';
+import { PeopleListFeedTab, MemberCard, MemberCardSkeleton } from '@/components/PeopleListDetailContent';
 import { genUserName } from '@/lib/genUserName';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { DittoLogo } from '@/components/DittoLogo';
@@ -589,7 +589,10 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto w-full bg-background/85" style={{ paddingTop: ARC_OVERHANG_PX }}>
           {activeTab === 'feed' ? (
-            <PackFeedTab pubkeys={pubkeys} />
+            <PeopleListFeedTab
+              pubkeys={pubkeys}
+              tabKey={`follow-${addr.kind}-${addr.pubkey}-${addr.identifier}`}
+            />
           ) : membersLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: Math.min(pubkeys.length, 8) }).map((_, i) => (

@@ -453,46 +453,6 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
   );
 }
 
-// ----- Following List Modal -----
-
-interface FollowingListModalProps {
-  pubkeys: string[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  displayName: string;
-}
-
-function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: FollowingListModalProps) {
-  const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <DialogTitle className="text-base font-bold">{displayName} follows</DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full size-8"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-        <ScrollArea className="max-h-[60vh]">
-          {pubkeys.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              Not following anyone yet.
-            </div>
-          ) : (
-            pubkeys.map((pk) => <FollowingUserRow key={pk} pubkey={pk} onNavigate={handleNavigate} />)
-          )}
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
 function SortableTabChip({
@@ -957,7 +917,6 @@ export function ProfilePage() {
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
-  const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -2201,15 +2160,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">followers</span>
                   </button>
                 )}
-                {profileFollowing && profileFollowing.count > 0 && (
-                  <button
+                {profileFollowing && profileFollowing.count > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`}
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    onClick={() => setFollowingModalOpen(true)}
                     title={`${profileFollowing.count} following`}
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
-                  </button>
+                  </Link>
                 )}
                 {streak > 1 && (
                   <div
@@ -2638,16 +2597,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {/* Follow QR dialog (own profile action bar button) */}
         {isOwnProfile && (
           <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
-        )}
-
-        {/* Following List Modal */}
-        {profileFollowing && profileFollowing.count > 0 && (
-          <FollowingListModal
-            pubkeys={profileFollowing.pubkeys}
-            open={followingModalOpen}
-            onOpenChange={setFollowingModalOpen}
-            displayName={displayName}
-          />
         )}
 
         {/* Followers List Modal */}

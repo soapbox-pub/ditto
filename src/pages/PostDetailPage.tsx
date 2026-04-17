@@ -39,8 +39,8 @@ import {
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
-import { FollowPackContent } from "@/components/FollowPackContent";
-import { FollowPackDetailContent } from "@/components/FollowPackDetailContent";
+import { PeopleListContent } from "@/components/PeopleListContent";
+import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
@@ -92,8 +92,8 @@ import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
 
-/** Kinds that get the full follow-pack detail view. */
-const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
+/** Kinds that get the full people-list detail view (follow list / set / pack). */
+const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
@@ -129,7 +129,9 @@ function shellTitleForKind(kind?: number): string {
   if (MUSIC_KINDS.has(kind)) return "Track Details";
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
-  if (FOLLOW_PACK_KINDS.has(kind)) return "Follow Pack";
+  if (kind === 3) return "Follow List";
+  if (kind === 30000) return "Follow Set";
+  if (kind === 39089) return "Follow Pack";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
   if (kind === 30617) return "Repository";
   if (kind === 1617) return "Patch";
@@ -303,6 +305,17 @@ export function PostDetailPage({
     );
   }
 
+  // People lists (kind 3 / 30000 / 39089) get their own full detail view
+  if (PEOPLE_LIST_KINDS.has(resolvedEvent.kind)) {
+    return (
+      <PostDetailShell title={detailTitle}>
+        <MutedContentGuard event={resolvedEvent}>
+          <PeopleListDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   return (
     <PostDetailShell title={detailTitle}>
       <MutedContentGuard event={resolvedEvent}>
@@ -348,12 +361,12 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
-  // Follow packs get their own full detail view with member list + Follow All
-  if (FOLLOW_PACK_KINDS.has(resolvedEvent.kind)) {
+  // People lists (kind 3 / 30000 / 39089) get their own full detail view with member list + Follow All
+  if (PEOPLE_LIST_KINDS.has(resolvedEvent.kind)) {
     return (
       <PostDetailShell>
         <MutedContentGuard event={resolvedEvent}>
-          <FollowPackDetailContent event={resolvedEvent} />
+          <PeopleListDetailContent event={resolvedEvent} />
         </MutedContentGuard>
       </PostDetailShell>
     );
@@ -994,7 +1007,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
@@ -1030,7 +1043,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
-    !isFollowPack &&
+    !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
     !isMagicDeck &&
@@ -2158,7 +2171,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isGeocache ||
               isFoundLog ||
               isColor ||
-              isFollowPack ||
+              isPeopleList ||
               isEmojiPack ? (
               <>
                 {isVine && <VineDetailContent event={event} />}
@@ -2166,7 +2179,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isGeocache && <GeocacheContent event={event} />}
                 {isFoundLog && <FoundLogContent event={event} />}
                 {isColor && <ColorMomentContent event={event} />}
-                {isFollowPack && <FollowPackContent event={event} />}
+                {isPeopleList && <PeopleListContent event={event} />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : (

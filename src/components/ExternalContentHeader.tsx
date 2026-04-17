@@ -1082,6 +1082,8 @@ function hasVideo(tags: string[][]): boolean {
 
 /** Fallback labels for well-known kinds not in EXTRA_KINDS. */
 const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
+  3: 'Follow List',
+  30000: 'Follow Set',
   31990: 'App',
   32267: 'Zapstore App',
   30063: 'Zapstore Release',
@@ -1113,6 +1115,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     // Fallback icons for well-known kinds not in EXTRA_KINDS
     if (addr.kind === 31990 || addr.kind === 32267 || addr.kind === 30063 || addr.kind === 3063) return Package;
     if (addr.kind === 15128 || addr.kind === 35128) return Globe;
+    if (addr.kind === 3 || addr.kind === 30000) return Users;
     return FileText;
   }, [kindDef, addr.kind]);
 
