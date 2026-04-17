@@ -10,9 +10,6 @@
 ### Changed
 - Hatching and evolving Blobbis no longer requires posting -- focus on the care actions that matter
 
-### Fixed
-- The expanded emoji picker in feeds now has its background back
-
 ## [2.8.0] - 2026-04-16
 
 ### Added
