@@ -4,6 +4,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { parseMusicTrack } from '@/lib/musicHelpers';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { useCuratedMusicArtists } from '@/hooks/useCuratedMusicArtists';
+import { useFeaturedMusicTracks } from '@/hooks/useFeaturedMusicTracks';
+import { useMusicCuratorFollows } from '@/hooks/useMusicCuratorFollows';
 import { useMusicData, useMusicTracksByGenre } from '@/hooks/useMusicData';
 import { useMusicPlaylists } from '@/hooks/useMusicPlaylists';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
@@ -28,62 +30,76 @@ interface MusicDiscoverTabProps {
 }
 
 /**
- * The "Discover" tab — the default music discovery experience.
+ * The "Discover" tab — the curator's storefront for music discovery.
+ *
+ * All content is gated through the curator's lists:
+ * - Hero + Featured: Hot tracks from curated artists, one per artist (sort:hot distinct:author)
+ * - New Tracks: Most recent tracks from curated artists, genre-filterable
+ * - Playlists: Playlists from people the curator follows
+ * - Artists: Curated artist profile cards
  *
  * Sections (top to bottom):
- * 1. Hero card — Featured track from curated artists
- * 2. Featured — Horizontal scroll of tracks from curated artists
- * 3. Genre chips — Filter for the "Recently Added" section
- * 4. Recently Added — Compact track rows (genre-filterable)
- * 5. Playlists — Horizontal scroll of playlist cards
- * 6. Artists — Horizontal scroll of artist profile cards
+ * 1. Hero card — #1 hot track from curated artists
+ * 2. Featured — Horizontal scroll of next-hottest tracks (one per artist)
+ * 3. Genre chips — Filter for the "New Tracks" section
+ * 4. New Tracks — Compact track rows from curated artists (genre-filterable)
+ * 5. Playlists — Horizontal scroll of playlists from curator's follows
+ * 6. Artists — Horizontal scroll of curated artist profile cards
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
-  // Curated artist list (from curator's kind 30000 or fallback)
+  // Curated artist list (from curator's kind 30000 Listr list)
   const { data: curatedPubkeys } = useCuratedMusicArtists();
 
-  // Base music data: all tracks, derived genres and artists
-  const { tracks: allTracks, genres, artists, isLoading: isTracksLoading } = useMusicData();
+  // Featured tracks: hot tracks from curated artists, one per artist
+  // Index 0 = hero (#1 hot track), rest = Featured horizontal scroll
+  const { data: featuredTracks, isLoading: isFeaturedLoading } = useFeaturedMusicTracks(curatedPubkeys);
 
-  // Featured tracks: tracks from curated artists only
-  const featuredTracks = useMemo(() => {
-    if (!curatedPubkeys || !allTracks.length) return [];
-    const curatedSet = new Set(curatedPubkeys);
-    return allTracks
-      .filter((ev) => curatedSet.has(ev.pubkey))
-      .slice(0, 12);
-  }, [allTracks, curatedPubkeys]);
+  // Hero track: the #1 hot track from curated artists
+  const heroTrack = featuredTracks?.[0] ?? null;
 
-  // Hero track: first featured track, or most recent track overall
-  const heroTrack = featuredTracks[0] ?? allTracks[0] ?? null;
+  // Base music data from curated artists only: tracks, genres, artist stats
+  const {
+    tracks: curatedTracks,
+    genres,
+    artists,
+    isLoading: isTracksLoading,
+  } = useMusicData({ authors: curatedPubkeys });
 
-  // Genre-filtered tracks for "Recently Added" section
-  const { data: genreFilteredTracks } = useMusicTracksByGenre(selectedGenre);
+  // Genre-filtered tracks (also curated-only)
+  const { data: genreFilteredTracks } = useMusicTracksByGenre(selectedGenre, {
+    authors: curatedPubkeys,
+  });
 
-  const recentTracks = useMemo((): NostrEvent[] => {
+  const newTracks = useMemo((): NostrEvent[] => {
     if (selectedGenre && genreFilteredTracks) {
       return genreFilteredTracks
         .filter((ev) => parseMusicTrack(ev) !== null)
         .slice(0, 8);
     }
-    return allTracks.slice(0, 8);
-  }, [selectedGenre, genreFilteredTracks, allTracks]);
+    return curatedTracks.slice(0, 8);
+  }, [selectedGenre, genreFilteredTracks, curatedTracks]);
 
-  // Playlists
-  const { data: playlists, isLoading: isPlaylistsLoading } = useMusicPlaylists({ limit: 10 });
+  // Curator's follow list (Heather's kind 3) — used to filter playlists
+  const { data: curatorFollows } = useMusicCuratorFollows();
+
+  // Playlists from people the curator follows
+  const { data: playlists, isLoading: isPlaylistsLoading } = useMusicPlaylists({
+    authors: curatorFollows,
+    limit: 10,
+    enabled: !!curatorFollows && curatorFollows.length > 0,
+  });
 
   // Top genre names for chips (max 12)
   const genreNames = useMemo(() => genres.slice(0, 12).map((g) => g.genre), [genres]);
 
-  // Featured artists: curated pubkeys or top artists by track count
+  // Featured artists: curated pubkeys with their track counts
   const featuredArtists = useMemo(() => {
     if (curatedPubkeys && curatedPubkeys.length > 0) {
-      // Show curated artists with their track counts
       const trackCounts = new Map<string, number>();
-      for (const ev of allTracks) {
+      for (const ev of curatedTracks) {
         trackCounts.set(ev.pubkey, (trackCounts.get(ev.pubkey) ?? 0) + 1);
       }
       return curatedPubkeys.slice(0, 10).map((pk) => ({
@@ -92,12 +108,12 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       }));
     }
     return artists.slice(0, 10);
-  }, [curatedPubkeys, artists, allTracks]);
+  }, [curatedPubkeys, artists, curatedTracks]);
 
   return (
     <div className="pb-8 space-y-1">
-      {/* Hero */}
-      {isTracksLoading ? (
+      {/* Hero — #1 hot track from curated artists */}
+      {isFeaturedLoading ? (
         <div className="pt-3">
           <MusicHeroCardSkeleton />
         </div>
@@ -107,8 +123,8 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </div>
       ) : null}
 
-      {/* Featured tracks horizontal scroll */}
-      {featuredTracks.length > 1 && (
+      {/* Featured tracks horizontal scroll (hot, one per artist) */}
+      {featuredTracks && featuredTracks.length > 1 && (
         <>
           <SectionHeader title="Featured" onSeeAll={onSwitchToTracks} />
           <HorizontalScroll>
@@ -120,7 +136,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       )}
 
       {/* Loading state for featured */}
-      {isTracksLoading && (
+      {isFeaturedLoading && (
         <>
           <SectionHeader title="Featured" />
           <HorizontalScroll>
@@ -140,17 +156,17 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         />
       )}
 
-      {/* Recently Added */}
-      <SectionHeader title="Recently Added" onSeeAll={onSwitchToTracks} />
+      {/* New Tracks — curated artists only, genre-filterable */}
+      <SectionHeader title="New Tracks" onSeeAll={onSwitchToTracks} />
       {isTracksLoading ? (
         <div>
           {Array.from({ length: 5 }).map((_, i) => (
             <MusicTrackRowSkeleton key={i} />
           ))}
         </div>
-      ) : recentTracks.length > 0 ? (
+      ) : newTracks.length > 0 ? (
         <div>
-          {recentTracks.map((ev, i) => (
+          {newTracks.map((ev, i) => (
             <MusicTrackRow key={ev.id} event={ev} index={i} />
           ))}
         </div>
@@ -160,7 +176,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </p>
       )}
 
-      {/* Playlists horizontal scroll */}
+      {/* Playlists — from people the curator follows */}
       {(isPlaylistsLoading || (playlists && playlists.length > 0)) && (
         <>
           <SectionHeader title="Playlists" onSeeAll={onSwitchToPlaylists} />

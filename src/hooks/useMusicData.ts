@@ -117,18 +117,30 @@ export function useMusicData(options: UseMusicDataOptions = {}) {
  * Uses relay-level `#t` filtering for efficiency. Separate from the
  * base useMusicData query because genre-filtered results need their
  * own cache entry and may have different pagination.
+ *
+ * When `authors` is provided, only tracks by those pubkeys are returned.
  */
-export function useMusicTracksByGenre(genre: string | null, options: { enabled?: boolean } = {}) {
+export function useMusicTracksByGenre(
+  genre: string | null,
+  options: { authors?: string[]; enabled?: boolean } = {},
+) {
   const { nostr } = useNostr();
-  const { enabled = true } = options;
+  const { authors, enabled = true } = options;
+
+  const authorsKey = authors ? authors.slice().sort().join(',') : 'all';
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['music-tracks-genre', genre],
+    queryKey: ['music-tracks-genre', genre, authorsKey],
     queryFn: async ({ signal }) => {
       if (!genre) return [];
 
+      const filter: Record<string, unknown> = { kinds: [36787], '#t': [genre], limit: 50 };
+      if (authors && authors.length > 0) {
+        filter.authors = authors;
+      }
+
       return nostr.query(
-        [{ kinds: [36787], '#t': [genre], limit: 50 }],
+        [filter as { kinds: number[]; '#t': string[]; limit: number; authors?: string[] }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
     },
