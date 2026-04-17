@@ -67,7 +67,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         const tags = [...(template.tags ?? [])];
 
         // Add the NIP-89 client tag if it doesn't exist
-        if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
+        if (!tags.some(([name]) => name === "client")) {
           const clientTag = buildClientTag(config.clientName ?? config.appName, config.client);
           tags.push(clientTag);
         }
