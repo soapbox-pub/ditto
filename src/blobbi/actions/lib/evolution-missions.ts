@@ -69,16 +69,6 @@ export const HATCH_MISSIONS: readonly EvolutionMissionDefinition[] = [
     actionLabel: 'Open espy',
   },
   {
-    id: 'create_post',
-    title: 'Create Post',
-    description: 'Share a post with the #blobbi hashtag',
-    target: 1,
-    tracking: 'event',
-    action: 'open_modal',
-    actionTarget: 'blobbi_post',
-    actionLabel: 'Create Post',
-  },
-  {
     id: 'interactions',
     title: 'Interact with Blobbi',
     description: 'Care for your Blobbi 7 times',
@@ -128,6 +118,38 @@ export const EVOLVE_MISSIONS: readonly EvolutionMissionDefinition[] = [
     actionLabel: 'Edit Profile',
   },
 ] as const;
+
+// ─── Migration ───────────────────────────────────────────────────────────────
+
+/**
+ * Check whether a persisted evolution[] matches the current static definitions.
+ * Returns true if the IDs are exactly the same (in any order).
+ */
+export function evolutionMatchesDefinitions(
+  evolution: Mission[],
+  definitions: readonly EvolutionMissionDefinition[],
+): boolean {
+  if (evolution.length !== definitions.length) return false;
+  const persistedIds = new Set(evolution.map((m) => m.id));
+  return definitions.every((def) => persistedIds.has(def.id));
+}
+
+/**
+ * Rebuild evolution missions from the current static definitions, preserving
+ * progress for missions that still exist. Missions that were removed are
+ * dropped; missions that are new start fresh.
+ */
+export function migrateEvolutionMissions(
+  existing: Mission[],
+  definitions: readonly EvolutionMissionDefinition[],
+): Mission[] {
+  const byId = new Map(existing.map((m) => [m.id, m]));
+  return definitions.map((def) => {
+    const prev = byId.get(def.id);
+    if (prev) return prev;
+    return createEvolutionMission(def);
+  });
+}
 
 // ─── Instantiation ───────────────────────────────────────────────────────────
 

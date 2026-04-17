@@ -27,6 +27,8 @@ import {
   EVOLVE_STAT_THRESHOLD,
   findEvolutionMission,
   createEvolveMissions,
+  evolutionMatchesDefinitions,
+  migrateEvolutionMissions,
 } from '../lib/evolution-missions';
 
 import {
@@ -91,18 +93,24 @@ export function useEvolveTasks(
   const isEvolving = companion?.state === 'evolving';
   const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
-  // ─── Ensure evolution missions exist in session store ───
+  // ─── Ensure evolution missions exist and match current definitions ───
   // Safety net: if the companion is evolving but evolution[] is empty
   // (e.g. persist didn't fire, hydration lost them), re-populate from
   // the static definitions so tally tracking works immediately.
+  // Also handles schema migrations: if persisted missions don't match
+  // the current EVOLVE_MISSIONS (e.g. a mission was added or removed),
+  // rebuild from definitions while preserving progress for surviving missions.
   const ensuredRef = useRef(false);
   useEffect(() => {
     if (!isEvolving || !pubkey || ensuredRef.current) return;
-    if (evolution.length > 0) { ensuredRef.current = true; return; }
 
     const store = ensureSessionStore(pubkey);
     if (store.evolution.length === 0) {
       writeMissionsToStorage({ ...store, evolution: createEvolveMissions() }, pubkey);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    } else if (!evolutionMatchesDefinitions(store.evolution, EVOLVE_MISSIONS)) {
+      const migrated = migrateEvolutionMissions(store.evolution, EVOLVE_MISSIONS);
+      writeMissionsToStorage({ ...store, evolution: migrated }, pubkey);
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
     }
     ensuredRef.current = true;
