@@ -19,6 +19,8 @@ import { nip44, generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-too
 import { SimplePool } from 'nostr-tools';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 
+import { secureStorage } from '@/lib/secureStorage';
+
 // ─── Ephemeral device key ─────────────────────────────────────────────────────
 
 const DEVICE_KEY_STORAGE = 'ditto-push-device-key';
@@ -26,14 +28,19 @@ const DEVICE_KEY_STORAGE = 'ditto-push-device-key';
 /**
  * Get or generate a persistent ephemeral key for this device.
  * Used to sign nostr-push RPC events without prompting the user's signer.
+ *
+ * Routed through \`secureStorage\` so native builds keep the key in the iOS
+ * Keychain / Android KeyStore. Web falls back to localStorage (the key is
+ * ephemeral and per-device, so a plaintext copy only leaks which Nostr
+ * events this device wants pushed — not the user's identity).
  */
-function getDeviceSecretKey(): Uint8Array {
-  const stored = localStorage.getItem(DEVICE_KEY_STORAGE);
+async function getDeviceSecretKey(): Promise<Uint8Array> {
+  const stored = await secureStorage.getItem(DEVICE_KEY_STORAGE);
   if (stored) {
     return hexToBytes(stored);
   }
   const sk = generateSecretKey();
-  localStorage.setItem(DEVICE_KEY_STORAGE, bytesToHex(sk));
+  await secureStorage.setItem(DEVICE_KEY_STORAGE, bytesToHex(sk));
   return sk;
 }
 
@@ -116,15 +123,28 @@ export class NostrPushClient {
   private secretKey: Uint8Array;
   private publicKey: string;
 
-  constructor(
+  private constructor(
     /** The nostr-push server's pubkey (hex). */
     private readonly serverPubkey: string,
     /** Relays to publish RPC calls to. */
     private readonly relays: string[],
+    secretKey: Uint8Array,
   ) {
     this.pool = new SimplePool();
-    this.secretKey = getDeviceSecretKey();
-    this.publicKey = getPublicKey(this.secretKey);
+    this.secretKey = secretKey;
+    this.publicKey = getPublicKey(secretKey);
+  }
+
+  /**
+   * Create a new client, loading (or generating) the device key from
+   * platform-appropriate secure storage.
+   */
+  static async create(
+    serverPubkey: string,
+    relays: string[],
+  ): Promise<NostrPushClient> {
+    const secretKey = await getDeviceSecretKey();
+    return new NostrPushClient(serverPubkey, relays, secretKey);
   }
 
   /**

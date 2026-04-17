@@ -1,5 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
@@ -8,6 +9,7 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { setProfileCached } from '@/lib/profileCache';
+import { getStorageKey } from '@/lib/storageKey';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -43,6 +45,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
@@ -65,7 +68,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const communityPubkeys = (() => {
     if (tab !== 'communities') return [];
     try {
-      const dataStr = localStorage.getItem('ditto:communityData');
+      const dataStr = localStorage.getItem(getStorageKey(config.appId, 'communityData'));
       if (!dataStr) return [];
       
       const data = JSON.parse(dataStr);
@@ -116,7 +119,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Get the community domain for verification
         let communityDomain = '';
         try {
-          const communityStr = localStorage.getItem('ditto:community');
+          const communityStr = localStorage.getItem(getStorageKey(config.appId, 'community'));
           if (communityStr) {
             const community = JSON.parse(communityStr);
             communityDomain = community.domain;

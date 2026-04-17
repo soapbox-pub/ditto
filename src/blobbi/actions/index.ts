@@ -9,7 +9,6 @@ export { InlineMusicPlayer } from './components/InlineMusicPlayer';
 export { InlineSingCard } from './components/InlineSingCard';
 export { HatchTasksPanel } from './components/HatchTasksPanel';
 export { TasksPanel } from './components/TasksPanel';
-export { BlobbiPostModal } from './components/BlobbiPostModal';
 export { StartIncubationDialog } from './components/StartIncubationDialog';
 export { StartEvolutionDialog } from './components/StartEvolutionDialog';
 export { BlobbiMissionsModal } from './components/BlobbiMissionsModal';
@@ -30,7 +29,6 @@ export {
   useStopIncubation, 
   useStartEvolution,
   useStopEvolution,
-  useSyncTaskCompletions,
 } from './hooks/useBlobbiIncubation';
 export type {
   StartIncubationMode,
@@ -43,8 +41,6 @@ export type {
   StartEvolutionResult,
   UseStopEvolutionParams,
   StopEvolutionResult,
-  UseSyncTaskCompletionsParams,
-  TaskCompletionToSync,
 } from './hooks/useBlobbiIncubation';
 
 export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from './hooks/useActiveTaskProcess';
@@ -52,29 +48,21 @@ export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from
 
 export { 
   useHatchTasks, 
-  getInteractionCount,
   filterPersistentTasks,
-  sanitizeToHashtag,
   KIND_THEME_DEFINITION,
   KIND_COLOR_MOMENT,
   HATCH_REQUIRED_INTERACTIONS,
   REQUIRED_INTERACTIONS, // Legacy export
-  BLOBBI_POST_PREFIX,
-  BLOBBI_POST_REQUIRED_HASHTAGS,
 } from './hooks/useHatchTasks';
 export type { HatchTask, HatchTasksResult, TaskType } from './hooks/useHatchTasks';
 
 export {
   useEvolveTasks,
-  getEvolveInteractionCount,
-  isValidEvolvePost,
   KIND_PROFILE_TABS,
   EVOLVE_REQUIRED_THEMES,
   EVOLVE_REQUIRED_COLOR_MOMENTS,
-  EVOLVE_REQUIRED_POSTS,
   EVOLVE_REQUIRED_INTERACTIONS,
   EVOLVE_STAT_THRESHOLD,
-  BLOBBI_EVOLVE_POST_PREFIX,
 } from './hooks/useEvolveTasks';
 export type { EvolveTasksResult } from './hooks/useEvolveTasks';
 
@@ -119,7 +107,6 @@ export {
   type ResolvedInventoryItem,
   type EggStatPreview,
   type ItemUsabilityResult,
-  type IncrementInteractionResult,
   // Constants
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
@@ -150,13 +137,13 @@ export {
   hasHygieneEffectForEgg,
   canUseItemForStage,
   getActionForItem,
-  incrementInteractionTaskTags,
 } from './lib/blobbi-action-utils';
 
 // Daily Missions
 export { useDailyMissions } from './hooks/useDailyMissions';
 export type { DailyMissionView, UseDailyMissionsResult } from './hooks/useDailyMissions';
 export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
+export { usePersistEvolutionProgress } from './hooks/usePersistEvolutionProgress';
 export type { AwardDailyXpRequest, AwardDailyXpResult, ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
 export { useRerollMission } from './hooks/useRerollMission';
 export type { RerollMissionRequest, RerollMissionResult } from './hooks/useRerollMission';

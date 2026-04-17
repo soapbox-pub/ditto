@@ -1,14 +1,12 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
-
-/** localStorage key for cached curator follow list. */
-const CACHE_KEY = 'ditto:curatorFollowList';
+import { getStorageKey } from '@/lib/storageKey';
 
 /** Read cached curator follow list from localStorage. */
-function getCached(): string[] | undefined {
+function getCached(cacheKey: string): string[] | undefined {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return undefined;
     const cached = JSON.parse(raw);
     if (!Array.isArray(cached)) return undefined;
@@ -19,9 +17,9 @@ function getCached(): string[] | undefined {
 }
 
 /** Persist curator follow list to localStorage. */
-function setCached(pubkeys: string[]): void {
+function setCached(cacheKey: string, pubkeys: string[]): void {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(pubkeys));
+    localStorage.setItem(cacheKey, JSON.stringify(pubkeys));
   } catch {
     // Storage full or unavailable — non-critical
   }
@@ -39,6 +37,7 @@ export function useCuratorFollowList() {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const curatorPubkey = config.curatorPubkey;
+  const cacheKey = getStorageKey(config.appId, 'curatorFollowList');
 
   return useQuery<string[]>({
     queryKey: ['curator-follow-list', curatorPubkey],
@@ -57,12 +56,12 @@ export function useCuratorFollowList() {
 
       // Include the curator themselves
       const allPubkeys = [...new Set([curatorPubkey, ...pubkeys])];
-      setCached(allPubkeys);
+      setCached(cacheKey, allPubkeys);
       return allPubkeys;
     },
     enabled: !!curatorPubkey,
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
-    placeholderData: getCached(),
+    placeholderData: getCached(cacheKey),
   });
 }

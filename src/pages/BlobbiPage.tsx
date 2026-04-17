@@ -53,7 +53,6 @@ import {
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
-  BlobbiPostModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
@@ -62,12 +61,8 @@ import {
   useStopIncubation,
   useStartEvolution,
   useStopEvolution,
-  useSyncTaskCompletions,
   useHatchTasks,
   useEvolveTasks,
-  useActiveTaskProcess,
-  getInteractionCount,
-  getEvolveInteractionCount,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -77,6 +72,7 @@ import {
    previewStatChanges,
    useDailyMissions,
    useAwardDailyXp,
+   usePersistEvolutionProgress,
    applyXPGain,
    POOP_CLEANUP_XP,
    type InventoryAction,
@@ -1028,9 +1024,6 @@ function BlobbiDashboard({
   // Blobbi reaction state - drives visual reactions to activities
   const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
-  // Incubation/Hatch task state
-  const [showPostModal, setShowPostModal] = useState(false);
-  
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1039,32 +1032,25 @@ function BlobbiDashboard({
   const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
+  // Daily missions (must be before hatch/evolve tasks which read evolution[] from it)
+  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  
   // Hatch tasks hook - only active when incubating (egg stage)
-  const hatchInteractionCount = getInteractionCount(companion);
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
-    hatchInteractionCount
+    dailyMissions.raw,
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
-  const evolveInteractionCount = getEvolveInteractionCount(companion);
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
-    evolveInteractionCount
+    dailyMissions.raw,
   );
   
   // ─── Unified Task Process Abstraction ───
   // This hook consolidates all scattered if/else logic for hatch vs evolve tasks
   // It provides:
   // - Unified config (type, isActive, interactionThreshold)
-  // - Unified tasks array
-  // - Badge count (includes ALL tasks: persistent + dynamic)
-  // - Sync data (includes ONLY persistent tasks)
-  const taskProcess = useActiveTaskProcess(companion, hatchTasks, evolveTasks);
-  
-  // Extract commonly used values for convenience
-  const refetchCurrentTasks = taskProcess.refetch;
-  
   // Start incubation hook
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
     companion,
@@ -1093,97 +1079,6 @@ function BlobbiDashboard({
     ensureCanonicalBeforeAction,
     updateCompanionEvent,
   });
-  
-  // Sync hatch task completions hook
-  const { mutateAsync: syncTaskCompletions } = useSyncTaskCompletions({
-    companion,
-    ensureCanonicalBeforeAction,
-    updateCompanionEvent,
-  });
-  
-  // Anti-loop protection: track the last synced key to prevent infinite loops
-  const lastSyncedKeyRef = useRef<string>('');
-  
-  // ─── Extract values from taskProcess ───
-  // These replace the previous duplicated useMemo blocks
-  // IMPORTANT CHANGE: remainingTasksCount NOW includes dynamic tasks (for badge)
-  // This was a bug - dynamic tasks should count in badge but never sync to tags
-  const { 
-    completedPersistentTaskIds: completedTaskIds,  // Stable key for anti-loop
-    tasksToSync,                                    // Only persistent tasks (for sync)
-    isLoading: activeTasksLoading,                  // Loading state
-    config: { isActive: isInTaskProcess },          // Whether in a task process
-  } = taskProcess;
-  
-  // Memoize cached completion state for comparison
-  const cachedCompletedIds = useMemo(() => {
-    if (!companion) return '';
-    return [...companion.tasksCompleted].sort().join(',');
-  }, [companion]);
-  
-  // Sync task completions only when there's an actual diff
-  // CRITICAL: This effect uses multiple layers of protection against infinite loops:
-  // 1. Stable string keys (completedTaskIds) instead of array references
-  // 2. Anti-loop ref (lastSyncedKeyRef) to prevent re-triggering after publish
-  // 3. Early guards for loading/invalid states
-  // 4. Diff check against cached state
-  // 5. Dependencies are ONLY stable primitives - NO array references
-  // Works for BOTH incubating (hatch) and evolving processes
-  useEffect(() => {
-    // Guard: Not in an active task process
-    if (!isInTaskProcess) return;
-    
-    // Guard: Still loading
-    if (activeTasksLoading) return;
-    
-    // Guard: No completed tasks
-    if (!completedTaskIds) return;
-    
-    // Guard: Computed matches cached (no diff)
-    if (completedTaskIds === cachedCompletedIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: no diff', {
-          computed: completedTaskIds,
-          cached: cachedCompletedIds,
-        });
-      }
-      return;
-    }
-    
-    // ANTI-LOOP: Skip if we already synced this exact state
-    // This prevents the loop: publish -> cache update -> re-render -> publish again
-    if (lastSyncedKeyRef.current === completedTaskIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: already synced this key', completedTaskIds);
-      }
-      return;
-    }
-    
-    if (DEBUG_BLOBBI) {
-      console.log('[BlobbiPage] Task sync triggered:', {
-        computed: completedTaskIds,
-        cached: cachedCompletedIds,
-        lastSynced: lastSyncedKeyRef.current,
-      });
-    }
-    
-    // Mark as synced BEFORE calling sync to prevent race conditions
-    lastSyncedKeyRef.current = completedTaskIds;
-    
-    // Call sync (fire-and-forget, but log errors)
-    syncTaskCompletions(tasksToSync).catch(err => {
-      // On error, reset the ref so we can retry
-      lastSyncedKeyRef.current = '';
-      console.warn('Failed to sync task completions:', err);
-    });
-    // CRITICAL: Dependencies are ONLY stable primitives and memoized values
-    // - completedTaskIds: stable string key
-    // - cachedCompletedIds: stable string key  
-    // - tasksToSync: memoized, keyed off completedTaskIds
-    // - isInTaskProcess: derived boolean
-    // - activeTasksLoading: derived boolean
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds, cachedCompletedIds, isInTaskProcess, activeTasksLoading]);
   
   // ─── Set as Companion ───
   // Determines if this Blobbi is currently set as the user's companion
@@ -1389,8 +1284,8 @@ function BlobbiDashboard({
     setCurrentRoom('kitchen');
   };
 
-  // ─── Daily Missions (for missions tab) ───
-  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  // Persist evolution mission progress (debounced) so it survives page refresh
+  usePersistEvolutionProgress(updateProfileEvent);
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
@@ -1499,8 +1394,7 @@ function BlobbiDashboard({
                   isStoppingIncubation={isStoppingIncubation}
                   onStopEvolution={handleStopEvolution}
                   isStoppingEvolution={isStoppingEvolution}
-                  onOpenPostModal={() => setShowPostModal(true)}
-                  dailyMissions={dailyMissions}
+                   dailyMissions={dailyMissions}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -1658,15 +1552,6 @@ function BlobbiDashboard({
         onOpenChange={setShowTrackPickerModal}
         onConfirm={handleTrackSelected}
         isLoading={isDirectActionPending}
-      />
-      
-      {/* Blobbi Post Modal - for hatch or evolve task */}
-      <BlobbiPostModal
-        open={showPostModal}
-        onOpenChange={setShowPostModal}
-        blobbiName={companion.name}
-        process={isEvolvingState ? 'evolve' : 'hatch'}
-        onSuccess={refetchCurrentTasks}
       />
       
       {/* Blobbi Photo Modal */}
@@ -2138,7 +2023,6 @@ interface MissionsTabContentProps {
   isStoppingIncubation: boolean;
   onStopEvolution: () => Promise<void>;
   isStoppingEvolution: boolean;
-  onOpenPostModal: () => void;
   dailyMissions: ReturnType<typeof useDailyMissions>;
   canStartIncubation: boolean;
   canStartEvolution: boolean;
@@ -2165,7 +2049,6 @@ function MissionsTabContent({
   isStoppingIncubation,
   onStopEvolution,
   isStoppingEvolution,
-  onOpenPostModal,
   dailyMissions,
   canStartIncubation,
   canStartEvolution,
@@ -2244,8 +2127,7 @@ function MissionsTabContent({
                 if (!task.action || !task.actionTarget) return;
                 switch (task.action) {
                   case 'navigate': navigate(task.actionTarget); break;
-                  case 'external_link': openUrl(task.actionTarget); break;
-                  case 'open_modal': if (task.actionTarget === 'blobbi_post') onOpenPostModal(); break;
+                   case 'external_link': openUrl(task.actionTarget); break;
                 }
               };
               const isActionable = !task.completed && !!task.action && !!task.actionTarget;

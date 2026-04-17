@@ -9,6 +9,7 @@ import { nip57 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import type { WebLNProvider } from '@webbtc/webln-types';
 import { useQueryClient } from '@tanstack/react-query';
+import { notificationSuccess } from '@/lib/haptics';
 
 /**
  * Hook for sending zaps to an event author.
@@ -160,6 +161,7 @@ export function useZaps(
             // Clear states immediately on success
             setIsZapping(false);
             setInvoice(null);
+            notificationSuccess();
 
             toast({
               title: 'Zap successful!',
@@ -204,6 +206,7 @@ export function useZaps(
             // Clear states immediately on success
             setIsZapping(false);
             setInvoice(null);
+            notificationSuccess();
 
             toast({
               title: 'Zap successful!',

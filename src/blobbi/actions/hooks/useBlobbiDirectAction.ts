@@ -16,15 +16,12 @@ import {
   clampStat,
   applyStat,
   DIRECT_ACTION_METADATA,
-  incrementInteractionTaskTags,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
-import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -149,13 +146,11 @@ export function useBlobbiDirectAction({
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // If incubating or evolving, increment the interaction counter for tasks
+      // If incubating or evolving, increment the interaction counter in evolution missions
       const companionState = canonical.companion.state;
-      let updatedTags = canonical.allTags;
-      if (companionState === 'incubating') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, HATCH_REQUIRED_INTERACTIONS).updatedTags;
-      } else if (companionState === 'evolving') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
+      const updatedTags = canonical.allTags;
+      if (companionState === 'incubating' || companionState === 'evolving') {
+        trackEvolutionMissionTally('interactions', 1, user.pubkey);
       }
       
       // Get streak updates (will only update if needed based on day)

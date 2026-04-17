@@ -18,6 +18,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
 const editableBase = [
@@ -129,6 +130,9 @@ export function ProfileCard({
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 
+  // Sanitize banner URL from untrusted metadata before CSS url() interpolation
+  const bannerUrl = sanitizeUrl(metadata.banner);
+
   // Read shape from metadata (it's a custom property passed through the loose schema)
   const rawShape = metadata.shape;
   const shape: AvatarShape | undefined = isValidAvatarShape(rawShape) ? rawShape : undefined;
@@ -187,8 +191,8 @@ export function ProfileCard({
       <div
         className={cn('relative h-36 bg-secondary', editable && 'cursor-pointer group')}
         style={
-          metadata.banner
-            ? { backgroundImage: `url(${metadata.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          bannerUrl
+            ? { backgroundImage: `url("${bannerUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
             : undefined
         }
         onClick={() => editable && onPickImage?.('banner')}

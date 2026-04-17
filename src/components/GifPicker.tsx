@@ -118,7 +118,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
   }, [onSelect]);
 
   return (
-    <div className="flex flex-col w-[316px] h-[435px] bg-popover rounded-lg overflow-hidden">
+    <div className="flex flex-col w-full h-[280px] bg-popover rounded-lg overflow-hidden">
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
@@ -128,9 +128,9 @@ export function GifPicker({ onSelect }: GifPickerProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search GIFs..."
-            className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
+            className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />
-          {query && (
+          {query ? (
             <button
               type="button"
               onClick={clearQuery}
@@ -138,6 +138,10 @@ export function GifPicker({ onSelect }: GifPickerProps) {
             >
               <X className="size-3.5" />
             </button>
+          ) : (
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 pointer-events-none select-none">
+              Powered by Tenor
+            </span>
           )}
         </div>
       </div>
@@ -182,23 +186,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
           <GifGrid results={results} onSelect={handleSelect} />
         )}
       </ScrollArea>
-
-      {/* Tenor attribution */}
-      <div className="px-3 py-1.5 border-t border-border/50 flex items-center justify-end gap-1.5">
-        <span className="text-[10px] text-muted-foreground/60">Powered by</span>
-        <TenorLogo />
-      </div>
     </div>
   );
 }
 
-/** Tenor brand wordmark for required attribution. */
-function TenorLogo() {
-  return (
-    <svg width="42" height="12" viewBox="0 0 42 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-40">
-      <text x="0" y="10" fontSize="10" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif" className="fill-muted-foreground">
-        Tenor
-      </text>
-    </svg>
-  );
-}

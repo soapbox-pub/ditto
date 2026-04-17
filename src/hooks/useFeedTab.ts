@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-
-const STORAGE_PREFIX = 'ditto:feed-tab:';
+import { getStorageKey } from '@/lib/storageKey';
 
 /**
  * Manages the active feed tab for a specific feed page, persisting
@@ -18,7 +18,8 @@ export function useFeedTab<T extends string = string>(
   validTabs?: readonly T[],
 ): [T, (tab: T) => void] {
   const { user } = useCurrentUser();
-  const key = STORAGE_PREFIX + feedId;
+  const { config } = useAppContext();
+  const key = getStorageKey(config.appId, `feed-tab:${feedId}`);
 
   const [activeTab, setActiveTab] = useState<T>(() => {
     const defaultTab = (user ? 'follows' : 'ditto') as T;

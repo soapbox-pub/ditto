@@ -52,6 +52,10 @@ export function TabButton({ label, active, onClick, disabled, className, childre
   const handleMouseLeave = () => onHover(null);
 
   const handleClick = () => {
+    // Clear hover highlight immediately — on mobile, mouseleave never fires
+    // after a tap, so the hover arc would otherwise stay visible.
+    onHover(null);
+
     if (active) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {

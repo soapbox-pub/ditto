@@ -6,7 +6,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { FAQ_CATEGORIES, type FAQCategory, type FAQItem } from '@/lib/helpContent';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getFAQCategories, type FAQCategory, type FAQItem } from '@/lib/helpContent';
 
 // ── Inline markup renderer ────────────────────────────────────────────────────
 
@@ -87,8 +88,10 @@ interface HelpFAQSectionProps {
  * <HelpFAQSection items={['what-are-relays', 'what-are-blossom']} hideHeadings />
  */
 export function HelpFAQSection({ categories, items, hideHeadings, className }: HelpFAQSectionProps) {
+  const { config } = useAppContext();
+
   const filteredCategories = useMemo(() => {
-    let cats: FAQCategory[] = FAQ_CATEGORIES;
+    let cats: FAQCategory[] = getFAQCategories(config.appName);
 
     // Filter to specific categories
     if (categories) {
@@ -106,7 +109,7 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
     }
 
     return cats;
-  }, [categories, items]);
+  }, [categories, items, config.appName]);
 
   if (filteredCategories.length === 0) return null;
 

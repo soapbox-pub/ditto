@@ -99,6 +99,15 @@ export function useNip05Resolve(identifier: string | undefined) {
         return null;
       }
 
+      // Validate that the returned value is a well-formed 64-char lowercase
+      // hex pubkey. Without this check, a malicious or broken NIP-05 server
+      // could return arbitrary strings that get persisted to IndexedDB and
+      // later fed into Nostr filters or passed to downstream consumers.
+      if (!/^[0-9a-f]{64}$/.test(pubkey)) {
+        void deleteNip05Cached(identifier);
+        return null;
+      }
+
       // Persist the successful resolution to IndexedDB (fire-and-forget).
       void setNip05Cached(identifier, pubkey);
 

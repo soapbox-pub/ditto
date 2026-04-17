@@ -12,6 +12,7 @@ import { FONT_OPTIONS, LINE_HEIGHT_RATIO, COLOR_MOMENT_KIND, THEME_KIND, resolve
 import { hexLuminance, backgroundTextColor } from '@/lib/colorUtils';
 import { ColorPaletteDisplay, type PaletteLayout } from './ColorPaletteDisplay';
 import { ensureLetterFonts } from '@/lib/letterUtils';
+import { sanitizeCssString } from '@/lib/fontLoader';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -204,7 +205,10 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
   const effectiveFrameTint = effectiveStationery?.frameTint;
 
   const { text: textColor, faint: faintColor, line: lineColor } = useStationeryColors(effectiveStationery);
-  const rawFont = effectiveStationery?.fontFamily;
+  // Sanitize event-sourced font family before CSS interpolation (M-6).
+  const rawFont = effectiveStationery?.fontFamily
+    ? sanitizeCssString(effectiveStationery.fontFamily)
+    : undefined;
   const letterFontFamily = rawFont
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;

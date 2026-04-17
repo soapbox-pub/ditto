@@ -1596,7 +1596,7 @@ The project automatically publishes Android AABs (App Bundles) to [Google Play](
 
 | Variable | Description | Protected | Masked | Raw |
 |---|---|---|---|---|
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Full JSON contents of the Google Play API service account key file | Yes | Yes | No |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | **Base64-encoded** contents of the Google Play API service account key JSON file. The CI job decodes it with `base64 -d` before passing it to `fastlane supply`. | Yes | Yes | No |
 
 #### Initial Setup (one-time)
 
@@ -1604,7 +1604,17 @@ The project automatically publishes Android AABs (App Bundles) to [Google Play](
 2. Enable the [Google Play Developer API](https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/) for that project
 3. In Google Cloud Console, go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), create a service account, and download a JSON key file for it
 4. In Google Play Console, go to [Users & Permissions](https://play.google.com/console/users-and-permissions), click **Invite new users**, enter the service account email, and grant it permission to manage releases for `pub.ditto.app`
-5. Add the full JSON contents of the key file as the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` variable in GitLab CI/CD settings (Settings > CI/CD > Variables). Mark it as **Protected** and **Masked**.
+5. **Base64-encode** the key file:
+
+   ```bash
+   # Linux
+   base64 -w0 service-account.json
+
+   # macOS
+   base64 -i service-account.json | tr -d '\n'
+   ```
+
+6. Add the base64-encoded value as the `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` variable in GitLab CI/CD settings (Settings > CI/CD > Variables). Mark it as **Protected** and **Masked**. Do **not** paste the raw JSON — the CI script expects base64 and will fail to decode a raw value.
 
 #### Key Points
 

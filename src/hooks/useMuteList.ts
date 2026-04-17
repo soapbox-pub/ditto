@@ -5,20 +5,24 @@ import { nip19 } from 'nostr-tools';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { getStorageKey } from '@/lib/storageKey';
 
 export interface MuteListItem {
   type: 'pubkey' | 'hashtag' | 'word' | 'thread';
   value: string;
 }
 
-/** localStorage key for cached mute list items. */
-const MUTE_CACHE_KEY = 'ditto:muteListCache';
+/** Build the localStorage key for cached mute list items. */
+export function getMuteCacheKey(appId: string): string {
+  return getStorageKey(appId, 'muteListCache');
+}
 
 /** Read cached mute items from localStorage for a given user. */
-function getCachedMuteItems(pubkey: string): MuteListItem[] | undefined {
+function getCachedMuteItems(cacheKey: string, pubkey: string): MuteListItem[] | undefined {
   try {
-    const raw = localStorage.getItem(MUTE_CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return undefined;
     const cached = JSON.parse(raw);
     if (cached.pubkey !== pubkey || !Array.isArray(cached.items)) return undefined;
@@ -29,9 +33,9 @@ function getCachedMuteItems(pubkey: string): MuteListItem[] | undefined {
 }
 
 /** Persist decrypted mute items to localStorage. */
-export function setCachedMuteItems(pubkey: string, items: MuteListItem[]): void {
+export function setCachedMuteItems(appId: string, pubkey: string, items: MuteListItem[]): void {
   try {
-    localStorage.setItem(MUTE_CACHE_KEY, JSON.stringify({ pubkey, items }));
+    localStorage.setItem(getMuteCacheKey(appId), JSON.stringify({ pubkey, items }));
   } catch {
     // Storage full or unavailable — non-critical
   }
@@ -144,11 +148,13 @@ async function getAllMuteItems(
 export function useMuteList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const cacheKey = getMuteCacheKey(config.appId);
 
   // Placeholder from localStorage so mutes apply immediately on page load
-  const cachedItems = user ? getCachedMuteItems(user.pubkey) : undefined;
+  const cachedItems = user ? getCachedMuteItems(cacheKey, user.pubkey) : undefined;
 
   // Query the current mute list
   const query = useQuery({
@@ -181,7 +187,7 @@ export function useMuteList() {
       const items = await getAllMuteItems(event, user.signer, user.pubkey);
 
       // Persist to localStorage for next page load
-      setCachedMuteItems(user.pubkey, items);
+      setCachedMuteItems(config.appId, user.pubkey, items);
 
       return items;
     },
@@ -216,7 +222,7 @@ export function useMuteList() {
         : [...currentItems, { ...item, value: normalizedValue }];
 
       // Update localStorage immediately so it survives page refresh
-      setCachedMuteItems(user.pubkey, newItems);
+      setCachedMuteItems(config.appId, user.pubkey, newItems);
 
       await updateMuteList(newItems, prev);
     },
@@ -240,7 +246,7 @@ export function useMuteList() {
       );
 
       // Update localStorage immediately so it survives page refresh
-      setCachedMuteItems(user.pubkey, newItems);
+      setCachedMuteItems(config.appId, user.pubkey, newItems);
 
       await updateMuteList(newItems, prev);
     },

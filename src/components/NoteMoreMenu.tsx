@@ -55,6 +55,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
+import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -343,6 +344,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleBookmark = () => {
+    impactLight();
     toggleBookmark.mutate(event.id);
     close();
   };
@@ -359,6 +361,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleTogglePin = () => {
+    impactLight();
     togglePin.mutate(event.id, {
       onSuccess: () => {
         toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
@@ -371,6 +374,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleMuteConversation = () => {
+    impactLight();
     const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
     const threadId = rootTag?.[1] ?? event.id;
     addMute.mutate(

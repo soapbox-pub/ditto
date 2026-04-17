@@ -3,20 +3,20 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 
 import { hexToBase36 } from '@/lib/nsiteSubdomain';
-
-const SEED_STORAGE_KEY = 'ditto:seed';
+import { getStorageKey } from '@/lib/storageKey';
 
 /**
  * Get or create a device-local random seed persisted in localStorage.
  * This is a general-purpose secret used to derive private identifiers
  * (e.g. sandbox frame subdomains) that must not be predictable by third parties.
  */
-function getSeed(): string {
-  const stored = localStorage.getItem(SEED_STORAGE_KEY);
+function getSeed(appId: string): string {
+  const key = getStorageKey(appId, 'seed');
+  const stored = localStorage.getItem(key);
   if (stored) return stored;
 
   const seed = crypto.randomUUID();
-  localStorage.setItem(SEED_STORAGE_KEY, seed);
+  localStorage.setItem(key, seed);
   return seed;
 }
 
@@ -35,9 +35,11 @@ function getSeed(): string {
  *
  * The result is a 50-character base36 string (256 bits of entropy) that
  * fits within the 63-character subdomain label limit.
+ *
+ * @param appId  The app's configured `appId` — used to namespace the device seed in localStorage.
  */
-export function deriveIframeSubdomain(prefix: string, identifier: string): string {
-  const seed = getSeed();
+export function deriveIframeSubdomain(appId: string, prefix: string, identifier: string): string {
+  const seed = getSeed(appId);
   const enc = new TextEncoder();
   const mac = hmac(sha256, enc.encode(seed), enc.encode(`${prefix}|${identifier}`));
   return hexToBase36(bytesToHex(mac));

@@ -202,7 +202,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
   // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
   const nsiteSubdomain = getNsiteSubdomain(event);
-  const previewSubdomain = useMemo(() => deriveIframeSubdomain('nsite', nsiteSubdomain), [nsiteSubdomain]);
+  const previewSubdomain = useMemo(() => deriveIframeSubdomain(config.appId, 'nsite', nsiteSubdomain), [config.appId, nsiteSubdomain]);
 
   // Build the manifest and server list from the event (memoised per event identity)
   const manifest = useRef<Map<string, string>>(new Map());

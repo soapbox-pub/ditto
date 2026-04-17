@@ -200,7 +200,14 @@ export function useBlobbiHatch({
         console.log('[Hatch] Tag repairs applied:', repairResult.repairs);
       }
       
-      const newTags = repairResult.tags;
+      // ─── Auto-start evolution for newly hatched babies ───
+      // Applied AFTER tag validation because cleanupTaskTags repairs
+      // task-process states to 'active'. We intentionally set 'evolving'
+      // here so the baby starts its evolution journey immediately.
+      const newTags = updateBlobbiTags(repairResult.tags, {
+        state: 'evolving',
+        state_started_at: nowStr,
+      });
 
       // ─── Generate New Content for Baby Stage ───
       // CRITICAL: Content must reflect the new stage

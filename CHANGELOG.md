@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.8.0] - 2026-04-16
+
+### Added
+- Back up your secret key right from Profile settings -- reveal, copy, and save it to iCloud Keychain, Android Credential Manager, or a local file
+- Blobbi mission progress now persists across page refreshes, so your hatching and evolution journey picks up right where you left off
+
+### Changed
+- AI chat has been overhauled with a cleaner layout, the Dork mascot across empty states, and a clear path to grab Shakespeare credits when you run out
+- Friendly error banners now explain when you've hit the rate limit or run out of AI credits, instead of cryptic failures
+
+### Fixed
+- Avatar shape selection during signup now actually saves to your profile
+- Blobbi interaction missions now tally correctly the moment you start incubating or evolving
+- Blobbi task progress displays the right numbers immediately on page load instead of showing 0 until everything catches up
+
+## [2.7.1] - 2026-04-16
+
+### Added
+- Tap the Home tab while already on Home to scroll to the top and refresh your feed
+- Blobbi hatch and evolve missions now count your existing posts, themes, and color moments retroactively -- no need to start from scratch
+- New Blobbis begin incubating and evolving immediately after adoption, so every care action counts toward your next milestone
+
+### Changed
+- Signup's save-key step is clearer: the button now reads "Save Key", shows a spinner while saving, and warns you before the key is revealed on screen
+- On de-Googled Android devices without a password manager, your key now safely falls back to a file in the app's Documents folder
+- Wallet connections and device keys are now stored in the iOS Keychain and Android KeyStore for stronger at-rest protection
+- Android's automatic cloud backup now excludes your wallet credentials
+
+### Fixed
+- Scroll position is preserved when you navigate back from a post, profile, or any other page -- no more getting bounced to the top of your feed
+- Custom saved feeds now cache content and support infinite scroll like the Home, Ditto, and Global feeds
+- Various security hardening across themes, letters, profile banners, direct messages, and sandboxed apps to protect against malformed data
+
+## [2.7.0] - 2026-04-14
+
+### Added
+- Customizable widget sidebar -- drag, drop, and rearrange widgets on your feed including Trending, Hot Posts, Bluesky, AI Chat, Blobbi, Music, Photos, Wikipedia, and more
+- Blobbi rooms -- swipe between living spaces, clean up after your pet, and earn XP from daily care routines
+- Native push notifications on iOS with author names, content previews, and smart grouping by category
+- Haptic feedback throughout the app -- taps, buzzes, and pulses when you react, zap, repost, pull to refresh, play games, and interact with your Blobbi
+- Hot Posts widget showing the most popular posts from your feed at a glance
+
+### Changed
+- Sidebar widgets are now clickable links that take you to their full pages
+- Blobbi widget shows live stats with circular ring indicators and quick action buttons
+
+### Fixed
+- Zaps embedded in posts now render as proper inline cards instead of blank space
+- Quote posts display media and Blobbi companions correctly
+- Deep linking on Google Play works again
+- Game controller buttons no longer trigger text selection on long-press on iOS
+
 ## [2.6.6] - 2026-04-12
 
 ### Fixed

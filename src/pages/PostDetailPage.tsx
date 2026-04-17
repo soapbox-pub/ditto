@@ -23,6 +23,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
 
@@ -113,6 +114,9 @@ const BADGE_PROFILE_KIND_NEW = 10008;
 /** NIP-58 Profile Badges (legacy addressable kind). */
 const BADGE_PROFILE_KIND_LEGACY = 30008;
 
+/** NIP-58 Badge Award. */
+const BADGE_AWARD_KIND = 8;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -133,6 +137,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
+  if (kind === BADGE_AWARD_KIND) return "Badge Award";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "Zapstore App";
   if (kind === 30063) return "Zapstore Release";
@@ -1016,6 +1021,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
+  const isBadgeAward = event.kind === BADGE_AWARD_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1046,7 +1052,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVanish &&
     !isZap &&
     !isProfile &&
-    !isBlobbiState;
+    !isBlobbiState &&
+    !isBadgeAward;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -1417,6 +1424,110 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     stats?.zapCount
   );
 
+  // Shared stats + date row used by the main post layout and the activity-style
+  // detail cards (reactions, reposts, zaps, poll votes). Captures closures over
+  // `stats`, `quoteCount`, `topEmojis`, `openInteractions`, `clientTag`,
+  // `clientNaddr`, and `event` so it can be dropped into any branch.
+  const statsAndDateRow = hasStats ? (
+    <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
+      {stats?.reposts ? (
+        <button
+          onClick={() => openInteractions("reposts")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.reposts)}
+          </span>{" "}
+          Repost{stats.reposts !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      {quoteCount ? (
+        <button
+          onClick={() => openInteractions("quotes")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(quoteCount)}
+          </span>{" "}
+          Quote{quoteCount !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      {stats?.reactions ? (
+        <button
+          onClick={() => openInteractions("reactions")}
+          className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.reactions)}
+          </span>
+          {topEmojis.length > 0 ? (
+            <span className="inline-flex items-center">
+              {topEmojis.map((emoji, i) => (
+                <RenderResolvedEmoji
+                  key={i}
+                  emoji={emoji}
+                  className="h-4 w-4 object-contain leading-none"
+                />
+              ))}
+            </span>
+          ) : (
+            `Like${stats.reactions !== 1 ? "s" : ""}`
+          )}
+        </button>
+      ) : null}
+      {stats?.zapCount ? (
+        <button
+          onClick={() => openInteractions("zaps")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.zapCount)}
+          </span>{" "}
+          Zap{stats.zapCount !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      <span className="ml-auto shrink-0 flex items-center gap-1.5">
+        {clientTag?.[1] && (
+          <>
+            {clientNaddr ? (
+              <Link
+                to={`/${clientNaddr}`}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {clientTag[1]}
+              </Link>
+            ) : (
+              <span>{clientTag[1]}</span>
+            )}
+            <span>·</span>
+          </>
+        )}
+        <span>{formatFullDate(event.created_at)}</span>
+      </span>
+    </div>
+  ) : (
+    <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
+      {clientTag?.[1] && (
+        <>
+          {clientNaddr ? (
+            <Link
+              to={`/${clientNaddr}`}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {clientTag[1]}
+            </Link>
+          ) : (
+            <span>{clientTag[1]}</span>
+          )}
+          <span>·</span>
+        </>
+      )}
+      <span>{formatFullDate(event.created_at)}</span>
+    </div>
+  );
+
   return (
     <div>
       {/* Content preview for kind 1111 comments: external content, profile, or community */}
@@ -1455,7 +1566,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               />
             </div>
 
-            {/* Author + "reacted" label + timestamp — single line */}
+            {/* Author + "reacted" label — single line */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {author.isLoading ? (
                 <>
@@ -1492,64 +1603,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Link>
                   </ProfileHoverCard>
                   <span className="text-sm text-muted-foreground">reacted</span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                    {formatFullDate(event.created_at)}
-                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
+          {/* Stats + date row */}
+          {statsAndDateRow}
 
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Repost"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}
@@ -1560,6 +1627,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             event={event}
             open={replyOpen}
             onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
           />
         </article>
       )}
@@ -1573,7 +1646,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <RepostIcon className="size-5 text-accent" />
             </div>
 
-            {/* Author + "reposted" label + timestamp — single line */}
+            {/* Author + "reposted" label — single line */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {author.isLoading ? (
                 <>
@@ -1610,64 +1683,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Link>
                   </ProfileHoverCard>
                   <span className="text-sm text-muted-foreground">reposted</span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                    {formatFullDate(event.created_at)}
-                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
+          {/* Stats + date row */}
+          {statsAndDateRow}
 
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Repost"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}
@@ -1678,6 +1707,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             event={event}
             open={replyOpen}
             onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
           />
         </article>
       )}
@@ -1694,7 +1729,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <Zap className="size-5 text-amber-500 fill-amber-500" />
               </div>
 
-              {/* Sender + "zapped" + amount + timestamp — identical structure to reaction row */}
+              {/* Sender + "zapped" + amount — identical structure to reaction row */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {zapSenderAuthor.isLoading ? (
                   <>
@@ -1730,9 +1765,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                         {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                      {formatFullDate(event.created_at)}
-                    </span>
                   </>
                 )}
               </div>
@@ -1742,39 +1774,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <p className="text-sm text-muted-foreground italic pl-[52px]">"{zapMsg}"</p>
             )}
 
-            {/* Action buttons — identical to reaction card */}
-            <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Reply"
-                onClick={() => setReplyOpen(true)}
-              >
-                <MessageCircle className="size-5" />
-                {stats?.replies ? <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span> : null}
-              </button>
+            {/* Stats + date row */}
+            {statsAndDateRow}
 
-              <RepostMenu event={event}>
-                {(isReposted: boolean) => (
-                  <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                    title={isReposted ? "Undo repost" : "Repost"}
-                  >
-                    <RepostIcon className="size-5" />
-                    {repostTotal ? <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span> : null}
-                  </button>
-                )}
-              </RepostMenu>
-
-              <ReactionButton eventId={event.id} eventPubkey={event.pubkey} eventKind={event.kind} reactionCount={stats?.reactions} />
-
-              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden" title="Share" onClick={handleShare}>
-                <Share2 className="size-5" />
-              </button>
-
-              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="More" onClick={() => setMoreMenuOpen(true)}>
-                <MoreHorizontal className="size-5" />
-              </button>
-            </div>
+            <PostActionBar
+              event={event}
+              onReply={() => setReplyOpen(true)}
+              onMore={() => setMoreMenuOpen(true)}
+              className="-mx-4 px-4"
+            />
 
             <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
             <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
@@ -1962,20 +1970,29 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground shrink-0">voted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
               </div>
             }
           >
             {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
           </ActivityCard>
+          <div className="px-4">
+            {/* Stats + date row */}
+            {statsAndDateRow}
+          </div>
           <PostActionBar
             event={event}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
-            className="mt-2 px-4"
+            className="mx-4"
           />
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
           <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
+          />
         </div>
       )}
 
@@ -2134,6 +2151,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} />
               </Suspense>
+            ) : isBadgeAward ? (
+              <BadgeAwardCard event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||
@@ -2160,109 +2179,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             )}
           </ContentWarningGuard>
 
-          {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
-          {hasStats && (
-            <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
-              {stats?.reposts ? (
-                <button
-                  onClick={() => openInteractions("reposts")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.reposts)}
-                  </span>{" "}
-                  Repost{stats.reposts !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              {quoteCount ? (
-                <button
-                  onClick={() => openInteractions("quotes")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(quoteCount)}
-                  </span>{" "}
-                  Quote{quoteCount !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              {stats?.reactions ? (
-                <button
-                  onClick={() => openInteractions("reactions")}
-                  className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.reactions)}
-                  </span>
-                  {topEmojis.length > 0 ? (
-                    <span className="inline-flex items-center">
-                      {topEmojis.map((emoji, i) => (
-                        <RenderResolvedEmoji
-                          key={i}
-                          emoji={emoji}
-                          className="h-4 w-4 object-contain leading-none"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    `Like${stats.reactions !== 1 ? "s" : ""}`
-                  )}
-                </button>
-              ) : null}
-              {stats?.zapCount ? (
-                <button
-                  onClick={() => openInteractions("zaps")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.zapCount)}
-                  </span>{" "}
-                  Zap{stats.zapCount !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              <span className="ml-auto shrink-0 flex items-center gap-1.5">
-                {clientTag?.[1] && (
-                  <>
-                    {clientNaddr ? (
-                      <Link
-                        to={`/${clientNaddr}`}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {clientTag[1]}
-                      </Link>
-                    ) : (
-                      <span>{clientTag[1]}</span>
-                    )}
-                    <span>·</span>
-                  </>
-                )}
-                <span>{formatFullDate(event.created_at)}</span>
-              </span>
-            </div>
-          )}
-
-          {/* Date-only row if no stats */}
-          {!hasStats && (
-            <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
-              {clientTag?.[1] && (
-                <>
-                  {clientNaddr ? (
-                    <Link
-                      to={`/${clientNaddr}`}
-                      className="hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {clientTag[1]}
-                    </Link>
-                  ) : (
-                    <span>{clientTag[1]}</span>
-                  )}
-                  <span>·</span>
-                </>
-              )}
-              <span>{formatFullDate(event.created_at)}</span>
-            </div>
-          )}
+          {/* Stats + date row (shared with activity-style detail cards) */}
+          {statsAndDateRow}
 
           <PostActionBar
             event={event}

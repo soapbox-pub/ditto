@@ -62,3 +62,35 @@ export async function fetchFreshProfileBadges(
 export function isAwardedTo(awardEvent: NostrEvent, pubkey: string): boolean {
   return awardEvent.tags.some(([n, v]) => n === 'p' && v === pubkey);
 }
+
+/**
+ * Extract pubkey and identifier from a kind 8 badge award event's `a` tag.
+ * Returns undefined if the tag is missing, malformed, or the pubkey is not a
+ * valid 64-char hex string (to avoid crashes in `nip19.naddrEncode`).
+ */
+export function parseBadgeATag(
+  event: NostrEvent,
+): { pubkey: string; identifier: string } | undefined {
+  const aVal = event.tags.find(
+    ([n, v]) => n === 'a' && v?.startsWith(`${BADGE_DEFINITION_KIND}:`),
+  )?.[1];
+  if (!aVal) return undefined;
+  const parts = aVal.split(':');
+  if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
+  if (!/^[0-9a-f]{64}$/.test(parts[1])) return undefined;
+  return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
+}
+
+/** Turn a d-tag slug like "first-post" into "First Post". */
+export function unslugify(slug: string): string {
+  return slug
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Extract all recipient pubkeys (`p` tags) from a kind 8 badge award event. */
+export function getBadgeRecipients(event: NostrEvent): string[] {
+  return event.tags
+    .filter(([n, v]) => n === 'p' && typeof v === 'string' && v.length > 0)
+    .map(([, v]) => v);
+}

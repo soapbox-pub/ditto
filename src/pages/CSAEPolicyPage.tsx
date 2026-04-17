@@ -45,8 +45,8 @@ export function CSAEPolicyPage() {
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>
-              <strong>Our infrastructure:</strong> We operate the <strong>Ditto relay</strong> and{' '}
-              <strong>Ditto Blossom server</strong>, which serve as the default relay and file host for
+              <strong>Our infrastructure:</strong> We operate the <strong>{config.appName} relay</strong> and{' '}
+              <strong>{config.appName} Blossom server</strong>, which serve as the default relay and file host for
               {' '}{config.appName}. We have full moderation control over content stored on these services.
             </li>
             <li>
@@ -61,8 +61,8 @@ export function CSAEPolicyPage() {
             </li>
           </ul>
           <p>
-            We take full responsibility for the experience within our app. On our own infrastructure (Ditto relay
-            and Ditto Blossom server), we can directly remove content and ban offending accounts. For content
+            We take full responsibility for the experience within our app. On our own infrastructure ({config.appName} relay
+            and {config.appName} Blossom server), we can directly remove content and ban offending accounts. For content
             originating from third-party services, we actively block it from being displayed within
             {' '}{config.appName}.
           </p>
@@ -117,11 +117,11 @@ export function CSAEPolicyPage() {
               suspected CSAE content for immediate review.
             </li>
             <li>
-              <strong>Ditto relay moderation:</strong> On our own Ditto relay, we actively moderate content and
+              <strong>{config.appName} relay moderation:</strong> On our own {config.appName} relay, we actively moderate content and
               will immediately remove any CSAE material and permanently ban associated accounts.
             </li>
             <li>
-              <strong>Ditto Blossom server moderation:</strong> On our own Ditto Blossom file server, we will
+              <strong>{config.appName} Blossom server moderation:</strong> On our own {config.appName} Blossom file server, we will
               immediately delete any CSAE media and ban the uploading account.
             </li>
             <li>
@@ -148,7 +148,7 @@ export function CSAEPolicyPage() {
               the app through content filters and blocklists.
             </li>
             <li>
-              <strong>Removal from Ditto infrastructure:</strong> CSAE content on the Ditto relay and Ditto
+              <strong>Removal from {config.appName} infrastructure:</strong> CSAE content on the {config.appName} relay and {config.appName}
               Blossom server will be immediately deleted, and the associated accounts permanently banned.
             </li>
             <li>
@@ -223,7 +223,7 @@ export function CSAEPolicyPage() {
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>
-              Provide any information available to us -- including data from the Ditto relay and Ditto Blossom
+              Provide any information available to us -- including data from the {config.appName} relay and {config.appName} Blossom
               server -- that may assist in investigations, in accordance with applicable law.
             </li>
             <li>
@@ -248,7 +248,7 @@ export function CSAEPolicyPage() {
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>
               <strong>Full control over our own infrastructure:</strong> We can and do remove content from the
-              Ditto relay and Ditto Blossom server. CSAE material found on our infrastructure is deleted
+              {config.appName} relay and {config.appName} Blossom server. CSAE material found on our infrastructure is deleted
               immediately and accounts are permanently banned.
             </li>
             <li>

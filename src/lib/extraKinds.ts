@@ -428,6 +428,13 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         description: 'Accepted profile badges (kind 10008)',
         extraFeedKinds: [30008], // legacy kind for backwards compatibility
       },
+      {
+        kind: 8,
+        showKey: 'showBadgeAwards',
+        feedKey: 'feedIncludeBadgeAwards',
+        label: 'Badge Awards',
+        description: 'Badge award events (kind 8)',
+      },
     ],
   },
   {

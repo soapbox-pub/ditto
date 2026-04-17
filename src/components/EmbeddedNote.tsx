@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
+import { Award, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
@@ -16,7 +16,9 @@ import { NoteContent } from '@/components/NoteContent';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { isProfileBadgesKind } from '@/lib/badgeUtils';
+import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isProfileBadgesKind, parseBadgeATag, unslugify } from '@/lib/badgeUtils';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
+import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
@@ -84,7 +86,97 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EmbeddedZapCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 8 badge award events get a compact badge card
+  if (event.kind === BADGE_AWARD_KIND) {
+    return <EmbeddedBadgeAwardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+}
+
+/** Compact inline card for kind 8 NIP-58 badge award events. */
+function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+  const navigate = useNavigate();
+
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const parsed = useMemo(() => parseBadgeATag(event), [event]);
+  // NIP-58: only the badge owner can validly award their own badge.
+  const validParsed = parsed && parsed.pubkey === event.pubkey ? parsed : undefined;
+  const badgeRef = useMemo(() => (validParsed ? [validParsed] : []), [validParsed]);
+  const { badgeMap } = useBadgeDefinitions(badgeRef);
+
+  const aTag = validParsed
+    ? `${BADGE_DEFINITION_KIND}:${validParsed.pubkey}:${validParsed.identifier}`
+    : undefined;
+  const badge = aTag ? badgeMap.get(aTag) : undefined;
+  const badgeName = badge?.name || (validParsed ? unslugify(validParsed.identifier) : 'Badge');
+
+  const issuer = useAuthor(event.pubkey);
+  const issuerMeta = issuer.data?.metadata;
+  const issuerName = issuerMeta?.name || genUserName(event.pubkey);
+  const issuerProfileUrl = useProfileUrl(event.pubkey, issuerMeta);
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
+        {/* Badge thumbnail or fallback icon */}
+        {badge ? (
+          <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
+        ) : (
+          <div className="flex items-center justify-center size-9 rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shrink-0">
+            <Award className="size-4 text-primary" />
+          </div>
+        )}
+
+        {/* Text */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <MaybeHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
+              <Link
+                to={issuerProfileUrl}
+                className="text-sm font-semibold truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {issuer.data?.event ? (
+                  <EmojifiedText tags={issuer.data.event.tags}>{issuerName}</EmojifiedText>
+                ) : issuerName}
+              </Link>
+            </MaybeHoverCard>
+            <span className="text-sm text-muted-foreground">awarded a badge</span>
+            <span className="text-xs text-muted-foreground shrink-0">
+              · {timeAgo(event.created_at)}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {badgeName}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Compact inline card for kind 9735 zap receipts. */

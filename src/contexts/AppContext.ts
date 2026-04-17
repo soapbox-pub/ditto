@@ -142,10 +142,14 @@ export interface FeedSettings {
   showBadgeDefinitions: boolean;
   /** Show profile badges (kind 10008/30008) on the Badges page */
   showProfileBadges: boolean;
+  /** Show badge awards (kind 8) on the Badges page */
+  showBadgeAwards: boolean;
   /** Include badge definitions (kind 30009) in the follows/global feed */
   feedIncludeBadgeDefinitions: boolean;
   /** Include profile badges (kind 10008/30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
+  /** Include badge awards (kind 8) in the follows/global feed */
+  feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */

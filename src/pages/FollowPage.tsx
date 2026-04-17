@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -175,6 +176,7 @@ function ProfileFeed({ pubkey }: { pubkey: string }) {
 function FollowView({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const { isPending, follow } = useFollowActions();
   const { toast } = useToast();
@@ -282,7 +284,7 @@ function FollowView({ pubkey }: { pubkey: string }) {
                 className="w-full rounded-full py-3 text-base font-semibold"
                 size="lg"
               >
-                Follow {displayName} on Ditto
+                Follow {displayName} on {config.appName}
               </Button>
             ) : isOwnProfile ? (
               <div className="text-center space-y-3">
@@ -357,6 +359,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
   const { data: event, isLoading: eventLoading } = useAddrEvent(addr, relays);
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { data: followList } = useFollowList();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
@@ -535,7 +538,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
                   size="lg"
                 >
                   <UserPlus className="size-5" />
-                  Follow {pubkeys.length} people on Ditto
+                  Follow {pubkeys.length} people on {config.appName}
                 </Button>
               ) : isFollowingAll ? (
                 <Button disabled className="w-full rounded-full py-3 text-base font-semibold gap-2" size="lg">

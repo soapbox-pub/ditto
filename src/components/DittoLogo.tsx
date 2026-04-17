@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
@@ -107,9 +108,10 @@ function getPixelArtMask(): Promise<string> {
   return maskPromise;
 }
 
-/** The Ditto logo rendered from the custom SVG asset. Occasionally appears pixelated for logged-in users. */
+/** The app logo rendered from the custom SVG asset. Occasionally appears pixelated for logged-in users. */
 export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
 
   if (isPixelated && user) {
     return <PixelatedLogo className={className} size={size} />;
@@ -118,7 +120,7 @@ export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
   return (
     <div
       role="img"
-      aria-label="Ditto"
+      aria-label={config.appName}
       style={{
         width: size,
         height: size,
@@ -141,6 +143,7 @@ export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
 function PixelatedLogo({ className, size = 40 }: DittoLogoProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(!!maskCache);
+  const { config } = useAppContext();
 
   useEffect(() => {
     const el = ref.current;
@@ -164,7 +167,7 @@ function PixelatedLogo({ className, size = 40 }: DittoLogoProps) {
     <div
       ref={ref}
       role="img"
-      aria-label="Ditto"
+      aria-label={config.appName}
       style={{
         width: size,
         height: size,

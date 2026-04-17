@@ -17,8 +17,11 @@ import { findBundledFont, loadBundledFont, resolveCssFamily } from '@/lib/fonts'
  * Sanitize a string for safe interpolation into a double-quoted CSS context.
  * Uses an allowlist approach — only Unicode letters, numbers, spaces, hyphens,
  * underscores, apostrophes, and periods are permitted. Everything else is stripped.
+ *
+ * Use whenever event-sourced strings flow into a CSS declaration value
+ * (e.g. `font-family`) to prevent CSS-string breakout.
  */
-function sanitizeCssString(value: string): string {
+export function sanitizeCssString(value: string): string {
   return value.replace(/[^\p{L}\p{N} _\-'.]/gu, '');
 }
 

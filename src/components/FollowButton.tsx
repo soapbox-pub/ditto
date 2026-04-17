@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useToast } from '@/hooks/useToast';
+import { impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 interface FollowButtonProps {
@@ -39,9 +40,11 @@ export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonPro
     try {
       if (isFollowing) {
         await unfollow(pubkey);
+        impactMedium();
         toast({ title: 'Unfollowed' });
       } else {
         await follow(pubkey);
+        impactMedium();
         toast({ title: 'Followed' });
       }
     } catch (err) {

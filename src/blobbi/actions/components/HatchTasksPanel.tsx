@@ -23,8 +23,6 @@ interface HatchTasksPanelProps {
   tasks: HatchTask[];
   allCompleted: boolean;
   isLoading: boolean;
-  /** Called when user clicks "Create Post" action */
-  onOpenPostModal: () => void;
   /** Called when all tasks are complete and user clicks "Hatch" */
   onHatch: () => void;
   /** Whether hatching is in progress */
@@ -35,10 +33,9 @@ interface HatchTasksPanelProps {
 
 interface TaskRowProps {
   task: HatchTask;
-  onOpenPostModal: () => void;
 }
 
-function TaskRow({ task, onOpenPostModal }: TaskRowProps) {
+function TaskRow({ task }: TaskRowProps) {
   const navigate = useNavigate();
   
   const handleAction = () => {
@@ -50,11 +47,6 @@ function TaskRow({ task, onOpenPostModal }: TaskRowProps) {
         break;
       case 'external_link':
         openUrl(task.actionTarget);
-        break;
-      case 'open_modal':
-        if (task.actionTarget === 'blobbi_post') {
-          onOpenPostModal();
-        }
         break;
     }
   };
@@ -139,7 +131,6 @@ export function HatchTasksPanel({
   tasks,
   allCompleted,
   isLoading,
-  onOpenPostModal,
   onHatch,
   isHatching = false,
 }: HatchTasksPanelProps) {
@@ -186,7 +177,6 @@ export function HatchTasksPanel({
               <TaskRow 
                 key={task.id} 
                 task={task} 
-                onOpenPostModal={onOpenPostModal}
               />
             ))}
             

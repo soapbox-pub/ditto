@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Webxdc, type WebxdcHandle } from '@/components/Webxdc';
 import { GameControls } from '@/components/GameControls';
 import { useCenterColumn } from '@/contexts/LayoutContext';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useWebxdc } from '@/hooks/useWebxdc';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { cn } from '@/lib/utils';
@@ -57,10 +58,11 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
 
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(launched ? centerColumn : null);
+  const { config } = useAppContext();
 
   // Derive a private, stable subdomain from a device-local seed + the identifier.
   const identifier = uuid ?? url;
-  const iframeId = deriveIframeSubdomain('webxdc', identifier);
+  const iframeId = deriveIframeSubdomain(config.appId, 'webxdc', identifier);
 
   const handleClose = useCallback(() => {
     setLaunched(false);

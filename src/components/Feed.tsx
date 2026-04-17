@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -12,15 +12,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
-import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
@@ -55,6 +57,7 @@ interface FeedProps {
 
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { muteItems } = useMuteList();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
@@ -63,23 +66,23 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
-    const stored = localStorage.getItem('ditto:showGlobalFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showGlobalFeed'));
     return stored !== null ? stored === 'true' : false;
   })();
 
   const showDittoFeed = (() => {
-    const stored = localStorage.getItem('ditto:showDittoFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showDittoFeed'));
     return stored !== null ? stored === 'true' : true;
   })();
 
   const showCommunityFeed = (() => {
-    const stored = localStorage.getItem('ditto:showCommunityFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showCommunityFeed'));
     return stored !== null ? stored === 'true' : false;
   })();
 
   const communityLabel = (() => {
     try {
-      const stored = localStorage.getItem('ditto:community');
+      const stored = localStorage.getItem(getStorageKey(config.appId, 'community'));
       if (stored) {
         const community = JSON.parse(stored);
         return community.label || 'Community';
@@ -247,7 +250,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
-            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+            <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
           {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
@@ -355,11 +358,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 }
 
-/** Renders a saved search feed using useStreamPosts (live streaming). */
+/** Renders a saved search feed using useTabFeed (TanStack Query cached, infinite scroll). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
+  const { muteItems } = useMuteList();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -368,32 +371,62 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     user?.pubkey ?? '',
   );
 
-  const search = typeof resolvedFilter?.search === 'string' ? resolvedFilter.search : '';
-  const kindsOverride = Array.isArray(resolvedFilter?.kinds) ? resolvedFilter.kinds as number[] : undefined;
-  const authorPubkeys = Array.isArray(resolvedFilter?.authors) ? resolvedFilter.authors as string[] : undefined;
+  // Augment the resolved filter with protocol:nostr (NIP-50 Ditto extension)
+  // to match the behavior of the core feeds and ensure latest native Nostr
+  // posts are returned.
+  const augmentedFilter = useMemo(() => {
+    if (!resolvedFilter) return null;
+    const existing = resolvedFilter.search ?? '';
+    const search = existing.includes('protocol:nostr')
+      ? existing
+      : existing
+        ? `${existing} protocol:nostr`
+        : 'protocol:nostr';
+    return { ...resolvedFilter, search };
+  }, [resolvedFilter]);
 
-  const { posts, isLoading: isStreamLoading } = useStreamPosts(search, {
-    includeReplies: true,
-    mediaType: 'all',
-    kindsOverride,
-    authorPubkeys: authorPubkeys && authorPubkeys.length > 0 ? authorPubkeys : undefined,
-  });
+  const {
+    data: rawData,
+    isLoading: isFeedLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTabFeed(augmentedFilter, `saved-${feed.id}`, !isResolving);
 
-  const isLoading = isResolving || isStreamLoading;
+  const isLoading = isResolving || isFeedLoading;
 
-  // useStreamPosts doesn't use TanStack Query, so refresh by invalidating the
-  // resolution query and letting the stream reconnect via remount.
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['resolve-tab-filter'] });
-  }, [queryClient]);
+  // Prefix key -- usePageRefresh does prefix matching, so this invalidates
+  // the full ['tab-feed', tabKey, kindsKey, authorsKey, searchKey] used by useTabFeed.
+  const queryKey = useMemo(
+    () => ['tab-feed', `saved-${feed.id}`],
+    [feed.id],
+  );
+  const handleRefresh = usePageRefresh(queryKey);
 
-  // Simple scroll-based load more isn't available with useStreamPosts (it's a stream),
-  // but we still wire the ref for future pagination support
+  // Infinite scroll: fetch next page when sentinel is in view
   useEffect(() => {
-    // intentionally empty — useStreamPosts handles its own streaming
-  }, [inView]);
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading && posts.length === 0) {
+  // Flatten pages, deduplicate, and filter muted content
+  const feedItems = useMemo(() => {
+    if (!rawData?.pages) return [];
+    const seen = new Set<string>();
+    return rawData.pages
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        if (shouldHideFeedEvent(item.event)) return false;
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        return true;
+      });
+  }, [rawData?.pages, muteItems]);
+
+  if (isLoading && feedItems.length === 0) {
     return (
       <div className="divide-y divide-border">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -403,10 +436,10 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     );
   }
 
-  if (posts.length === 0) {
+  if (feedItems.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found for "${feed.label}". The search may return results as new content arrives.`} />
+        <FeedEmptyState message={`No posts found for "${feed.label}". Try adjusting your relay connections or check back later.`} />
       </PullToRefresh>
     );
   }
@@ -414,10 +447,23 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {posts.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {feedItems.map((item) => (
+          <NoteCard
+            key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+            event={item.event}
+            repostedBy={item.repostedBy}
+          />
         ))}
-        <div ref={scrollRef} className="py-2" />
+        {hasNextPage && (
+          <div ref={scrollRef} className="py-4">
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
+        {!hasNextPage && <div ref={scrollRef} className="py-2" />}
       </div>
     </PullToRefresh>
   );
