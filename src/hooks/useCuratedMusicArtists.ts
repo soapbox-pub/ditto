@@ -1,47 +1,49 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { useAppContext } from '@/hooks/useAppContext';
 
 /**
- * Hardcoded fallback artist pubkeys used when the curator's kind 30000
- * `d:music-artists` follow set has not been published yet.
+ * Curated music artists list coordinates.
  *
- * These are verified Nostr musicians sourced from Wavlake's Top 40 chart.
- * Once the curator publishes the on-chain list, this fallback is ignored.
+ * Kind 30000 follow set maintained on Listr by npub1nl8r463...
+ * @see https://listr.lol/npub1nl8r463jkdtr0qu0k3dht03jt9t59cttk0j8gtxg9wea2russlnq2zf9d0/30000/...
+ */
+const MUSIC_LIST_PUBKEY = '9fce3aea32b35637838fb45b75be32595742e16bb3e4742cc82bb3d50f9087e6';
+const MUSIC_LIST_D_TAG = 'listr-ed4846ac-45f7-4f7c-90f4-d55f8f1414fd';
+
+/**
+ * Hardcoded fallback artist pubkeys used when the curated list
+ * cannot be fetched from relays.
+ *
+ * These are a subset of the artists from the Listr-maintained list.
  */
 const FALLBACK_ARTIST_PUBKEYS: string[] = [
-  '5c7794d47115a1b133a19673d57346ca494d367379458d8e98bf24a498abc46b', // Annonymal
-  'adc14fa3ad590856dd8b80815d367f7c1e6735ad00fd98a86d002fbe9fb535e1', // Contra
-  'f2f8fabc20e2e1a4b91732c06cf9ac047478b01049c57c4a67b98ce927e5f3db', // Sovereign Diaries
-  'e4c099819c82e7754d61d2e10d8487d46c7bbe2047f67f828ece2f19a75bf2bd', // EpochNative
-  'e348c5e7a3f1042fe6855cae3fd50c46f3249b7c7ebfc9033895146245bbc8e0', // LoveFinger
-  '7bac11d89f7ec175d427024085285f7983dc0be08540789837143b2787f81220', // Dead Reckoning Band
-  'd66d8f8e9733448a219a73cebe2f0f47a23a0ec4b49014a6cb67cdf5bb361ed1', // Ardamus
-  'a7692fcb12e810b26ab79d1912962233ca490948c85cb780f058d9fca1a4500e', // Basspistol
-  'fad80b7451b03f686fd9e487b05b69c04c808e26a1db655e59e0e296a5c9f4dd', // Sam Means
+  '28ca019b78b494c25a9da2d645975a8501c7e99b11302e5cbe748ee593fcb2cc',
+  '8806372af51515bf4aef807291b96487ea1826c966a5596bca86697b5d8b23bc',
+  '5c7794d47115a1b133a19673d57346ca494d367379458d8e98bf24a498abc46b',
+  '312d00fab4860c967c98bb4585971ab1bef9475d51b4becbc9f313f968403f2b',
+  'fad80b7451b03f686fd9e487b05b69c04c808e26a1db655e59e0e296a5c9f4dd',
+  'd60b5c894df0163c9b3b1ac4e89fc94bfb6df473dbcff8c035d739f3ea8bcb59',
+  '6838a529bdf33d2569e3708df6373572f11b378114d225a4d467a9bd94abef2a',
+  'e61093809c30403b74392ec1853c1bc40b3364fd311fa2e5a919ef6c7e8bfde1',
+  '904b0d0fc90f04f03caef2ca07ca3fdb1a5f20020090181ce8e1fcf473f7554d',
 ];
 
 /**
- * Fetches the curator's curated music artist list.
+ * Fetches the curated music artist list.
  *
- * Queries for a kind 30000 (follow set) event published by the curator pubkey
- * with `d` tag "music-artists". Returns the `p` tag pubkeys from that event.
+ * Queries for a kind 30000 (follow set) event published by the music list
+ * curator with a specific d-tag. Returns the `p` tag pubkeys from that event.
  *
- * Falls back to a hardcoded list of known Nostr musicians if the curator
- * hasn't published the list yet.
+ * Falls back to a hardcoded subset of artists if the list cannot be fetched.
  */
 export function useCuratedMusicArtists() {
   const { nostr } = useNostr();
-  const { config } = useAppContext();
-  const curatorPubkey = config.curatorPubkey;
 
   return useQuery<string[]>({
-    queryKey: ['curated-music-artists', curatorPubkey],
+    queryKey: ['curated-music-artists', MUSIC_LIST_PUBKEY, MUSIC_LIST_D_TAG],
     queryFn: async ({ signal }) => {
-      if (!curatorPubkey) return FALLBACK_ARTIST_PUBKEYS;
-
       const events = await nostr.query(
-        [{ kinds: [30000], authors: [curatorPubkey], '#d': ['music-artists'], limit: 1 }],
+        [{ kinds: [30000], authors: [MUSIC_LIST_PUBKEY], '#d': [MUSIC_LIST_D_TAG], limit: 1 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
       );
 
