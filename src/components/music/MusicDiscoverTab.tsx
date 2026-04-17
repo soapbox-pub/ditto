@@ -44,7 +44,7 @@ interface MusicDiscoverTabProps {
  * 3. Artists — Horizontal scroll of curated artist profile cards
  * 4. Playlists — Horizontal scroll of playlists from curator's follows (sort:hot)
  * 5. New Tracks header + genre chips — Genre filter chips sit below the section title
- * 6. New Tracks — Compact track rows, one per artist, from curated artists (genre-filterable)
+ * 6. New Tracks — Compact track rows from curated artists (genre-filterable)
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
@@ -74,21 +74,12 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
   });
 
   const newTracks = useMemo((): NostrEvent[] => {
-    const source = selectedGenre && genreFilteredTracks
-      ? genreFilteredTracks.filter((ev) => parseMusicTrack(ev) !== null)
-      : curatedTracks;
-
-    // Deduplicate: one track per artist (most recent), so a prolific
-    // artist who just uploaded many tracks doesn't dominate the section
-    const seen = new Set<string>();
-    const deduped: NostrEvent[] = [];
-    for (const ev of source) {
-      if (seen.has(ev.pubkey)) continue;
-      seen.add(ev.pubkey);
-      deduped.push(ev);
-      if (deduped.length >= 8) break;
+    if (selectedGenre && genreFilteredTracks) {
+      return genreFilteredTracks
+        .filter((ev) => parseMusicTrack(ev) !== null)
+        .slice(0, 8);
     }
-    return deduped;
+    return curatedTracks.slice(0, 8);
   }, [selectedGenre, genreFilteredTracks, curatedTracks]);
 
   // Curator's follow list (Heather's kind 3) — used to filter playlists
