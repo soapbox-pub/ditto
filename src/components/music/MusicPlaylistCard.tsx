@@ -41,7 +41,6 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
             src={parsed.artwork}
             alt={parsed.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">

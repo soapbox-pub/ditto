@@ -63,7 +63,7 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
         )}
       >
         {parsed.artwork ? (
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
+          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
             <Music className="size-8 text-primary/20" />
