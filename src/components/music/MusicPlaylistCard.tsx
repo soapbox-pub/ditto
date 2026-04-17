@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ListMusic } from 'lucide-react';
+import { Disc3, ListMusic } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -54,11 +54,17 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
       <p className="text-sm font-medium truncate mt-2 group-hover:text-primary transition-colors">
         {parsed.title}
       </p>
-      {trackCount > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {trackCount} track{trackCount !== 1 ? 's' : ''}
-        </p>
-      )}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {parsed.isAlbum && (
+          <span className="inline-flex items-center gap-0.5 font-medium text-primary/70">
+            <Disc3 className="size-3" />Album
+          </span>
+        )}
+        {parsed.isAlbum && trackCount > 0 && <span>·</span>}
+        {trackCount > 0 && (
+          <span>{trackCount} track{trackCount !== 1 ? 's' : ''}</span>
+        )}
+      </div>
     </Link>
   );
 }

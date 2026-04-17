@@ -5,9 +5,10 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Music, ListMusic, Zap, Clock } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -33,6 +34,8 @@ import { InteractionsModal, type InteractionTab } from '@/components/Interaction
 import { NoteCard } from '@/components/NoteCard';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
+import { usePlaylistTracks } from '@/hooks/usePlaylistTracks';
+import { MusicTrackRowSkeleton } from '@/components/music/MusicTrackRow';
 
 
 /** Format a full date. */
@@ -281,6 +284,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
 function PlaylistDetail({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
+  const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -288,7 +292,46 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
+  // Resolve track references to actual events
+  const { data: trackEvents, isLoading: tracksLoading } = usePlaylistTracks(parsed?.trackRefs ?? []);
+
+  // Build AudioTrack[] for the player
+  const audioTracks = useMemo(() => {
+    if (!trackEvents) return [];
+    return trackEvents
+      .map((ev) => {
+        const p = parseMusicTrack(ev);
+        return p ? toAudioTrack(ev, p) : null;
+      })
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+  }, [trackEvents]);
+
   const trackCount = parsed?.trackRefs.length ?? 0;
+  const isAlbum = parsed?.isAlbum ?? false;
+  const typeLabel = isAlbum ? 'Album' : 'Playlist';
+  const FallbackIcon = isAlbum ? Disc3 : ListMusic;
+
+  // Check if the player is currently playing this playlist
+  const isPlayingThisPlaylist = audioTracks.length > 0
+    && player.playlist.length > 0
+    && player.playlist[0]?.id === audioTracks[0]?.id
+    && player.playlist.length === audioTracks.length;
+
+  const handlePlayAll = () => {
+    if (audioTracks.length === 0) return;
+    if (isPlayingThisPlaylist && player.isPlaying) {
+      player.pause();
+    } else if (isPlayingThisPlaylist) {
+      player.resume();
+    } else {
+      player.playPlaylist(audioTracks, 0);
+    }
+  };
+
+  const handlePlayFromIndex = (index: number) => {
+    if (audioTracks.length === 0) return;
+    player.playPlaylist(audioTracks, index);
+  };
 
   return (
     <main className="">
@@ -297,7 +340,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
         <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Playlist Details</h1>
+        <h1 className="text-xl font-bold truncate">{typeLabel} Details</h1>
       </div>
 
       {/* Hero */}
@@ -307,13 +350,21 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
             <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
-              <ListMusic className="size-12 text-primary/30" />
+              <FallbackIcon className="size-12 text-primary/30" />
             </div>
           )}
         </div>
 
         <div className="flex-1 min-w-0 space-y-2 pt-1">
-          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+          </div>
+
+          {isAlbum && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary w-fit">
+              <Disc3 className="size-3" />Album
+            </span>
+          )}
 
           <Link to={profileUrl} className="flex items-center gap-2 group">
             <Avatar shape={avatarShape} className="size-6">
@@ -323,10 +374,39 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
             <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{displayName}</span>
           </Link>
 
-          {trackCount > 0 && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <ListMusic className="size-3" />{trackCount} track{trackCount !== 1 ? 's' : ''}
-            </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {trackCount > 0 && (
+              <span className="flex items-center gap-1">
+                <ListMusic className="size-3" />{trackCount} track{trackCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {parsed?.released && (
+              <span className="flex items-center gap-1">
+                <Calendar className="size-3" />{parsed.released}
+              </span>
+            )}
+            {parsed?.label && (
+              <span className="flex items-center gap-1">
+                <Tag className="size-3" />{parsed.label}
+              </span>
+            )}
+          </div>
+
+          {/* Play All button */}
+          {audioTracks.length > 0 && (
+            <button
+              onClick={handlePlayAll}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors mt-1',
+                isPlayingThisPlaylist && player.isPlaying
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/15 text-primary hover:bg-primary/25',
+              )}
+            >
+              {isPlayingThisPlaylist && player.isPlaying
+                ? <><Pause className="size-4" fill="currentColor" />Pause</>
+                : <><Play className="size-4 ml-0.5" fill="currentColor" />Play All</>}
+            </button>
           )}
         </div>
       </div>
@@ -340,6 +420,132 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       <div className="px-4 mt-3 text-xs text-muted-foreground">
         {formatFullDate(event.created_at)}
       </div>
+
+      {/* Track list */}
+      {(trackCount > 0) && (
+        <div className="mt-6">
+          <div className="px-4 mb-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tracks</h3>
+          </div>
+
+          {tracksLoading ? (
+            <div>
+              {Array.from({ length: Math.min(trackCount, 8) }).map((_, i) => (
+                <MusicTrackRowSkeleton key={i} />
+              ))}
+            </div>
+          ) : trackEvents && trackEvents.length > 0 ? (
+            <div>
+              {trackEvents.map((trackEvent, index) => (
+                <PlaylistTrackRow
+                  key={trackEvent.id}
+                  event={trackEvent}
+                  index={index}
+                  onPlayFromIndex={handlePlayFromIndex}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="px-4 py-6 text-sm text-muted-foreground text-center">
+              No tracks could be loaded.
+            </p>
+          )}
+        </div>
+      )}
     </main>
+  );
+}
+
+/**
+ * Track row within a playlist context. Clicking play starts the full playlist
+ * from this track's index rather than playing just the single track.
+ */
+function PlaylistTrackRow({
+  event,
+  index,
+  onPlayFromIndex,
+}: {
+  event: NostrEvent;
+  index: number;
+  onPlayFromIndex: (index: number) => void;
+}) {
+  const player = useAudioPlayer();
+  const parsed = useMemo(() => parseMusicTrack(event), [event]);
+
+  const naddrPath = useMemo(() => {
+    const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return '/' + nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
+  }, [event]);
+
+  if (!parsed) return null;
+
+  const isNowPlaying = player.currentTrack?.id === event.id;
+  const dur = parsed.duration ? formatTime(parsed.duration) : undefined;
+
+  const handlePlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isNowPlaying && player.isPlaying) {
+      player.pause();
+    } else if (isNowPlaying) {
+      player.resume();
+    } else {
+      onPlayFromIndex(index);
+    }
+  };
+
+  return (
+    <Link
+      to={naddrPath}
+      className={cn(
+        'flex items-center gap-3 px-4 py-2.5 transition-colors cursor-pointer group',
+        isNowPlaying ? 'bg-primary/5' : 'hover:bg-secondary/30',
+      )}
+    >
+      {/* Index / Play button */}
+      <button
+        onClick={handlePlay}
+        className="size-8 flex items-center justify-center shrink-0"
+        aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+      >
+        {isNowPlaying && player.isPlaying ? (
+          <Pause className="size-4 text-primary" fill="currentColor" />
+        ) : (
+          <>
+            <span className="text-sm text-muted-foreground group-hover:hidden tabular-nums">
+              {index + 1}
+            </span>
+            <Play className="size-4 text-muted-foreground hidden group-hover:block" fill="currentColor" />
+          </>
+        )}
+      </button>
+
+      {/* Artwork */}
+      <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
+        {parsed.artwork ? (
+          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" />
+        ) : (
+          <div className="size-full flex items-center justify-center bg-primary/10">
+            <Music className="size-5 text-primary/30" />
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          'text-sm font-medium truncate',
+          isNowPlaying && 'text-primary',
+        )}>
+          {parsed.title}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
+      </div>
+
+      {/* Duration */}
+      {dur && (
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0">{dur}</span>
+      )}
+    </Link>
   );
 }
