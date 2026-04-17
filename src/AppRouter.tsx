@@ -55,7 +55,7 @@ const LetterComposePage = lazy(() => import("./pages/LetterComposePage").then(m 
 const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage").then(m => ({ default: m.LetterPreferencesPage })));
 const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
 const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
-const MusicFeedPage = lazy(() => import("./pages/MusicFeedPage").then(m => ({ default: m.MusicFeedPage })));
+const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings").then(m => ({ default: m.NotificationSettings })));
@@ -191,7 +191,7 @@ export function AppRouter() {
               element={<Navigate to="/videos" replace />}
             />
             <Route path="/vines" element={<VinesFeedPage />} />
-            <Route path="/music" element={<MusicFeedPage />} />
+            <Route path="/music" element={<MusicPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
             <Route path="/polls" element={<PollsFeedPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
