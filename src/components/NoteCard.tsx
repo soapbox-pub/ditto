@@ -1798,7 +1798,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31124: {
     icon: Egg,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
     noun: "Blobbi",
     nounRoute: "/blobbi",
   },
