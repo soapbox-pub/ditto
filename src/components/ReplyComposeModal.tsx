@@ -50,81 +50,30 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
     setPortalContainer(node ?? undefined);
   }, []);
 
-  // Prevent the compose modal from closing when the user interacts with a
-  // nested dialog (e.g. the emoji/GIF picker).  On mobile it is very easy to
-  // tap the emoji picker overlay and accidentally dismiss the compose modal,
-  // losing the draft.  We detect nested-dialog interactions by checking
-  // whether the click target lives inside another Radix Dialog portal that
-  // sits above this modal.
-  const isNestedDialogInteraction = useCallback((e: Event) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return false;
-    // Radix Dialog overlays have data-state and sit inside [role="dialog"]
-    // portals.  If the target is inside a dialog element that is NOT our own
-    // DialogContent, a nested dialog is open.
-    const closestDialog = target.closest('[role="dialog"]');
-    if (closestDialog && portalContainer && closestDialog !== portalContainer) {
-      return true;
-    }
-    // Also catch clicks on the overlay itself (data-radix-dialog-overlay or
-    // the backdrop element) that belongs to a nested dialog.
-    const closestOverlay = target.closest('[data-radix-dialog-overlay]');
-    if (closestOverlay) {
-      // Check if this overlay belongs to our dialog or a nested one.
-      // Our overlay is a sibling of our DialogContent, not a descendant.
-      // If the overlay is rendered inside our portal container's parent
-      // (the same portal), it could be ours.  But if there are multiple
-      // overlays, the topmost (last in DOM) belongs to the nested dialog.
-      const allOverlays = document.querySelectorAll('[data-radix-dialog-overlay]');
-      if (allOverlays.length > 1) {
-        return true;
-      }
-    }
-    return false;
-  }, [portalContainer]);
-
+  // Always prevent closing the compose modal by clicking the backdrop overlay.
+  // Users must explicitly close via the X button or Escape key.  This prevents
+  // accidental content loss from stray taps on mobile or misclicks.
   const handleInteractOutside = useCallback((e: Event) => {
-    if (isNestedDialogInteraction(e)) {
-      e.preventDefault();
-      return;
-    }
-    // The emoji/mention autocomplete dropdowns are portaled to document.body
-    // (outside the Dialog DOM tree) to escape overflow clipping.  Clicks on
-    // them fire as "interact outside" the dialog — prevent dismissal so the
-    // user can select an emoji or mention with the mouse.
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('[data-autocomplete-dropdown]')) {
-      e.preventDefault();
-    }
-  }, [isNestedDialogInteraction]);
-
-  const handleEscapeKeyDown = useCallback((e: KeyboardEvent) => {
-    // When a nested dialog is open, Radix will close it first via its own
-    // handler.  But the escape event can bubble and also close the parent
-    // modal.  We prevent that by checking if any nested dialog is currently
-    // open (any dialog with data-state="open" that is not ours).
-    const openDialogs = document.querySelectorAll('[role="dialog"][data-state="open"]');
-    const hasNestedDialog = Array.from(openDialogs).some(
-      (el) => portalContainer && el !== portalContainer,
-    );
-    if (hasNestedDialog) {
-      e.preventDefault();
-    }
-  }, [portalContainer]);
+    e.preventDefault();
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={dialogContentRef}
-        className="max-w-[520px] max-h-[85dvh] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden !flex !flex-col"
+        className="max-w-[520px] max-h-[95dvh] sm:max-h-[85dvh] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden !flex !flex-col"
         onOpenAutoFocus={(e) => {
+          // Prevent Radix from focusing its own first-focusable (the X button).
           e.preventDefault();
-          const target = e.target as HTMLElement;
-          const textarea = target.querySelector('textarea');
-          textarea?.focus();
+          // Immediately focus the textarea — this MUST happen synchronously
+          // inside this handler so iOS treats it as part of the original user
+          // gesture and raises the virtual keyboard.
+          const textarea = (e.currentTarget as HTMLElement).querySelector('textarea');
+          if (textarea) {
+            textarea.focus();
+          }
         }}
         onInteractOutside={handleInteractOutside}
-        onEscapeKeyDown={handleEscapeKeyDown}
       >
         <PortalContainerProvider value={portalContainer}>
           {/* Header */}
@@ -171,9 +120,10 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             </div>
           </div>
 
-          {/* Embedded original post (reply only, not for quotes) */}
+          {/* Embedded original post (reply only, not for quotes)
+              Capped at 20% of viewport so it never dominates the modal. */}
           {event && !isQuote && (
-            <div className="overflow-y-auto min-h-0 shrink">
+            <div className="overflow-y-auto max-h-[20dvh] shrink-0">
               {isUrl ? (
                 <div className="mx-4 mb-2">
                   <LinkEmbed url={event.href} showActions={false} hideImage />
@@ -186,7 +136,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
           {/* Bluesky disclaimer */}
           {isUrl && /bsky\.(app|social)/.test(event.href) && (
-            <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
+            <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2 shrink-0">
               <span className="text-sm leading-relaxed shrink-0" aria-hidden>&#x26A0;&#xFE0F;</span>
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                 People on Bluesky can&apos;t see you because they&apos;re not actually decentralized.
@@ -194,8 +144,8 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             </div>
           )}
 
-          {/* Compose area */}
-          <div className="min-h-0 overflow-y-auto">
+          {/* Compose area — takes remaining space; ComposeBox handles its own scroll */}
+          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
             <ComposeBox
               replyTo={isQuote ? undefined : (event ?? undefined)}
               quotedEvent={quotedEvent ?? undefined}

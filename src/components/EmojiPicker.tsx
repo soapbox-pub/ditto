@@ -106,9 +106,9 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 			previewPosition: "none",
 			skinTonePosition: "search",
 			set: "native",
-			maxFrequentRows: 2,
+			maxFrequentRows: 1,
 			navPosition: "bottom",
-			perLine: 8,
+			dynamicWidth: true,
 			parent: container,
 			// Auto-focus the search input on desktop so users can type immediately.
 			// Disabled on mobile to avoid the virtual keyboard popping up unexpectedly.
@@ -134,19 +134,42 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 		const picker = new Picker(pickerOptions);
 		pickerRef.current = picker;
 
-		// Inject style into shadow DOM to remove backdrop-filter blur on the sticky category bar
+		// Inject overrides into the shadow DOM.
+		// emoji-mart hardcodes `width: min-content; height: 435px` on :host
+		// and sets a calculated pixel width on #root.  We override both so
+		// the picker fills its container and matches the app theme.
 		requestAnimationFrame(() => {
 			const shadowRoot = (container.firstChild as HTMLElement)?.shadowRoot;
 			if (shadowRoot) {
 				const style = document.createElement("style");
 				style.textContent = [
-					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: var(--em-color-background) !important; }",
+					":host { width: 100% !important; height: 280px !important; min-height: 160px !important; border-radius: 0 !important; box-shadow: none !important; }",
+					"#root { width: 100% !important; background-color: transparent !important; --sidebar-width: 0px !important; }",
+					".scroll { padding-right: var(--padding) !important; }",
+					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: transparent !important; }",
+					// Match the app's input style (same as StickerPicker / GifPicker)
+					".search input[type='search'] { background-color: hsl(var(--muted) / 0.5) !important; border: 0 !important; border-radius: 0.5rem !important; padding: 0.5rem 2rem 0.5rem 2.2rem !important; height: 36px !important; }",
+					".search input[type='search']:focus { box-shadow: 0 0 0 1px hsl(var(--ring)) !important; background-color: hsl(var(--background)) !important; }",
+					".search input[type='search']::placeholder { color: hsl(var(--muted-foreground)) !important; opacity: 1 !important; }",
+					".search .icon { color: hsl(var(--muted-foreground)) !important; }",
 					"input { font-size: 16px !important; }",
-					"#nav button { color: rgba(var(--em-rgb-color), .85) !important; }",
-					"#nav button[aria-selected] { color: rgb(var(--em-rgb-accent)) !important; }",
-					// Fix SVGs without intrinsic width/height collapsing to 0x0 in custom emoji grid.
-					// emoji-mart only sets max-width/max-height on <img>, which can't size a dimensionless SVG.
-					// The <img> lives inside <span class="emoji-mart-emoji" data-emoji-set="...">
+					// Nav — prevent icon clipping from height constraint
+					"#nav { flex-shrink: 0 !important; overflow: visible !important; }",
+					"#nav svg, #nav img { overflow: visible !important; }",
+					"#nav button { color: hsl(var(--muted-foreground)) !important; overflow: visible !important; }",
+					"#nav button:hover { color: hsl(var(--foreground)) !important; }",
+					"#nav button[aria-selected] { color: hsl(var(--primary)) !important; }",
+					"#nav .bar { background-color: hsl(var(--primary)) !important; }",
+					// Hover state on emoji buttons
+					".category button .background { background-color: hsl(var(--muted)) !important; }",
+					// Scrollbar — hide the custom scrollbar, use native overlay
+					".scroll::-webkit-scrollbar { width: 6px !important; }",
+					".scroll::-webkit-scrollbar-thumb { background-color: transparent !important; border: 0 !important; border-radius: 9999px !important; }",
+					".scroll:hover::-webkit-scrollbar-thumb { background-color: hsl(var(--border)) !important; }",
+					".scroll::-webkit-scrollbar-track { background: transparent !important; }",
+					// Category headers
+					".sticky { color: hsl(var(--muted-foreground)) !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }",
+					// Fix SVGs without intrinsic dimensions collapsing in custom emoji grid
 					".emoji-mart-emoji img[src] { width: 1em; height: 1em; object-fit: contain; }",
 				].join(" ");
 				shadowRoot.appendChild(style);
@@ -167,7 +190,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 	return (
 		<div
 			ref={containerRef}
-			className="emoji-mart-wrapper"
+			className="emoji-mart-wrapper w-full"
 			style={{ isolation: "isolate" }}
 			onWheel={(e) => {
 				// Prevent scroll from bubbling to the page
