@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.9.0] - 2026-04-17
+
+### Added
+- Compose box overhaul: emoji, GIF, and sticker pickers now appear inline right where you're typing, drafts autosave so you never lose a post mid-thought, and the box guards against accidental dismissal
+- Badge awards now appear inline in your home, profile, and Badges feeds with a one-tap accept button
+- Reaction, repost, zap, and poll-vote detail views now show the full list of who interacted, not just a count
+
+### Changed
+- Hatching and evolving Blobbis no longer requires posting -- focus on the care actions that matter
+
+### Fixed
+- The expanded emoji picker in feeds now has its background back
+
 ## [2.8.0] - 2026-04-16
 
 ### Added
