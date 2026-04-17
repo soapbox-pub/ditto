@@ -70,6 +70,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab | null>(null);
+  const [imgError, setImgError] = useState(false);
 
   // Comments (NIP-22)
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
@@ -111,8 +112,8 @@ function TrackDetail({ event }: { event: NostrEvent }) {
       <div className="px-4 flex gap-5 items-start">
         {/* Artwork */}
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
-          {parsed?.artwork ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
+          {parsed?.artwork && !imgError ? (
+            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <Music className="size-12 text-primary/30" />
@@ -286,6 +287,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
+  const [imgError, setImgError] = useState(false);
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -346,8 +348,8 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       {/* Hero */}
       <div className="px-4 flex gap-5 items-start">
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
-          {parsed?.artwork ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
+          {parsed?.artwork && !imgError ? (
+            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <FallbackIcon className="size-12 text-primary/30" />
@@ -471,6 +473,7 @@ function PlaylistTrackRow({
 }) {
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
+  const [imgError, setImgError] = useState(false);
 
   const naddrPath = useMemo(() => {
     const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -522,8 +525,8 @@ function PlaylistTrackRow({
 
       {/* Artwork */}
       <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
-        {parsed.artwork ? (
-          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" />
+        {parsed.artwork && !imgError ? (
+          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} />
         ) : (
           <div className="size-full flex items-center justify-center bg-primary/10">
             <Music className="size-5 text-primary/30" />

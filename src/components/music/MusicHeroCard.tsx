@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Play, Pause, Music } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
@@ -29,6 +29,8 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const author = useAuthor(event.pubkey);
 
+  const [imgError, setImgError] = useState(false);
+
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
@@ -56,12 +58,13 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
       onClick={handlePlay}
     >
       {/* Artwork */}
-      {parsed.artwork ? (
+      {parsed.artwork && !imgError ? (
         <img
           src={parsed.artwork}
           alt={parsed.title}
           className="w-full aspect-[16/10] object-cover"
           loading="eager"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="w-full aspect-[16/10] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">

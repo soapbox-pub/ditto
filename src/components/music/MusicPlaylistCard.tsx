@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Disc3, ListMusic } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -28,6 +28,8 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
     return '/' + nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
   }, [event]);
 
+  const [imgError, setImgError] = useState(false);
+
   if (!parsed) return null;
 
   const trackCount = parsed.trackRefs.length;
@@ -36,11 +38,12 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
     <Link to={naddrPath} className="w-[160px] shrink-0 cursor-pointer group">
       {/* Artwork */}
       <div className="w-full aspect-square rounded-xl overflow-hidden">
-        {parsed.artwork ? (
+        {parsed.artwork && !imgError ? (
           <img
             src={parsed.artwork}
             alt={parsed.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">

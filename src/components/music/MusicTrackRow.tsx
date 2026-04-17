@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Play, Pause, Music } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -32,6 +32,7 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const author = useAuthor(event.pubkey);
+  const [imgError, setImgError] = useState(false);
 
   const naddrPath = useMemo(() => {
     const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -85,8 +86,8 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
 
       {/* Artwork */}
       <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
-        {parsed.artwork ? (
-          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" />
+        {parsed.artwork && !imgError ? (
+          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} />
         ) : (
           <div className="size-full flex items-center justify-center bg-primary/10">
             <Music className="size-5 text-primary/30" />

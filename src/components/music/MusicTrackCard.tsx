@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Play, Pause, Music } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -35,6 +35,8 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
     return '/' + nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
   }, [event]);
 
+  const [imgError, setImgError] = useState(false);
+
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
@@ -62,8 +64,8 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
           isNowPlaying && 'ring-2 ring-primary',
         )}
       >
-        {parsed.artwork ? (
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
+        {parsed.artwork && !imgError ? (
+          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
             <Music className="size-8 text-primary/20" />
