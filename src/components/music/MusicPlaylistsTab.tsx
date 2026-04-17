@@ -115,7 +115,7 @@ export function MusicPlaylistsTab() {
       {/* Playlist grid */}
       {showSkeleton ? (
         <div className="px-4 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <MusicPlaylistCardSkeleton key={i} />
             ))}
@@ -123,7 +123,7 @@ export function MusicPlaylistsTab() {
         </div>
       ) : filtered.length > 0 ? (
         <div className="px-4 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {filtered.map((ev) => (
               <MusicPlaylistCard key={ev.id} event={ev} />
             ))}
