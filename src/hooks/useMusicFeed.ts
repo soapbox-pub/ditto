@@ -67,11 +67,16 @@ export function useMusicFeed({ kind, sort, scope, enabled = true }: UseMusicFeed
 
       // Hot/top need the Ditto relay for NIP-50; new uses default pool
       const target = sort === 'new' ? nostr : nostr.group(DITTO_RELAYS);
+      const timeout = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
 
-      const events = await target.query(
-        [filter],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
-      );
+      const events = await target.query([filter], { signal: timeout });
+
+      // Fallback: if hot/top returned nothing (relay may lack engagement data
+      // for these kinds), retry chronologically from the default pool.
+      if (events.length === 0 && sort !== 'new') {
+        const { search: _, ...fallbackFilter } = filter;
+        return nostr.query([fallbackFilter as NostrFilter], { signal: timeout });
+      }
 
       return events;
     },

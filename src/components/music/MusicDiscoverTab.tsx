@@ -98,19 +98,30 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         filter['#t'] = [selectedGenre];
       }
 
+      const timeout = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
+
       let events: NostrEvent[];
       if (newTracksSort === 'new') {
         events = await nostr.query(
           [filter as { kinds: number[]; authors: string[]; limit: number; '#t'?: string[] }],
-          { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+          { signal: timeout },
         );
       } else {
         filter.search = `sort:${newTracksSort}`;
         const ditto = nostr.group(DITTO_RELAYS);
         events = await ditto.query(
           [filter as { kinds: number[]; authors: string[]; search: string; limit: number; '#t'?: string[] }],
-          { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+          { signal: timeout },
         );
+
+        // Fallback: if hot/top returned nothing, retry chronologically
+        if (events.length === 0) {
+          delete filter.search;
+          events = await nostr.query(
+            [filter as { kinds: number[]; authors: string[]; limit: number; '#t'?: string[] }],
+            { signal: timeout },
+          );
+        }
       }
 
       return events.filter((ev) => parseMusicTrack(ev) !== null).slice(0, 8);
