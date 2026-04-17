@@ -120,7 +120,25 @@ Only the diff reveals intra-release churn (commits that cancel each other out, b
 
 ##### 5.2. Trace every candidate "Fixed" entry to its origin commit
 
-For each bug fix you're considering listing, find the commit that introduced the bug:
+For each bug fix you're considering listing, find the commit that introduced the bug.
+
+**Fast path -- check for `Regression-of:` trailers** (see AGENTS.md "Attributing Regressions"). If the fix commit declares its origin in a trailer, you don't need to hunt:
+
+```bash
+# List all commits in the release window with their Regression-of trailers (if any)
+git log v<prev>..HEAD --no-merges \
+  --format='%h %s%n  Regression-of: %(trailers:key=Regression-of,valueonly,separator=%x20)'
+```
+
+For each `Regression-of: <sha>` entry, check whether `<sha>` is also in the release window:
+
+```bash
+# Returns 0 if <sha> is BEFORE v<prev> (pre-existing bug -> legit "Fixed" entry)
+# Returns non-zero if <sha> is AFTER v<prev> (intra-release -> omit from "Fixed")
+git merge-base --is-ancestor <sha> v<prev>
+```
+
+**Fallback -- manual tracing** (when no trailer is present):
 
 ```bash
 # Show the history of a file across all commits

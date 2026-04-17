@@ -1415,6 +1415,37 @@ When your changes are complete and validated, create a git commit with a descrip
 
 **ALWAYS commit when you are finished making changes. This is non-negotiable -- every completed task must end with a git commit. Never leave uncommitted changes.**
 
+### Attributing Regressions
+
+When a commit fixes a bug that was introduced by an identifiable prior commit, add a `Regression-of:` trailer at the bottom of the commit message body referencing the offending commit's short SHA:
+
+```
+Fix missing background on expanded emoji picker in feeds
+
+The compose box overhaul accidentally dropped the bg-background class
+when refactoring the picker out of QuickReactMenu.
+
+Regression-of: 3aa08ba9
+```
+
+This is a standard Git trailer (compatible with `git interpret-trailers`) that records the cause-and-effect link directly in history. It is consumed by the release skill to detect intra-release regressions and exclude them from the changelog's "Fixed" section, and it makes future debugging and post-mortems substantially faster.
+
+**When to add it:**
+- The commit fixes a bug (not a new feature, refactor, or doc change)
+- The introducing commit is identifiable with reasonable effort
+
+**When to skip it:**
+- The bug is pre-existing with no clear single origin
+- The behavior was always wrong (no regression)
+- The introducing commit cannot be determined after a brief search
+
+**Finding the introducing commit:**
+- `git log -S '<removed-or-changed-string>'` -- find commits that touched a specific string
+- `git log --oneline -- path/to/file` -- list all commits touching a file
+- `git blame -L <start>,<end> -- path/to/file` -- find who last changed specific lines
+
+This convention is **strongly recommended but not required.** When the origin is non-obvious, prioritize shipping the fix over hunting indefinitely.
+
 ## Capacitor Compatibility
 
 The app runs inside Capacitor's WKWebView on iOS and WebView on Android. Several common web APIs **do not work** in this environment. Always account for native platforms when writing code that interacts with browser-specific features.

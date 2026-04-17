@@ -44,6 +44,8 @@ Read the [full philosophy](https://about.ditto.pub/philosophy) for the complete 
 
 One bug, one merge request. Fix exactly one thing. Don't bundle unrelated changes, don't sneak in refactors, don't "clean up while you're in there." Small, focused MRs get reviewed fast. Large ones sit.
 
+When the bug was introduced by an identifiable prior commit, add a `Regression-of: <short-sha>` trailer to the bottom of your commit message. See AGENTS.md "Attributing Regressions" for the convention.
+
 ### New features and significant changes
 
 Every feature MR must link to an existing open issue and clearly align with the [Ditto Philosophy](https://about.ditto.pub/philosophy). The philosophy alignment section in the MR template is where you make the case for why your change belongs in Ditto. If you can't articulate that clearly, the change probably doesn't belong.
@@ -131,6 +133,7 @@ maintain it long-term. For each finding, state the file, line, and issue.
 - [ ] Are there any new images >100KB or other large binary assets that should be hosted externally?
 - [ ] Is there any use of dangerouslySetInnerHTML, eval, innerHTML, or SVG string interpolation?
 - [ ] Is any data from a Nostr event (tags, content, pubkey, URLs) used in a security-sensitive context (href, src, query filter, trust decision) without validation?
+- [ ] If this is a bug fix and the offending commit is identifiable, does the commit message include a `Regression-of: <short-sha>` trailer? (See AGENTS.md "Attributing Regressions".)
 
 Skip anything a linter or type checker would catch. Focus on logic, data flow, and intent.
 
