@@ -112,11 +112,14 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
     queryKey: ['addr-event', addr?.kind ?? 0, addr?.pubkey ?? '', addr?.identifier ?? ''],
     queryFn: async () => {
       if (!addr) return null;
-      // Replaceable events (10000-19999) are identified by kind+author only — no d-tag.
-      // Addressable events (30000-39999) additionally need the d-tag filter.
-      const isReplaceable = addr.kind >= 10000 && addr.kind < 20000;
+      // Only addressable events (30000-39999) use the d-tag for identification.
+      // Everything else — legacy replaceable kinds (0, 3, etc.) and NIP-01
+      // replaceable events (10000-19999) — is identified by kind+author alone.
+      // Querying with `#d: [""]` against a non-addressable kind returns nothing,
+      // because real replaceable events don't carry an empty `d` tag.
+      const isAddressable = addr.kind >= 30000 && addr.kind < 40000;
       const baseFilter: NostrFilter = { kinds: [addr.kind], authors: [addr.pubkey], limit: 1 };
-      if (!isReplaceable) {
+      if (isAddressable) {
         baseFilter['#d'] = [addr.identifier];
       }
       const filter: NostrFilter[] = [baseFilter];
