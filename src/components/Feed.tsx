@@ -12,9 +12,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, MapPin } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
@@ -55,6 +57,7 @@ interface FeedProps {
 
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { muteItems } = useMuteList();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
@@ -63,23 +66,23 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
-    const stored = localStorage.getItem('ditto:showGlobalFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showGlobalFeed'));
     return stored !== null ? stored === 'true' : false;
   })();
 
   const showDittoFeed = (() => {
-    const stored = localStorage.getItem('ditto:showDittoFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showDittoFeed'));
     return stored !== null ? stored === 'true' : true;
   })();
 
   const showCommunityFeed = (() => {
-    const stored = localStorage.getItem('ditto:showCommunityFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showCommunityFeed'));
     return stored !== null ? stored === 'true' : false;
   })();
 
   const communityLabel = (() => {
     try {
-      const stored = localStorage.getItem('ditto:community');
+      const stored = localStorage.getItem(getStorageKey(config.appId, 'community'));
       if (stored) {
         const community = JSON.parse(stored);
         return community.label || 'Community';
@@ -247,7 +250,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <SubHeaderBar>
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
-            <TabButton label="Ditto" active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+            <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
           {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />

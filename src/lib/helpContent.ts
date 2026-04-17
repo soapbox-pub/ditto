@@ -2,9 +2,12 @@
  * Structured FAQ content for the Help section.
  *
  * This module is the single source of truth for all Help/FAQ data.
- * Any page can import `FAQ_CATEGORIES` or use `getFAQItems()` to render
- * a full FAQ or a filtered subset (e.g. only "payments" questions on a
- * wallet settings page).
+ * Any page can call `getFAQCategories(appName)` or `getFAQItems(appName)` to
+ * render a full FAQ or a filtered subset (e.g. only "payments" questions on
+ * a wallet settings page).
+ *
+ * Author-visible strings containing the app name are stored with the
+ * `{appName}` placeholder and substituted at read-time by the helpers.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,7 +34,12 @@ export interface FAQCategory {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-export const FAQ_CATEGORIES: FAQCategory[] = [
+/**
+ * Raw FAQ template content. Strings may contain the literal `{appName}`
+ * placeholder, which is substituted at read-time by `getFAQCategories()`
+ * and friends.
+ */
+const FAQ_TEMPLATE: FAQCategory[] = [
   // ── Getting Started ─────────────────────────────────────────────────────
   {
     id: 'getting-started',
@@ -39,10 +47,10 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
     items: [
       {
         id: 'what-is-ditto',
-        question: 'What is Ditto?',
+        question: 'What is {appName}?',
         answer: [
-          'Ditto is a social media platform built on Nostr \u2014 a new kind of open, decentralized network. Think of Ditto as the app you\'re using right now to connect with people, post, and discover content.',
-          'Because Ditto is built on Nostr, your account isn\'t locked to this site. You own your identity and can take it to any other Nostr app. Learn more at [soapbox.pub/ditto](https://soapbox.pub/ditto).',
+          '{appName} is a social media platform built on Nostr \u2014 a new kind of open, decentralized network. Think of {appName} as the app you\'re using right now to connect with people, post, and discover content.',
+          'Because {appName} is built on Nostr, your account isn\'t locked to this site. You own your identity and can take it to any other Nostr app. Learn more at [soapbox.pub/ditto](https://soapbox.pub/ditto).',
         ],
       },
       {
@@ -55,9 +63,9 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
       },
       {
         id: 'login-other-apps',
-        question: 'Can I log into other Nostr apps with my Ditto account?',
+        question: 'Can I log into other Nostr apps with my {appName} account?',
         answer: [
-          'Yes! Your Ditto account **is** a Nostr account. You can use the same keys to log into any Nostr app \u2014 Primal, Damus, Amethyst, Coracle, and many more. Your posts, followers, and profile carry over everywhere.',
+          'Yes! Your {appName} account **is** a Nostr account. You can use the same keys to log into any Nostr app \u2014 Primal, Damus, Amethyst, Coracle, and many more. Your posts, followers, and profile carry over everywhere.',
           'Explore the full range of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
         ],
       },
@@ -87,9 +95,9 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
       },
       {
         id: 'cost-to-use',
-        question: 'Does Ditto cost anything?',
+        question: 'Does {appName} cost anything?',
         answer: [
-          '**Nope!** Ditto is completely free to use. Zaps (tips) are optional and just for fun. There are no premium tiers, no paywalls, no hidden fees.',
+          '**Nope!** {appName} is completely free to use. Zaps (tips) are optional and just for fun. There are no premium tiers, no paywalls, no hidden fees.',
         ],
       },
       {
@@ -113,7 +121,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Can I download this on the App Store or Google Play?',
         answer: [
           'This site works as a web app right from your browser \u2014 no download needed! You can also "Add to Home Screen" on your phone to get an app-like experience.',
-          'On Android, you can download Ditto from [Zap Store](https://zapstore.dev/apps/pub.ditto.app), a community-driven app store for the Nostr ecosystem. iOS support is planned for the future \u2014 stay tuned!',
+          'On Android, you can download {appName} from [Zap Store](https://zapstore.dev/apps/pub.ditto.app), a community-driven app store for the Nostr ecosystem. iOS support is planned for the future \u2014 stay tuned!',
         ],
       },
       {
@@ -128,7 +136,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         id: 'nostr-app-store',
         question: 'Is there a Nostr-specific app store?',
         answer: [
-          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation. Ditto is listed there \u2014 [get it on Zap Store](https://zapstore.dev/apps/pub.ditto.app).',
+          'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation. {appName} is listed there \u2014 [get it on Zap Store](https://zapstore.dev/apps/pub.ditto.app).',
           'You can also browse a directory of Nostr apps at [nostrapps.com](https://nostrapps.com/).',
         ],
       },
@@ -298,14 +306,14 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'What does "open source" mean, and why does it matter?',
         answer: [
           'Open source means the code that powers this app is publicly available for anyone to read, verify, and improve. There are no hidden algorithms, no secret data collection, and no backdoors.',
-          'Anyone can check exactly what the software does. It\'s the digital equivalent of a restaurant with a glass kitchen \u2014 nothing to hide. You can browse the [Ditto source code](https://gitlab.com/soapbox-pub/ditto) yourself, or if you want to try editing Ditto, you can jump right in with [Shakespeare](https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git).',
+          'Anyone can check exactly what the software does. It\'s the digital equivalent of a restaurant with a glass kitchen \u2014 nothing to hide. You can browse the [{appName} source code](https://gitlab.com/soapbox-pub/ditto) yourself, or if you want to try editing {appName}, you can jump right in with [Shakespeare](https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git).',
         ],
       },
       {
         id: 'self-host',
-        question: 'Can I self-host Ditto?',
+        question: 'Can I self-host {appName}?',
         answer: [
-          'Yes! Because Ditto is open source, anyone can run their own instance. You get full control over your server, your data, and your community.',
+          'Yes! Because {appName} is open source, anyone can run their own instance. You get full control over your server, your data, and your community.',
           'If you\'re interested, check out the [self-hosting guide](https://about.ditto.pub/self-hosting) to get started.',
         ],
       },
@@ -314,7 +322,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         question: 'Who made this?',
         answer: [
           'This platform is built by [Soapbox](https://soapbox.pub), a team of developers who believe social media should be owned by its users, not corporations.',
-          'Soapbox builds open-source tools for the Nostr ecosystem, including Ditto (the server that powers this site). You can learn more about the team and their mission at [soapbox.pub](https://soapbox.pub).',
+          'Soapbox builds open-source tools for the Nostr ecosystem, including {appName} (the server that powers this site). You can learn more about the team and their mission at [soapbox.pub](https://soapbox.pub).',
         ],
       },
     ],
@@ -323,19 +331,51 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Replace all occurrences of `{appName}` in a string with the resolved value. */
+function substitute(str: string, appName: string): string {
+  return str.replaceAll('{appName}', appName);
+}
+
+/** Substitute placeholders in a single FAQ item. */
+function substituteItem(item: FAQItem, appName: string): FAQItem {
+  return {
+    ...item,
+    question: substitute(item.question, appName),
+    answer: item.answer.map((p) => substitute(p, appName)),
+  };
+}
+
+/** Substitute placeholders in a single category (questions + answers). */
+function substituteCategory(cat: FAQCategory, appName: string): FAQCategory {
+  return {
+    ...cat,
+    label: substitute(cat.label, appName),
+    description: cat.description ? substitute(cat.description, appName) : undefined,
+    items: cat.items.map((i) => substituteItem(i, appName)),
+  };
+}
+
+/**
+ * Return the full list of FAQ categories with `{appName}` placeholders
+ * resolved to the given `appName`.
+ */
+export function getFAQCategories(appName: string): FAQCategory[] {
+  return FAQ_TEMPLATE.map((c) => substituteCategory(c, appName));
+}
+
 /** Flat list of every FAQ item, optionally filtered by category ID. */
-export function getFAQItems(categoryId?: string): FAQItem[] {
+export function getFAQItems(appName: string, categoryId?: string): FAQItem[] {
   const cats = categoryId
-    ? FAQ_CATEGORIES.filter((c) => c.id === categoryId)
-    : FAQ_CATEGORIES;
-  return cats.flatMap((c) => c.items);
+    ? FAQ_TEMPLATE.filter((c) => c.id === categoryId)
+    : FAQ_TEMPLATE;
+  return cats.flatMap((c) => c.items).map((i) => substituteItem(i, appName));
 }
 
 /** Look up a single FAQ item by its ID across all categories. */
-export function getFAQItem(itemId: string): FAQItem | undefined {
-  for (const cat of FAQ_CATEGORIES) {
+export function getFAQItem(appName: string, itemId: string): FAQItem | undefined {
+  for (const cat of FAQ_TEMPLATE) {
     const found = cat.items.find((i) => i.id === itemId);
-    if (found) return found;
+    if (found) return substituteItem(found, appName);
   }
   return undefined;
 }

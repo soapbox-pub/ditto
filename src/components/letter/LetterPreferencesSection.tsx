@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, RotateCcw } from 'lucide-react';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -22,6 +23,7 @@ function toSerializable(s: Stationery): Stationery {
 
 export function LetterPreferencesSection() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const navigate = useNavigate();
   const { prefs, updatePrefs, resetStationery, isThemeDefault } = useLetterPreferences();
   const themeStationery = useThemeStationery();
@@ -122,7 +124,7 @@ export function LetterPreferencesSection() {
                 <span className="text-muted-foreground flex-1">
                   Using your{' '}
                   <Link to="/settings" className="text-primary font-medium hover:underline">
-                    Ditto theme
+                    {config.appName} theme
                   </Link>
                   {' '}as stationery
                 </span>

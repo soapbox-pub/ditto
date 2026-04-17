@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 
 import { toast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
+import { useAppContext } from '@/hooks/useAppContext';
 import { parseChangelog } from '@/lib/changelog';
-
-const STORAGE_KEY = 'ditto:app-version';
+import { getStorageKey } from '@/lib/storageKey';
 
 /** Fetch the first changelog item for the given version (or the latest entry). */
 async function fetchChangelogExcerpt(version: string): Promise<string | undefined> {
@@ -31,12 +31,15 @@ async function fetchChangelogExcerpt(version: string): Promise<string | undefine
 
 /** Compares the running app version against localStorage and shows a toast when the version changes. */
 export function VersionCheck() {
+  const { config } = useAppContext();
+
   useEffect(() => {
     const currentVersion = import.meta.env.VERSION;
     if (!currentVersion) return;
 
-    const storedVersion = localStorage.getItem(STORAGE_KEY);
-    localStorage.setItem(STORAGE_KEY, currentVersion);
+    const storageKey = getStorageKey(config.appId, 'app-version');
+    const storedVersion = localStorage.getItem(storageKey);
+    localStorage.setItem(storageKey, currentVersion);
 
     if (storedVersion && storedVersion !== currentVersion) {
       // Show the toast immediately, then enrich it with a changelog excerpt.
@@ -64,7 +67,7 @@ export function VersionCheck() {
         }
       });
     }
-  }, []);
+  }, [config.appId]);
 
   return null;
 }

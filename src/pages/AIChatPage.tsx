@@ -171,9 +171,11 @@ function useToolExecutor() {
 
 // ─── System Prompt ───
 
-const SYSTEM_PROMPT: ChatMessage = {
-  role: 'system',
-  content: `You are Dork, extraordinaire. You are an AI assistant integrated into Ditto, a Nostr social client. You can help users with questions, conversations, and tasks.
+/** Build the system prompt with the configured app name woven in. */
+function buildSystemPrompt(appName: string): ChatMessage {
+  return {
+    role: 'system',
+    content: `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
 
 You have a set_theme tool that applies a full custom theme. It supports:
 
@@ -189,7 +191,8 @@ You have a set_theme tool that applies a full custom theme. It supports:
 When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
 
 Be concise and friendly. When you use a tool, briefly describe the theme you created.`,
-};
+  };
+}
 
 // ─── Page Component ───
 
@@ -262,7 +265,7 @@ export function AIChatPage() {
 
   // Build the chat messages array for the API (includes system prompt + conversation history)
   const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
-    const apiMessages: ChatMessage[] = [SYSTEM_PROMPT];
+    const apiMessages: ChatMessage[] = [buildSystemPrompt(config.appName)];
 
     for (const msg of displayMsgs) {
       if (msg.role === 'tool_result') continue; // Tool results are internal
@@ -270,7 +273,7 @@ export function AIChatPage() {
     }
 
     return apiMessages;
-  }, []);
+  }, [config.appName]);
 
   // Handle sending a message
   const handleSend = useCallback(async () => {

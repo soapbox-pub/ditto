@@ -10,9 +10,11 @@ import {
   Wind,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useWeatherStation } from '@/hooks/useWeatherStation';
 import { timeAgo } from '@/lib/timeAgo';
+import { getStorageKey } from '@/lib/storageKey';
 import { formatWeatherSensorValue, parseWeatherStationRef, type WeatherUnitSystem } from '@/lib/weatherStation';
 
 function weatherSensorIcon(sensorKey: string) {
@@ -34,9 +36,10 @@ interface WeatherStationCardProps {
 }
 
 export function WeatherStationCard({ value, compact = false }: WeatherStationCardProps) {
+  const { config } = useAppContext();
   const stationRef = parseWeatherStationRef(value);
   const { data, isPending } = useWeatherStation(value);
-  const [units, setUnits] = useLocalStorage<WeatherUnitSystem>('ditto:weather-units', 'normal');
+  const [units, setUnits] = useLocalStorage<WeatherUnitSystem>(getStorageKey(config.appId, 'weather-units'), 'normal');
 
   if (!stationRef) {
     return (

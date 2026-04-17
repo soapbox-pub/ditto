@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   Dialog,
@@ -244,6 +245,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
   const [infoOpen, setInfoOpen] = useState(false);
 
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const followListData = useFollowList();
   const followPubkeyArray = followListData.data?.pubkeys;
   const followList = useMemo(() => new Set(followPubkeyArray ?? []), [followPubkeyArray]);
@@ -410,11 +412,11 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
           {isThemesTab && (
             <>
               <DialogHeader>
-                <DialogTitle>Ditto themes</DialogTitle>
+                <DialogTitle>{config.appName} themes</DialogTitle>
               </DialogHeader>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  Ditto themes are UI themes shared by the community. Letters borrows their colors and fonts to style your letter.
+                  {config.appName} themes are UI themes shared by the community. Letters borrows their colors and fonts to style your letter.
                 </p>
                 <p>
                   <Link

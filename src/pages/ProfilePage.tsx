@@ -104,6 +104,7 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { impactMedium } from '@/lib/haptics';
+import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
 import type { FeedItem } from '@/lib/feedUtils';
@@ -1397,7 +1398,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const profileThemeColors = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.colors : undefined;
 
   // First-time custom theme info modal
-  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
+  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage(getStorageKey(config.appId, 'seen-profile-theme-info'), false);
   const [themeInfoOpen, setThemeInfoOpen] = useState(false);
   const { updateFeedSettings } = useFeedSettings();
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
@@ -1429,7 +1430,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       setLocalProfileBg(profileTheme.background);
     }
   }, [editProfileThemeOpen, profileTheme]);
-  const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
+  const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>(getStorageKey(config.appId, 'dismissed-share-theme-snapshot'), null);
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();

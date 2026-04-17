@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
@@ -302,6 +303,7 @@ function SnapshotSkeleton() {
 function MuteHistoryContent({ onClose }: { onClose: () => void }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -369,7 +371,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
       // Update the local mute cache with the restored items
       const summary = summaries?.get(event.id);
       if (summary && user) {
-        setCachedMuteItems(user.pubkey, summary.items);
+        setCachedMuteItems(config.appId, user.pubkey, summary.items);
       }
 
       toast({

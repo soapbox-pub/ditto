@@ -28,7 +28,7 @@ export function HelpPage() {
       <div className="px-4 pt-4 pb-1">
         <h2 className="text-lg font-bold">Frequently Asked Questions</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Everything you need to know about Nostr, Ditto, and how it all works.
+          Everything you need to know about Nostr, {config.appName}, and how it all works.
         </p>
       </div>
 

@@ -3,7 +3,9 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { getStorageKey } from '@/lib/storageKey';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 // ---------------------------------------------------------------------------
@@ -17,13 +19,10 @@ export interface FollowListData {
   pubkeys: string[];
 }
 
-/** localStorage key for cached follow list pubkeys. */
-const FOLLOW_CACHE_KEY = 'ditto:followListCache';
-
 /** Read cached follow pubkeys from localStorage for a given user. */
-function getCachedFollowList(pubkey: string): FollowListData | undefined {
+function getCachedFollowList(cacheKey: string, pubkey: string): FollowListData | undefined {
   try {
-    const raw = localStorage.getItem(FOLLOW_CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return undefined;
     const cached = JSON.parse(raw);
     // Only use cache if it belongs to the same user
@@ -35,9 +34,9 @@ function getCachedFollowList(pubkey: string): FollowListData | undefined {
 }
 
 /** Persist follow pubkeys to localStorage. */
-function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
+function setCachedFollowList(cacheKey: string, pubkey: string, pubkeys: string[]): void {
   try {
-    localStorage.setItem(FOLLOW_CACHE_KEY, JSON.stringify({ pubkey, pubkeys }));
+    localStorage.setItem(cacheKey, JSON.stringify({ pubkey, pubkeys }));
   } catch {
     // Storage full or unavailable — non-critical
   }
@@ -54,6 +53,8 @@ function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
 export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
+  const cacheKey = getStorageKey(config.appId, 'followListCache');
 
   return useQuery<FollowListData>({
     queryKey: ['follow-list', user?.pubkey ?? ''],
@@ -67,12 +68,12 @@ export function useFollowList() {
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
         .map(([, pk]) => pk);
-      setCachedFollowList(user.pubkey, pubkeys);
+      setCachedFollowList(cacheKey, user.pubkey, pubkeys);
       return { event, pubkeys };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
-    placeholderData: user ? getCachedFollowList(user.pubkey) : undefined,
+    placeholderData: user ? getCachedFollowList(cacheKey, user.pubkey) : undefined,
   });
 }
 
