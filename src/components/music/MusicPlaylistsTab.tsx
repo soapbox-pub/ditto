@@ -18,7 +18,7 @@ type FilterMode = 'all' | 'playlists' | 'albums';
  * **Type filter**: All / Playlists / Albums
  */
 export function MusicPlaylistsTab() {
-  const [sort, setSort] = useState<MusicSort>('hot');
+  const [sort, setSort] = useState<MusicSort>('new');
   const [scope, setScope] = useState<MusicScope>('global');
   const [filter, setFilter] = useState<FilterMode>('all');
 

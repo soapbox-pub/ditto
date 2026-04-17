@@ -21,7 +21,7 @@ import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
  */
 export function MusicTracksTab() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
-  const [sort, setSort] = useState<MusicSort>('hot');
+  const [sort, setSort] = useState<MusicSort>('new');
   const [scope, setScope] = useState<MusicScope>('global');
   const { muteItems } = useMuteList();
 
