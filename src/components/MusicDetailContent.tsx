@@ -3,7 +3,7 @@
  * Shown when navigating to a track/playlist's naddr page.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -281,6 +281,47 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   );
 }
 
+// ── Playlist description with expand/collapse ────────────────────────────────
+
+const DESC_LINE_CLAMP = 3;
+
+/** Collapsible description that truncates after ~3 lines with a "more" toggle. */
+function PlaylistDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Check if the text overflows the clamped height
+    setClamped(el.scrollHeight > el.clientHeight + 1);
+  }, [text]);
+
+  return (
+    <div className="px-4 mt-4">
+      <p
+        ref={ref}
+        className={cn(
+          'text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap',
+          !expanded && 'line-clamp-[3]',
+        )}
+        style={!expanded ? { WebkitLineClamp: DESC_LINE_CLAMP } : undefined}
+      >
+        {text}
+      </p>
+      {(clamped || expanded) && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs text-primary font-medium mt-1 hover:underline"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Playlist detail ───────────────────────────────────────────────────────────
 
 function PlaylistDetail({ event }: { event: NostrEvent }) {
@@ -422,9 +463,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       </div>
 
       {parsed?.description && (
-        <div className="px-4 mt-4">
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{parsed.description}</p>
-        </div>
+        <PlaylistDescription text={parsed.description} />
       )}
 
       <div className="px-4 mt-3 text-xs text-muted-foreground">
