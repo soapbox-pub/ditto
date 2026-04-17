@@ -61,7 +61,6 @@ interface BlobbiMissionsModalProps {
   companion: BlobbiCompanion;
   hatchTasks: HatchTasksResult;
   evolveTasks: EvolveTasksResult;
-  onOpenPostModal: () => void;
   onHatch: () => void;
   isHatching: boolean;
   onEvolve: () => void;
@@ -285,7 +284,6 @@ interface CurrentFocusSectionProps {
   companion: BlobbiCompanion;
   tasks: HatchTasksResult | EvolveTasksResult;
   processType: 'incubation' | 'evolution';
-  onOpenPostModal: () => void;
   onComplete: () => void;
   isCompleting: boolean;
   onStop: () => Promise<void>;
@@ -297,7 +295,6 @@ function CurrentFocusSection({
   companion,
   tasks,
   processType,
-  onOpenPostModal,
   onComplete,
   isCompleting,
   onStop,
@@ -361,7 +358,6 @@ function CurrentFocusSection({
             tasks={tasks.tasks}
             allCompleted={tasks.allCompleted}
             isLoading={tasks.isLoading}
-            onOpenPostModal={onOpenPostModal}
             onComplete={onComplete}
             isCompleting={isCompleting}
             completeLabel={completeLabel}
@@ -426,7 +422,6 @@ export function BlobbiMissionsModal({
   companion,
   hatchTasks,
   evolveTasks,
-  onOpenPostModal,
   onHatch,
   isHatching,
   onEvolve,
@@ -479,7 +474,6 @@ export function BlobbiMissionsModal({
                   companion={companion}
                   tasks={hatchTasks}
                   processType="incubation"
-                  onOpenPostModal={onOpenPostModal}
                   onComplete={onHatch}
                   isCompleting={isHatching}
                   onStop={onStopIncubation}
@@ -490,7 +484,6 @@ export function BlobbiMissionsModal({
                   companion={companion}
                   tasks={evolveTasks}
                   processType="evolution"
-                  onOpenPostModal={onOpenPostModal}
                   onComplete={onEvolve}
                   isCompleting={isEvolving}
                   onStop={onStopEvolution}

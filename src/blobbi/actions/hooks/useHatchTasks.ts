@@ -15,7 +15,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
@@ -27,6 +27,8 @@ import {
   HATCH_REQUIRED_INTERACTIONS,
   findEvolutionMission,
   createHatchMissions,
+  evolutionMatchesDefinitions,
+  migrateEvolutionMissions,
 } from '../lib/evolution-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -37,14 +39,6 @@ export const KIND_THEME_DEFINITION = 36767;
 export const KIND_COLOR_MOMENT = 3367;
 /** Kind for profile metadata */
 export const KIND_PROFILE_METADATA = 0;
-/** Kind for short text notes */
-export const KIND_SHORT_TEXT_NOTE = 1;
-
-/** Required hashtags for the Blobbi post (excludes Blobbi name, which is dynamic) */
-export const BLOBBI_POST_REQUIRED_HASHTAGS = ['blobbi'];
-
-/** Prefix text for Blobbi hatch post (the Blobbi name is appended after this) */
-export const BLOBBI_POST_PREFIX = 'Posting to hatch';
 
 // Legacy export for backwards compatibility
 export { HATCH_REQUIRED_INTERACTIONS };
@@ -99,28 +93,6 @@ export interface HatchTasksResult {
   refetch: () => void;
 }
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────
-
-/**
- * Build the required phrase for a hatch post.
- * Format: "Posting to hatch {CapitalizedName} #blobbi"
- */
-export function buildHatchPhrase(blobbiName: string): string {
-  const capitalized = blobbiName.charAt(0).toUpperCase() + blobbiName.slice(1);
-  return `${BLOBBI_POST_PREFIX} ${capitalized} #blobbi`;
-}
-
-/**
- * Check if a post is a valid Blobbi-related post.
- */
-export function isValidHatchPost(event: NostrEvent): boolean {
-  const hasBlobbiTag = event.tags.some(
-    tag => tag[0] === 't' && tag[1]?.toLowerCase() === 'blobbi',
-  );
-  if (hasBlobbiTag) return true;
-  return /#blobbi\b/i.test(event.content);
-}
-
 // ─── Main Hook ────────────────────────────────────────────────────────────────
 
 /**
@@ -140,18 +112,24 @@ export function useHatchTasks(
   const isIncubating = companion?.state === 'incubating';
   const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
-  // ─── Ensure evolution missions exist in session store ───
+  // ─── Ensure evolution missions exist and match current definitions ───
   // Safety net: if the companion is incubating but evolution[] is empty
   // (e.g. persist didn't fire, hydration lost them), re-populate from
   // the static definitions so tally tracking works immediately.
+  // Also handles schema migrations: if persisted missions don't match
+  // the current HATCH_MISSIONS (e.g. a mission was added or removed),
+  // rebuild from definitions while preserving progress for surviving missions.
   const ensuredRef = useRef(false);
   useEffect(() => {
     if (!isIncubating || !pubkey || ensuredRef.current) return;
-    if (evolution.length > 0) { ensuredRef.current = true; return; }
 
     const store = ensureSessionStore(pubkey);
     if (store.evolution.length === 0) {
       writeMissionsToStorage({ ...store, evolution: createHatchMissions() }, pubkey);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    } else if (!evolutionMatchesDefinitions(store.evolution, HATCH_MISSIONS)) {
+      const migrated = migrateEvolutionMissions(store.evolution, HATCH_MISSIONS);
+      writeMissionsToStorage({ ...store, evolution: migrated }, pubkey);
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
     }
     ensuredRef.current = true;
@@ -166,7 +144,6 @@ export function useHatchTasks(
       const filters: NostrFilter[] = [
         { kinds: [KIND_THEME_DEFINITION], authors: [pubkey], limit: 1 },
         { kinds: [KIND_COLOR_MOMENT], authors: [pubkey], limit: 1 },
-        { kinds: [KIND_SHORT_TEXT_NOTE], authors: [pubkey], '#t': ['blobbi'], limit: 1 },
       ];
 
       const events = await nostr.query(filters);
@@ -174,7 +151,6 @@ export function useHatchTasks(
       return {
         themeEvents: events.filter(e => e.kind === KIND_THEME_DEFINITION),
         colorMomentEvents: events.filter(e => e.kind === KIND_COLOR_MOMENT),
-        postEvents: events.filter(e => e.kind === KIND_SHORT_TEXT_NOTE),
       };
     },
     enabled: !!pubkey && isIncubating,
@@ -186,11 +162,9 @@ export function useHatchTasks(
   // These are the authoritative counts for event-based tasks.
   const queryCounts: Record<string, number> = useMemo(() => {
     if (!data) return {} as Record<string, number>;
-    const validPosts = data.postEvents.filter(e => isValidHatchPost(e));
     return {
       create_theme: data.themeEvents.length,
       color_moment: data.colorMomentEvents.length,
-      create_post: validPosts.length,
     };
   }, [data]);
 
@@ -216,13 +190,6 @@ export function useHatchTasks(
       const m = findEvolutionMission(evo, 'color_moment');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
         trackEvolutionMissionEvent('color_moment', event.id, pubkey);
-      }
-    }
-    for (const event of data.postEvents) {
-      if (!isValidHatchPost(event)) continue;
-      const m = findEvolutionMission(evo, 'create_post');
-      if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('create_post', event.id, pubkey);
       }
     }
   }, [data, pubkey, evolution]);

@@ -53,7 +53,6 @@ import {
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
-  BlobbiPostModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
@@ -64,7 +63,6 @@ import {
   useStopEvolution,
   useHatchTasks,
   useEvolveTasks,
-  useActiveTaskProcess,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
@@ -1026,9 +1024,6 @@ function BlobbiDashboard({
   // Blobbi reaction state - drives visual reactions to activities
   const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
-  // Incubation/Hatch task state
-  const [showPostModal, setShowPostModal] = useState(false);
-  
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
   const isIncubating = companion.state === 'incubating';
@@ -1056,14 +1051,6 @@ function BlobbiDashboard({
   // This hook consolidates all scattered if/else logic for hatch vs evolve tasks
   // It provides:
   // - Unified config (type, isActive, interactionThreshold)
-  // - Unified tasks array
-  // - Badge count (includes ALL tasks: persistent + dynamic)
-  // - Sync data (includes ONLY persistent tasks)
-  const taskProcess = useActiveTaskProcess(companion, hatchTasks, evolveTasks);
-  
-  // Extract commonly used values for convenience
-  const refetchCurrentTasks = taskProcess.refetch;
-  
   // Start incubation hook
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
     companion,
@@ -1407,8 +1394,7 @@ function BlobbiDashboard({
                   isStoppingIncubation={isStoppingIncubation}
                   onStopEvolution={handleStopEvolution}
                   isStoppingEvolution={isStoppingEvolution}
-                  onOpenPostModal={() => setShowPostModal(true)}
-                  dailyMissions={dailyMissions}
+                   dailyMissions={dailyMissions}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -1566,15 +1552,6 @@ function BlobbiDashboard({
         onOpenChange={setShowTrackPickerModal}
         onConfirm={handleTrackSelected}
         isLoading={isDirectActionPending}
-      />
-      
-      {/* Blobbi Post Modal - for hatch or evolve task */}
-      <BlobbiPostModal
-        open={showPostModal}
-        onOpenChange={setShowPostModal}
-        blobbiName={companion.name}
-        process={isEvolvingState ? 'evolve' : 'hatch'}
-        onSuccess={refetchCurrentTasks}
       />
       
       {/* Blobbi Photo Modal */}
@@ -2046,7 +2023,6 @@ interface MissionsTabContentProps {
   isStoppingIncubation: boolean;
   onStopEvolution: () => Promise<void>;
   isStoppingEvolution: boolean;
-  onOpenPostModal: () => void;
   dailyMissions: ReturnType<typeof useDailyMissions>;
   canStartIncubation: boolean;
   canStartEvolution: boolean;
@@ -2073,7 +2049,6 @@ function MissionsTabContent({
   isStoppingIncubation,
   onStopEvolution,
   isStoppingEvolution,
-  onOpenPostModal,
   dailyMissions,
   canStartIncubation,
   canStartEvolution,
@@ -2152,8 +2127,7 @@ function MissionsTabContent({
                 if (!task.action || !task.actionTarget) return;
                 switch (task.action) {
                   case 'navigate': navigate(task.actionTarget); break;
-                  case 'external_link': openUrl(task.actionTarget); break;
-                  case 'open_modal': if (task.actionTarget === 'blobbi_post') onOpenPostModal(); break;
+                   case 'external_link': openUrl(task.actionTarget); break;
                 }
               };
               const isActionable = !task.completed && !!task.action && !!task.actionTarget;
