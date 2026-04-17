@@ -23,6 +23,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
 
@@ -113,6 +114,9 @@ const BADGE_PROFILE_KIND_NEW = 10008;
 /** NIP-58 Profile Badges (legacy addressable kind). */
 const BADGE_PROFILE_KIND_LEGACY = 30008;
 
+/** NIP-58 Badge Award. */
+const BADGE_AWARD_KIND = 8;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -133,6 +137,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
+  if (kind === BADGE_AWARD_KIND) return "Badge Award";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "Zapstore App";
   if (kind === 30063) return "Zapstore Release";
@@ -1016,6 +1021,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
+  const isBadgeAward = event.kind === BADGE_AWARD_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1046,7 +1052,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVanish &&
     !isZap &&
     !isProfile &&
-    !isBlobbiState;
+    !isBlobbiState &&
+    !isBadgeAward;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2134,6 +2141,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} />
               </Suspense>
+            ) : isBadgeAward ? (
+              <BadgeAwardCard event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||

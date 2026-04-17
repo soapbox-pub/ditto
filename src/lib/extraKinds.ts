@@ -1,6 +1,6 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { ComponentType } from 'react';
-import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
+import { Award, Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -539,6 +539,7 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
 const KIND_SPECIFIC_LABELS: Record<number, string> = {
   6: 'repost',
   7: 'reaction',
+  8: 'badge award',
   16: 'repost',
   1617: 'patch',
   1618: 'patch comment',
@@ -557,6 +558,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
   6: RepostIcon,
+  8: Award,
   16: RepostIcon,
   1617: GitPullRequestArrow,
   1618: MessageSquareMore,

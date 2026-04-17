@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, MessageCircle, Loader2, Award, Check, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, MessageCircle, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -29,10 +29,9 @@ import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
-import { useAcceptBadge } from '@/hooks/useAcceptBadge';
-import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
-import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { AcceptBadgeButton } from '@/components/AcceptBadgeButton';
+import { BADGE_DEFINITION_KIND, parseBadgeATag, unslugify } from '@/lib/badgeUtils';
 import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
@@ -57,6 +56,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   4: 'encrypted message',
   6: 'repost',
   7: 'reaction',
+  8: 'badge award',
   16: 'repost',
   20: 'photo',
   21: 'video',
@@ -786,24 +786,6 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
 // Badge Award helpers
 // ──────────────────────────────────────
 
-/** Extract pubkey and identifier from a kind 8 award event's `a` tag. */
-function parseBadgeATag(event: NostrEvent): { pubkey: string; identifier: string } | undefined {
-  const aVal = event.tags.find(([n, v]) => n === 'a' && v?.startsWith(`${BADGE_DEFINITION_KIND}:`))?.[1];
-  if (!aVal) return undefined;
-  const parts = aVal.split(':');
-  if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
-  // Validate pubkey is a 64-char hex string to avoid crashes in nip19.naddrEncode
-  if (!/^[0-9a-f]{64}$/.test(parts[1])) return undefined;
-  return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
-}
-
-/** Turn a d-tag slug like "first-post" into "First Post". */
-function unslugify(slug: string): string {
-  return slug
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 /** Hook: resolve the display name, badge data, and definition event for a single badge award event. */
 function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badge: BadgeData | undefined; definitionEvent: NostrEvent | undefined } {
   const parsed = useMemo(() => parseBadgeATag(awardEvent), [awardEvent]);
@@ -818,73 +800,6 @@ function useBadgeAward(awardEvent: NostrEvent): { name: string | undefined; badg
     badge: definition ?? undefined,
     definitionEvent: definition?.event,
   };
-}
-
-// ──────────────────────────────────────
-// Accept Badge Button (shared by single and grouped badge notifications)
-// ──────────────────────────────────────
-function AcceptBadgeButton({ awardEvent, prominent }: { awardEvent: NostrEvent; prominent?: boolean }) {
-  const { user } = useCurrentUser();
-  const { refs } = useProfileBadges(user?.pubkey);
-  const { mutate: acceptBadge, isPending, isSuccess } = useAcceptBadge();
-
-  const aTag = awardEvent.tags.find(([n, v]) => n === 'a' && v?.startsWith('30009:'))?.[1];
-
-  // Check if already accepted
-  const alreadyAccepted = refs.some((r) => r.aTag === aTag) || isSuccess;
-
-  if (!aTag || !user) return null;
-
-  if (alreadyAccepted) {
-    return (
-      <span className={cn(
-        "inline-flex items-center gap-1 text-muted-foreground",
-        prominent ? "text-sm" : "text-xs",
-      )}>
-        <Check className={prominent ? "size-4" : "size-3"} />
-        Accepted
-      </span>
-    );
-  }
-
-  if (prominent) {
-    return (
-      <Button
-        className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md hover:scale-105 active:scale-95 transition-all"
-        onClick={() => acceptBadge({ aTag, awardEventId: awardEvent.id })}
-        disabled={isPending}
-        style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
-      >
-        {isPending ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <>
-            <Award className="size-4" />
-            Accept Badge
-          </>
-        )}
-      </Button>
-    );
-  }
-
-  return (
-    <Button
-      size="sm"
-      variant="outline"
-      className="h-7 px-2.5 text-xs font-medium gap-1 transition-colors hover:bg-primary hover:text-primary-foreground"
-      onClick={() => acceptBadge({ aTag, awardEventId: awardEvent.id })}
-      disabled={isPending}
-    >
-      {isPending ? (
-        <Loader2 className="size-3 animate-spin" />
-      ) : (
-        <>
-          <Award className="size-3" />
-          Accept
-        </>
-      )}
-    </Button>
-  );
 }
 
 // ──────────────────────────────────────

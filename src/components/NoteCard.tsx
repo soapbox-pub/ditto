@@ -33,6 +33,7 @@ import {
   PodcastEpisodeContent,
   PodcastTrailerContent,
 } from "@/components/AudioKindContent";
+import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
 import {
@@ -403,7 +404,8 @@ export const NoteCard = memo(function NoteCard({
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
   const isProfileBadges = event.kind === 10008 || event.kind === 30008;
-  const isBadge = isBadgeDefinition || isProfileBadges;
+  const isBadgeAward = event.kind === 8;
+  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeAward;
   const isReaction = event.kind === 7;
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -603,6 +605,8 @@ export const NoteCard = memo(function NoteCard({
           <BadgeContent event={event} />
         ) : isProfileBadges ? (
           <ProfileBadgesContent event={event} />
+        ) : isBadgeAward ? (
+          <BadgeAwardCard event={event} />
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
@@ -1703,6 +1707,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
     noun: "emoji pack",
     nounRoute: "/emojis",
+  },
+  8: {
+    icon: Award,
+    action: "awarded a",
+    noun: "badge",
+    nounRoute: "/badges",
   },
   30009: {
     icon: Award,
