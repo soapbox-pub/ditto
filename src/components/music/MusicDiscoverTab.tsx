@@ -41,10 +41,10 @@ interface MusicDiscoverTabProps {
  * Sections (top to bottom):
  * 1. Hero card — #1 hot track from curated artists
  * 2. Featured — Horizontal scroll of next-hottest tracks (one per artist)
- * 3. Genre chips — Filter for the "New Tracks" section
- * 4. New Tracks — Compact track rows from curated artists (genre-filterable)
- * 5. Playlists — Horizontal scroll of playlists from curator's follows
- * 6. Artists — Horizontal scroll of curated artist profile cards
+ * 3. Artists — Horizontal scroll of curated artist profile cards
+ * 4. Playlists — Horizontal scroll of playlists from curator's follows (sort:hot)
+ * 5. Genre chips — Filter for the "New Tracks" section
+ * 6. New Tracks — Compact track rows from curated artists (genre-filterable)
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
@@ -85,9 +85,10 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
   // Curator's follow list (Heather's kind 3) — used to filter playlists
   const { data: curatorFollows } = useMusicCuratorFollows();
 
-  // Playlists from people the curator follows
+  // Playlists from people the curator follows, sorted by hot
   const { data: playlists, isLoading: isPlaylistsLoading } = useMusicPlaylists({
     authors: curatorFollows,
+    search: 'sort:hot',
     limit: 10,
     enabled: !!curatorFollows && curatorFollows.length > 0,
   });
@@ -147,6 +148,50 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </>
       )}
 
+      {/* Artists horizontal scroll */}
+      {(isTracksLoading || featuredArtists.length > 0) && (
+        <>
+          <SectionHeader title="Artists" onSeeAll={onSwitchToArtists} />
+          {isTracksLoading ? (
+            <HorizontalScroll>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <ProfileCardSkeleton key={i} />
+              ))}
+            </HorizontalScroll>
+          ) : (
+            <HorizontalScroll>
+              {featuredArtists.map((a) => (
+                <ProfileCard
+                  key={a.pubkey}
+                  pubkey={a.pubkey}
+                  subtitle={a.trackCount > 0 ? `${a.trackCount} track${a.trackCount !== 1 ? 's' : ''}` : undefined}
+                />
+              ))}
+            </HorizontalScroll>
+          )}
+        </>
+      )}
+
+      {/* Playlists — from people the curator follows, sorted by hot */}
+      {(isPlaylistsLoading || (playlists && playlists.length > 0)) && (
+        <>
+          <SectionHeader title="Playlists" onSeeAll={onSwitchToPlaylists} />
+          {isPlaylistsLoading ? (
+            <HorizontalScroll>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <MusicPlaylistCardSkeleton key={i} />
+              ))}
+            </HorizontalScroll>
+          ) : (
+            <HorizontalScroll>
+              {playlists!.slice(0, 6).map((ev) => (
+                <MusicPlaylistCard key={ev.id} event={ev} />
+              ))}
+            </HorizontalScroll>
+          )}
+        </>
+      )}
+
       {/* Genre chips */}
       {genreNames.length > 0 && (
         <TagChips
@@ -174,50 +219,6 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         <p className="px-4 py-6 text-sm text-muted-foreground text-center">
           {selectedGenre ? `No ${selectedGenre} tracks found.` : 'No music yet. Check back soon!'}
         </p>
-      )}
-
-      {/* Playlists — from people the curator follows */}
-      {(isPlaylistsLoading || (playlists && playlists.length > 0)) && (
-        <>
-          <SectionHeader title="Playlists" onSeeAll={onSwitchToPlaylists} />
-          {isPlaylistsLoading ? (
-            <HorizontalScroll>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <MusicPlaylistCardSkeleton key={i} />
-              ))}
-            </HorizontalScroll>
-          ) : (
-            <HorizontalScroll>
-              {playlists!.slice(0, 6).map((ev) => (
-                <MusicPlaylistCard key={ev.id} event={ev} />
-              ))}
-            </HorizontalScroll>
-          )}
-        </>
-      )}
-
-      {/* Artists horizontal scroll */}
-      {(isTracksLoading || featuredArtists.length > 0) && (
-        <>
-          <SectionHeader title="Artists" onSeeAll={onSwitchToArtists} />
-          {isTracksLoading ? (
-            <HorizontalScroll>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <ProfileCardSkeleton key={i} />
-              ))}
-            </HorizontalScroll>
-          ) : (
-            <HorizontalScroll>
-              {featuredArtists.map((a) => (
-                <ProfileCard
-                  key={a.pubkey}
-                  pubkey={a.pubkey}
-                  subtitle={a.trackCount > 0 ? `${a.trackCount} track${a.trackCount !== 1 ? 's' : ''}` : undefined}
-                />
-              ))}
-            </HorizontalScroll>
-          )}
-        </>
       )}
 
       {/* CTA */}
