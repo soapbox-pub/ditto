@@ -2,32 +2,35 @@ import { useState, useMemo, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useFeed } from '@/hooks/useFeed';
+import { useMusicFeed } from '@/hooks/useMusicFeed';
 import { useMusicData } from '@/hooks/useMusicData';
 import { useMuteList } from '@/hooks/useMuteList';
 import { parseMusicTrack } from '@/lib/musicHelpers';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { TagChips } from '@/components/discovery/TagChips';
+import { MusicSortFilterBar, type MusicSort, type MusicScope } from './MusicSortFilterBar';
 import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
-import type { FeedItem } from '@/lib/feedUtils';
 
 /**
- * The "Tracks" tab — infinite scroll list of all music tracks.
+ * The "Tracks" tab — infinite scroll list of music tracks.
  *
- * Uses `useFeed` with `kinds: [36787]` for standard infinite-scroll pagination.
- * Includes genre chip filtering at the top. When a genre is selected, filters
- * client-side from the loaded events.
+ * Features:
+ * - **Sort**: Hot (engagement + decay), Top (total engagement), New (chronological)
+ * - **Scope**: Global (all artists) or Following (user's follow list)
+ * - **Genre filter**: Client-side genre filtering via TagChips
  */
 export function MusicTracksTab() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [sort, setSort] = useState<MusicSort>('hot');
+  const [scope, setScope] = useState<MusicScope>('global');
   const { muteItems } = useMuteList();
 
   // Base query for genre names only (reuses cached data from Discover tab)
   const { genres } = useMusicData();
   const genreNames = useMemo(() => genres.slice(0, 12).map((g) => g.genre), [genres]);
 
-  // Infinite-scroll feed for all music tracks
-  const feedQuery = useFeed('global', { kinds: [36787] });
+  // Infinite-scroll feed with sort + scope
+  const feedQuery = useMusicFeed({ kind: 36787, sort, scope });
   const {
     data: rawData,
     isPending,
@@ -61,10 +64,9 @@ export function MusicTracksTab() {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
-    const events: NostrEvent[] = (rawData.pages as unknown as { items: FeedItem[] }[])
-      .flatMap((page) => page.items)
-      .map((item) => item.event)
-      .filter((event) => {
+    return rawData.pages
+      .flat()
+      .filter((event: NostrEvent) => {
         if (seen.has(event.id)) return false;
         seen.add(event.id);
         if (event.kind !== 36787) return false;
@@ -79,14 +81,20 @@ export function MusicTracksTab() {
         }
         return true;
       });
-
-    return events;
   }, [rawData?.pages, muteItems, selectedGenre]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
     <div className="pb-8">
+      {/* Sort + scope filter bar */}
+      <MusicSortFilterBar
+        sort={sort}
+        scope={scope}
+        onSortChange={setSort}
+        onScopeChange={setScope}
+      />
+
       {/* Genre chips */}
       {genreNames.length > 0 && (
         <TagChips
@@ -122,7 +130,9 @@ export function MusicTracksTab() {
         <p className="px-4 py-12 text-sm text-muted-foreground text-center">
           {selectedGenre
             ? `No ${selectedGenre} tracks found. Try a different genre.`
-            : 'No music tracks yet. Check back soon!'}
+            : scope === 'following'
+              ? 'No tracks from people you follow yet.'
+              : 'No music tracks yet. Check back soon!'}
         </p>
       )}
     </div>

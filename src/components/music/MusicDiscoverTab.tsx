@@ -1,18 +1,23 @@
 import { useState, useMemo } from 'react';
 import { Music } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { parseMusicTrack } from '@/lib/musicHelpers';
 import { getExtraKindDef } from '@/lib/extraKinds';
+import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCuratedMusicArtists } from '@/hooks/useCuratedMusicArtists';
 import { useFeaturedMusicTracks } from '@/hooks/useFeaturedMusicTracks';
 import { useMusicCuratorFollows } from '@/hooks/useMusicCuratorFollows';
-import { useMusicData, useMusicTracksByGenre } from '@/hooks/useMusicData';
+import { useMusicData } from '@/hooks/useMusicData';
 import { useMusicPlaylists } from '@/hooks/useMusicPlaylists';
+import { useFollowList } from '@/hooks/useFollowActions';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
 import { HorizontalScroll } from '@/components/discovery/HorizontalScroll';
 import { TagChips } from '@/components/discovery/TagChips';
 import { ProfileCard, ProfileCardSkeleton } from '@/components/discovery/ProfileCard';
 import { ContentCTACard } from '@/components/discovery/ContentCTACard';
+import { MusicSortFilterBar, type MusicSort, type MusicScope } from './MusicSortFilterBar';
 import { MusicHeroCard, MusicHeroCardSkeleton } from './MusicHeroCard';
 import { MusicTrackCard, MusicTrackCardSkeleton } from './MusicTrackCard';
 import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
@@ -43,12 +48,15 @@ interface MusicDiscoverTabProps {
  * 2. Featured — Horizontal scroll of next-hottest tracks (one per artist)
  * 3. Artists — Horizontal scroll of curated artist profile cards
  * 4. Playlists — Horizontal scroll of playlists from curator's follows (sort:hot)
- * 5. New Tracks header + genre chips — Genre filter chips sit below the section title
- * 6. New Tracks — Compact track rows from curated artists (genre-filterable)
+ * 5. New Tracks header + sort/scope bar + genre chips
+ * 6. New Tracks — Compact track rows with Hot/Top/New sort and Global/Following scope
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
+  const { nostr } = useNostr();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [newTracksSort, setNewTracksSort] = useState<MusicSort>('hot');
+  const [newTracksScope, setNewTracksScope] = useState<MusicScope>('global');
 
   // Curated artist list (from curator's kind 30000 Listr list)
   const { data: curatedPubkeys } = useCuratedMusicArtists();
@@ -60,7 +68,14 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
   // Hero track: the #1 hot track from curated artists
   const heroTrack = featuredTracks?.[0] ?? null;
 
-  // Base music data from curated artists only: tracks, genres, artist stats
+  // User's follow list (for Following scope)
+  const { data: followData } = useFollowList();
+  const followPubkeys = followData?.pubkeys;
+
+  // Determine which authors to query for the New Tracks section
+  const newTracksAuthors = newTracksScope === 'following' ? followPubkeys : curatedPubkeys;
+
+  // Base music data from curated artists only: genres, artist stats (always curated)
   const {
     tracks: curatedTracks,
     genres,
@@ -68,19 +83,45 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
     isLoading: isTracksLoading,
   } = useMusicData({ authors: curatedPubkeys });
 
-  // Genre-filtered tracks (also curated-only)
-  const { data: genreFilteredTracks } = useMusicTracksByGenre(selectedGenre, {
-    authors: curatedPubkeys,
+  // New Tracks: sorted query for hot/top via Ditto relay, or chronological for new
+  const { data: sortedNewTracks, isLoading: isSortedLoading } = useQuery<NostrEvent[]>({
+    queryKey: ['discover-new-tracks', newTracksSort, newTracksScope, newTracksAuthors?.slice().sort().join(',') ?? '', selectedGenre ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!newTracksAuthors || newTracksAuthors.length === 0) return [];
+
+      const filter: Record<string, unknown> = {
+        kinds: [36787],
+        authors: newTracksAuthors,
+        limit: 20,
+      };
+      if (selectedGenre) {
+        filter['#t'] = [selectedGenre];
+      }
+
+      let events: NostrEvent[];
+      if (newTracksSort === 'new') {
+        events = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; '#t'?: string[] }],
+          { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+        );
+      } else {
+        filter.search = `sort:${newTracksSort}`;
+        const ditto = nostr.group(DITTO_RELAYS);
+        events = await ditto.query(
+          [filter as { kinds: number[]; authors: string[]; search: string; limit: number; '#t'?: string[] }],
+          { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+        );
+      }
+
+      return events.filter((ev) => parseMusicTrack(ev) !== null).slice(0, 8);
+    },
+    enabled: !!newTracksAuthors && newTracksAuthors.length > 0,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 
-  const newTracks = useMemo((): NostrEvent[] => {
-    if (selectedGenre && genreFilteredTracks) {
-      return genreFilteredTracks
-        .filter((ev) => parseMusicTrack(ev) !== null)
-        .slice(0, 8);
-    }
-    return curatedTracks.slice(0, 8);
-  }, [selectedGenre, genreFilteredTracks, curatedTracks]);
+  const newTracks = sortedNewTracks ?? [];
+  const isNewTracksLoading = isSortedLoading && !sortedNewTracks;
 
   // Curator's follow list (Heather's kind 3) — used to filter playlists
   const { data: curatorFollows } = useMusicCuratorFollows();
@@ -192,8 +233,15 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </>
       )}
 
-      {/* New Tracks — curated artists only, genre-filterable */}
+      {/* New Tracks — sort/scope filterable */}
       <SectionHeader title="New Tracks" onSeeAll={onSwitchToTracks} />
+
+      <MusicSortFilterBar
+        sort={newTracksSort}
+        scope={newTracksScope}
+        onSortChange={setNewTracksSort}
+        onScopeChange={setNewTracksScope}
+      />
 
       {/* Genre chips */}
       {genreNames.length > 0 && (
@@ -203,7 +251,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
           onSelect={setSelectedGenre}
         />
       )}
-      {isTracksLoading ? (
+      {isNewTracksLoading ? (
         <div>
           {Array.from({ length: 5 }).map((_, i) => (
             <MusicTrackRowSkeleton key={i} />
@@ -217,7 +265,9 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </div>
       ) : (
         <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-          {selectedGenre ? `No ${selectedGenre} tracks found.` : 'No music yet. Check back soon!'}
+          {newTracksScope === 'following'
+            ? 'No tracks from people you follow yet.'
+            : selectedGenre ? `No ${selectedGenre} tracks found.` : 'No music yet. Check back soon!'}
         </p>
       )}
 
