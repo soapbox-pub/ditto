@@ -1026,8 +1026,8 @@ function BlobbiDashboard({
   
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
-  const isIncubating = companion.state === 'incubating';
-  const isEvolvingState = companion.state === 'evolving';
+  const isIncubating = companion.progressionState === 'incubating';
+  const isEvolvingState = companion.progressionState === 'evolving';
   const isBaby = companion.stage === 'baby';
   const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;

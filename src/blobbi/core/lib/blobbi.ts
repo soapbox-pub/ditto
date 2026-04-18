@@ -43,7 +43,7 @@ export const DEFAULT_EGG_STATS = {
 };
 
 /**
- * @deprecated No longer used. Task system uses state_started_at instead.
+ * @deprecated No longer used. Task system uses progression_started_at instead.
  * Kept for backwards compatibility with older code that may reference it.
  */
 export const DEFAULT_INCUBATION_TIME = 345600;
@@ -94,7 +94,16 @@ export function getDaysDifference(dayA: string, dayB: string): number {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
-export type BlobbiState = 'active' | 'sleeping' | 'hibernating' | 'incubating' | 'evolving';
+export type BlobbiState = 'active' | 'sleeping' | 'hibernating';
+
+/**
+ * Progression process state — orthogonal to BlobbiState.
+ * 
+ * 'none'       — no progression process active
+ * 'incubating' — egg is being incubated (hatch tasks)
+ * 'evolving'   — baby is being evolved (evolve tasks)
+ */
+export type BlobbiProgressionState = 'none' | 'incubating' | 'evolving';
 
 export interface BlobbiStats {
   hunger: number;
@@ -239,8 +248,10 @@ export interface BlobbiCompanion {
   name: string;
   /** Lifecycle stage */
   stage: BlobbiStage;
-  /** Activity state */
+  /** Activity state (active, sleeping, hibernating — never progression) */
   state: BlobbiState;
+  /** Progression process state (none, incubating, evolving — orthogonal to state) */
+  progressionState: BlobbiProgressionState;
   /** Deterministic identity seed (64-char hex) */
   seed: string | undefined;
   /** Visual traits (derived from seed or legacy tags) */
@@ -267,18 +278,24 @@ export interface BlobbiCompanion {
   careStreakLastDay: string | undefined;
   /** 
    * @deprecated Incubation time in seconds - no longer used.
-   * Task system uses state_started_at instead.
+   * Task system uses progression_started_at instead.
    */
   incubationTime: number | undefined;
   /** 
    * @deprecated When incubation began - no longer used.
-   * Replaced by state_started_at for all process timing.
+   * Replaced by progression_started_at for all process timing.
    */
   startIncubation: number | undefined;
   /** Adult evolution form type (adult only) */
   adultType: string | undefined;
-  /** Timestamp when current state (incubating/evolving) started (unix seconds) */
+  /** 
+   * @deprecated Use progressionStartedAt instead.
+   * Timestamp when current state (incubating/evolving) started (unix seconds).
+   * Kept for migration compatibility.
+   */
   stateStartedAt: number | undefined;
+  /** Timestamp when current progression (incubating/evolving) started (unix seconds) */
+  progressionStartedAt: number | undefined;
   /** Task progress cache (source of truth is computed from Nostr events) */
   tasks: BlobbiTaskProgress[];
   /** Completed task names */
@@ -769,6 +786,8 @@ export function isValidBlobbiEvent(event: NostrEvent): boolean {
   if (!d) return false;
   if (b !== BLOBBI_ECOSYSTEM_NAMESPACE) return false;
   if (!stage || !['egg', 'baby', 'adult'].includes(stage)) return false;
+  // Accept both new states (active/sleeping/hibernating) and legacy states (incubating/evolving)
+  // for backwards compatibility during migration
   if (!state || !['active', 'sleeping', 'hibernating', 'incubating', 'evolving'].includes(state)) return false;
   if (!lastInteraction) return false;
   
@@ -887,8 +906,32 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   const d = getTagValue(tags, 'd')!;
   const nameTag = getTagValue(tags, 'name');
   const stage = getTagValue(tags, 'stage') as BlobbiStage;
-  const state = getTagValue(tags, 'state') as BlobbiState;
+  const rawState = getTagValue(tags, 'state')!;
   const seed = getTagValue(tags, 'seed');
+  
+  // ─── Progression state resolution (migration-aware) ───
+  // New model: progression lives in progression_state tag.
+  // Old model: progression lived in the state tag ('incubating', 'evolving').
+  // On read we normalise both into the new model.
+  const progressionStateTag = getTagValue(tags, 'progression_state') as BlobbiProgressionState | undefined;
+  
+  let state: BlobbiState;
+  let progressionState: BlobbiProgressionState;
+  
+  if (progressionStateTag) {
+    // New-format event: progression_state tag is authoritative
+    state = rawState as BlobbiState;
+    progressionState = progressionStateTag;
+  } else if (rawState === 'incubating' || rawState === 'evolving') {
+    // Legacy event: progression was stored in state tag.
+    // Normalise: move it to progressionState, set activity state to 'active'.
+    state = 'active';
+    progressionState = rawState as BlobbiProgressionState;
+  } else {
+    // No progression
+    state = rawState as BlobbiState;
+    progressionState = 'none';
+  }
   
   // Resolve name: tag > legacy d-tag derivation > fallback
   const name = nameTag ?? deriveNameFromLegacyD(d);
@@ -933,6 +976,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     name,
     stage,
     state,
+    progressionState,
     seed,
     visualTraits,
     isLegacy,
@@ -955,6 +999,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     startIncubation: parseNumericTag(tags, 'start_incubation'),
     adultType: getTagValue(tags, 'adult_type'),
     stateStartedAt: parseNumericTag(tags, 'state_started_at'),
+    progressionStartedAt: parseNumericTag(tags, 'progression_started_at') ?? parseNumericTag(tags, 'state_started_at'),
     tasks,
     tasksCompleted,
     allTags: tags,
@@ -1045,6 +1090,7 @@ export function buildEggTags(
     ['name', name],
     ['stage', 'egg'],
     ['state', 'active'],
+    ['progression_state', 'none'],
     ['seed', seed],
     ['generation', '1'],
     ['breeding_ready', 'false'],
@@ -1094,6 +1140,8 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
   // Social/flag tags
   'breeding_ready',
+  // Progression tags (orthogonal to activity state)
+  'progression_state', 'progression_started_at',
   // Task system tags (removed after stage transitions)
   'state_started_at', 'task', 'task_completed',
   // Evolution tags (adult only)
@@ -1129,8 +1177,8 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * - incubation_progress: Obsolete task progress field
  * - egg_status: Obsolete status field
  * - fees: Obsolete fee tracking field
- * - incubation_time: Obsolete; task system uses state_started_at instead
- * - start_incubation: Obsolete; replaced by state_started_at
+ * - incubation_time: Obsolete; task system uses progression_started_at instead
+ * - start_incubation: Obsolete; replaced by progression_started_at
  * - interact_6_progress: Legacy interaction tracking; replaced by ["task", "interactions:N"]
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
@@ -1497,11 +1545,15 @@ export function buildMigrationTags(
   // Per blobbi-tag-schema.md: Do NOT invent values for tags that don't exist
   const persistentTagNames = [
     // State/lifecycle tags
-    'stage', 'state',
+    'stage',
     // Stat tags
     'hunger', 'happiness', 'health', 'hygiene', 'energy',
     // Progression tags
     'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
+    // Progression process tags
+    'progression_state', 'progression_started_at',
+    // Legacy progression timing (also preserve for fallback)
+    'state_started_at',
     // Social/flag tags
     'generation', 'breeding_ready',
     // Personality tags (preserve if they exist, do NOT generate)
@@ -1517,6 +1569,33 @@ export function buildMigrationTags(
     if (value !== undefined) {
       newTags.push([tagName, value]);
     }
+  }
+  
+  // ─── Normalise legacy state → progression_state ───
+  // If the legacy event has state='incubating' or state='evolving', migrate
+  // to the new split model during migration.
+  const legacyState = getTagValue(legacyTags, 'state');
+  if (legacyState === 'incubating' || legacyState === 'evolving') {
+    // Set activity state to 'active' (the progression process is tracked separately)
+    newTags.push(['state', 'active']);
+    // Only set progression_state if not already set from persistentTagNames
+    if (!getTagValue(legacyTags, 'progression_state')) {
+      newTags.push(['progression_state', legacyState]);
+      // Migrate state_started_at → progression_started_at if present
+      const startedAt = getTagValue(legacyTags, 'state_started_at');
+      if (startedAt && !getTagValue(legacyTags, 'progression_started_at')) {
+        newTags.push(['progression_started_at', startedAt]);
+      }
+    }
+  } else if (legacyState) {
+    newTags.push(['state', legacyState]);
+    // Ensure progression_state is set
+    if (!getTagValue(legacyTags, 'progression_state')) {
+      newTags.push(['progression_state', 'none']);
+    }
+  } else {
+    newTags.push(['state', 'active']);
+    newTags.push(['progression_state', 'none']);
   }
   
   // ALWAYS include visual trait tags - derived from seed, with legacy tag fallbacks
