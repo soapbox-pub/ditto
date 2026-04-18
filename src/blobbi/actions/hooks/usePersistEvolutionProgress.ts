@@ -75,6 +75,11 @@ export function usePersistEvolutionProgress(
 
       const content = serializeEvolutionContent(prev.content, evolution);
 
+      // Skip publish if the content is already up-to-date.
+      // This avoids redundant replaceable-event publishes when the
+      // primary interaction write path already persisted the same data.
+      if (content === prev.content) return;
+
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content,
