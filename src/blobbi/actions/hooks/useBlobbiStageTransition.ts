@@ -201,12 +201,12 @@ export function useBlobbiHatch({
       }
       
       // ─── Auto-start evolution for newly hatched babies ───
-      // Applied AFTER tag validation because cleanupTaskTags repairs
-      // task-process states to 'active'. We intentionally set 'evolving'
-      // here so the baby starts its evolution journey immediately.
+      // Applied AFTER tag validation because cleanupTaskTags clears
+      // progression tags. We set the new progression_state here so the
+      // baby starts its evolution journey immediately.
       const newTags = updateBlobbiTags(repairResult.tags, {
-        state: 'evolving',
-        state_started_at: nowStr,
+        progression_state: 'evolving',
+        progression_started_at: nowStr,
       });
 
       // ─── Generate New Content for Baby Stage ───
@@ -355,7 +355,10 @@ export function useBlobbiEvolve({
         console.log('[Evolve] Tag repairs applied:', repairResult.repairs);
       }
       
-      const newTags = repairResult.tags;
+      // Ensure progression is cleared after evolve
+      const newTags = updateBlobbiTags(repairResult.tags, {
+        progression_state: 'none',
+      });
 
       // ─── Generate New Content for Adult Stage ───
       // CRITICAL: Content must reflect the new stage
