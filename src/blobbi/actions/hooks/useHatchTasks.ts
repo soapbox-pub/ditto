@@ -109,7 +109,7 @@ export function useHatchTasks(
   const { nostr } = useNostr();
 
   const pubkey = user?.pubkey;
-  const isIncubating = companion?.state === 'incubating';
+  const isIncubating = companion?.progressionState === 'incubating';
   const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
   // ─── Ensure evolution missions exist and match current definitions ───

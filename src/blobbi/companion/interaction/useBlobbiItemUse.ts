@@ -351,9 +351,9 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       const nowStr = now.toString();
       
       // If incubating or evolving, increment the interaction counter in evolution missions
-      const companionState = companion.state;
+      const progressionState = companion.progressionState;
       const updatedTags = companion.allTags;
-      if (companionState === 'incubating' || companionState === 'evolving') {
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
         trackEvolutionMissionTally('interactions', 1, user?.pubkey);
       }
       

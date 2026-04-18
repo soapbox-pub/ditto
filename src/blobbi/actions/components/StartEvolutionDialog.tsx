@@ -46,7 +46,7 @@ export function StartEvolutionDialog({
   isPending,
 }: StartEvolutionDialogProps) {
   // Check if the current Blobbi is already evolving
-  const isAlreadyEvolving = companion?.state === 'evolving';
+  const isAlreadyEvolving = companion?.progressionState === 'evolving';
   
   // Determine title and description based on state
   const getDialogContent = () => {

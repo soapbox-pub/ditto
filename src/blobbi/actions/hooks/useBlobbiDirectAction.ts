@@ -147,9 +147,9 @@ export function useBlobbiDirectAction({
       const nowStr = now.toString();
       
       // If incubating or evolving, increment the interaction counter in evolution missions
-      const companionState = canonical.companion.state;
+      const progressionState = canonical.companion.progressionState;
       const updatedTags = canonical.allTags;
-      if (companionState === 'incubating' || companionState === 'evolving') {
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
         trackEvolutionMissionTally('interactions', 1, user.pubkey);
       }
       

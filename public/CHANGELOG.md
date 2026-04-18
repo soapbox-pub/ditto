@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.10.2] - 2026-04-18
+
+### Fixed
+- Sleep and wake actions on Blobbis no longer wipe out evolution progress, and existing Blobbis that got stuck are recovered automatically
+- Pages no longer crash when a post contains a malformed blurhash; a placeholder is shown instead
+- External content links (books, locations, and other identifiers) and relay pages no longer crash on unusual or malformed URLs
+- Custom profile themes with invalid color values no longer break the page
+
 ## [2.10.1] - 2026-04-17
 
 ### Fixed
