@@ -5,6 +5,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getDisplayName } from '@/lib/getDisplayName';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 interface ProfileCardProps {
@@ -38,7 +39,7 @@ export function ProfileCard({ pubkey, subtitle, className }: ProfileCardProps) {
       className={cn('w-[110px] shrink-0 flex flex-col items-center cursor-pointer group', className)}
     >
       <Avatar shape={avatarShape} className="size-20 border-2 border-border group-hover:border-primary/40 transition-colors">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={sanitizeUrl(metadata?.picture)} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-lg font-semibold">
           {displayName[0]?.toUpperCase()}
         </AvatarFallback>

@@ -17,7 +17,7 @@ import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
  * Features:
  * - **Sort**: Hot (engagement + decay), Top (total engagement), New (chronological)
  * - **Scope**: Global (all artists) or Following (user's follow list)
- * - **Genre filter**: Client-side genre filtering via TagChips
+ * - **Genre filter**: Relay-level `#t` tag filtering via TagChips
  */
 export function MusicTracksTab() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
@@ -29,12 +29,13 @@ export function MusicTracksTab() {
   const { genres } = useMusicData();
   const genreNames = useMemo(() => genres.slice(0, 12).map((g) => g.genre), [genres]);
 
-  // Infinite-scroll feed with sort + scope
-  const feedQuery = useMusicFeed({ kind: 36787, sort, scope });
+  // Infinite-scroll feed with sort + scope + genre
+  const feedQuery = useMusicFeed({ kind: 36787, sort, scope, genre: selectedGenre });
   const {
     data: rawData,
     isPending,
     isLoading,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -72,16 +73,9 @@ export function MusicTracksTab() {
         if (event.kind !== 36787) return false;
         if (parseMusicTrack(event) === null) return false;
         if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-        // Genre filter: check t tags
-        if (selectedGenre) {
-          const hasGenre = event.tags.some(
-            ([n, v]) => n === 't' && v?.toLowerCase() === selectedGenre,
-          );
-          if (!hasGenre) return false;
-        }
         return true;
       });
-  }, [rawData?.pages, muteItems, selectedGenre]);
+  }, [rawData?.pages, muteItems]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
@@ -105,7 +99,11 @@ export function MusicTracksTab() {
       )}
 
       {/* Track list */}
-      {showSkeleton ? (
+      {isError ? (
+        <p className="px-4 py-12 text-sm text-muted-foreground text-center">
+          Failed to load tracks. Check your relay connections and try again.
+        </p>
+      ) : showSkeleton ? (
         <div>
           {Array.from({ length: 10 }).map((_, i) => (
             <MusicTrackRowSkeleton key={i} />

@@ -84,7 +84,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
   } = useMusicData({ authors: curatedPubkeys });
 
   // New Tracks: sorted query for hot/top via Ditto relay, or chronological for new
-  const { data: sortedNewTracks, isLoading: isSortedLoading } = useQuery<NostrEvent[]>({
+  const { data: sortedNewTracks, isLoading: isSortedLoading, isError: isSortedError } = useQuery<NostrEvent[]>({
     queryKey: ['discover-new-tracks', newTracksSort, newTracksScope, newTracksAuthors?.slice().sort().join(',') ?? '', selectedGenre ?? ''],
     queryFn: async ({ signal }) => {
       if (!newTracksAuthors || newTracksAuthors.length === 0) return [];
@@ -177,19 +177,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       ) : null}
 
       {/* Featured tracks horizontal scroll (hot, one per artist) */}
-      {featuredTracks && featuredTracks.length > 1 && (
-        <>
-          <SectionHeader title="Featured" onSeeAll={onSwitchToTracks} />
-          <HorizontalScroll>
-            {featuredTracks.slice(1, 8).map((ev) => (
-              <MusicTrackCard key={ev.id} event={ev} />
-            ))}
-          </HorizontalScroll>
-        </>
-      )}
-
-      {/* Loading state for featured */}
-      {isFeaturedLoading && (
+      {isFeaturedLoading ? (
         <>
           <SectionHeader title="Featured" />
           <HorizontalScroll>
@@ -198,7 +186,16 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
             ))}
           </HorizontalScroll>
         </>
-      )}
+      ) : featuredTracks && featuredTracks.length > 1 ? (
+        <>
+          <SectionHeader title="Featured" onSeeAll={onSwitchToTracks} />
+          <HorizontalScroll>
+            {featuredTracks.slice(1, 8).map((ev) => (
+              <MusicTrackCard key={ev.id} event={ev} />
+            ))}
+          </HorizontalScroll>
+        </>
+      ) : null}
 
       {/* Artists horizontal scroll */}
       {(isTracksLoading || featuredArtists.length > 0) && (
@@ -262,7 +259,11 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
           onSelect={setSelectedGenre}
         />
       )}
-      {isNewTracksLoading ? (
+      {isSortedError ? (
+        <p className="px-4 py-6 text-sm text-muted-foreground text-center">
+          Failed to load tracks. Check your relay connections and try again.
+        </p>
+      ) : isNewTracksLoading ? (
         <div>
           {Array.from({ length: 5 }).map((_, i) => (
             <MusicTrackRowSkeleton key={i} />

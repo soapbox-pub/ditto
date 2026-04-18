@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { useAuthor } from '@/hooks/useAuthor';
 import { parseMusicTrack, toAudioTrack } from '@/lib/musicHelpers';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { formatTime } from '@/lib/formatTime';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,7 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
       player.resume();
     } else {
       const track = toAudioTrack(event, parsed);
-      track.artwork ??= author.data?.metadata?.picture;
+      track.artwork ??= sanitizeUrl(author.data?.metadata?.picture);
       player.playTrack(track);
     }
   };

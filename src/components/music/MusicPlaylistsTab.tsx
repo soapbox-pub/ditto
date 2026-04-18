@@ -28,6 +28,7 @@ export function MusicPlaylistsTab() {
     data: rawData,
     isPending,
     isLoading,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -113,7 +114,11 @@ export function MusicPlaylistsTab() {
       )}
 
       {/* Playlist grid */}
-      {showSkeleton ? (
+      {isError ? (
+        <p className="px-4 py-12 text-sm text-muted-foreground text-center">
+          Failed to load playlists. Check your relay connections and try again.
+        </p>
+      ) : showSkeleton ? (
         <div className="px-4 pt-2">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (

@@ -14,6 +14,8 @@ interface UseMusicFeedOptions {
   sort: MusicSort;
   /** Scope: global or following. */
   scope: MusicScope;
+  /** Optional genre tag for relay-level `#t` filtering. */
+  genre?: string | null;
   /** Whether the query should run (default: true). */
   enabled?: boolean;
 }
@@ -31,7 +33,7 @@ interface UseMusicFeedOptions {
  *
  * Pagination uses `until`-based cursor on `created_at`.
  */
-export function useMusicFeed({ kind, sort, scope, enabled = true }: UseMusicFeedOptions) {
+export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMusicFeedOptions) {
   const { nostr } = useNostr();
   const { data: followData } = useFollowList();
   const followPubkeys = followData?.pubkeys;
@@ -39,7 +41,7 @@ export function useMusicFeed({ kind, sort, scope, enabled = true }: UseMusicFeed
   // Following scope requires a loaded follow list
   const isFollowsReady = scope !== 'following' || (followPubkeys && followPubkeys.length > 0);
 
-  const queryKey = ['music-feed', kind, sort, scope, scope === 'following' ? followPubkeys?.join(',') ?? '' : ''] as const;
+  const queryKey = ['music-feed', kind, sort, scope, genre ?? '', scope === 'following' ? followPubkeys?.join(',') ?? '' : ''] as const;
 
   return useInfiniteQuery({
     queryKey,
@@ -56,6 +58,11 @@ export function useMusicFeed({ kind, sort, scope, enabled = true }: UseMusicFeed
       // Scope: restrict to followed authors
       if (scope === 'following' && followPubkeys && followPubkeys.length > 0) {
         filter.authors = followPubkeys;
+      }
+
+      // Genre: relay-level tag filtering
+      if (genre) {
+        filter['#t'] = [genre];
       }
 
       // Sort: add NIP-50 search extension for hot/top

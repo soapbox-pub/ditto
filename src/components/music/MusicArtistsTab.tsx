@@ -16,7 +16,7 @@ import { ProfileCard, ProfileCardSkeleton } from '@/components/discovery/Profile
  */
 export function MusicArtistsTab() {
   const { data: curatedPubkeys } = useCuratedMusicArtists();
-  const { artists, isLoading } = useMusicData();
+  const { artists, isLoading, isError } = useMusicData();
 
   // Merge curated artists (first) with discovered artists
   const allArtists = useMemo(() => {
@@ -52,6 +52,14 @@ export function MusicArtistsTab() {
           <ProfileCardSkeleton key={i} />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="px-4 py-12 text-sm text-muted-foreground text-center">
+        Failed to load artists. Check your relay connections and try again.
+      </p>
     );
   }
 
