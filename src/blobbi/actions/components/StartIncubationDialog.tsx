@@ -54,14 +54,14 @@ export function StartIncubationDialog({
   isPending,
 }: StartIncubationDialogProps) {
   // Check if the current Blobbi is already in a task state
-  const isAlreadyInTaskState = companion?.state === 'incubating' || companion?.state === 'evolving';
+  const isAlreadyInTaskState = companion?.progressionState === 'incubating' || companion?.progressionState === 'evolving';
   
   // Check if another Blobbi (not this one) is currently incubating
   const otherIncubatingBlobbi = useMemo(() => {
     if (!companion) return null;
     return companions.find(c => 
       c.d !== companion.d && 
-      c.state === 'incubating' &&
+      c.progressionState === 'incubating' &&
       c.stage === 'egg'
     ) ?? null;
   }, [companion, companions]);

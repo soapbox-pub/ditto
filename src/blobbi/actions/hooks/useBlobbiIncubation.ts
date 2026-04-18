@@ -181,17 +181,18 @@ export function useStartIncubation({
           // Apply decay to the other Blobbi
           const otherDecayResult = applyBlobbiDecay({
             stage: 'egg',
-            state: 'incubating',
+            state: 'active',
             stats: otherStats,
             lastDecayAt: otherLastDecayAt,
             now,
           });
           
-          // Remove task tags and state_started_at from the other Blobbi
+          // Remove task tags and progression timing from the other Blobbi
           const otherCleanedTags = otherEvent.tags.filter(tag => 
             tag[0] !== 'task' && 
             tag[0] !== 'task_completed' && 
-            tag[0] !== 'state_started_at'
+            tag[0] !== 'state_started_at' &&
+            tag[0] !== 'progression_started_at'
           );
           
           const otherNewTags = updateBlobbiTags(otherCleanedTags, {
@@ -200,7 +201,7 @@ export function useStartIncubation({
             happiness: otherDecayResult.stats.happiness.toString(),
             hunger: '100',
             energy: '100',
-            state: 'active',
+            progression_state: 'none',
             last_interaction: nowStr,
             last_decay_at: nowStr,
           });
@@ -254,8 +255,8 @@ export function useStartIncubation({
       
       const newTags = updateBlobbiTags(cleanedTags, {
         ...statsUpdate,
-        state: 'incubating',
-        state_started_at: nowStr,
+        progression_state: 'incubating',
+        progression_started_at: nowStr,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -375,7 +376,7 @@ export function useStopIncubation({
         throw new Error('No companion selected');
       }
 
-      if (companion.state !== 'incubating') {
+      if (companion.progressionState !== 'incubating') {
         throw new Error('This Blobbi is not incubating');
       }
 
@@ -398,11 +399,12 @@ export function useStopIncubation({
       });
       
       // ─── Build Updated Tags ───
-      // Remove task tags and state_started_at
+      // Remove task tags and progression timing
       const cleanedTags = canonical.allTags.filter(tag => 
         tag[0] !== 'task' && 
         tag[0] !== 'task_completed' && 
-        tag[0] !== 'state_started_at'
+        tag[0] !== 'state_started_at' &&
+        tag[0] !== 'progression_started_at'
       );
       
       // Build stats update with decayed values
@@ -417,7 +419,7 @@ export function useStopIncubation({
       
       const newTags = updateBlobbiTags(cleanedTags, {
         ...statsUpdate,
-        state: 'active',
+        progression_state: 'none',
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -510,7 +512,7 @@ export function useStartEvolution({
         throw new Error('Only baby Blobbis can evolve');
       }
 
-      if (companion.state === 'evolving') {
+      if (companion.progressionState === 'evolving') {
         throw new Error('This Blobbi is already evolving');
       }
 
@@ -549,8 +551,8 @@ export function useStartEvolution({
       
       const newTags = updateBlobbiTags(cleanedTags, {
         ...statsUpdate,
-        state: 'evolving',
-        state_started_at: nowStr,
+        progression_state: 'evolving',
+        progression_started_at: nowStr,
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });
@@ -656,7 +658,7 @@ export function useStopEvolution({
         throw new Error('No companion selected');
       }
 
-      if (companion.state !== 'evolving') {
+      if (companion.progressionState !== 'evolving') {
         throw new Error('This Blobbi is not evolving');
       }
 
@@ -679,11 +681,12 @@ export function useStopEvolution({
       });
       
       // ─── Build Updated Tags ───
-      // Remove task tags and state_started_at
+      // Remove task tags and progression timing
       const cleanedTags = canonical.allTags.filter(tag => 
         tag[0] !== 'task' && 
         tag[0] !== 'task_completed' && 
-        tag[0] !== 'state_started_at'
+        tag[0] !== 'state_started_at' &&
+        tag[0] !== 'progression_started_at'
       );
       
       // Build stats update with decayed values
@@ -697,7 +700,7 @@ export function useStopEvolution({
       
       const newTags = updateBlobbiTags(cleanedTags, {
         ...statsUpdate,
-        state: 'active',
+        progression_state: 'none',
         last_interaction: nowStr,
         last_decay_at: nowStr,
       });

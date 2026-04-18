@@ -434,8 +434,8 @@ export function BlobbiMissionsModal({
   showMissionCard,
   onToggleMissionCard,
 }: BlobbiMissionsModalProps) {
-  const isIncubating = companion.state === 'incubating';
-  const isEvolvingState = companion.state === 'evolving';
+  const isIncubating = companion.progressionState === 'incubating';
+  const isEvolvingState = companion.progressionState === 'evolving';
   const isEgg = companion.stage === 'egg';
   const isBaby = companion.stage === 'baby';
 
