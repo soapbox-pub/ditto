@@ -188,6 +188,14 @@ export interface AppConfig {
   appName: string;
   /** Application identifier used as a prefix for application-specific metadata (NIP-78 d-tags, etc). Default: "ditto". */
   appId: string;
+  /**
+   * Canonical origin used when generating shareable URLs (QR codes, copy-link,
+   * remote-login callbacks, etc). Falls back to `window.location.origin` when
+   * unset. Configure this in `ditto.json` for native builds, where
+   * `window.location.origin` is `capacitor://localhost` or `https://localhost`.
+   * Must NOT include a trailing slash.
+   */
+  shareOrigin?: string;
   /** Sidebar item ID to display on the homepage ("/"). Default: "feed". */
   homePage: string;
   /** Display name used in the NIP-89 "client" tag. Falls back to `appName` when not set. */

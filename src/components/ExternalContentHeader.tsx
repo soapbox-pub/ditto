@@ -22,6 +22,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useWeather } from '@/hooks/useWeather';
 import { useToast } from '@/hooks/useToast';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
@@ -76,6 +77,7 @@ function blueskyTimeAgo(dateStr: string): string {
 function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string; url: string }) {
   const { data: post, isLoading, isError } = useBlueskyPost(author, rkey);
   const { toast } = useToast();
+  const shareOrigin = useShareOrigin();
 
   const profileUrl = `/i/${encodeURIComponent(`https://bsky.app/profile/${post?.handle ?? author}`)}`;
   const externalContent = useMemo(() => parseExternalUri(url), [url]);
@@ -95,12 +97,12 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
 
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const fullUrl = `${window.location.origin}/i/${encodeURIComponent(url)}`;
+    const fullUrl = `${shareOrigin}/i/${encodeURIComponent(url)}`;
     const result = await shareOrCopy(fullUrl);
     if (result === 'copied') {
       toast({ title: 'Link copied' });
     }
-  }, [url, toast]);
+  }, [url, toast, shareOrigin]);
 
   if (isLoading) {
     return (

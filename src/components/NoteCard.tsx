@@ -91,6 +91,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
+import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import { canZap } from "@/lib/canZap";
@@ -341,6 +342,7 @@ export const NoteCard = memo(function NoteCard({
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
+  const shareOrigin = useShareOrigin();
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -807,7 +809,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={async (e) => {
           e.stopPropagation();
           impactLight();
-          const url = `${window.location.origin}/${encodedId}`;
+          const url = `${shareOrigin}/${encodedId}`;
           const result = await shareOrCopy(url);
           if (result === "copied") toast({ title: "Link copied to clipboard" });
         }}

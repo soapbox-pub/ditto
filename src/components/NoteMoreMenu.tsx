@@ -49,6 +49,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
@@ -308,6 +309,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
 function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const shareOrigin = useShareOrigin();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
   const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
@@ -331,7 +333,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${nip19Id}`;
+    const url = `${shareOrigin}/${nip19Id}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Link copied to clipboard' });
     close();

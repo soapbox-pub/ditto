@@ -177,6 +177,7 @@ import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMes
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
@@ -951,6 +952,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const shareOrigin = useShareOrigin();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -995,10 +997,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [event]);
 
   const handleShare = useCallback(async () => {
-    const url = `${window.location.origin}/${encodedEventId}`;
+    const url = `${shareOrigin}/${encodedEventId}`;
     const result = await shareOrCopy(url);
     if (result === "copied") toast({ title: "Link copied to clipboard" });
-  }, [encodedEventId]);
+  }, [encodedEventId, shareOrigin]);
 
   // Kind detection — mirrors NoteCard
   const isVine = event.kind === 34236;

@@ -214,6 +214,7 @@ export const SavedFeedSchema = z.object({
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
   appId: z.string().optional(),
+  shareOrigin: z.string().url().optional(),
   homePage: z.string().optional(),
   clientName: z.string().optional(),
   /** NIP-19 naddr1 string for the kind 31990 handler event. */

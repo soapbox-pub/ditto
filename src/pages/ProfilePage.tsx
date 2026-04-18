@@ -61,6 +61,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -171,6 +172,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
+  const shareOrigin = useShareOrigin();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -200,7 +202,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${npubEncoded}`;
+    const url = `${shareOrigin}/${npubEncoded}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Profile link copied to clipboard' });
     close();

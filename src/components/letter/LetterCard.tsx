@@ -6,6 +6,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
@@ -51,13 +52,14 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const shareOrigin = useShareOrigin();
 
   const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 
   const noteId = nip19.noteEncode(letter.event.id);
-  const letterUrl = `${window.location.origin}/${noteId}`;
+  const letterUrl = `${shareOrigin}/${noteId}`;
   const isOwnLetter = user?.pubkey === letter.sender;
 
   const handleCopyLink = (e: React.MouseEvent) => {

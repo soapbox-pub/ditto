@@ -26,6 +26,7 @@ import { useBlueskyActorSearch, type BlueskyActorResult } from '@/hooks/useBlues
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
 import { shareOrCopy } from '@/lib/share';
 import { parseExternalUri } from '@/lib/externalContent';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +90,7 @@ function timeAgo(dateStr: string): string {
 function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const shareOrigin = useShareOrigin();
 
   const webUrl = postWebUrl(post.uri, post.author.handle);
   const internalUrl = dittoUrl(webUrl);
@@ -114,12 +116,12 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
 
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const fullUrl = `${window.location.origin}${internalUrl}`;
+    const fullUrl = `${shareOrigin}${internalUrl}`;
     const result = await shareOrCopy(fullUrl);
     if (result === 'copied') {
       toast({ title: 'Link copied' });
     }
-  }, [internalUrl, toast]);
+  }, [internalUrl, toast, shareOrigin]);
 
   const handleCardClick = useCallback(() => {
     navigate(internalUrl);
