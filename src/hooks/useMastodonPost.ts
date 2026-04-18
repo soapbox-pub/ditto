@@ -55,7 +55,8 @@ export function useMastodonPost(url: string) {
   return useQuery({
     queryKey: ['mastodon-post', url],
     queryFn: async ({ signal }): Promise<ExternalPostData | null> => {
-      const parsed = new URL(url);
+      let parsed: URL;
+      try { parsed = new URL(url); } catch { return null; }
       const origin = parsed.origin;
 
       // Extract status ID from the last path segment: /@user/123456

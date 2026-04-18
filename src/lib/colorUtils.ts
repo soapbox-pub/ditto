@@ -39,6 +39,11 @@ export function rgbToHsl(r: number, g: number, b: number): { h: number; s: numbe
   return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
+/** Check whether a string looks like a valid hex color (#RGB, #RRGGBB, or without #). */
+export function isValidHex(hex: string): boolean {
+  return /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
+}
+
 /** Convert hex color (#RRGGBB or #RGB) to RGB. */
 export function hexToRgb(hex: string): [number, number, number] {
   hex = hex.replace('#', '');
