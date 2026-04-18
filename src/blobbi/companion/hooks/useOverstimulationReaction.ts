@@ -162,8 +162,6 @@ export function useOverstimulationReaction({
   const rafRef = useRef<number | null>(null);
   const blockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastShownRef = useRef(false);
-  const toastHandleRef = useRef<ReturnType<typeof toast> | null>(null);
-  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTimeRef = useRef(0);
 
   // Keep profile in a ref so the rAF loop doesn't need it as a dep
@@ -183,17 +181,6 @@ export function useOverstimulationReaction({
     if (blockTimerRef.current !== null) {
       clearTimeout(blockTimerRef.current);
       blockTimerRef.current = null;
-    }
-  }, []);
-
-  const clearCountdown = useCallback(() => {
-    if (countdownIntervalRef.current !== null) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    if (toastHandleRef.current) {
-      toastHandleRef.current.dismiss();
-      toastHandleRef.current = null;
     }
   }, []);
 
@@ -271,36 +258,25 @@ export function useOverstimulationReaction({
     setPhase('blocked');
 
     const duration = BLOCK_MIN_MS + Math.random() * (BLOCK_MAX_MS - BLOCK_MIN_MS);
-    const totalSeconds = Math.ceil(duration / 1000);
-    let remaining = totalSeconds;
 
     if (!toastShownRef.current) {
       toastShownRef.current = true;
-      const handle = toast({
+      const seconds = Math.ceil(duration / 1000);
+      toast({
         title: 'Too many clicks!',
-        description: `Blobbi is overwhelmed\u2026 calm down for ${remaining}s`,
+        description: `Blobbi is overwhelmed\u2026 calm down for ${seconds}s`,
       });
-      toastHandleRef.current = handle;
-
-      clearCountdown();
-      countdownIntervalRef.current = setInterval(() => {
-        remaining -= 1;
-        if (remaining > 0 && toastHandleRef.current) {
-          toastHandleRef.current.update({ id: toastHandleRef.current.id, title: 'Too many clicks!', description: `Blobbi is overwhelmed\u2026 calm down for ${remaining}s` });
-        }
-      }, 1000);
     }
 
     clearBlockTimer();
     blockTimerRef.current = setTimeout(() => {
       blockTimerRef.current = null;
-      clearCountdown();
       phaseRef.current = 'cooling';
       setPhase('cooling');
       prevTimeRef.current = performance.now();
       startRafLoopRef.current();
     }, duration);
-  }, [clearBlockTimer, clearCountdown]);
+  }, [clearBlockTimer]);
 
   // ── Global click handler ──
 
@@ -309,7 +285,6 @@ export function useOverstimulationReaction({
       // Reset everything
       clearRaf();
       clearBlockTimer();
-      clearCountdown();
       clicksRef.current = [];
       levelRef.current = 0;
       phaseRef.current = 'idle';
@@ -367,16 +342,15 @@ export function useOverstimulationReaction({
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [isActive, clearRaf, clearBlockTimer, clearCountdown, pushVisible, enterBlocked]);
+  }, [isActive, clearRaf, clearBlockTimer, pushVisible, enterBlocked]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearRaf();
       clearBlockTimer();
-      clearCountdown();
     };
-  }, [clearRaf, clearBlockTimer, clearCountdown]);
+  }, [clearRaf, clearBlockTimer]);
 
   // ── Resolve level + phase → recipe ──
 
