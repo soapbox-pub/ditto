@@ -227,37 +227,25 @@ export function useBlobbiEyes(
     attachGlobalMouseListener();
 
     if (isSleeping) {
-      // Reset eyes to center when sleeping (no blinking)
-      const resetEyes = () => {
-        // Reset tracking transforms
-        leftGazeRef.current.forEach((el) => {
-          el.setAttribute('transform', 'translate(0 0)');
-        });
-        rightGazeRef.current.forEach((el) => {
-          el.setAttribute('transform', 'translate(0 0)');
-        });
-        // Reset clip-paths to fully open (unless SMIL animations are controlling them)
-        [...leftBlinkRef.current, ...rightBlinkRef.current].forEach((el) => {
-          const clipId = el.getAttribute(EYE_DATA_ATTRS.clipId);
-          // Try new format first, fall back to legacy for old SVGs
-          const clipTopAttr = el.getAttribute(EYE_DATA_ATTRS.clipTop) ?? el.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
-          const clipHeightAttr = el.getAttribute(EYE_DATA_ATTRS.clipHeight);
-          
-          if (clipId && clipTopAttr && clipHeightAttr && containerRef.current) {
-            const clipRect = containerRef.current.querySelector(`#${clipId} rect`) as SVGRectElement | null;
-            if (clipRect) {
-              // Don't override SMIL animations (e.g., sleepy emotion)
-              const hasSmilAnimation = clipRect.querySelector('animate') !== null;
-              if (hasSmilAnimation) {
-                return;
-              }
-              clipRect.setAttribute('y', clipTopAttr);
-              clipRect.setAttribute('height', clipHeightAttr);
-            }
-          }
-        });
-      };
-      resetEyes();
+      // Clear all cached refs immediately. When transitioning from awake to
+      // sleep the SVG DOM is replaced (dangerouslySetInnerHTML) so the old
+      // refs point at detached nodes whose data-attributes still carry the
+      // open-eye clip geometry. Using those stale values to querySelector
+      // into the *new* sleeping SVG would reset the clip-paths back to the
+      // open position — causing both open eyes and closed-eye lines to show
+      // simultaneously on the first sleep transition.
+      //
+      // The sleeping recipe (applySleepingClosedEyes) already sets clip rects
+      // to the closed position in the SVG string, so no clip-path reset is
+      // needed here. Clearing the caches ensures the awake animation loop
+      // won't run stale operations, and fresh caching will happen naturally
+      // when Blobbi wakes up and the effect re-runs.
+      leftGazeRef.current = [];
+      rightGazeRef.current = [];
+      leftBlinkRef.current = [];
+      rightBlinkRef.current = [];
+      lastSvgContentRef.current = '';
+
       // Reset blink state when sleeping
       blinkStateRef.current = null;
 
