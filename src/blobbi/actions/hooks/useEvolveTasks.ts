@@ -119,9 +119,11 @@ export function useEvolveTasks(
   }, [isEvolving, pubkey, companionD, companion?.evolution]);
 
   // ─── Ensure evolution missions exist and match current definitions ───
-  const ensuredRef = useRef(false);
+  // Scoped by pubkey:d so switching Blobbis re-runs the check.
+  const ensuredRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isEvolving || !pubkey || !companionD || ensuredRef.current) return;
+    const ensureKey = `${pubkey}:${companionD}`;
+    if (!isEvolving || !pubkey || !companionD || ensuredRef.current === ensureKey) return;
 
     const fromStore = readEvolutionFromStorage(pubkey, companionD);
     const current = fromStore && fromStore.length > 0 ? fromStore : (companion?.evolution ?? []);
@@ -135,12 +137,12 @@ export function useEvolveTasks(
       writeEvolutionToStorage(migrated, pubkey, companionD);
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
     }
-    ensuredRef.current = true;
+    ensuredRef.current = ensureKey;
   }, [isEvolving, pubkey, companionD, companion?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['evolve-tasks', pubkey],
+    queryKey: ['evolve-tasks', pubkey, companionD],
     queryFn: async () => {
       if (!pubkey) return null;
 

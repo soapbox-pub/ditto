@@ -145,9 +145,11 @@ export function useHatchTasks(
   // Safety net: if the companion is incubating but evolution[] is empty
   // (e.g. persist didn't fire, old content format), re-populate from
   // the static definitions so tally tracking works immediately.
-  const ensuredRef = useRef(false);
+  // Scoped by pubkey:d so switching Blobbis re-runs the check.
+  const ensuredRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isIncubating || !pubkey || !companionD || ensuredRef.current) return;
+    const ensureKey = `${pubkey}:${companionD}`;
+    if (!isIncubating || !pubkey || !companionD || ensuredRef.current === ensureKey) return;
 
     const fromStore = readEvolutionFromStorage(pubkey, companionD);
     const current = fromStore && fromStore.length > 0 ? fromStore : (companion?.evolution ?? []);
@@ -161,12 +163,12 @@ export function useHatchTasks(
       writeEvolutionToStorage(migrated, pubkey, companionD);
       window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
     }
-    ensuredRef.current = true;
+    ensuredRef.current = ensureKey;
   }, [isIncubating, pubkey, companionD, companion?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['hatch-tasks', pubkey],
+    queryKey: ['hatch-tasks', pubkey, companionD],
     queryFn: async () => {
       if (!pubkey) return null;
 

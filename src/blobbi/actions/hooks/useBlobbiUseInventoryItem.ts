@@ -24,8 +24,9 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally } from '../lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
 
@@ -247,6 +248,15 @@ export function useBlobbiUseInventoryItem({
         trackEvolutionMissionTally('interactions', 1, user?.pubkey, canonical.companion.d);
       }
       
+      // ─── Build content with latest evolution state ───
+      let content = canonical.content;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        const evo = readEvolutionFromStorage(user?.pubkey, canonical.companion.d);
+        if (evo && evo.length > 0) {
+          content = serializeEvolutionContent(canonical.content, evo);
+        }
+      }
+
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
@@ -265,7 +275,7 @@ export function useBlobbiUseInventoryItem({
 
       const blobbiEvent = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: blobbiTags,
       });
 

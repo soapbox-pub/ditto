@@ -207,15 +207,21 @@ export function useStartIncubation({
             last_decay_at: nowStr,
           });
           
+          // Clear evolution from the other Blobbi's content
+          const otherContent = serializeEvolutionContent(otherEvent.content, []);
+
           // Publish the stop event for the other Blobbi
           const stopEvent = await publishEvent({
             kind: KIND_BLOBBI_STATE,
-            content: otherEvent.content,
+            content: otherContent,
             tags: otherNewTags,
           });
           
           // Update the cache for the stopped Blobbi
           updateCompanionEvent(stopEvent);
+
+          // Clear evolution session store for the stopped Blobbi
+          clearEvolutionFromStorage(user.pubkey, stopOtherD);
         }
       }
 

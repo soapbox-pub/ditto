@@ -94,6 +94,11 @@ export function usePersistEvolutionProgress(
       const detail = (e as CustomEvent).detail;
       if (!detail?.evolution) return;
 
+      // Only react to evolution updates for the active companion.
+      // detail.d is set by trackEvolutionMissionTally/Event; if absent
+      // (legacy caller), accept it to avoid silently dropping updates.
+      if (detail.d && detail.d !== companionD) return;
+
       // Clear any pending timer and restart the debounce
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
@@ -108,5 +113,5 @@ export function usePersistEvolutionProgress(
       window.removeEventListener('daily-missions-updated', handler);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [persist]);
+  }, [persist, companionD]);
 }
