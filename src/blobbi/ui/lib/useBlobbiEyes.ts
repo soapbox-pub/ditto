@@ -198,6 +198,118 @@ function updateBlinkState(state: BlinkState, currentTime: number): BlinkState {
   }
 }
 
+// ─── Sleep Entry Animation ────────────────────────────────────────────────────
+
+/** Duration of the eye-close animation when entering sleep (ms). */
+const SLEEP_ENTRY_DURATION = 400;
+
+/**
+ * Run a one-shot eye-close animation on the *freshly rendered* sleeping SVG.
+ *
+ * The sleeping recipe sets clip-rects to the closed position and closed-eye
+ * lines to opacity 1 in the SVG string.  This function temporarily rewinds
+ * them to the open state and animates to closed over SLEEP_ENTRY_DURATION ms.
+ *
+ * IMPORTANT: All DOM queries use `container` (the live containerRef.current),
+ * never stale cached refs.  This avoids the overlap bug fixed earlier.
+ *
+ * Returns a cleanup function that cancels the rAF loop if the component
+ * unmounts or the effect re-runs mid-animation.
+ */
+function runSleepEntryAnimation(container: HTMLElement): (() => void) {
+  // Query fresh blink groups from the live sleeping SVG
+  const blinkGroups = container.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.blink}`);
+  if (blinkGroups.length === 0) return () => {};
+
+  // Gather per-eye open/closed geometry from the live DOM
+  interface EyeTarget {
+    clipRect: SVGRectElement;
+    openY: number;
+    openHeight: number;
+    closedY: number;
+    closedHeight: number;
+    closedEyeLine: SVGElement | null;
+  }
+
+  const targets: EyeTarget[] = [];
+
+  blinkGroups.forEach((group) => {
+    const clipId = group.getAttribute(EYE_DATA_ATTRS.clipId);
+    const clipTopAttr = group.getAttribute(EYE_DATA_ATTRS.clipTop)
+      ?? group.getAttribute(EYE_DATA_ATTRS.legacyEyeTop);
+    const clipHeightAttr = group.getAttribute(EYE_DATA_ATTRS.clipHeight);
+    const side = group.getAttribute(EYE_DATA_ATTRS.side);
+
+    if (!clipId || !clipTopAttr || !clipHeightAttr) return;
+
+    const clipRect = container.querySelector(`#${clipId} rect`) as SVGRectElement | null;
+    if (!clipRect) return;
+
+    // Open geometry comes from the data attributes (the original eye bounds)
+    const openY = parseFloat(clipTopAttr);
+    const openHeight = parseFloat(clipHeightAttr);
+
+    // Closed geometry comes from the clip rect's current attributes (set by the recipe)
+    const closedY = parseFloat(clipRect.getAttribute('y') ?? '0');
+    const closedHeight = parseFloat(clipRect.getAttribute('height') ?? '0');
+
+    // Find the corresponding closed-eye line overlay
+    const closedEyeLine = side
+      ? container.querySelector<SVGElement>(`.${EYE_CLASSES.closedEye}-${side}`)
+      : null;
+
+    targets.push({ clipRect, openY, openHeight, closedY, closedHeight, closedEyeLine });
+  });
+
+  if (targets.length === 0) return () => {};
+
+  // Rewind to open state: clip-rects open, closed-eye lines hidden
+  targets.forEach(({ clipRect, openY, openHeight, closedEyeLine }) => {
+    clipRect.setAttribute('y', openY.toString());
+    clipRect.setAttribute('height', openHeight.toString());
+    if (closedEyeLine) {
+      closedEyeLine.setAttribute('opacity', '0');
+    }
+  });
+
+  // Animate from open → closed
+  let rafId: number | null = null;
+  let startTime: number | null = null;
+
+  const step = (timestamp: number) => {
+    if (startTime === null) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    // ease-in-out: smooth deceleration into closed position
+    const rawT = Math.min(elapsed / SLEEP_ENTRY_DURATION, 1);
+    const t = rawT < 0.5
+      ? 2 * rawT * rawT
+      : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+    targets.forEach(({ clipRect, openY, openHeight, closedY, closedHeight, closedEyeLine }) => {
+      const y = openY + (closedY - openY) * t;
+      const h = openHeight + (closedHeight - openHeight) * t;
+      clipRect.setAttribute('y', y.toString());
+      clipRect.setAttribute('height', Math.max(0.1, h).toString());
+      if (closedEyeLine) {
+        // Fade in the closed-eye line in the last 40% of the animation
+        const lineT = Math.max(0, (rawT - 0.6) / 0.4);
+        closedEyeLine.setAttribute('opacity', lineT.toString());
+      }
+    });
+
+    if (rawT < 1) {
+      rafId = requestAnimationFrame(step);
+    }
+    // When rawT === 1, the DOM matches the recipe's intended closed state exactly.
+  };
+
+  rafId = requestAnimationFrame(step);
+
+  return () => {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+  };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useBlobbiEyes(
@@ -222,6 +334,11 @@ export function useBlobbiEyes(
 
   // Blink state - persisted across frames
   const blinkStateRef = useRef<BlinkState | null>(null);
+
+  // Track previous isSleeping value to detect awake→sleep transitions.
+  // Initialized to the current value so that mount-already-sleeping does NOT
+  // trigger the entry animation — only a genuine runtime transition does.
+  const wasSleepingRef = useRef(isSleeping);
 
   useEffect(() => {
     attachGlobalMouseListener();
@@ -249,12 +366,27 @@ export function useBlobbiEyes(
       // Reset blink state when sleeping
       blinkStateRef.current = null;
 
+      // ── Sleep entry animation ─────────────────────────────────────────
+      // Only animate on a genuine awake→sleep transition, not on mount or
+      // refresh when Blobbi is already sleeping.
+      let cancelSleepAnimation: (() => void) | null = null;
+      const isTransition = !wasSleepingRef.current;
+      wasSleepingRef.current = true;
+
+      if (isTransition && containerRef.current) {
+        cancelSleepAnimation = runSleepEntryAnimation(containerRef.current);
+      }
+
       return () => {
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
         }
+        cancelSleepAnimation?.();
       };
     }
+
+    // Track that we're now awake (for detecting future awake→sleep transitions)
+    wasSleepingRef.current = false;
 
     // ─── Cache Eye Elements ─────────────────────────────────────────────
 
