@@ -150,7 +150,7 @@ export function useBlobbiDirectAction({
       const progressionState = canonical.companion.progressionState;
       const updatedTags = canonical.allTags;
       if (progressionState === 'incubating' || progressionState === 'evolving') {
-        trackEvolutionMissionTally('interactions', 1, user.pubkey);
+        trackEvolutionMissionTally('interactions', 1, user.pubkey, canonical.companion.d);
       }
       
       // Get streak updates (will only update if needed based on day)

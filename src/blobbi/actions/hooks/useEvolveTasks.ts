@@ -3,7 +3,7 @@
 /**
  * Hook to compute evolve task progress.
  *
- * Progress is stored in `MissionsContent.evolution[]` on kind 11125.
+ * Progress is stored in the kind 31124 Blobbi event content JSON (per-Blobbi).
  * - Interactions: TallyMission tracked via `trackEvolutionMissionTally`
  * - Event-based tasks: EventMission, backfilled from retroactive Nostr queries
  * - Dynamic task (maintain_stats): computed from current companion stats, NEVER stored
@@ -16,9 +16,14 @@ import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import type { Mission } from '@/blobbi/core/lib/missions';
 import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
-import { trackEvolutionMissionEvent, readMissionsFromStorage, ensureSessionStore, writeMissionsToStorage } from '../lib/daily-mission-tracker';
+import {
+  trackEvolutionMissionEvent,
+  readEvolutionFromStorage,
+  writeEvolutionToStorage,
+  hydrateEvolutionFromPersisted,
+} from '../lib/daily-mission-tracker';
 import {
   EVOLVE_MISSIONS,
   EVOLVE_REQUIRED_INTERACTIONS,
@@ -80,41 +85,58 @@ export interface EvolveTasksResult {
  * Hook to compute evolve task progress from evolution missions + Nostr event backfill.
  *
  * @param companion - The Blobbi companion (must be in evolving state)
- * @param missions - Current MissionsContent from the session store
  */
 export function useEvolveTasks(
   companion: BlobbiCompanion | null,
-  missions: MissionsContent | undefined,
 ): EvolveTasksResult {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
   const pubkey = user?.pubkey;
+  const companionD = companion?.d;
   const isEvolving = companion?.progressionState === 'evolving';
-  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
+
+  // Read evolution from session store or companion (31124 content)
+  const evolution = useMemo((): Mission[] => {
+    if (!pubkey || !companionD) return [];
+    const fromStore = readEvolutionFromStorage(pubkey, companionD);
+    if (fromStore && fromStore.length > 0) return fromStore;
+    return companion?.evolution ?? [];
+  }, [pubkey, companionD, companion?.evolution]);
+
+  // ─── Hydrate evolution store from companion on mount ───
+  const hydratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isEvolving || !pubkey || !companionD) return;
+    const hydrateKey = `${pubkey}:${companionD}`;
+    if (hydratedRef.current === hydrateKey) return;
+    hydratedRef.current = hydrateKey;
+
+    const companionEvolution = companion?.evolution ?? [];
+    if (companionEvolution.length > 0) {
+      hydrateEvolutionFromPersisted(companionEvolution, pubkey, companionD);
+    }
+  }, [isEvolving, pubkey, companionD, companion?.evolution]);
 
   // ─── Ensure evolution missions exist and match current definitions ───
-  // Safety net: if the companion is evolving but evolution[] is empty
-  // (e.g. persist didn't fire, hydration lost them), re-populate from
-  // the static definitions so tally tracking works immediately.
-  // Also handles schema migrations: if persisted missions don't match
-  // the current EVOLVE_MISSIONS (e.g. a mission was added or removed),
-  // rebuild from definitions while preserving progress for surviving missions.
   const ensuredRef = useRef(false);
   useEffect(() => {
-    if (!isEvolving || !pubkey || ensuredRef.current) return;
+    if (!isEvolving || !pubkey || !companionD || ensuredRef.current) return;
 
-    const store = ensureSessionStore(pubkey);
-    if (store.evolution.length === 0) {
-      writeMissionsToStorage({ ...store, evolution: createEvolveMissions() }, pubkey);
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-    } else if (!evolutionMatchesDefinitions(store.evolution, EVOLVE_MISSIONS)) {
-      const migrated = migrateEvolutionMissions(store.evolution, EVOLVE_MISSIONS);
-      writeMissionsToStorage({ ...store, evolution: migrated }, pubkey);
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    const fromStore = readEvolutionFromStorage(pubkey, companionD);
+    const current = fromStore && fromStore.length > 0 ? fromStore : (companion?.evolution ?? []);
+
+    if (current.length === 0) {
+      const fresh = createEvolveMissions();
+      writeEvolutionToStorage(fresh, pubkey, companionD);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
+    } else if (!evolutionMatchesDefinitions(current, EVOLVE_MISSIONS)) {
+      const migrated = migrateEvolutionMissions(current, EVOLVE_MISSIONS);
+      writeEvolutionToStorage(migrated, pubkey, companionD);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
     }
     ensuredRef.current = true;
-  }, [isEvolving, pubkey, evolution]);
+  }, [isEvolving, pubkey, companionD, companion?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
@@ -144,7 +166,6 @@ export function useEvolveTasks(
   });
 
   // ─── Compute event counts directly from Nostr query results ───
-  // These are the authoritative counts for event-based tasks.
   const queryCounts: Record<string, number> = useMemo(() => {
     if (!data) return {} as Record<string, number>;
     return {
@@ -158,24 +179,23 @@ export function useEvolveTasks(
   const lastBackfilledDataRef = useRef<typeof data>(null);
 
   useEffect(() => {
-    if (!data || !pubkey || evolution.length === 0) return;
+    if (!data || !pubkey || !companionD || evolution.length === 0) return;
     if (data === lastBackfilledDataRef.current) return;
     lastBackfilledDataRef.current = data;
 
-    const current = readMissionsFromStorage(pubkey);
-    if (!current || current.evolution.length === 0) return;
-    const evo = current.evolution;
+    const current = readEvolutionFromStorage(pubkey, companionD);
+    if (!current || current.length === 0) return;
 
     for (const event of data.themeEvents) {
-      const m = findEvolutionMission(evo, 'create_themes');
+      const m = findEvolutionMission(current, 'create_themes');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('create_themes', event.id, pubkey);
+        trackEvolutionMissionEvent('create_themes', event.id, pubkey, companionD);
       }
     }
     for (const event of data.colorMomentEvents) {
-      const m = findEvolutionMission(evo, 'color_moments');
+      const m = findEvolutionMission(current, 'color_moments');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('color_moments', event.id, pubkey);
+        trackEvolutionMissionEvent('color_moments', event.id, pubkey, companionD);
       }
     }
     const profileEditEvents = [
@@ -183,18 +203,14 @@ export function useEvolveTasks(
       ...(data.hasProfileMetadata ? [{ id: 'profile-metadata' }] : []),
     ];
     for (const event of profileEditEvents) {
-      const m = findEvolutionMission(evo, 'edit_profile');
+      const m = findEvolutionMission(current, 'edit_profile');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('edit_profile', event.id, pubkey);
+        trackEvolutionMissionEvent('edit_profile', event.id, pubkey, companionD);
       }
     }
-  }, [data, pubkey, evolution]);
+  }, [data, pubkey, companionD, evolution]);
 
   // ─── Build task view models ───
-  // For event-based tasks, use the MAX of the Nostr query count and the
-  // evolution mission progress. The query is authoritative but the mission
-  // store may have progress from a previous session that hasn't been
-  // re-queried yet.
   const tasks: HatchTask[] = EVOLVE_MISSIONS.map((def) => {
     const mission = findEvolutionMission(evolution, def.id);
     const missionCount = mission ? missionProgress(mission) : 0;
@@ -261,5 +277,3 @@ export function useEvolveTasks(
     refetch,
   };
 }
-
-

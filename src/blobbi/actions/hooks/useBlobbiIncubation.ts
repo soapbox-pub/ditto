@@ -27,10 +27,11 @@ import {
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
 import {
-  ensureSessionStore,
-  writeMissionsToStorage,
+  writeEvolutionToStorage,
+  clearEvolutionFromStorage,
 } from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -261,22 +262,22 @@ export function useStartIncubation({
         last_decay_at: nowStr,
       });
 
+      // ─── Build evolution content for 31124 ───
+      const hatchMissions = createHatchMissions();
+      const content = serializeEvolutionContent(canonical.content, hatchMissions);
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: newTags,
       });
 
       updateCompanionEvent(event);
 
-      // ─── Populate evolution missions in session store ───
-      const currentMissions = ensureSessionStore(user.pubkey);
-      writeMissionsToStorage(
-        { ...currentMissions, evolution: createHatchMissions() },
-        user.pubkey,
-      );
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      // ─── Populate evolution missions in session store (per-Blobbi) ───
+      writeEvolutionToStorage(hatchMissions, user.pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
 
       return {
         name: canonical.companion.name,
@@ -424,22 +425,21 @@ export function useStopIncubation({
         last_decay_at: nowStr,
       });
 
+      // ─── Clear evolution from 31124 content ───
+      const content = serializeEvolutionContent(canonical.content, []);
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: newTags,
       });
 
       updateCompanionEvent(event);
 
       // ─── Clear evolution missions in session store ───
-      const currentMissions = ensureSessionStore(user.pubkey);
-      writeMissionsToStorage(
-        { ...currentMissions, evolution: [] },
-        user.pubkey,
-      );
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      clearEvolutionFromStorage(user.pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
 
       return {
         name: canonical.companion.name,
@@ -557,22 +557,22 @@ export function useStartEvolution({
         last_decay_at: nowStr,
       });
 
+      // ─── Build evolution content for 31124 ───
+      const evolveMissions = createEvolveMissions();
+      const content = serializeEvolutionContent(canonical.content, evolveMissions);
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: newTags,
       });
 
       updateCompanionEvent(event);
 
-      // ─── Populate evolution missions in session store ───
-      const currentMissions = ensureSessionStore(user.pubkey);
-      writeMissionsToStorage(
-        { ...currentMissions, evolution: createEvolveMissions() },
-        user.pubkey,
-      );
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      // ─── Populate evolution missions in session store (per-Blobbi) ───
+      writeEvolutionToStorage(evolveMissions, user.pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
 
       return {
         name: canonical.companion.name,
@@ -705,22 +705,21 @@ export function useStopEvolution({
         last_decay_at: nowStr,
       });
 
+      // ─── Clear evolution from 31124 content ───
+      const content = serializeEvolutionContent(canonical.content, []);
+
       // ─── Publish Event ───
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: newTags,
       });
 
       updateCompanionEvent(event);
 
       // ─── Clear evolution missions in session store ───
-      const currentMissions = ensureSessionStore(user.pubkey);
-      writeMissionsToStorage(
-        { ...currentMissions, evolution: [] },
-        user.pubkey,
-      );
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+      clearEvolutionFromStorage(user.pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
 
       return {
         name: canonical.companion.name,

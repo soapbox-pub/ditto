@@ -354,7 +354,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       const progressionState = companion.progressionState;
       const updatedTags = companion.allTags;
       if (progressionState === 'incubating' || progressionState === 'evolving') {
-        trackEvolutionMissionTally('interactions', 1, user?.pubkey);
+        trackEvolutionMissionTally('interactions', 1, user?.pubkey, companion.d);
       }
       
       // Get streak updates (will only update if needed based on day)
