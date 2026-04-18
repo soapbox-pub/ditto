@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.10.0] - 2026-04-17
+
+### Added
+- Follow lists, follow sets, and follow packs now share a unified detail view with Feed, Members, and Comments tabs, plus infinite scroll through posts from everyone on the list
+- Follow All button lets you follow everyone on someone's list or pack in a single tap, and a Save button copies any list to your own account
+- Tapping the "Following" count on a profile now opens a proper shareable page for that follow list instead of a modal
+
+### Changed
+- Quote posts, replies, and hover cards now show rich previews when someone shares a follow list or pack
+- Blobbi care actions in your feed now read as "cared for their Blobbi" instead of "updated their Blobbi"
+
+### Fixed
+- Stuck pinch-to-zoom on iOS that could lock the app in a zoomed-out state after a stray gesture
+- Profile and follow-list links that point at legacy replaceable events now resolve correctly instead of showing a "not found" state
+
 ## [2.9.0] - 2026-04-17
 
 ### Added
