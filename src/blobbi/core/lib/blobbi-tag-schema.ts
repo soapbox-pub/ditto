@@ -33,7 +33,7 @@ export type TagCategory =
   | 'stats'            // Numeric stats (hunger, health, etc.)
   | 'state'            // Lifecycle state (stage, state, timestamps)
   | 'progression'      // Progress tracking (experience, care_streak)
-  | 'task'             // Task system (task, task_completed, state_started_at)
+  | 'task'             // Task system (task, task_completed, progression_state, progression_started_at)
   | 'social'           // Social flags (breeding_ready)
   | 'evolution'        // Evolution-specific (adult_type)
   | 'extension';       // Extension tags (theme, crossover_app)
@@ -657,14 +657,14 @@ export const DEPRECATED_TAG_SCHEMA: readonly DeprecatedTagSchema[] = [
   },
   {
     tag: 'incubation_time',
-    reason: 'Task system uses state_started_at for timing',
-    replacedBy: 'state_started_at',
+    reason: 'Task system uses progression_started_at for timing',
+    replacedBy: 'progression_started_at',
     deprecatedSince: 'v1.0',
   },
   {
     tag: 'start_incubation',
-    reason: 'Task system uses state_started_at for timing',
-    replacedBy: 'state_started_at',
+    reason: 'Task system uses progression_started_at for timing',
+    replacedBy: 'progression_started_at',
     deprecatedSince: 'v1.0',
   },
   {

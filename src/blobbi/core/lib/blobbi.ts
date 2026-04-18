@@ -1177,8 +1177,8 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * - incubation_progress: Obsolete task progress field
  * - egg_status: Obsolete status field
  * - fees: Obsolete fee tracking field
- * - incubation_time: Obsolete; task system uses state_started_at instead
- * - start_incubation: Obsolete; replaced by state_started_at
+ * - incubation_time: Obsolete; task system uses progression_started_at instead
+ * - start_incubation: Obsolete; replaced by progression_started_at
  * - interact_6_progress: Legacy interaction tracking; replaced by ["task", "interactions:N"]
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([
