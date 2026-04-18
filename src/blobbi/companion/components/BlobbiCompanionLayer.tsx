@@ -341,6 +341,18 @@ export function BlobbiCompanionLayer() {
         onItemUse={handleItemUse}
         isItemOnCooldown={isItemOnCooldown}
       />
+      {/* Global click shield while Blobbi is in blocked (overstimulated) phase */}
+      {isOverstimBlocked && (
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            pointerEvents: 'all',
+          }}
+        />
+      )}
     </div>
   );
 }
