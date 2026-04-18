@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.10.1] - 2026-04-17
+
+### Fixed
+- QR codes, copy-link actions, and remote-login callbacks on the iOS and Android apps now produce real shareable URLs instead of broken `capacitor://localhost` ones
+
 ## [2.10.0] - 2026-04-17
 
 ### Added
