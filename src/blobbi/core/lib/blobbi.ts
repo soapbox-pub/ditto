@@ -43,7 +43,7 @@ export const DEFAULT_EGG_STATS = {
 };
 
 /**
- * @deprecated No longer used. Task system uses state_started_at instead.
+ * @deprecated No longer used. Task system uses progression_started_at instead.
  * Kept for backwards compatibility with older code that may reference it.
  */
 export const DEFAULT_INCUBATION_TIME = 345600;
@@ -278,12 +278,12 @@ export interface BlobbiCompanion {
   careStreakLastDay: string | undefined;
   /** 
    * @deprecated Incubation time in seconds - no longer used.
-   * Task system uses state_started_at instead.
+   * Task system uses progression_started_at instead.
    */
   incubationTime: number | undefined;
   /** 
    * @deprecated When incubation began - no longer used.
-   * Replaced by state_started_at for all process timing.
+   * Replaced by progression_started_at for all process timing.
    */
   startIncubation: number | undefined;
   /** Adult evolution form type (adult only) */
