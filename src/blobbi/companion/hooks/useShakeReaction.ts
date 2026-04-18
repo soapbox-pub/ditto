@@ -7,15 +7,21 @@
  *
  *   1. **Shaking phase** (during drag): When shake energy crosses the
  *      trigger threshold, Blobbi immediately looks dizzy. If nausea is
- *      eligible, the green body fill rises in real time as the user
- *      continues shaking.
+ *      eligible (hunger >= threshold), the green body fill rises in real
+ *      time as the user continues shaking.
  *
  *   2. **Dizzy phase** (after release): The dizzy expression and any
  *      accumulated nausea fill are held for a duration that scales with
- *      the final shake intensity (~3–8 s).
+ *      the final shake intensity (~3–8 s). Nausea fill begins draining
+ *      immediately during this phase.
  *
- *   3. **Recovering phase**: Nausea fill drains gradually via rAF.
+ *   3. **Recovering phase**: Nausea fill continues draining via rAF.
  *      Once fully drained, transitions to idle.
+ *
+ * Stacking: If the user starts a new shake during an active dizzy or
+ * recovering phase, the reaction continues from the current state
+ * instead of resetting. The nausea fill can only rise (never drops
+ * below its current level), and the dizzy hold timer extends.
  *
  * Architecture notes:
  *   - Follows the same phase/level/profile pattern as useOverstimulationReaction
@@ -101,13 +107,10 @@ export const DIZZY_NAUSEA_PROFILE: ShakeReactionProfile = {
 
 /**
  * Hunger stat at or above which shaking triggers nausea (very full).
- *
- * TEMPORARY DEBUG: The threshold check is currently bypassed so nausea
- * triggers on every shake regardless of hunger. See the `isNauseated`
- * assignment inside `onDragUpdate` and `onDragEnd`. Restore the real
- * threshold by removing the `true ||` override.
+ * When hunger is below this, Blobbi still gets dizzy but without the
+ * green body fill escalation.
  */
-const _NAUSEA_HUNGER_THRESHOLD = 90;
+const NAUSEA_HUNGER_THRESHOLD = 90;
 
 /** Minimum dizzy duration (seconds) for a barely-qualifying shake. */
 const MIN_DIZZY_DURATION_S = 3;
@@ -147,7 +150,7 @@ export interface UseShakeReactionResult {
   onDragUpdate: (result: ShakeResult) => void;
   /** Call this when drag ends with the final ShakeResult. */
   onDragEnd: (result: ShakeResult) => void;
-  /** Call this when drag starts (resets any active reaction). */
+  /** Call this when drag starts. Does not reset active reactions (stacking). */
   onDragStart: () => void;
 }
 
@@ -161,6 +164,11 @@ export function useShakeReaction({
   // ── Visible state (throttled) ──
   const [visibleNauseaLevel, setVisibleNauseaLevel] = useState(0);
   const [phase, setPhase] = useState<ShakeReactionPhase>('idle');
+  /** Whether nausea was activated at any point during the current cycle.
+   *  Promoted to React state so the recipe resolver can use a consistent
+   *  face recipe (nauseated) even after the fill fully drains, preventing
+   *  a structural SVG rebuild that would kill SMIL spiral animations. */
+  const [cycleHadNausea, setCycleHadNausea] = useState(false);
 
   // ── Refs for high-frequency data ──
   const nauseaLevelRef = useRef(0);
@@ -172,6 +180,11 @@ export function useShakeReaction({
   const hungerRef = useRef(hunger);
   hungerRef.current = hunger;
   const toastShownRef = useRef(false);
+  /** Whether nausea was triggered at any point during this reaction cycle.
+   *  Used by the recipe resolver to keep the nauseated face (same structural
+   *  recipe) even after the fill drains to 0, avoiding an SVG rebuild that
+   *  would kill SMIL spiral eye animations mid-reaction. */
+  const cycleHadNauseaRef = useRef(false);
 
   const profileRef = useRef(profile);
   profileRef.current = profile;
@@ -206,6 +219,14 @@ export function useShakeReaction({
     }
   }, []);
 
+  /** Transition the full cycle to idle, cleaning up all cycle-scoped state. */
+  const finishCycle = useCallback(() => {
+    pushVisible(0, 'idle');
+    toastShownRef.current = false;
+    cycleHadNauseaRef.current = false;
+    setCycleHadNausea(false);
+  }, [pushVisible]);
+
   // ── rAF nausea drain loop ──
   // Runs during BOTH 'dizzy' and 'recovering' phases so the green fill
   // begins descending the moment shaking stops, not only after the dizzy
@@ -224,9 +245,7 @@ export function useShakeReaction({
         // During dizzy hold, keep the phase — the timer will handle the
         // dizzy→idle transition. During recovering, go straight to idle.
         if (currentPhase === 'recovering') {
-          pushVisible(0, 'idle');
-          // Clean up cycle-scoped refs so next shake starts fresh.
-          toastShownRef.current = false;
+          finishCycle();
         } else {
           pushVisible(0, 'dizzy');
         }
@@ -239,8 +258,7 @@ export function useShakeReaction({
 
       if (newLevel <= 0) {
         if (currentPhase === 'recovering') {
-          pushVisible(0, 'idle');
-          toastShownRef.current = false;
+          finishCycle();
         } else {
           pushVisible(0, 'dizzy');
         }
@@ -256,7 +274,7 @@ export function useShakeReaction({
     }
 
     rafRef.current = requestAnimationFrame(rafTick);
-  }, [pushVisible, clearRaf]);
+  }, [pushVisible, clearRaf, finishCycle]);
 
   const startRafLoop = useCallback(() => {
     if (rafRef.current !== null) return;
@@ -276,40 +294,56 @@ export function useShakeReaction({
     phaseRef.current = 'idle';
     lastVisibleRef.current = 0;
     toastShownRef.current = false;
+    cycleHadNauseaRef.current = false;
     setVisibleNauseaLevel(0);
     setPhase('idle');
+    setCycleHadNausea(false);
   }, [clearRaf, clearDizzyTimer]);
 
-  // ── Drag start: cancel any active reaction ──
+  // ── Drag start: prepare for potential shake ──
+  // If an active reaction is running (dizzy/recovering), we do NOT reset.
+  // The new shake will build on the current state — onDragUpdate handles
+  // the transition back to 'shaking' from any active phase.
 
   const onDragStart = useCallback(() => {
-    if (phaseRef.current !== 'idle') {
-      resetAll();
+    // Only reset the toast guard when starting fresh from idle.
+    // During an active reaction, let the existing toast state persist.
+    if (phaseRef.current === 'idle') {
+      toastShownRef.current = false;
     }
-    // Fresh drag — reset toast guard for this cycle
-    toastShownRef.current = false;
-  }, [resetAll]);
+  }, []);
 
   // ── Live drag update: transition to shaking when threshold crossed ──
 
   const onDragUpdate = useCallback((result: ShakeResult) => {
     if (!result.triggered) return;
 
-    // TEMPORARY DEBUG: bypass hunger threshold so nausea triggers on every
-    // shake for easier testing. The real check is:
-    //   const isNauseated = hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
-    // TODO: restore the real threshold when debug testing is complete.
-    // eslint-disable-next-line no-constant-binary-expression
-    const isNauseated = true || hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
+    const isNauseated = hungerRef.current >= NAUSEA_HUNGER_THRESHOLD;
 
     const nauseaLevel = isNauseated ? Math.min(1, result.intensity) : 0;
 
-    // Update nausea level live
-    nauseaLevelRef.current = nauseaLevel;
+    if (isNauseated && !cycleHadNauseaRef.current) {
+      cycleHadNauseaRef.current = true;
+      setCycleHadNausea(true);
+    }
 
-    // Transition idle → shaking on first trigger
-    if (phaseRef.current === 'idle' || phaseRef.current === 'shaking') {
-      pushVisible(nauseaLevel, 'shaking');
+    // Update nausea level live — take the max of current and new so that
+    // re-shaking during an active reaction can only raise the fill, never
+    // drop it below what's already accumulated.
+    nauseaLevelRef.current = Math.max(nauseaLevelRef.current, nauseaLevel);
+
+    // Transition idle/shaking → shaking on first trigger.
+    // Also absorb dizzy/recovering phases — a new shake during an active
+    // reaction continues from the current state instead of resetting.
+    const currentPhase = phaseRef.current;
+    if (currentPhase === 'idle' || currentPhase === 'shaking' ||
+        currentPhase === 'dizzy' || currentPhase === 'recovering') {
+      // Cancel the dizzy hold timer — we're back to active shaking
+      if (currentPhase === 'dizzy' || currentPhase === 'recovering') {
+        clearDizzyTimer();
+        clearRaf();
+      }
+      pushVisible(nauseaLevelRef.current, 'shaking');
 
       // Show nausea warning toast once per shake cycle
       if (isNauseated && !toastShownRef.current) {
@@ -320,9 +354,14 @@ export function useShakeReaction({
         });
       }
     }
-  }, [pushVisible]);
+  }, [pushVisible, clearDizzyTimer, clearRaf]);
 
   // ── Drag end: finalize and hold dizzy ──
+  //
+  // If the user was actively shaking (phase === 'shaking'), transition
+  // to the dizzy hold. The nausea level takes the max of the current
+  // (possibly mid-drain from a prior shake) and the new shake's level,
+  // so re-shaking during recovery can only raise the fill.
 
   const onDragEnd = useCallback((result: ShakeResult) => {
     // If we were in shaking phase, always finalize (even if the
@@ -336,23 +375,25 @@ export function useShakeReaction({
     const dizzyDurationS = MIN_DIZZY_DURATION_S +
       intensity * (MAX_DIZZY_DURATION_S - MIN_DIZZY_DURATION_S);
 
-    // TEMPORARY DEBUG: bypass hunger threshold (same as onDragUpdate).
-    // TODO: restore the real threshold when debug testing is complete.
-    // eslint-disable-next-line no-constant-binary-expression
-    const isNauseated = true || hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
-    const nauseaLevel = isNauseated ? Math.min(1, intensity) : 0;
+    const isNauseated = hungerRef.current >= NAUSEA_HUNGER_THRESHOLD;
+    const newNauseaLevel = isNauseated ? Math.min(1, intensity) : 0;
 
-    // Lock in the final nausea level and start draining immediately
-    nauseaLevelRef.current = nauseaLevel;
-    pushVisible(nauseaLevel, 'dizzy');
+    // Take the max of current and new — re-shaking only raises the fill
+    const effectiveLevel = Math.max(nauseaLevelRef.current, newNauseaLevel);
+
+    // Lock in the effective nausea level and start draining immediately
+    nauseaLevelRef.current = effectiveLevel;
+    pushVisible(effectiveLevel, 'dizzy');
 
     // Start the rAF drain loop right away so the green fill begins
     // descending during the dizzy hold, not only after it ends.
-    if (nauseaLevel > 0) {
+    if (effectiveLevel > 0) {
+      // Stop existing loop (if mid-drain) and restart with fresh timing
+      clearRaf();
       startRafLoopRef.current();
     }
 
-    // Schedule end of dizzy hold
+    // Reschedule the dizzy hold timer — a new shake extends the hold
     clearDizzyTimer();
     dizzyTimerRef.current = setTimeout(() => {
       dizzyTimerRef.current = null;
@@ -362,11 +403,10 @@ export function useShakeReaction({
         // already running, it will pick up the new phase automatically)
         pushVisible(nauseaLevelRef.current, 'recovering');
       } else {
-        pushVisible(0, 'idle');
-        toastShownRef.current = false;
+        finishCycle();
       }
     }, dizzyDurationS * 1000);
-  }, [pushVisible, clearDizzyTimer]);
+  }, [pushVisible, clearDizzyTimer, clearRaf, finishCycle]);
 
   // ── Reset on deactivation ──
 
@@ -386,6 +426,12 @@ export function useShakeReaction({
   }, [clearRaf, clearDizzyTimer]);
 
   // ── Resolve phase + nausea level → recipe ──
+  //
+  // Key invariant: once nausea activates in a cycle, the nauseated face
+  // recipe is used for ALL remaining non-idle phases — even after the
+  // green fill fully drains to 0. This prevents a structural recipe
+  // switch (nauseated → dizzy) mid-reaction, which would trigger an SVG
+  // rebuild and kill the running SMIL spiral eye animation.
 
   const result = useMemo((): UseShakeReactionResult => {
     const base = { onDragUpdate, onDragEnd, onDragStart };
@@ -396,8 +442,13 @@ export function useShakeReaction({
 
     const p = profileRef.current;
 
-    // ── Nauseated: dizzy face + green body fill ──
-    if (visibleNauseaLevel > 0) {
+    // Use the nauseated face for the entire cycle if nausea was triggered,
+    // even when the fill has drained to 0. This keeps the structural recipe
+    // stable so SMIL animations survive.
+    const useNauseatedFace = cycleHadNausea;
+
+    // ── Active nausea fill ──
+    if (visibleNauseaLevel > 0 && useNauseatedFace) {
       const recipe: BlobbiVisualRecipe = {
         ...p.nauseated.recipe,
         bodyEffects: {
@@ -414,10 +465,15 @@ export function useShakeReaction({
       return { ...base, phase, nauseaLevel: visibleNauseaLevel, recipe, recipeLabel: p.nauseated.label };
     }
 
-    // ── Dizzy only (no nausea fill) ──
+    // ── Nauseated face without fill (fill drained but cycle still active) ──
+    if (useNauseatedFace) {
+      return { ...base, phase, nauseaLevel: 0, recipe: p.nauseated.recipe, recipeLabel: p.nauseated.label };
+    }
+
+    // ── Dizzy only (no nausea in this cycle) ──
     return { ...base, phase, nauseaLevel: 0, recipe: p.dizzy.recipe, recipeLabel: p.dizzy.label };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, visibleNauseaLevel, profile, onDragUpdate, onDragEnd, onDragStart]);
+  }, [phase, visibleNauseaLevel, cycleHadNausea, profile, onDragUpdate, onDragEnd, onDragStart]);
 
   return result;
 }
