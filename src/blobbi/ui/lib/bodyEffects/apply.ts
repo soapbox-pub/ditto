@@ -77,6 +77,8 @@ export function applyBodyEffects(svgText: string, spec: BodyEffectsSpec): string
           color: spec.angerRise.color,
           duration: spec.angerRise.duration,
           level: spec.angerRise.level,
+          bottomOpacity: spec.angerRise.bottomOpacity,
+          edgeOpacity: spec.angerRise.edgeOpacity,
         },
         idSuffix,
       );

@@ -144,7 +144,7 @@ export interface BodyEffectsRecipe {
   /** Stink cloud puffs */
   stinkClouds?: StinkCloudsConfig;
   /** Anger-rise color overlay */
-  angerRise?: { color: string; duration: number; level?: number };
+  angerRise?: { color: string; duration: number; level?: number; bottomOpacity?: number; edgeOpacity?: number };
 }
 
 /**
@@ -953,11 +953,7 @@ export function applyVisualRecipe(
       bodySpec.stinkClouds = recipe.bodyEffects.stinkClouds;
     }
     if (recipe.bodyEffects.angerRise) {
-      bodySpec.angerRise = {
-        color: recipe.bodyEffects.angerRise.color,
-        duration: recipe.bodyEffects.angerRise.duration,
-        level: recipe.bodyEffects.angerRise.level,
-      };
+      bodySpec.angerRise = recipe.bodyEffects.angerRise;
     }
     if (instanceId) {
       bodySpec.idPrefix = instanceId;

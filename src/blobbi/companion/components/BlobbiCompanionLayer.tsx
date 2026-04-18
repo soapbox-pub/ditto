@@ -14,12 +14,14 @@
  * This file should be placed at the app root level (renders a fixed overlay).
  */
 
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useRef } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
 import { useActionEmotionOverride } from '../hooks/useActionEmotionOverride';
 import { useOverstimulationReaction } from '../hooks/useOverstimulationReaction';
+import { useShakeReaction } from '../hooks/useShakeReaction';
+import { createShakeTracker, recordSample, computeShakeResult, resetTracker } from '../core/shakeDetection';
 import { BlobbiCompanion } from './BlobbiCompanion';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
@@ -146,6 +148,46 @@ export function BlobbiCompanionLayer() {
     isActive: isVisible && !isEntering,
   });
 
+  // ── Shake reaction (dizzy / nausea) ───────────────────────────────────────
+  const shakeTrackerRef = useRef(createShakeTracker());
+
+  const companionHunger = companion?.stats.hunger ?? 100;
+
+  const {
+    recipe: shakeRecipe,
+    recipeLabel: shakeLabel,
+    onDragUpdate: shakeOnDragUpdate,
+    onDragEnd: shakeOnDragEnd,
+    onDragStart: shakeOnDragStart,
+  } = useShakeReaction({
+    isActive: isVisible && !isEntering,
+    hunger: companionHunger,
+  });
+
+  /** Feed pointer positions into the shake tracker during drag and
+   *  push live shake results into the reaction hook each sample. */
+  const handleDragSample = useCallback((position: Position) => {
+    recordSample(shakeTrackerRef.current, position);
+    // Compute live result so the hook can react during the drag
+    const liveResult = computeShakeResult(shakeTrackerRef.current);
+    shakeOnDragUpdate(liveResult);
+  }, [shakeOnDragUpdate]);
+
+  /** Wrap startDrag to also notify the shake system. */
+  const handleStartDrag = useCallback(() => {
+    resetTracker(shakeTrackerRef.current);
+    shakeOnDragStart();
+    startDrag();
+  }, [startDrag, shakeOnDragStart]);
+
+  /** Wrap endDrag to compute shake result and notify the shake system. */
+  const handleEndDrag = useCallback(() => {
+    const result = computeShakeResult(shakeTrackerRef.current);
+    shakeOnDragEnd(result);
+    resetTracker(shakeTrackerRef.current);
+    endDrag();
+  }, [endDrag, shakeOnDragEnd]);
+
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
     const action = CATEGORY_TO_ACTION[item.category];
 
@@ -250,8 +292,9 @@ export function BlobbiCompanionLayer() {
   // Recipe priority chain (highest → lowest):
   //   1. Sleeping (always wins when companion is asleep)
   //   2. Overstimulation reaction (user spam-clicking)
-  //   3. Action override (item use: feed → happy, etc.)
-  //   4. Status recipe (stat-driven expressions)
+  //   3. Shake reaction (dizzy / nausea from shaking)
+  //   4. Action override (item use: feed → happy, etc.)
+  //   5. Status recipe (stat-driven expressions)
   let companionRecipe: typeof statusRecipe;
   let companionRecipeLabel: string;
 
@@ -261,6 +304,9 @@ export function BlobbiCompanionLayer() {
   } else if (overstimRecipe && overstimLabel) {
     companionRecipe = overstimRecipe;
     companionRecipeLabel = overstimLabel;
+  } else if (shakeRecipe && shakeLabel) {
+    companionRecipe = shakeRecipe;
+    companionRecipeLabel = shakeLabel;
   } else {
     companionRecipe = statusRecipe;
     companionRecipeLabel = statusRecipeLabel;
@@ -305,14 +351,15 @@ export function BlobbiCompanionLayer() {
           wasResolvedFromStuck={wasResolvedFromStuck}
           groundPosition={groundPosition}
           viewport={viewport}
-          onStartDrag={startDrag}
+          onStartDrag={handleStartDrag}
           onUpdateDrag={updateDrag}
-          onEndDrag={endDrag}
+          onEndDrag={handleEndDrag}
           onClick={handleCompanionClick}
           isClickBlocked={isOverstimBlocked}
           recipe={companionRecipe}
           recipeLabel={companionRecipeLabel}
           onPositionUpdate={handlePositionUpdate}
+          onDragSample={handleDragSample}
           debugMode={DEBUG_GROUND_CONTACT}
         />
       </div>

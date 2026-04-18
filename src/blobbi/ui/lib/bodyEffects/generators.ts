@@ -625,8 +625,9 @@ export function generateAngerRiseEffect(
   config: BodyEffectConfig,
   idSuffix?: string,
 ): { defs: string; overlay: string } {
-  const { pathD, minY, maxY } = bodyPath;
+  const { pathD, minX, maxX, minY, maxY } = bodyPath;
   const bodyHeight = maxY - minY;
+  const bodyWidth = maxX - minX;
   
   const suffix = idSuffix ?? Math.random().toString(36).slice(2, 8);
   const clipId = `blobbi-anger-clip-${suffix}`;
@@ -634,12 +635,23 @@ export function generateAngerRiseEffect(
   
   // When `level` is provided, render a static gradient at that offset (0–1)
   // instead of using the SMIL rise animation. This lets external systems
-  // (e.g. overstimulation reaction) control exact fill height each frame.
+  // (e.g. overstimulation reaction, nausea) control exact fill height each frame.
+  //
+  // `level` controls only how HIGH the fill reaches. Opacity is controlled
+  // separately via bottomOpacity/edgeOpacity so different effects (anger vs
+  // nausea) can have different visual intensities through the same generator.
   const useStaticLevel = config.level !== undefined && config.level !== null;
   const lvl = useStaticLevel ? Math.max(0, Math.min(1, config.level!)) : 0;
 
-  // Feather zone: percentage of the gradient used for the soft top edge
-  const feather = 0.08;
+  // Caller-controlled opacity with moderate defaults.
+  // Nausea uses stronger values (~0.78/0.65); anger uses these defaults.
+  const bottomOpacity = config.bottomOpacity ?? 0.55;
+  const edgeOpacity = config.edgeOpacity ?? 0.45;
+
+  // Feather zone: fraction of the gradient used for the soft top edge.
+  // Slightly larger than the animated path to keep the edge soft when the
+  // fill height is re-rendered every frame.
+  const feather = 0.10;
 
   const defs = useStaticLevel
     ? `
@@ -647,8 +659,8 @@ export function generateAngerRiseEffect(
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}" stop-opacity="${0.5 * lvl}" />
-      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${config.color}" stop-opacity="${0.4 * lvl}" />
+      <stop offset="0%" stop-color="${config.color}" stop-opacity="${bottomOpacity}" />
+      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${config.color}" stop-opacity="${edgeOpacity}" />
       <stop offset="${lvl}" stop-color="${config.color}" stop-opacity="0" />
     </linearGradient>`
     : `
@@ -690,11 +702,18 @@ export function generateAngerRiseEffect(
       </stop>
     </linearGradient>`;
   
+  // Use detected body bounds with a small pad to ensure the rect fully
+  // covers the body silhouette for both baby (100x100) and adult (200x200)
+  // viewBoxes. The clip-path masks any overshoot.
+  const pad = 2;
+  const rectX = minX - pad;
+  const rectW = bodyWidth + pad * 2;
+
   const overlay = `
     <rect 
       class="blobbi-anger-rise"
-      x="0" y="${minY}" 
-      width="100" height="${bodyHeight}"
+      x="${rectX}" y="${minY}" 
+      width="${rectW}" height="${bodyHeight}"
       fill="url(#${gradientId})"
       clip-path="url(#${clipId})"
     />`;

@@ -225,6 +225,9 @@ export function useOverstimulationReaction({
         levelRef.current = 0;
         phaseRef.current = 'idle';
         toastShownRef.current = false;
+        // Clear the sliding window so stale timestamps from this cycle
+        // don't interfere with the next activation attempt.
+        clicksRef.current.length = 0;
         clearRaf();
         return;
       }
