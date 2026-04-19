@@ -141,17 +141,73 @@ function detectMouthByRegex(svgText: string): MouthDetectionResult | null {
 /**
  * Replace mouth <path> elements in the SVG with new mouth content.
  * 
- * Only targets <path> elements that match Q-curve mouth patterns.
- * Replaces the first match, removes any additional mouth paths.
+ * Uses two strategies in order:
+ * 1. Marker-bounded: If a <!-- Mouth --> marker exists, only replace Q-curve
+ *    paths within the marker section. This prevents non-mouth paths (e.g.
+ *    Catti's whiskers) from being matched and destroyed.
+ * 2. Global fallback: Replace the first global Q-curve match (legacy behavior
+ *    for SVGs without markers).
  */
 export function replaceMouthSection(svgText: string, newMouthSvg: string): string {
+  // Strategy 1: marker-bounded replacement
+  const markerResult = replaceMouthByMarker(svgText, newMouthSvg);
+  if (markerResult !== null) {
+    return markerResult;
+  }
+
+  // Strategy 2: global fallback (legacy behavior)
+  return replaceMouthGlobal(svgText, newMouthSvg);
+}
+
+/**
+ * Replace mouth paths within the <!-- Mouth --> marker section only.
+ * Returns null if no marker is found (caller should use fallback).
+ */
+function replaceMouthByMarker(svgText: string, newMouthSvg: string): string | null {
+  const markerMatch = svgText.match(/<!--\s*Mouth[^>]*-->/i);
+  if (!markerMatch || markerMatch.index === undefined) {
+    return null;
+  }
+
+  const markerEnd = markerMatch.index + markerMatch[0].length;
+  const afterMarker = svgText.slice(markerEnd);
+
+  // Find the end of the mouth section: next comment or next non-path element with id/class
+  const nextSectionMatch = afterMarker.match(/(?:<!--(?!\s*Mouth)|<(?:ellipse|circle|g|rect)[^>]*(?:id|class)=)/i);
+  const sectionLength = nextSectionMatch?.index ?? afterMarker.indexOf('</svg>');
+  const mouthSection = afterMarker.slice(0, sectionLength);
+
   const mouthPathRegex = /<path[^>]*d="M\s*[\d.]+\s+[\d.]+\s*Q\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+"[^>]*stroke[^>]*\/>/g;
-  
+  if (!mouthPathRegex.test(mouthSection)) {
+    return null;
+  }
+
+  // Replace within the section: first match → new mouth, rest → removed
+  mouthPathRegex.lastIndex = 0;
+  let replaced = false;
+  const newSection = mouthSection.replace(mouthPathRegex, () => {
+    if (!replaced) {
+      replaced = true;
+      return newMouthSvg;
+    }
+    return '';
+  });
+
+  return svgText.slice(0, markerEnd) + newSection + svgText.slice(markerEnd + sectionLength);
+}
+
+/**
+ * Global fallback: replace Q-curve paths across the entire SVG.
+ * Used only when no <!-- Mouth --> marker is found.
+ */
+function replaceMouthGlobal(svgText: string, newMouthSvg: string): string {
+  const mouthPathRegex = /<path[^>]*d="M\s*[\d.]+\s+[\d.]+\s*Q\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+"[^>]*stroke[^>]*\/>/g;
+
   const matches = svgText.match(mouthPathRegex);
   if (!matches || matches.length === 0) {
     return svgText;
   }
-  
+
   let replaced = false;
   return svgText.replace(mouthPathRegex, () => {
     if (!replaced) {
