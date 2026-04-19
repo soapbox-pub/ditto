@@ -409,6 +409,9 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
  * Check if element is a pupil.
  */
 function isPupilElement(element: string): boolean {
+  // Check for explicit pupil marker (used by flat-fill forms after eyeColor replacement)
+  if (element.includes('data-blobbi-pupil')) return true;
+
   // Check for pupil gradient
   if (/fill="url\(#[^"]*[Pp]upil[^"]*\)"/.test(element)) {
     return true;

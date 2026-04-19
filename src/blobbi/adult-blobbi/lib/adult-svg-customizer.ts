@@ -675,7 +675,7 @@ function applyPupilGradient(
     const blockMatch = modified.match(pupilBlockRegex);
     if (blockMatch) {
       const block = blockMatch[0];
-      const newBlock = block.replaceAll(`fill="${defaultFill}"`, `fill="${eyeColor}"`);
+      const newBlock = block.replaceAll(`fill="${defaultFill}"`, `fill="${eyeColor}" data-blobbi-pupil="true"`);
       modified = modified.replace(block, newBlock);
     }
   }

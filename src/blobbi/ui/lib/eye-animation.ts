@@ -122,6 +122,9 @@ function isPupilElement(element: string): boolean {
   // Skip elements explicitly marked as non-eye parts (e.g. Pandi's ear/eye-patch circles)
   if (element.includes('data-blobbi-skip')) return false;
 
+  // Check for explicit pupil marker (used by flat-fill forms after eyeColor replacement)
+  if (element.includes('data-blobbi-pupil')) return true;
+
   // Check for pupil gradient
   if (/fill="url\(#[^"]*[Pp]upil[^"]*\)"/.test(element)) {
     return true;
