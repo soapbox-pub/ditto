@@ -17,16 +17,18 @@ import type { AdultForm, AdultSvgCustomization } from '../types/adult.types';
 // ─── Gradient Builders ────────────────────────────────────────────────────────
 
 /**
- * Build a 3-stop radial gradient (highlight -> mid -> base)
+ * Build a 3-stop radial gradient (highlight -> mid -> base).
+ * When innerColor is provided, it replaces the highlight/mid stops for two-tone effect.
  */
 function buildRadialGradient3Stop(
   id: string,
   baseColor: string,
   cx = '0.3',
-  cy = '0.2'
+  cy = '0.2',
+  innerColor?: string
 ): string {
-  const highlight = lightenColor(baseColor, 40);
-  const mid = lightenColor(baseColor, 20);
+  const highlight = innerColor ?? lightenColor(baseColor, 40);
+  const mid = innerColor ? lightenColor(innerColor, 20) : lightenColor(baseColor, 20);
   return `<radialGradient id="${id}" cx="${cx}" cy="${cy}">
       <stop offset="0%" style="stop-color:${highlight};stop-opacity:1" />
       <stop offset="40%" style="stop-color:${mid};stop-opacity:1" />
@@ -51,16 +53,18 @@ function buildRadialGradient2Stop(
 }
 
 /**
- * Build a 4-stop radial gradient (used by droppi, rocky, starri bodies)
+ * Build a 4-stop radial gradient (used by droppi, rocky, starri bodies).
+ * When innerColor is provided, it replaces the veryLight/light stops for two-tone effect.
  */
 function buildRadialGradient4Stop(
   id: string,
   baseColor: string,
   cx = '0.3',
-  cy = '0.2'
+  cy = '0.2',
+  innerColor?: string
 ): string {
-  const veryLight = lightenColor(baseColor, 50);
-  const light = lightenColor(baseColor, 25);
+  const veryLight = innerColor ?? lightenColor(baseColor, 50);
+  const light = innerColor ? lightenColor(innerColor, 20) : lightenColor(baseColor, 25);
   const dark = darkenColor(baseColor, 15);
   return `<radialGradient id="${id}" cx="${cx}" cy="${cy}">
       <stop offset="0%" style="stop-color:${veryLight};stop-opacity:1" />
@@ -71,16 +75,18 @@ function buildRadialGradient4Stop(
 }
 
 /**
- * Build a petal gradient (outer -> inner style, like rosey/leafy)
+ * Build a petal gradient (outer -> inner style, like rosey/leafy).
+ * When innerColor is provided, it replaces the veryLight/light stops for two-tone effect.
  */
 function buildPetalGradient(
   id: string,
   baseColor: string,
   cx = '0.3',
-  cy = '0.2'
+  cy = '0.2',
+  innerColor?: string
 ): string {
-  const veryLight = lightenColor(baseColor, 50);
-  const light = lightenColor(baseColor, 30);
+  const veryLight = innerColor ?? lightenColor(baseColor, 50);
+  const light = innerColor ? lightenColor(innerColor, 20) : lightenColor(baseColor, 30);
   const mid = lightenColor(baseColor, 15);
   return `<radialGradient id="${id}" cx="${cx}" cy="${cy}">
       <stop offset="0%" style="stop-color:${veryLight};stop-opacity:1" />
@@ -130,11 +136,11 @@ function replaceGradient(
  * Catti: Body, ears, and tail should use Blobbi color
  * Gradients: cattiBody3D, cattiEar3D, cattiEarInner, cattiTail3D, cattiTailHighlight
  */
-function customizeCatti(svgText: string, baseColor: string): string {
+function customizeCatti(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body gradient (3-stop)
-  svg = replaceGradient(svg, 'cattiBody3D', buildRadialGradient3Stop('cattiBody3D', baseColor));
+  // Body gradient (3-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'cattiBody3D', buildRadialGradient3Stop('cattiBody3D', baseColor, '0.3', '0.2', secondaryColor));
   
   // Ear gradients (2-stop)
   svg = replaceGradient(svg, 'cattiEar3D', buildRadialGradient2Stop('cattiEar3D', baseColor));
@@ -159,11 +165,11 @@ function customizeCatti(svgText: string, baseColor: string): string {
  * Droppi: Body, arms, legs, and droplets should use Blobbi color
  * Gradients: droppiBody, droppiInner, droppiArm, droppiLeg, droppiDroplet
  */
-function customizeDroppi(svgText: string, baseColor: string): string {
+function customizeDroppi(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop)
-  svg = replaceGradient(svg, 'droppiBody', buildRadialGradient4Stop('droppiBody', baseColor));
+  // Body (4-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'droppiBody', buildRadialGradient4Stop('droppiBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Inner reflection (lighter, 2-stop)
   const innerColor = lightenColor(baseColor, 45);
@@ -185,11 +191,11 @@ function customizeDroppi(svgText: string, baseColor: string): string {
  * Flammi: Body, inner, core, arms, legs, and embers should use Blobbi color
  * Gradients: flammiBody, flammiInner, flammiCore, flammiArm, flammiLeg, flammiEmber
  */
-function customizeFlammi(svgText: string, baseColor: string): string {
+function customizeFlammi(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop gradient with warm progression)
-  svg = replaceGradient(svg, 'flammiBody', buildRadialGradient4Stop('flammiBody', baseColor));
+  // Body (4-stop gradient with warm progression) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'flammiBody', buildRadialGradient4Stop('flammiBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Inner (3-stop, lighter)
   const innerColor = lightenColor(baseColor, 25);
@@ -219,11 +225,11 @@ function customizeFlammi(svgText: string, baseColor: string): string {
  * Froggi: Body, eye base, feet should use Blobbi color
  * Gradients: froggiBody3D, froggiEyeBase3D, froggiFeet3D, froggiFeetHighlight, froggiToe3D
  */
-function customizeFroggi(svgText: string, baseColor: string): string {
+function customizeFroggi(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (3-stop)
-  svg = replaceGradient(svg, 'froggiBody3D', buildRadialGradient3Stop('froggiBody3D', baseColor));
+  // Body (3-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'froggiBody3D', buildRadialGradient3Stop('froggiBody3D', baseColor, '0.3', '0.2', secondaryColor));
   
   // Eye base (matches body color, 2-stop)
   svg = replaceGradient(svg, 'froggiEyeBase3D', buildRadialGradient2Stop('froggiEyeBase3D', lightenColor(baseColor, 15)));
@@ -248,14 +254,16 @@ function customizeFroggi(svgText: string, baseColor: string): string {
  * Leafy: Petals should use Blobbi color (center/face keeps brown)
  * Gradients: leafyPetal (petals only - the yellow parts)
  */
-function customizeLeafy(svgText: string, baseColor: string): string {
+function customizeLeafy(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Petal gradient (the sunflower petals)
+  // Petal gradient (the sunflower petals) - two-tone when secondaryColor present
+  const petalInner = secondaryColor ?? lightenColor(baseColor, 15);
+  const petalMid = secondaryColor ? lightenColor(secondaryColor, 20) : lightenColor(baseColor, 25);
   svg = replaceGradient(svg, 'leafyPetal', `<radialGradient id="leafyPetal" cx="0.3" cy="0.3">
       <stop offset="100%" style="stop-color:${darkenColor(baseColor, 15)};stop-opacity:1" />
-      <stop offset="30%" style="stop-color:${lightenColor(baseColor, 25)};stop-opacity:1" />
-      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 15)};stop-opacity:1" />
+      <stop offset="30%" style="stop-color:${petalMid};stop-opacity:1" />
+      <stop offset="0%" style="stop-color:${petalInner};stop-opacity:1" />
     </radialGradient>`);
   
   return svg;
@@ -265,11 +273,11 @@ function customizeLeafy(svgText: string, baseColor: string): string {
  * Mushie: Cap should use Blobbi color (stem keeps original)
  * Gradients: mushieCap, mushieCapHighlight
  */
-function customizeMushie(svgText: string, baseColor: string): string {
+function customizeMushie(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Cap (4-stop)
-  svg = replaceGradient(svg, 'mushieCap', buildRadialGradient4Stop('mushieCap', baseColor));
+  // Cap (4-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'mushieCap', buildRadialGradient4Stop('mushieCap', baseColor, '0.3', '0.2', secondaryColor));
   
   // Cap highlight (lighter)
   svg = replaceGradient(svg, 'mushieCapHighlight', buildRadialGradient2Stop('mushieCapHighlight', lightenColor(baseColor, 25), '0.4', '0.3'));
@@ -281,11 +289,11 @@ function customizeMushie(svgText: string, baseColor: string): string {
  * Rocky: Body, inner, arms, legs, and pebbles should use Blobbi color
  * Gradients: rockyBody, rockyInner, rockyArm, rockyLeg, rockyPebble
  */
-function customizeRocky(svgText: string, baseColor: string): string {
+function customizeRocky(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop)
-  svg = replaceGradient(svg, 'rockyBody', buildRadialGradient4Stop('rockyBody', baseColor));
+  // Body (4-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'rockyBody', buildRadialGradient4Stop('rockyBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Inner (2-stop, lighter)
   svg = replaceGradient(svg, 'rockyInner', buildRadialGradient2Stop('rockyInner', lightenColor(baseColor, 35), '0.4', '0.3'));
@@ -306,11 +314,11 @@ function customizeRocky(svgText: string, baseColor: string): string {
  * Rosey: Petals, center, and floating petals should use Blobbi color
  * Gradients: roseyPetal1, roseyPetal2, roseyPetal3, roseyCenter, roseyFloatingPetal
  */
-function customizeRosey(svgText: string, baseColor: string): string {
+function customizeRosey(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Petal layers (outer to inner, using petal gradient style)
-  svg = replaceGradient(svg, 'roseyPetal1', buildPetalGradient('roseyPetal1', baseColor));
+  // Petal layers (outer to inner) - two-tone on outer petals when secondaryColor present
+  svg = replaceGradient(svg, 'roseyPetal1', buildPetalGradient('roseyPetal1', baseColor, '0.3', '0.2', secondaryColor));
   
   // Petal2 (slightly lighter)
   svg = replaceGradient(svg, 'roseyPetal2', buildRadialGradient2Stop('roseyPetal2', lightenColor(baseColor, 15), '0.4', '0.3'));
@@ -331,13 +339,15 @@ function customizeRosey(svgText: string, baseColor: string): string {
  * Starri: Inner star should use Blobbi color (outer stays dark/cosmic)
  * Gradients: starriInner (the inner golden star - this should be the Blobbi color)
  */
-function customizeStarri(svgText: string, baseColor: string): string {
+function customizeStarri(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Inner star (3-stop gradient to maintain depth)
+  // Inner star (3-stop gradient to maintain depth) - two-tone when secondaryColor present
+  const starInner = secondaryColor ?? lightenColor(baseColor, 35);
+  const starMid = secondaryColor ? lightenColor(secondaryColor, 20) : lightenColor(baseColor, 15);
   svg = replaceGradient(svg, 'starriInner', `<radialGradient id="starriInner" cx="0.4" cy="0.3">
-      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 35)};stop-opacity:1" />
-      <stop offset="50%" style="stop-color:${lightenColor(baseColor, 15)};stop-opacity:1" />
+      <stop offset="0%" style="stop-color:${starInner};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${starMid};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${baseColor};stop-opacity:1" />
     </radialGradient>`);
   
@@ -348,11 +358,11 @@ function customizeStarri(svgText: string, baseColor: string): string {
  * Breezy: Body, inner, veins, arms, legs, and floating leaves should use Blobbi color
  * Gradients: breezyBody, breezyInner, breezyVein, breezyArm, breezyLeg, breezyFloating
  */
-function customizeBreezy(svgText: string, baseColor: string): string {
+function customizeBreezy(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop leaf gradient)
-  svg = replaceGradient(svg, 'breezyBody', buildRadialGradient4Stop('breezyBody', baseColor));
+  // Body (4-stop leaf gradient) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'breezyBody', buildRadialGradient4Stop('breezyBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Inner highlight (lighter, 2-stop)
   svg = replaceGradient(svg, 'breezyInner', buildRadialGradient2Stop('breezyInner', lightenColor(baseColor, 40), '0.4', '0.3'));
@@ -381,7 +391,7 @@ function customizeBreezy(svgText: string, baseColor: string): string {
  * Note: Bloomi has 6 different colored petals - we'll make them all use variations of the base color
  * Gradients: bloomiPetal1-6, bloomiCenter, bloomiPollen
  */
-function customizeBloomi(svgText: string, baseColor: string): string {
+function customizeBloomi(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
   // All 6 petals use variations of the Blobbi color
@@ -393,10 +403,12 @@ function customizeBloomi(svgText: string, baseColor: string): string {
   svg = replaceGradient(svg, 'bloomiPetal5', buildRadialGradient2Stop('bloomiPetal5', darkenColor(baseColor, 10)));
   svg = replaceGradient(svg, 'bloomiPetal6', buildRadialGradient2Stop('bloomiPetal6', darkenColor(baseColor, 5)));
   
-  // Center (3-stop, lighter than petals - this is where the face is)
+  // Center (3-stop, face area) - two-tone when secondaryColor present
+  const centerInner = secondaryColor ?? lightenColor(baseColor, 45);
+  const centerMid = secondaryColor ? lightenColor(secondaryColor, 20) : lightenColor(baseColor, 35);
   svg = replaceGradient(svg, 'bloomiCenter', `<radialGradient id="bloomiCenter" cx="0.3" cy="0.2">
-      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 45)};stop-opacity:1" />
-      <stop offset="50%" style="stop-color:${lightenColor(baseColor, 35)};stop-opacity:1" />
+      <stop offset="0%" style="stop-color:${centerInner};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${centerMid};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${lightenColor(baseColor, 25)};stop-opacity:1" />
     </radialGradient>`);
   
@@ -410,11 +422,11 @@ function customizeBloomi(svgText: string, baseColor: string): string {
  * Cacti: Body and arms should use Blobbi color (pot keeps original red)
  * Gradients: cactiBody, cactiArm
  */
-function customizeCacti(svgText: string, baseColor: string): string {
+function customizeCacti(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop)
-  svg = replaceGradient(svg, 'cactiBody', buildRadialGradient4Stop('cactiBody', baseColor));
+  // Body (4-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'cactiBody', buildRadialGradient4Stop('cactiBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Arms (2-stop)
   svg = replaceGradient(svg, 'cactiArm', buildRadialGradient2Stop('cactiArm', lightenColor(baseColor, 10)));
@@ -426,13 +438,15 @@ function customizeCacti(svgText: string, baseColor: string): string {
  * Cloudi: Body, highlights, and raindrops should use Blobbi color
  * Gradients: cloudiBody, cloudiHighlight, cloudiRain
  */
-function customizeCloudi(svgText: string, baseColor: string): string {
+function customizeCloudi(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (3-stop, cloud-like progression from light to slightly darker)
+  // Body (3-stop, cloud-like progression) - two-tone when secondaryColor present
+  const bodyInner = secondaryColor ?? lightenColor(baseColor, 45);
+  const bodyMid = secondaryColor ? lightenColor(secondaryColor, 20) : lightenColor(baseColor, 30);
   svg = replaceGradient(svg, 'cloudiBody', `<radialGradient id="cloudiBody" cx="0.3" cy="0.2">
-      <stop offset="0%" style="stop-color:${lightenColor(baseColor, 45)};stop-opacity:1" />
-      <stop offset="50%" style="stop-color:${lightenColor(baseColor, 30)};stop-opacity:1" />
+      <stop offset="0%" style="stop-color:${bodyInner};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${bodyMid};stop-opacity:1" />
       <stop offset="100%" style="stop-color:${lightenColor(baseColor, 15)};stop-opacity:1" />
     </radialGradient>`);
   
@@ -452,11 +466,11 @@ function customizeCloudi(svgText: string, baseColor: string): string {
  * Crysti: Body and inner should use Blobbi color (facets keep their colorful nature)
  * Gradients: crystiBody, crystiInner
  */
-function customizeCrysti(svgText: string, baseColor: string): string {
+function customizeCrysti(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (4-stop crystal gradient)
-  svg = replaceGradient(svg, 'crystiBody', buildRadialGradient4Stop('crystiBody', baseColor));
+  // Body (4-stop crystal gradient) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'crystiBody', buildRadialGradient4Stop('crystiBody', baseColor, '0.3', '0.2', secondaryColor));
   
   // Inner highlight (semi-transparent white feel preserved but tinted)
   svg = replaceGradient(svg, 'crystiInner', `<radialGradient id="crystiInner" cx="0.4" cy="0.3">
@@ -471,11 +485,11 @@ function customizeCrysti(svgText: string, baseColor: string): string {
  * Owli: Body, ears, and wings should use Blobbi color (beak keeps yellow/orange)
  * Gradients: owliBody3D, owliEar3D, owliWing3D, owliWingHighlight
  */
-function customizeOwli(svgText: string, baseColor: string): string {
+function customizeOwli(svgText: string, baseColor: string, secondaryColor?: string): string {
   let svg = svgText;
   
-  // Body (3-stop)
-  svg = replaceGradient(svg, 'owliBody3D', buildRadialGradient3Stop('owliBody3D', baseColor));
+  // Body (3-stop) - two-tone when secondaryColor present
+  svg = replaceGradient(svg, 'owliBody3D', buildRadialGradient3Stop('owliBody3D', baseColor, '0.3', '0.2', secondaryColor));
   
   // Ears (2-stop, slightly darker)
   svg = replaceGradient(svg, 'owliEar3D', buildRadialGradient2Stop('owliEar3D', darkenColor(baseColor, 10), '0.3', '0.2'));
@@ -491,7 +505,7 @@ function customizeOwli(svgText: string, baseColor: string): string {
 
 // ─── Form Customizer Map ──────────────────────────────────────────────────────
 
-type FormCustomizer = (svgText: string, baseColor: string) => string;
+type FormCustomizer = (svgText: string, baseColor: string, secondaryColor?: string) => string;
 
 const FORM_CUSTOMIZERS: Partial<Record<AdultForm, FormCustomizer>> = {
   bloomi: customizeBloomi,
@@ -551,7 +565,7 @@ export function customizeAdultSvg(
   if (customization.baseColor) {
     const customizer = FORM_CUSTOMIZERS[form];
     if (customizer) {
-      modifiedSvg = customizer(modifiedSvg, customization.baseColor);
+      modifiedSvg = customizer(modifiedSvg, customization.baseColor, customization.secondaryColor);
     } else {
       // Fallback for forms without specific customizer: try generic body gradient
       modifiedSvg = applyGenericBodyGradient(modifiedSvg, form, customization.baseColor);
@@ -600,8 +614,34 @@ function applyGenericBodyGradient(
   return modified;
 }
 
+// ─── Pupil/Eye Color Application ──────────────────────────────────────────────
+
 /**
- * Apply pupil gradient customization
+ * Default hardcoded pupil fill colors for forms without pupil gradients.
+ * Used by the flat-fill fallback in applyPupilGradient().
+ */
+const HARDCODED_PUPIL_FILLS: Partial<Record<AdultForm, string>> = {
+  bloomi: '#1f2937',
+  breezy: '#1f2937',
+  cacti: '#1f2937',
+  cloudi: '#64748b',
+  crysti: '#1e1b4b',
+  droppi: '#0891b2',
+  flammi: '#1f2937',
+  leafy: '#1f2937',
+  mushie: '#1f2937',
+  rocky: '#1f2937',
+  rosey: '#1f2937',
+  starri: '#1e1b4b',
+};
+
+/**
+ * Apply pupil/eye color customization.
+ *
+ * First tries gradient-based replacement (for forms with {form}Pupil3D gradients).
+ * Falls back to scoped fill replacement for forms with hardcoded flat pupil fills,
+ * only replacing within the <!-- Pupils ... --> comment block to avoid touching
+ * other elements (mouths, strokes, etc.) that may share the same hex color.
  */
 function applyPupilGradient(
   svgText: string,
@@ -610,7 +650,7 @@ function applyPupilGradient(
 ): string {
   let modified = svgText;
 
-  // Try common patterns: {form}Pupil3D, {form}Pupil
+  // Try gradient-based approach first: {form}Pupil3D, {form}Pupil
   const pupilPatterns = [
     new RegExp(`<radialGradient[^>]*id=["'](${form}Pupil3D)["'][^>]*>[\\s\\S]*?<\\/radialGradient>`, 'i'),
     new RegExp(`<radialGradient[^>]*id=["'](${form}Pupil)["'][^>]*>[\\s\\S]*?<\\/radialGradient>`, 'i'),
@@ -622,7 +662,21 @@ function applyPupilGradient(
       const gradientId = match[1];
       const newGradient = buildPupilGradient(gradientId, eyeColor);
       modified = modified.replace(match[0], newGradient);
-      break;
+      return modified;
+    }
+  }
+
+  // Fallback: replace hardcoded pupil fills scoped to the <!-- Pupils ... --> block.
+  // Each form has exactly 2 pupil circles + 2 white highlight circles in this block.
+  // We only replace the known default fill color, not the white highlights.
+  const defaultFill = HARDCODED_PUPIL_FILLS[form];
+  if (defaultFill) {
+    const pupilBlockRegex = /<!-- Pupils[^>]*-->([\s\S]*?)(?=<!--|$)/;
+    const blockMatch = modified.match(pupilBlockRegex);
+    if (blockMatch) {
+      const block = blockMatch[0];
+      const newBlock = block.replaceAll(`fill="${defaultFill}"`, `fill="${eyeColor}"`);
+      modified = modified.replace(block, newBlock);
     }
   }
 
