@@ -37,19 +37,34 @@ import type {
 // ─── Body Path Detection ──────────────────────────────────────────────────────
 
 /**
- * Detect the body path from the SVG and extract full bounding box.
- * Looks for the main body path (body gradient fill or "Body" comment).
- * Returns both X and Y bounds for shape-aware placement.
+ * Detect the body element from the SVG and extract full bounding box.
+ *
+ * Strategy order:
+ *   0. Explicit `data-blobbi-body="true"` marker (any element type)
+ *   1. `<path>` with body gradient fill (legacy fallback)
+ *   2. `<path>` after a "Body" comment (legacy fallback)
+ *
+ * For non-path elements (`<circle>`, `<ellipse>`, `<rect>`) detected via
+ * Strategy 0, a geometrically equivalent path `d` string is synthesised
+ * so that downstream consumers (anger-rise clipPath, bounds) work unchanged.
  */
 export function detectBodyPath(svgText: string): BodyPathInfo | null {
-  // Strategy 1: path with body gradient fill
+  // Strategy 0: explicit marker on any element type
+  const markerMatch = svgText.match(/<(path|circle|ellipse|rect)\s([^>]*data-blobbi-body="true"[^>]*)\/>/);
+  if (markerMatch) {
+    const tag = markerMatch[1];
+    const attrs = markerMatch[2];
+    return bodyInfoFromElement(tag, attrs);
+  }
+
+  // Strategy 1 (legacy fallback): path with body gradient fill
   const bodyGradientMatch = svgText.match(/<path[^>]*d="([^"]+)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/);
   if (bodyGradientMatch) {
     const pathD = bodyGradientMatch[1];
     return { pathD, ...estimatePathBounds(pathD) };
   }
   
-  // Strategy 2: path after "Body" comment
+  // Strategy 2 (legacy fallback): path after "Body" comment
   const commentMatch = svgText.match(/<!--[^>]*[Bb]ody[^>]*-->\s*<path[^>]*d="([^"]+)"/);
   if (commentMatch) {
     const pathD = commentMatch[1];
@@ -57,6 +72,91 @@ export function detectBodyPath(svgText: string): BodyPathInfo | null {
   }
   
   return null;
+}
+
+// ─── Shape-to-Path Synthesis ──────────────────────────────────────────────────
+
+/**
+ * Extract BodyPathInfo from a matched SVG element (any supported shape type).
+ * For `<path>` elements the `d` attribute is used directly.
+ * For primitives (`<circle>`, `<ellipse>`, `<rect>`) an equivalent path is synthesised.
+ */
+function bodyInfoFromElement(tag: string, attrs: string): BodyPathInfo | null {
+  if (tag === 'path') {
+    const d = attr(attrs, 'd');
+    if (!d) return null;
+    return { pathD: d, ...estimatePathBounds(d) };
+  }
+
+  if (tag === 'circle') {
+    const cx = num(attrs, 'cx'), cy = num(attrs, 'cy'), r = num(attrs, 'r');
+    if (cx === null || cy === null || r === null) return null;
+    return circleToPathInfo(cx, cy, r, r);
+  }
+
+  if (tag === 'ellipse') {
+    const cx = num(attrs, 'cx'), cy = num(attrs, 'cy');
+    const rx = num(attrs, 'rx'), ry = num(attrs, 'ry');
+    if (cx === null || cy === null || rx === null || ry === null) return null;
+    return circleToPathInfo(cx, cy, rx, ry);
+  }
+
+  if (tag === 'rect') {
+    const x = num(attrs, 'x') ?? 0, y = num(attrs, 'y') ?? 0;
+    const w = num(attrs, 'width'), h = num(attrs, 'height');
+    const rx = num(attrs, 'rx') ?? 0;
+    if (w === null || h === null) return null;
+    return rectToPathInfo(x, y, w, h, rx);
+  }
+
+  return null;
+}
+
+/** Parse a single numeric attribute from an attribute string. */
+function num(attrs: string, name: string): number | null {
+  const m = attrs.match(new RegExp(`${name}="([^"]+)"`));
+  if (!m) return null;
+  const v = parseFloat(m[1]);
+  return isNaN(v) ? null : v;
+}
+
+/** Parse a string attribute value from an attribute string. */
+function attr(attrs: string, name: string): string | null {
+  const m = attrs.match(new RegExp(`${name}="([^"]+)"`));
+  return m ? m[1] : null;
+}
+
+/** Synthesise a path `d` and BodyPathInfo for a circle or ellipse. */
+function circleToPathInfo(cx: number, cy: number, rx: number, ry: number): BodyPathInfo {
+  // Two-arc closed path tracing the full ellipse
+  const pathD = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+  return {
+    pathD,
+    minX: cx - rx, maxX: cx + rx,
+    minY: cy - ry, maxY: cy + ry,
+    centerX: cx,
+    width: rx * 2,
+    height: ry * 2,
+  };
+}
+
+/** Synthesise a path `d` and BodyPathInfo for a rect (with optional rx rounding). */
+function rectToPathInfo(x: number, y: number, w: number, h: number, rx: number): BodyPathInfo {
+  const r = Math.min(rx, w / 2, h / 2);
+  let pathD: string;
+  if (r > 0) {
+    pathD = `M ${x + r} ${y} L ${x + w - r} ${y} A ${r} ${r} 0 0 1 ${x + w} ${y + r} L ${x + w} ${y + h - r} A ${r} ${r} 0 0 1 ${x + w - r} ${y + h} L ${x + r} ${y + h} A ${r} ${r} 0 0 1 ${x} ${y + h - r} L ${x} ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`;
+  } else {
+    pathD = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+  }
+  return {
+    pathD,
+    minX: x, maxX: x + w,
+    minY: y, maxY: y + h,
+    centerX: x + w / 2,
+    width: w,
+    height: h,
+  };
 }
 
 /**
