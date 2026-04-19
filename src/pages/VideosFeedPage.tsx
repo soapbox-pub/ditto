@@ -22,6 +22,7 @@ import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Blurhash } from "react-blurhash";
 import { Link } from "react-router-dom";
+import { isValidBlurhash } from "@/lib/blurhash";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
@@ -247,7 +248,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
     >
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
-        {blurhash && (
+        {isValidBlurhash(blurhash) && (
           <Blurhash
             hash={blurhash}
             width="100%"
@@ -644,7 +645,7 @@ function ShortThumb({
       aria-label={title}
     >
       <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
-        {blurhash && !thumbnail && (
+        {isValidBlurhash(blurhash) && !thumbnail && (
           <Blurhash
             hash={blurhash}
             width="100%"

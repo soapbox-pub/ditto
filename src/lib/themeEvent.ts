@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { CoreThemeColors, ThemeConfig, ThemeFont, ThemeBackground } from '@/themes';
-import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
+import { hslStringToHex, hexToHslString, isValidHex } from '@/lib/colorUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // ─── Kind Constants ───────────────────────────────────────────────────
@@ -39,6 +39,7 @@ function parseColorTags(tags: string[][]): CoreThemeColors | null {
   const primaryHex = colorMap.get('primary');
 
   if (!bgHex || !textHex || !primaryHex) return null;
+  if (!isValidHex(bgHex) || !isValidHex(textHex) || !isValidHex(primaryHex)) return null;
 
   return {
     background: hexToHslString(bgHex),

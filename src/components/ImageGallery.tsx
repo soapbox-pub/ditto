@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { isValidBlurhash } from '@/lib/blurhash';
 import { openUrl } from '@/lib/downloadFile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -230,7 +231,7 @@ function GridImage({
     >
       {/* Placeholder shown while the image is loading */}
       {!loaded && (
-        blurhash ? (
+        isValidBlurhash(blurhash) ? (
           // Blurhash canvas fills the container via CSS — pass small integer decode
           // resolution; the canvas is stretched to 100%×100% by the style prop.
           <Blurhash

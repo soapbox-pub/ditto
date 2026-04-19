@@ -20,6 +20,7 @@ import { getNsecCredential } from '@/lib/credentialManager';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ const validateBunkerUri = (uri: string) => {
 
 const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onSignupClick }) => {
   const { config } = useAppContext();
+  const shareOrigin = useShareOrigin();
   const [isLoading, setIsLoading] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(false);
   const [nsec, setNsec] = useState('');
@@ -70,12 +72,12 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     const isMobileDevice = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const uri = generateNostrConnectURI(params, {
       name: config.appName,
-      callback: isMobileDevice ? `${window.location.origin}/remoteloginsuccess` : undefined,
+      callback: isMobileDevice ? `${shareOrigin}/remoteloginsuccess` : undefined,
     });
     setNostrConnectParams(params);
     setNostrConnectUri(uri);
     setConnectError(null);
-  }, [login, config.appName]);
+  }, [login, config.appName, shareOrigin]);
 
   // Start listening for connection (async) - runs after params are set.
   useEffect(() => {

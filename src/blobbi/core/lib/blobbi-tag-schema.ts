@@ -33,7 +33,7 @@ export type TagCategory =
   | 'stats'            // Numeric stats (hunger, health, etc.)
   | 'state'            // Lifecycle state (stage, state, timestamps)
   | 'progression'      // Progress tracking (experience, care_streak)
-  | 'task'             // Task system (task, task_completed, state_started_at)
+  | 'task'             // Task system (task, task_completed, progression_state, progression_started_at)
   | 'social'           // Social flags (breeding_ready)
   | 'evolution'        // Evolution-specific (adult_type)
   | 'extension';       // Extension tags (theme, crossover_app)
@@ -382,8 +382,8 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
     persistent: false,
     source: 'system',
     regenerable: false,
-    format: 'active | sleeping | hibernating | incubating | evolving',
-    notes: 'incubating is for eggs, evolving is for babies. Reset to active after transition.',
+    format: 'active | sleeping | hibernating',
+    notes: 'Activity state only. Progression (incubation/evolution) is tracked in progression_state.',
   },
   {
     tag: 'last_interaction',
@@ -414,8 +414,21 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
   // TASK SYSTEM TAGS
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    tag: 'state_started_at',
-    description: 'Unix timestamp when current state (incubating/evolving) started',
+    tag: 'progression_state',
+    description: 'Current progression process state (orthogonal to activity state)',
+    category: 'task',
+    required: false,
+    stages: ['egg', 'baby', 'adult'],
+    persistent: false,
+    source: 'system',
+    regenerable: false,
+    format: 'none | incubating | evolving',
+    defaultValue: 'none',
+    notes: 'Set to incubating/evolving when a progression process starts. Cleared to none after hatch/evolve completes. Survives sleep/wake/hibernation changes.',
+  },
+  {
+    tag: 'progression_started_at',
+    description: 'Unix timestamp when current progression (incubating/evolving) started',
     category: 'task',
     required: false,
     stages: ['egg', 'baby', 'adult'],
@@ -424,6 +437,18 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
     regenerable: false,
     format: 'Unix timestamp (seconds)',
     notes: 'Set when entering incubating/evolving. REMOVED after hatch/evolve completes.',
+  },
+  {
+    tag: 'state_started_at',
+    description: '@deprecated Use progression_started_at instead. Unix timestamp when current state (incubating/evolving) started',
+    category: 'task',
+    required: false,
+    stages: ['egg', 'baby', 'adult'],
+    persistent: false,
+    source: 'system',
+    regenerable: false,
+    format: 'Unix timestamp (seconds)',
+    notes: 'Legacy tag. New events should use progression_started_at instead.',
   },
   {
     tag: 'task',
@@ -632,14 +657,14 @@ export const DEPRECATED_TAG_SCHEMA: readonly DeprecatedTagSchema[] = [
   },
   {
     tag: 'incubation_time',
-    reason: 'Task system uses state_started_at for timing',
-    replacedBy: 'state_started_at',
+    reason: 'Task system uses progression_started_at for timing',
+    replacedBy: 'progression_started_at',
     deprecatedSince: 'v1.0',
   },
   {
     tag: 'start_incubation',
-    reason: 'Task system uses state_started_at for timing',
-    replacedBy: 'state_started_at',
+    reason: 'Task system uses progression_started_at for timing',
+    replacedBy: 'progression_started_at',
     deprecatedSince: 'v1.0',
   },
   {
@@ -668,7 +693,7 @@ export function getPersistentTagNames(): Set<string> {
  * These are task-related and state-specific tags.
  */
 export function getTransitionCleanupTagNames(): Set<string> {
-  return new Set(['task', 'task_completed', 'state_started_at']);
+  return new Set(['task', 'task_completed', 'state_started_at', 'progression_started_at', 'progression_state']);
 }
 
 /**
@@ -776,13 +801,15 @@ const NEVER_INVENT_TAGS = new Set([
  * Valid states for each stage. Used to validate/repair state after transitions.
  */
 const VALID_STATES_BY_STAGE: Record<BlobbiStage, Set<string>> = {
-  egg: new Set(['active', 'sleeping', 'hibernating', 'incubating']),
-  baby: new Set(['active', 'sleeping', 'hibernating', 'evolving']),
+  egg: new Set(['active', 'sleeping', 'hibernating']),
+  baby: new Set(['active', 'sleeping', 'hibernating']),
   adult: new Set(['active', 'sleeping', 'hibernating']),
 };
 
 /**
- * Task-process states that should NOT remain after stage transitions.
+ * Task-process states that should NOT remain in the `state` tag after stage transitions.
+ * With the new model, state should never be 'incubating'/'evolving' — but we keep this
+ * for migration: if a legacy event has them in state, the repair will fix it.
  */
 const TASK_PROCESS_STATES = new Set(['incubating', 'evolving']);
 

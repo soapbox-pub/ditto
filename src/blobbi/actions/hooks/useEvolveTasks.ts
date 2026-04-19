@@ -90,7 +90,7 @@ export function useEvolveTasks(
   const { nostr } = useNostr();
 
   const pubkey = user?.pubkey;
-  const isEvolving = companion?.state === 'evolving';
+  const isEvolving = companion?.progressionState === 'evolving';
   const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
 
   // ─── Ensure evolution missions exist and match current definitions ───

@@ -8,11 +8,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
-import { EmbeddedNote } from '@/components/EmbeddedNote';
-import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LinkEmbed } from '@/components/LinkEmbed';
-import { ProfilePreview } from '@/components/ExternalContentHeader';
 import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
@@ -129,7 +127,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
                   <LinkEmbed url={event.href} showActions={false} hideImage />
                 </div>
               ) : (
-                <EmbeddedPost event={event} />
+                <EmbeddedPost event={event} className="mx-4 mb-2" disableHoverCards />
               )}
             </div>
           )}
@@ -162,38 +160,5 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
         </PortalContainerProvider>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/**
- * Compact embedded preview of the post being replied to.
- * Delegates to the shared EmbeddedNote / EmbeddedNaddr components used by
- * quote posts and hover cards, so every context renders events consistently.
- */
-function EmbeddedPost({ event }: { event: NostrEvent }) {
-  // Kind 0 (profile) — show a profile card instead of trying to render the raw JSON content
-  if (event.kind === 0) {
-    return (
-      <div className="mx-4 mb-2 rounded-xl border border-border bg-secondary/30 overflow-hidden">
-        <ProfilePreview pubkey={event.pubkey} />
-      </div>
-    );
-  }
-
-  // Addressable events (kind 30000-39999) — use EmbeddedNaddr
-  if (event.kind >= 30000 && event.kind < 40000) {
-    const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-    return (
-      <div className="mx-4 mb-2">
-        <EmbeddedNaddr addr={{ kind: event.kind, pubkey: event.pubkey, identifier: dTag }} />
-      </div>
-    );
-  }
-
-  // Everything else — use EmbeddedNote (the event is already in the query cache)
-  return (
-    <div className="mx-4 mb-2">
-      <EmbeddedNote eventId={event.id} authorHint={event.pubkey} disableHoverCards />
-    </div>
   );
 }

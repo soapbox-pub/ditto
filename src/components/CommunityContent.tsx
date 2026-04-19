@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -75,6 +76,7 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
 
 export function CommunityContent({ event }: { event: NostrEvent }) {
   const { toast } = useToast();
+  const shareOrigin = useShareOrigin();
   const { name, description, image, moderators, relays } = useMemo(
     () => parseCommunityEvent(event),
     [event],
@@ -109,14 +111,14 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
       pubkey: event.pubkey,
       identifier: d,
     });
-    const url = `${window.location.origin}/${naddr}`;
+    const url = `${shareOrigin}/${naddr}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: 'Link copied to clipboard' });
     } catch {
       toast({ title: 'Failed to copy link', variant: 'destructive' });
     }
-  }, [event, toast]);
+  }, [event, toast, shareOrigin]);
 
   return (
     <div className="mt-3 space-y-5">

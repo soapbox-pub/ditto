@@ -10,6 +10,8 @@ import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
@@ -89,6 +91,13 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   // Kind 8 badge award events get a compact badge card
   if (event.kind === BADGE_AWARD_KIND) {
     return <EmbeddedBadgeAwardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // People-list events (kind 3 follow lists) get a dedicated card showing
+  // title + avatar stack + member count. The generic fallback renders empty
+  // because all the data lives in `p` tags, not content or title tags.
+  if (isPeopleListKind(event.kind)) {
+    return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;

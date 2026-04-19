@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.10.2] - 2026-04-18
+
+### Fixed
+- Sleep and wake actions on Blobbis no longer wipe out evolution progress, and existing Blobbis that got stuck are recovered automatically
+- Pages no longer crash when a post contains a malformed blurhash; a placeholder is shown instead
+- External content links (books, locations, and other identifiers) and relay pages no longer crash on unusual or malformed URLs
+- Custom profile themes with invalid color values no longer break the page
+
+## [2.10.1] - 2026-04-17
+
+### Fixed
+- QR codes, copy-link actions, and remote-login callbacks on the iOS and Android apps now produce real shareable URLs instead of broken `capacitor://localhost` ones
+
+## [2.10.0] - 2026-04-17
+
+### Added
+- Follow lists, follow sets, and follow packs now share a unified detail view with Feed, Members, and Comments tabs, plus infinite scroll through posts from everyone on the list
+- Follow All button lets you follow everyone on someone's list or pack in a single tap, and a Save button copies any list to your own account
+- Tapping the "Following" count on a profile now opens a proper shareable page for that follow list instead of a modal
+
+### Changed
+- Quote posts, replies, and hover cards now show rich previews when someone shares a follow list or pack
+- Blobbi care actions in your feed now read as "cared for their Blobbi" instead of "updated their Blobbi"
+
+### Fixed
+- Stuck pinch-to-zoom on iOS that could lock the app in a zoomed-out state after a stray gesture
+- Profile and follow-list links that point at legacy replaceable events now resolve correctly instead of showing a "not found" state
+
+## [2.9.0] - 2026-04-17
+
+### Added
+- Compose box overhaul: emoji, GIF, and sticker pickers now appear inline right where you're typing, drafts autosave so you never lose a post mid-thought, and the box guards against accidental dismissal
+- Badge awards now appear inline in your home, profile, and Badges feeds with a one-tap accept button
+- Reaction, repost, zap, and poll-vote detail views now show the full list of who interacted, not just a count
+
+### Changed
+- Hatching and evolving Blobbis no longer requires posting -- focus on the care actions that matter
+
 ## [2.8.0] - 2026-04-16
 
 ### Added

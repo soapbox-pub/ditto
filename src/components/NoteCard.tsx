@@ -20,6 +20,7 @@ import {
   SmilePlus,
   PartyPopper,
   Sparkles,
+  UserCheck,
   Users,
   Zap,
 } from "lucide-react";
@@ -48,7 +49,7 @@ import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
-import { FollowPackContent } from "@/components/FollowPackContent";
+import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
@@ -92,6 +93,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
+import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import { canZap } from "@/lib/canZap";
@@ -342,6 +344,7 @@ export const NoteCard = memo(function NoteCard({
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
+  const shareOrigin = useShareOrigin();
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -393,7 +396,7 @@ export const NoteCard = memo(function NoteCard({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
@@ -443,7 +446,7 @@ export const NoteCard = memo(function NoteCard({
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
-    !isFollowPack &&
+    !isPeopleList &&
     !isArticle &&
     !isMagicDeck &&
     !isStream &&
@@ -589,8 +592,8 @@ export const NoteCard = memo(function NoteCard({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
-        ) : isFollowPack ? (
-          <FollowPackContent event={event} />
+        ) : isPeopleList ? (
+          <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <ArticleContent event={event} preview className="mt-2" />
@@ -808,7 +811,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={async (e) => {
           e.stopPropagation();
           impactLight();
-          const url = `${window.location.origin}/${encodedId}`;
+          const url = `${shareOrigin}/${encodedId}`;
           const result = await shareOrCopy(url);
           if (result === "copied") toast({ title: "Link copied to clipboard" });
         }}
@@ -1800,7 +1803,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31124: {
     icon: Egg,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
     noun: "Blobbi",
     nounRoute: "/blobbi",
   },
@@ -1811,7 +1814,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/packs",
   },
   30000: {
-    icon: PartyPopper,
+    icon: Users,
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "follow set",
     nounRoute: "/packs",
@@ -1827,6 +1830,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "playlist",
     nounRoute: "/music",
+  },
+  3: {
+    icon: UserCheck,
+    action: "updated their",
+    noun: "follow list",
   },
 };
 

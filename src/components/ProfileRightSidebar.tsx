@@ -4,6 +4,7 @@ import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'l
 import { LinkFooter } from '@/components/LinkFooter';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { isValidBlurhash } from '@/lib/blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -193,7 +194,7 @@ function MediaTile({ item }: { item: MediaItem }) {
     <div className="relative w-full h-full">
       {/* Blurhash or skeleton placeholder while media loads */}
       {!loaded && (
-        item.blurhash ? (
+        isValidBlurhash(item.blurhash) ? (
           <Blurhash
             hash={item.blurhash}
             width={32}
