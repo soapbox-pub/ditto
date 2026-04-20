@@ -182,6 +182,7 @@ function isVideoItem(item: MediaItem): boolean {
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { config } = useAppContext();
   const isVideo = isVideoItem(item);
 
   useEffect(() => {
@@ -213,7 +214,7 @@ function MediaTile({ item }: { item: MediaItem }) {
           src={item.url}
           className="absolute inset-0 w-full h-full object-cover"
           muted
-          autoPlay
+          autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"

@@ -251,6 +251,8 @@ export interface AppConfig {
   plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
+  /** Autoplay videos in feeds and previews (muted). Default: false. */
+  autoplayVideos: boolean;
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */

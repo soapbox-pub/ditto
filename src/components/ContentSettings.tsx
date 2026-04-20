@@ -1247,6 +1247,34 @@ function MuteTypeSection({
   );
 }
 
+export function VideoAutoplaySection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const autoplay = config.autoplayVideos === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, autoplayVideos: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ autoplayVideos: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">Autoplay videos</Label>
+        <p className="text-xs text-muted-foreground">Automatically play videos (muted) in feeds and previews</p>
+      </div>
+      <Switch
+        checked={autoplay}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
 export function ThemePreferencesSection() {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();

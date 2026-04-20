@@ -161,7 +161,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           src={item.url}
           className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
           muted
-          autoPlay
+          autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"

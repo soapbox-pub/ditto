@@ -112,6 +112,7 @@ export function TestApp({ children }: TestAppProps) {
     plausibleDomain: "",
     plausibleEndpoint: "",
     savedFeeds: [],
+    autoplayVideos: false,
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
     sidebarWidgets: [],
