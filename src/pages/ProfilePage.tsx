@@ -1321,6 +1321,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
   // Wall compose modal state (for FAB on wall tab)
   const [wallComposeOpen, setWallComposeOpen] = useState(false);
+  // Bumped after a successful post from the wall compose modal so the inline
+  // ComposeBox remounts with a cleared draft instead of showing stale text.
+  const [wallComposeKey, setWallComposeKey] = useState(0);
 
   // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
@@ -2425,6 +2428,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
             {wallReplyTarget && profileFollowsMe && (
               <ComposeBox
+                key={wallComposeKey}
                 compact
                 replyTo={wallReplyTarget}
                 placeholder={`Write on ${displayName}'s wall`}
@@ -2439,7 +2443,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
                 placeholder={`Write on ${displayName}'s wall`}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] });
+                  setWallComposeKey((k) => k + 1);
+                }}
               />
             )}
 
