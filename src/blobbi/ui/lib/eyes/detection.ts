@@ -214,7 +214,11 @@ function detectFromProcessedSvg(svgText: string): EyePosition[] {
     const radiusMatch = afterMatch.match(/\br="([\d.]+)"/);
     const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 6;
 
-    eyes.push({ cx, cy, radius, side });
+    // Extract eye white vertical radius if available (written by addEyeAnimation)
+    const eyeWhiteRyMatch = blinkTag.match(/data-eye-ry="([\d.]+)"/);
+    const eyeWhiteRy = eyeWhiteRyMatch ? parseFloat(eyeWhiteRyMatch[1]) : undefined;
+
+    eyes.push({ cx, cy, radius, side, eyeWhiteRy });
   }
 
   return eyes;
