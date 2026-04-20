@@ -126,6 +126,7 @@ const VANISH_KIND = 62;
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return "Loading...";
+  if (kind === 34139) return "Playlist Details";
   if (MUSIC_KINDS.has(kind)) return "Track Details";
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
