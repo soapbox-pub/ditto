@@ -214,7 +214,11 @@ function detectFromProcessedSvg(svgText: string): EyePosition[] {
     const radiusMatch = afterMatch.match(/\br="([\d.]+)"/);
     const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 6;
 
-    eyes.push({ cx, cy, radius, side });
+    // Extract eye white vertical radius if available (written by addEyeAnimation)
+    const eyeWhiteRyMatch = blinkTag.match(/data-eye-ry="([\d.]+)"/);
+    const eyeWhiteRy = eyeWhiteRyMatch ? parseFloat(eyeWhiteRyMatch[1]) : undefined;
+
+    eyes.push({ cx, cy, radius, side, eyeWhiteRy });
   }
 
   return eyes;
@@ -409,6 +413,9 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
  * Check if element is a pupil.
  */
 function isPupilElement(element: string): boolean {
+  // Check for explicit pupil marker (used by flat-fill forms after eyeColor replacement)
+  if (element.includes('data-blobbi-pupil')) return true;
+
   // Check for pupil gradient
   if (/fill="url\(#[^"]*[Pp]upil[^"]*\)"/.test(element)) {
     return true;

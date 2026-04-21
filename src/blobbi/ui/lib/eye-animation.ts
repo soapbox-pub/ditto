@@ -119,6 +119,12 @@ function isEyeWhiteElement(element: string, radius: number): boolean {
  * Check if element is a pupil
  */
 function isPupilElement(element: string): boolean {
+  // Skip elements explicitly marked as non-eye parts (e.g. Pandi's ear/eye-patch circles)
+  if (element.includes('data-blobbi-skip')) return false;
+
+  // Check for explicit pupil marker (used by flat-fill forms after eyeColor replacement)
+  if (element.includes('data-blobbi-pupil')) return true;
+
   // Check for pupil gradient
   if (/fill="url\(#[^"]*[Pp]upil[^"]*\)"/.test(element)) {
     return true;
@@ -449,9 +455,13 @@ export function addEyeAnimation(svgText: string, options?: EyeAnimationOptions):
     // Store eye geometry as data attributes for the animation loop
     // Uses the official EYE_DATA_ATTRS naming convention from eyes/types.ts
     // data-eye-cx/cy: eye center coordinates
+    // data-eye-rx/ry: eye white dimensions (used by eyebrow placement)
     // data-clip-top/height/id: clipping bounds for blink animation
     const clipId = `blobbi-blink-clip-${instanceId}-${group.side}`;
-    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-eye-cx="${group.blinkCenterX}" data-eye-cy="${group.blinkCenterY}" data-eye-side="${group.side}" data-clip-top="${clipTop}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
+    const eyeWhiteAttrs = group.eyeWhiteGeometry
+      ? ` data-eye-rx="${group.eyeWhiteGeometry.rx}" data-eye-ry="${group.eyeWhiteGeometry.ry}"`
+      : '';
+    const blinkGroup = `<g class="blobbi-blink blobbi-blink-${group.side}" data-eye-cx="${group.blinkCenterX}" data-eye-cy="${group.blinkCenterY}" data-eye-side="${group.side}"${eyeWhiteAttrs} data-clip-top="${clipTop}" data-clip-height="${clipHeight}" data-clip-id="${clipId}" clip-path="url(#${clipId})">
     ${blinkContent}
   </g>`;
 
