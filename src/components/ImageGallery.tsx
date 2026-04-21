@@ -393,18 +393,19 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     slotRefs.current.forEach((_, idx) => setSlotTransform(idx, offsetPx, 'none'));
   }, [setSlotTransform]);
 
-  /** Apply vertical drag offset + opacity to the lightbox container for swipe-to-dismiss. */
+  /** Apply vertical drag offset + opacity to the lightbox for swipe-to-dismiss.
+   *  Backdrop fades in-place; all visible content (top bar, nav, images, dots,
+   *  bottom bar) translates together via [data-lightbox-content]. */
   const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
     const el = containerRef.current;
     if (!el) return;
     const progress = Math.min(Math.abs(offsetY) / (window.innerHeight * 0.4), 1);
     el.style.transition = transition ? `opacity ${transition.split(' ').slice(1).join(' ')}` : 'none';
     el.style.opacity = String(1 - progress * 0.6);
-    // Apply translateY to the image strip container (the overflow div)
-    const strip = el.querySelector<HTMLDivElement>('[data-lightbox-strip]');
-    if (strip) {
-      strip.style.transition = transition;
-      strip.style.transform = `translateY(${offsetY}px)`;
+    const content = el.querySelector<HTMLDivElement>('[data-lightbox-content]');
+    if (content) {
+      content.style.transition = transition;
+      content.style.transform = `translateY(${offsetY}px)`;
     }
   }, []);
 
@@ -414,7 +415,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     snapAll(0);
   }, [currentIndex, snapAll]);
 
-
+  // Safety: clear animating lock on unmount so stale refs can't block controls
+  useEffect(() => () => { animating.current = false; }, []);
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (animating.current) return;
@@ -475,9 +477,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
         const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
         applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
         setTimeout(() => {
-          animating.current = false;
           verticalOffsetRef.current = 0;
           onClose();
+          animating.current = false;
         }, DURATION);
       } else {
         // Spring back
@@ -548,97 +550,98 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Backdrop */}
+      {/* Backdrop — fades in-place, never translates */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
-      {/* Top bar */}
-      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
-        {topBarLeft !== undefined ? topBarLeft : (
-          <>
-            {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}
-            {!hasMultiple && <span />}
-          </>
-        )}
-        <div className="flex items-center gap-1">
-          {showDownload && (
-            <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
-              <Download className="size-5" />
-            </button>
+      {/* All interactive content — translated together during swipe-to-dismiss */}
+      <div data-lightbox-content className="absolute inset-0">
+        {/* Top bar */}
+        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
+          {topBarLeft !== undefined ? topBarLeft : (
+            <>
+              {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}
+              {!hasMultiple && <span />}
+            </>
           )}
-          <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
-            <X className="size-5" />
+          <div className="flex items-center gap-1">
+            {showDownload && (
+              <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
+                <Download className="size-5" />
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
+              <X className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Prev/next buttons (desktop) */}
+        {canGoPrev && (
+          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
+            <ChevronLeft className="size-6" />
           </button>
+        )}
+        {canGoNext && (
+          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
+            <ChevronRight className="size-6" />
+          </button>
+        )}
+
+        {/* Per-image slots — each absolutely positioned by index offset */}
+        <div data-lightbox-strip className="absolute inset-0 overflow-hidden">
+          {visibleIndices.map((i) => {
+            const url = images[i];
+            const isCurrent = i === currentIndex;
+            const initialX = (i - currentIndex) * window.innerWidth;
+            return (
+              <div
+                key={url}
+                ref={(el) => {
+                  if (el) slotRefs.current.set(i, el);
+                  else slotRefs.current.delete(i);
+                }}
+                className={cn(
+                  'absolute inset-0 flex items-center justify-center will-change-transform',
+                  bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
+                )}
+                style={{ transform: `translateX(${initialX}px)` }}
+              >
+                {isCurrent && !isLoaded && (mediaTypes?.[i] ?? 'image') === 'image' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+                  </div>
+                )}
+                <LightboxSlot
+                  url={url}
+                  type={mediaTypes?.[i] ?? 'image'}
+                  meta={mediaMeta?.[i]}
+                  isActive={isCurrent}
+                  isLoaded={isCurrent ? isLoaded : true}
+                  onLoad={markLoaded}
+                  onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
+                  onZoomChange={(zoomed) => { childZoomedRef.current = zoomed; }}
+                />
+              </div>
+            );
+          })}
         </div>
+
+        {/* Dot indicators */}
+        {hasMultiple && images.length <= maxDotIndicators && (
+          <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
+            {images.map((_, i) => (
+              <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
+            ))}
+          </div>
+        )}
+
+        {/* Bottom bar — author info, reactions, captions, etc. */}
+        {bottomBar && (
+          <div className="absolute inset-x-0 bottom-0 z-10" onClick={(e) => e.stopPropagation()}>
+            {bottomBar}
+          </div>
+        )}
       </div>
-
-      {/* Prev/next buttons (desktop) */}
-      {canGoPrev && (
-        <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
-          <ChevronLeft className="size-6" />
-        </button>
-      )}
-      {canGoNext && (
-        <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
-          <ChevronRight className="size-6" />
-        </button>
-      )}
-
-      {/* Per-image slots — each absolutely positioned by index offset */}
-      <div data-lightbox-strip className="absolute inset-0 overflow-hidden">
-        {visibleIndices.map((i) => {
-          const url = images[i];
-          const isCurrent = i === currentIndex;
-          const initialX = (i - currentIndex) * window.innerWidth;
-          return (
-            <div
-              key={url}
-              ref={(el) => {
-                if (el) slotRefs.current.set(i, el);
-                else slotRefs.current.delete(i);
-              }}
-              className={cn(
-                'absolute inset-0 flex items-center justify-center will-change-transform',
-                bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
-              )}
-              style={{ transform: `translateX(${initialX}px)` }}
-            >
-              {isCurrent && !isLoaded && (mediaTypes?.[i] ?? 'image') === 'image' && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-                </div>
-              )}
-              <LightboxSlot
-                url={url}
-                type={mediaTypes?.[i] ?? 'image'}
-                meta={mediaMeta?.[i]}
-                isActive={isCurrent}
-                isLoaded={isCurrent ? isLoaded : true}
-                onLoad={markLoaded}
-                onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
-                onZoomChange={(zoomed) => { childZoomedRef.current = zoomed; }}
-              />
-            </div>
-          );
-        })}
-
-
-      </div>
-
-      {/* Dot indicators */}
-      {hasMultiple && images.length <= maxDotIndicators && (
-        <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
-          {images.map((_, i) => (
-            <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
-          ))}
-        </div>
-      )}
-
-      {/* Bottom bar — author info, reactions, captions, etc. */}
-      {bottomBar && (
-        <div className="absolute inset-x-0 bottom-0 z-10" onClick={(e) => e.stopPropagation()}>
-          {bottomBar}
-        </div>
-      )}
     </div>,
     document.body,
   );

@@ -840,6 +840,10 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     };
   }, []);
 
+  // Safety: clear animating lock on unmount so stale refs can't block controls
+  useEffect(() => () => { animatingRef.current = false; }, []);
+
+  /** Backdrop fades in-place; all visible content translates together via contentRef. */
   const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
     const el = containerRef.current;
     const content = contentRef.current;
@@ -885,9 +889,9 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
       const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
       applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
       setTimeout(() => {
-        animatingRef.current = false;
         verticalOffset.current = 0;
         onClose();
+        animatingRef.current = false;
       }, DURATION);
     } else {
       applyVerticalDismiss(0, `transform ${DURATION}ms ${EASING}`);
@@ -917,44 +921,48 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
+      {/* Backdrop — fades in-place, never translates */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
-      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleDownload}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Open original"
-          >
-            <Download className="size-5" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-      </div>
-
-      <div ref={contentRef} className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+      {/* All interactive content — translated together during swipe-to-dismiss */}
+      <div ref={contentRef} className="absolute inset-0">
+        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDownload}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Open original"
+            >
+              <Download className="size-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-        )}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt=""
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
+        </div>
+
+        <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            </div>
           )}
-          onLoad={() => setIsLoaded(true)}
-          draggable={false}
-        />
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt=""
+            className={cn(
+              'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+              isLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={() => setIsLoaded(true)}
+            draggable={false}
+          />
+        </div>
       </div>
     </div>,
     document.body,
