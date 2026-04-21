@@ -1752,12 +1752,17 @@ function isCanonicalEquivalentToLegacy(
  *    b. same normalized name + same raw base_color tag
  *    c. same normalized name (fallback when legacy has no base_color tag)
  *
- * This only applies legacy → canonical. Canonical → canonical duplicates are
- * intentionally NOT collapsed by this function.
+ * After legacy filtering, a second pass collapses canonical → canonical
+ * duplicates that share the same `migrated_from` tag value (i.e. were both
+ * migrated from the same legacy d-tag due to a race condition). For each
+ * group the companion with the newest `created_at` is kept; the rest are
+ * hidden. Canonical companions without a `migrated_from` tag are always
+ * kept — no heuristic (name, color, etc.) grouping is applied.
  *
  * @param companions - All parsed companions (legacy + canonical)
  * @param profileHas - The profile.has array of owned Blobbi d-tags
- * @returns Filtered companions with migrated legacy entries removed
+ * @returns Filtered companions with migrated legacy entries and canonical
+ *          duplicates removed
  */
 export function filterMigratedLegacyCompanions(
   companions: BlobbiCompanion[],
@@ -1771,8 +1776,8 @@ export function filterMigratedLegacyCompanions(
 
   const hasSet = new Set(profileHas);
 
-  return companions.filter((c) => {
-    // Keep all canonical companions unconditionally
+  const afterLegacyFilter = companions.filter((c) => {
+    // Keep all canonical companions unconditionally (deduped in next pass)
     if (!c.isLegacy) return true;
 
     // Keep legacy companions that are still in profile.has (not yet migrated)
@@ -1789,6 +1794,74 @@ export function filterMigratedLegacyCompanions(
     // Hide if a canonical equivalent exists, keep otherwise
     return !hasEquivalent;
   });
+
+  // ── Canonical → canonical dedup ──────────────────────────────────────────
+  // Group canonical companions by `migrated_from` tag. Within each group,
+  // keep only the newest event (highest created_at). Canonicals without the
+  // tag are never grouped — they pass through untouched.
+  const canonicalWinners = collapseCanonicalDuplicates(
+    afterLegacyFilter.filter((c) => !c.isLegacy),
+  );
+  const winnerDs = new Set(canonicalWinners.map((c) => c.d));
+
+  return afterLegacyFilter.filter((c) => {
+    // Legacy companions already survived the first pass — keep them
+    if (c.isLegacy) return true;
+    // Canonical companions must be in the winner set
+    return winnerDs.has(c.d);
+  });
+}
+
+/**
+ * Collapse canonical companions that were duplicated by a migration race.
+ *
+ * Two canonical companions are considered duplicates of the same logical
+ * Blobbi if and only if both carry a `migrated_from` tag with the same
+ * value. For each such group the companion with the newest `created_at`
+ * is kept; ties are broken by d-tag lexicographic order (deterministic).
+ *
+ * Canonical companions *without* a `migrated_from` tag are always kept —
+ * no heuristic grouping (name, color, etc.) is applied.
+ */
+function collapseCanonicalDuplicates(
+  canonicals: BlobbiCompanion[],
+): BlobbiCompanion[] {
+  // Companions without migrated_from — always kept
+  const ungrouped: BlobbiCompanion[] = [];
+  // Group canonical companions by migrated_from value
+  const groups = new Map<string, BlobbiCompanion[]>();
+
+  for (const c of canonicals) {
+    const migratedFrom = getTagValue(c.event.tags, 'migrated_from');
+    if (!migratedFrom) {
+      ungrouped.push(c);
+      continue;
+    }
+    const group = groups.get(migratedFrom);
+    if (group) {
+      group.push(c);
+    } else {
+      groups.set(migratedFrom, [c]);
+    }
+  }
+
+  // Pick the winner from each group: newest created_at, tie-break on d-tag
+  const winners: BlobbiCompanion[] = [...ungrouped];
+  for (const group of groups.values()) {
+    let best = group[0];
+    for (let i = 1; i < group.length; i++) {
+      const c = group[i];
+      if (
+        c.event.created_at > best.event.created_at ||
+        (c.event.created_at === best.event.created_at && c.d > best.d)
+      ) {
+        best = c;
+      }
+    }
+    winners.push(best);
+  }
+
+  return winners;
 }
 
 /**
