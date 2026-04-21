@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Bot, Send, Square, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/PageHeader';
 import { MessageBubble, BuddyThinking } from '@/components/AIChat/AIChatComponents';
 import { BuddyOnboarding } from '@/components/AIChat/BuddyOnboarding';
+import { DorkOverlay } from '@/components/AIChat/DorkCharacter';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
@@ -58,15 +59,24 @@ export function AIChatPage() {
   }
 
   if (!hasBuddy) {
-    return (
-      <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
-        <PageHeader title="Buddy Setup" icon={<Bot className="size-5" />} className="shrink-0 py-3" />
-        <BuddyOnboarding className="flex-1" />
-      </main>
-    );
+    return <BuddySetupView />;
   }
 
   return <BuddyChatView buddy={buddy!} />;
+}
+
+// ─── Setup View (no buddy yet) ───
+
+function BuddySetupView() {
+  const [dorkDismissed, setDorkDismissed] = useState(false);
+
+  return (
+    <main className="flex flex-col overflow-hidden ai-chat-height sidebar:h-dvh bg-secondary/50">
+      <PageHeader title="Setup" icon={<Bot className="size-5" />} className="shrink-0 py-3" />
+      <BuddyOnboarding className="flex-1" />
+      <DorkOverlay open={!dorkDismissed} onDismiss={() => setDorkDismissed(true)} />
+    </main>
+  );
 }
 
 // ─── Chat View (buddy exists) ───
