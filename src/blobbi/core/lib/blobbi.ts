@@ -1696,12 +1696,61 @@ export function normalizeBlobbiName(name: string): string {
 }
 
 /**
+ * Check whether a canonical companion is equivalent to a legacy companion.
+ *
+ * Equivalence priority (first match wins):
+ * 1. **migrated_from exact match**: canonical has a `migrated_from` tag that
+ *    equals the legacy d-tag. This is the strongest signal — it was written
+ *    during migration and is preserved across all subsequent updates.
+ * 2. **name + base_color match**: same normalized name AND same raw `base_color`
+ *    tag value (both present and equal). Covers older canonical copies that
+ *    were created before the `migrated_from` tag existed.
+ * 3. **name-only fallback**: same normalized name when the legacy event has no
+ *    explicit `base_color` tag (too bare to compare). This is the weakest tier
+ *    and only applies to genuinely old legacy events with no visual tags.
+ */
+function isCanonicalEquivalentToLegacy(
+  canonical: BlobbiCompanion,
+  legacyD: string,
+  legacyName: string,
+  legacyBaseColor: string | undefined,
+): boolean {
+  // Priority 1: migrated_from exact match
+  const migratedFrom = getTagValue(canonical.event.tags, 'migrated_from');
+  if (migratedFrom === legacyD) return true;
+
+  // Priority 2: name + base_color (both must be present and equal)
+  const canonicalBaseColor = getTagValue(canonical.event.tags, 'base_color');
+  if (
+    normalizeBlobbiName(canonical.name) === legacyName &&
+    legacyBaseColor !== undefined &&
+    canonicalBaseColor !== undefined &&
+    legacyBaseColor.toUpperCase() === canonicalBaseColor.toUpperCase()
+  ) {
+    return true;
+  }
+
+  // Priority 3: name-only when legacy has no base_color to compare
+  if (
+    normalizeBlobbiName(canonical.name) === legacyName &&
+    legacyBaseColor === undefined
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Filter out legacy companions that have been migrated to canonical format.
  *
  * A legacy companion is hidden when ALL of the following are true:
  * 1. It is a legacy event (companion.isLegacy === true)
- * 2. A canonical companion with the same normalized name exists
- * 3. The legacy d-tag is NOT present in profile.has (confirming migration occurred)
+ * 2. The legacy d-tag is NOT present in profile.has (confirming migration occurred)
+ * 3. A canonical equivalent exists, determined by (first match wins):
+ *    a. migrated_from exact match on the legacy d-tag
+ *    b. same normalized name + same raw base_color tag
+ *    c. same normalized name (fallback when legacy has no base_color tag)
  *
  * This only applies legacy → canonical. Canonical → canonical duplicates are
  * intentionally NOT collapsed by this function.
@@ -1714,16 +1763,11 @@ export function filterMigratedLegacyCompanions(
   companions: BlobbiCompanion[],
   profileHas: string[],
 ): BlobbiCompanion[] {
-  // Build a set of normalized names from canonical companions only
-  const canonicalNames = new Set<string>();
-  for (const c of companions) {
-    if (!c.isLegacy) {
-      canonicalNames.add(normalizeBlobbiName(c.name));
-    }
-  }
+  // Collect canonical companions for equivalence checks
+  const canonicals = companions.filter((c) => !c.isLegacy);
 
   // If there are no canonical companions, nothing to filter
-  if (canonicalNames.size === 0) return companions;
+  if (canonicals.length === 0) return companions;
 
   const hasSet = new Set(profileHas);
 
@@ -1734,11 +1778,16 @@ export function filterMigratedLegacyCompanions(
     // Keep legacy companions that are still in profile.has (not yet migrated)
     if (hasSet.has(c.d)) return true;
 
-    // Keep legacy companions with no canonical name-equivalent
-    if (!canonicalNames.has(normalizeBlobbiName(c.name))) return true;
+    // Check if any canonical companion is equivalent to this legacy one
+    const legacyName = normalizeBlobbiName(c.name);
+    const legacyBaseColor = getTagValue(c.event.tags, 'base_color');
 
-    // Legacy companion has a canonical equivalent and is no longer in profile.has → hide
-    return false;
+    const hasEquivalent = canonicals.some((canonical) =>
+      isCanonicalEquivalentToLegacy(canonical, c.d, legacyName, legacyBaseColor),
+    );
+
+    // Hide if a canonical equivalent exists, keep otherwise
+    return !hasEquivalent;
   });
 }
 
@@ -1746,24 +1795,29 @@ export function filterMigratedLegacyCompanions(
  * Find an existing canonical companion that is equivalent to a legacy companion.
  *
  * Used by the migration guard to avoid creating duplicate canonical events.
- * Matches by normalized name among non-legacy companions. When multiple
- * canonical companions share the same name (from past duplicate migrations),
- * the one with the newest created_at is returned.
+ * Uses the same equivalence priority as `filterMigratedLegacyCompanions`:
+ * 1. migrated_from exact match (strongest)
+ * 2. same normalized name + same raw base_color tag
+ * 3. same normalized name when legacy has no base_color (weakest)
  *
- * @param legacyName - The name of the legacy companion (resolved via tag or d-tag derivation)
+ * When multiple canonical companions match, the one with the newest
+ * created_at is returned (most up-to-date state).
+ *
+ * @param legacy - The legacy companion to find an equivalent for
  * @param companions - All parsed companions
  * @returns The best matching canonical companion, or undefined
  */
 export function findCanonicalEquivalent(
-  legacyName: string,
+  legacy: BlobbiCompanion,
   companions: BlobbiCompanion[],
 ): BlobbiCompanion | undefined {
-  const normalizedLegacy = normalizeBlobbiName(legacyName);
+  const legacyName = normalizeBlobbiName(legacy.name);
+  const legacyBaseColor = getTagValue(legacy.event.tags, 'base_color');
   let best: BlobbiCompanion | undefined;
 
   for (const c of companions) {
     if (c.isLegacy) continue;
-    if (normalizeBlobbiName(c.name) !== normalizedLegacy) continue;
+    if (!isCanonicalEquivalentToLegacy(c, legacy.d, legacyName, legacyBaseColor)) continue;
     // Among multiple matches, prefer the newest (most up-to-date state)
     if (!best || c.event.created_at > best.event.created_at) {
       best = c;

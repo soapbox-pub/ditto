@@ -373,11 +373,11 @@ export function useBlobbiMigration() {
     if (companion.isLegacy) {
       console.log('[Blobbi Migration] Legacy companion detected, checking for existing canonical equivalent');
       
-      // Check if a canonical Blobbi with the same name already exists.
-      // This prevents duplicate migrations when interacting with a legacy Blobbi
-      // that was already migrated (the legacy event persists on relays).
+      // Check if a canonical equivalent already exists (by migrated_from tag,
+      // name+base_color, or name-only fallback). This prevents duplicate migrations
+      // when interacting with a legacy Blobbi that was already migrated.
       const allCompanions = await fetchAllCompanions(user.pubkey);
-      const existing = findCanonicalEquivalent(companion.name, allCompanions);
+      const existing = findCanonicalEquivalent(companion, allCompanions);
       
       if (existing) {
         console.log('[Blobbi Migration] Found existing canonical equivalent:', existing.d, '— skipping migration');
