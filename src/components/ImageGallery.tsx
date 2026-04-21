@@ -372,6 +372,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
   const DURATION = 280;
 
+  // ── Vertical swipe-to-dismiss state ───────────────────────────────────────
+  const verticalOffsetRef = useRef(0);
+  /** Whether a child LightboxImage is currently zoomed (scale > 1). */
+  const childZoomedRef = useRef(false);
+
   // Refs to each rendered slot keyed by image index
   const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -387,6 +392,21 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const snapAll = useCallback((offsetPx = 0) => {
     slotRefs.current.forEach((_, idx) => setSlotTransform(idx, offsetPx, 'none'));
   }, [setSlotTransform]);
+
+  /** Apply vertical drag offset + opacity to the lightbox container for swipe-to-dismiss. */
+  const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const progress = Math.min(Math.abs(offsetY) / (window.innerHeight * 0.4), 1);
+    el.style.transition = transition ? `opacity ${transition.split(' ').slice(1).join(' ')}` : 'none';
+    el.style.opacity = String(1 - progress * 0.6);
+    // Apply translateY to the image strip container (the overflow div)
+    const strip = el.querySelector<HTMLDivElement>('[data-lightbox-strip]');
+    if (strip) {
+      strip.style.transition = transition;
+      strip.style.transform = `translateY(${offsetY}px)`;
+    }
+  }, []);
 
   // When currentIndex changes (keyboard/button nav), snap all slots into position instantly
   useEffect(() => {
@@ -405,6 +425,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     axis.current = null;
     // Kill any in-flight transition
     slotRefs.current.forEach((_, idx) => setSlotTransform(idx, dragOffsetRef.current, 'none'));
+    // Reset vertical dismiss offset
+    applyVerticalDismiss(0, 'none');
+    verticalOffsetRef.current = 0;
   };
 
   // Registered via addEventListener with { passive: false } to allow preventDefault
@@ -416,6 +439,14 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     if (!axis.current) {
       if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
       axis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+    if (axis.current === 'v') {
+      // Vertical swipe-to-dismiss — only when not zoomed
+      if (childZoomedRef.current) return;
+      e.preventDefault();
+      verticalOffsetRef.current = dy;
+      applyVerticalDismiss(dy, 'none');
+      return;
     }
     if (axis.current !== 'h') return;
     e.preventDefault();
@@ -433,8 +464,31 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   }, []);
 
   const onTouchEnd = (e: React.TouchEvent) => {
+    // Handle vertical swipe-to-dismiss
+    if (axis.current === 'v' && dragY.current !== null && !childZoomedRef.current) {
+      const dy = e.changedTouches[0].clientY - dragY.current;
+      dragX.current = null; dragY.current = null; axis.current = null;
+      const committed = Math.abs(dy) > window.innerHeight * 0.15;
+      if (committed) {
+        // Animate out in the swipe direction and dismiss
+        animating.current = true;
+        const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
+        applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
+        setTimeout(() => {
+          animating.current = false;
+          verticalOffsetRef.current = 0;
+          onClose();
+        }, DURATION);
+      } else {
+        // Spring back
+        applyVerticalDismiss(0, `transform ${DURATION}ms ${EASING}`);
+        verticalOffsetRef.current = 0;
+      }
+      return;
+    }
+
     if (dragX.current === null || axis.current !== 'h') {
-      dragX.current = null; axis.current = null;
+      dragX.current = null; dragY.current = null; axis.current = null;
       // Spring back
       slotRefs.current.forEach((_, idx) =>
         setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
@@ -443,7 +497,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       return;
     }
     const dx = e.changedTouches[0].clientX - dragX.current;
-    dragX.current = null; axis.current = null;
+    dragX.current = null; dragY.current = null; axis.current = null;
 
     const committed = Math.abs(dx) > window.innerWidth * 0.2;
     const goingNext = dx < 0 && canGoNext && committed;
@@ -530,7 +584,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       )}
 
       {/* Per-image slots — each absolutely positioned by index offset */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div data-lightbox-strip className="absolute inset-0 overflow-hidden">
         {visibleIndices.map((i) => {
           const url = images[i];
           const isCurrent = i === currentIndex;
@@ -561,6 +615,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                 isLoaded={isCurrent ? isLoaded : true}
                 onLoad={markLoaded}
                 onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
+                onZoomChange={(zoomed) => { childZoomedRef.current = zoomed; }}
               />
             </div>
           );
@@ -593,12 +648,14 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 
 /** Lightbox image with pinch/wheel zoom and pan support. */
-function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
+function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: {
   url: string;
   isLoaded: boolean;
   onLoad: (url: string) => void;
   /** Called when a horizontal swipe is intercepted by pan (image is zoomed). */
   onSwipeBlocked?: () => void;
+  /** Called when the image zoom state changes (zoomed in or back to 1x). */
+  onZoomChange?: (zoomed: boolean) => void;
 }) {
   const { src, onError } = useBlossomFallback(url);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -625,13 +682,19 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleLoaded();
   }, [src, handleLoaded]);
 
+  /** Notify parent when zoom state changes. */
+  const notifyZoom = useCallback(() => {
+    onZoomChange?.(scale.current > 1);
+  }, [onZoomChange]);
+
   // Reset zoom when url changes
   useEffect(() => {
     scale.current = 1;
     panX.current = 0;
     panY.current = 0;
     applyTransform();
-  }, [url]);
+    notifyZoom();
+  }, [url, notifyZoom]);
 
   function applyTransform(animated = false) {
     const el = wrapRef.current;
@@ -696,6 +759,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
           }
         }
         applyTransform(true);
+        notifyZoom();
       }
       lastTap.current = now;
     }
@@ -713,6 +777,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       panY.current = p.panY + (midY - p.midY);
       clampPan(newScale);
       applyTransform();
+      notifyZoom();
     } else if (e.touches.length === 1 && panStart.current && scale.current > 1) {
       e.preventDefault();
       const p = panStart.current;
@@ -732,6 +797,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       if (scale.current < MIN_SCALE) {
         scale.current = MIN_SCALE; panX.current = 0; panY.current = 0;
         applyTransform(true);
+        notifyZoom();
       } else {
         clampPan();
         applyTransform(true);
@@ -748,6 +814,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       if (scale.current === MIN_SCALE) { panX.current = 0; panY.current = 0; }
       else clampPan();
       applyTransform();
+      notifyZoom();
     } else if (scale.current > 1) {
       e.preventDefault();
       panX.current -= e.deltaX;
@@ -827,6 +894,7 @@ function LightboxSlot({
   isLoaded,
   onLoad,
   onSwipeBlocked,
+  onZoomChange,
 }: {
   url: string;
   type: 'image' | 'video' | 'audio';
@@ -835,6 +903,7 @@ function LightboxSlot({
   isLoaded: boolean;
   onLoad: (url: string) => void;
   onSwipeBlocked?: () => void;
+  onZoomChange?: (zoomed: boolean) => void;
 }) {
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
@@ -870,5 +939,5 @@ function LightboxSlot({
       </div>
     );
   }
-  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} />;
+  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} />;
 }
