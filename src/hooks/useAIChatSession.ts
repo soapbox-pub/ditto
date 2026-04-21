@@ -241,16 +241,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         const choice = response.choices[0];
         const assistantMsg = choice.message;
 
-        // Check for tool calls
-        const rawMessage = assistantMsg as unknown as {
-          content?: string;
-          tool_calls?: Array<{
-            id: string;
-            function: { name: string; arguments: string };
-          }>;
-        };
-
-        if (!rawMessage.tool_calls || rawMessage.tool_calls.length === 0) {
+        if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
           const content = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
           const assistantMessage: DisplayMessage = {
             id: crypto.randomUUID(),
@@ -266,7 +257,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         let nostrEvent: NostrEvent | undefined;
         const toolCalls: ToolCall[] = [];
 
-        for (const tc of rawMessage.tool_calls) {
+        for (const tc of assistantMsg.tool_calls) {
           if (controller.signal.aborted) break;
 
           let args: Record<string, unknown>;
@@ -303,7 +294,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         const toolMsg: DisplayMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: rawMessage.content || '',
+          content: assistantMsg.content || '',
           timestamp: new Date(),
           toolCalls,
           nostrEvent,
