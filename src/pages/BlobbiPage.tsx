@@ -2403,7 +2403,12 @@ function MoreTabContent({
                   'rounded-full p-1 transition-all',
                   isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
                 )}>
-                  <BlobbiStageVisual companion={c} size="sm" />
+                  <BlobbiStageVisual
+                    companion={c}
+                    size="sm"
+                    recipe={c.state === 'sleeping' ? buildSleepingRecipe() : undefined}
+                    recipeLabel={c.state === 'sleeping' ? 'sleeping' : undefined}
+                  />
                 </div>
                 {isCompanion && (
                   <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-background ring-2 ring-background flex items-center justify-center">
