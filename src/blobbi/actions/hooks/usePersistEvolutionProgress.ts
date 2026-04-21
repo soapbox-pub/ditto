@@ -1,10 +1,9 @@
 /**
  * usePersistEvolutionProgress - Debounced persistence for evolution mission progress.
  *
- * Evolution missions (hatch/evolve tasks) live in `MissionsContent.evolution[]`
- * in the in-memory session store. This hook listens for changes and debounce-
- * publishes the updated state to kind 11125 content JSON so progress survives
- * page refreshes.
+ * Evolution missions live in the per-Blobbi session store (keyed by pubkey:d).
+ * This hook listens for changes and debounce-publishes the updated state to the
+ * kind 31124 Blobbi event content JSON so progress survives page refreshes.
  *
  * Design:
  * - Listens to 'daily-missions-updated' CustomEvent (same event the tracker fires)
@@ -23,10 +22,10 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
-  KIND_BLOBBONAUT_PROFILE,
+  KIND_BLOBBI_STATE,
 } from '@/blobbi/core/lib/blobbi';
-import { serializeProfileContent } from '@/blobbi/core/lib/missions';
-import { readMissionsFromStorage } from '../lib/daily-mission-tracker';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
+import { readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -38,10 +37,12 @@ const PERSIST_DELAY_MS = 5_000;
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * @param updateProfileEvent - Callback to update profile in query cache
+ * @param companionD - The d-tag of the active Blobbi (required for per-Blobbi storage)
+ * @param updateCompanionEvent - Callback to update companion in query cache
  */
 export function usePersistEvolutionProgress(
-  updateProfileEvent: (event: NostrEvent) => void,
+  companionD: string | undefined,
+  updateCompanionEvent: (event: NostrEvent) => void,
 ): void {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
@@ -53,41 +54,55 @@ export function usePersistEvolutionProgress(
 
   const persist = useCallback(async () => {
     const pubkey = user?.pubkey;
-    if (!pubkey || publishingRef.current) return;
+    if (!pubkey || !companionD || publishingRef.current) return;
 
-    const missions = readMissionsFromStorage(pubkey);
-    if (!missions || missions.evolution.length === 0) return;
+    const evolution = readEvolutionFromStorage(pubkey, companionD);
+    if (!evolution || evolution.length === 0) return;
 
     publishingRef.current = true;
     try {
+      // Fetch the fresh Blobbi event from relays
       const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_BLOBBONAUT_PROFILE],
+        kinds: [KIND_BLOBBI_STATE],
         authors: [pubkey],
+        '#d': [companionD],
       });
 
-      const content = serializeProfileContent(
-        prev?.content ?? '',
-        { missions },
-      );
+      if (!prev) {
+        console.warn('[PersistEvolution] No Blobbi event found for d-tag:', companionD);
+        return;
+      }
+
+      const content = serializeEvolutionContent(prev.content, evolution);
+
+      // Skip publish if the content is already up-to-date.
+      // This avoids redundant replaceable-event publishes when the
+      // primary interaction write path already persisted the same data.
+      if (content === prev.content) return;
 
       const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
+        kind: KIND_BLOBBI_STATE,
         content,
-        tags: prev?.tags ?? [],
-        prev: prev ?? undefined,
+        tags: prev.tags,
+        prev,
       });
 
-      updateProfileEvent(event);
-      queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', pubkey] });
+      updateCompanionEvent(event);
+      queryClient.invalidateQueries({ queryKey: ['blobbi-collection', pubkey] });
     } finally {
       publishingRef.current = false;
     }
-  }, [user?.pubkey, nostr, publishEvent, updateProfileEvent, queryClient]);
+  }, [user?.pubkey, companionD, nostr, publishEvent, updateCompanionEvent, queryClient]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail?.evolution) return;
+
+      // Only react to evolution updates for the active companion.
+      // detail.d is set by trackEvolutionMissionTally/Event; if absent
+      // (legacy caller), accept it to avoid silently dropping updates.
+      if (detail.d && detail.d !== companionD) return;
 
       // Clear any pending timer and restart the debounce
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -103,5 +118,5 @@ export function usePersistEvolutionProgress(
       window.removeEventListener('daily-missions-updated', handler);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [persist]);
+  }, [persist, companionD]);
 }

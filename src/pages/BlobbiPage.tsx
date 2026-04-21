@@ -1048,19 +1048,19 @@ function BlobbiDashboard({
   const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
-  // Daily missions (must be before hatch/evolve tasks which read evolution[] from it)
+  // Daily missions (per-user, kind 11125)
   const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
   
   // Hatch tasks hook - only active when incubating (egg stage)
+  // Evolution missions now come from companion (kind 31124), not dailyMissions
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
-    dailyMissions.raw,
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
+  // Evolution missions now come from companion (kind 31124), not dailyMissions
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
-    dailyMissions.raw,
   );
   
   // ─── Unified Task Process Abstraction ───
@@ -1300,8 +1300,8 @@ function BlobbiDashboard({
     setCurrentRoom('kitchen');
   };
 
-  // Persist evolution mission progress (debounced) so it survives page refresh
-  usePersistEvolutionProgress(updateProfileEvent);
+  // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
+  usePersistEvolutionProgress(companion.d, updateCompanionEvent);
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
