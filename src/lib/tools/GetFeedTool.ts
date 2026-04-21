@@ -13,7 +13,7 @@ const inputSchema = z.object({
   search: z.string().optional().describe('Full-text search query (NIP-50).'),
   hashtag: z.string().optional().describe('Filter by hashtag (without the # symbol).'),
   country: z.string().optional().describe('ISO 3166-1 alpha-2 country code (e.g. "VE", "US", "BR"). Queries NIP-73 geographic comments (kind 1111) for that country.'),
-  hours: z.number().optional().describe('How many hours back to look. Default 12, max 168 (1 week).'),
+  hours: z.number().optional().describe('How many hours back to look. Default 12. Use 0 to disable the time window entirely (useful for "latest post by X" queries where the post could be from any time).'),
   limit: z.number().optional().describe('Maximum number of posts to return. Default 50, max 100.'),
 });
 
@@ -37,7 +37,7 @@ You can reference an existing feed by name or build a query on the fly:
 - country: ISO 3166-1 alpha-2 country code (e.g. "VE", "US") — queries the country activity feed (kind 1111 geographic comments)
 
 **Time window:**
-- hours: how far back to look (default: 12, max: 168)
+- hours: how far back to look (default: 12). Set to 0 to disable the time window (for "latest post by X" queries)
 
 When the user asks about a country (e.g. "what's going on in Venezuela?"), use the country parameter. When they ask about their friends or follows, use feed_name "follows". When they ask about a topic, use search or hashtag.
 
@@ -48,9 +48,9 @@ After receiving results, summarize the key topics, conversations, and notable po
   async execute(args: Params, ctx: ToolContext): Promise<ToolResult> {
     const feedName = (args.feed_name ?? '').trim().toLowerCase();
     const country = (args.country ?? '').trim().toUpperCase();
-    const hours = Math.min(Math.max(1, args.hours ?? 12), 168);
+    const hours = args.hours === 0 ? 0 : Math.max(1, args.hours ?? 12);
     const limit = Math.min(Math.max(1, args.limit ?? 50), 100);
-    const sinceTimestamp = Math.floor(Date.now() / 1000) - hours * 3600;
+    const sinceTimestamp = hours > 0 ? Math.floor(Date.now() / 1000) - hours * 3600 : undefined;
 
     const contactPubkeys = await fetchContactPubkeys(ctx);
 
@@ -76,7 +76,9 @@ After receiving results, summarize the key topics, conversations, and notable po
           feed: feedLabel,
           hours,
           post_count: 0,
-          data: `No posts found in the "${feedLabel}" feed in the past ${hours} hours.`,
+          data: hours > 0
+            ? `No posts found in the "${feedLabel}" feed in the past ${hours} hours.`
+            : `No posts found in the "${feedLabel}" feed.`,
         }),
       };
     }
@@ -133,13 +135,20 @@ interface ResolveContext {
   country: string;
   hours: number;
   limit: number;
-  sinceTimestamp: number;
+  sinceTimestamp: number | undefined;
   contactPubkeys: string[];
 }
 
 type ResolvedFilter =
   | { filter: NostrFilter; needsDittoRelay: boolean; feedLabel: string }
   | { error: string; available_feeds?: string };
+
+/** Build a base filter with optional `since`. */
+function baseFilter(sinceTimestamp: number | undefined, limit: number): NostrFilter {
+  const f: NostrFilter = { limit };
+  if (sinceTimestamp !== undefined) f.since = sinceTimestamp;
+  return f;
+}
 
 /** Build the Nostr filter from the tool arguments. */
 function resolveFilter(
@@ -153,7 +162,7 @@ function resolveFilter(
       return { error: `Invalid country code "${country}". Use a 2-letter ISO 3166-1 alpha-2 code (e.g. "US", "VE", "JP").` };
     }
     return {
-      filter: { kinds: [1111], '#I': [`iso3166:${country}`], since: sinceTimestamp, limit } as NostrFilter,
+      filter: { ...baseFilter(sinceTimestamp, limit), kinds: [1111], '#I': [`iso3166:${country}`] } as NostrFilter,
       needsDittoRelay: false,
       feedLabel: `country: ${country}`,
     };
@@ -164,17 +173,17 @@ function resolveFilter(
     if (!ctx.user) return { error: 'Must be logged in to read the follows feed.' };
     const authors = [ctx.user.pubkey, ...contactPubkeys];
     if (authors.length <= 1) return { error: 'The user is not following anyone yet.' };
-    return { filter: { kinds: [1], authors, since: sinceTimestamp, limit }, needsDittoRelay: false, feedLabel: 'follows' };
+    return { filter: { ...baseFilter(sinceTimestamp, limit), kinds: [1], authors }, needsDittoRelay: false, feedLabel: 'follows' };
   }
 
   // Named feed: global
   if (feedName === 'global') {
-    return { filter: { kinds: [1], since: sinceTimestamp, limit }, needsDittoRelay: false, feedLabel: 'global' };
+    return { filter: { ...baseFilter(sinceTimestamp, limit), kinds: [1] }, needsDittoRelay: false, feedLabel: 'global' };
   }
 
   // Named feed: ditto (hot)
   if (feedName === 'ditto') {
-    return { filter: { kinds: [1], since: sinceTimestamp, limit, search: 'sort:hot protocol:nostr' }, needsDittoRelay: true, feedLabel: 'ditto (hot)' };
+    return { filter: { ...baseFilter(sinceTimestamp, limit), kinds: [1], search: 'sort:hot protocol:nostr' }, needsDittoRelay: true, feedLabel: 'ditto (hot)' };
   }
 
   // Named feed: user saved feed
@@ -189,7 +198,7 @@ function resolveFilter(
     }
     try {
       const sf = match.filter as Record<string, unknown>;
-      const filter: NostrFilter = { since: sinceTimestamp, limit };
+      const filter: NostrFilter = baseFilter(sinceTimestamp, limit);
       let needsDittoRelay = false;
 
       if (Array.isArray(sf.kinds)) filter.kinds = sf.kinds as number[];
@@ -216,7 +225,7 @@ function resolveFilter(
   }
 
   // Ad-hoc query — build filter directly from tool args
-  const filter: NostrFilter = { since: sinceTimestamp, limit };
+  const filter: NostrFilter = baseFilter(sinceTimestamp, limit);
   let needsDittoRelay = false;
 
   filter.kinds = args.kinds ?? [1];
@@ -275,7 +284,9 @@ async function formatEvents(
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  let text = `## ${feedLabel} — past ${hours}h (${sorted.length} posts)\n\n`;
+  let text = hours > 0
+    ? `## ${feedLabel} — past ${hours}h (${sorted.length} posts)\n\n`
+    : `## ${feedLabel} — all time (${sorted.length} posts)\n\n`;
 
   for (const event of sorted) {
     const profile = profileMap.get(event.pubkey);
