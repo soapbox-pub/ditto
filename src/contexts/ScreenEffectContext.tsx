@@ -4,13 +4,9 @@ import type { PrecipitationIntensity } from '@/hooks/useWeather';
 
 // ─── Types ───
 
-/** A visual effect rendered as a full-screen overlay. Extend this union to add new effects. */
+/** A visual effect rendered as a full-screen overlay. */
 export type ScreenEffect =
-  | { type: 'rain' | 'snow'; intensity: PrecipitationIntensity }
-  // Future effects can be added here:
-  // | { type: 'confetti'; duration?: number }
-  // | { type: 'fireworks' }
-  ;
+  | { type: 'rain' | 'snow'; intensity: PrecipitationIntensity };
 
 export interface ScreenEffectContextValue {
   /** The currently active screen effect, or null if none. */
