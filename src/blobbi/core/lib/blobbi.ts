@@ -1528,15 +1528,22 @@ export function buildMigrationTags(
   const now = Math.floor(Date.now() / 1000).toString();
   
   // Start with required tags
+  const legacyD = getTagValue(legacyTags, 'd');
   const newTags: string[][] = [
     ['d', canonicalD],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
     ['seed', seed],
   ];
   
+  // Store a back-reference to the legacy d-tag for future equivalence lookups.
+  // This is additive — current dedup logic uses name-based matching, but future
+  // versions can use this tag for stronger deterministic equivalence.
+  if (legacyD) {
+    newTags.push(['migrated_from', legacyD]);
+  }
+  
   // Preserve name with priority: name tag > legacy d-tag derived > fallback
   const nameTag = getTagValue(legacyTags, 'name');
-  const legacyD = getTagValue(legacyTags, 'd');
   const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
   newTags.push(['name', resolvedName]);
   
@@ -1676,6 +1683,221 @@ export function migratePetInHas(
     filtered.push(canonicalD);
   }
   return filtered;
+}
+
+// ─── Legacy / Canonical Deduplication ──────────────────────────────────────────
+
+/**
+ * Normalize a Blobbi name for equivalence comparison.
+ * Lowercases and trims whitespace so "Jack", "jack", and " Jack " all match.
+ */
+export function normalizeBlobbiName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Check whether a canonical companion is equivalent to a legacy companion.
+ *
+ * Equivalence priority (first match wins):
+ * 1. **migrated_from exact match**: canonical has a `migrated_from` tag that
+ *    equals the legacy d-tag. This is the strongest signal — it was written
+ *    during migration and is preserved across all subsequent updates.
+ * 2. **name + base_color match**: same normalized name AND same raw `base_color`
+ *    tag value (both present and equal). Covers older canonical copies that
+ *    were created before the `migrated_from` tag existed.
+ * 3. **name-only fallback**: same normalized name when the legacy event has no
+ *    explicit `base_color` tag (too bare to compare). This is the weakest tier
+ *    and only applies to genuinely old legacy events with no visual tags.
+ */
+function isCanonicalEquivalentToLegacy(
+  canonical: BlobbiCompanion,
+  legacyD: string,
+  legacyName: string,
+  legacyBaseColor: string | undefined,
+): boolean {
+  // Priority 1: migrated_from exact match
+  const migratedFrom = getTagValue(canonical.event.tags, 'migrated_from');
+  if (migratedFrom === legacyD) return true;
+
+  // Priority 2: name + base_color (both must be present and equal)
+  const canonicalBaseColor = getTagValue(canonical.event.tags, 'base_color');
+  if (
+    normalizeBlobbiName(canonical.name) === legacyName &&
+    legacyBaseColor !== undefined &&
+    canonicalBaseColor !== undefined &&
+    legacyBaseColor.toUpperCase() === canonicalBaseColor.toUpperCase()
+  ) {
+    return true;
+  }
+
+  // Priority 3: name-only when legacy has no base_color to compare
+  if (
+    normalizeBlobbiName(canonical.name) === legacyName &&
+    legacyBaseColor === undefined
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Filter out legacy companions that have been migrated to canonical format.
+ *
+ * A legacy companion is hidden when ALL of the following are true:
+ * 1. It is a legacy event (companion.isLegacy === true)
+ * 2. The legacy d-tag is NOT present in profile.has (confirming migration occurred)
+ * 3. A canonical equivalent exists, determined by (first match wins):
+ *    a. migrated_from exact match on the legacy d-tag
+ *    b. same normalized name + same raw base_color tag
+ *    c. same normalized name (fallback when legacy has no base_color tag)
+ *
+ * After legacy filtering, a second pass collapses canonical → canonical
+ * duplicates that share the same `migrated_from` tag value (i.e. were both
+ * migrated from the same legacy d-tag due to a race condition). For each
+ * group the companion with the newest `created_at` is kept; the rest are
+ * hidden. Canonical companions without a `migrated_from` tag are always
+ * kept — no heuristic (name, color, etc.) grouping is applied.
+ *
+ * @param companions - All parsed companions (legacy + canonical)
+ * @param profileHas - The profile.has array of owned Blobbi d-tags
+ * @returns Filtered companions with migrated legacy entries and canonical
+ *          duplicates removed
+ */
+export function filterMigratedLegacyCompanions(
+  companions: BlobbiCompanion[],
+  profileHas: string[],
+): BlobbiCompanion[] {
+  // Collect canonical companions for equivalence checks
+  const canonicals = companions.filter((c) => !c.isLegacy);
+
+  // If there are no canonical companions, nothing to filter
+  if (canonicals.length === 0) return companions;
+
+  const hasSet = new Set(profileHas);
+
+  const afterLegacyFilter = companions.filter((c) => {
+    // Keep all canonical companions unconditionally (deduped in next pass)
+    if (!c.isLegacy) return true;
+
+    // Keep legacy companions that are still in profile.has (not yet migrated)
+    if (hasSet.has(c.d)) return true;
+
+    // Check if any canonical companion is equivalent to this legacy one
+    const legacyName = normalizeBlobbiName(c.name);
+    const legacyBaseColor = getTagValue(c.event.tags, 'base_color');
+
+    const hasEquivalent = canonicals.some((canonical) =>
+      isCanonicalEquivalentToLegacy(canonical, c.d, legacyName, legacyBaseColor),
+    );
+
+    // Hide if a canonical equivalent exists, keep otherwise
+    return !hasEquivalent;
+  });
+
+  // ── Canonical → canonical dedup ──────────────────────────────────────────
+  // Group canonical companions by `migrated_from` tag. Within each group,
+  // keep only the newest event (highest created_at). Canonicals without the
+  // tag are never grouped — they pass through untouched.
+  const canonicalWinners = collapseCanonicalDuplicates(
+    afterLegacyFilter.filter((c) => !c.isLegacy),
+  );
+  const winnerDs = new Set(canonicalWinners.map((c) => c.d));
+
+  return afterLegacyFilter.filter((c) => {
+    // Legacy companions already survived the first pass — keep them
+    if (c.isLegacy) return true;
+    // Canonical companions must be in the winner set
+    return winnerDs.has(c.d);
+  });
+}
+
+/**
+ * Collapse canonical companions that were duplicated by a migration race.
+ *
+ * Two canonical companions are considered duplicates of the same logical
+ * Blobbi if and only if both carry a `migrated_from` tag with the same
+ * value. For each such group the companion with the newest `created_at`
+ * is kept; ties are broken by d-tag lexicographic order (deterministic).
+ *
+ * Canonical companions *without* a `migrated_from` tag are always kept —
+ * no heuristic grouping (name, color, etc.) is applied.
+ */
+function collapseCanonicalDuplicates(
+  canonicals: BlobbiCompanion[],
+): BlobbiCompanion[] {
+  // Companions without migrated_from — always kept
+  const ungrouped: BlobbiCompanion[] = [];
+  // Group canonical companions by migrated_from value
+  const groups = new Map<string, BlobbiCompanion[]>();
+
+  for (const c of canonicals) {
+    const migratedFrom = getTagValue(c.event.tags, 'migrated_from');
+    if (!migratedFrom) {
+      ungrouped.push(c);
+      continue;
+    }
+    const group = groups.get(migratedFrom);
+    if (group) {
+      group.push(c);
+    } else {
+      groups.set(migratedFrom, [c]);
+    }
+  }
+
+  // Pick the winner from each group: newest created_at, tie-break on d-tag
+  const winners: BlobbiCompanion[] = [...ungrouped];
+  for (const group of groups.values()) {
+    let best = group[0];
+    for (let i = 1; i < group.length; i++) {
+      const c = group[i];
+      if (
+        c.event.created_at > best.event.created_at ||
+        (c.event.created_at === best.event.created_at && c.d > best.d)
+      ) {
+        best = c;
+      }
+    }
+    winners.push(best);
+  }
+
+  return winners;
+}
+
+/**
+ * Find an existing canonical companion that is equivalent to a legacy companion.
+ *
+ * Used by the migration guard to avoid creating duplicate canonical events.
+ * Uses the same equivalence priority as `filterMigratedLegacyCompanions`:
+ * 1. migrated_from exact match (strongest)
+ * 2. same normalized name + same raw base_color tag
+ * 3. same normalized name when legacy has no base_color (weakest)
+ *
+ * When multiple canonical companions match, the one with the newest
+ * created_at is returned (most up-to-date state).
+ *
+ * @param legacy - The legacy companion to find an equivalent for
+ * @param companions - All parsed companions
+ * @returns The best matching canonical companion, or undefined
+ */
+export function findCanonicalEquivalent(
+  legacy: BlobbiCompanion,
+  companions: BlobbiCompanion[],
+): BlobbiCompanion | undefined {
+  const legacyName = normalizeBlobbiName(legacy.name);
+  const legacyBaseColor = getTagValue(legacy.event.tags, 'base_color');
+  let best: BlobbiCompanion | undefined;
+
+  for (const c of companions) {
+    if (c.isLegacy) continue;
+    if (!isCanonicalEquivalentToLegacy(c, legacy.d, legacyName, legacyBaseColor)) continue;
+    // Among multiple matches, prefer the newest (most up-to-date state)
+    if (!best || c.event.created_at > best.event.created_at) {
+      best = c;
+    }
+  }
+
+  return best;
 }
 
 // ─── LocalStorage Cache Types ─────────────────────────────────────────────────

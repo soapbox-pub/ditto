@@ -39,6 +39,7 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
+  filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
@@ -201,7 +202,6 @@ function BlobbiContent() {
   // No dList needed — useBlobbisCollection() without args queries by author + ecosystem tag.
   // This ensures blobbis are never invisible due to a stale profile.has[] list.
   const {
-    companionsByD,
     companions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
@@ -209,6 +209,22 @@ function BlobbiContent() {
     updateCompanionEvent,
   } = useBlobbisCollection();
   
+  // STEP 2: Filter out legacy companions that have been migrated to canonical format.
+  // A legacy Blobbi is hidden when a canonical Blobbi with the same name exists AND
+  // the legacy d-tag is no longer in profile.has (confirming migration occurred).
+  const filteredCompanions = useMemo(() => {
+    if (!profile) return companions;
+    return filterMigratedLegacyCompanions(companions, profile.has);
+  }, [companions, profile]);
+
+  const filteredCompanionsByD = useMemo(() => {
+    const record: Record<string, BlobbiCompanion> = {};
+    for (const c of filteredCompanions) {
+      record[c.d] = c;
+    }
+    return record;
+  }, [filteredCompanions]);
+
   // STEP 5: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
@@ -225,33 +241,33 @@ function BlobbiContent() {
   // CRITICAL: Default selection must NEVER overwrite localStorage.
   // User selection persists only via handleSelectBlobbi, not via this computed value.
   const selectedD = useMemo(() => {
-    // Priority 1: localStorage selection (if it exists in loaded collection)
+    // Priority 1: localStorage selection (if it exists in filtered collection)
     // USER SELECTION ALWAYS WINS - this is the authoritative source
-    if (storedSelectedD && companionsByD[storedSelectedD]) {
+    if (storedSelectedD && filteredCompanionsByD[storedSelectedD]) {
       if (DEBUG_BLOBBI) {
         console.log('[BlobbiPage] selectedD: using localStorage selection:', storedSelectedD);
       }
       return storedSelectedD;
     }
     
-    // Priority 2: First item from profile.has that exists in companionsByD
+    // Priority 2: First item from profile.has that exists in filtered collection
     // This preserves the user's ordering preference from their profile
     if (profile) {
       for (const d of profile.has) {
-        if (companionsByD[d]) {
+        if (filteredCompanionsByD[d]) {
           if (DEBUG_BLOBBI) {
             console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
               '(storedSelectedD was:', storedSelectedD, 
-              storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+              storedSelectedD ? (filteredCompanionsByD[storedSelectedD] ? 'exists' : 'NOT in filteredCompanionsByD') : 'null', ')');
           }
           return d;
         }
       }
     }
     
-    // Priority 3: First companion in the collection (covers blobbis not in profile.has)
-    if (companions.length > 0) {
-      const firstD = companions[0].d;
+    // Priority 3: First companion in the filtered collection
+    if (filteredCompanions.length > 0) {
+      const firstD = filteredCompanions[0].d;
       if (DEBUG_BLOBBI) {
         console.log('[BlobbiPage] selectedD: using first companion from collection:', firstD);
       }
@@ -263,18 +279,18 @@ function BlobbiContent() {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
-  }, [profile, storedSelectedD, companionsByD, companions]);
+  }, [profile, storedSelectedD, filteredCompanionsByD, filteredCompanions]);
   
   // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
   // This prevents the default selection from overwriting user selections during:
   // - WebSocket updates
   // - Query refetches  
-  // - Race conditions where storedSelectedD is not yet in companionsByD
+  // - Race conditions where storedSelectedD is not yet in filteredCompanionsByD
   //
   // User selections are only persisted via handleSelectBlobbi (line ~232).
   
-  // Get the selected companion from the collection
-  const companion = selectedD ? companionsByD[selectedD] ?? null : null;
+  // Get the selected companion from the filtered collection
+  const companion = selectedD ? filteredCompanionsByD[selectedD] ?? null : null;
   
   // Debug log to confirm which Blobbi is rendered (dev only)
   useEffect(() => {
@@ -698,12 +714,12 @@ function BlobbiContent() {
   
   // ─── CASE G: Companions loaded, but no valid selection ───
   // Show selector to pick which pet to display
-  if (!selectedD && companions.length > 0) {
+  if (!selectedD && filteredCompanions.length > 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
     return (
       <>
         <BlobbiSelectorPage
-          companions={companions}
+          companions={filteredCompanions}
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
@@ -735,7 +751,7 @@ function BlobbiContent() {
     return (
       <>
         <BlobbiSelectorPage
-          companions={companions}
+          companions={filteredCompanions}
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
@@ -768,7 +784,7 @@ function BlobbiContent() {
   return (
     <BlobbiDashboard
       companion={companion}
-      companions={companions}
+      companions={filteredCompanions}
       selectedD={selectedD}
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}

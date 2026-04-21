@@ -9,6 +9,7 @@ import { toast } from '@/hooks/useToast';
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
+  BLOBBI_ECOSYSTEM_NAMESPACE,
   BLOBBONAUT_PROFILE_KINDS,
   getBlobbonautQueryDValues,
   buildMigrationTags,
@@ -22,6 +23,7 @@ import {
   parseBlobbiEvent,
   parseBlobbonautEvent,
   parseStorageTags,
+  findCanonicalEquivalent,
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
@@ -296,20 +298,57 @@ export function useBlobbiMigration() {
   }, [nostr]);
 
   /**
+   * Fetch all companions for a user from relays, parse and deduplicate by d-tag.
+   * Used to find existing canonical equivalents before migrating a legacy Blobbi.
+   */
+  const fetchAllCompanions = useCallback(async (
+    pubkey: string,
+  ): Promise<BlobbiCompanion[]> => {
+    const events = await nostr.query([{
+      kinds: [KIND_BLOBBI_STATE],
+      authors: [pubkey],
+      '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
+    }]);
+
+    // Deduplicate by d-tag (newest wins), same logic as useBlobbisCollection
+    const eventsByD = new Map<string, NostrEvent>();
+    for (const event of events.filter(isValidBlobbiEvent)) {
+      const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+      if (!dTag) continue;
+      const existing = eventsByD.get(dTag);
+      if (!existing || event.created_at > existing.created_at) {
+        eventsByD.set(dTag, event);
+      }
+    }
+
+    const companions: BlobbiCompanion[] = [];
+    for (const event of eventsByD.values()) {
+      const parsed = parseBlobbiEvent(event);
+      if (parsed) companions.push(parsed);
+    }
+    return companions;
+  }, [nostr]);
+
+  /**
    * Ensure a Blobbi is in canonical format before performing an action.
    * 
    * CRITICAL: This fetches fresh data from relays (read-modify-write pattern)
    * instead of using potentially stale cache data. This prevents state resets
    * caused by publishing over a newer event with stale cached data.
    * 
-   * If the companion is legacy, it will be migrated first.
+   * If the companion is legacy, it checks for an existing canonical equivalent
+   * (by normalized name) before migrating. This prevents creating duplicate
+   * canonical events when interacting with a legacy Blobbi multiple times.
+   * 
    * Returns the canonical companion to use for the action.
    * 
    * Flow:
    * 1. Fetch fresh companion + profile from relays
    * 2. Check if Blobbi is legacy
-   * 3. If legacy: migrate Blobbi
-   * 4. Return the resolved canonical Blobbi with fresh data
+   * 3. If legacy: look for existing canonical equivalent by name
+   * 4. If found: reuse it (no migration needed)
+   * 5. If not found: migrate to canonical format
+   * 6. Return the resolved canonical Blobbi with fresh data
    * 
    * All interaction handlers should call this before publishing events.
    */
@@ -332,7 +371,69 @@ export function useBlobbiMigration() {
     
     // Check if the companion needs migration
     if (companion.isLegacy) {
-      console.log('[Blobbi Migration] Legacy companion detected, migrating before action');
+      console.log('[Blobbi Migration] Legacy companion detected, checking for existing canonical equivalent');
+      
+      // Check if a canonical equivalent already exists (by migrated_from tag,
+      // name+base_color, or name-only fallback). This prevents duplicate migrations
+      // when interacting with a legacy Blobbi that was already migrated.
+      const allCompanions = await fetchAllCompanions(user.pubkey);
+      const existing = findCanonicalEquivalent(companion, allCompanions);
+      
+      if (existing) {
+        console.log('[Blobbi Migration] Found existing canonical equivalent:', existing.d, '— skipping migration');
+        
+        // Update profile.has and current_companion to point to the canonical version
+        // (in case profile still references the legacy d-tag)
+        const hasLegacyInProfile = profile.has.includes(companion.d);
+        const hasCanonicalInProfile = profile.has.includes(existing.d);
+        
+        if (hasLegacyInProfile || !hasCanonicalInProfile) {
+          const updatedHas = migratePetInHas(profile.has, companion.d, existing.d);
+          const profileUpdates: Record<string, string | string[]> = { has: updatedHas };
+          if (profile.currentCompanion === companion.d) {
+            profileUpdates.current_companion = existing.d;
+          }
+          const profileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
+          const profileEvent = await publishEvent({
+            kind: KIND_BLOBBONAUT_PROFILE,
+            content: '',
+            tags: profileTags,
+            prev: profile.event,
+          });
+          options.updateProfileEvent(profileEvent);
+          
+          // Update localStorage selection if it was pointing to legacy d
+          if (options.updateStoredSelectedD) {
+            options.updateStoredSelectedD(existing.d);
+          }
+          
+          // Update the canonical companion in query cache
+          options.updateCompanionEvent(existing.event);
+          
+          return {
+            wasMigrated: false,
+            companion: existing,
+            allTags: existing.allTags,
+            content: existing.event.content,
+            profileAllTags: profileTags,
+            profileEvent,
+            profileStorage: parseStorageTags(profileTags),
+          };
+        }
+        
+        // Profile is already correct, just return the existing canonical companion
+        return {
+          wasMigrated: false,
+          companion: existing,
+          allTags: existing.allTags,
+          content: existing.event.content,
+          profileAllTags: profile.allTags,
+          profileEvent: profile.event,
+          profileStorage: profile.storage,
+        };
+      }
+      
+      console.log('[Blobbi Migration] No canonical equivalent found, migrating');
       
       // Use fresh data in migration options
       const migrationOptions = { ...options, companion, profile };
@@ -367,7 +468,7 @@ export function useBlobbiMigration() {
       profileEvent: profile.event,
       profileStorage: profile.storage,
     };
-  }, [user?.pubkey, fetchFreshCompanion, fetchFreshProfile, migrateLegacyBlobbi]);
+  }, [user?.pubkey, fetchFreshCompanion, fetchFreshProfile, fetchAllCompanions, migrateLegacyBlobbi, publishEvent]);
   
   return {
     /** Migrate a legacy Blobbi to canonical format */
