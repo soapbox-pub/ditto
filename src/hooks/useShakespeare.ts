@@ -16,15 +16,25 @@ export class RateLimitError extends Error {
 }
 
 // Types for Shakespeare API (compatible with OpenAI ChatCompletionMessageParam)
+export interface ToolCallFunction {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string | Array<{
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string | null | Array<{
     type: 'text' | 'image_url';
     text?: string;
     image_url?: {
       url: string;
     };
   }>;
+  /** Present on assistant messages that invoke tools. */
+  tool_calls?: ToolCallFunction[];
+  /** Present on tool result messages — must match a tool_calls[].id from the preceding assistant message. */
+  tool_call_id?: string;
 }
 
 /** Tool function definition for chat completions. */
@@ -326,13 +336,18 @@ export function useShakespeare() {
   }, [user]);
 
   // ─── Chat completions (streaming) ───
+  //
+  // Streams text via `onChunk` and returns the fully-assembled response
+  // (including any tool_calls) so callers can use the same tool-loop
+  // logic as the non-streaming path.
 
   const sendStreamingMessage = useCallback(async (
     messages: ChatMessage[],
     modelId: string,
     onChunk: (chunk: string) => void,
-    options?: Partial<ChatCompletionRequest>
-  ): Promise<void> => {
+    options?: Partial<ChatCompletionRequest>,
+    signal?: AbortSignal,
+  ): Promise<ChatCompletionResponse> => {
     if (!user) {
       throw new Error('User must be logged in to use AI features');
     }
@@ -363,6 +378,7 @@ export function useShakespeare() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal,
       });
 
       await handleAPIError(response);
@@ -374,34 +390,94 @@ export function useShakespeare() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
+      // Accumulate the full response from stream deltas
+      let content = '';
+      let finishReason = 'stop';
+      let responseId = '';
+      let responseModel = model;
+      const toolCalls: Map<number, ToolCallFunction> = new Map();
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
+          const chunk = decoder.decode(value, { stream: true });
           const lines = chunk.split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') return;
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
 
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  onChunk(content);
-                }
-              } catch {
-                // Ignore parsing errors for incomplete chunks
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              if (parsed.id) responseId = parsed.id;
+              if (parsed.model) responseModel = parsed.model;
+              if (parsed.choices?.[0]?.finish_reason) {
+                finishReason = parsed.choices[0].finish_reason;
               }
+
+              // Accumulate text content and stream to UI
+              if (delta.content) {
+                content += delta.content;
+                onChunk(delta.content);
+              }
+
+              // Accumulate tool call deltas
+              if (delta.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  const idx = tc.index ?? 0;
+                  const existing = toolCalls.get(idx);
+                  if (!existing) {
+                    toolCalls.set(idx, {
+                      id: tc.id ?? '',
+                      type: 'function',
+                      function: {
+                        name: tc.function?.name ?? '',
+                        arguments: tc.function?.arguments ?? '',
+                      },
+                    });
+                  } else {
+                    if (tc.id) existing.id = tc.id;
+                    if (tc.function?.name) existing.function.name += tc.function.name;
+                    if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+                  }
+                }
+              }
+            } catch {
+              // Ignore parsing errors for incomplete chunks
             }
           }
         }
       } finally {
         reader.releaseLock();
       }
+
+      // Assemble the full response in the same shape as the non-streaming endpoint
+      const assembledToolCalls = toolCalls.size > 0
+        ? Array.from(toolCalls.values())
+        : undefined;
+
+      return {
+        id: responseId,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: responseModel,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: content || undefined,
+            ...(assembledToolCalls ? { tool_calls: assembledToolCalls } : {}),
+          },
+          finish_reason: finishReason,
+        }],
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      };
     } catch (err) {
       if (err instanceof RateLimitError) {
         setRetryAfter(err.retryAfter);

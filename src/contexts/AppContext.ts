@@ -267,6 +267,10 @@ export interface AppConfig {
   sandboxDomain: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /** Preferred AI model identifier (e.g. "shakespeare/tybalt"). Empty string = auto-select cheapest. */
+  aiModel: string;
+  /** Custom system prompt for the AI buddy. Empty string = use default template. */
+  aiSystemPrompt: string;
 }
 
 /** Configuration for a single widget in the right sidebar. */

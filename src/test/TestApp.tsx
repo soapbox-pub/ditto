@@ -119,6 +119,8 @@ export function TestApp({ children }: TestAppProps) {
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
     sidebarWidgets: [],
+    aiModel: '',
+    aiSystemPrompt: '',
   };
 
   return (
