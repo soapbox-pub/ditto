@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { nip19 } from 'nostr-tools';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { fetchContactPubkeys } from './helpers';
 
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import type { Tool, ToolResult, ToolContext } from './Tool';
@@ -98,22 +99,6 @@ After receiving results, summarize the key topics, conversations, and notable po
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Fetch the logged-in user's contact list pubkeys. */
-async function fetchContactPubkeys(ctx: ToolContext): Promise<string[]> {
-  if (!ctx.user) return [];
-  try {
-    const contactEvents = await ctx.nostr.query(
-      [{ kinds: [3], authors: [ctx.user.pubkey], limit: 1 }],
-      { signal: AbortSignal.timeout(5000) },
-    );
-    return contactEvents[0]?.tags
-      .filter(([t]) => t === 'p')
-      .map(([, pk]) => pk) ?? [];
-  } catch {
-    return [];
-  }
-}
 
 /** Resolve author variables ($me, $contacts) to concrete pubkeys. */
 function resolveAuthors(

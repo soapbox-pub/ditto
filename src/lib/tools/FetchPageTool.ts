@@ -23,14 +23,19 @@ The page is fetched through a CORS proxy so it works in the browser. Images are 
       return { result: JSON.stringify({ error: 'A URL is required.' }) };
     }
 
-    const proxied = proxyUrl({ template: ctx.config.corsProxy, url });
-    const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
+    let html: string;
+    try {
+      const proxied = proxyUrl({ template: ctx.config.corsProxy, url });
+      const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
 
-    if (!response.ok) {
-      return { result: JSON.stringify({ error: `Fetch failed: ${response.status} ${response.statusText}` }) };
+      if (!response.ok) {
+        return { result: JSON.stringify({ error: `Fetch failed: ${response.status} ${response.statusText}` }) };
+      }
+
+      html = await response.text();
+    } catch (err) {
+      return { result: JSON.stringify({ error: `Failed to fetch "${url}": ${err instanceof Error ? err.message : 'Unknown error'}` }) };
     }
-
-    const html = await response.text();
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const imgs = Array.from(doc.querySelectorAll('img'));

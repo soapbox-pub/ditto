@@ -1,12 +1,10 @@
 import { z } from 'zod';
 
-import { bundledFonts } from '@/lib/fonts';
+import { bundledFonts, AVAILABLE_FONT_NAMES } from '@/lib/fonts';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 import type { ThemeConfig } from '@/themes';
-
-const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
 /** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
 function isValidHsl(value: string): boolean {
@@ -17,7 +15,7 @@ const inputSchema = z.object({
   background: z.string().describe('Background color as an HSL string (e.g. "228 20% 10%" for dark blue, "0 0% 100%" for white). This is the main page background.'),
   text: z.string().describe('Text/foreground color as an HSL string (e.g. "210 40% 98%" for near-white, "0 0% 10%" for near-black). Must contrast well with the background.'),
   primary: z.string().describe('Primary accent color as an HSL string (e.g. "258 70% 60%" for purple, "142 70% 45%" for green). Used for buttons, links, and interactive elements.'),
-  font: z.string().optional().describe(`Optional font family name. Must be one of the available bundled fonts: ${AVAILABLE_FONTS}. Choose a font that matches the theme's mood and aesthetic.`),
+  font: z.string().optional().describe(`Optional font family name. Must be one of the available bundled fonts: ${AVAILABLE_FONT_NAMES}. Choose a font that matches the theme's mood and aesthetic.`),
   background_url: z.string().optional().describe('Optional URL to a background image. Should be a direct link to a publicly accessible image file (JPEG, PNG, WebP, etc.).'),
   background_mode: z.enum(['cover', 'tile']).optional().describe('How to display the background image. "cover" fills the viewport (good for photos/landscapes). "tile" repeats the image (good for patterns/textures). Defaults to "cover".'),
 });
@@ -29,7 +27,7 @@ export const SetThemeTool: Tool<Params> = {
 
 Color values must be HSL strings WITHOUT the "hsl()" wrapper — just raw values like "228 20% 10%". Choose colors that work well together and ensure good contrast between background and text.
 
-For fonts, choose from the available bundled fonts: ${AVAILABLE_FONTS}. Pick a font that matches the mood of the theme.
+For fonts, choose from the available bundled fonts: ${AVAILABLE_FONT_NAMES}. Pick a font that matches the mood of the theme.
 
 For backgrounds, provide a URL to a publicly accessible image. Choose images that complement the color scheme. Use mode "cover" for full-bleed backgrounds or "tile" for repeating patterns.`,
 
@@ -55,7 +53,7 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
         themeConfig.font = { family: bundled.family };
       } else {
         return { result: JSON.stringify({
-          error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONTS}`,
+          error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONT_NAMES}`,
         }) };
       }
     }

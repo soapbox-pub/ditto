@@ -24,7 +24,7 @@ The `content` field is NIP-44 encrypted to the author's own pubkey. When decrypt
 
 ```json
 {
-  "nsec": "<bech32 nsec of the buddy's secret key>",
+  "nsec": "<hex-encoded secret key>",
   "name": "<buddy display name>",
   "soul": "<buddy personality/behavior description>"
 }
@@ -32,7 +32,7 @@ The `content` field is NIP-44 encrypted to the author's own pubkey. When decrypt
 
 | Field  | Type   | Required | Description |
 |--------|--------|----------|-------------|
-| `nsec` | string | Yes      | Bech32-encoded secret key (`nsec1...`) for the buddy's Nostr identity |
+| `nsec` | string | Yes      | Hex-encoded secret key for the buddy's Nostr identity |
 | `name` | string | Yes      | Display name for the buddy |
 | `soul` | string | Yes      | Personality description injected into the AI system prompt |
 

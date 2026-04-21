@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Palette, Type } from 'lucide-react';
+import { Check, Palette, Type, Wrench, X } from 'lucide-react';
 
 import { NoteCard } from '@/components/NoteCard';
 import { cn } from '@/lib/utils';
@@ -109,6 +109,8 @@ export function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
   const colors = resultParsed.colors;
 
   if (toolCall.name !== 'set_theme' || !isSuccess) {
+    const Icon = isSuccess ? Check : X;
+    const label = resultParsed.error || toolCall.name.replace(/_/g, ' ');
     return (
       <span className={cn(
         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium',
@@ -116,8 +118,8 @@ export function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
           ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
           : 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20',
       )}>
-        <Palette className="size-3" />
-        {resultParsed.error || toolCall.name}
+        {toolCall.name === 'set_theme' ? <Palette className="size-3" /> : isSuccess ? <Icon className="size-3" /> : <Wrench className="size-3" />}
+        {label}
       </span>
     );
   }

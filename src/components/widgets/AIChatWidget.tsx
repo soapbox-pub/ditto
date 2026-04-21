@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DorkThinking } from '@/components/DorkThinking';
-import { useShakespeare, useShakespeareCredits, type ChatMessage } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, sortModelsByCost, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
@@ -27,11 +27,7 @@ export function AIChatWidget() {
     queryKey: ['shakespeare-default-model'],
     queryFn: async () => {
       const response = await getAvailableModels();
-      const sorted = response.data.sort((a, b) => {
-        const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
-        const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
-        return costA - costB;
-      });
+      const sorted = sortModelsByCost(response.data);
       return sorted[0]?.id ?? '';
     },
     staleTime: 10 * 60_000,

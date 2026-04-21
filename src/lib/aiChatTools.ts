@@ -1,4 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { ToolResult } from '@/lib/tools/Tool';
+
+// Re-export ToolResult so existing consumers can import from here.
+export type { ToolResult };
 
 // ─── Message Types ───
 
@@ -19,12 +23,4 @@ export interface ToolCall {
   name: string;
   arguments: Record<string, unknown>;
   result?: string;
-}
-
-/** Result returned by a tool executor. */
-export interface ToolExecutorResult {
-  /** JSON string returned to the AI as the tool result. */
-  result: string;
-  /** A Nostr event published by the tool, to be rendered inline in the chat. */
-  nostrEvent?: NostrEvent;
 }

@@ -242,6 +242,9 @@ export const bundledFonts: BundledFont[] = [
   },
 ];
 
+/** Comma-separated list of available bundled font names (for AI tool descriptions and system prompts). */
+export const AVAILABLE_FONT_NAMES = bundledFonts.map((f) => f.family).join(', ');
+
 /** Map from lowercase family name to BundledFont for quick lookup. */
 const bundledFontMap = new Map(
   bundledFonts.map((f) => [f.family.toLowerCase(), f]),
