@@ -6,31 +6,31 @@ import { useBuddy } from '@/hooks/useBuddy';
 
 type OnboardingStep = 'intro' | 'name' | 'soul' | 'confirm' | 'creating' | 'done';
 
-// ─── Static Dork messages ─────────────────────────────────────────────────────
+// ─── Static Dork messages (short + whimsical) ────────────────────────────────
 
 function dorkMessage(content: string, id: string): DisplayMessage {
   return { id, role: 'assistant', content, timestamp: new Date() };
 }
 
-const INTRO_MESSAGE = dorkMessage(
-  `Hey there! I'm **Dork**, your friendly setup assistant.\n\nI'm here to help you create your very own AI buddy — a personal agent with its own Nostr identity and personality.\n\nOnce set up, your buddy will replace me as your chat companion here. Don't worry, I won't be offended. Probably.\n\nLet's get started! **What should we name your buddy?**`,
-  'dork-intro',
+const NAME_PROMPT = dorkMessage(
+  `First things first — **what should we call your buddy?**`,
+  'dork-name-prompt',
 );
 
 const SOUL_PROMPT = dorkMessage(
-  `Great name! Now for the fun part — **describe your buddy's soul.**\n\nThis is their personality: how they think, talk, and vibe. It gets injected into their brain every time you chat.\n\nA few examples to spark ideas:\n- *"A witty space explorer who explains everything with cosmic analogies"*\n- *"A chill surfer dude who's secretly a philosophy professor"*\n- *"A sarcastic librarian who knows everything but judges your taste"*\n\nWrite as much or as little as you want:`,
+  `Love it. Now the fun part — **describe their soul.**\n\nThis is how they think, talk, and vibe. A few sparks:\n- *"A witty space explorer who explains everything with cosmic analogies"*\n- *"A chill surfer who's secretly a philosophy professor"*\n- *"A sarcastic librarian who judges your taste"*`,
   'dork-soul-prompt',
 );
 
 function confirmMessage(name: string, soul: string): DisplayMessage {
   return dorkMessage(
-    `Here's what we've got:\n\n**Name:** ${name}\n**Soul:** ${soul}\n\nLook good? Type **"yes"** to create your buddy, or **"no"** to start over.`,
+    `Here's the blueprint:\n\n**Name:** ${name}\n**Soul:** ${soul}\n\nLooking good? **"yes"** to bring them to life, **"no"** to start over.`,
     'dork-confirm',
   );
 }
 
 const CREATING_MESSAGE = dorkMessage(
-  `Creating your buddy's Nostr identity... one moment! ✨`,
+  `Spinning up their Nostr identity... one sec!`,
   'dork-creating',
 );
 
@@ -40,7 +40,7 @@ export function useBuddyOnboarding() {
   const { createBuddy } = useBuddy();
 
   const [step, setStep] = useState<OnboardingStep>('intro');
-  const [messages, setMessages] = useState<DisplayMessage[]>([INTRO_MESSAGE]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([NAME_PROMPT]);
   const [buddyName, setBuddyName] = useState('');
   const [buddySoul, setBuddySoul] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -101,18 +101,18 @@ export function useBuddyOnboarding() {
             setError('Failed to create buddy. Please try again.');
             setStep('soul');
             addDorkMessage(dorkMessage(
-              `Hmm, something went wrong. Type **"yes"** to try again.`,
+              `Hmm, something glitched. Type **"yes"** to try again.`,
               `dork-error-${Date.now()}`,
             ));
           }
         } else if (lower === 'no' || lower === 'n' || lower === 'nope' || lower === 'start over' || lower === 'restart') {
           setBuddyName('');
           setBuddySoul('');
-          setMessages([INTRO_MESSAGE]);
+          setMessages([NAME_PROMPT]);
           setStep('intro');
         } else {
           addDorkMessage(dorkMessage(
-            `Just type **"yes"** to confirm or **"no"** to start over.`,
+            `Just **"yes"** to confirm or **"no"** to start over.`,
             `dork-clarify-${Date.now()}`,
           ));
         }
