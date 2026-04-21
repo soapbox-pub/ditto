@@ -109,6 +109,15 @@ export interface ModelsResponse {
   data: Model[];
 }
 
+/** Sort models by total cost (prompt + completion), cheapest first. */
+export function sortModelsByCost(models: Model[]): Model[] {
+  return [...models].sort((a, b) => {
+    const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
+    const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
+    return costA - costB;
+  });
+}
+
 export interface CreditsResponse {
   object: string;
   amount: number;

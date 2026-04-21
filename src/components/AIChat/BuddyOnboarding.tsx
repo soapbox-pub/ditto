@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Send } from 'lucide-react';
 
 import { MessageBubble, BuddyThinking } from '@/components/AIChat/AIChatComponents';
@@ -48,11 +48,12 @@ export function BuddyOnboarding({ className, style, onComplete }: BuddyOnboardin
     }
   }, [onSend]);
 
-  // Buddy created — notify parent or silently disappear
-  if (isDone) {
-    onComplete?.();
-    return null;
-  }
+  // Notify parent when buddy creation finishes
+  useEffect(() => {
+    if (isDone) onComplete?.();
+  }, [isDone, onComplete]);
+
+  if (isDone) return null;
 
   return (
     <div className={cn('flex flex-col overflow-hidden', className)} style={style}>

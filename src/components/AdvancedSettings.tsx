@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useShakespeare, type Model } from '@/hooks/useShakespeare';
+import { useShakespeare, sortModelsByCost, type Model } from '@/hooks/useShakespeare';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -93,12 +93,7 @@ function BuddySettingsSection() {
     getAvailableModels()
       .then((response) => {
         if (cancelled) return;
-        const sorted = response.data.sort((a, b) => {
-          const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
-          const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
-          return costA - costB;
-        });
-        setAiModels(sorted);
+        setAiModels(sortModelsByCost(response.data));
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setAiModelsLoading(false); });
