@@ -187,7 +187,7 @@ export function AIChatWidget() {
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
-  const content = typeof message.content === 'string' ? message.content : message.content.map((c) => c.text ?? '').join('');
+  const content = typeof message.content === 'string' ? message.content : Array.isArray(message.content) ? message.content.map((c) => c.text ?? '').join('') : '';
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>

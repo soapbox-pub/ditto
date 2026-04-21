@@ -79,7 +79,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const { buddyName, buddySoul } = options;
   const { user, metadata } = useCurrentUser();
   const { config } = useAppContext();
-  const { sendStreamingMessage, getAvailableModels, getCredits, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
+  const { sendStreamingMessage, getAvailableModels, getCreditsBalance, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall, savedFeeds } = useAIChatTools();
 
   const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
@@ -370,6 +370,6 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     handleStop,
     handleKeyDown,
     handleClear,
-    getCredits,
+    getCredits: getCreditsBalance,
   };
 }
