@@ -406,61 +406,82 @@ export function useShakespeare() {
       let responseModel = model;
       const toolCalls: Map<number, ToolCallFunction> = new Map();
 
+      /** Process a single parsed SSE data object, accumulating deltas. */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const processDelta = (parsed: any) => {
+        const delta = parsed.choices?.[0]?.delta;
+        if (!delta) return;
+
+        if (parsed.id) responseId = parsed.id;
+        if (parsed.model) responseModel = parsed.model;
+        if (parsed.choices?.[0]?.finish_reason) {
+          finishReason = parsed.choices[0].finish_reason;
+        }
+
+        if (delta.content) {
+          content += delta.content;
+          onChunk(delta.content);
+        }
+
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            const existing = toolCalls.get(idx);
+            if (!existing) {
+              toolCalls.set(idx, {
+                id: tc.id ?? '',
+                type: 'function',
+                function: {
+                  name: tc.function?.name ?? '',
+                  arguments: tc.function?.arguments ?? '',
+                },
+              });
+            } else {
+              if (tc.id) existing.id = tc.id;
+              if (tc.function?.name) existing.function.name += tc.function.name;
+              if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+            }
+          }
+        }
+      };
+
+      /** Try to parse and process a single SSE data payload string. */
+      const processSSEData = (data: string) => {
+        if (data === '[DONE]') return;
+        try {
+          processDelta(JSON.parse(data));
+        } catch {
+          // Malformed JSON — nothing to do
+        }
+      };
+
+      // Buffer for incomplete SSE lines that span across reader.read() boundaries.
+      // Without this, a chunk boundary in the middle of a `data: {...}` line would
+      // cause JSON.parse to fail and silently drop tool-call argument fragments,
+      // producing "could not parse JSON" errors for tools with large payloads.
+      let lineBuffer = '';
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          // Prepend any leftover partial line from the previous read
+          const combined = lineBuffer + chunk;
+          const segments = combined.split('\n');
+          // The last segment may be incomplete — save it for the next iteration
+          lineBuffer = segments.pop() ?? '';
 
-          for (const line of lines) {
+          for (const line of segments) {
             if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta;
-              if (!delta) continue;
-
-              if (parsed.id) responseId = parsed.id;
-              if (parsed.model) responseModel = parsed.model;
-              if (parsed.choices?.[0]?.finish_reason) {
-                finishReason = parsed.choices[0].finish_reason;
-              }
-
-              // Accumulate text content and stream to UI
-              if (delta.content) {
-                content += delta.content;
-                onChunk(delta.content);
-              }
-
-              // Accumulate tool call deltas
-              if (delta.tool_calls) {
-                for (const tc of delta.tool_calls) {
-                  const idx = tc.index ?? 0;
-                  const existing = toolCalls.get(idx);
-                  if (!existing) {
-                    toolCalls.set(idx, {
-                      id: tc.id ?? '',
-                      type: 'function',
-                      function: {
-                        name: tc.function?.name ?? '',
-                        arguments: tc.function?.arguments ?? '',
-                      },
-                    });
-                  } else {
-                    if (tc.id) existing.id = tc.id;
-                    if (tc.function?.name) existing.function.name += tc.function.name;
-                    if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
-                  }
-                }
-              }
-            } catch {
-              // Ignore parsing errors for incomplete chunks
-            }
+            processSSEData(line.slice(6));
           }
+        }
+
+        // Process any remaining buffered line after the stream ends
+        if (lineBuffer.startsWith('data: ')) {
+          processSSEData(lineBuffer.slice(6));
         }
       } finally {
         reader.releaseLock();
