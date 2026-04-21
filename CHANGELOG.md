@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.10.3] - 2026-04-20
+
+### Added
+- Music discovery page with a curated Discover tab, artist profiles, playlist detail pages with full playback, genre browsing, and hot/top/new sorting
+- Swipe-to-dismiss gesture on full-screen image lightboxes -- flick up or down to close instead of reaching for the X button
+- Autoplay videos setting in Content preferences (off by default) that plays videos muted in feeds and profiles
+- Replies are now delivered to tagged users' inbox relays so they're more likely to see your response
+
+### Fixed
+- Status bar text could appear unreadable on light themes
+- Envelope cards in the Letters inbox were hard to tap on mobile
+- Wall compose box kept showing the previous post's text after submitting from the modal
+
 ## [2.10.2] - 2026-04-18
 
 ### Fixed
