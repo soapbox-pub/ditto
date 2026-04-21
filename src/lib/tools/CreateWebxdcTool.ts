@@ -107,10 +107,6 @@ Only one of html or files is needed. If both are provided, files takes priority.
       }
     }
 
-    if (!entries['index.html']) {
-      return { result: JSON.stringify({ error: 'An "index.html" entry is required. Provide "html", or include "index.html" in "files".' }) };
-    }
-
     const zipped = zipSync(entries);
 
     const slug = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

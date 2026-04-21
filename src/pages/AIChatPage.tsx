@@ -9,7 +9,7 @@ import { BuddyOnboarding } from '@/components/AIChat/BuddyOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
-import { useBuddy } from '@/hooks/useBuddy';
+import { useBuddy, type BuddyIdentity } from '@/hooks/useBuddy';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,8 +70,6 @@ export function AIChatPage() {
 }
 
 // ─── Chat View (buddy exists) ───
-
-import type { BuddyIdentity } from '@/hooks/useBuddy';
 
 function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
   const {

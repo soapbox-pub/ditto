@@ -72,10 +72,10 @@ export function createBuddyUploader(
     signer,
     fetch: (input, init) => globalThis.fetch(input, {
       ...init,
-      signal: AbortSignal.any([
-        init?.signal ?? AbortSignal.timeout(30_000),
-        AbortSignal.timeout(30_000),
-      ]),
+      // Hard 30s cap; if the caller provides a signal, race both
+      signal: init?.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
     }),
   });
 }
