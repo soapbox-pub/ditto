@@ -13,7 +13,7 @@ import {
   BLOBBONAUT_PROFILE_KINDS,
   getBlobbonautQueryDValues,
   buildMigrationTags,
-  generatePetId10,
+  deriveMigrationPetId,
   getCanonicalBlobbiD,
   isValidBlobbiEvent,
   isValidBlobbonautEvent,
@@ -155,8 +155,10 @@ export function useBlobbiMigration() {
     console.log('[Blobbi Migration] Starting migration for:', companion.d);
     
     try {
-      // Generate new canonical d-tag
-      const newPetId = generatePetId10();
+      // Derive deterministic canonical d-tag from legacy identity.
+      // Same (pubkey, legacyD) always produces the same canonicalD, making
+      // the entire migration chain (d → seed → visuals) stable.
+      const newPetId = deriveMigrationPetId(user.pubkey, companion.d);
       const canonicalD = getCanonicalBlobbiD(user.pubkey, newPetId);
       
       // Build migration tags (preserves name, stage, stats, generates seed if missing)
