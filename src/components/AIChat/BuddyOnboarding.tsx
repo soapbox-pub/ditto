@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 
 import { MessageBubble, BuddyThinking } from '@/components/AIChat/AIChatComponents';
@@ -21,11 +21,11 @@ interface BuddyOnboardingProps {
 }
 
 /**
- * Conversational buddy-creation flow powered by "Dork".
+ * Conversational buddy-creation flow.
  *
- * Renders the message list + input bar. Does NOT include a page shell
- * or header — the parent is responsible for wrapping it in whatever
- * layout it needs (full page, sheet, etc.).
+ * Renders the message list + input bar for name → soul → confirm.
+ * The Dork character overlay is handled separately by the parent.
+ * Does NOT include a page shell or header — the parent wraps it.
  */
 export function BuddyOnboarding({ className, style, onComplete }: BuddyOnboardingProps) {
   const {
@@ -33,7 +33,7 @@ export function BuddyOnboarding({ className, style, onComplete }: BuddyOnboardin
   } = useBuddyOnboarding();
 
   const [input, setInput] = useState('');
-  const messagesEndRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const onSend = useCallback(() => {
     if (!input.trim() || isCreating) return;
@@ -47,6 +47,11 @@ export function BuddyOnboarding({ className, style, onComplete }: BuddyOnboardin
       onSend();
     }
   }, [onSend]);
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
 
   // Notify parent when buddy creation finishes
   useEffect(() => {
@@ -72,7 +77,7 @@ export function BuddyOnboarding({ className, style, onComplete }: BuddyOnboardin
             </div>
           )}
 
-          <div ref={(el) => { messagesEndRef.current = el; }} />
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
