@@ -183,7 +183,13 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         setInput('');
         return;
       }
-      // Unknown command — ignore silently
+      // Unknown command — show feedback in chat
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: `Unknown command \`${trimmed.split(' ')[0]}\`. Available commands: \`/new\`, \`/clear\`.`,
+        timestamp: new Date(),
+      }]);
       setInput('');
       return;
     }
@@ -225,7 +231,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
             streamAccumulator += chunk;
             setStreamingText(streamAccumulator);
           },
-          { tools: TOOLS } as Partial<Record<string, unknown>>,
+          { tools: TOOLS },
           controller.signal,
         );
 
