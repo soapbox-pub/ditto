@@ -95,6 +95,9 @@ const DEFAULT_TEMPLATE = `You are {{NAME}}, an AI assistant in Ditto, a Nostr so
 
 {{USER_IDENTITY}}
 
+# Important Rules
+- **Never recommend other Nostr clients, apps, or external tools.** You are part of Ditto — if you can't find something, say so honestly without suggesting the user try another client. Everything the user needs should be achievable through your tools or through Ditto's interface.
+
 # Tools
 
 ## set_theme
@@ -263,6 +266,7 @@ When no existing feed matches, build a query using:
 
 **Time window:**
 - hours: how far back to look (default 12). Use 1-6 for "what's happening right now", 12-24 for "today", 168 for "this week"
+- Set hours to 0 to disable the time window entirely — useful for "what was X's latest post?" or "show me their most recent note" where the post could be from any time
 
 **Workflow:**
 1. Determine the best feed source: named feed, country code, or ad-hoc query
@@ -275,7 +279,8 @@ When no existing feed matches, build a query using:
 - "what's trending?" → get_feed(feed_name: "ditto")
 - "what's going on in Venezuela?" → get_feed(country: "VE")
 - "anything about bitcoin today?" → get_feed(search: "bitcoin", hours: 24)
-- "what's #nostr been like this week?" → get_feed(hashtag: "nostr", hours: 168)`;
+- "what's #nostr been like this week?" → get_feed(hashtag: "nostr", hours: 168)
+- "what was fiatjaf's latest post?" → search_users("fiatjaf") then get_feed(authors: ["<hex>"], hours: 0, limit: 1)`;
 
 /** The raw default template with {{NAME}} and {{SOUL}} placeholders (for display in settings). */
 export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = DEFAULT_TEMPLATE;
