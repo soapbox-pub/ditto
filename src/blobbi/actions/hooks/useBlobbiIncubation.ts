@@ -5,12 +5,12 @@
  * 
  * When a user starts incubation:
  * 1. Apply accumulated decay from last_decay_at to now
- * 2. Set state to 'incubating'
- * 3. Add state_started_at timestamp
+ * 2. Set progression_state to 'incubating'
+ * 3. Add progression_started_at timestamp
  * 4. Update last_decay_at to the same timestamp
  * 5. Clear any previous task progress
  * 
- * Tasks are computed from Nostr events with created_at >= state_started_at
+ * Tasks are computed from Nostr events with created_at >= progression_started_at
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -80,7 +80,7 @@ export interface StartIncubationResult {
   /** The Blobbi's name */
   name: string;
   /** Timestamp when incubation started */
-  stateStartedAt: number;
+  progressionStartedAt: number;
   /** Mode that was used */
   mode: StartIncubationMode;
   /** Name of other Blobbi that was stopped (if mode === 'switch') */
@@ -92,7 +92,7 @@ export interface StartIncubationResult {
 /**
  * Hook to start the incubation process for an egg.
  * 
- * This sets the Blobbi state to 'incubating' and records the start timestamp.
+ * This sets progression_state to 'incubating' and records the start timestamp.
  * Tasks will be computed based on events created after this timestamp.
  * 
  * IMPORTANT: The mode must be explicitly specified by the caller (UI).
@@ -280,7 +280,7 @@ export function useStartIncubation({
 
       return {
         name: canonical.companion.name,
-        stateStartedAt: now,
+        progressionStartedAt: now,
         mode,
         stoppedOtherName,
       };
@@ -344,17 +344,17 @@ export interface StopIncubationResult {
 /**
  * Hook to stop/cancel the incubation process for a Blobbi.
  * 
- * This resets the Blobbi state to 'active' and clears all task progress tags.
+ * This clears the progression process and all task progress tags.
  * The user can restart incubation later, but will need to complete tasks again.
  * 
  * When stopping incubation:
  * - Apply accumulated decay first
- * - Set state back to 'active'
- * - Remove state_started_at tag
+ * - Set progression_state back to 'none'
+ * - Remove progression_started_at tag
  * - Remove all task and task_completed tags
  * 
  * Requirements:
- * - Blobbi must be in incubating state
+ * - Blobbi must have progressionState === 'incubating'
  * - User must be logged in
  */
 export function useStopIncubation({
@@ -475,13 +475,13 @@ export interface StartEvolutionResult {
   /** The Blobbi's name */
   name: string;
   /** Timestamp when evolution started */
-  stateStartedAt: number;
+  progressionStartedAt: number;
 }
 
 /**
  * Hook to start the evolution process for a baby Blobbi.
  * 
- * This sets the Blobbi state to 'evolving' and records the start timestamp.
+ * This sets progression_state to 'evolving' and records the start timestamp.
  * Tasks will be computed based on events created after this timestamp.
  * 
  * Requirements:
@@ -576,7 +576,7 @@ export function useStartEvolution({
 
       return {
         name: canonical.companion.name,
-        stateStartedAt: now,
+        progressionStartedAt: now,
       };
     },
     onSuccess: ({ name }) => {
@@ -626,17 +626,17 @@ export interface StopEvolutionResult {
 /**
  * Hook to stop/cancel the evolution process for a Blobbi.
  * 
- * This resets the Blobbi state to 'active' and clears all task progress tags.
+ * This clears the progression process and all task progress tags.
  * The user can restart evolution later, but will need to complete tasks again.
  * 
  * When stopping evolution:
  * - Apply accumulated decay first
- * - Set state back to 'active'
- * - Remove state_started_at tag
+ * - Set progression_state back to 'none'
+ * - Remove progression_started_at tag
  * - Remove all task and task_completed tags
  * 
  * Requirements:
- * - Blobbi must be in evolving state
+ * - Blobbi must have progressionState === 'evolving'
  * - User must be logged in
  */
 export function useStopEvolution({

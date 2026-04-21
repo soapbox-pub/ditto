@@ -27,6 +27,8 @@ These event kinds were created by community contributors and are supported by Di
 | 16158 | Weather Station        | Weather station metadata (location, sensors, connectivity)       | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
 | 31124 | Blobbi Pet State       | Current state of a virtual Blobbi pet (addressable)              | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 37516 | Geocache               | Geocache listing for real-world treasure hunting                 | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
+| 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
+| 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 
 ---
 
@@ -378,4 +380,63 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
 ```
 
 Each `Mission` is either a **TallyMission** (`{ id, target, count }`) or an **EventMission** (`{ id, target, events: string[] }`) where `events` contains Nostr event IDs that satisfy the mission. Evolution missions are populated when incubation or evolution begins and cleared when the stage transition completes or is cancelled.
+
+---
+
+## Music Tracks & Playlists
+
+### Kind 36787: Music Track
+
+An addressable event containing metadata about an audio file. Full spec maintained externally.
+
+**Required tags:** `d`, `title`, `artist`, `url`, `t` (with value `"music"`)
+
+**Optional tags:** `image`, `video`, `album`, `track_number`, `released`, `duration`, `format`, `bitrate`, `sample_rate`, `language`, `explicit`, `zap`, `alt`
+
+### Kind 34139: Music Playlist
+
+An addressable event containing an ordered list of music track references.
+
+**Required tags:** `d`, `title`, `alt`
+
+**Optional tags:** `description`, `image`, `a` (track references), `t`, `public`, `private`, `collaborative`
+
+Track references use `a` tags in the format `["a", "36787:<pubkey>:<d-tag>"]`.
+
+### Albums (Convention)
+
+Albums are represented as kind 34139 playlist events with a `["t", "album"]` tag. This reuses the existing playlist infrastructure while allowing clients to distinguish albums from user-curated playlists.
+
+**Additional optional tags for albums:**
+- `released` — ISO 8601 release date (e.g. `"2024-06-15"`)
+- `label` — Record label name
+
+**Example album event:**
+
+```json
+{
+  "kind": 34139,
+  "content": "Debut studio album featuring 12 tracks of ambient electronic music.",
+  "tags": [
+    ["d", "endless-summer-2024"],
+    ["title", "Endless Summer"],
+    ["image", "https://cdn.blossom.example/img/album-art.jpg"],
+    ["t", "album"],
+    ["t", "electronic"],
+    ["t", "ambient"],
+    ["released", "2024-06-15"],
+    ["label", "Sunset Records"],
+    ["a", "36787:abc123...:track-1"],
+    ["a", "36787:abc123...:track-2"],
+    ["a", "36787:abc123...:track-3"],
+    ["alt", "Album: Endless Summer by The Midnight Collective"]
+  ]
+}
+```
+
+**Client behavior:**
+- Clients detect albums by checking for a `t` tag with value `"album"` (case-insensitive)
+- Albums display release date and label information when available
+- Track ordering follows the order of `a` tags in the event
+- The same detail view, playback, and commenting features apply to both albums and playlists
 

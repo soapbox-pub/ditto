@@ -43,7 +43,7 @@ export const DEFAULT_EGG_STATS = {
 };
 
 /**
- * @deprecated No longer used. Task system uses state_started_at instead.
+ * @deprecated No longer used. Task system uses progression_started_at instead.
  * Kept for backwards compatibility with older code that may reference it.
  */
 export const DEFAULT_INCUBATION_TIME = 345600;
@@ -278,12 +278,12 @@ export interface BlobbiCompanion {
   careStreakLastDay: string | undefined;
   /** 
    * @deprecated Incubation time in seconds - no longer used.
-   * Task system uses state_started_at instead.
+   * Task system uses progression_started_at instead.
    */
   incubationTime: number | undefined;
   /** 
    * @deprecated When incubation began - no longer used.
-   * Replaced by state_started_at for all process timing.
+   * Replaced by progression_started_at for all process timing.
    */
   startIncubation: number | undefined;
   /** Adult evolution form type (adult only) */
@@ -1177,8 +1177,8 @@ export const VISUAL_TRAIT_TAG_NAMES = [
  * - incubation_progress: Obsolete task progress field
  * - egg_status: Obsolete status field
  * - fees: Obsolete fee tracking field
- * - incubation_time: Obsolete; task system uses state_started_at instead
- * - start_incubation: Obsolete; replaced by state_started_at
+ * - incubation_time: Obsolete; task system uses progression_started_at instead
+ * - start_incubation: Obsolete; replaced by progression_started_at
  * - interact_6_progress: Legacy interaction tracking; replaced by ["task", "interactions:N"]
  */
 export const DEPRECATED_BLOBBI_TAG_NAMES = new Set([

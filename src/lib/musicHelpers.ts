@@ -73,6 +73,12 @@ export interface ParsedMusicPlaylist {
   description: string;
   artwork?: string;
   trackRefs: string[];
+  /** Whether this playlist is tagged as an album (`t` tag with value `album`). */
+  isAlbum: boolean;
+  /** ISO 8601 release date (albums). */
+  released?: string;
+  /** Record label name (albums). */
+  label?: string;
 }
 
 /** Parse a kind 34139 music playlist event into structured data. */
@@ -86,7 +92,14 @@ export function parseMusicPlaylist(event: NostrEvent): ParsedMusicPlaylist | nul
     .filter(([n]) => n === 'a' || n === 'e')
     .map(([, v]) => v);
 
-  return { title, description, artwork, trackRefs };
+  // Album detection: look for a 't' tag with value 'album'
+  const tTags = event.tags.filter(([n]) => n === 't').map(([, v]) => v?.toLowerCase());
+  const isAlbum = tTags.includes('album');
+
+  const released = getTag(event.tags, 'released');
+  const label = getTag(event.tags, 'label');
+
+  return { title, description, artwork, trackRefs, isAlbum, released, label };
 }
 
 /** Compute the naddr path for an addressable event. */
