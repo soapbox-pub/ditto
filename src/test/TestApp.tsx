@@ -129,6 +129,8 @@ export function TestApp({ children }: TestAppProps) {
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
     sidebarWidgets: [],
+    aiModel: '',
+    aiSystemPrompt: '',
   };
 
   return (
