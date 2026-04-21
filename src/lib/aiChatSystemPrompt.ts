@@ -1,8 +1,5 @@
-import { bundledFonts } from '@/lib/fonts';
+import { AVAILABLE_FONT_NAMES } from '@/lib/fonts';
 import type { ChatMessage } from '@/hooks/useShakespeare';
-
-/** Comma-separated list of available bundled font names for the system prompt. */
-const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
 
 /** Minimal profile fields injected into the system prompt so the AI knows who it's talking to. */
 export interface UserIdentity {
@@ -108,7 +105,7 @@ Applies a full custom theme. Supports:
 - text: main text/foreground color (must contrast well with background)
 - primary: accent color for buttons, links, and highlights
 
-**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
+**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONT_NAMES}
 
 **Background image** (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
 

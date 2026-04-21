@@ -22,8 +22,7 @@ import { GetFeedTool } from '@/lib/tools/GetFeedTool';
 import { CreateWebxdcTool } from '@/lib/tools/CreateWebxdcTool';
 import { MakeItRainTool } from '@/lib/tools/MakeItRainTool';
 
-import type { Tool, ToolContext } from '@/lib/tools/Tool';
-import type { ToolExecutorResult } from '@/lib/aiChatTools';
+import type { Tool, ToolContext, ToolResult } from '@/lib/tools/Tool';
 
 // ─── Tool Registry ───
 
@@ -74,7 +73,7 @@ export function useAIChatTools() {
     setScreenEffect,
   }), [nostr, user, config, getBuddySecretKey, savedFeeds, applyCustomTheme, setScreenEffect]);
 
-  const executeToolCall = useCallback(async (name: string, rawArgs: Record<string, unknown>): Promise<ToolExecutorResult> => {
+  const executeToolCall = useCallback(async (name: string, rawArgs: Record<string, unknown>): Promise<ToolResult> => {
     const tool = TOOL_REGISTRY[name];
     if (!tool) {
       return { result: JSON.stringify({ error: `Unknown tool: ${name}` }) };

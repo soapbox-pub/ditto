@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { fetchContactPubkeys } from './helpers';
+
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
 const inputSchema = z.object({
@@ -33,43 +35,34 @@ The search checks the user's follow list first (contacts), then falls back to a 
     const matches: ProfileMatch[] = [];
 
     // Phase 1: Search user's contacts
-    if (ctx.user) {
-      const contactEvents = await ctx.nostr.query(
-        [{ kinds: [3], authors: [ctx.user.pubkey], limit: 1 }],
-        { signal: AbortSignal.timeout(5000) },
+    const contactPubkeys = await fetchContactPubkeys(ctx);
+
+    if (contactPubkeys.length > 0) {
+      const metaEvents = await ctx.nostr.query(
+        [{ kinds: [0], authors: contactPubkeys }],
+        { signal: AbortSignal.timeout(8000) },
       );
 
-      const contactPubkeys = contactEvents[0]?.tags
-        .filter(([t]) => t === 'p')
-        .map(([, pk]) => pk) ?? [];
+      for (const event of metaEvents) {
+        if (matches.length >= 5) break;
+        try {
+          const meta = JSON.parse(event.content);
+          const name = (meta.name || '').toLowerCase();
+          const displayName = (meta.display_name || '').toLowerCase();
+          const nip05 = (meta.nip05 || '').toLowerCase();
 
-      if (contactPubkeys.length > 0) {
-        const metaEvents = await ctx.nostr.query(
-          [{ kinds: [0], authors: contactPubkeys }],
-          { signal: AbortSignal.timeout(8000) },
-        );
-
-        for (const event of metaEvents) {
-          if (matches.length >= 5) break;
-          try {
-            const meta = JSON.parse(event.content);
-            const name = (meta.name || '').toLowerCase();
-            const displayName = (meta.display_name || '').toLowerCase();
-            const nip05 = (meta.nip05 || '').toLowerCase();
-
-            if (name.includes(query) || displayName.includes(query) || nip05.includes(query)) {
-              matches.push({
-                pubkey: event.pubkey,
-                name: meta.name,
-                display_name: meta.display_name,
-                nip05: meta.nip05,
-                about: meta.about ? meta.about.slice(0, 100) : undefined,
-                source: 'contacts',
-              });
-            }
-          } catch {
-            // Skip events with invalid metadata JSON
+          if (name.includes(query) || displayName.includes(query) || nip05.includes(query)) {
+            matches.push({
+              pubkey: event.pubkey,
+              name: meta.name,
+              display_name: meta.display_name,
+              nip05: meta.nip05,
+              about: meta.about ? meta.about.slice(0, 100) : undefined,
+              source: 'contacts',
+            });
           }
+        } catch {
+          // Skip events with invalid metadata JSON
         }
       }
     }

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
-import { useShakespeare, type ChatMessage } from '@/hooks/useShakespeare';
+import { useShakespeare, sortModelsByCost, type ChatMessage } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools, TOOLS } from '@/hooks/useAIChatTools';
@@ -112,11 +112,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     getAvailableModels()
       .then((response) => {
         if (cancelled) return;
-        const sorted = response.data.sort((a, b) => {
-          const costA = parseFloat(a.pricing.prompt) + parseFloat(a.pricing.completion);
-          const costB = parseFloat(b.pricing.prompt) + parseFloat(b.pricing.completion);
-          return costA - costB;
-        });
+        const sorted = sortModelsByCost(response.data);
         if (sorted.length > 0) {
           setDefaultModel(sorted[0].id);
         }
