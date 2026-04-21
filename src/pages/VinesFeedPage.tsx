@@ -331,6 +331,7 @@ export function VineCard({
 	onCommentClick,
 	onPlayingChange,
 }: VineCardProps) {
+	const { config } = useAppContext();
 	const { user } = useCurrentUser();
 	const author = useAuthor(event.pubkey);
 	const metadata = author.data?.metadata;
@@ -374,18 +375,20 @@ export function VineCard({
 			video.currentTime = 0;
 			video.muted = globalMuted;
 			setIsMuted(globalMuted);
-			setIsAttemptingPlay(true);
-			video.play().catch(() => {
-				// Autoplay blocked — leave paused, user can tap
-				setIsAttemptingPlay(false);
-			});
+			if (config.autoplayVideos) {
+				setIsAttemptingPlay(true);
+				video.play().catch(() => {
+					// Autoplay blocked — leave paused, user can tap
+					setIsAttemptingPlay(false);
+				});
+			}
 		} else {
 			video.pause();
 			video.currentTime = 0;
 			setIsAttemptingPlay(false);
 			setIsBuffering(false);
 		}
-	}, [isActive, imeta.url]);
+	}, [isActive, imeta.url, config.autoplayVideos]);
 
 	const togglePlay = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation();

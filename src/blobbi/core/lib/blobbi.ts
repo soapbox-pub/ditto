@@ -3,6 +3,8 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
+import type { Mission } from './missions';
+import { parseEvolutionContent } from './missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -300,6 +302,8 @@ export interface BlobbiCompanion {
   tasks: BlobbiTaskProgress[];
   /** Completed task names */
   tasksCompleted: string[];
+  /** Evolution missions parsed from 31124 content JSON (per-Blobbi progression) */
+  evolution: Mission[];
   /** All tags preserved for republishing */
   allTags: string[][];
 }
@@ -989,6 +993,9 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     }
   }
   
+  // Parse evolution missions from 31124 content JSON (per-Blobbi)
+  const evolution = parseEvolutionContent(event.content);
+
   return {
     event,
     d,
@@ -1021,6 +1028,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     progressionStartedAt: parseNumericTag(tags, 'progression_started_at') ?? parseNumericTag(tags, 'state_started_at'),
     tasks,
     tasksCompleted,
+    evolution,
     allTags: tags,
   };
 }

@@ -81,10 +81,12 @@ export function applyBodyEffects(svgText: string, spec: BodyEffectsSpec): string
       );
       defs.push(result.defs);
       
-      // Insert anger-rise overlay right after the body path element
+      // Insert anger-rise overlay right after the body element
       // This ensures correct z-ordering (anger fill appears on top of body but under face)
-      const bodyPathRegex = /<path[^>]*d="[^"]*"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/;
-      const bodyPathMatch = svgText.match(bodyPathRegex);
+      // Prefer the explicit marker; fall back to legacy path-only gradient regex
+      const bodyElRegex = /<(?:path|circle|ellipse|rect)\s[^>]*data-blobbi-body="true"[^>]*\/>/;
+      const bodyElFallback = /<path[^>]*d="[^"]*"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/;
+      const bodyPathMatch = svgText.match(bodyElRegex) ?? svgText.match(bodyElFallback);
       if (bodyPathMatch && bodyPathMatch.index !== undefined) {
         const insertPos = bodyPathMatch.index + bodyPathMatch[0].length;
         svgText = svgText.slice(0, insertPos) + result.overlay + svgText.slice(insertPos);

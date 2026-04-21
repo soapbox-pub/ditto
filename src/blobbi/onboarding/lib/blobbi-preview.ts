@@ -201,6 +201,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     progressionStartedAt: preview.createdAt,
     tasks: [],
     tasksCompleted: [],
+    evolution: [],
     
     // We need allTags for the adapter, but preview has no extra tags
     allTags: previewToEventTags(preview),

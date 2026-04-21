@@ -100,6 +100,8 @@ export interface EncryptedSettings {
   faviconUrl?: string;
   /** Custom link preview URI template (only synced when non-empty) */
   linkPreviewUrl?: string;
+  /** Autoplay videos in feeds and previews (muted) */
+  autoplayVideos?: boolean;
   /** Sentry DSN for error reporting (empty string = disabled) */
   sentryDsn?: string;
   /** Saved feed tabs created from the search page. */

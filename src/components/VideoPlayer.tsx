@@ -7,6 +7,7 @@ import { isValidBlurhash } from '@/lib/blurhash';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
+import { useAppContext } from '@/hooks/useAppContext';
 import { formatTime } from '@/lib/formatTime';
 
 interface VideoPlayerProps {
@@ -21,6 +22,8 @@ interface VideoPlayerProps {
   title?: string;
   /** Artist / author name shown in OS media controls. */
   artist?: string;
+  /** When true, the video auto-plays muted without requiring a click. */
+  autoPlay?: boolean;
 }
 
 /** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
@@ -72,12 +75,14 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
   return { isHls };
 }
 
-export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash, title, artist }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash, title, artist, autoPlay }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
   const { isHls } = useHls(videoRef, src);
+  const { config } = useAppContext();
+  const shouldAutoPlay = autoPlay ?? config.autoplayVideos;
 
   const generatedPoster = useVideoThumbnail(src, poster);
 
@@ -98,6 +103,34 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
     containerRef,
     isPlaying,
   });
+
+  // Autoplay: start muted when enabled via prop or global setting.
+  // Uses onLoadedData to ensure the element is ready before calling play().
+  const autoplayAttempted = useRef(false);
+  useEffect(() => {
+    if (!shouldAutoPlay) return;
+    autoplayAttempted.current = false;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    const attemptPlay = () => {
+      if (autoplayAttempted.current) return;
+      autoplayAttempted.current = true;
+      video.muted = true;
+      video.play().catch(() => {
+        // Autoplay blocked by browser — leave paused, user can click to play
+      });
+    };
+
+    // If the element already has data, play immediately; otherwise wait.
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      attemptPlay();
+    } else {
+      video.addEventListener('loadeddata', attemptPlay, { once: true });
+      return () => video.removeEventListener('loadeddata', attemptPlay);
+    }
+  }, [shouldAutoPlay]);
 
   // Media Session API — registers OS lock-screen / notification controls
   useEffect(() => {

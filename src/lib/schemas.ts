@@ -250,6 +250,7 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  autoplayVideos: z.boolean(),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
@@ -339,6 +340,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     userCount: z.number(),
     nip05: z.record(z.string(), z.unknown()),
   }).optional(),
+  autoplayVideos: z.boolean().optional(),
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
