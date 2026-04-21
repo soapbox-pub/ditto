@@ -165,7 +165,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   },
   {
     id: "ai-chat",
-    label: "AI Chat",
+    label: "Buddy",
     path: "/ai-chat",
     icon: Bot,
     requiresAuth: true,
