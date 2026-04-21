@@ -1528,15 +1528,22 @@ export function buildMigrationTags(
   const now = Math.floor(Date.now() / 1000).toString();
   
   // Start with required tags
+  const legacyD = getTagValue(legacyTags, 'd');
   const newTags: string[][] = [
     ['d', canonicalD],
     ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
     ['seed', seed],
   ];
   
+  // Store a back-reference to the legacy d-tag for future equivalence lookups.
+  // This is additive — current dedup logic uses name-based matching, but future
+  // versions can use this tag for stronger deterministic equivalence.
+  if (legacyD) {
+    newTags.push(['migrated_from', legacyD]);
+  }
+  
   // Preserve name with priority: name tag > legacy d-tag derived > fallback
   const nameTag = getTagValue(legacyTags, 'name');
-  const legacyD = getTagValue(legacyTags, 'd');
   const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
   newTags.push(['name', resolvedName]);
   
@@ -1676,6 +1683,94 @@ export function migratePetInHas(
     filtered.push(canonicalD);
   }
   return filtered;
+}
+
+// ─── Legacy / Canonical Deduplication ──────────────────────────────────────────
+
+/**
+ * Normalize a Blobbi name for equivalence comparison.
+ * Lowercases and trims whitespace so "Jack", "jack", and " Jack " all match.
+ */
+export function normalizeBlobbiName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Filter out legacy companions that have been migrated to canonical format.
+ *
+ * A legacy companion is hidden when ALL of the following are true:
+ * 1. It is a legacy event (companion.isLegacy === true)
+ * 2. A canonical companion with the same normalized name exists
+ * 3. The legacy d-tag is NOT present in profile.has (confirming migration occurred)
+ *
+ * This only applies legacy → canonical. Canonical → canonical duplicates are
+ * intentionally NOT collapsed by this function.
+ *
+ * @param companions - All parsed companions (legacy + canonical)
+ * @param profileHas - The profile.has array of owned Blobbi d-tags
+ * @returns Filtered companions with migrated legacy entries removed
+ */
+export function filterMigratedLegacyCompanions(
+  companions: BlobbiCompanion[],
+  profileHas: string[],
+): BlobbiCompanion[] {
+  // Build a set of normalized names from canonical companions only
+  const canonicalNames = new Set<string>();
+  for (const c of companions) {
+    if (!c.isLegacy) {
+      canonicalNames.add(normalizeBlobbiName(c.name));
+    }
+  }
+
+  // If there are no canonical companions, nothing to filter
+  if (canonicalNames.size === 0) return companions;
+
+  const hasSet = new Set(profileHas);
+
+  return companions.filter((c) => {
+    // Keep all canonical companions unconditionally
+    if (!c.isLegacy) return true;
+
+    // Keep legacy companions that are still in profile.has (not yet migrated)
+    if (hasSet.has(c.d)) return true;
+
+    // Keep legacy companions with no canonical name-equivalent
+    if (!canonicalNames.has(normalizeBlobbiName(c.name))) return true;
+
+    // Legacy companion has a canonical equivalent and is no longer in profile.has → hide
+    return false;
+  });
+}
+
+/**
+ * Find an existing canonical companion that is equivalent to a legacy companion.
+ *
+ * Used by the migration guard to avoid creating duplicate canonical events.
+ * Matches by normalized name among non-legacy companions. When multiple
+ * canonical companions share the same name (from past duplicate migrations),
+ * the one with the newest created_at is returned.
+ *
+ * @param legacyName - The name of the legacy companion (resolved via tag or d-tag derivation)
+ * @param companions - All parsed companions
+ * @returns The best matching canonical companion, or undefined
+ */
+export function findCanonicalEquivalent(
+  legacyName: string,
+  companions: BlobbiCompanion[],
+): BlobbiCompanion | undefined {
+  const normalizedLegacy = normalizeBlobbiName(legacyName);
+  let best: BlobbiCompanion | undefined;
+
+  for (const c of companions) {
+    if (c.isLegacy) continue;
+    if (normalizeBlobbiName(c.name) !== normalizedLegacy) continue;
+    // Among multiple matches, prefer the newest (most up-to-date state)
+    if (!best || c.event.created_at > best.event.created_at) {
+      best = c;
+    }
+  }
+
+  return best;
 }
 
 // ─── LocalStorage Cache Types ─────────────────────────────────────────────────
