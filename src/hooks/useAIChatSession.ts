@@ -263,7 +263,15 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
           let args: Record<string, unknown>;
           try {
             args = JSON.parse(tc.function.arguments);
-          } catch {
+          } catch (parseErr) {
+            // Log the raw arguments for debugging — helps distinguish between
+            // empty strings (model didn't emit args) vs truncated JSON (buffering issue)
+            console.error(
+              `[AI tool call] Failed to parse arguments for "${tc.function.name}":`,
+              parseErr instanceof Error ? parseErr.message : parseErr,
+              '\nRaw arguments string:',
+              JSON.stringify(tc.function.arguments),
+            );
             // Return an error to the AI so it can retry instead of silently running with empty args
             toolCalls.push({
               id: tc.id,
