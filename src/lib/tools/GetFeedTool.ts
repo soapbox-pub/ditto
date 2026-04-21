@@ -54,7 +54,7 @@ After receiving results, summarize the key topics, conversations, and notable po
 
     const contactPubkeys = await fetchContactPubkeys(ctx);
 
-    const resolved = resolveFilter(args, ctx, { feedName, country, limit, sinceTimestamp, contactPubkeys });
+    const resolved = resolveFilter(args, ctx, { feedName, country, hours, limit, sinceTimestamp, contactPubkeys });
     if ('error' in resolved) {
       return { result: JSON.stringify(resolved) };
     }
