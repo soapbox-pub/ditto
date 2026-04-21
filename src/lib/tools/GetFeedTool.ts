@@ -148,6 +148,10 @@ function resolveFilter(
 ): ResolvedFilter {
   // Country query — NIP-73 geographic comments
   if (country) {
+    // Validate as ISO 3166-1 alpha-2 (2 uppercase letters)
+    if (!/^[A-Z]{2}$/.test(country)) {
+      return { error: `Invalid country code "${country}". Use a 2-letter ISO 3166-1 alpha-2 code (e.g. "US", "VE", "JP").` };
+    }
     return {
       filter: { kinds: [1111], '#I': [`iso3166:${country}`], since: sinceTimestamp, limit } as NostrFilter,
       needsDittoRelay: false,
