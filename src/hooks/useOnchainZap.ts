@@ -81,7 +81,7 @@ export function useOnchainZap(
       if (user.pubkey === target.pubkey) throw new Error("You can't zap yourself.");
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
-          "Your signer doesn't support Bitcoin transaction signing. Log in with your nsec, a NIP-07 extension that supports signPsbt, or a NIP-46 remote signer that supports sign_psbt.",
+          "Your login doesn't support sending Bitcoin. Log in with your secret key to send Bitcoin zaps.",
         );
       }
       if (!Number.isFinite(amountSats) || amountSats <= 0) {

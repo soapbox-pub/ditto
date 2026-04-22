@@ -147,14 +147,14 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   // ── Signer not supported ──────────────────────────────────────
 
   if (user && capability === 'unsupported') {
-    // Tailor the hint to the login type so the user knows exactly what to
-    // change to regain Bitcoin-zap capability.
-    const hint =
+    // Tailor the hint to the login type so the user knows what to change
+    // to regain Bitcoin-zap capability.
+    const message =
       loginType === 'extension'
-        ? "Your browser extension doesn't expose signPsbt. Try a different extension, or log in with your nsec."
+        ? "Your browser extension doesn't support sending Bitcoin. Try a different extension, or log in with your secret key."
         : loginType === 'bunker'
-          ? "Your remote signer doesn't support sign_psbt. Update your signer, or log in with your nsec."
-          : "Log in with your nsec, a NIP-07 extension that exposes signPsbt, or a NIP-46 remote signer that supports sign_psbt.";
+          ? "Your remote signer doesn't support sending Bitcoin. Update your signer, or log in with your secret key."
+          : "Log in with your secret key to send Bitcoin zaps.";
 
     return (
       <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
@@ -164,7 +164,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
         <div className="space-y-1">
           <p className="text-sm font-semibold">Bitcoin zaps aren't available</p>
           <p className="text-xs text-muted-foreground max-w-xs">
-            Your signer can't sign Bitcoin transactions. {hint}
+            {message}
           </p>
         </div>
       </div>

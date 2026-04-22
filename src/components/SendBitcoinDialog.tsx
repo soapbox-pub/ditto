@@ -176,8 +176,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      if (!user || !canSignPsbt || !signPsbt) throw new Error('Bitcoin signing not available.');
-      if (!utxos?.length) throw new Error('No UTXOs available.');
+      if (!user || !canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
+      if (!utxos?.length) throw new Error('No spendable Bitcoin available.');
       if (!feeRates) throw new Error('Fee rates not loaded.');
 
       const recipientAddress = resolveRecipient(recipient);
@@ -258,18 +258,16 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-orange-500" />
-              Signing Not Available
+              Sending Not Available
             </DialogTitle>
             <DialogDescription>
-              Sending Bitcoin requires a signer that supports PSBT signing.
+              Your login doesn't support sending Bitcoin.
             </DialogDescription>
           </DialogHeader>
           <Alert>
             <AlertTriangle className="size-4" />
             <AlertDescription>
-              Your current signer does not support Bitcoin transaction signing.
-              Log in with your nsec, a NIP-07 extension that supports signPsbt,
-              or a NIP-46 remote signer that supports the sign_psbt method.
+              Log in with your secret key to send Bitcoin.
             </AlertDescription>
           </Alert>
           <Button onClick={handleClose}>Close</Button>
