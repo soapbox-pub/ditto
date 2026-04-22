@@ -75,8 +75,18 @@ function attachGlobalMouseListener() {
     globalMouseY = e.clientY;
   };
 
+  const handleTouch = (e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch) {
+      globalMouseX = touch.clientX;
+      globalMouseY = touch.clientY;
+    }
+  };
+
   // Use capture phase for earliest possible update
   window.addEventListener('mousemove', handleMouseMove, { capture: true, passive: true });
+  window.addEventListener('touchstart', handleTouch, { capture: true, passive: true });
+  window.addEventListener('touchmove', handleTouch, { capture: true, passive: true });
   mouseListenerAttached = true;
 }
 
