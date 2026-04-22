@@ -115,9 +115,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     return estimateFee(utxos.length, numOutputs, currentFeeRate);
   }, [utxos, currentFeeRate, amountSats, totalBalance]);
 
-  const feePct = estimatedFeeSats && amountSats ? (estimatedFeeSats / amountSats) * 100 : 0;
-  const feeWarning = feePct > 25; // warn if fee is over 25% of the zap
-
   const totalSats = amountSats + estimatedFeeSats;
   const insufficient = totalBalance > 0 && totalSats > totalBalance;
   const showBalance = insufficient || (amountSats > 0 && totalBalance === 0);
@@ -289,13 +286,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             </span>
           )}
         </div>
-      )}
-
-      {/* Fee warning — only when fees dominate the zap */}
-      {feeWarning && amountSats > 0 && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
-          Network fee is ~{feePct.toFixed(0)}% of your zap. Consider a larger amount or switch to Lightning.
-        </p>
       )}
 
       {/* Error */}
