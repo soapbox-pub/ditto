@@ -10,12 +10,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useOnchainZap, type OnchainFeeSpeed } from '@/hooks/useOnchainZap';
+import { useNostrLogin } from '@nostrify/react/login';
 import {
   nostrPubkeyToBitcoinAddress,
   fetchUTXOs,
@@ -51,7 +51,9 @@ interface OnchainZapContentProps {
  */
 export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps) {
   const { user } = useCurrentUser();
-  const { canSignPsbt } = useBitcoinSigner();
+  const { capability } = useBitcoinSigner();
+  const { logins } = useNostrLogin();
+  const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
   const [comment, setComment] = useState('');
@@ -122,10 +124,9 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     setError('');
     if (!user) { setError('You must be logged in.'); return; }
     if (user.pubkey === target.pubkey) { setError("You can't zap yourself."); return; }
-    if (!canSignPsbt) {
-      setError("Your signer doesn't support Bitcoin signing. Log in with your nsec, or an extension/bunker that supports signPsbt.");
-      return;
-    }
+    // `capability === 'unsupported'` is already handled by the UI replacement
+    // above; 'supported' and 'unknown' both proceed (the latter may fail at
+    // sign time, which will then flip the UI to the unsupported state).
     if (!btcPrice) { setError('Waiting for BTC price…'); return; }
     if (amountSats <= 0) { setError('Enter an amount.'); return; }
     if (!utxos?.length) { setError("You don't have any Bitcoin yet. Receive some first."); return; }
@@ -135,23 +136,37 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       await zapAsync({ amountSats, comment, feeSpeed });
       // onSuccess (passed to useOnchainZap) closes the dialog; toast is shown by the hook.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Zap failed');
+      // Capability errors flip the UI via `reportSignerUnsupported` in the
+      // hook's `onError`; no need to surface a form-level error for those.
+      const msg = err instanceof Error ? err.message : 'Zap failed';
+      const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
+      if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, canSignPsbt, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed]);
+  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed]);
 
   // ── Signer not supported ──────────────────────────────────────
 
-  if (user && !canSignPsbt) {
+  if (user && capability === 'unsupported') {
+    // Tailor the hint to the login type so the user knows exactly what to
+    // change to regain Bitcoin-zap capability.
+    const hint =
+      loginType === 'extension'
+        ? "Your browser extension doesn't expose signPsbt. Try a different extension, or log in with your nsec."
+        : loginType === 'bunker'
+          ? "Your remote signer doesn't support sign_psbt. Update your signer, or log in with your nsec."
+          : "Log in with your nsec, a NIP-07 extension that exposes signPsbt, or a NIP-46 remote signer that supports sign_psbt.";
+
     return (
-      <div className="px-4 py-4">
-        <Alert>
-          <AlertTriangle className="size-4" />
-          <AlertDescription className="text-xs">
-            Your signer doesn't support Bitcoin transaction signing. Log in with your nsec, a
-            NIP-07 extension that supports <code>signPsbt</code>, or a NIP-46 remote signer
-            that supports <code>sign_psbt</code> to send Bitcoin zaps.
-          </AlertDescription>
-        </Alert>
+      <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
+        <div className="size-12 rounded-full bg-muted flex items-center justify-center">
+          <AlertTriangle className="size-6 text-muted-foreground" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">Bitcoin zaps aren't available</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Your signer can't sign Bitcoin transactions. {hint}
+          </p>
+        </div>
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
+import { useBitcoinSigner, isSignerCapabilityError, reportSignerUnsupported } from '@/hooks/useBitcoinSigner';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { notificationSuccess } from '@/lib/haptics';
@@ -177,6 +177,15 @@ export function useOnchainZap(
       onSuccess?.();
     },
     onError: (err) => {
+      // If the signer turned out to not support PSBT signing (common for
+      // NIP-46 bunkers where capability can't be probed up front), mark the
+      // signer as unsupported for the rest of the session. The dialog UI
+      // watches this state and replaces itself with an "unsupported" panel
+      // instead of relying on this toast.
+      if (isSignerCapabilityError(err) && user) {
+        reportSignerUnsupported(user.pubkey);
+        return;
+      }
       toast({
         title: 'Bitcoin zap failed',
         description: err.message,

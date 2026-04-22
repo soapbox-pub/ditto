@@ -23,6 +23,7 @@ import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocompl
 import { OnchainZapContent } from '@/components/OnchainZapContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
@@ -295,9 +296,16 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
   const { insertAtCursor, insertEmoji } = useInsertText(commentTextareaRef, comment, setComment);
 
-  // Default tab: onchain. Users can switch to Lightning if available.
-  const [activeTab, setActiveTab] = useState<'onchain' | 'lightning'>('onchain');
+  // Default tab: Bitcoin. Users can switch to Lightning if available.
+  // If the user's signer can't sign PSBTs AND Lightning is available, we
+  // transparently default to Lightning instead of showing an unusable
+  // Bitcoin tab as the primary option.
+  const { capability: btcCapability } = useBitcoinSigner();
   const hasLightning = canZap(author?.metadata);
+  const bitcoinUnsupported = btcCapability === 'unsupported';
+  const [activeTab, setActiveTab] = useState<'onchain' | 'lightning'>(
+    bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain',
+  );
 
   useEffect(() => {
     if (target) {
@@ -367,14 +375,28 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setInvoice(null);
       setCopied(false);
       setQrCodeUrl('');
-      setActiveTab('onchain');
+      setActiveTab(bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain');
     } else {
       setAmount(100);
       setInvoice(null);
       setCopied(false);
       setQrCodeUrl('');
     }
+    // `bitcoinUnsupported`/`hasLightning` deliberately excluded — we only
+    // want to reset the active tab on open/close, not on every capability
+    // re-render. The mid-session flip is handled by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, setInvoice]);
+
+  // If Bitcoin capability flips to `unsupported` while the dialog is open
+  // (e.g. a bunker just rejected `sign_psbt`) and Lightning is available,
+  // transparently switch to the Lightning tab. Otherwise the user would be
+  // stuck staring at the "Bitcoin zaps aren't available" panel.
+  useEffect(() => {
+    if (open && bitcoinUnsupported && hasLightning && activeTab === 'onchain') {
+      setActiveTab('lightning');
+    }
+  }, [open, bitcoinUnsupported, hasLightning, activeTab]);
 
   const handleZap = () => {
     impactMedium();
