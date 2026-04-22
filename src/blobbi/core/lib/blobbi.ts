@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { ADULT_FORMS, type AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
+import { ADULT_FORMS, type AdultForm, deriveAdultFormFromSeed } from '@/blobbi/adult-blobbi/types/adult.types';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
 import { applyColorGuardrails, hslToHex } from './color-guardrails';
@@ -696,15 +696,6 @@ export function deriveSizeFromSeed(seed: string): BlobbiSize {
   return BLOBBI_SIZES[index];
 }
 
-/**
- * Derive adult form type from seed.
- * Uses seed offset [40..48] from the reserved region.
- */
-export function deriveAdultTypeFromSeed(seed: string): AdultForm {
-  const index = deriveIndexFromSeed(seed, 40, ADULT_FORMS.length);
-  return ADULT_FORMS[index];
-}
-
 // ─── Temporary Adult-Type Compatibility ───────────────────────────────────────
 //
 // TEMPORARY: Seed adjustment for existing adult Blobbies whose stored adult_type
@@ -728,37 +719,29 @@ export function isAdultTypeCompatActive(): boolean {
 }
 
 /**
- * Adjust a seed so that deriveAdultTypeFromSeed(adjusted) === targetForm.
+ * Adjust a seed so that deriveAdultFormFromSeed(adjusted) === targetForm.
  *
- * Brute-forces the seed bytes at offset [40..48] (the adult_type region)
- * until the derivation matches the target. All other seed regions are
- * left untouched, so pattern/mark/size derivation changes but color
- * offsets [0..20] are preserved (colors are re-derived from the adjusted
- * seed via deriveColorsFromSeed anyway).
+ * Directly computes the seed bytes at offset [40..48] (the adult_type
+ * region) that produce the target form index. All other seed regions
+ * are left untouched, so colors [0..20] are preserved and non-color
+ * traits are re-derived from the adjusted seed via deriveSeedIdentity().
  *
  * Returns the original seed unchanged if it already produces targetForm.
  */
 export function adjustSeedForAdultType(seed: string, targetForm: AdultForm): string {
   // Fast path: already matches
-  if (deriveAdultTypeFromSeed(seed) === targetForm) return seed;
+  if (deriveAdultFormFromSeed(seed) === targetForm) return seed;
 
   const targetIndex = ADULT_FORMS.indexOf(targetForm);
   const prefix = seed.slice(0, 40);
   const suffix = seed.slice(48);
 
-  // Try sequential values in the 8-hex-char region until we hit one
-  // that produces the target index. With 16 forms and 2^32 values,
-  // on average we find a match within 16 attempts.
-  for (let i = 0; i < 0x100000000; i++) {
-    const candidate = i.toString(16).padStart(8, '0');
-    const adjusted = prefix + candidate + suffix;
-    if (deriveAdultTypeFromSeed(adjusted) === ADULT_FORMS[targetIndex]) {
-      return adjusted;
-    }
-  }
-
-  // Should never happen with 2^32 candidates and 16 forms
-  return seed;
+  // Direct computation: deriveAdultFormFromSeed reads seed[40..48] as a
+  // hex integer and takes `% ADULT_FORMS.length`. So any 8-hex-char value
+  // whose parseInt % length === targetIndex works. The simplest is the
+  // target index itself (always < 16, which is < ADULT_FORMS.length).
+  const candidate = targetIndex.toString(16).padStart(8, '0');
+  return prefix + candidate + suffix;
 }
 
 /**
@@ -882,19 +865,6 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
   };
 }
 
-/**
- * @deprecated Use deriveSeedIdentity instead for the full visual identity.
- * Kept temporarily for callers that only need the color triplet.
- */
-export function deriveColorsFromSeed(seed: string): {
-  baseColor: string;
-  secondaryColor: string;
-  eyeColor: string;
-} {
-  const { baseColor, secondaryColor, eyeColor } = deriveSeedIdentity(seed);
-  return { baseColor, secondaryColor, eyeColor };
-}
-
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
 
 /**
@@ -1001,7 +971,7 @@ export function eventNeedsSeedIdentitySync(tags: string[][]): boolean {
   const stage = getTagValue(tags, 'stage');
   if (stage === 'adult') {
     const storedAdultType = getTagValue(tags, 'adult_type');
-    const canonicalAdultType = deriveAdultTypeFromSeed(seed);
+    const canonicalAdultType = deriveAdultFormFromSeed(seed);
     if (storedAdultType !== canonicalAdultType) return true;
   }
 
@@ -1189,7 +1159,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   ) {
     const storedAdultType = getTagValue(tags, 'adult_type');
     if (storedAdultType && ADULT_FORMS.includes(storedAdultType as AdultForm)) {
-      const seedDerivedForm = deriveAdultTypeFromSeed(seed);
+      const seedDerivedForm = deriveAdultFormFromSeed(seed);
       if (storedAdultType !== seedDerivedForm) {
         effectiveSeed = adjustSeedForAdultType(seed, storedAdultType as AdultForm);
       }
@@ -1210,15 +1180,16 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
       : tags,
   );
   
-  // Concise, structured debug log
-  console.log('[Blobbi]', {
-    d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
-    name,
-    isLegacy,
-    needsSeedIdentitySync,
-    hasSeed: !!seed,
-    traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
-  });
+  if (import.meta.env.DEV) {
+    console.log('[Blobbi]', {
+      d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
+      name,
+      isLegacy,
+      needsSeedIdentitySync,
+      hasSeed: !!seed,
+      traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
+    });
+  }
   
   // Parse task progress tags: ["task", "name:value"]
   const tasks: BlobbiTaskProgress[] = [];
@@ -1271,7 +1242,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     incubationTime: parseNumericTag(tags, 'incubation_time'),
     startIncubation: parseNumericTag(tags, 'start_incubation'),
     adultType: stage === 'adult' && effectiveSeed && effectiveSeed.length === 64
-      ? deriveAdultTypeFromSeed(effectiveSeed)
+      ? deriveAdultFormFromSeed(effectiveSeed)
       : getTagValue(tags, 'adult_type'),
     stateStartedAt: parseNumericTag(tags, 'state_started_at'),
     progressionStartedAt: parseNumericTag(tags, 'progression_started_at') ?? parseNumericTag(tags, 'state_started_at'),
@@ -1567,7 +1538,7 @@ function syncMirrorTagsToSeed(tags: string[][]): string[][] {
   );
 
   if (stage === 'adult') {
-    filtered.push(['adult_type', deriveAdultTypeFromSeed(seed)]);
+    filtered.push(['adult_type', deriveAdultFormFromSeed(seed)]);
   }
 
   return filtered;

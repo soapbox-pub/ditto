@@ -102,16 +102,17 @@ export function resolveAdultForm(blobbi: Blobbi): AdultForm {
 
 /**
  * Derives adult form deterministically from a seed string.
- * Uses simple hash-based selection for consistency.
+ *
+ * Uses the same seed-slice approach as all other visual-trait derivations
+ * in blobbi.ts: reads 8 hex chars from offset [40..48] and maps to a
+ * form index via modular arithmetic.
+ *
+ * This is the single canonical seed → adult form derivation. blobbi.ts
+ * imports and delegates to this function for all adult-type resolution.
  */
 export function deriveAdultFormFromSeed(seed: string): AdultForm {
-  // Simple hash: sum of char codes
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
-  
-  // Convert to positive index
-  const index = Math.abs(hash) % ADULT_FORMS.length;
+  const slice = seed.slice(40, 48);
+  const value = parseInt(slice, 16);
+  const index = Math.abs(value) % ADULT_FORMS.length;
   return ADULT_FORMS[index];
 }

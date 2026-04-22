@@ -6,12 +6,16 @@
  * seed-derived canonical values.
  *
  * Runs once per companion list change, only republishes on actual mismatch.
+ * Uses fetchFreshEvent before each publish to avoid stale-read overwrites
+ * (matches the project convention for replaceable event mutations).
  */
 
 import { useEffect, useRef } from 'react';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
   KIND_BLOBBI_STATE,
@@ -32,6 +36,7 @@ export function useSeedIdentitySync(
   companions: BlobbiCompanion[],
   updateCompanionEvent: (event: NostrEvent) => void,
 ): void {
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   // Track which d-tags we've already synced in this session to avoid loops.
@@ -55,14 +60,29 @@ export function useSeedIdentitySync(
     (async () => {
       for (const c of toSync) {
         try {
+          // Fetch the freshest version from relays to avoid stale overwrites
+          // (another device may have updated the event since our cache was populated).
+          const prev = await fetchFreshEvent(nostr, {
+            kinds: [KIND_BLOBBI_STATE],
+            authors: [c.event.pubkey],
+            '#d': [c.d],
+          });
+
+          if (!prev) {
+            if (import.meta.env.DEV) {
+              console.warn('[SeedSync] No fresh event found for', c.d.slice(0, 20) + '...');
+            }
+            continue;
+          }
+
           // Include the (possibly adjusted) seed in updates so that
           // syncMirrorTagsToSeed reads the correct seed value.
-          const newTags = updateBlobbiTags(c.allTags, { seed: c.seed! });
+          const newTags = updateBlobbiTags(prev.tags, { seed: c.seed! });
           const event = await publishEvent({
             kind: KIND_BLOBBI_STATE,
-            content: c.event.content,
+            content: prev.content,
             tags: newTags,
-            prev: c.event,
+            prev,
           });
           updateCompanionEvent(event);
           if (import.meta.env.DEV) {
@@ -75,5 +95,5 @@ export function useSeedIdentitySync(
         }
       }
     })();
-  }, [companions, publishEvent, updateCompanionEvent]);
+  }, [companions, nostr, publishEvent, updateCompanionEvent]);
 }
