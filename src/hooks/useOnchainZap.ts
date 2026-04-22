@@ -35,7 +35,7 @@ function feeRateForSpeed(rates: FeeRates, speed: OnchainFeeSpeed): number {
 interface OnchainZapArgs {
   /** Amount to zap in satoshis. */
   amountSats: number;
-  /** Optional comment to include in the kind 3043 event content. */
+  /** Optional comment to include in the kind 8333 event content. */
   comment?: string;
   /** Fee speed preset. Defaults to "halfHour". */
   feeSpeed?: OnchainFeeSpeed;
@@ -46,7 +46,7 @@ interface OnchainZapResult {
   txid: string;
   /** Fee paid in satoshis. */
   fee: number;
-  /** The published kind 3043 event. */
+  /** The published kind 8333 event. */
   event: NostrEvent;
 }
 
@@ -56,7 +56,7 @@ interface OnchainZapResult {
  * Flow:
  *   1. Build, sign, and broadcast a Bitcoin transaction paying the target
  *      author's derived Taproot address.
- *   2. Publish a kind 3043 "onchain zap" event referencing the txid, the
+ *   2. Publish a kind 8333 "onchain zap" event referencing the txid, the
  *      target event (`e` or `a` tag), and the recipient's pubkey.
  *
  * Unlike NIP-57 Lightning zaps, this works for *any* Nostr user — there is
@@ -134,7 +134,7 @@ export function useOnchainZap(
       setProgress('broadcasting');
       const txid = await broadcastTransaction(txHex);
 
-      // Publish kind 3043 event
+      // Publish kind 8333 event
       setProgress('publishing');
       const isAddressable = target.kind >= 30000 && target.kind < 40000;
 
@@ -155,7 +155,7 @@ export function useOnchainZap(
       tags.push(['alt', `On-chain zap: ${amountSats.toLocaleString()} sats`]);
 
       const event = await publishEvent({
-        kind: 3043,
+        kind: 8333,
         content: comment,
         tags,
       });

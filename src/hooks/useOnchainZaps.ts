@@ -6,11 +6,11 @@ import { fetchTxDetail, nostrPubkeyToBitcoinAddress } from '@/lib/bitcoin';
 
 /** A single verified on-chain zap, with the amount that actually paid the recipient on-chain. */
 export interface OnchainZapEntry {
-  /** The kind 3043 event. */
+  /** The kind 8333 event. */
   event: NostrEvent;
   /** Bitcoin transaction id (lowercase hex). */
   txid: string;
-  /** Pubkey of the sender (the 3043 event author). */
+  /** Pubkey of the sender (the 8333 event author). */
   senderPubkey: string;
   /** Pubkey of the recipient (from `p` tag). */
   recipientPubkey: string;
@@ -18,15 +18,15 @@ export interface OnchainZapEntry {
   amountSats: number;
   /** Sender's self-reported amount (may differ from verified). */
   claimedAmountSats: number;
-  /** Comment from the 3043 event content. */
+  /** Comment from the 8333 event content. */
   comment: string;
-  /** Unix timestamp of the 3043 event. */
+  /** Unix timestamp of the 8333 event. */
   createdAt: number;
   /** Whether the Bitcoin tx is confirmed on-chain. */
   confirmed: boolean;
 }
 
-/** Parse the txid from a kind 3043 event's `i` tag. Returns null if missing or malformed. */
+/** Parse the txid from a kind 8333 event's `i` tag. Returns null if missing or malformed. */
 export function extractOnchainZapTxid(event: NostrEvent): string | null {
   const iTag = event.tags.find(([n, v]) => n === 'i' && typeof v === 'string' && v.startsWith('bitcoin:tx:'));
   if (!iTag?.[1]) return null;
@@ -35,7 +35,7 @@ export function extractOnchainZapTxid(event: NostrEvent): string | null {
   return txid;
 }
 
-/** Parse the claimed amount (sats) from a kind 3043 event. */
+/** Parse the claimed amount (sats) from a kind 8333 event. */
 export function extractOnchainZapClaimedAmount(event: NostrEvent): number {
   const tag = event.tags.find(([n]) => n === 'amount');
   if (!tag?.[1]) return 0;
@@ -43,14 +43,14 @@ export function extractOnchainZapClaimedAmount(event: NostrEvent): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** Parse the recipient pubkey from a kind 3043 event (first `p` tag). */
+/** Parse the recipient pubkey from a kind 8333 event (first `p` tag). */
 export function extractOnchainZapRecipient(event: NostrEvent): string {
   const tag = event.tags.find(([n]) => n === 'p');
   return tag?.[1] ?? '';
 }
 
 /**
- * Verify a kind 3043 on-chain zap event against the Bitcoin blockchain.
+ * Verify a kind 8333 on-chain zap event against the Bitcoin blockchain.
  *
  * Returns the verified amount (sum of tx outputs paying the recipient's
  * derived Taproot address) and confirmation status. Returns `null` if the
@@ -98,7 +98,7 @@ export async function verifyOnchainZap(event: NostrEvent): Promise<OnchainZapEnt
 }
 
 /**
- * Query all kind 3043 on-chain zaps targeting a specific event, then verify
+ * Query all kind 8333 on-chain zaps targeting a specific event, then verify
  * each one on-chain. Returns only verified entries (deduped by txid).
  */
 export function useOnchainZaps(target: NostrEvent | undefined) {
@@ -109,7 +109,7 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
     : '';
   const aCoord = isAddressable && target ? `${target.kind}:${target.pubkey}:${dTag}` : '';
 
-  // Step 1: fetch the raw kind 3043 events for this target
+  // Step 1: fetch the raw kind 8333 events for this target
   const eventsQuery = useQuery({
     queryKey: ['onchain-zaps', 'events', target?.id ?? '', aCoord],
     queryFn: async ({ signal }) => {
@@ -118,10 +118,10 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
       const combined = AbortSignal.any([signal, timeout]);
 
       const filters: Parameters<typeof nostr.query>[0] = [
-        { kinds: [3043], '#e': [target.id], limit: 100 },
+        { kinds: [8333], '#e': [target.id], limit: 100 },
       ];
       if (aCoord) {
-        filters.push({ kinds: [3043], '#a': [aCoord], limit: 100 });
+        filters.push({ kinds: [8333], '#a': [aCoord], limit: 100 });
       }
 
       const events = await nostr.query(filters, { signal: combined });

@@ -59,7 +59,7 @@ interface OnchainZapContentProps {
 
 /**
  * On-chain Bitcoin zap flow. Publishes a BTC transaction paying the target
- * author's derived Taproot address, then publishes a kind 3043 event
+ * author's derived Taproot address, then publishes a kind 8333 event
  * linking the tx to the target event.
  */
 export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps) {

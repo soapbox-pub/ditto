@@ -6,7 +6,7 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
-| 3043  | Onchain Zap          | Attestation that an on-chain BTC tx paid a target     |
+| 8333  | Onchain Zap          | Attestation that an on-chain BTC tx paid a target     |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -33,19 +33,21 @@ These event kinds were created by community contributors and are supported by Di
 
 ---
 
-## Kind 3043: Onchain Zap
+## Kind 8333: Onchain Zap
 
 ### Summary
 
 Regular event kind that records a **Bitcoin on-chain payment** ("onchain zap") sent in appreciation of a Nostr event or profile. Functions as the on-chain analogue of NIP-57 zap receipts (kind 9735), but without the LNURL round-trip: the event is self-attested by the sender and references a real Bitcoin transaction that clients can verify directly on-chain.
 
-Because every Nostr keypair deterministically maps to a Bitcoin Taproot (P2TR) address (both use 32-byte x-only secp256k1 keys, per BIP-340/BIP-341), an on-chain zap is simply a Bitcoin transaction whose output pays the recipient's derived Taproot address. The kind 3043 event links that transaction to the Nostr event or profile being zapped.
+The kind number mirrors the convention of NIP-57: kind **9735** is the Lightning P2P port (per BOLT spec), and kind **8333** is the Bitcoin mainnet P2P port — a natural semantic pairing for Lightning vs. on-chain settlement.
+
+Because every Nostr keypair deterministically maps to a Bitcoin Taproot (P2TR) address (both use 32-byte x-only secp256k1 keys, per BIP-340/BIP-341), an on-chain zap is simply a Bitcoin transaction whose output pays the recipient's derived Taproot address. The kind 8333 event links that transaction to the Nostr event or profile being zapped.
 
 ### Event Structure
 
 ```json
 {
-  "kind": 3043,
+  "kind": 8333,
   "pubkey": "<sender-pubkey>",
   "content": "Great post!",
   "tags": [
@@ -79,7 +81,7 @@ If neither `e` nor `a` is present, the zap targets the recipient's **profile** (
 
 1. Sender builds a Bitcoin transaction paying the recipient's derived Taproot address (`nostrPubkeyToBitcoinAddress(recipientPubkey)`).
 2. Sender broadcasts the transaction to the Bitcoin network and obtains the `txid`.
-3. Sender signs and publishes a kind 3043 event referencing that `txid` with the appropriate `e`/`a`/`p` tags.
+3. Sender signs and publishes a kind 8333 event referencing that `txid` with the appropriate `e`/`a`/`p` tags.
 4. The event is published **after** broadcast; the txid is already final at that point.
 
 ### Client Behavior
@@ -87,14 +89,14 @@ If neither `e` nor `a` is present, the zap targets the recipient's **profile** (
 **Querying onchain zaps for an event:**
 
 ```json
-{ "kinds": [3043], "#e": ["<target-event-id>"], "limit": 100 }
+{ "kinds": [8333], "#e": ["<target-event-id>"], "limit": 100 }
 ```
 
 For addressable events, use `"#a": ["<kind>:<pubkey>:<d-tag>"]` instead. For profile-level zaps, use `"#p": ["<pubkey>"]`.
 
 **Verification (REQUIRED before trusting amounts):**
 
-Clients MUST verify a kind 3043 event on-chain before counting it toward a zap total or displaying its amount. The `amount` tag is self-reported by the sender and would otherwise be trivially spoofable. To verify:
+Clients MUST verify a kind 8333 event on-chain before counting it toward a zap total or displaying its amount. The `amount` tag is self-reported by the sender and would otherwise be trivially spoofable. To verify:
 
 1. Extract the txid from the `i` tag.
 2. Fetch the transaction from a Bitcoin data source (e.g. a mempool.space-compatible Esplora API).
@@ -103,11 +105,11 @@ Clients MUST verify a kind 3043 event on-chain before counting it toward a zap t
 5. If the verified amount is 0, or the sender's `amount` tag exceeds the verified amount, the event SHOULD be discarded.
 6. Unconfirmed transactions MAY be displayed as pending; clients MAY require confirmation before counting them toward public totals.
 
-Clients SHOULD deduplicate events that reference the same `txid` (an attacker could publish many events pointing at one real transaction). One kind 3043 event per (txid, target) pair is canonical.
+Clients SHOULD deduplicate events that reference the same `txid` (an attacker could publish many events pointing at one real transaction). One kind 8333 event per (txid, target) pair is canonical.
 
 ### Comparison with NIP-57 (Lightning Zaps)
 
-| Aspect | NIP-57 (kind 9735) | This spec (kind 3043) |
+| Aspect | NIP-57 (kind 9735) | This spec (kind 8333) |
 |--------|---------------------|------------------------|
 | Settlement | Lightning Network | Bitcoin L1 |
 | Invoice / payment | LNURL + BOLT-11 invoice | Raw Bitcoin tx |
