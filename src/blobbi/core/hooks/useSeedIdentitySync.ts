@@ -20,7 +20,7 @@ import {
 } from '../lib/blobbi';
 
 /**
- * For each visible companion that has needsColorSync === true,
+ * For each visible companion that has needsSeedIdentitySync === true,
  * republish it with an `updateBlobbiTags` call that includes the
  * companion's (possibly adjusted) seed. The merge pipeline's
  * syncMirrorTagsToSeed will overwrite all stale mirror tags.
@@ -41,7 +41,7 @@ export function useSeedIdentitySync(
     if (companions.length === 0) return;
 
     const toSync = companions.filter(
-      (c) => c.needsColorSync && !c.isLegacy && c.seed && !syncedRef.current.has(c.d),
+      (c) => c.needsSeedIdentitySync && !c.isLegacy && c.seed && !syncedRef.current.has(c.d),
     );
 
     if (toSync.length === 0) return;

@@ -183,7 +183,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     
     // Required but not used for preview rendering
     isLegacy: false,
-    needsColorSync: false,
+    needsSeedIdentitySync: false,
     lastInteraction: preview.createdAt,
     lastDecayAt: preview.createdAt,
     generation: 1,

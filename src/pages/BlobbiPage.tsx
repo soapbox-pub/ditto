@@ -228,7 +228,7 @@ function BlobbiContent() {
   }, [filteredCompanions]);
 
   // STEP 3: Sync visible companions whose mirror tags are stale.
-  // Republishes only companions with actual mismatches (needsColorSync flag).
+  // Republishes only companions with actual mismatches (needsSeedIdentitySync flag).
   useSeedIdentitySync(filteredCompanions, updateCompanionEvent);
 
   // STEP 5: localStorage for UI selection (user-scoped key)

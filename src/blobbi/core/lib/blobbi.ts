@@ -262,7 +262,7 @@ export interface BlobbiCompanion {
   /** Whether this is a legacy event that needs migration */
   isLegacy: boolean;
   /** Whether stored mirror tags differ from seed-derived identity and need republishing */
-  needsColorSync: boolean;
+  needsSeedIdentitySync: boolean;
   /** Timestamp of last user interaction (unix seconds) */
   lastInteraction: number;
   /** Timestamp used for stat decay checkpoint (unix seconds) */
@@ -974,7 +974,7 @@ export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
  * - no seed exists (legacy event; tags are authoritative)
  * - all mirror tags already match the seed-derived values
  */
-export function eventNeedsColorSync(tags: string[][]): boolean {
+export function eventNeedsSeedIdentitySync(tags: string[][]): boolean {
   const seed = getTagValue(tags, 'seed');
   if (!seed || seed.length !== 64) return false;
 
@@ -1204,7 +1204,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   
   // Check if stored mirror tags need syncing with seed-derived values
   // Uses the effective seed (which may be adjusted during compat window)
-  const needsColorSync = eventNeedsColorSync(
+  const needsSeedIdentitySync = eventNeedsSeedIdentitySync(
     effectiveSeed !== seed
       ? tags.map((t) => t[0] === 'seed' ? ['seed', effectiveSeed!] : t)
       : tags,
@@ -1215,7 +1215,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
     name,
     isLegacy,
-    needsColorSync,
+    needsSeedIdentitySync,
     hasSeed: !!seed,
     traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
   });
@@ -1252,7 +1252,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     seed: effectiveSeed,
     visualTraits,
     isLegacy,
-    needsColorSync,
+    needsSeedIdentitySync,
     lastInteraction: parseNumericTag(tags, 'last_interaction')!,
     lastDecayAt: parseNumericTag(tags, 'last_decay_at'),
     stats: {
@@ -1270,7 +1270,9 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     careStreakLastDay: getTagValue(tags, 'care_streak_last_day'),
     incubationTime: parseNumericTag(tags, 'incubation_time'),
     startIncubation: parseNumericTag(tags, 'start_incubation'),
-    adultType: getTagValue(tags, 'adult_type'),
+    adultType: stage === 'adult' && effectiveSeed && effectiveSeed.length === 64
+      ? deriveAdultTypeFromSeed(effectiveSeed)
+      : getTagValue(tags, 'adult_type'),
     stateStartedAt: parseNumericTag(tags, 'state_started_at'),
     progressionStartedAt: parseNumericTag(tags, 'progression_started_at') ?? parseNumericTag(tags, 'state_started_at'),
     tasks,
