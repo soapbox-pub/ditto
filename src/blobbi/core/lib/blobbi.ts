@@ -2,6 +2,8 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { ADULT_FORMS, type AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
+
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
 import { applyColorGuardrails, hslToHex } from './color-guardrails';
 import type { Mission } from './missions';
@@ -259,7 +261,7 @@ export interface BlobbiCompanion {
   visualTraits: BlobbiVisualTraits;
   /** Whether this is a legacy event that needs migration */
   isLegacy: boolean;
-  /** Whether stored color tags differ from seed-derived colors and need republishing */
+  /** Whether stored mirror tags differ from seed-derived identity and need republishing */
   needsColorSync: boolean;
   /** Timestamp of last user interaction (unix seconds) */
   lastInteraction: number;
@@ -550,7 +552,8 @@ export function isLegacyBlobbiD(d: string): boolean {
  * - [16..24] pattern
  * - [24..32] special_mark
  * - [32..40] size
- * - [40..64] reserved
+ * - [40..48] adult_type
+ * - [48..64] reserved
  */
 function deriveIndexFromSeed(seed: string, offset: number, max: number): number {
   const slice = seed.slice(offset, offset + 8);
@@ -694,6 +697,71 @@ export function deriveSizeFromSeed(seed: string): BlobbiSize {
 }
 
 /**
+ * Derive adult form type from seed.
+ * Uses seed offset [40..48] from the reserved region.
+ */
+export function deriveAdultTypeFromSeed(seed: string): AdultForm {
+  const index = deriveIndexFromSeed(seed, 40, ADULT_FORMS.length);
+  return ADULT_FORMS[index];
+}
+
+// ─── Temporary Adult-Type Compatibility ───────────────────────────────────────
+//
+// TEMPORARY: Seed adjustment for existing adult Blobbies whose stored adult_type
+// does not match the seed-derived adult_type. During the compatibility window,
+// we mutate the seed so it produces the stored adult_type, then recompute the
+// full visual identity from the adjusted seed.
+//
+// After the cutoff date this code becomes a no-op and can be removed entirely.
+//
+// Cutoff: Thursday 2026-05-01 00:00:00 UTC (next week's Thursday)
+//
+
+/** UTC timestamp when the compatibility window closes. */
+const ADULT_TYPE_COMPAT_CUTOFF = Date.UTC(2026, 4, 1) / 1000; // 2026-05-01 00:00:00 UTC
+
+/**
+ * Check whether the temporary adult-type compatibility window is still active.
+ */
+export function isAdultTypeCompatActive(): boolean {
+  return Math.floor(Date.now() / 1000) < ADULT_TYPE_COMPAT_CUTOFF;
+}
+
+/**
+ * Adjust a seed so that deriveAdultTypeFromSeed(adjusted) === targetForm.
+ *
+ * Brute-forces the seed bytes at offset [40..48] (the adult_type region)
+ * until the derivation matches the target. All other seed regions are
+ * left untouched, so pattern/mark/size derivation changes but color
+ * offsets [0..20] are preserved (colors are re-derived from the adjusted
+ * seed via deriveColorsFromSeed anyway).
+ *
+ * Returns the original seed unchanged if it already produces targetForm.
+ */
+export function adjustSeedForAdultType(seed: string, targetForm: AdultForm): string {
+  // Fast path: already matches
+  if (deriveAdultTypeFromSeed(seed) === targetForm) return seed;
+
+  const targetIndex = ADULT_FORMS.indexOf(targetForm);
+  const prefix = seed.slice(0, 40);
+  const suffix = seed.slice(48);
+
+  // Try sequential values in the 8-hex-char region until we hit one
+  // that produces the target index. With 16 forms and 2^32 values,
+  // on average we find a match within 16 attempts.
+  for (let i = 0; i < 0x100000000; i++) {
+    const candidate = i.toString(16).padStart(8, '0');
+    const adjusted = prefix + candidate + suffix;
+    if (deriveAdultTypeFromSeed(adjusted) === ADULT_FORMS[targetIndex]) {
+      return adjusted;
+    }
+  }
+
+  // Should never happen with 2^32 candidates and 16 forms
+  return seed;
+}
+
+/**
  * Validate and normalize a pattern value from a tag.
  * Returns undefined if invalid, allowing fallback to seed derivation.
  */
@@ -764,69 +832,67 @@ export function deriveVisualTraits(
   tags: string[][],
   seed: string | undefined
 ): BlobbiVisualTraits {
-  // Step 1: Extract and validate explicit tag values for non-color traits
-  const tagPattern = normalizePatternTag(getTagValue(tags, 'pattern'));
-  const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
-  const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
-  
-  // Step 2: Determine fallback values (seed-derived or defaults)
   const hasSeed = seed && seed.length === 64;
   
-  const fallbackPattern = hasSeed ? derivePatternFromSeed(seed) : DEFAULT_VISUAL_TRAITS.pattern;
-  const fallbackSpecialMark = hasSeed ? deriveSpecialMarkFromSeed(seed) : DEFAULT_VISUAL_TRAITS.specialMark;
-  const fallbackSize = hasSeed ? deriveSizeFromSeed(seed) : DEFAULT_VISUAL_TRAITS.size;
-  
-  // Step 3: Resolve colors
-  // Seed is the canonical source of truth for colors. When present, color tags
-  // are treated as persisted mirrors (for relay indexing / compatibility) and
-  // are NOT consulted for rendering.
+  // Seed is the canonical source of truth for the entire visual identity.
+  // When present, all visual trait tags are mirrors — not consulted for rendering.
   if (hasSeed) {
-    const colors = deriveColorsFromSeed(seed);
-    return {
-      ...colors,
-      pattern: tagPattern ?? fallbackPattern,
-      specialMark: tagSpecialMark ?? fallbackSpecialMark,
-      size: tagSize ?? fallbackSize,
-    };
+    return deriveSeedIdentity(seed);
   }
   
-  // No seed: use explicit color tags with defaults as final fallback.
-  // Secondary falls back to resolved baseColor (not the default yellow)
-  // to prevent legacy events with only base_color getting a mismatched accent.
+  // No seed (legacy): use explicit tags with defaults as final fallback.
   const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
   const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
   const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
+  const tagPattern = normalizePatternTag(getTagValue(tags, 'pattern'));
+  const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
+  const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
   const resolvedBaseColor = tagBaseColor ?? DEFAULT_VISUAL_TRAITS.baseColor;
   return {
     baseColor: resolvedBaseColor,
     secondaryColor: tagSecondaryColor ?? resolvedBaseColor,
     eyeColor: tagEyeColor ?? DEFAULT_VISUAL_TRAITS.eyeColor,
-    pattern: tagPattern ?? fallbackPattern,
-    specialMark: tagSpecialMark ?? fallbackSpecialMark,
-    size: tagSize ?? fallbackSize,
+    pattern: tagPattern ?? DEFAULT_VISUAL_TRAITS.pattern,
+    specialMark: tagSpecialMark ?? DEFAULT_VISUAL_TRAITS.specialMark,
+    size: tagSize ?? DEFAULT_VISUAL_TRAITS.size,
   };
 }
 
 /**
- * Derive the canonical color triplet from a seed.
+ * Derive the full seed-determined visual identity.
  *
  * This is the single function that turns a 64-char hex seed into the
- * authoritative baseColor / secondaryColor / eyeColor, with guardrails
- * applied. All call sites that need seed-derived colors should use this
- * to guarantee consistency.
+ * authoritative set of visual traits (colors + pattern + mark + size)
+ * with color guardrails applied. All call sites that need seed-derived
+ * visual traits should use this to guarantee consistency.
+ */
+export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
+  const rawBase = deriveBaseColorFromSeed(seed);
+  const rawEye = deriveEyeColorFromSeed(seed);
+  const colors = applyColorGuardrails({
+    baseColor: rawBase,
+    secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
+    eyeColor: rawEye,
+  });
+  return {
+    ...colors,
+    pattern: derivePatternFromSeed(seed),
+    specialMark: deriveSpecialMarkFromSeed(seed),
+    size: deriveSizeFromSeed(seed),
+  };
+}
+
+/**
+ * @deprecated Use deriveSeedIdentity instead for the full visual identity.
+ * Kept temporarily for callers that only need the color triplet.
  */
 export function deriveColorsFromSeed(seed: string): {
   baseColor: string;
   secondaryColor: string;
   eyeColor: string;
 } {
-  const rawBase = deriveBaseColorFromSeed(seed);
-  const rawEye = deriveEyeColorFromSeed(seed);
-  return applyColorGuardrails({
-    baseColor: rawBase,
-    secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
-    eyeColor: rawEye,
-  });
+  const { baseColor, secondaryColor, eyeColor } = deriveSeedIdentity(seed);
+  return { baseColor, secondaryColor, eyeColor };
 }
 
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
@@ -901,30 +967,45 @@ export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
  * or eye_color tags do not match the canonical seed-derived values. This means
  * the event should be republished so the persisted tags mirror the seed.
  *
+ * Checks all seed-derived mirror tags: base_color, secondary_color,
+ * eye_color, pattern, special_mark, size, and adult_type (for adults).
+ *
  * Returns false when:
- * - no seed exists (legacy event; color tags are authoritative)
- * - all three color tags already match
- * - any color tag is missing (will be backfilled on next republish)
+ * - no seed exists (legacy event; tags are authoritative)
+ * - all mirror tags already match the seed-derived values
  */
 export function eventNeedsColorSync(tags: string[][]): boolean {
   const seed = getTagValue(tags, 'seed');
   if (!seed || seed.length !== 64) return false;
 
-  const stored = {
-    base: normalizeHexColor(getTagValue(tags, 'base_color')),
-    secondary: normalizeHexColor(getTagValue(tags, 'secondary_color')),
-    eye: normalizeHexColor(getTagValue(tags, 'eye_color')),
-  };
+  const canonical = deriveSeedIdentity(seed);
 
-  // If any color tag is missing the event needs sync (backfill)
-  if (!stored.base || !stored.secondary || !stored.eye) return true;
+  // Check color tags
+  const storedBase = normalizeHexColor(getTagValue(tags, 'base_color'));
+  const storedSec = normalizeHexColor(getTagValue(tags, 'secondary_color'));
+  const storedEye = normalizeHexColor(getTagValue(tags, 'eye_color'));
+  if (!storedBase || !storedSec || !storedEye) return true;
+  if (storedBase !== canonical.baseColor ||
+      storedSec !== canonical.secondaryColor ||
+      storedEye !== canonical.eyeColor) return true;
 
-  const canonical = deriveColorsFromSeed(seed);
-  return (
-    stored.base !== canonical.baseColor ||
-    stored.secondary !== canonical.secondaryColor ||
-    stored.eye !== canonical.eyeColor
-  );
+  // Check non-color visual traits
+  const storedPattern = getTagValue(tags, 'pattern');
+  const storedMark = getTagValue(tags, 'special_mark');
+  const storedSize = getTagValue(tags, 'size');
+  if (storedPattern !== canonical.pattern ||
+      storedMark !== canonical.specialMark ||
+      storedSize !== canonical.size) return true;
+
+  // Check adult_type (only for adult stage)
+  const stage = getTagValue(tags, 'stage');
+  if (stage === 'adult') {
+    const storedAdultType = getTagValue(tags, 'adult_type');
+    const canonicalAdultType = deriveAdultTypeFromSeed(seed);
+    if (storedAdultType !== canonicalAdultType) return true;
+  }
+
+  return false;
 }
 
 // ─── Event Validation ─────────────────────────────────────────────────────────
@@ -1095,14 +1176,39 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // Resolve name: tag > legacy d-tag derivation > fallback
   const name = nameTag ?? deriveNameFromLegacyD(d);
   
+  // ─── TEMPORARY: Adult-type compatibility seed adjustment ───
+  // During the compatibility window, if an existing adult has an explicit
+  // adult_type tag that doesn't match the seed-derived form, adjust the
+  // seed so it produces that form. This prevents existing adults from
+  // suddenly changing form. After the cutoff this block is a no-op.
+  let effectiveSeed = seed;
+  if (
+    seed && seed.length === 64 &&
+    stage === 'adult' &&
+    isAdultTypeCompatActive()
+  ) {
+    const storedAdultType = getTagValue(tags, 'adult_type');
+    if (storedAdultType && ADULT_FORMS.includes(storedAdultType as AdultForm)) {
+      const seedDerivedForm = deriveAdultTypeFromSeed(seed);
+      if (storedAdultType !== seedDerivedForm) {
+        effectiveSeed = adjustSeedForAdultType(seed, storedAdultType as AdultForm);
+      }
+    }
+  }
+  
   // Derive visual traits (single source of truth)
-  const visualTraits = deriveVisualTraits(tags, seed);
+  const visualTraits = deriveVisualTraits(tags, effectiveSeed);
   
   // Check if this is a legacy event that needs migration
   const isLegacy = isLegacyBlobbiEvent(event);
   
-  // Check if stored color tags need syncing with seed-derived values
-  const needsColorSync = eventNeedsColorSync(tags);
+  // Check if stored mirror tags need syncing with seed-derived values
+  // Uses the effective seed (which may be adjusted during compat window)
+  const needsColorSync = eventNeedsColorSync(
+    effectiveSeed !== seed
+      ? tags.map((t) => t[0] === 'seed' ? ['seed', effectiveSeed!] : t)
+      : tags,
+  );
   
   // Concise, structured debug log
   console.log('[Blobbi]', {
@@ -1143,7 +1249,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     stage,
     state,
     progressionState,
-    seed,
+    seed: effectiveSeed,
     visualTraits,
     isLegacy,
     needsColorSync,
@@ -1245,10 +1351,7 @@ export function buildEggTags(
   const now = createdAt.toString();
   
   // Derive visual traits from seed for explicit storage (tags mirror the seed).
-  const { baseColor, secondaryColor, eyeColor } = deriveColorsFromSeed(seed);
-  const pattern = derivePatternFromSeed(seed);
-  const specialMark = deriveSpecialMarkFromSeed(seed);
-  const size = deriveSizeFromSeed(seed);
+  const { baseColor, secondaryColor, eyeColor, pattern, specialMark, size } = deriveSeedIdentity(seed);
   
   return [
     ['d', d],
@@ -1424,31 +1527,46 @@ export function mergeTagsForRepublish(
 }
 
 /**
- * Overwrite color tags so they mirror the seed-derived canonical values.
+ * Overwrite mirror tags so they match the seed-derived canonical identity.
  *
- * When a seed tag is present, replaces base_color / secondary_color /
- * eye_color with the values from deriveColorsFromSeed(). Missing color
- * tags are added. If no seed is found the tags are returned unchanged.
+ * When a seed tag is present, replaces all seed-derived mirror tags with
+ * the canonical values from deriveSeedIdentity(). For adult-stage events,
+ * also syncs adult_type. If no seed is found the tags are returned unchanged.
  *
  * This is called inside mergeBlobbiStateTagsForRepublish so that every
- * republish automatically backfills correct color tags.
+ * republish automatically backfills correct mirror tags.
  */
-function syncColorTagsToSeed(tags: string[][]): string[][] {
+function syncMirrorTagsToSeed(tags: string[][]): string[][] {
   const seed = getTagValue(tags, 'seed');
   if (!seed || seed.length !== 64) return tags;
 
-  const canonical = deriveColorsFromSeed(seed);
-  const COLOR_TAG_NAMES = new Set(['base_color', 'secondary_color', 'eye_color']);
+  const canonical = deriveSeedIdentity(seed);
+  const MIRROR_TAG_NAMES = new Set([
+    'base_color', 'secondary_color', 'eye_color',
+    'pattern', 'special_mark', 'size',
+  ]);
 
-  // Remove existing color tags
-  const filtered = tags.filter((t) => !COLOR_TAG_NAMES.has(t[0]));
+  const stage = getTagValue(tags, 'stage');
+  if (stage === 'adult') {
+    MIRROR_TAG_NAMES.add('adult_type');
+  }
+
+  // Remove existing mirror tags
+  const filtered = tags.filter((t) => !MIRROR_TAG_NAMES.has(t[0]));
 
   // Append canonical values
   filtered.push(
     ['base_color', canonical.baseColor],
     ['secondary_color', canonical.secondaryColor],
     ['eye_color', canonical.eyeColor],
+    ['pattern', canonical.pattern],
+    ['special_mark', canonical.specialMark],
+    ['size', canonical.size],
   );
+
+  if (stage === 'adult') {
+    filtered.push(['adult_type', deriveAdultTypeFromSeed(seed)]);
+  }
 
   return filtered;
 }
@@ -1518,10 +1636,10 @@ export function mergeBlobbiStateTagsForRepublish(
   
   let mergedTags = [...newTags, ...unknownTags];
   
-  // ─── Sync color tags to seed-derived values ───
-  // When a seed exists, color tags are mirrors of the seed. Overwrite any
-  // stale values so the persisted tags always match the canonical derivation.
-  mergedTags = syncColorTagsToSeed(mergedTags);
+  // ─── Sync mirror tags to seed-derived values ───
+  // When a seed exists, visual trait tags are mirrors of the seed. Overwrite
+  // any stale values so persisted tags always match the canonical derivation.
+  mergedTags = syncMirrorTagsToSeed(mergedTags);
   
   // Skip validation if requested (for internal use)
   if (options?.skipValidation) {

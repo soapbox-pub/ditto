@@ -45,6 +45,8 @@ import {
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
+import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
+
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
@@ -224,6 +226,10 @@ function BlobbiContent() {
     }
     return record;
   }, [filteredCompanions]);
+
+  // STEP 3: Sync visible companions whose mirror tags are stale.
+  // Republishes only companions with actual mismatches (needsColorSync flag).
+  useSeedIdentitySync(filteredCompanions, updateCompanionEvent);
 
   // STEP 5: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
