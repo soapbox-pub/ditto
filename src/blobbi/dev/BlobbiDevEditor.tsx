@@ -332,6 +332,19 @@ export function BlobbiDevEditor({
             )}
           </div>
 
+          {/* ─── Seed (read-only) ─── */}
+          {companion.seed && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Seed</Label>
+              <code className="block text-[10px] font-mono text-muted-foreground bg-muted rounded px-2 py-1.5 break-all select-all">
+                {companion.seed}
+              </code>
+              <p className="text-[10px] text-muted-foreground">
+                Read-only. The seed determines colors, pattern, size, and adult form.
+              </p>
+            </div>
+          )}
+
           {/* ─── Adult Form (only shown for adults) ─── */}
           {stage === 'adult' && (
             <div className="space-y-3">
@@ -348,6 +361,11 @@ export function BlobbiDevEditor({
                   ))}
                 </SelectContent>
               </Select>
+              {companion.seed && adultType !== (companion.adultType ?? 'catti') && (
+                <p className="text-xs text-amber-500">
+                  Changing the form will adjust the seed. Colors and other visual traits will be re-derived.
+                </p>
+              )}
             </div>
           )}
 
