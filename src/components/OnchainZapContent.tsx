@@ -139,7 +139,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     }
     if (!btcPrice) { setError('Waiting for BTC price…'); return; }
     if (amountSats <= 0) { setError('Enter an amount.'); return; }
-    if (!utxos?.length) { setError('Your on-chain wallet has no spendable funds. Receive some Bitcoin first.'); return; }
+    if (!utxos?.length) { setError('Your Bitcoin wallet has no spendable funds. Receive some Bitcoin first.'); return; }
     if (amountSats + estimatedFeeSats > totalBalance) { setError('Insufficient funds for this amount + fee.'); return; }
     setStep('confirm');
   }, [user, target.pubkey, canSignPsbt, btcPrice, amountSats, utxos, estimatedFeeSats, totalBalance]);
@@ -166,7 +166,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
           <AlertDescription className="text-xs">
             Your signer doesn't support Bitcoin transaction signing. Log in with your nsec, a
             NIP-07 extension that supports <code>signPsbt</code>, or a NIP-46 remote signer
-            that supports <code>sign_psbt</code> to send on-chain zaps.
+            that supports <code>sign_psbt</code> to send Bitcoin zaps.
           </AlertDescription>
         </Alert>
       </div>
@@ -186,8 +186,8 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             <p className="font-semibold">Zap broadcast!</p>
             <p className="text-xs text-muted-foreground">
               {btcPrice && amountSats > 0
-                ? `${satsToUSD(amountSats, btcPrice)} sent on-chain`
-                : `${formatSats(amountSats)} sats sent on-chain`}
+                ? `${satsToUSD(amountSats, btcPrice)} sent via Bitcoin`
+                : `${formatSats(amountSats)} sats sent via Bitcoin`}
             </p>
           </div>
         </div>
@@ -245,7 +245,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
         <Alert className="py-2">
           <AlertTriangle className="size-4" />
           <AlertDescription className="text-xs">
-            On-chain transactions are final. Funds settle after ~10 minutes.
+            Bitcoin transactions are final. Funds settle after ~10 minutes.
           </AlertDescription>
         </Alert>
 
@@ -273,7 +273,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     <div className="px-4 py-4 space-y-4">
       {/* Balance */}
       <div className="rounded-lg bg-muted/50 p-3">
-        <Label className="text-xs text-muted-foreground">Your on-chain balance</Label>
+        <Label className="text-xs text-muted-foreground">Your Bitcoin balance</Label>
         {isLoadingUtxos ? (
           <Skeleton className="mt-1 h-6 w-32" />
         ) : (

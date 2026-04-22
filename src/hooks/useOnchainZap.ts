@@ -104,7 +104,7 @@ export function useOnchainZap(
       ]);
 
       if (utxos.length === 0) {
-        throw new Error('Your on-chain wallet has no spendable funds.');
+        throw new Error('Your Bitcoin wallet has no spendable funds.');
       }
 
       const feeRate = feeRateForSpeed(rates, feeSpeed);
@@ -152,7 +152,7 @@ export function useOnchainZap(
       // Always include `e` for a concrete event reference (even for addressable events)
       tags.push(['e', target.id]);
 
-      tags.push(['alt', `On-chain zap: ${amountSats.toLocaleString()} sats`]);
+      tags.push(['alt', `Bitcoin zap: ${amountSats.toLocaleString()} sats`]);
 
       const event = await publishEvent({
         kind: 8333,
@@ -165,7 +165,7 @@ export function useOnchainZap(
     onSuccess: ({ txid, fee }) => {
       notificationSuccess();
       toast({
-        title: 'On-chain zap sent!',
+        title: 'Bitcoin zap sent!',
         description: `Broadcast txid ${txid.slice(0, 12)}… (fee ${fee.toLocaleString()} sats)`,
       });
       // Invalidate caches that track zaps / balances
@@ -178,7 +178,7 @@ export function useOnchainZap(
     },
     onError: (err) => {
       toast({
-        title: 'On-chain zap failed',
+        title: 'Bitcoin zap failed',
         description: err.message,
         variant: 'destructive',
       });

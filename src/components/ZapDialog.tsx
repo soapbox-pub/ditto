@@ -435,8 +435,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
           {invoice
             ? 'Pay with Bitcoin Lightning Network'
             : activeTab === 'onchain'
-              ? 'Send Bitcoin on-chain to support the creator.'
-              : 'Send a small Bitcoin payment to support the creator.'}
+              ? 'Send Bitcoin to support the creator.'
+              : 'Send a Lightning payment to support the creator.'}
         </p>
         <div className="overflow-y-auto">
           {hasLightning ? (
@@ -444,7 +444,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
               <div className="px-4 pt-2">
                 <TabsList className="grid w-full grid-cols-2 h-9">
                   <TabsTrigger value="onchain" className="gap-1.5 text-xs">
-                    <Bitcoin className="size-3.5" /> On-chain
+                    <Bitcoin className="size-3.5" /> Bitcoin
                   </TabsTrigger>
                   <TabsTrigger value="lightning" className="gap-1.5 text-xs">
                     <Zap className="size-3.5" /> Lightning
