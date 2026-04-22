@@ -175,6 +175,25 @@ export function btcToSats(btc: number): number {
   return Math.round(btc * 100_000_000);
 }
 
+/**
+ * USD threshold above which Bitcoin send/zap flows require explicit
+ * confirmation (two-tap). Chosen to catch meaningful dollar amounts without
+ * nagging on everyday $5–$25 zaps.
+ */
+export const LARGE_AMOUNT_USD_THRESHOLD = 100;
+
+/**
+ * Whether a given satoshi amount crosses the "large amount" threshold at the
+ * current BTC/USD price. Returns false when `btcPrice` is unavailable, so the
+ * UI does not arm confirmation without a known USD value.
+ */
+export function isLargeAmount(sats: number, btcPrice: number | undefined): boolean {
+  if (!btcPrice || !Number.isFinite(btcPrice) || btcPrice <= 0) return false;
+  if (!Number.isFinite(sats) || sats <= 0) return false;
+  const usd = (sats / 100_000_000) * btcPrice;
+  return usd >= LARGE_AMOUNT_USD_THRESHOLD;
+}
+
 /** Convert satoshis to USD given a BTC price. */
 export function satsToUSD(sats: number, btcPrice: number): string {
   const btc = sats / 100_000_000;

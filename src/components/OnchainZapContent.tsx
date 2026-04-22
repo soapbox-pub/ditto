@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AlertTriangle, Zap, Gauge, Loader2, Bitcoin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -22,6 +22,7 @@ import {
   fetchBtcPrice,
   getFeeRates,
   estimateFee,
+  isLargeAmount,
   satsToUSD,
   formatSats,
 } from '@/lib/bitcoin';
@@ -119,6 +120,17 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   const insufficient = totalBalance > 0 && totalSats > totalBalance;
   const showBalance = insufficient || (amountSats > 0 && totalBalance === 0);
 
+  // For large amounts, require a two-tap confirmation on the primary button.
+  // This catches fat-finger sends without nagging on normal amounts.
+  const isLarge = isLargeAmount(totalSats, btcPrice);
+  const [confirmArmed, setConfirmArmed] = useState(false);
+
+  // Re-arm (i.e. clear confirmation) whenever the amount, fee rate, or price
+  // moves — so editing after arming forces another deliberate click.
+  useEffect(() => {
+    setConfirmArmed(false);
+  }, [amountSats, currentFeeRate, btcPrice]);
+
   const { zapAsync, isZapping, progress } = useOnchainZap(target, onSuccess);
 
   const handleZap = useCallback(async () => {
@@ -133,6 +145,12 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     if (!utxos?.length) { setError("You don't have any Bitcoin yet. Receive some first."); return; }
     if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
 
+    // Two-tap safety for large amounts: first click arms, second click sends.
+    if (isLarge && !confirmArmed) {
+      setConfirmArmed(true);
+      return;
+    }
+
     try {
       await zapAsync({ amountSats, comment, feeSpeed });
       // onSuccess (passed to useOnchainZap) closes the dialog; toast is shown by the hook.
@@ -143,7 +161,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed]);
+  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed]);
 
   // ── Signer not supported ──────────────────────────────────────
 
@@ -296,12 +314,18 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       <Button
         onClick={handleZap}
         disabled={!btcPrice || amountSats <= 0 || isZapping}
+        variant={isLarge && !isZapping ? 'destructive' : 'default'}
         className="w-full"
       >
         {isZapping ? (
           <>
             <Loader2 className="size-4 mr-1.5 animate-spin" />
             {progressLabel(progress)}
+          </>
+        ) : isLarge && confirmArmed ? (
+          <>
+            <Zap className="size-4 mr-1.5" />
+            Tap again to send {currentUsd > 0 ? `$${currentUsd}` : ''}
           </>
         ) : (
           <>

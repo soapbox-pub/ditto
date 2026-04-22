@@ -48,6 +48,7 @@ import {
   satsToUSD,
   formatSats,
   formatBTC,
+  isLargeAmount,
 } from '@/lib/bitcoin';
 import type { FeeRates, UTXO } from '@/lib/bitcoin';
 
@@ -493,6 +494,7 @@ interface ConfirmViewProps {
 
 function ConfirmView({ recipient, amountSats, fee, feeSpeed, btcPrice, isPending, onBack, onConfirm }: ConfirmViewProps) {
   const totalSats = amountSats + fee;
+  const isLarge = isLargeAmount(totalSats, btcPrice);
 
   const row = (label: string, sats: number) => (
     <div className="flex justify-between items-baseline">
@@ -542,13 +544,25 @@ function ConfirmView({ recipient, amountSats, fee, feeSpeed, btcPrice, isPending
           </div>
         </div>
 
+        {/* Large-amount notice — informational, not alarmist. */}
+        {isLarge && btcPrice && (
+          <p className="text-xs text-muted-foreground text-center">
+            Sending {satsToUSD(totalSats, btcPrice)} — double-check the recipient and amount.
+          </p>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack} disabled={isPending} className="flex-1">
             <ChevronLeft className="size-4 mr-1" />
             Back
           </Button>
-          <Button onClick={onConfirm} disabled={isPending} className="flex-1">
+          <Button
+            onClick={onConfirm}
+            disabled={isPending}
+            variant={isLarge && !isPending ? 'destructive' : 'default'}
+            className="flex-1"
+          >
             {isPending ? (
               <>
                 <Loader2 className="size-4 mr-1.5 animate-spin" />

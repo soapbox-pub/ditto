@@ -4,7 +4,13 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as ecc from '@bitcoinerlab/secp256k1';
 
 import '@/lib/polyfills';
-import { nostrPubkeyToBitcoinAddress, npubToBitcoinAddress, validateBitcoinAddress } from '@/lib/bitcoin';
+import {
+  isLargeAmount,
+  LARGE_AMOUNT_USD_THRESHOLD,
+  nostrPubkeyToBitcoinAddress,
+  npubToBitcoinAddress,
+  validateBitcoinAddress,
+} from '@/lib/bitcoin';
 
 // Initialise ECC once for this test file. In the running app, `main.tsx`
 // does this at startup; in a test process `main.tsx` is never imported.
@@ -132,5 +138,42 @@ describe('validateBitcoinAddress', () => {
     expect(validateBitcoinAddress('not-an-address')).toBe(false);
     // Valid-looking bech32m with broken checksum (flipped last char).
     expect(validateBitcoinAddress('bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z6')).toBe(false);
+  });
+});
+
+describe('isLargeAmount', () => {
+  // Assume a BTC price of $100_000 for easy arithmetic. 1 BTC = $100k, so
+  // 1 sat = $0.001 and the $100 threshold corresponds to 100_000 sats.
+  const PRICE = 100_000;
+
+  it('returns true when the USD value is above the threshold', () => {
+    // 200,000 sats @ $100k/BTC = $200 — well above $100.
+    expect(isLargeAmount(200_000, PRICE)).toBe(true);
+  });
+
+  it('returns true at exactly the threshold', () => {
+    // 100,000 sats @ $100k/BTC = $100 — at the threshold (inclusive).
+    expect(isLargeAmount(100_000, PRICE)).toBe(true);
+  });
+
+  it('returns false below the threshold', () => {
+    // 50,000 sats @ $100k/BTC = $50 — below $100.
+    expect(isLargeAmount(50_000, PRICE)).toBe(false);
+  });
+
+  it('returns false when btcPrice is undefined', () => {
+    expect(isLargeAmount(10_000_000, undefined)).toBe(false);
+  });
+
+  it('returns false for non-positive sats or prices', () => {
+    expect(isLargeAmount(0, PRICE)).toBe(false);
+    expect(isLargeAmount(-1, PRICE)).toBe(false);
+    expect(isLargeAmount(100_000, 0)).toBe(false);
+    expect(isLargeAmount(100_000, -PRICE)).toBe(false);
+    expect(isLargeAmount(100_000, NaN)).toBe(false);
+  });
+
+  it('exports a sensible default threshold', () => {
+    expect(LARGE_AMOUNT_USD_THRESHOLD).toBe(100);
   });
 });
