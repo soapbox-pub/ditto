@@ -3,6 +3,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
+import { applyColorGuardrails, hslToHex } from './color-guardrails';
 import type { Mission } from './missions';
 import { parseEvolutionContent } from './missions';
 
@@ -149,8 +150,10 @@ export type BlobbiSpecialMark = 'none' | 'star' | 'heart' | 'sparkle' | 'blush';
 export type BlobbiSize = 'small' | 'medium' | 'large';
 
 /**
- * Base color palette - canonical hex values.
- * These are carefully chosen to look good on egg shapes.
+ * @deprecated Legacy palette — no longer used for seed-based generation.
+ * Colors are now derived as arbitrary HSL values from the seed, then passed
+ * through applyColorGuardrails(). Kept only as a historical reference of
+ * colors that existing events may have stored in explicit tags.
  */
 export const BLOBBI_BASE_COLORS: readonly string[] = [
   '#F59E0B', // Amber/Gold
@@ -165,9 +168,7 @@ export const BLOBBI_BASE_COLORS: readonly string[] = [
   '#FB923C', // Orange
 ] as const;
 
-/**
- * Secondary color palette - complementary/accent hex values.
- */
+/** @deprecated See BLOBBI_BASE_COLORS. */
 export const BLOBBI_SECONDARY_COLORS: readonly string[] = [
   '#FCD34D', // Light Gold
   '#6EE7B7', // Light Teal
@@ -181,9 +182,7 @@ export const BLOBBI_SECONDARY_COLORS: readonly string[] = [
   '#FDBA74', // Light Orange
 ] as const;
 
-/**
- * Eye color palette - expressive hex values.
- */
+/** @deprecated See BLOBBI_BASE_COLORS. */
 export const BLOBBI_EYE_COLORS: readonly string[] = [
   '#1F2937', // Dark Gray (default)
   '#7C3AED', // Violet
@@ -543,11 +542,13 @@ export function isLegacyBlobbiD(d: string): boolean {
  * Uses 4 bytes (8 hex chars) starting at offset to create a deterministic number.
  * 
  * Seed offset layout (per spec):
- * - [0..8]   base_color
- * - [8..16]  secondary_color / eye_color
+ * - [0..8]   base_color   (H/S/L split from 32-bit value)
+ * - [8..16]  secondary_color hue shift / lightness offset from base
+ * - [12..20] eye_color    (H/S/L split from 32-bit value; overlaps secondary)
  * - [16..24] pattern
  * - [24..32] special_mark
  * - [32..40] size
+ * - [40..64] reserved
  */
 function deriveIndexFromSeed(seed: string, offset: number, max: number): number {
   const slice = seed.slice(offset, offset + 8);
@@ -556,27 +557,114 @@ function deriveIndexFromSeed(seed: string, offset: number, max: number): number 
 }
 
 /**
- * Derive base color (hex) from seed.
+ * Derive base color (hex) from seed using arbitrary HSL generation.
+ *
+ * Extracts a single 32-bit value from seed[0..8] and splits it into
+ * three components via successive division:
+ * - Hue:        0..359  (full color wheel)
+ * - Saturation: 30..100 (vibrant, never dull gray)
+ * - Lightness:  30..75  (safe range for the SVG gradient pipeline)
+ *
+ * The result is passed through clampBaseColor() via applyColorGuardrails()
+ * at the call site, but the ranges here are already chosen to land within
+ * the guardrail thresholds, so clamping is a safety net rather than a
+ * regular adjustment.
  */
 export function deriveBaseColorFromSeed(seed: string): string {
-  const index = deriveIndexFromSeed(seed, 0, BLOBBI_BASE_COLORS.length);
-  return BLOBBI_BASE_COLORS[index];
+  const value = deriveIndexFromSeed(seed, 0, 0x100000000); // raw 32-bit
+  const h = value % 360;
+  const rem1 = Math.floor(value / 360);
+  const s = (rem1 % 71) + 30;  // 30..100
+  const rem2 = Math.floor(rem1 / 71);
+  const l = (rem2 % 46) + 30;  // 30..75
+  return hslToHex(h, s, l);
 }
 
 /**
- * Derive secondary color (hex) from seed.
+ * Derive secondary color (hex) from seed, harmonized with a base color.
+ *
+ * Instead of picking independently from a palette, the secondary is derived
+ * as a lighter variant of the base with a small hue shift:
+ * - Hue shift:       ±20° from base (subtle tonal variation)
+ * - Lightness offset: +12..+25 above base (guaranteed visible gradient)
+ *
+ * This ensures the base/secondary pair always produces a good 3D body
+ * gradient regardless of the base color.
+ *
+ * @param seed - The Blobbi seed (64-char hex)
+ * @param baseHex - The already-resolved base color (after guardrails)
  */
-export function deriveSecondaryColorFromSeed(seed: string): string {
-  const index = deriveIndexFromSeed(seed, 8, BLOBBI_SECONDARY_COLORS.length);
-  return BLOBBI_SECONDARY_COLORS[index];
+export function deriveSecondaryColorFromSeed(seed: string, baseHex?: string): string {
+  const seedValue = deriveIndexFromSeed(seed, 8, 0x100000000); // raw 32-bit
+
+  // Without a base color, fall back to independent HSL derivation
+  // (same approach as base, but with a lighter range)
+  if (!baseHex) {
+    const h = seedValue % 360;
+    const rem1 = Math.floor(seedValue / 360);
+    const s = (rem1 % 71) + 30;
+    const rem2 = Math.floor(rem1 / 71);
+    const l = (rem2 % 31) + 60; // 60..90 (lighter range)
+    return hslToHex(h, s, l);
+  }
+
+  // Harmonized derivation: shift from base
+  const baseHsl = hexToHslLocal(baseHex);
+  const hueShift = (seedValue % 41) - 20;  // -20..+20 degrees
+  const rem1 = Math.floor(seedValue / 41);
+  const lOffset = (rem1 % 14) + 12;        // +12..+25 lightness
+
+  const secH = (baseHsl.h + hueShift + 360) % 360;
+  const secS = baseHsl.s; // preserve base saturation for cohesion
+  const secL = Math.min(baseHsl.l + lOffset, 90); // cap to avoid near-white
+
+  return hslToHex(secH, secS, secL);
 }
 
 /**
- * Derive eye color (hex) from seed.
+ * Derive eye color (hex) from seed using arbitrary HSL generation.
+ *
+ * Eyes are generated in a darker, more saturated range than base colors
+ * to ensure visibility against white sclera circles:
+ * - Hue:        0..359  (full color wheel, independent of base)
+ * - Saturation: 40..100 (vivid enough to read at small sizes)
+ * - Lightness:  10..55  (always darker than typical bases)
+ *
+ * The result is further validated by ensureEyeVisibility() via
+ * applyColorGuardrails() at the call site.
  */
 export function deriveEyeColorFromSeed(seed: string): string {
-  const index = deriveIndexFromSeed(seed, 12, BLOBBI_EYE_COLORS.length);
-  return BLOBBI_EYE_COLORS[index];
+  const value = deriveIndexFromSeed(seed, 12, 0x100000000); // raw 32-bit
+  const h = value % 360;
+  const rem1 = Math.floor(value / 360);
+  const s = (rem1 % 61) + 40;  // 40..100
+  const rem2 = Math.floor(rem1 / 61);
+  const l = (rem2 % 46) + 10;  // 10..55
+  return hslToHex(h, s, l);
+}
+
+/**
+ * Local hex-to-HSL helper for use within this module.
+ * Avoids a circular dependency on color-guardrails for the simple conversion.
+ */
+function hexToHslLocal(hex: string): { h: number; s: number; l: number } {
+  const num = parseInt(hex.slice(1), 16);
+  const r = ((num >> 16) & 0xff) / 255;
+  const g = ((num >> 8) & 0xff) / 255;
+  const b = (num & 0xff) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  switch (max) {
+    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+    case g: h = ((b - r) / d + 2) / 6; break;
+    default: h = ((r - g) / d + 4) / 6; break;
+  }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 /**
@@ -653,12 +741,13 @@ function normalizeHexColor(value: string | undefined): string | undefined {
  * │ VISUAL TRAIT POLICY                                                         │
  * │                                                                              │
  * │ Trait resolution priority (per field):                                      │
- * │ 1. Explicit valid tags → always take precedence if present                  │
- * │ 2. Derive from seed → primary source for canonical events                   │
+ * │ 1. Explicit valid tags → always take precedence if present (never adjusted) │
+ * │ 2. Derive from seed → arbitrary HSL + guardrails for canonical events       │
  * │ 3. Safe defaults → final fallback when both tag and seed are missing        │
  * │                                                                              │
  * │ IMPORTANT: Legacy events may have explicit tags WITHOUT a seed.             │
  * │ These tags must be respected - do NOT discard them in favor of defaults.    │
+ * │ Guardrails are ONLY applied to seed-derived colors, never to explicit tags. │
  * │                                                                              │
  * │ New canonical events should rely on seed for visual derivation.             │
  * │ Legacy tags are preserved for backwards compatibility.                      │
@@ -683,24 +772,58 @@ export function deriveVisualTraits(
   // Step 2: Determine fallback values (seed-derived or defaults)
   const hasSeed = seed && seed.length === 64;
   
-  // Resolve baseColor first (needed for secondaryColor fallback)
-  const fallbackBaseColor = hasSeed ? deriveBaseColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.baseColor;
-  const resolvedBaseColor = tagBaseColor ?? fallbackBaseColor;
-  
-  // Secondary color: if no seed, fall back to resolved baseColor for unified palette
-  // This ensures legacy events with only base_color don't get a mismatched yellow accent
-  const fallbackSecondaryColor = hasSeed ? deriveSecondaryColorFromSeed(seed) : resolvedBaseColor;
-  
-  const fallbackEyeColor = hasSeed ? deriveEyeColorFromSeed(seed) : DEFAULT_VISUAL_TRAITS.eyeColor;
   const fallbackPattern = hasSeed ? derivePatternFromSeed(seed) : DEFAULT_VISUAL_TRAITS.pattern;
   const fallbackSpecialMark = hasSeed ? deriveSpecialMarkFromSeed(seed) : DEFAULT_VISUAL_TRAITS.specialMark;
   const fallbackSize = hasSeed ? deriveSizeFromSeed(seed) : DEFAULT_VISUAL_TRAITS.size;
   
-  // Step 3: Priority: explicit valid tag > fallback (seed-derived or default)
+  // Step 3: Resolve colors
+  // When ALL three colors come from explicit tags, skip seed derivation entirely.
+  // When seed is available, derive raw colors then apply guardrails as a unit.
+  // Guardrails are NEVER applied to explicit tag values.
+  if (tagBaseColor && tagSecondaryColor && tagEyeColor) {
+    // All three explicit — use as-is, no guardrails
+    return {
+      baseColor: tagBaseColor,
+      secondaryColor: tagSecondaryColor,
+      eyeColor: tagEyeColor,
+      pattern: tagPattern ?? fallbackPattern,
+      specialMark: tagSpecialMark ?? fallbackSpecialMark,
+      size: tagSize ?? fallbackSize,
+    };
+  }
+  
+  if (hasSeed) {
+    // Derive raw colors from seed
+    const rawBase = deriveBaseColorFromSeed(seed);
+    const rawEye = deriveEyeColorFromSeed(seed);
+    
+    // Apply guardrails to seed-derived base first (needed for harmonized secondary)
+    const guardedColors = applyColorGuardrails({
+      baseColor: rawBase,
+      // Secondary is harmonized from the guarded base color
+      secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
+      eyeColor: rawEye,
+    });
+    
+    // Explicit tags override guarded seed-derived values
+    return {
+      baseColor: tagBaseColor ?? guardedColors.baseColor,
+      secondaryColor: tagSecondaryColor ?? guardedColors.secondaryColor,
+      eyeColor: tagEyeColor ?? guardedColors.eyeColor,
+      pattern: tagPattern ?? fallbackPattern,
+      specialMark: tagSpecialMark ?? fallbackSpecialMark,
+      size: tagSize ?? fallbackSize,
+    };
+  }
+  
+  // No seed: use explicit tags with defaults as final fallback.
+  // Secondary falls back to resolved baseColor (not the default yellow)
+  // to prevent legacy events with only base_color getting a mismatched accent.
+  const resolvedBaseColor = tagBaseColor ?? DEFAULT_VISUAL_TRAITS.baseColor;
   return {
     baseColor: resolvedBaseColor,
-    secondaryColor: tagSecondaryColor ?? fallbackSecondaryColor,
-    eyeColor: tagEyeColor ?? fallbackEyeColor,
+    secondaryColor: tagSecondaryColor ?? resolvedBaseColor,
+    eyeColor: tagEyeColor ?? DEFAULT_VISUAL_TRAITS.eyeColor,
     pattern: tagPattern ?? fallbackPattern,
     specialMark: tagSpecialMark ?? fallbackSpecialMark,
     size: tagSize ?? fallbackSize,
@@ -1084,10 +1207,15 @@ export function buildEggTags(
   const seed = deriveBlobbiSeedV1(pubkey, d, createdAt);
   const now = createdAt.toString();
   
-  // Derive visual traits from seed for explicit storage
-  const baseColor = deriveBaseColorFromSeed(seed);
-  const secondaryColor = deriveSecondaryColorFromSeed(seed);
-  const eyeColor = deriveEyeColorFromSeed(seed);
+  // Derive visual traits from seed for explicit storage.
+  // Colors are generated as arbitrary HSL values and passed through guardrails.
+  const rawBase = deriveBaseColorFromSeed(seed);
+  const rawEye = deriveEyeColorFromSeed(seed);
+  const { baseColor, secondaryColor, eyeColor } = applyColorGuardrails({
+    baseColor: rawBase,
+    secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
+    eyeColor: rawEye,
+  });
   const pattern = derivePatternFromSeed(seed);
   const specialMark = deriveSpecialMarkFromSeed(seed);
   const size = deriveSizeFromSeed(seed);
