@@ -46,7 +46,6 @@ import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
-import { canZap } from '@/lib/canZap';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
@@ -185,8 +184,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
-  const author = useAuthor(pubkey);
-  const showZap = !isOwnProfile && authorEvent && canZap(author.data?.metadata);
+  // Show zap action for any non-self profile. Both on-chain and Lightning
+  // zaps are offered inside the dialog (Lightning only when the author has
+  // a lud06/lud16 configured).
+  const showZap = !isOwnProfile && !!authorEvent;
 
   const close = () => onOpenChange(false);
   const openAfterClose = (setter: (v: boolean) => void) => {

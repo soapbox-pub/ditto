@@ -23,7 +23,6 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
-import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
 
 interface PhotoBottomBarProps {
@@ -40,7 +39,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const canZapAuthor = user && canZap(metadata);
+  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   return (
     <>
