@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { AlertTriangle, Zap, Gauge, Loader2 } from 'lucide-react';
+import { AlertTriangle, Zap, Gauge, Loader2, Bitcoin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,10 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
+  const recipientAddress = useMemo(() => nostrPubkeyToBitcoinAddress(target.pubkey), [target.pubkey]);
+  const truncatedRecipient = recipientAddress
+    ? `${recipientAddress.slice(0, 10)}…${recipientAddress.slice(-8)}`
+    : '';
 
   const { data: btcPrice } = useQuery({
     queryKey: ['btc-price'],
@@ -221,6 +225,18 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
         rows={2}
         className="resize-none"
       />
+
+      {/* Recipient Bitcoin address — always shown so users can verify the
+          derived destination before signing. */}
+      {recipientAddress && (
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Bitcoin className="size-3.5 text-orange-500 shrink-0" />
+            <span className="shrink-0">To:</span>
+            <span className="font-mono truncate" title={recipientAddress}>{truncatedRecipient}</span>
+          </div>
+        </div>
+      )}
 
       {/* Fee line — click to open speed picker */}
       {amountSats > 0 && (

@@ -155,6 +155,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 7) return "Reaction";
   if (kind === 1018) return "Poll Vote";
   if (kind === 9735) return "Zap";
+  if (kind === 8333) return "Bitcoin Zap";
   if (kind === 0) return "Profile";
   if (kind === 31124) return "Blobbi";
   return "Post Details";

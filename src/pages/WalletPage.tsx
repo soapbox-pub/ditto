@@ -12,7 +12,7 @@ import { SendBitcoinDialog } from '@/components/SendBitcoinDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinWallet } from '@/hooks/useBitcoinWallet';
-import { satsToBTC, satsToUSD } from '@/lib/bitcoin';
+import { satsToUSD, formatBTC } from '@/lib/bitcoin';
 import type { Transaction } from '@/lib/bitcoin';
 
 export function WalletPage() {
@@ -85,7 +85,7 @@ export function WalletPage() {
                   : '---'}
               </span>
               <span className="text-sm text-muted-foreground">
-                {satsToBTC(addressData.totalBalance).replace(/\.?0+$/, '')} BTC
+                {formatBTC(addressData.totalBalance)} BTC
               </span>
 
               {addressData.pendingBalance !== 0 && (
@@ -225,10 +225,10 @@ function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
           {isReceive ? '+' : '-'}
           {btcPrice
             ? satsToUSD(tx.amount, btcPrice)
-            : `${satsToBTC(tx.amount).replace(/\.?0+$/, '')} BTC`}
+            : `${formatBTC(tx.amount)} BTC`}
         </p>
         <p className="text-xs text-muted-foreground">
-          {satsToBTC(tx.amount).replace(/\.?0+$/, '')} BTC
+          {formatBTC(tx.amount)} BTC
         </p>
       </div>
     </Link>

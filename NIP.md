@@ -101,11 +101,16 @@ Clients MUST verify a kind 8333 event on-chain before counting it toward a zap t
 1. Extract the txid from the `i` tag.
 2. Fetch the transaction from a Bitcoin data source (e.g. a mempool.space-compatible Esplora API).
 3. Derive the recipient's expected Taproot address from the `p` tag pubkey.
-4. Sum the values of all outputs in the transaction that pay that address. This is the **verified amount**.
-5. If the verified amount is 0, or the sender's `amount` tag exceeds the verified amount, the event SHOULD be discarded.
-6. Unconfirmed transactions MAY be displayed as pending; clients MAY require confirmation before counting them toward public totals.
+4. Sum the values of all outputs in the transaction that pay that address. This is the **verified amount**. Change outputs paying back to the **sender's** derived Taproot address MUST NOT be counted toward the verified amount — only outputs to the recipient.
+5. If the verified amount is 0, the event SHOULD be discarded.
+6. If the sender's `amount` tag exceeds the verified amount, clients MAY discard the event or MAY display the smaller verified amount (capping). Clients MUST NOT display or count the claimed amount when it exceeds the verified amount.
+7. Unconfirmed transactions MAY be displayed as pending; clients MAY require confirmation before counting them toward public totals. Because unconfirmed transactions can be evicted (RBF, double-spend), clients SHOULD either exclude them from aggregate zap totals or clearly label them as pending.
 
-Clients SHOULD deduplicate events that reference the same `txid` (an attacker could publish many events pointing at one real transaction). One kind 8333 event per (txid, target) pair is canonical.
+**Sender/recipient identity:** Clients SHOULD reject events where the sender's pubkey (`event.pubkey`) equals the recipient pubkey from the `p` tag. Self-zaps are trivial to fabricate (the sender already controls the destination address) and contribute nothing meaningful to zap totals.
+
+**Deduplication:** Clients SHOULD deduplicate events that reference the same `txid` (an attacker could publish many events pointing at one real transaction). One kind 8333 event per (txid, target) pair is canonical — when multiple events reference the same `txid` for the same target, the earliest is preferred.
+
+**Network scope:** This specification applies to Bitcoin **mainnet** only. Testnet, signet, and other networks are out of scope; addresses and txids on those networks MUST NOT be used in kind 8333 events.
 
 ### Comparison with NIP-57 (Lightning Zaps)
 

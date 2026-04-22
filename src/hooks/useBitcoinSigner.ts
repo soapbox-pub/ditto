@@ -39,6 +39,20 @@ export function reportSignerUnsupported(pubkey: string): void {
 }
 
 /**
+ * Clear the unsupported-bunker memo for a pubkey (or all pubkeys). Called
+ * when the user logs out or switches accounts, so that a re-login with a
+ * potentially-upgraded bunker doesn't inherit the previous rejection.
+ */
+export function clearSignerUnsupported(pubkey?: string): void {
+  if (pubkey === undefined) {
+    knownUnsupportedBunkers.clear();
+  } else {
+    knownUnsupportedBunkers.delete(pubkey);
+  }
+  window.dispatchEvent(new CustomEvent('bitcoin-signer-cleared', { detail: pubkey ?? '*' }));
+}
+
+/**
  * Hook that exposes Bitcoin PSBT signing capability for the current login.
  *
  * Capability is probed eagerly for known login types so that the UI can
@@ -96,15 +110,36 @@ export function useBitcoinSigner() {
     user ? knownUnsupportedBunkers.has(user.pubkey) : false,
   );
 
+  // Reset memoised state whenever the active user changes (login/logout/
+  // account switch) so a fresh login with a potentially-upgraded signer
+  // isn't permanently tainted by a previous session's rejection. On full
+  // logout we also clear the module-level registry entirely, so logging back
+  // in lets the user try their bunker again.
+  useEffect(() => {
+    if (!user) {
+      setBunkerUnsupported(false);
+      knownUnsupportedBunkers.clear();
+      return;
+    }
+    setBunkerUnsupported(knownUnsupportedBunkers.has(user.pubkey));
+  }, [user?.pubkey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (loginType !== 'bunker' || !user) return;
-    if (knownUnsupportedBunkers.has(user.pubkey)) setBunkerUnsupported(true);
     const onUnsupported = (e: Event) => {
       const detail = (e as CustomEvent<string>).detail;
       if (detail === user.pubkey) setBunkerUnsupported(true);
     };
+    const onCleared = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail === '*' || detail === user.pubkey) setBunkerUnsupported(false);
+    };
     window.addEventListener('bitcoin-signer-unsupported', onUnsupported);
-    return () => window.removeEventListener('bitcoin-signer-unsupported', onUnsupported);
+    window.addEventListener('bitcoin-signer-cleared', onCleared);
+    return () => {
+      window.removeEventListener('bitcoin-signer-unsupported', onUnsupported);
+      window.removeEventListener('bitcoin-signer-cleared', onCleared);
+    };
   }, [loginType, user]);
 
   // ── Aggregate capability ─────────────────────────────────────

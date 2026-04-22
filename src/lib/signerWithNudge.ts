@@ -36,6 +36,7 @@ const KIND_LABELS: Record<number, string> = {
   7: 'reaction',
   11: 'post',
   16: 'repost',
+  8333: 'Bitcoin zap',
   1111: 'comment',
   1984: 'report',
   4932: 'webxdc sync',

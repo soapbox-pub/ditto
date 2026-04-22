@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  Bitcoin,
   Camera,
   Egg,
   FileCode,
@@ -1801,6 +1802,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   9735: {
     icon: Zap,
     action: "zapped",
+  },
+  8333: {
+    icon: Bitcoin,
+    action: "Bitcoin-zapped",
   },
   31124: {
     icon: Egg,

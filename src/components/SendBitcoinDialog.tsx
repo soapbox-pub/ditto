@@ -44,10 +44,10 @@ import {
   broadcastTransaction,
   estimateFee,
   maxSendable,
-  satsToBTC,
   btcToSats,
   satsToUSD,
   formatSats,
+  formatBTC,
 } from '@/lib/bitcoin';
 import type { FeeRates, UTXO } from '@/lib/bitcoin';
 
@@ -168,7 +168,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     if (!utxos?.length || !currentFeeRate) return;
     const max = maxSendable(totalBalance, utxos.length, currentFeeRate);
     if (max <= 0) return;
-    setAmount(satsToBTC(max).replace(/\.?0+$/, ''));
+    setAmount(formatBTC(max));
     setError('');
   }, [utxos, currentFeeRate, totalBalance]);
 
@@ -373,7 +373,7 @@ function FormView({
             <p className="text-xl font-bold">
               {btcPrice
                 ? satsToUSD(totalBalance, btcPrice)
-                : `${satsToBTC(totalBalance).replace(/\.?0+$/, '')} BTC`}
+                : `${formatBTC(totalBalance)} BTC`}
             </p>
           )}
         </div>
@@ -499,7 +499,7 @@ function ConfirmView({ recipient, amountSats, fee, feeSpeed, btcPrice, isPending
       <span className="text-sm text-muted-foreground">{label}</span>
       <div className="text-right">
         <span className="text-sm font-medium">
-          {satsToBTC(sats).replace(/\.?0+$/, '')} BTC
+          {formatBTC(sats)} BTC
         </span>
         {btcPrice && (
           <span className="text-xs text-muted-foreground ml-2">

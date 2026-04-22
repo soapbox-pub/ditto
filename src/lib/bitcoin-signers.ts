@@ -84,12 +84,37 @@ export class NBrowserSignerBtc extends NBrowserSigner implements BtcSigner {
 // ---------------------------------------------------------------------------
 
 /**
+ * Heuristics for detecting whether a NIP-46 `sign_psbt` error reflects a
+ * missing-capability rejection (e.g. "method not supported", "unknown
+ * command") versus a transient operational failure (network, user rejection,
+ * malformed input). We have to match on strings because NIP-46 errors are
+ * plain strings without structured codes.
+ */
+const CAPABILITY_ERROR_PATTERNS = [
+  /unknown\s+(method|command)/i,
+  /not\s+(implemented|supported|found)/i,
+  /unsupported\s+method/i,
+  /method\s+not\s+found/i,
+  /invalid\s+method/i,
+  /no\s+such\s+method/i,
+];
+
+function looksLikeCapabilityError(msg: string): boolean {
+  return CAPABILITY_ERROR_PATTERNS.some((re) => re.test(msg));
+}
+
+/**
  * Extends `NConnectSigner` with NIP-46 `sign_psbt` RPC support.
  *
  * Sends a `sign_psbt` command over the NIP-46 relay channel. The remote
- * signer handles the TapTweak and Schnorr signing internally. If the remote
- * signer does not support `sign_psbt`, it returns an error which is propagated
- * with a user-friendly message.
+ * signer handles the TapTweak and Schnorr signing internally.
+ *
+ * NIP-46 returns unstructured string errors, so we use pattern matching to
+ * distinguish capability failures (the signer doesn't know the method) from
+ * operational failures (network, user rejection, bad input). Only capability
+ * failures are re-wrapped with the "doesn't support sending Bitcoin" message
+ * that flips the UI into the unsupported state; everything else propagates
+ * unchanged so the caller can surface the real error.
  */
 export class NConnectSignerBtc extends NConnectSigner implements BtcSigner {
   constructor(opts: NConnectSignerOpts) {
@@ -97,15 +122,20 @@ export class NConnectSignerBtc extends NConnectSigner implements BtcSigner {
   }
 
   async signPsbt(psbtHex: string): Promise<string> {
+    // `cmd` is TypeScript-private but JavaScript-public at runtime.
+    const cmd = (this as unknown as { cmd(method: string, params: string[]): Promise<string> }).cmd;
     try {
-      // `cmd` is TypeScript-private but JavaScript-public at runtime.
-      const cmd = (this as unknown as { cmd(method: string, params: string[]): Promise<string> }).cmd;
       return await cmd.call(this, 'sign_psbt', [psbtHex]);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `Your remote signer doesn't support sending Bitcoin. Update your signer, or log in with your secret key. (${msg})`,
-      );
+      if (looksLikeCapabilityError(msg)) {
+        throw new Error(
+          `Your remote signer doesn't support sending Bitcoin. Update your signer, or log in with your secret key. (${msg})`,
+        );
+      }
+      // Not a capability failure — propagate the original error so the user
+      // sees the actual reason (timeout, rejection, malformed PSBT, etc.).
+      throw error;
     }
   }
 }

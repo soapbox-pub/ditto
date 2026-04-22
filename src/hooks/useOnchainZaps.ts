@@ -64,6 +64,11 @@ export async function verifyOnchainZap(event: NostrEvent): Promise<OnchainZapEnt
   const recipientPubkey = extractOnchainZapRecipient(event);
   if (!txid || !recipientPubkey) return null;
 
+  // Reject self-zaps (sender == recipient). The sender already controls the
+  // destination address, so self-zaps are trivial to fabricate and contribute
+  // nothing meaningful to zap totals.
+  if (event.pubkey === recipientPubkey) return null;
+
   const recipientAddress = nostrPubkeyToBitcoinAddress(recipientPubkey);
   if (!recipientAddress) return null;
 

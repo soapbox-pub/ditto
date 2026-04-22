@@ -146,6 +146,7 @@ const KIND_LABELS: Record<number, string> = {
   30000: 'a follow set',
   39089: 'a follow pack',
   9735: 'a zap',
+  8333: 'a Bitcoin zap',
   31124: 'a Blobbi',
 };
 
@@ -195,6 +196,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
+  8333: Bitcoin,
   31124: Egg,
 };
 

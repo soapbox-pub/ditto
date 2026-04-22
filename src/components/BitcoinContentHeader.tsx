@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBitcoinTx } from '@/hooks/useBitcoinTx';
 import { useBitcoinAddress } from '@/hooks/useBitcoinAddress';
-import { satsToBTC, satsToUSD, formatSats } from '@/lib/bitcoin';
+import { satsToBTC, satsToUSD, formatSats, formatBTC } from '@/lib/bitcoin';
 import type { TxDetail, TxInput, TxOutput } from '@/lib/bitcoin';
 
 // ---------------------------------------------------------------------------
@@ -65,11 +65,6 @@ function formatBlockTime(timestamp: number): string {
     minute: '2-digit',
     hour12: true,
   });
-}
-
-/** Format BTC amount, stripping trailing zeros. */
-function formatBTC(sats: number): string {
-  return satsToBTC(sats).replace(/\.?0+$/, '');
 }
 
 /** Format a large number with locale separators. */

@@ -38,13 +38,26 @@ function getECPair(): ECPairAPI {
 }
 
 /**
+ * Strict 32-byte hex validator. Rejects anything that isn't exactly 64
+ * lowercase-or-uppercase hex characters.
+ */
+function isValidPubkeyHex(hex: string): boolean {
+  return typeof hex === 'string' && /^[0-9a-fA-F]{64}$/.test(hex);
+}
+
+/**
  * Convert a Nostr public key (32-byte hex) to a Bitcoin Taproot (P2TR) address.
  *
  * Both Nostr and Bitcoin Taproot use secp256k1 with 32-byte x-only public keys
  * (Schnorr / BIP-340), so the key can be used directly as a Taproot internal
  * public key with no mathematical conversion.
+ *
+ * Returns an empty string if the input is malformed or not a valid x-only key
+ * on the secp256k1 curve.
  */
 export function nostrPubkeyToBitcoinAddress(pubkeyHex: string): string {
+  if (!isValidPubkeyHex(pubkeyHex)) return '';
+
   try {
     const pubkeyBuffer = Buffer.from(pubkeyHex, 'hex');
 
@@ -128,6 +141,14 @@ export async function fetchAddressData(address: string): Promise<AddressData> {
 /** Convert satoshis to a BTC string with up to 8 decimal places. */
 export function satsToBTC(sats: number): string {
   return (sats / 100_000_000).toFixed(8);
+}
+
+/**
+ * Convert satoshis to a BTC string with trailing zeros stripped.
+ * E.g. `formatBTC(100_000_000)` → `"1"`, `formatBTC(1_234_560)` → `"0.0123456"`.
+ */
+export function formatBTC(sats: number): string {
+  return satsToBTC(sats).replace(/\.?0+$/, '');
 }
 
 /** Format a satoshi amount with locale-aware thousand separators. */
@@ -525,9 +546,11 @@ export function buildUnsignedPsbt(
     totalInput += utxo.value;
   }
 
-  // Estimate fee — first assume 2 outputs (recipient + change)
+  // Estimate fee — first assume 2 outputs (recipient + change). Change at the
+  // dust limit exactly is still standard, so use >= (not >) per BIP-141/P2TR
+  // relay policy (minimum non-dust output is 546 sats).
   const change2Out = totalInput - amountSats - estimateFee(utxos.length, 2, feeRate);
-  const hasChange = change2Out > DUST_LIMIT;
+  const hasChange = change2Out >= DUST_LIMIT;
   const numOutputs = hasChange ? 2 : 1;
   const fee = estimateFee(utxos.length, numOutputs, feeRate);
   const change = totalInput - amountSats - fee;
@@ -570,9 +593,23 @@ export function signPsbtLocal(psbtHex: string, privateKeyHex: string): string {
     bitcoin.crypto.taggedHash('TapTweak', internalPubkey),
   );
 
-  // Sign all inputs
+  // Per the NIP spec: inputs whose `tapInternalKey` does not match the
+  // signer's x-only pubkey MUST be left unchanged. This matters for future
+  // multi-signer PSBTs; today `buildUnsignedPsbt` only ever adds the user's
+  // own UTXOs, so in practice every input matches.
+  let signedAny = false;
   for (let i = 0; i < psbt.inputCount; i++) {
+    const input = psbt.data.inputs[i];
+    const inputInternalKey = input.tapInternalKey;
+    if (!inputInternalKey || !Buffer.from(inputInternalKey).equals(Buffer.from(internalPubkey))) {
+      continue;
+    }
     psbt.signInput(i, tweakedSigner);
+    signedAny = true;
+  }
+
+  if (!signedAny) {
+    throw new Error('No inputs in this PSBT are owned by the signer.');
   }
 
   return psbt.toHex();
