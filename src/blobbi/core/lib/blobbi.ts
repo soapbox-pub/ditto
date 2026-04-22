@@ -259,6 +259,8 @@ export interface BlobbiCompanion {
   visualTraits: BlobbiVisualTraits;
   /** Whether this is a legacy event that needs migration */
   isLegacy: boolean;
+  /** Whether stored color tags differ from seed-derived colors and need republishing */
+  needsColorSync: boolean;
   /** Timestamp of last user interaction (unix seconds) */
   lastInteraction: number;
   /** Timestamp used for stat decay checkpoint (unix seconds) */
@@ -740,17 +742,19 @@ function normalizeHexColor(value: string | undefined): string | undefined {
  * ┌─────────────────────────────────────────────────────────────────────────────┐
  * │ VISUAL TRAIT POLICY                                                         │
  * │                                                                              │
- * │ Trait resolution priority (per field):                                      │
- * │ 1. Explicit valid tags → always take precedence if present (never adjusted) │
- * │ 2. Derive from seed → arbitrary HSL + guardrails for canonical events       │
- * │ 3. Safe defaults → final fallback when both tag and seed are missing        │
+ * │ Color resolution priority:                                                  │
+ * │ 1. Seed present → colors ALWAYS come from seed + guardrails                 │
+ * │    (explicit color tags are ignored; they are mirrors, not overrides)        │
+ * │ 2. No seed → explicit color tags used as-is (legacy fallback)               │
+ * │ 3. Neither → safe defaults                                                  │
+ * │                                                                              │
+ * │ Non-color traits (pattern, special_mark, size):                             │
+ * │ 1. Explicit valid tags take precedence                                      │
+ * │ 2. Derive from seed if no tag present                                       │
+ * │ 3. Safe defaults as final fallback                                          │
  * │                                                                              │
  * │ IMPORTANT: Legacy events may have explicit tags WITHOUT a seed.             │
  * │ These tags must be respected - do NOT discard them in favor of defaults.    │
- * │ Guardrails are ONLY applied to seed-derived colors, never to explicit tags. │
- * │                                                                              │
- * │ New canonical events should rely on seed for visual derivation.             │
- * │ Legacy tags are preserved for backwards compatibility.                      │
  * └─────────────────────────────────────────────────────────────────────────────┘
  * 
  * This function is the SINGLE SOURCE OF TRUTH for visual trait resolution.
@@ -760,11 +764,7 @@ export function deriveVisualTraits(
   tags: string[][],
   seed: string | undefined
 ): BlobbiVisualTraits {
-  // Step 1: Extract and validate explicit tag values
-  // These always take precedence if present and valid
-  const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
-  const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
-  const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
+  // Step 1: Extract and validate explicit tag values for non-color traits
   const tagPattern = normalizePatternTag(getTagValue(tags, 'pattern'));
   const tagSpecialMark = normalizeSpecialMarkTag(getTagValue(tags, 'special_mark'));
   const tagSize = normalizeSizeTag(getTagValue(tags, 'size'));
@@ -777,48 +777,25 @@ export function deriveVisualTraits(
   const fallbackSize = hasSeed ? deriveSizeFromSeed(seed) : DEFAULT_VISUAL_TRAITS.size;
   
   // Step 3: Resolve colors
-  // When ALL three colors come from explicit tags, skip seed derivation entirely.
-  // When seed is available, derive raw colors then apply guardrails as a unit.
-  // Guardrails are NEVER applied to explicit tag values.
-  if (tagBaseColor && tagSecondaryColor && tagEyeColor) {
-    // All three explicit — use as-is, no guardrails
-    return {
-      baseColor: tagBaseColor,
-      secondaryColor: tagSecondaryColor,
-      eyeColor: tagEyeColor,
-      pattern: tagPattern ?? fallbackPattern,
-      specialMark: tagSpecialMark ?? fallbackSpecialMark,
-      size: tagSize ?? fallbackSize,
-    };
-  }
-  
+  // Seed is the canonical source of truth for colors. When present, color tags
+  // are treated as persisted mirrors (for relay indexing / compatibility) and
+  // are NOT consulted for rendering.
   if (hasSeed) {
-    // Derive raw colors from seed
-    const rawBase = deriveBaseColorFromSeed(seed);
-    const rawEye = deriveEyeColorFromSeed(seed);
-    
-    // Apply guardrails to seed-derived base first (needed for harmonized secondary)
-    const guardedColors = applyColorGuardrails({
-      baseColor: rawBase,
-      // Secondary is harmonized from the guarded base color
-      secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
-      eyeColor: rawEye,
-    });
-    
-    // Explicit tags override guarded seed-derived values
+    const colors = deriveColorsFromSeed(seed);
     return {
-      baseColor: tagBaseColor ?? guardedColors.baseColor,
-      secondaryColor: tagSecondaryColor ?? guardedColors.secondaryColor,
-      eyeColor: tagEyeColor ?? guardedColors.eyeColor,
+      ...colors,
       pattern: tagPattern ?? fallbackPattern,
       specialMark: tagSpecialMark ?? fallbackSpecialMark,
       size: tagSize ?? fallbackSize,
     };
   }
   
-  // No seed: use explicit tags with defaults as final fallback.
+  // No seed: use explicit color tags with defaults as final fallback.
   // Secondary falls back to resolved baseColor (not the default yellow)
   // to prevent legacy events with only base_color getting a mismatched accent.
+  const tagBaseColor = normalizeHexColor(getTagValue(tags, 'base_color'));
+  const tagSecondaryColor = normalizeHexColor(getTagValue(tags, 'secondary_color'));
+  const tagEyeColor = normalizeHexColor(getTagValue(tags, 'eye_color'));
   const resolvedBaseColor = tagBaseColor ?? DEFAULT_VISUAL_TRAITS.baseColor;
   return {
     baseColor: resolvedBaseColor,
@@ -828,6 +805,28 @@ export function deriveVisualTraits(
     specialMark: tagSpecialMark ?? fallbackSpecialMark,
     size: tagSize ?? fallbackSize,
   };
+}
+
+/**
+ * Derive the canonical color triplet from a seed.
+ *
+ * This is the single function that turns a 64-char hex seed into the
+ * authoritative baseColor / secondaryColor / eyeColor, with guardrails
+ * applied. All call sites that need seed-derived colors should use this
+ * to guarantee consistency.
+ */
+export function deriveColorsFromSeed(seed: string): {
+  baseColor: string;
+  secondaryColor: string;
+  eyeColor: string;
+} {
+  const rawBase = deriveBaseColorFromSeed(seed);
+  const rawEye = deriveEyeColorFromSeed(seed);
+  return applyColorGuardrails({
+    baseColor: rawBase,
+    secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
+    eyeColor: rawEye,
+  });
 }
 
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
@@ -893,6 +892,39 @@ export function isLegacyBlobbiEvent(event: NostrEvent): boolean {
  */
 export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
   return companion.isLegacy;
+}
+
+/**
+ * Check whether an event's stored color tags differ from its seed-derived colors.
+ *
+ * Returns true when the event has a seed but its base_color, secondary_color,
+ * or eye_color tags do not match the canonical seed-derived values. This means
+ * the event should be republished so the persisted tags mirror the seed.
+ *
+ * Returns false when:
+ * - no seed exists (legacy event; color tags are authoritative)
+ * - all three color tags already match
+ * - any color tag is missing (will be backfilled on next republish)
+ */
+export function eventNeedsColorSync(tags: string[][]): boolean {
+  const seed = getTagValue(tags, 'seed');
+  if (!seed || seed.length !== 64) return false;
+
+  const stored = {
+    base: normalizeHexColor(getTagValue(tags, 'base_color')),
+    secondary: normalizeHexColor(getTagValue(tags, 'secondary_color')),
+    eye: normalizeHexColor(getTagValue(tags, 'eye_color')),
+  };
+
+  // If any color tag is missing the event needs sync (backfill)
+  if (!stored.base || !stored.secondary || !stored.eye) return true;
+
+  const canonical = deriveColorsFromSeed(seed);
+  return (
+    stored.base !== canonical.baseColor ||
+    stored.secondary !== canonical.secondaryColor ||
+    stored.eye !== canonical.eyeColor
+  );
 }
 
 // ─── Event Validation ─────────────────────────────────────────────────────────
@@ -1069,11 +1101,15 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // Check if this is a legacy event that needs migration
   const isLegacy = isLegacyBlobbiEvent(event);
   
+  // Check if stored color tags need syncing with seed-derived values
+  const needsColorSync = eventNeedsColorSync(tags);
+  
   // Concise, structured debug log
   console.log('[Blobbi]', {
     d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
     name,
     isLegacy,
+    needsColorSync,
     hasSeed: !!seed,
     traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
   });
@@ -1110,6 +1146,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     seed,
     visualTraits,
     isLegacy,
+    needsColorSync,
     lastInteraction: parseNumericTag(tags, 'last_interaction')!,
     lastDecayAt: parseNumericTag(tags, 'last_decay_at'),
     stats: {
@@ -1207,15 +1244,8 @@ export function buildEggTags(
   const seed = deriveBlobbiSeedV1(pubkey, d, createdAt);
   const now = createdAt.toString();
   
-  // Derive visual traits from seed for explicit storage.
-  // Colors are generated as arbitrary HSL values and passed through guardrails.
-  const rawBase = deriveBaseColorFromSeed(seed);
-  const rawEye = deriveEyeColorFromSeed(seed);
-  const { baseColor, secondaryColor, eyeColor } = applyColorGuardrails({
-    baseColor: rawBase,
-    secondaryColor: deriveSecondaryColorFromSeed(seed, rawBase),
-    eyeColor: rawEye,
-  });
+  // Derive visual traits from seed for explicit storage (tags mirror the seed).
+  const { baseColor, secondaryColor, eyeColor } = deriveColorsFromSeed(seed);
   const pattern = derivePatternFromSeed(seed);
   const specialMark = deriveSpecialMarkFromSeed(seed);
   const size = deriveSizeFromSeed(seed);
@@ -1394,6 +1424,36 @@ export function mergeTagsForRepublish(
 }
 
 /**
+ * Overwrite color tags so they mirror the seed-derived canonical values.
+ *
+ * When a seed tag is present, replaces base_color / secondary_color /
+ * eye_color with the values from deriveColorsFromSeed(). Missing color
+ * tags are added. If no seed is found the tags are returned unchanged.
+ *
+ * This is called inside mergeBlobbiStateTagsForRepublish so that every
+ * republish automatically backfills correct color tags.
+ */
+function syncColorTagsToSeed(tags: string[][]): string[][] {
+  const seed = getTagValue(tags, 'seed');
+  if (!seed || seed.length !== 64) return tags;
+
+  const canonical = deriveColorsFromSeed(seed);
+  const COLOR_TAG_NAMES = new Set(['base_color', 'secondary_color', 'eye_color']);
+
+  // Remove existing color tags
+  const filtered = tags.filter((t) => !COLOR_TAG_NAMES.has(t[0]));
+
+  // Append canonical values
+  filtered.push(
+    ['base_color', canonical.baseColor],
+    ['secondary_color', canonical.secondaryColor],
+    ['eye_color', canonical.eyeColor],
+  );
+
+  return filtered;
+}
+
+/**
  * Update specific tags in a Blobbi event while preserving unknown tags.
  * Uses MANAGED_BLOBBI_STATE_TAG_NAMES for Kind 31124.
  */
@@ -1456,7 +1516,12 @@ export function mergeBlobbiStateTagsForRepublish(
     !DEPRECATED_BLOBBI_TAG_NAMES.has(tag[0])
   );
   
-  const mergedTags = [...newTags, ...unknownTags];
+  let mergedTags = [...newTags, ...unknownTags];
+  
+  // ─── Sync color tags to seed-derived values ───
+  // When a seed exists, color tags are mirrors of the seed. Overwrite any
+  // stale values so the persisted tags always match the canonical derivation.
+  mergedTags = syncColorTagsToSeed(mergedTags);
   
   // Skip validation if requested (for internal use)
   if (options?.skipValidation) {
