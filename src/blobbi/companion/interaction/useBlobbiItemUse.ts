@@ -45,15 +45,13 @@ import {
   applyStat,
   hasMedicineEffectForEgg,
   hasHygieneEffectForEgg,
-  incrementInteractionTaskTags,
   type InventoryAction,
   ACTION_METADATA,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions } from '@/blobbi/actions/lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@/blobbi/actions/lib/daily-mission-tracker';
 import type { DailyMissionAction } from '@/blobbi/actions/lib/daily-missions';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
-import { HATCH_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useHatchTasks';
-import { EVOLVE_REQUIRED_INTERACTIONS } from '@/blobbi/actions/hooks/useEvolveTasks';
 
 import type { UseItemFunction } from './BlobbiActionsContextDef';
 
@@ -353,15 +351,22 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // Handle interaction counter for tasks
-      const companionState = companion.state;
-      let updatedTags = companion.allTags;
-      if (companionState === 'incubating') {
-        updatedTags = incrementInteractionTaskTags(companion.allTags, HATCH_REQUIRED_INTERACTIONS).updatedTags;
-      } else if (companionState === 'evolving') {
-        updatedTags = incrementInteractionTaskTags(companion.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
+      // If incubating or evolving, increment the interaction counter in evolution missions
+      const progressionState = companion.progressionState;
+      const updatedTags = companion.allTags;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        trackEvolutionMissionTally('interactions', 1, user?.pubkey, companion.d);
       }
       
+      // ─── Build content with latest evolution state ───
+      let content = companion.event.content;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        const evo = readEvolutionFromStorage(user?.pubkey, companion.d);
+        if (evo && evo.length > 0) {
+          content = serializeEvolutionContent(companion.event.content, evo);
+        }
+      }
+
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(companion) ?? {};
       
@@ -374,7 +379,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       const blobbiEvent = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: companion.event.content,
+        content,
         tags: blobbiTags,
       });
       

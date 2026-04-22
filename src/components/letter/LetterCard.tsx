@@ -6,11 +6,13 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { FONT_OPTIONS, LETTER_KIND, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
 import { ensureLetterFonts } from '@/lib/letterUtils';
+import { sanitizeCssString } from '@/lib/fontLoader';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
@@ -50,13 +52,14 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const shareOrigin = useShareOrigin();
 
   const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 
   const noteId = nip19.noteEncode(letter.event.id);
-  const letterUrl = `${window.location.origin}/${noteId}`;
+  const letterUrl = `${shareOrigin}/${noteId}`;
   const isOwnLetter = user?.pubkey === letter.sender;
 
   const handleCopyLink = (e: React.MouseEvent) => {
@@ -98,7 +101,10 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true });
 
   const { text: textColor, faint: faintColor, line: lineColor } = useStationeryColors(effectiveStationery);
-  const rawFont = effectiveStationery?.fontFamily;
+  // Sanitize event-sourced font family before CSS interpolation (M-6).
+  const rawFont = effectiveStationery?.fontFamily
+    ? sanitizeCssString(effectiveStationery.fontFamily)
+    : undefined;
   const letterFontFamily = rawFont
     ? (rawFont.includes(',') ? rawFont : `${rawFont}, ${FONT_OPTIONS[0].family}`)
     : FONT_OPTIONS[0].family;

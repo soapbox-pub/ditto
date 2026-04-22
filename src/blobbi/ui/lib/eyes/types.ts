@@ -24,6 +24,8 @@ export interface EyePosition {
   radius: number;
   /** Which eye this is */
   side: EyeSide;
+  /** Eye white vertical radius (if detected). Used for anchoring eyebrows to eye top. */
+  eyeWhiteRy?: number;
 }
 
 // ─── Eye Geometry ─────────────────────────────────────────────────────────────

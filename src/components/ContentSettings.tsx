@@ -29,6 +29,7 @@ import { buildKindOptions } from '@/lib/feedFilterUtils';
 import { genUserName } from '@/lib/genUserName';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
+import { getStorageKey } from '@/lib/storageKey';
 import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
@@ -246,43 +247,44 @@ function FeedTabsSection() {
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [community, setCommunity] = useState<{ domain: string; userCount: number; label: string } | null>(() => {
-    const stored = localStorage.getItem('ditto:community');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'community'));
     return stored ? JSON.parse(stored) : null;
   });
 
   const [showDittoFeed, setShowDittoFeed] = useState(() => {
-    const stored = localStorage.getItem('ditto:showDittoFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showDittoFeed'));
     return stored !== null ? stored === 'true' : true; // Default to true
   });
 
   const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
-    const stored = localStorage.getItem('ditto:showGlobalFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showGlobalFeed'));
     return stored !== null ? stored === 'true' : false; // Default to false
   });
 
   const [showCommunityFeed, setShowCommunityFeed] = useState(() => {
-    const stored = localStorage.getItem('ditto:showCommunityFeed');
+    const stored = localStorage.getItem(getStorageKey(config.appId, 'showCommunityFeed'));
     return stored !== null ? stored === 'true' : false; // Default to false
   });
 
   const handleToggleDittoFeed = async (checked: boolean) => {
     setShowDittoFeed(checked);
-    localStorage.setItem('ditto:showDittoFeed', String(checked));
+    localStorage.setItem(getStorageKey(config.appId, 'showDittoFeed'), String(checked));
     toast({
-      title: checked ? 'Ditto feed enabled' : 'Ditto feed disabled',
+      title: checked ? `${config.appName} feed enabled` : `${config.appName} feed disabled`,
       description: checked
-        ? 'The Ditto feed tab will appear in your navigation'
-        : 'The Ditto feed tab will be hidden',
+        ? `The ${config.appName} feed tab will appear in your navigation`
+        : `The ${config.appName} feed tab will be hidden`,
     });
   };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
     setShowGlobalFeed(checked);
-    localStorage.setItem('ditto:showGlobalFeed', String(checked));
+    localStorage.setItem(getStorageKey(config.appId, 'showGlobalFeed'), String(checked));
     if (user) {
       await updateSettings.mutateAsync({ showGlobalFeed: checked });
     }
@@ -296,7 +298,7 @@ function FeedTabsSection() {
 
   const handleToggleCommunityFeed = async (checked: boolean) => {
     setShowCommunityFeed(checked);
-    localStorage.setItem('ditto:showCommunityFeed', String(checked));
+    localStorage.setItem(getStorageKey(config.appId, 'showCommunityFeed'), String(checked));
     if (user) {
       await updateSettings.mutateAsync({ showCommunityFeed: checked });
     }
@@ -351,14 +353,14 @@ function FeedTabsSection() {
       // Store in localStorage (single community only)
       const newCommunity = { domain, userCount, label };
       setCommunity(newCommunity);
-      localStorage.setItem('ditto:community', JSON.stringify(newCommunity));
+      localStorage.setItem(getStorageKey(config.appId, 'community'), JSON.stringify(newCommunity));
       
       // Store the actual JSON data for later use
-      localStorage.setItem('ditto:communityData', JSON.stringify(data));
+      localStorage.setItem(getStorageKey(config.appId, 'communityData'), JSON.stringify(data));
 
       // Auto-enable the Community feed tab
       setShowCommunityFeed(true);
-      localStorage.setItem('ditto:showCommunityFeed', 'true');
+      localStorage.setItem(getStorageKey(config.appId, 'showCommunityFeed'), 'true');
 
       // Sync to encrypted settings
       if (user) {
@@ -388,12 +390,12 @@ function FeedTabsSection() {
 
   const handleRemoveCommunity = async () => {
     setCommunity(null);
-    localStorage.removeItem('ditto:community');
-    localStorage.removeItem('ditto:communityData');
+    localStorage.removeItem(getStorageKey(config.appId, 'community'));
+    localStorage.removeItem(getStorageKey(config.appId, 'communityData'));
     
     // Also disable the community feed tab
     setShowCommunityFeed(false);
-    localStorage.setItem('ditto:showCommunityFeed', 'false');
+    localStorage.setItem(getStorageKey(config.appId, 'showCommunityFeed'), 'false');
 
     if (user) {
       await updateSettings.mutateAsync({ communityData: undefined, showCommunityFeed: false });
@@ -447,8 +449,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Ditto Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the Ditto relay</p>
+            <Label className="text-sm font-medium">{config.appName} Feed</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the {config.appName} relay</p>
           </div>
           <Switch
             checked={showDittoFeed}
@@ -569,6 +571,7 @@ function FeedTabsSection() {
 function InterestsSection() {
   const { toast } = useToast();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { hashtags, addInterest: addHashtag, removeInterest: removeHashtag, isLoading: isLoadingHashtags } = useInterests('t');
   const { hashtags: geotags, addInterest: addGeotag, removeInterest: removeGeotag, isLoading: isLoadingGeotags } = useInterests('g');
   const [newHashtag, setNewHashtag] = useState('');
@@ -630,7 +633,7 @@ function InterestsSection() {
 
         <div className="flex gap-2">
           <Input
-            placeholder="ditto"
+            placeholder={config.appId}
             value={newHashtag}
             onChange={(e) => setNewHashtag(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddHashtag(); }}
@@ -1240,6 +1243,34 @@ function MuteTypeSection({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function VideoAutoplaySection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const autoplay = config.autoplayVideos === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, autoplayVideos: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ autoplayVideos: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">Autoplay videos</Label>
+        <p className="text-xs text-muted-foreground">Automatically play videos (muted) in feeds and previews</p>
+      </div>
+      <Switch
+        checked={autoplay}
+        onCheckedChange={handleToggle}
+      />
     </div>
   );
 }

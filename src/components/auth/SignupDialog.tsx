@@ -1,9 +1,8 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { Capacitor } from '@capacitor/core';
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,9 +11,10 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
-import { downloadTextFile } from '@/lib/downloadFile';
+import { saveNsec } from '@/lib/credentialManager';
 import { ProfileCard } from '@/components/ProfileCard';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { isValidAvatarShape } from '@/lib/avatarShape';
 import type { NostrMetadata } from '@nostrify/nostrify';
 
 interface SignupDialogProps {
@@ -31,6 +31,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     about: '',
     picture: '',
     banner: '',
+    shape: '',
   });
   const [cropState, setCropState] = useState<{ imageSrc: string; aspect: number; field: 'picture' | 'banner' } | null>(null);
   const pickInputRef = useRef<HTMLInputElement>(null);
@@ -39,14 +40,19 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
 
-  // Generate a proper nsec key using nostr-tools
+  // Generate a proper nsec key using nostr-tools.
+  // The credential manager / file download is deferred until the user clicks "Continue".
   const generateKey = () => {
     const sk = generateSecretKey();
-    setNsec(nip19.nsecEncode(sk));
+    const encoded = nip19.nsecEncode(sk);
+    setNsec(encoded);
     setStep('download');
   };
 
-  const downloadKey = async () => {
+  // Continue handler for the save-key step — saves the key via the best
+  // available method (native credential manager on iOS/Android, file download
+  // on web), logs in, and advances to the profile step.
+  const handleContinue = async () => {
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== 'nsec') {
@@ -55,21 +61,15 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
 
-      await downloadTextFile(filename, nsec);
+      await saveNsec(npub, nsec);
 
-      if (Capacitor.getPlatform() === 'android') {
-        toast({ title: 'Key saved', description: `Saved to Download/${filename}` });
-      }
-
-      // Continue to profile step
       login.nsec(nsec);
       setStep('profile');
     } catch {
       toast({
-        title: 'Download failed',
-        description: 'Could not download the key file. Please copy it manually.',
+        title: 'Save failed',
+        description: 'Could not save the key. Please copy it manually.',
         variant: 'destructive',
       });
     }
@@ -110,9 +110,18 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   const finishSignup = async (skipProfile = false) => {
     try {
       if (!skipProfile && (profileData.name || profileData.about || profileData.picture)) {
+        // Build the outgoing metadata, stripping empty strings and validating shape.
+        const { shape, ...rest } = profileData;
+        const data: Record<string, unknown> = { ...rest };
+        if (shape && isValidAvatarShape(shape)) {
+          data.shape = shape;
+        }
+        for (const key in data) {
+          if (data[key] === '') delete data[key];
+        }
         await publishEvent({
           kind: 0,
-          content: JSON.stringify(profileData),
+          content: JSON.stringify(data),
           tags: [],
         });
       }
@@ -139,7 +148,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
       setStep('generate');
       setNsec('');
       setShowKey(false);
-      setProfileData({ name: '', about: '', picture: '' });
+      setProfileData({ name: '', about: '', picture: '', banner: '', shape: '' });
     }
   }, [isOpen]);
 
@@ -166,7 +175,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Download Step */}
+          {/* Save Key Step */}
           {step === 'download' && (
             <div className='space-y-4'>
               <div className="flex size-16 text-4xl bg-primary/10 rounded-full items-center justify-center justify-self-center">
@@ -197,10 +206,9 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
 
               <Button
                 className="w-full h-12 px-9"
-                onClick={downloadKey}
+                onClick={handleContinue}
               >
-                <Download className="size-4" />
-                Download key
+                Continue
               </Button>
 
               <div className='mx-auto max-w-sm'>
@@ -211,7 +219,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                     </span>
                   </div>
                   <p className='text-xs text-amber-900 dark:text-amber-300'>
-                    This key is your primary and only means of accessing your account. Store it safely and securely. Please download your key to continue.
+                    This key is your primary and only means of accessing your account. Store it safely and securely.
                   </p>
                 </div>
               </div>
@@ -238,6 +246,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                   metadata={profileData}
                   onChange={(patch) => setProfileData(prev => ({ ...prev, ...patch }))}
                   onPickImage={handlePickImage}
+                  onAvatarShape={(shape) => setProfileData(prev => ({ ...prev, shape }))}
                 />
               </div>
 

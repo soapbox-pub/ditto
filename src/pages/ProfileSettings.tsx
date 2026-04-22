@@ -2,8 +2,12 @@ import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Plus, Trash2, ChevronDown,
-  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, AlertTriangle, CloudSun,
+  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, EyeOff, Copy, Check, Download, KeyRound, AlertTriangle, CloudSun,
 } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
+import { useNostrLogin } from '@nostrify/react/login';
+
+import { saveNsec } from '@/lib/credentialManager';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { Navigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -866,7 +870,7 @@ export function ProfileSettings() {
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
+            <CollapsibleContent className="pt-3 space-y-4">
               <FormField
                 control={form.control}
                 name="bot"
@@ -882,11 +886,185 @@ export function ProfileSettings() {
                   </FormItem>
                 )}
               />
+
+              {/* Your Key — private-key backup. Rendered inside Advanced but is not part of the form. */}
+              <div className="pt-2">
+                <BackupKeySection />
+              </div>
             </CollapsibleContent>
           </Collapsible>
 
         </form>
       </Form>
     </main>
+  );
+}
+
+// ── Backup Key section ────────────────────────────────────────────────────────
+
+function BackupKeySection() {
+  const { logins } = useNostrLogin();
+  const { config } = useAppContext();
+  const { toast } = useToast();
+  const current = logins[0];
+
+  const [showKey, setShowKey] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const heading = (
+    <div className="flex items-center gap-2 pb-1">
+      <KeyRound className="size-4 text-primary/70" />
+      <h2 className="text-sm font-semibold">Your Key</h2>
+    </div>
+  );
+
+  // Not applicable for extension / bunker logins — key isn't available in Ditto.
+  if (!current) return null;
+
+  if (current.type === 'extension') {
+    return (
+      <div>
+        {heading}
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself.
+        </p>
+      </div>
+    );
+  }
+
+  if (current.type === 'bunker') {
+    return (
+      <div>
+        {heading}
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          You're signed in with a remote signer (NIP-46). Your secret key is held by that signer and cannot be exported from {config.appName}.
+        </p>
+      </div>
+    );
+  }
+
+  if (current.type !== 'nsec') {
+    // Unknown future login type — don't guess.
+    return null;
+  }
+
+  const nsec = current.data.nsec;
+  const npub = nip19.npubEncode(current.pubkey);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(nsec);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not access the clipboard. Reveal the key and copy it manually.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBackup = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const result = await saveNsec(npub, nsec, config.appName);
+      if (result === 'saved-to-file') {
+        toast({
+          title: 'Secret key saved',
+          description: 'Your secret key was saved to the Documents folder on your device.',
+        });
+      } else if (result === 'saved') {
+        toast({ title: 'Secret key saved' });
+      }
+      // 'dismissed' is a deliberate user choice — no toast.
+    } catch {
+      toast({
+        title: 'Save failed',
+        description: 'Could not save the key. Please copy it manually.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {heading}
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        This secret key controls your account on {config.appName}. Anyone with it can post, read your DMs, and impersonate you. Store it in a password manager or somewhere else only you can access.
+      </p>
+
+      <div className="relative">
+        <Input
+          type={showKey ? 'text' : 'password'}
+          value={nsec}
+          readOnly
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
+          className="pr-20 font-mono text-base md:text-sm"
+          aria-label="Your secret key"
+        />
+        <div className="absolute right-0 top-0 h-full flex items-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-full px-2 hover:bg-transparent"
+            onClick={handleCopy}
+            aria-label="Copy secret key"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-full px-2 hover:bg-transparent"
+            onClick={() => setShowKey((v) => !v)}
+            aria-label={showKey ? 'Hide secret key' : 'Reveal secret key'}
+          >
+            {showKey ? (
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {showKey && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
+          <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
+            NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account.
+          </p>
+        </div>
+      )}
+
+      <Button
+        type="button"
+        size="lg"
+        className="w-full gap-2 rounded-full h-12"
+        onClick={handleBackup}
+        disabled={isSaving}
+      >
+        {isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" /> Back Up Key
+          </>
+        )}
+      </Button>
+    </div>
   );
 }

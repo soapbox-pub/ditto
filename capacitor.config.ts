@@ -5,8 +5,6 @@ const config: CapacitorConfig = {
   appName: 'Ditto',
   webDir: 'dist',
   server: {
-    // Handle deep links from your domain
-    hostname: 'ditto.pub',
     androidScheme: 'https',
     iosScheme: 'https'
   },
@@ -17,9 +15,16 @@ const config: CapacitorConfig = {
   },
   ios: {
     backgroundColor: '#14161f',
-    contentInset: 'automatic',
+    contentInset: 'never',
     scheme: 'Ditto'
-  }
+  },
+  plugins: {
+    SystemBars: {
+      // Inject --safe-area-inset-* CSS variables on Android to work around
+      // a Chromium bug (<140) where env(safe-area-inset-*) reports 0.
+      insetsHandling: 'css',
+    },
+  },
 };
 
 export default config;

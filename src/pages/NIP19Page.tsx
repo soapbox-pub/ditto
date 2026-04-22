@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import NotFound from './NotFound';
 import { ProfilePage } from './ProfilePage';
 import { PostDetailPage, AddrPostDetailPage, PostDetailShell, PostDetailSkeleton } from './PostDetailPage';
-import { ListDetailPage } from './ListDetailPage';
 import type { AddressPointer } from 'nostr-tools/nip19';
 
 const HEX_64_RE = /^[0-9a-f]{64}$/;
@@ -113,9 +112,6 @@ export function NIP19Page() {
 
     case 'naddr': {
       const addr = decoded.data as AddressPointer;
-      if (addr.kind === 30000) {
-        return <ListDetailPage />;
-      }
       return <AddrPostDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} relays={addr.relays} />;
     }
 

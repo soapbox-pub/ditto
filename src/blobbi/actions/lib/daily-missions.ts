@@ -1,36 +1,45 @@
 /**
  * Daily Missions System for Blobbi
- * 
- * This module defines the daily mission pool, selection logic, and types.
- * Daily missions are separate from hatch/evolve missions and provide
- * daily engagement loops with coin rewards.
+ *
+ * Defines the daily mission pool, selection logic, and state management.
+ * Missions use the tally/event model from missions.ts:
+ *   - Tally missions: { id, target, count }
+ *   - Event missions: { id, target, events }
+ * Completion is derived: count >= target or events.length >= target.
+ * No explicit completed/claimed flags.
  */
+
+import type { Mission, TallyMission, EventMission, MissionsContent } from '@/blobbi/core/lib/missions';
+import { isTallyMission, isEventMission, isMissionComplete } from '@/blobbi/core/lib/missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
- * Mission action types that can trigger progress
+ * Actions that can trigger daily mission progress.
+ * Tally actions increment a counter. Event actions append an event ID.
  */
-export type DailyMissionAction = 
-  | 'interact'      // Any interaction (feed, clean, play, etc.)
-  | 'feed'          // Feeding action specifically
-  | 'clean'         // Cleaning action specifically
-  | 'sing'          // Sing direct action
-  | 'play_music'    // Play music direct action
-  | 'sleep'         // Put Blobbi to sleep
-  | 'take_photo'    // Take a photo of Blobbi
-  | 'medicine';     // Give medicine to Blobbi
+export type DailyMissionAction =
+  | 'interact'      // Any care interaction (tally)
+  | 'feed'          // Feeding action (tally)
+  | 'clean'         // Cleaning action (tally)
+  | 'sing'          // Sing direct action (tally)
+  | 'play_music'    // Play music direct action (tally)
+  | 'sleep'         // Put Blobbi to sleep (tally)
+  | 'take_photo'    // Take a photo (event)
+  | 'medicine';     // Give medicine (tally)
 
-/**
- * Blobbi stage type for filtering missions
- */
+/** Whether a mission action tracks events or tallies */
+export type MissionTrackingType = 'tally' | 'event';
+
+/** Blobbi stage type for filtering missions */
 export type BlobbiStage = 'egg' | 'baby' | 'adult';
 
 /**
- * Definition of a daily mission in the pool
+ * Definition of a daily mission in the pool.
+ * This is the static template -- not the runtime state.
  */
 export interface DailyMissionDefinition {
-  /** Unique identifier for this mission type */
+  /** Unique identifier */
   id: string;
   /** Display title */
   title: string;
@@ -39,41 +48,15 @@ export interface DailyMissionDefinition {
   /** Action that triggers progress */
   action: DailyMissionAction;
   /** Number of times the action must be performed */
-  requiredCount: number;
-  /** Coin reward for completing this mission */
-  reward: number;
-  /** Selection weight (higher = more likely to be selected) */
+  target: number;
+  /** Whether this mission tracks events or tallies */
+  tracking: MissionTrackingType;
+  /** XP reward for completing this mission */
+  xp: number;
+  /** Selection weight (higher = more likely) */
   weight: number;
-  /** Required stages to show this mission (if empty/undefined, requires baby or adult) */
+  /** Required stages to show this mission */
   requiredStages?: BlobbiStage[];
-}
-
-/**
- * A daily mission instance with progress tracking
- */
-export interface DailyMission extends DailyMissionDefinition {
-  /** Current progress (how many times the action has been performed today) */
-  currentCount: number;
-  /** Whether the mission has been completed */
-  completed: boolean;
-  /** Whether the reward has been claimed */
-  claimed: boolean;
-}
-
-/**
- * Stored state for daily missions (persisted in localStorage)
- */
-export interface DailyMissionsState {
-  /** The date string (YYYY-MM-DD) when these missions were generated */
-  date: string;
-  /** The selected missions for this day */
-  missions: DailyMission[];
-  /** Total coins earned from daily missions (lifetime) */
-  totalCoinsEarned: number;
-  /** Whether the bonus mission has been claimed today */
-  bonusClaimed?: boolean;
-  /** Number of rerolls remaining for today (resets daily, max 3) */
-  rerollsRemaining?: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -81,235 +64,144 @@ export interface DailyMissionsState {
 /** Maximum number of mission rerolls allowed per day */
 export const MAX_DAILY_REROLLS = 3;
 
+/** Number of daily missions selected each day */
+export const DAILY_MISSION_COUNT = 3;
+
+/** XP bonus for completing all daily missions */
+export const DAILY_BONUS_XP = 50;
+
 // ─── Mission Pool ─────────────────────────────────────────────────────────────
 
-/**
- * The pool of available daily missions.
- * Weights determine selection frequency:
- * - High weight (10): Common missions (interact, feed, clean)
- * - Medium weight (6): Regular missions (sing, play music, sleep)
- * - Low weight (2): Uncommon missions (change shape)
- * - Rare weight (1): Rare missions (take photo)
- */
 export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BABY/ADULT ONLY MISSIONS
-  // These actions are NOT available for eggs
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // ─── Interact Missions (Baby/Adult only) ───────────────────────────────────
+  // ── Baby/Adult only ──────────────────────────────────────────────────────
   {
-    id: 'interact_3',
-    title: 'Quick Care',
+    id: 'interact_3', title: 'Quick Care',
     description: 'Interact with your Blobbi 3 times',
-    action: 'interact',
-    requiredCount: 3,
-    reward: 30,
-    weight: 10,
+    action: 'interact', target: 3, tracking: 'tally', xp: 15, weight: 10,
     requiredStages: ['baby', 'adult'],
   },
   {
-    id: 'interact_6',
-    title: 'Attentive Caretaker',
+    id: 'interact_6', title: 'Attentive Caretaker',
     description: 'Interact with your Blobbi 6 times',
-    action: 'interact',
-    requiredCount: 6,
-    reward: 50,
-    weight: 8,
+    action: 'interact', target: 6, tracking: 'tally', xp: 30, weight: 8,
     requiredStages: ['baby', 'adult'],
   },
-
-  // ─── Feed Missions (Baby/Adult only) ───────────────────────────────────────
   {
-    id: 'feed_1',
-    title: 'Snack Time',
+    id: 'feed_1', title: 'Snack Time',
     description: 'Feed your Blobbi once',
-    action: 'feed',
-    requiredCount: 1,
-    reward: 25,
-    weight: 10,
+    action: 'feed', target: 1, tracking: 'tally', xp: 10, weight: 10,
     requiredStages: ['baby', 'adult'],
   },
   {
-    id: 'feed_2',
-    title: 'Hungry Blobbi',
+    id: 'feed_2', title: 'Hungry Blobbi',
     description: 'Feed your Blobbi 2 times',
-    action: 'feed',
-    requiredCount: 2,
-    reward: 45,
-    weight: 8,
+    action: 'feed', target: 2, tracking: 'tally', xp: 20, weight: 8,
     requiredStages: ['baby', 'adult'],
   },
   {
-    id: 'feed_3',
-    title: 'Feast Day',
+    id: 'feed_3', title: 'Feast Day',
     description: 'Feed your Blobbi 3 times',
-    action: 'feed',
-    requiredCount: 3,
-    reward: 60,
-    weight: 5,
+    action: 'feed', target: 3, tracking: 'tally', xp: 35, weight: 5,
     requiredStages: ['baby', 'adult'],
   },
-
-  // ─── Sleep Missions (Baby/Adult only) ──────────────────────────────────────
   {
-    id: 'sleep_1',
-    title: 'Nap Time',
+    id: 'sleep_1', title: 'Nap Time',
     description: 'Put your Blobbi to sleep',
-    action: 'sleep',
-    requiredCount: 1,
-    reward: 30,
-    weight: 6,
-    requiredStages: ['baby', 'adult'],
-  },
-
-  // ─── Photo Missions (Baby/Adult only) ──────────────────────────────────────
-  {
-    id: 'take_photo_1',
-    title: 'Snapshot',
-    description: 'Take a polaroid photo of your Blobbi',
-    action: 'take_photo',
-    requiredCount: 1,
-    reward: 55,
-    weight: 4,
+    action: 'sleep', target: 1, tracking: 'tally', xp: 15, weight: 6,
     requiredStages: ['baby', 'adult'],
   },
   {
-    id: 'take_photo_2',
-    title: 'Photo Album',
+    id: 'take_photo_1', title: 'Snapshot',
+    description: 'Take a photo of your Blobbi',
+    action: 'take_photo', target: 1, tracking: 'event', xp: 25, weight: 4,
+    requiredStages: ['baby', 'adult'],
+  },
+  {
+    id: 'take_photo_2', title: 'Photo Album',
     description: 'Take 2 photos of your Blobbi',
-    action: 'take_photo',
-    requiredCount: 2,
-    reward: 70,
-    weight: 2,
+    action: 'take_photo', target: 2, tracking: 'event', xp: 40, weight: 2,
     requiredStages: ['baby', 'adult'],
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // EGG + BABY + ADULT MISSIONS
-  // These actions are available for ALL stages including eggs
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // ─── Clean Missions (All stages) ───────────────────────────────────────────
+  // ── All stages ───────────────────────────────────────────────────────────
   {
-    id: 'clean_1',
-    title: 'Quick Cleanup',
+    id: 'clean_1', title: 'Quick Cleanup',
     description: 'Clean your Blobbi once',
-    action: 'clean',
-    requiredCount: 1,
-    reward: 25,
-    weight: 10,
+    action: 'clean', target: 1, tracking: 'tally', xp: 10, weight: 10,
     requiredStages: ['egg', 'baby', 'adult'],
   },
   {
-    id: 'clean_2',
-    title: 'Squeaky Clean',
+    id: 'clean_2', title: 'Squeaky Clean',
     description: 'Clean your Blobbi 2 times',
-    action: 'clean',
-    requiredCount: 2,
-    reward: 45,
-    weight: 6,
+    action: 'clean', target: 2, tracking: 'tally', xp: 20, weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
-
-  // ─── Sing Missions (All stages) ────────────────────────────────────────────
   {
-    id: 'sing_1',
-    title: 'Sing Along',
+    id: 'sing_1', title: 'Sing Along',
     description: 'Sing a song to your Blobbi',
-    action: 'sing',
-    requiredCount: 1,
-    reward: 30,
-    weight: 6,
+    action: 'sing', target: 1, tracking: 'tally', xp: 15, weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
   {
-    id: 'sing_2',
-    title: 'Karaoke Session',
+    id: 'sing_2', title: 'Karaoke Session',
     description: 'Sing 2 songs to your Blobbi',
-    action: 'sing',
-    requiredCount: 2,
-    reward: 50,
-    weight: 3,
+    action: 'sing', target: 2, tracking: 'tally', xp: 25, weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
-
-  // ─── Play Music Missions (All stages) ──────────────────────────────────────
   {
-    id: 'play_music_1',
-    title: 'DJ Time',
+    id: 'play_music_1', title: 'DJ Time',
     description: 'Play a song for your Blobbi',
-    action: 'play_music',
-    requiredCount: 1,
-    reward: 30,
-    weight: 6,
+    action: 'play_music', target: 1, tracking: 'tally', xp: 15, weight: 6,
     requiredStages: ['egg', 'baby', 'adult'],
   },
   {
-    id: 'play_music_2',
-    title: 'Music Marathon',
+    id: 'play_music_2', title: 'Music Marathon',
     description: 'Play 2 songs for your Blobbi',
-    action: 'play_music',
-    requiredCount: 2,
-    reward: 50,
-    weight: 3,
+    action: 'play_music', target: 2, tracking: 'tally', xp: 25, weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
-
-  // ─── Medicine Missions (All stages) ────────────────────────────────────────
-  // Medicine rewards are higher since medicine costs coins to use
   {
-    id: 'medicine_1',
-    title: 'Health Check',
+    id: 'medicine_1', title: 'Health Check',
     description: 'Give medicine to your Blobbi',
-    action: 'medicine',
-    requiredCount: 1,
-    reward: 60,
-    weight: 5,
+    action: 'medicine', target: 1, tracking: 'tally', xp: 20, weight: 5,
     requiredStages: ['egg', 'baby', 'adult'],
   },
   {
-    id: 'medicine_2',
-    title: 'Doctor Visit',
+    id: 'medicine_2', title: 'Doctor Visit',
     description: 'Give medicine to your Blobbi 2 times',
-    action: 'medicine',
-    requiredCount: 2,
-    reward: 70,
-    weight: 3,
+    action: 'medicine', target: 2, tracking: 'tally', xp: 35, weight: 3,
     requiredStages: ['egg', 'baby', 'adult'],
   },
 ];
 
-// ─── Utility Functions ────────────────────────────────────────────────────────
+// ─── Lookup ──────────────────────────────────────────────────────────────────
 
-/**
- * Get the current date string in YYYY-MM-DD format (local timezone)
- */
+const POOL_BY_ID = new Map(DAILY_MISSION_POOL.map((d) => [d.id, d]));
+
+/** Look up a mission definition by ID */
+export function getDefinition(id: string): DailyMissionDefinition | undefined {
+  return POOL_BY_ID.get(id);
+}
+
+// ─── Date Utilities ──────────────────────────────────────────────────────────
+
+/** YYYY-MM-DD in local timezone */
 export function getTodayDateString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-/**
- * Generate a seed number from a date string and optional user pubkey.
- * Used for deterministic daily mission selection.
- */
-function generateDailySeed(dateString: string, pubkey?: string): number {
-  const input = pubkey ? `${dateString}:${pubkey}` : dateString;
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
+/** Whether the missions content needs a daily reset */
+export function needsDailyReset(missions: MissionsContent | undefined): boolean {
+  if (!missions) return true;
+  return missions.date !== getTodayDateString();
 }
 
-/**
- * Seeded random number generator (Mulberry32)
- */
+// ─── Selection ───────────────────────────────────────────────────────────────
+
+/** Seeded PRNG (Mulberry32) */
 function seededRandom(seed: number): () => number {
-  return function() {
+  return function () {
     let t = seed += 0x6D2B79F5;
     t = Math.imul(t ^ t >>> 15, t | 1);
     t ^= t + Math.imul(t ^ t >>> 7, t | 61);
@@ -317,392 +209,240 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/**
- * Check if a mission is available for the given stages.
- * Missions with no requiredStages default to requiring baby or adult.
- */
-function isMissionAvailableForStages(
-  mission: DailyMissionDefinition,
-  availableStages: BlobbiStage[]
-): boolean {
-  const requiredStages = mission.requiredStages ?? ['baby', 'adult'];
-  return requiredStages.some((stage) => availableStages.includes(stage));
+function generateDailySeed(dateString: string, pubkey?: string): number {
+  const input = pubkey ? `${dateString}:${pubkey}` : dateString;
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function isMissionAvailableForStages(def: DailyMissionDefinition, stages: BlobbiStage[]): boolean {
+  const required = def.requiredStages ?? ['baby', 'adult'];
+  return required.some((s) => stages.includes(s));
 }
 
 /**
- * Select N missions from the pool using weighted random selection.
- * Uses a seeded random generator for deterministic daily selection.
- * 
- * @param count - Number of missions to select
- * @param dateString - Date string for seeding (YYYY-MM-DD)
- * @param pubkey - Optional user pubkey for seeding
- * @param availableStages - Stages the user has available (filters eligible missions)
+ * Select N missions deterministically from the pool.
+ * Seeded by date + pubkey so the same user gets the same missions for a given day.
  */
 export function selectDailyMissions(
   count: number,
   dateString: string,
   pubkey?: string,
-  availableStages?: BlobbiStage[]
+  availableStages?: BlobbiStage[],
 ): DailyMissionDefinition[] {
-  const seed = generateDailySeed(dateString, pubkey);
-  const random = seededRandom(seed);
-  
-  // Filter pool by available stages (default to baby/adult if not specified)
-  const stagesToCheck = availableStages ?? ['baby', 'adult'];
-  const eligibleMissions = DAILY_MISSION_POOL.filter((m) =>
-    isMissionAvailableForStages(m, stagesToCheck)
-  );
-  
-  // If no missions are available for the user's stages, return empty
-  if (eligibleMissions.length === 0) {
-    return [];
-  }
-  
-  // Create a copy of the eligible pool
-  const available = [...eligibleMissions];
+  const stages = availableStages ?? ['baby', 'adult'];
+  const eligible = DAILY_MISSION_POOL.filter((m) => isMissionAvailableForStages(m, stages));
+  if (eligible.length === 0) return [];
+
+  const random = seededRandom(generateDailySeed(dateString, pubkey));
+  const available = [...eligible];
   const selected: DailyMissionDefinition[] = [];
-  
+
   while (selected.length < count && available.length > 0) {
-    // Calculate total weight of remaining missions
     const totalWeight = available.reduce((sum, m) => sum + m.weight, 0);
-    
-    // Pick a random value in [0, totalWeight)
     let pick = random() * totalWeight;
-    
-    // Find the mission that corresponds to this pick
-    let selectedIndex = 0;
+    let idx = 0;
     for (let i = 0; i < available.length; i++) {
       pick -= available[i].weight;
-      if (pick <= 0) {
-        selectedIndex = i;
-        break;
-      }
+      if (pick <= 0) { idx = i; break; }
     }
-    
-    // Add to selected and remove from available
-    selected.push(available[selectedIndex]);
-    available.splice(selectedIndex, 1);
+    selected.push(available[idx]);
+    available.splice(idx, 1);
   }
-  
+
   return selected;
 }
 
-/**
- * Create a fresh DailyMission from a definition
- */
-export function createMissionFromDefinition(def: DailyMissionDefinition): DailyMission {
-  return {
-    ...def,
-    currentCount: 0,
-    completed: false,
-    claimed: false,
-  };
+// ─── Mission Instantiation ───────────────────────────────────────────────────
+
+/** Create a fresh Mission from a definition */
+export function createMission(def: DailyMissionDefinition): Mission {
+  if (def.tracking === 'event') {
+    return { id: def.id, target: def.target, events: [] } satisfies EventMission;
+  }
+  return { id: def.id, target: def.target, count: 0 } satisfies TallyMission;
 }
 
-/**
- * Create the initial daily missions state for a new day
- */
-export function createDailyMissionsState(
+/** Create a fresh MissionsContent for a new day */
+export function createDailyMissionsContent(
   dateString: string,
   pubkey?: string,
-  previousTotalCoins: number = 0,
-  availableStages?: BlobbiStage[]
-): DailyMissionsState {
-  const definitions = selectDailyMissions(3, dateString, pubkey, availableStages);
+  availableStages?: BlobbiStage[],
+): MissionsContent {
+  const defs = selectDailyMissions(DAILY_MISSION_COUNT, dateString, pubkey, availableStages);
   return {
     date: dateString,
-    missions: definitions.map(createMissionFromDefinition),
-    totalCoinsEarned: previousTotalCoins,
-    rerollsRemaining: MAX_DAILY_REROLLS,
+    daily: defs.map(createMission),
+    rerolls: MAX_DAILY_REROLLS,
   };
 }
 
-/**
- * Check if the daily missions need to be reset (new day)
- */
-export function needsDailyReset(state: DailyMissionsState | null): boolean {
-  if (!state) return true;
-  return state.date !== getTodayDateString();
-}
+// ─── Progress Tracking ───────────────────────────────────────────────────────
 
 /**
- * Update mission progress for a given action
+ * Increment tally for all daily missions matching the given action.
+ * Returns a new missions content (immutable).
  */
-export function updateMissionProgress(
-  state: DailyMissionsState,
+export function trackTally(
+  missions: MissionsContent,
   action: DailyMissionAction,
-  incrementBy: number = 1
-): DailyMissionsState {
-  const updatedMissions = state.missions.map((mission) => {
-    // Skip if not the matching action or already completed
-    if (mission.action !== action || mission.completed) {
-      return mission;
-    }
-    
-    const newCount = Math.min(mission.currentCount + incrementBy, mission.requiredCount);
-    const nowCompleted = newCount >= mission.requiredCount;
-    
-    return {
-      ...mission,
-      currentCount: newCount,
-      completed: nowCompleted,
-    };
+  incrementBy: number = 1,
+): MissionsContent {
+  const updated = missions.daily.map((m) => {
+    const def = POOL_BY_ID.get(m.id);
+    if (!def || def.action !== action) return m;
+    if (!isTallyMission(m)) return m;
+    if (m.count >= m.target) return m; // already complete
+    return { ...m, count: Math.min(m.count + incrementBy, m.target) };
   });
-  
-  return {
-    ...state,
-    missions: updatedMissions,
-  };
+  return { ...missions, daily: updated };
 }
 
 /**
- * Claim reward for a completed mission
+ * Append an event ID to a daily mission.
+ * Deduplicates by event ID. Returns new missions content.
  */
-export function claimMissionReward(
-  state: DailyMissionsState,
-  missionId: string
-): { state: DailyMissionsState; coinsEarned: number } {
-  let coinsEarned = 0;
-  
-  const updatedMissions = state.missions.map((mission) => {
-    if (mission.id !== missionId) return mission;
-    
-    // Can only claim if completed and not yet claimed
-    if (!mission.completed || mission.claimed) return mission;
-    
-    coinsEarned = mission.reward;
-    return {
-      ...mission,
-      claimed: true,
-    };
+export function trackEvent(
+  missions: MissionsContent,
+  action: DailyMissionAction,
+  eventId: string,
+): MissionsContent {
+  const updated = missions.daily.map((m) => {
+    const def = POOL_BY_ID.get(m.id);
+    if (!def || def.action !== action) return m;
+    if (!isEventMission(m)) return m;
+    if (m.events.length >= m.target) return m; // already complete
+    if (m.events.includes(eventId)) return m; // dedup
+    return { ...m, events: [...m.events, eventId] };
   });
-  
-  return {
-    state: {
-      ...state,
-      missions: updatedMissions,
-      totalCoinsEarned: state.totalCoinsEarned + coinsEarned,
-    },
-    coinsEarned,
-  };
+  return { ...missions, daily: updated };
+}
+
+// ─── Evolution Mission Tracking (operates on Mission[] directly) ─────────────
+
+/**
+ * Increment tally for an evolution mission by ID.
+ * Returns a new array (immutable). Used by the evolution session store.
+ */
+export function trackEvolutionTally(
+  evolution: Mission[],
+  missionId: string,
+  incrementBy: number = 1,
+): Mission[] {
+  return evolution.map((m) => {
+    if (m.id !== missionId) return m;
+    if (!isTallyMission(m)) return m;
+    if (m.count >= m.target) return m;
+    return { ...m, count: Math.min(m.count + incrementBy, m.target) };
+  });
 }
 
 /**
- * Get the total potential reward for all daily missions
+ * Append a Nostr event ID to an evolution mission.
+ * Returns a new array (immutable). Used by the evolution session store.
  */
-export function getTotalPotentialReward(state: DailyMissionsState): number {
-  return state.missions.reduce((sum, m) => sum + m.reward, 0);
+export function trackEvolutionEvent(
+  evolution: Mission[],
+  missionId: string,
+  eventId: string,
+): Mission[] {
+  return evolution.map((m) => {
+    if (m.id !== missionId) return m;
+    if (!isEventMission(m)) return m;
+    if (m.events.length >= m.target) return m;
+    if (m.events.includes(eventId)) return m;
+    return { ...m, events: [...m.events, eventId] };
+  });
 }
 
-/**
- * Get the total claimed reward for today
- */
-export function getTodayClaimedReward(state: DailyMissionsState): number {
-  return state.missions
-    .filter((m) => m.claimed)
-    .reduce((sum, m) => sum + m.reward, 0);
+// ─── Completion Queries ──────────────────────────────────────────────────────
+
+/** Whether all daily missions are complete */
+export function areAllDailyComplete(missions: MissionsContent): boolean {
+  return missions.daily.length > 0 && missions.daily.every(isMissionComplete);
 }
 
-/**
- * Check if all daily missions are completed
- */
-export function areAllMissionsCompleted(state: DailyMissionsState): boolean {
-  return state.missions.every((m) => m.completed);
+/** Total XP available from today's daily missions (including bonus if all complete) */
+export function totalDailyXp(missions: MissionsContent): number {
+  const base = missions.daily.reduce((sum, m) => {
+    const def = POOL_BY_ID.get(m.id);
+    return sum + (def && isMissionComplete(m) ? def.xp : 0);
+  }, 0);
+  const bonus = areAllDailyComplete(missions) ? DAILY_BONUS_XP : 0;
+  return base + bonus;
 }
 
-/**
- * Check if all daily missions are claimed
- */
-export function areAllMissionsClaimed(state: DailyMissionsState): boolean {
-  return state.missions.every((m) => m.claimed);
+/** XP earned by a specific daily mission (0 if incomplete or unknown) */
+export function missionXp(missionId: string, mission: Mission): number {
+  const def = POOL_BY_ID.get(missionId);
+  if (!def || !isMissionComplete(mission)) return 0;
+  return def.xp;
 }
 
-// ─── Bonus Mission ────────────────────────────────────────────────────────────
+// ─── Reroll ──────────────────────────────────────────────────────────────────
 
 /**
- * The bonus mission that becomes available after completing all regular missions.
- * This is a special mission that rewards extra coins for daily completion.
- */
-export const BONUS_MISSION_DEFINITION: DailyMissionDefinition = {
-  id: 'bonus_daily_complete',
-  title: 'Daily Champion',
-  description: 'Complete all daily missions to claim this bonus reward',
-  action: 'interact', // Not actually used - bonus is auto-completed
-  requiredCount: 1,
-  reward: 80,
-  weight: 0, // Not part of random selection
-};
-
-/**
- * Check if the bonus mission is available (all regular missions completed)
- */
-export function isBonusMissionAvailable(state: DailyMissionsState): boolean {
-  // Bonus is available if there are regular missions and all are completed
-  return state.missions.length > 0 && areAllMissionsCompleted(state);
-}
-
-/**
- * Check if the bonus mission has been claimed today
- */
-export function isBonusMissionClaimed(state: DailyMissionsState): boolean {
-  return state.bonusClaimed ?? false;
-}
-
-/**
- * Claim the bonus mission reward
- */
-export function claimBonusMissionReward(
-  state: DailyMissionsState
-): { state: DailyMissionsState; coinsEarned: number } {
-  // Can only claim if bonus is available and not yet claimed
-  if (!isBonusMissionAvailable(state) || isBonusMissionClaimed(state)) {
-    return { state, coinsEarned: 0 };
-  }
-  
-  return {
-    state: {
-      ...state,
-      bonusClaimed: true,
-      totalCoinsEarned: state.totalCoinsEarned + BONUS_MISSION_DEFINITION.reward,
-    },
-    coinsEarned: BONUS_MISSION_DEFINITION.reward,
-  };
-}
-
-// ─── Mission Reroll ───────────────────────────────────────────────────────────
-
-/**
- * Get the number of rerolls remaining for today.
- * Returns MAX_DAILY_REROLLS if not set (for backward compatibility with old state).
- */
-export function getRerollsRemaining(state: DailyMissionsState): number {
-  // If rerollsRemaining is not set (old state), default to max
-  if (state.rerollsRemaining === undefined || state.rerollsRemaining === null) {
-    return MAX_DAILY_REROLLS;
-  }
-  return state.rerollsRemaining;
-}
-
-/**
- * Check if the user can reroll a mission
- */
-export function canRerollMission(state: DailyMissionsState, missionId: string): boolean {
-  const rerollsRemaining = getRerollsRemaining(state);
-  if (rerollsRemaining <= 0) return false;
-  
-  // Find the mission
-  const mission = state.missions.find((m) => m.id === missionId);
-  if (!mission) return false;
-  
-  // Cannot reroll completed or claimed missions
-  if (mission.completed || mission.claimed) return false;
-  
-  return true;
-}
-
-/**
- * Select a replacement mission that:
- * - Is not already in the current mission list
- * - Is not the mission being replaced (avoid immediately giving back the same)
- * - Respects the user's available stages
- * 
- * Uses weighted random selection from eligible missions.
+ * Select a replacement mission not already in the current set.
+ * Uses Math.random (rerolls should feel random, not deterministic).
  */
 export function selectReplacementMission(
-  currentMissions: DailyMission[],
-  missionToReplace: DailyMission,
-  availableStages?: BlobbiStage[]
+  currentMissions: Mission[],
+  missionToReplaceId: string,
+  availableStages?: BlobbiStage[],
 ): DailyMissionDefinition | null {
-  // Default to baby/adult if no stages provided (most common case)
-  const stagesToCheck = availableStages && availableStages.length > 0 
-    ? availableStages 
-    : ['baby', 'adult'] as BlobbiStage[];
-  
-  // Get IDs of missions that cannot be selected (current active missions)
-  const excludedIds = new Set<string>();
-  
-  // Exclude all current missions EXCEPT the one being replaced
-  for (const m of currentMissions) {
-    if (m.id !== missionToReplace.id) {
-      excludedIds.add(m.id);
-    }
-  }
-  
-  // Filter pool to eligible missions
-  const eligibleMissions = DAILY_MISSION_POOL.filter((m) => {
-    // Must not be an already-active mission (except the one being replaced)
-    if (excludedIds.has(m.id)) return false;
-    // Must not be the same mission being replaced
-    if (m.id === missionToReplace.id) return false;
-    // Must be available for user's stages
-    if (!isMissionAvailableForStages(m, stagesToCheck)) return false;
-    return true;
-  });
-  
-  // If no eligible missions, return null
-  if (eligibleMissions.length === 0) {
-    return null;
-  }
-  
-  // Use Math.random() for non-deterministic selection (rerolls should feel random)
-  const totalWeight = eligibleMissions.reduce((sum, m) => sum + m.weight, 0);
+  const stages = availableStages ?? ['baby', 'adult'];
+  const excludedIds = new Set(currentMissions.map((m) => m.id));
+
+  const eligible = DAILY_MISSION_POOL.filter((m) =>
+    m.id !== missionToReplaceId &&
+    !excludedIds.has(m.id) &&
+    isMissionAvailableForStages(m, stages),
+  );
+
+  if (eligible.length === 0) return null;
+
+  const totalWeight = eligible.reduce((sum, m) => sum + m.weight, 0);
   let pick = Math.random() * totalWeight;
-  
-  for (const mission of eligibleMissions) {
-    pick -= mission.weight;
-    if (pick <= 0) {
-      return mission;
-    }
+  for (const def of eligible) {
+    pick -= def.weight;
+    if (pick <= 0) return def;
   }
-  
-  // Fallback to first eligible (shouldn't happen)
-  return eligibleMissions[0];
+  return eligible[0];
 }
 
 /**
- * Reroll a mission, replacing it with a new one from the pool.
- * Returns the updated state and the new mission, or null if reroll failed.
+ * Reroll a daily mission. Returns updated missions content or null if not possible.
  */
 export function rerollMission(
-  state: DailyMissionsState,
+  missions: MissionsContent,
   missionId: string,
-  availableStages?: BlobbiStage[]
-): { state: DailyMissionsState; newMission: DailyMission } | null {
-  // Check if reroll is allowed
-  if (!canRerollMission(state, missionId)) {
-    return null;
-  }
-  
-  // Find the mission index
-  const missionIndex = state.missions.findIndex((m) => m.id === missionId);
-  if (missionIndex === -1) {
-    return null;
-  }
-  
-  const oldMission = state.missions[missionIndex];
-  
-  // Select a replacement
-  const replacement = selectReplacementMission(state.missions, oldMission, availableStages);
-  if (!replacement) {
-    return null;
-  }
-  
-  // Create the new mission instance
-  const newMission = createMissionFromDefinition(replacement);
-  
-  // Update the missions array
-  const updatedMissions = [...state.missions];
-  updatedMissions[missionIndex] = newMission;
-  
-  // Decrement rerolls remaining
-  const newRerollsRemaining = getRerollsRemaining(state) - 1;
-  
+  availableStages?: BlobbiStage[],
+): MissionsContent | null {
+  if (missions.rerolls <= 0) return null;
+
+  const idx = missions.daily.findIndex((m) => m.id === missionId);
+  if (idx === -1) return null;
+
+  const existing = missions.daily[idx];
+  if (isMissionComplete(existing)) return null; // can't reroll completed
+
+  const replacement = selectReplacementMission(missions.daily, missionId, availableStages);
+  if (!replacement) return null;
+
+  const updatedDaily = [...missions.daily];
+  updatedDaily[idx] = createMission(replacement);
+
   return {
-    state: {
-      ...state,
-      missions: updatedMissions,
-      rerollsRemaining: newRerollsRemaining,
-    },
-    newMission,
+    ...missions,
+    daily: updatedDaily,
+    rerolls: missions.rerolls - 1,
   };
 }
+
+// Re-export mission utilities for convenience
+export { isTallyMission, isEventMission, isMissionComplete, missionProgress } from '@/blobbi/core/lib/missions';
+export type { Mission, TallyMission, EventMission, MissionsContent } from '@/blobbi/core/lib/missions';

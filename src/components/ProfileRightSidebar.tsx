@@ -4,6 +4,7 @@ import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'l
 import { LinkFooter } from '@/components/LinkFooter';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { isValidBlurhash } from '@/lib/blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +26,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/lib/mediaUtils';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
@@ -180,6 +182,7 @@ function isVideoItem(item: MediaItem): boolean {
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { config } = useAppContext();
   const isVideo = isVideoItem(item);
 
   useEffect(() => {
@@ -192,7 +195,7 @@ function MediaTile({ item }: { item: MediaItem }) {
     <div className="relative w-full h-full">
       {/* Blurhash or skeleton placeholder while media loads */}
       {!loaded && (
-        item.blurhash ? (
+        isValidBlurhash(item.blurhash) ? (
           <Blurhash
             hash={item.blurhash}
             width={32}
@@ -211,7 +214,7 @@ function MediaTile({ item }: { item: MediaItem }) {
           src={item.url}
           className="absolute inset-0 w-full h-full object-cover"
           muted
-          autoPlay
+          autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"
@@ -400,24 +403,24 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   }
 
   // Media fields: render inline players/previews based on file extension
-  const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+  const safeUrl = sanitizeUrl(field.value);
 
-  if (isUrl && isAudioUrl(field.value)) {
+  if (safeUrl && isAudioUrl(safeUrl)) {
     return (
       <div>
         <div className="font-semibold text-sm mb-1.5">{field.label}</div>
-        <MiniAudioPlayer src={field.value} />
+        <MiniAudioPlayer src={safeUrl} />
       </div>
     );
   }
 
-  if (isUrl && isImageUrl(field.value)) {
+  if (safeUrl && isImageUrl(safeUrl)) {
     return (
       <div>
         {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
-        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
-            src={field.value}
+            src={safeUrl}
             alt={field.label || 'Profile image'}
             className="w-full rounded-lg object-cover"
             loading="lazy"
@@ -427,12 +430,12 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  if (isUrl && isVideoUrl(field.value)) {
+  if (safeUrl && isVideoUrl(safeUrl)) {
     return (
       <div>
         {field.label && <div className="font-semibold text-sm mb-1.5">{field.label}</div>}
         <div className="rounded-lg overflow-hidden">
-          <VideoPlayer src={field.value} />
+          <VideoPlayer src={safeUrl} />
         </div>
       </div>
     );
@@ -442,15 +445,15 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   return (
     <div>
       <div className="font-semibold text-sm">{field.label}</div>
-      {isUrl ? (
+      {safeUrl ? (
         <a
-          href={field.value}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
         >
-          <ExternalFavicon url={field.value} size={16} className="shrink-0" />
-          <span className="truncate">{field.value.replace(/^https?:\/\//, '')}</span>
+          <ExternalFavicon url={safeUrl} size={16} className="shrink-0" />
+          <span className="truncate">{safeUrl.replace(/^https?:\/\//, '')}</span>
         </a>
       ) : (
         <p className="text-sm text-muted-foreground truncate">{field.value}</p>

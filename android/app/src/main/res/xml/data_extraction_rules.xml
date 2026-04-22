@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ data extraction rules.
+
+    Separate rules apply to cloud backups (Google Drive) and device-to-device
+    transfers. Both exclude WebView storage and sensitive SharedPreferences so
+    wallet credentials, login tokens, and cached private data don't leak.
+
+    See: https://developer.android.com/about/versions/12/backup-restore
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="app_webview/" />
+        <exclude domain="database" path="webview.db" />
+        <exclude domain="database" path="webviewCache.db" />
+        <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+        <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="app_webview/" />
+        <exclude domain="database" path="webview.db" />
+        <exclude domain="database" path="webviewCache.db" />
+        <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+        <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+    </device-transfer>
+</data-extraction-rules>

@@ -23,6 +23,7 @@ import { useAwardBadge } from '@/hooks/useAwardBadge';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
 
 /** Convert a badge name into a URL-safe slug for the d-tag identifier. */
@@ -43,6 +44,7 @@ interface CreateBadgeDialogProps {
 export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const shareOrigin = useShareOrigin();
 
   // Form state
   const [name, setName] = useState('');
@@ -175,11 +177,11 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
       pubkey: createdBadge.pubkey,
       identifier: dTag,
     });
-    navigator.clipboard.writeText(`${window.location.origin}/${naddr}`);
+    navigator.clipboard.writeText(`${shareOrigin}/${naddr}`);
     setCopied(true);
     toast({ title: 'Link copied to clipboard!' });
     setTimeout(() => setCopied(false), 2000);
-  }, [createdBadge, toast]);
+  }, [createdBadge, toast, shareOrigin]);
 
   if (!user) return null;
 
@@ -292,6 +294,9 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                         }}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended aspect ratio is 1:1 (max 1024x1024 px).
+                    </p>
                   </div>
 
                   {/* Badge name */}

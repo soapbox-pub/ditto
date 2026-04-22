@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -49,7 +50,7 @@ export function parseMusicTrack(event: NostrEvent): ParsedMusicTrack | null {
   const imeta = parseImeta(event.tags);
 
   // Audio URL: try imeta first, then standalone url tag, then content if it looks like a URL
-  const url = imeta.url ?? getTag(event.tags, 'url') ?? getTag(event.tags, 'media');
+  const url = sanitizeUrl(imeta.url) ?? sanitizeUrl(getTag(event.tags, 'url')) ?? sanitizeUrl(getTag(event.tags, 'media'));
   if (!url) return null;
 
   const durationStr = imeta.duration ?? getTag(event.tags, 'duration');
@@ -59,10 +60,10 @@ export function parseMusicTrack(event: NostrEvent): ParsedMusicTrack | null {
     title,
     artist,
     url,
-    artwork: imeta.thumbnail ?? getTag(event.tags, 'image') ?? getTag(event.tags, 'thumb'),
+    artwork: sanitizeUrl(imeta.thumbnail) ?? sanitizeUrl(getTag(event.tags, 'image')) ?? sanitizeUrl(getTag(event.tags, 'thumb')),
     album,
     duration: duration && isFinite(duration) ? duration : undefined,
-    videoUrl: getTag(event.tags, 'video'),
+    videoUrl: sanitizeUrl(getTag(event.tags, 'video')),
     format: imeta.format ?? getTag(event.tags, 'm'),
   };
 }
@@ -72,20 +73,33 @@ export interface ParsedMusicPlaylist {
   description: string;
   artwork?: string;
   trackRefs: string[];
+  /** Whether this playlist is tagged as an album (`t` tag with value `album`). */
+  isAlbum: boolean;
+  /** ISO 8601 release date (albums). */
+  released?: string;
+  /** Record label name (albums). */
+  label?: string;
 }
 
 /** Parse a kind 34139 music playlist event into structured data. */
 export function parseMusicPlaylist(event: NostrEvent): ParsedMusicPlaylist | null {
   const title = getTag(event.tags, 'title') ?? getTag(event.tags, 'd') ?? 'Untitled Playlist';
   const description = event.content || '';
-  const artwork = getTag(event.tags, 'image') ?? getTag(event.tags, 'thumb');
+  const artwork = sanitizeUrl(getTag(event.tags, 'image')) ?? sanitizeUrl(getTag(event.tags, 'thumb'));
 
   // Track references are stored as 'a' or 'e' tags
   const trackRefs = event.tags
     .filter(([n]) => n === 'a' || n === 'e')
     .map(([, v]) => v);
 
-  return { title, description, artwork, trackRefs };
+  // Album detection: look for a 't' tag with value 'album'
+  const tTags = event.tags.filter(([n]) => n === 't').map(([, v]) => v?.toLowerCase());
+  const isAlbum = tTags.includes('album');
+
+  const released = getTag(event.tags, 'released');
+  const label = getTag(event.tags, 'label');
+
+  return { title, description, artwork, trackRefs, isAlbum, released, label };
 }
 
 /** Compute the naddr path for an addressable event. */

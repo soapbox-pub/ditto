@@ -13,7 +13,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Palette,
   Droplets,
-  MessageSquare,
   Heart,
   UserPen,
   Activity,
@@ -40,7 +39,6 @@ interface TasksPanelProps {
   tasks: HatchTask[];
   allCompleted: boolean;
   isLoading: boolean;
-  onOpenPostModal: () => void;
   onComplete: () => void;
   isCompleting?: boolean;
   completeLabel: string;
@@ -61,8 +59,6 @@ function TaskIcon({ taskId }: { taskId: string }) {
       return <Palette className={iconClass} />;
     case 'color_moments':
       return <Droplets className={iconClass} />;
-    case 'create_posts':
-      return <MessageSquare className={iconClass} />;
     case 'interactions':
       return <Heart className={iconClass} />;
     case 'edit_profile':
@@ -80,7 +76,6 @@ export function TasksPanel({
   tasks,
   allCompleted,
   isLoading,
-  onOpenPostModal,
   onComplete,
   isCompleting = false,
   completeLabel,
@@ -120,9 +115,6 @@ export function TasksPanel({
                 break;
               case 'external_link':
                 openUrl(task.actionTarget);
-                break;
-              case 'open_modal':
-                if (task.actionTarget === 'blobbi_post') onOpenPostModal();
                 break;
             }
           };

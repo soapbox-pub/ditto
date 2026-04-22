@@ -23,7 +23,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
-import { AudioVisualizer } from "@/components/AudioVisualizer";
+import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
 
@@ -39,8 +39,8 @@ import {
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
-import { FollowPackContent } from "@/components/FollowPackContent";
-import { FollowPackDetailContent } from "@/components/FollowPackDetailContent";
+import { PeopleListContent } from "@/components/PeopleListContent";
+import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
@@ -83,7 +83,6 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
-import { WebxdcEmbed } from "@/components/WebxdcEmbed";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
@@ -91,12 +90,10 @@ import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
-import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
 import { formatNumber } from "@/lib/formatNumber";
-import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 
-/** Kinds that get the full follow-pack detail view. */
-const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
+/** Kinds that get the full people-list detail view (follow list / set / pack). */
+const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
@@ -117,6 +114,9 @@ const BADGE_PROFILE_KIND_NEW = 10008;
 /** NIP-58 Profile Badges (legacy addressable kind). */
 const BADGE_PROFILE_KIND_LEGACY = 30008;
 
+/** NIP-58 Badge Award. */
+const BADGE_AWARD_KIND = 8;
+
 /** Kind 31985 = Bookstr book reviews. */
 const BOOK_REVIEW_KIND = 31985;
 
@@ -126,10 +126,13 @@ const VANISH_KIND = 62;
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return "Loading...";
+  if (kind === 34139) return "Playlist Details";
   if (MUSIC_KINDS.has(kind)) return "Track Details";
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
-  if (FOLLOW_PACK_KINDS.has(kind)) return "Follow Pack";
+  if (kind === 3) return "Follow List";
+  if (kind === 30000) return "Follow Set";
+  if (kind === 39089) return "Follow Pack";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
   if (kind === 30617) return "Repository";
   if (kind === 1617) return "Patch";
@@ -137,6 +140,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 30817) return "Custom NIP";
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
+  if (kind === BADGE_AWARD_KIND) return "Badge Award";
   if (kind === BOOK_REVIEW_KIND) return "Book Review";
   if (kind === 32267) return "Zapstore App";
   if (kind === 30063) return "Zapstore Release";
@@ -174,6 +178,7 @@ import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMes
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
@@ -302,6 +307,17 @@ export function PostDetailPage({
     );
   }
 
+  // People lists (kind 3 / 30000 / 39089) get their own full detail view
+  if (PEOPLE_LIST_KINDS.has(resolvedEvent.kind)) {
+    return (
+      <PostDetailShell title={detailTitle}>
+        <MutedContentGuard event={resolvedEvent}>
+          <PeopleListDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
   return (
     <PostDetailShell title={detailTitle}>
       <MutedContentGuard event={resolvedEvent}>
@@ -347,12 +363,12 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
-  // Follow packs get their own full detail view with member list + Follow All
-  if (FOLLOW_PACK_KINDS.has(resolvedEvent.kind)) {
+  // People lists (kind 3 / 30000 / 39089) get their own full detail view with member list + Follow All
+  if (PEOPLE_LIST_KINDS.has(resolvedEvent.kind)) {
     return (
       <PostDetailShell>
         <MutedContentGuard event={resolvedEvent}>
-          <FollowPackDetailContent event={resolvedEvent} />
+          <PeopleListDetailContent event={resolvedEvent} />
         </MutedContentGuard>
       </PostDetailShell>
     );
@@ -937,6 +953,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
+  const shareOrigin = useShareOrigin();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -981,10 +998,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [event]);
 
   const handleShare = useCallback(async () => {
-    const url = `${window.location.origin}/${encodedEventId}`;
+    const url = `${shareOrigin}/${encodedEventId}`;
     const result = await shareOrCopy(url);
     if (result === "copied") toast({ title: "Link copied to clipboard" });
-  }, [encodedEventId]);
+  }, [encodedEventId, shareOrigin]);
 
   // Kind detection — mirrors NoteCard
   const isVine = event.kind === 34236;
@@ -993,7 +1010,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
@@ -1020,6 +1037,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
+  const isBadgeAward = event.kind === BADGE_AWARD_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1028,7 +1046,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
-    !isFollowPack &&
+    !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
     !isMagicDeck &&
@@ -1050,35 +1068,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVanish &&
     !isZap &&
     !isProfile &&
-    !isBlobbiState;
-
-  const videos = useMemo(
-    () => (isTextNote ? extractVideoUrls(event.content) : []),
-    [event.content, isTextNote],
-  );
-  const imetaMap = useMemo(
-    () =>
-      isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(),
-    [event.tags, isTextNote],
-  );
-  const audios = useMemo(() => {
-    if (!isTextNote) return [];
-    const imetaAudios = Array.from(imetaMap.values())
-      .filter((e) => e.mime?.startsWith("audio/"))
-      .map((e) => e.url);
-    if (imetaAudios.length > 0) return imetaAudios;
-    return extractAudioUrls(event.content);
-  }, [event.content, imetaMap, isTextNote]);
-
-  // Extract webxdc attachments from imeta tags
-  const webxdcApps = useMemo(() => {
-    if (!isTextNote) return [];
-    return Array.from(imetaMap.values()).filter(
-      (entry) =>
-        entry.mime === "application/x-webxdc" ||
-        entry.mime === "application/vnd.webxdc+zip",
-    );
-  }, [imetaMap, isTextNote]);
+    !isBlobbiState &&
+    !isBadgeAward;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -1449,6 +1440,110 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     stats?.zapCount
   );
 
+  // Shared stats + date row used by the main post layout and the activity-style
+  // detail cards (reactions, reposts, zaps, poll votes). Captures closures over
+  // `stats`, `quoteCount`, `topEmojis`, `openInteractions`, `clientTag`,
+  // `clientNaddr`, and `event` so it can be dropped into any branch.
+  const statsAndDateRow = hasStats ? (
+    <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
+      {stats?.reposts ? (
+        <button
+          onClick={() => openInteractions("reposts")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.reposts)}
+          </span>{" "}
+          Repost{stats.reposts !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      {quoteCount ? (
+        <button
+          onClick={() => openInteractions("quotes")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(quoteCount)}
+          </span>{" "}
+          Quote{quoteCount !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      {stats?.reactions ? (
+        <button
+          onClick={() => openInteractions("reactions")}
+          className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.reactions)}
+          </span>
+          {topEmojis.length > 0 ? (
+            <span className="inline-flex items-center">
+              {topEmojis.map((emoji, i) => (
+                <RenderResolvedEmoji
+                  key={i}
+                  emoji={emoji}
+                  className="h-4 w-4 object-contain leading-none"
+                />
+              ))}
+            </span>
+          ) : (
+            `Like${stats.reactions !== 1 ? "s" : ""}`
+          )}
+        </button>
+      ) : null}
+      {stats?.zapCount ? (
+        <button
+          onClick={() => openInteractions("zaps")}
+          className="hover:underline transition-colors"
+        >
+          <span className="font-bold text-foreground">
+            {formatNumber(stats.zapCount)}
+          </span>{" "}
+          Zap{stats.zapCount !== 1 ? "s" : ""}
+        </button>
+      ) : null}
+      <span className="ml-auto shrink-0 flex items-center gap-1.5">
+        {clientTag?.[1] && (
+          <>
+            {clientNaddr ? (
+              <Link
+                to={`/${clientNaddr}`}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {clientTag[1]}
+              </Link>
+            ) : (
+              <span>{clientTag[1]}</span>
+            )}
+            <span>·</span>
+          </>
+        )}
+        <span>{formatFullDate(event.created_at)}</span>
+      </span>
+    </div>
+  ) : (
+    <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
+      {clientTag?.[1] && (
+        <>
+          {clientNaddr ? (
+            <Link
+              to={`/${clientNaddr}`}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {clientTag[1]}
+            </Link>
+          ) : (
+            <span>{clientTag[1]}</span>
+          )}
+          <span>·</span>
+        </>
+      )}
+      <span>{formatFullDate(event.created_at)}</span>
+    </div>
+  );
+
   return (
     <div>
       {/* Content preview for kind 1111 comments: external content, profile, or community */}
@@ -1487,7 +1582,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               />
             </div>
 
-            {/* Author + "reacted" label + timestamp — single line */}
+            {/* Author + "reacted" label — single line */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {author.isLoading ? (
                 <>
@@ -1524,64 +1619,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Link>
                   </ProfileHoverCard>
                   <span className="text-sm text-muted-foreground">reacted</span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                    {formatFullDate(event.created_at)}
-                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
+          {/* Stats + date row */}
+          {statsAndDateRow}
 
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Repost"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}
@@ -1592,6 +1643,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             event={event}
             open={replyOpen}
             onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
           />
         </article>
       )}
@@ -1605,7 +1662,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <RepostIcon className="size-5 text-accent" />
             </div>
 
-            {/* Author + "reposted" label + timestamp — single line */}
+            {/* Author + "reposted" label — single line */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {author.isLoading ? (
                 <>
@@ -1642,64 +1699,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Link>
                   </ProfileHoverCard>
                   <span className="text-sm text-muted-foreground">reposted</span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                    {formatFullDate(event.created_at)}
-                  </span>
                 </>
               )}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={() => setReplyOpen(true)}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
-            </button>
+          {/* Stats + date row */}
+          {statsAndDateRow}
 
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Repost"}
-                >
-                  <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
-              onClick={handleShare}
-            >
-              <Share2 className="size-5" />
-            </button>
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
+          <PostActionBar
+            event={event}
+            onReply={() => setReplyOpen(true)}
+            onMore={() => setMoreMenuOpen(true)}
+            className="-mx-4 px-4"
+          />
 
           <NoteMoreMenu
             event={event}
@@ -1710,6 +1723,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             event={event}
             open={replyOpen}
             onOpenChange={setReplyOpen}
+          />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
           />
         </article>
       )}
@@ -1726,7 +1745,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <Zap className="size-5 text-amber-500 fill-amber-500" />
               </div>
 
-              {/* Sender + "zapped" + amount + timestamp — identical structure to reaction row */}
+              {/* Sender + "zapped" + amount — identical structure to reaction row */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {zapSenderAuthor.isLoading ? (
                   <>
@@ -1762,9 +1781,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                         {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                      {formatFullDate(event.created_at)}
-                    </span>
                   </>
                 )}
               </div>
@@ -1774,39 +1790,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <p className="text-sm text-muted-foreground italic pl-[52px]">"{zapMsg}"</p>
             )}
 
-            {/* Action buttons — identical to reaction card */}
-            <div className="flex items-center justify-between py-1 mt-2 border-t border-b border-border -mx-4 px-4">
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Reply"
-                onClick={() => setReplyOpen(true)}
-              >
-                <MessageCircle className="size-5" />
-                {stats?.replies ? <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span> : null}
-              </button>
+            {/* Stats + date row */}
+            {statsAndDateRow}
 
-              <RepostMenu event={event}>
-                {(isReposted: boolean) => (
-                  <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                    title={isReposted ? "Undo repost" : "Repost"}
-                  >
-                    <RepostIcon className="size-5" />
-                    {repostTotal ? <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span> : null}
-                  </button>
-                )}
-              </RepostMenu>
-
-              <ReactionButton eventId={event.id} eventPubkey={event.pubkey} eventKind={event.kind} reactionCount={stats?.reactions} />
-
-              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden" title="Share" onClick={handleShare}>
-                <Share2 className="size-5" />
-              </button>
-
-              <button className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="More" onClick={() => setMoreMenuOpen(true)}>
-                <MoreHorizontal className="size-5" />
-              </button>
-            </div>
+            <PostActionBar
+              event={event}
+              onReply={() => setReplyOpen(true)}
+              onMore={() => setMoreMenuOpen(true)}
+              className="-mx-4 px-4"
+            />
 
             <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
             <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
@@ -1994,20 +1986,29 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground shrink-0">voted</span>
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
               </div>
             }
           >
             {pollVoteLabel && <p className="text-sm font-semibold mt-0.5 truncate">{pollVoteLabel}</p>}
           </ActivityCard>
+          <div className="px-4">
+            {/* Stats + date row */}
+            {statsAndDateRow}
+          </div>
           <PostActionBar
             event={event}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
-            className="mt-2 px-4"
+            className="mx-4"
           />
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
           <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+          <InteractionsModal
+            eventId={event.id}
+            open={interactionsOpen}
+            onOpenChange={setInteractionsOpen}
+            initialTab={interactionsTab}
+          />
         </div>
       )}
 
@@ -2166,12 +2167,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} />
               </Suspense>
+            ) : isBadgeAward ? (
+              <BadgeAwardCard event={event} />
             ) : isVine ||
               isPoll ||
               isGeocache ||
               isFoundLog ||
               isColor ||
-              isFollowPack ||
+              isPeopleList ||
               isEmojiPack ? (
               <>
                 {isVine && <VineDetailContent event={event} />}
@@ -2179,153 +2182,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isGeocache && <GeocacheContent event={event} />}
                 {isFoundLog && <FoundLogContent event={event} />}
                 {isColor && <ColorMomentContent event={event} />}
-                {isFollowPack && <FollowPackContent event={event} />}
+                {isPeopleList && <PeopleListContent event={event} />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : (
-              <>
-                <div className="mt-3">
-                  <NoteContent
-                    event={event}
-                    className="text-[15px] leading-relaxed"
-                  />
-                </div>
-                {videos.map((url, i) => (
-                  <VideoPlayer
-                    key={`v-${i}`}
-                    src={url}
-                    poster={imetaMap.get(url)?.thumbnail}
-                    dim={imetaMap.get(url)?.dim}
-                    blurhash={imetaMap.get(url)?.blurhash}
-                    artist={displayName}
-                  />
-                ))}
-                {audios.map((url, i) => (
-                  <AudioVisualizer
-                    key={`a-${i}`}
-                    src={url}
-                    mime={imetaMap.get(url)?.mime}
-                    avatarUrl={metadata?.picture}
-                    avatarFallback={displayName[0]?.toUpperCase() ?? "?"}
-                    avatarShape={getAvatarShape(metadata)}
-                  />
-                ))}
-                {webxdcApps.map((app) => (
-                  <WebxdcEmbed
-                    key={app.url}
-                    url={app.url}
-                    uuid={app.webxdc}
-                    name={app.summary}
-                    icon={app.thumbnail}
-                  />
-                ))}
-              </>
+              <div className="mt-3">
+                <NoteContent
+                  event={event}
+                  className="text-[15px] leading-relaxed"
+                />
+              </div>
             )}
           </ContentWarningGuard>
 
-          {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
-          {hasStats && (
-            <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
-              {stats?.reposts ? (
-                <button
-                  onClick={() => openInteractions("reposts")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.reposts)}
-                  </span>{" "}
-                  Repost{stats.reposts !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              {quoteCount ? (
-                <button
-                  onClick={() => openInteractions("quotes")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(quoteCount)}
-                  </span>{" "}
-                  Quote{quoteCount !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              {stats?.reactions ? (
-                <button
-                  onClick={() => openInteractions("reactions")}
-                  className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.reactions)}
-                  </span>
-                  {topEmojis.length > 0 ? (
-                    <span className="inline-flex items-center">
-                      {topEmojis.map((emoji, i) => (
-                        <RenderResolvedEmoji
-                          key={i}
-                          emoji={emoji}
-                          className="h-4 w-4 object-contain leading-none"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    `Like${stats.reactions !== 1 ? "s" : ""}`
-                  )}
-                </button>
-              ) : null}
-              {stats?.zapCount ? (
-                <button
-                  onClick={() => openInteractions("zaps")}
-                  className="hover:underline transition-colors"
-                >
-                  <span className="font-bold text-foreground">
-                    {formatNumber(stats.zapCount)}
-                  </span>{" "}
-                  Zap{stats.zapCount !== 1 ? "s" : ""}
-                </button>
-              ) : null}
-              <span className="ml-auto shrink-0 flex items-center gap-1.5">
-                {clientTag?.[1] && (
-                  <>
-                    {clientNaddr ? (
-                      <Link
-                        to={`/${clientNaddr}`}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {clientTag[1]}
-                      </Link>
-                    ) : (
-                      <span>{clientTag[1]}</span>
-                    )}
-                    <span>·</span>
-                  </>
-                )}
-                <span>{formatFullDate(event.created_at)}</span>
-              </span>
-            </div>
-          )}
-
-          {/* Date-only row if no stats */}
-          {!hasStats && (
-            <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
-              {clientTag?.[1] && (
-                <>
-                  {clientNaddr ? (
-                    <Link
-                      to={`/${clientNaddr}`}
-                      className="hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {clientTag[1]}
-                    </Link>
-                  ) : (
-                    <span>{clientTag[1]}</span>
-                  )}
-                  <span>·</span>
-                </>
-              )}
-              <span>{formatFullDate(event.created_at)}</span>
-            </div>
-          )}
+          {/* Stats + date row (shared with activity-style detail cards) */}
+          {statsAndDateRow}
 
           <PostActionBar
             event={event}

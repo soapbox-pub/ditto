@@ -32,8 +32,10 @@ import { useEventRSVPs } from '@/hooks/useEventRSVPs';
 import { useMyRSVP } from '@/hooks/useMyRSVP';
 import { usePublishRSVP } from '@/hooks/usePublishRSVP';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 // --- Helpers ---
@@ -152,6 +154,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const shareOrigin = useShareOrigin();
 
   const title = getTag(event.tags, 'title') ?? 'Untitled Event';
   const image = getTag(event.tags, 'image');
@@ -159,7 +162,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
   const location = locationRaw ? parseLocation(locationRaw) : undefined;
   const summary = getTag(event.tags, 'summary');
   const hashtags = getAllTags(event.tags, 't').map(([, v]) => v).filter(Boolean);
-  const links = getAllTags(event.tags, 'r').map(([, v]) => v).filter(Boolean);
+  const links = getAllTags(event.tags, 'r').map(([, v]) => sanitizeUrl(v)).filter((v): v is string => !!v);
 
   const eventCoord = useMemo(() => getEventCoord(event), [event]);
   const dateStr = useMemo(() => formatDetailDate(event), [event]);
@@ -214,14 +217,14 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
       pubkey: event.pubkey,
       identifier: d,
     });
-    const url = `${window.location.origin}/${naddr}`;
+    const url = `${shareOrigin}/${naddr}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: 'Link copied to clipboard' });
     } catch {
       toast({ title: 'Failed to copy link', variant: 'destructive' });
     }
-  }, [event, toast]);
+  }, [event, toast, shareOrigin]);
 
   const isAuthor = user?.pubkey === event.pubkey;
   const showRSVP = !!user && !isAuthor;

@@ -85,7 +85,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
 
     // Measure safe-area-inset-top once by reading it via a throw-away element.
     const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;top:env(safe-area-inset-top,0px);left:0;width:0;height:0;visibility:hidden;pointer-events:none';
+    probe.style.cssText = 'position:fixed;top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));left:0;width:0;height:0;visibility:hidden;pointer-events:none';
     document.body.appendChild(probe);
     const safeAreaTop = probe.getBoundingClientRect().top;
     document.body.removeChild(probe);
@@ -122,7 +122,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
         {showSafeAreaPadding && (
           <div
             className="absolute top-0 left-0 right-0 bg-background/85 sidebar:hidden"
-            style={{ height: 'env(safe-area-inset-top, 0px)' }}
+            style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}
           />
         )}
         {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above.
@@ -167,9 +167,9 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
                 type="button"
                 aria-label="Scroll tabs left"
                 onClick={() => scrollBy('left')}
-                className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-0.5 pr-1 bg-gradient-to-r from-background/90 to-transparent cursor-pointer"
+                className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-0.5 pr-1 bg-gradient-to-r from-background via-background to-transparent cursor-pointer"
               >
-                <ChevronLeft className="size-4 text-muted-foreground" />
+                <ChevronLeft className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
               </button>
             )}
             <div
@@ -184,9 +184,9 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
                 type="button"
                 aria-label="Scroll tabs right"
                 onClick={() => scrollBy('right')}
-                className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-0.5 pl-1 bg-gradient-to-l from-background/90 to-transparent cursor-pointer"
+                className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-0.5 pl-1 bg-gradient-to-l from-background via-background to-transparent cursor-pointer"
               >
-                <ChevronRight className="size-4 text-muted-foreground" />
+                <ChevronRight className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
               </button>
             )}
           </div>

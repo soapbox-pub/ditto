@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { formatNumber } from '@/lib/formatNumber';
+import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 
@@ -138,6 +139,7 @@ export function ReactionButton({
             e.stopPropagation();
             if (!user) return;
             if (hasReacted) {
+              impactLight();
               handleUnreact(e);
               return;
             }
@@ -148,6 +150,7 @@ export function ReactionButton({
             e.stopPropagation();
             if (!user) return;
             if (hasReacted) return;
+            impactLight();
             setMenuOpen(false);
             const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
             queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });

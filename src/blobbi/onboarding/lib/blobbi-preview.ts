@@ -35,8 +35,10 @@ export interface BlobbiEggPreview {
   name: string;
   /** Life stage - always 'egg' for previews */
   stage: 'egg';
-  /** Activity state - always 'active' for new eggs */
+  /** Activity state */
   state: 'active';
+  /** Progression state - new eggs start incubating; older eggs may be 'none' */
+  progressionState: 'incubating' | 'none';
   /** Visual traits derived from seed */
   visualTraits: BlobbiVisualTraits;
   /** Default stats for a new egg */
@@ -80,6 +82,7 @@ export function generateEggPreview(
     name,
     stage: 'egg',
     state: 'active',
+    progressionState: 'incubating',
     visualTraits,
     stats: { ...DEFAULT_EGG_STATS },
     createdAt,
@@ -134,6 +137,7 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
     ['name', preview.name],
     ['stage', preview.stage],
     ['state', preview.state],
+    ['progression_state', preview.progressionState],
     ['seed', preview.seed],
     ['generation', '1'],
     ['breeding_ready', 'false'],
@@ -148,6 +152,7 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
     ['energy', preview.stats.energy.toString()],
     ['last_interaction', now],
     ['last_decay_at', now],
+    ['progression_started_at', now],
     // Visual trait tags - ensures deterministic rendering
     ['base_color', visualTraits.baseColor],
     ['secondary_color', visualTraits.secondaryColor],
@@ -190,10 +195,13 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     startIncubation: undefined, // Deprecated field, no longer used
     adultType: undefined, // Eggs don't have adult type
     
-    // Task-related fields (not applicable to previews)
-    stateStartedAt: undefined,
+    // Task-related fields
+    progressionState: preview.progressionState,
+    stateStartedAt: preview.createdAt,
+    progressionStartedAt: preview.createdAt,
     tasks: [],
     tasksCompleted: [],
+    evolution: [],
     
     // We need allTags for the adapter, but preview has no extra tags
     allTags: previewToEventTags(preview),

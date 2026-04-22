@@ -139,8 +139,8 @@ export function useActiveTaskProcess(
   // Determine which process is active
   const processType = useMemo((): TaskProcessType => {
     if (!companion) return null;
-    if (companion.state === 'incubating') return 'hatch';
-    if (companion.state === 'evolving') return 'evolve';
+    if (companion.progressionState === 'incubating') return 'hatch';
+    if (companion.progressionState === 'evolving') return 'evolve';
     return null;
   }, [companion]);
   

@@ -1,6 +1,6 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { ComponentType } from 'react';
-import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert } from 'lucide-react';
+import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -208,7 +208,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: true,
     section: 'media',
     blurb: 'Discover and listen to music tracks and playlists shared on Nostr. Upload music and create playlists from a dedicated music app.',
-    sites: [{ url: 'https://nodecast.xyz' }],
+    sites: [{ url: 'https://nodecast.xyz' }, { url: 'https://zaptrax.app', name: 'ZapTrax' }, { url: 'https://sunami.app', name: 'Sunami' }],
     subKinds: [
       {
         kind: 36787,
@@ -343,8 +343,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'packs',
     showKey: 'showPacks',
     feedKey: 'feedIncludePacks',
+    // Also include related people-list kinds under the same feed toggle:
+    // kind 3 (NIP-02 follow list) and kind 30000 (NIP-51 follow set).
+    extraFeedKinds: [3, 30000],
     label: 'Follow Packs',
-    description: 'Curated follow recommendations',
+    description: 'Curated follow recommendations and lists',
     route: 'packs',
     addressable: true,
     section: 'social',
@@ -427,6 +430,13 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         label: 'Profile Badges',
         description: 'Accepted profile badges (kind 10008)',
         extraFeedKinds: [30008], // legacy kind for backwards compatibility
+      },
+      {
+        kind: 8,
+        showKey: 'showBadgeAwards',
+        feedKey: 'feedIncludeBadgeAwards',
+        label: 'Badge Awards',
+        description: 'Badge award events (kind 8)',
       },
     ],
   },
@@ -537,9 +547,11 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
  * a label more specific than their parent category.
  */
 const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  3: 'follow list',
   6: 'repost',
   7: 'reaction',
   16: 'repost',
+  30000: 'follow set',
   1617: 'patch',
   1618: 'patch comment',
   15128: 'nsite',
@@ -556,8 +568,10 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  * Specific icons for kinds that need a different icon than their parent category.
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  3: UserCheck,
   6: RepostIcon,
   16: RepostIcon,
+  30000: Users,
   1617: GitPullRequestArrow,
   1618: MessageSquareMore,
   15128: Globe,

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { isValidBlurhash } from '@/lib/blurhash';
 import { openUrl } from '@/lib/downloadFile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -230,7 +231,7 @@ function GridImage({
     >
       {/* Placeholder shown while the image is loading */}
       {!loaded && (
-        blurhash ? (
+        isValidBlurhash(blurhash) ? (
           // Blurhash canvas fills the container via CSS — pass small integer decode
           // resolution; the canvas is stretched to 100%×100% by the style prop.
           <Blurhash
@@ -371,6 +372,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
   const DURATION = 280;
 
+  // ── Vertical swipe-to-dismiss state ───────────────────────────────────────
+  const verticalOffsetRef = useRef(0);
+  /** Whether a child LightboxImage is currently zoomed (scale > 1). */
+  const childZoomedRef = useRef(false);
+
   // Refs to each rendered slot keyed by image index
   const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -387,13 +393,30 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     slotRefs.current.forEach((_, idx) => setSlotTransform(idx, offsetPx, 'none'));
   }, [setSlotTransform]);
 
+  /** Apply vertical drag offset + opacity to the lightbox for swipe-to-dismiss.
+   *  Backdrop fades in-place; all visible content (top bar, nav, images, dots,
+   *  bottom bar) translates together via [data-lightbox-content]. */
+  const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const progress = Math.min(Math.abs(offsetY) / (window.innerHeight * 0.4), 1);
+    el.style.transition = transition ? `opacity ${transition.split(' ').slice(1).join(' ')}` : 'none';
+    el.style.opacity = String(1 - progress * 0.6);
+    const content = el.querySelector<HTMLDivElement>('[data-lightbox-content]');
+    if (content) {
+      content.style.transition = transition;
+      content.style.transform = `translateY(${offsetY}px)`;
+    }
+  }, []);
+
   // When currentIndex changes (keyboard/button nav), snap all slots into position instantly
   useEffect(() => {
     dragOffsetRef.current = 0;
     snapAll(0);
   }, [currentIndex, snapAll]);
 
-
+  // Safety: clear animating lock on unmount so stale refs can't block controls
+  useEffect(() => () => { animating.current = false; }, []);
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (animating.current) return;
@@ -404,6 +427,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     axis.current = null;
     // Kill any in-flight transition
     slotRefs.current.forEach((_, idx) => setSlotTransform(idx, dragOffsetRef.current, 'none'));
+    // Reset vertical dismiss offset
+    applyVerticalDismiss(0, 'none');
+    verticalOffsetRef.current = 0;
   };
 
   // Registered via addEventListener with { passive: false } to allow preventDefault
@@ -415,6 +441,14 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     if (!axis.current) {
       if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
       axis.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+    if (axis.current === 'v') {
+      // Vertical swipe-to-dismiss — only when not zoomed
+      if (childZoomedRef.current) return;
+      e.preventDefault();
+      verticalOffsetRef.current = dy;
+      applyVerticalDismiss(dy, 'none');
+      return;
     }
     if (axis.current !== 'h') return;
     e.preventDefault();
@@ -432,8 +466,31 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   }, []);
 
   const onTouchEnd = (e: React.TouchEvent) => {
+    // Handle vertical swipe-to-dismiss
+    if (axis.current === 'v' && dragY.current !== null && !childZoomedRef.current) {
+      const dy = e.changedTouches[0].clientY - dragY.current;
+      dragX.current = null; dragY.current = null; axis.current = null;
+      const committed = Math.abs(dy) > window.innerHeight * 0.15;
+      if (committed) {
+        // Animate out in the swipe direction and dismiss
+        animating.current = true;
+        const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
+        applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
+        setTimeout(() => {
+          verticalOffsetRef.current = 0;
+          onClose();
+          animating.current = false;
+        }, DURATION);
+      } else {
+        // Spring back
+        applyVerticalDismiss(0, `transform ${DURATION}ms ${EASING}`);
+        verticalOffsetRef.current = 0;
+      }
+      return;
+    }
+
     if (dragX.current === null || axis.current !== 'h') {
-      dragX.current = null; axis.current = null;
+      dragX.current = null; dragY.current = null; axis.current = null;
       // Spring back
       slotRefs.current.forEach((_, idx) =>
         setSlotTransform(idx, 0, `transform ${DURATION}ms ${EASING}`)
@@ -442,7 +499,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       return;
     }
     const dx = e.changedTouches[0].clientX - dragX.current;
-    dragX.current = null; axis.current = null;
+    dragX.current = null; dragY.current = null; axis.current = null;
 
     const committed = Math.abs(dx) > window.innerWidth * 0.2;
     const goingNext = dx < 0 && canGoNext && committed;
@@ -493,96 +550,98 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Backdrop */}
+      {/* Backdrop — fades in-place, never translates */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
-      {/* Top bar */}
-      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
-        {topBarLeft !== undefined ? topBarLeft : (
-          <>
-            {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}
-            {!hasMultiple && <span />}
-          </>
-        )}
-        <div className="flex items-center gap-1">
-          {showDownload && (
-            <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
-              <Download className="size-5" />
-            </button>
+      {/* All interactive content — translated together during swipe-to-dismiss */}
+      <div data-lightbox-content className="absolute inset-0">
+        {/* Top bar */}
+        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
+          {topBarLeft !== undefined ? topBarLeft : (
+            <>
+              {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}
+              {!hasMultiple && <span />}
+            </>
           )}
-          <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
-            <X className="size-5" />
+          <div className="flex items-center gap-1">
+            {showDownload && (
+              <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
+                <Download className="size-5" />
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
+              <X className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Prev/next buttons (desktop) */}
+        {canGoPrev && (
+          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
+            <ChevronLeft className="size-6" />
           </button>
+        )}
+        {canGoNext && (
+          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
+            <ChevronRight className="size-6" />
+          </button>
+        )}
+
+        {/* Per-image slots — each absolutely positioned by index offset */}
+        <div data-lightbox-strip className="absolute inset-0 overflow-hidden">
+          {visibleIndices.map((i) => {
+            const url = images[i];
+            const isCurrent = i === currentIndex;
+            const initialX = (i - currentIndex) * window.innerWidth;
+            return (
+              <div
+                key={url}
+                ref={(el) => {
+                  if (el) slotRefs.current.set(i, el);
+                  else slotRefs.current.delete(i);
+                }}
+                className={cn(
+                  'absolute inset-0 flex items-center justify-center will-change-transform',
+                  bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
+                )}
+                style={{ transform: `translateX(${initialX}px)` }}
+              >
+                {isCurrent && !isLoaded && (mediaTypes?.[i] ?? 'image') === 'image' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+                  </div>
+                )}
+                <LightboxSlot
+                  url={url}
+                  type={mediaTypes?.[i] ?? 'image'}
+                  meta={mediaMeta?.[i]}
+                  isActive={isCurrent}
+                  isLoaded={isCurrent ? isLoaded : true}
+                  onLoad={markLoaded}
+                  onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
+                  onZoomChange={(zoomed) => { childZoomedRef.current = zoomed; }}
+                />
+              </div>
+            );
+          })}
         </div>
+
+        {/* Dot indicators */}
+        {hasMultiple && images.length <= maxDotIndicators && (
+          <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
+            {images.map((_, i) => (
+              <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
+            ))}
+          </div>
+        )}
+
+        {/* Bottom bar — author info, reactions, captions, etc. */}
+        {bottomBar && (
+          <div className="absolute inset-x-0 bottom-0 z-10" onClick={(e) => e.stopPropagation()}>
+            {bottomBar}
+          </div>
+        )}
       </div>
-
-      {/* Prev/next buttons (desktop) */}
-      {canGoPrev && (
-        <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
-          <ChevronLeft className="size-6" />
-        </button>
-      )}
-      {canGoNext && (
-        <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
-          <ChevronRight className="size-6" />
-        </button>
-      )}
-
-      {/* Per-image slots — each absolutely positioned by index offset */}
-      <div className="absolute inset-0 overflow-hidden">
-        {visibleIndices.map((i) => {
-          const url = images[i];
-          const isCurrent = i === currentIndex;
-          const initialX = (i - currentIndex) * window.innerWidth;
-          return (
-            <div
-              key={url}
-              ref={(el) => {
-                if (el) slotRefs.current.set(i, el);
-                else slotRefs.current.delete(i);
-              }}
-              className={cn(
-                'absolute inset-0 flex items-center justify-center will-change-transform',
-                bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
-              )}
-              style={{ transform: `translateX(${initialX}px)` }}
-            >
-              {isCurrent && !isLoaded && (mediaTypes?.[i] ?? 'image') === 'image' && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-                </div>
-              )}
-              <LightboxSlot
-                url={url}
-                type={mediaTypes?.[i] ?? 'image'}
-                meta={mediaMeta?.[i]}
-                isActive={isCurrent}
-                isLoaded={isCurrent ? isLoaded : true}
-                onLoad={markLoaded}
-                onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
-              />
-            </div>
-          );
-        })}
-
-
-      </div>
-
-      {/* Dot indicators */}
-      {hasMultiple && images.length <= maxDotIndicators && (
-        <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
-          {images.map((_, i) => (
-            <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
-          ))}
-        </div>
-      )}
-
-      {/* Bottom bar — author info, reactions, captions, etc. */}
-      {bottomBar && (
-        <div className="absolute inset-x-0 bottom-0 z-10" onClick={(e) => e.stopPropagation()}>
-          {bottomBar}
-        </div>
-      )}
     </div>,
     document.body,
   );
@@ -592,12 +651,14 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 
 /** Lightbox image with pinch/wheel zoom and pan support. */
-function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
+function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: {
   url: string;
   isLoaded: boolean;
   onLoad: (url: string) => void;
   /** Called when a horizontal swipe is intercepted by pan (image is zoomed). */
   onSwipeBlocked?: () => void;
+  /** Called when the image zoom state changes (zoomed in or back to 1x). */
+  onZoomChange?: (zoomed: boolean) => void;
 }) {
   const { src, onError } = useBlossomFallback(url);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -624,13 +685,19 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleLoaded();
   }, [src, handleLoaded]);
 
+  /** Notify parent when zoom state changes. */
+  const notifyZoom = useCallback(() => {
+    onZoomChange?.(scale.current > 1);
+  }, [onZoomChange]);
+
   // Reset zoom when url changes
   useEffect(() => {
     scale.current = 1;
     panX.current = 0;
     panY.current = 0;
     applyTransform();
-  }, [url]);
+    notifyZoom();
+  }, [url, notifyZoom]);
 
   function applyTransform(animated = false) {
     const el = wrapRef.current;
@@ -695,6 +762,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
           }
         }
         applyTransform(true);
+        notifyZoom();
       }
       lastTap.current = now;
     }
@@ -712,6 +780,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       panY.current = p.panY + (midY - p.midY);
       clampPan(newScale);
       applyTransform();
+      notifyZoom();
     } else if (e.touches.length === 1 && panStart.current && scale.current > 1) {
       e.preventDefault();
       const p = panStart.current;
@@ -731,6 +800,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       if (scale.current < MIN_SCALE) {
         scale.current = MIN_SCALE; panX.current = 0; panY.current = 0;
         applyTransform(true);
+        notifyZoom();
       } else {
         clampPan();
         applyTransform(true);
@@ -747,6 +817,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked }: {
       if (scale.current === MIN_SCALE) { panX.current = 0; panY.current = 0; }
       else clampPan();
       applyTransform();
+      notifyZoom();
     } else if (scale.current > 1) {
       e.preventDefault();
       panX.current -= e.deltaX;
@@ -826,6 +897,7 @@ function LightboxSlot({
   isLoaded,
   onLoad,
   onSwipeBlocked,
+  onZoomChange,
 }: {
   url: string;
   type: 'image' | 'video' | 'audio';
@@ -834,6 +906,7 @@ function LightboxSlot({
   isLoaded: boolean;
   onLoad: (url: string) => void;
   onSwipeBlocked?: () => void;
+  onZoomChange?: (zoomed: boolean) => void;
 }) {
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
@@ -869,5 +942,5 @@ function LightboxSlot({
       </div>
     );
   }
-  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} />;
+  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} />;
 }

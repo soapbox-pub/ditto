@@ -9,6 +9,7 @@ import { NsitePreviewDialog } from '@/components/NsitePreviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { NostrURI } from '@/lib/NostrURI';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 /** Get a tag value by name. */
@@ -104,9 +105,13 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 
   const name = metadata.name || getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
   const about = metadata.about;
-  const picture = metadata.picture;
-  const banner = metadata.banner;
-  const websiteUrl = getWebsiteUrl(event.tags, metadata);
+  // Sanitize image URLs to reject non-https schemes (http IP leaks, data: URIs,
+  // etc.). The CSP \`img-src\` already blocks most of these, but sanitizing
+  // defense-in-depth matches the treatment of the website URL below and keeps
+  // the component safe if it is ever rendered outside the app's own CSP.
+  const picture = sanitizeUrl(metadata.picture);
+  const banner = sanitizeUrl(metadata.banner);
+  const websiteUrl = sanitizeUrl(getWebsiteUrl(event.tags, metadata));
   const hashtags = getAllTags(event.tags, 't');
 
   const shakespeareUrl = useMemo(() => getShakespeareUrl(event.tags), [event.tags]);

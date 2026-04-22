@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { CoreThemeColors, ThemeConfig, ThemeFont, ThemeBackground } from '@/themes';
-import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
+import { hslStringToHex, hexToHslString, isValidHex } from '@/lib/colorUtils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // ─── Kind Constants ───────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ function parseColorTags(tags: string[][]): CoreThemeColors | null {
   const primaryHex = colorMap.get('primary');
 
   if (!bgHex || !textHex || !primaryHex) return null;
+  if (!isValidHex(bgHex) || !isValidHex(textHex) || !isValidHex(primaryHex)) return null;
 
   return {
     background: hexToHslString(bgHex),
@@ -75,7 +77,8 @@ function parseFontTags(tags: string[][]): { font?: ThemeFont; titleFont?: ThemeF
     if (tag[0] !== 'f' || !tag[1]) continue;
     const role = tag[3]; // 4th element: "body", "title", or absent (legacy)
     const parsed: ThemeFont = { family: tag[1] };
-    if (tag[2]) parsed.url = tag[2];
+    const fontUrl = sanitizeUrl(tag[2]);
+    if (fontUrl) parsed.url = fontUrl;
 
     if (role === 'title') {
       if (!titleFont) titleFont = parsed;
@@ -116,7 +119,8 @@ function parseBackgroundTag(tags: string[][]): ThemeBackground | undefined {
     kv.set(entry.slice(0, spaceIdx), entry.slice(spaceIdx + 1));
   }
 
-  const url = kv.get('url');
+  const rawUrl = kv.get('url');
+  const url = sanitizeUrl(rawUrl);
   if (!url) return undefined;
 
   const bg: ThemeBackground = { url };

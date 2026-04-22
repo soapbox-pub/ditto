@@ -7,8 +7,10 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  ListMusic,
   Mail,
   MessageCircle,
+  Music,
   Rocket,
   MoreHorizontal,
   Package,
@@ -18,6 +20,7 @@ import {
   SmilePlus,
   PartyPopper,
   Sparkles,
+  UserCheck,
   Users,
   Zap,
 } from "lucide-react";
@@ -33,6 +36,7 @@ import {
   PodcastEpisodeContent,
   PodcastTrailerContent,
 } from "@/components/AudioKindContent";
+import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
 import {
@@ -45,7 +49,7 @@ import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
-import { FollowPackContent } from "@/components/FollowPackContent";
+import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
@@ -58,7 +62,6 @@ import { LiveStreamPlayer } from "@/components/LiveStreamPlayer";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { Nip05Badge } from "@/components/Nip05Badge";
 import { NoteContent } from "@/components/NoteContent";
-import { NoteMedia } from "@/components/NoteMedia";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PatchCard } from "@/components/PatchCard";
 import { PollContent } from "@/components/PollContent";
@@ -90,6 +93,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
+import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import { canZap } from "@/lib/canZap";
@@ -97,12 +101,11 @@ import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/u
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { type ImetaEntry, parseImetaMap } from "@/lib/imeta";
-import { extractAudioUrls, extractVideoUrls } from "@/lib/mediaUrls";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
 import { shareOrCopy } from "@/lib/share";
+import { impactLight } from "@/lib/haptics";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
@@ -341,6 +344,7 @@ export const NoteCard = memo(function NoteCard({
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
+  const shareOrigin = useShareOrigin();
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -392,7 +396,7 @@ export const NoteCard = memo(function NoteCard({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
@@ -405,7 +409,8 @@ export const NoteCard = memo(function NoteCard({
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
   const isProfileBadges = event.kind === 10008 || event.kind === 30008;
-  const isBadge = isBadgeDefinition || isProfileBadges;
+  const isBadgeAward = event.kind === 8;
+  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeAward;
   const isReaction = event.kind === 7;
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -441,7 +446,7 @@ export const NoteCard = memo(function NoteCard({
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
-    !isFollowPack &&
+    !isPeopleList &&
     !isArticle &&
     !isMagicDeck &&
     !isStream &&
@@ -469,35 +474,6 @@ export const NoteCard = memo(function NoteCard({
     !isProfile &&
     !isBlobbiState;
 
-  // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
-  const videos = useMemo(
-    () => (isTextNote ? extractVideoUrls(event.content) : []),
-    [event.content, isTextNote],
-  );
-  const audios = useMemo(() => {
-    if (!isTextNote) return [];
-    // Prefer imeta-declared audio over URL scraping
-    const imetaAudios = Array.from(parseImetaMap(event.tags).values())
-      .filter((e) => e.mime?.startsWith("audio/"))
-      .map((e) => e.url);
-    if (imetaAudios.length > 0) return imetaAudios;
-    return extractAudioUrls(event.content);
-  }, [event.content, event.tags, isTextNote]);
-  const imetaMap = useMemo(
-    () =>
-      isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(),
-    [event.tags, isTextNote],
-  );
-
-  // Extract webxdc attachments from imeta tags
-  const webxdcApps = useMemo(() => {
-    if (!isTextNote) return [];
-    return Array.from(imetaMap.values()).filter(
-      (entry) =>
-        entry.mime === "application/x-webxdc" ||
-        entry.mime === "application/vnd.webxdc+zip",
-    );
-  }, [imetaMap, isTextNote]);
   const isComment = event.kind === 1111;
   const isReply = isTextNote && !isComment && isReplyEvent(event);
 
@@ -616,8 +592,8 @@ export const NoteCard = memo(function NoteCard({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
-        ) : isFollowPack ? (
-          <FollowPackContent event={event} />
+        ) : isPeopleList ? (
+          <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <ArticleContent event={event} preview className="mt-2" />
@@ -634,6 +610,8 @@ export const NoteCard = memo(function NoteCard({
           <BadgeContent event={event} />
         ) : isProfileBadges ? (
           <ProfileBadgesContent event={event} />
+        ) : isBadgeAward ? (
+          <BadgeAwardCard event={event} />
         ) : isTheme ? (
           <ThemeContent event={event} />
         ) : isVoiceMessage ? (
@@ -695,10 +673,6 @@ export const NoteCard = memo(function NoteCard({
         ) : (
           <TruncatedNoteContent
             event={event}
-            videos={videos}
-            audios={audios}
-            imetaMap={imetaMap}
-            webxdcApps={webxdcApps}
           />
         )}
       </ContentWarningGuard>
@@ -836,7 +810,8 @@ export const NoteCard = memo(function NoteCard({
         title="Share"
         onClick={async (e) => {
           e.stopPropagation();
-          const url = `${window.location.origin}/${encodedId}`;
+          impactLight();
+          const url = `${shareOrigin}/${encodedId}`;
           const result = await shareOrCopy(url);
           if (result === "copied") toast({ title: "Link copied to clipboard" });
         }}
@@ -1168,19 +1143,11 @@ export const NoteCard = memo(function NoteCard({
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
 /** Truncates long text note content with a "Read more" fade + button.
- *  Media attachments are also hidden behind the truncation and revealed on expand. */
+ *  Media attachments render inline within NoteContent at their original content position. */
 function TruncatedNoteContent({
   event,
-  videos,
-  audios = [],
-  imetaMap,
-  webxdcApps = [],
 }: {
   event: NostrEvent;
-  videos: string[];
-  audios?: string[];
-  imetaMap: Map<string, ImetaEntry>;
-  webxdcApps?: ImetaEntry[];
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -1212,8 +1179,6 @@ function TruncatedNoteContent({
       imgs.forEach((img) => img.removeEventListener("load", measure));
   }, [measure]);
 
-  const showMedia = !overflows || expanded;
-
   return (
     <div className="mt-2 break-words overflow-hidden">
       <div
@@ -1240,15 +1205,6 @@ function TruncatedNoteContent({
         >
           {expanded ? "Show less" : "Read more"}
         </button>
-      )}
-      {showMedia && (
-        <NoteMedia
-          videos={videos}
-          audios={audios}
-          imetaMap={imetaMap}
-          webxdcApps={webxdcApps}
-          event={event}
-        />
       )}
     </div>
   );
@@ -1757,6 +1713,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "emoji pack",
     nounRoute: "/emojis",
   },
+  8: {
+    icon: Award,
+    action: "awarded a",
+    noun: "badge",
+    nounRoute: "/badges",
+  },
   30009: {
     icon: Award,
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "created a" }),
@@ -1841,7 +1803,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   31124: {
     icon: Egg,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
     noun: "Blobbi",
     nounRoute: "/blobbi",
   },
@@ -1852,10 +1814,27 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/packs",
   },
   30000: {
-    icon: PartyPopper,
+    icon: Users,
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "follow set",
     nounRoute: "/packs",
+  },
+  36787: {
+    icon: Music,
+    action: (event) => publishedAtAction(event, { created: "shared a", updated: "updated a", fallback: "shared a" }),
+    noun: "track",
+    nounRoute: "/music",
+  },
+  34139: {
+    icon: ListMusic,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
+    noun: "playlist",
+    nounRoute: "/music",
+  },
+  3: {
+    icon: UserCheck,
+    action: "updated their",
+    noun: "follow list",
   },
 };
 

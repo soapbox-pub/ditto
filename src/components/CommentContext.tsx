@@ -6,7 +6,7 @@ import {
   Award, BarChart3, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
-  Users, Vote, Zap,
+  UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -96,9 +96,11 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
 const KIND_LABELS: Record<number, string> = {
   0: 'a profile',
   1: 'a post',
+  3: 'a follow list',
   4: 'an encrypted message',
   6: 'a repost',
   7: 'a reaction',
+  8: 'a badge award',
   16: 'a repost',
   20: 'a photo',
   21: 'a video',
@@ -141,6 +143,7 @@ const KIND_LABELS: Record<number, string> = {
   36787: 'a track',
   37381: 'a Magic deck',
   37516: 'a treasure',
+  30000: 'a follow set',
   39089: 'a follow pack',
   9735: 'a zap',
   31124: 'a Blobbi',
@@ -152,6 +155,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1: MessageSquare,
   4: Mail,
   6: RepostIcon,
+  8: Award,
   16: RepostIcon,
   20: Camera,
   21: Film,
@@ -186,6 +190,8 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   37381: CardsIcon,
   37516: ChestIcon,
   7516: ChestIcon,
+  3: UserCheck,
+  30000: Users,
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
@@ -221,6 +227,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30030: 'emoji pack',
   36767: 'theme',
   16767: 'theme',
+  30000: 'follow set',
   39089: 'follow pack',
   37381: 'deck',
   37516: 'treasure',
@@ -427,7 +434,46 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     return <ProfileBadgesCommentContext root={root} className={className} />;
   }
 
+  // Kind 3 follow lists have no title of their own — synthesize one from the author's name
+  if (root.addr?.kind === 3) {
+    return <FollowListCommentContext pubkey={root.addr.pubkey} className={className} />;
+  }
+
   return <GenericAddrCommentContext root={root} className={className} />;
+}
+
+/** Comment context for kind 3 (follow list) roots — shows "Commenting on @Name's follow list". */
+function FollowListCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+  const listLink = useMemo(
+    () => `/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`,
+    [pubkey],
+  );
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <Link
+          to={`/${npubEncoded}`}
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @{displayName}'s
+        </Link>
+      </ProfileHoverCard>
+      <Link
+        to={listLink}
+        className="inline-flex items-center gap-1 text-primary hover:underline shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <UserCheck className="size-3.5 shrink-0" />
+        follow list
+      </Link>
+    </CommentContextRow>
+  );
 }
 
 /** Comment context for kind 0 (profile) roots — shows "Commenting on @Name". */

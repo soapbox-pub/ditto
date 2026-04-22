@@ -155,7 +155,7 @@ export function ExternalContentPage() {
     if (!rawUri) return '';
     // If the wildcard param looks already encoded (no "://" present), decode it.
     if (!rawUri.includes('://')) {
-      return decodeURIComponent(rawUri);
+      try { return decodeURIComponent(rawUri); } catch { return rawUri; }
     }
     // Otherwise it's a bare URL — reattach any query string the browser separated out.
     return rawUri + location.search;
@@ -180,11 +180,19 @@ export function ExternalContentPage() {
   useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
-  // For URLs, the raw URL is used. For others, the full prefixed identifier.
-  const commentRoot = useMemo(() => {
-    if (!content) return undefined;
-    return new URL(content.value);
+  // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) a #-prefixed string
+  // is passed to useComments for querying but cannot be used with ComposeBox/ReplyComposeModal.
+  const commentRootUrl = useMemo((): URL | undefined => {
+    if (!content || content.type !== 'url') return undefined;
+    try { return new URL(content.value); } catch { return undefined; }
   }, [content]);
+
+  const commentRootId = useMemo((): `#${string}` | undefined => {
+    if (!content || content.type === 'url') return undefined;
+    return `#${content.value}` as `#${string}`;
+  }, [content]);
+
+  const commentRoot: URL | `#${string}` | undefined = commentRootUrl ?? commentRootId;
 
   const { muteItems } = useMuteList();
   const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
@@ -230,7 +238,7 @@ export function ExternalContentPage() {
     onFabClick: openCompose,
   });
 
-  if (!content || !uri || !commentRoot) {
+  if (!content || !uri) {
     return <NotFound />;
   }
 
@@ -274,20 +282,20 @@ export function ExternalContentPage() {
       <ExternalActionBar content={content} />
 
       {/* Comment compose dialog (opened via FAB) */}
-      <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />
+      {commentRootUrl && <ReplyComposeModal event={commentRootUrl} open={composeOpen} onOpenChange={setComposeOpen} />}
 
       {/* ISBN pages get a tabbed interface with Comments + Reviews */}
       {content.type === 'isbn' ? (
         <BookContentTabs
           isbn={content.value.replace('isbn:', '')}
-          commentRoot={commentRoot}
+          commentRoot={commentRootUrl}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
         />
       ) : (
         <>
           {/* Inline compose box */}
-          <ComposeBox compact replyTo={commentRoot} />
+          {commentRootUrl && <ComposeBox compact replyTo={commentRootUrl} />}
 
           {/* Threaded comments list */}
           <div>
@@ -349,7 +357,7 @@ function CommentsEmptyState() {
 
 interface BookContentTabsProps {
   isbn: string;
-  commentRoot: URL;
+  commentRoot: URL | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
 }
@@ -379,7 +387,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }:
 
       <TabsContent value="comments" className="mt-0">
         {/* Inline compose box */}
-        <ComposeBox compact replyTo={commentRoot} />
+        {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
 
         {/* Threaded comments list */}
         <div>

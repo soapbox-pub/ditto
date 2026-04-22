@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, GitFork, Globe, Package, Shiel
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
@@ -243,8 +244,8 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
   const platforms = getAllTags(event.tags, 'f');
   const uniquePlatforms = useMemo(() => getUniquePlatforms(platforms), [platforms]);
   const hashtags = getAllTags(event.tags, 't');
-  const websiteUrl = getTag(event.tags, 'url');
-  const repoUrl = getTag(event.tags, 'repository');
+  const websiteUrl = sanitizeUrl(getTag(event.tags, 'url'));
+  const repoUrl = sanitizeUrl(getTag(event.tags, 'repository'));
   const license = getTag(event.tags, 'license');
   const appId = getTag(event.tags, 'd');
 

@@ -16,15 +16,13 @@ import {
   clampStat,
   applyStat,
   DIRECT_ACTION_METADATA,
-  incrementInteractionTaskTags,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions } from '../lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
-import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -149,15 +147,24 @@ export function useBlobbiDirectAction({
       // ─── Update Blobbi State Event (kind 31124) ───
       const nowStr = now.toString();
       
-      // If incubating or evolving, increment the interaction counter for tasks
-      const companionState = canonical.companion.state;
-      let updatedTags = canonical.allTags;
-      if (companionState === 'incubating') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, HATCH_REQUIRED_INTERACTIONS).updatedTags;
-      } else if (companionState === 'evolving') {
-        updatedTags = incrementInteractionTaskTags(canonical.allTags, EVOLVE_REQUIRED_INTERACTIONS).updatedTags;
+      // If incubating or evolving, increment the interaction counter in evolution missions
+      const progressionState = canonical.companion.progressionState;
+      const updatedTags = canonical.allTags;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        trackEvolutionMissionTally('interactions', 1, user.pubkey, canonical.companion.d);
       }
       
+      // ─── Build content with latest evolution state ───
+      // Read the updated evolution from session store so the publish carries
+      // the latest progress, instead of relying on the debounce hook.
+      let content = canonical.content;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        const evo = readEvolutionFromStorage(user.pubkey, canonical.companion.d);
+        if (evo && evo.length > 0) {
+          content = serializeEvolutionContent(canonical.content, evo);
+        }
+      }
+
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
@@ -177,7 +184,7 @@ export function useBlobbiDirectAction({
 
       const blobbiEvent = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: blobbiTags,
       });
 

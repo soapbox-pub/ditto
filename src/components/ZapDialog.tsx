@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X, Smile } from 'lucide-react';
 import { openUrl } from '@/lib/downloadFile';
+import { impactMedium } from '@/lib/haptics';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
@@ -368,6 +369,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   }, [open, setInvoice]);
 
   const handleZap = () => {
+    impactMedium();
     const finalAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
     zap(finalAmount, comment);
   };

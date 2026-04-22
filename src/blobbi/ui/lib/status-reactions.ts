@@ -876,3 +876,51 @@ export const ACTION_EMOTION_MAP: Record<ActionType, BlobbiEmotion> = {
 export function getActionEmotion(action: ActionType): BlobbiEmotion {
   return ACTION_EMOTION_MAP[action];
 }
+
+// ─── Feed Attenuation ─────────────────────────────────────────────────────────
+
+/**
+ * Produce a lighter version of a visual recipe suitable for feed cards.
+ *
+ * Feed Blobbis are rendered at a smaller size (size-48/56 vs size-64+) and
+ * need to remain readable at a glance. This function keeps all facial parts
+ * (eyes, mouth, eyebrows) and extras untouched — they are already sized
+ * relative to the SVG viewBox — but reduces body-effect particle counts
+ * and removes flies to prevent visual clutter at small sizes.
+ *
+ * The input recipe is produced by the same `resolveStatusRecipe()` used
+ * by the room view, so thresholds and priorities are identical.
+ */
+export function attenuateRecipeForFeed(recipe: BlobbiVisualRecipe): BlobbiVisualRecipe {
+  // Empty / no body effects → return as-is (stable reference path)
+  if (!recipe.bodyEffects) return recipe;
+
+  const { bodyEffects, ...rest } = recipe;
+  const attenuated: BodyEffectsRecipe = {};
+
+  // Dirt marks: reduce count by ~40%, lower intensity cap
+  if (bodyEffects.dirtMarks?.enabled) {
+    attenuated.dirtMarks = {
+      ...bodyEffects.dirtMarks,
+      count: Math.max(1, Math.ceil((bodyEffects.dirtMarks.count ?? 3) * 0.6)),
+      intensity: Math.min(bodyEffects.dirtMarks.intensity ?? 0.6, 0.55),
+    };
+  }
+
+  // Stink clouds: reduce count, remove flies entirely
+  if (bodyEffects.stinkClouds?.enabled) {
+    attenuated.stinkClouds = {
+      ...bodyEffects.stinkClouds,
+      count: Math.max(1, Math.ceil((bodyEffects.stinkClouds.count ?? 3) * 0.5)),
+      flies: false,
+      flyCount: 0,
+    };
+  }
+
+  // Anger rise: pass through unchanged (single overlay, scales with SVG)
+  if (bodyEffects.angerRise) {
+    attenuated.angerRise = bodyEffects.angerRise;
+  }
+
+  return { ...rest, bodyEffects: attenuated };
+}

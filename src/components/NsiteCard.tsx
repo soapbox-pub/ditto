@@ -8,6 +8,7 @@ import { NsitePreviewDialog } from "@/components/NsitePreviewDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
 import { getNsiteSubdomain } from "@/lib/nsiteSubdomain";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { cn } from "@/lib/utils";
 
 interface NsiteCardProps {
@@ -24,7 +25,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const title = event.tags.find(([n]) => n === "title")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
 	const dTag = event.tags.find(([n]) => n === "d")?.[1];
-	const sourceUrl = event.tags.find(([n]) => n === "source")?.[1];
+	const sourceUrl = sanitizeUrl(event.tags.find(([n]) => n === "source")?.[1]);
 	const pathTags = event.tags.filter(([n]) => n === "path");
 	const serverTags = event.tags.filter(([n]) => n === "server");
 

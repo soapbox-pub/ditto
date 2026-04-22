@@ -1,25 +1,30 @@
-import { type ReactNode, useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import { Award, Image, MessageSquareOff } from 'lucide-react';
+import type { NostrEvent } from '@nostrify/nostrify';
+
+const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
+import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { isPeopleListKind } from '@/lib/packUtils';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesKind } from '@/lib/badgeUtils';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -85,6 +90,17 @@ export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNa
   // Profile badges (kind 10008/30008) get a compact badge row preview
   if (isProfileBadgesKind(event.kind)) {
     return <EmbeddedProfileBadgesCard event={event} className={className} />;
+  }
+
+  // Blobbi state events render the pet visual inline
+  if (event.kind === 31124) {
+    return <EmbeddedBlobbiCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // People-list events (kind 30000 follow sets, 39089 follow packs) get a
+  // dedicated card showing title + avatar stack + member count.
+  if (isPeopleListKind(event.kind)) {
+    return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -194,6 +210,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || genUserName(event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
 
@@ -265,7 +282,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
           ) : (
             <>
               <Link
-                to={`/${nip19.npubEncode(event.pubkey)}`}
+                to={profileUrl}
                 className="shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -277,7 +294,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
                 </Avatar>
               </Link>
               <Link
-                to={`/${nip19.npubEncode(event.pubkey)}`}
+                to={profileUrl}
                 className="text-sm font-semibold truncate hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -325,13 +342,6 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
 }
 
 function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
-  const navigate = useNavigate();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
-
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
@@ -353,114 +363,65 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
   }, [event.kind]);
 
   return (
-    <div
-      className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors cursor-pointer',
-        className,
-      )}
-      role="link"
-      tabIndex={0}
-      onClick={(e) => {
-        e.stopPropagation();
-        navigate(`/${naddrId}`);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          e.stopPropagation();
-          navigate(`/${naddrId}`);
-        }
-      }}
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
     >
-      {/* Text content */}
-      <div className="px-3 py-2 space-y-1">
-        {/* Author row */}
-        <div className="flex items-center gap-2 min-w-0">
-          {author.isLoading ? (
-            <>
-              <Skeleton className="size-5 rounded-full shrink-0" />
-              <Skeleton className="h-3.5 w-24" />
-            </>
-          ) : (
-            <>
-              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-                <Link
-                  to={`/${npub}`}
-                  className="shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Avatar shape={avatarShape} className="size-5">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                      {displayName[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-              </MaybeProfileHoverCard>
+      {/* Title */}
+      {title && (
+        <p className="text-sm font-semibold leading-snug line-clamp-2">
+          {title}
+        </p>
+      )}
 
-              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-                <Link
-                  to={`/${npub}`}
-                  className="text-sm font-semibold truncate hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {author.data?.event ? (
-                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                  ) : displayName}
-                </Link>
-              </MaybeProfileHoverCard>
-            </>
-          )}
+      {/* Description */}
+      {truncatedDesc && (
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+          {truncatedDesc}
+        </p>
+      )}
 
-          <span className="text-xs text-muted-foreground shrink-0">
-            · {timeAgo(event.created_at)}
+      {/* Kind label and attachment indicators */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {kindMeta && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
+            {kindMeta.label}
           </span>
-        </div>
-
-        {/* Title */}
-        {title && (
-          <p className="text-sm font-semibold leading-snug line-clamp-2">
-            {title}
-          </p>
         )}
-
-        {/* Description */}
-        {truncatedDesc && (
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-            {truncatedDesc}
-          </p>
+        {image && (
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Image className="size-3" />
+            Image
+          </span>
         )}
-
-        {/* Kind label and attachment indicators */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {kindMeta && (
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
-              {kindMeta.label}
-            </span>
-          )}
-          {image && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Image className="size-3" />
-              Image
-            </span>
-          )}
-        </div>
       </div>
-    </div>
+    </EmbeddedCardShell>
   );
 }
 
-/** Conditionally wraps children in a ProfileHoverCard. When disabled, renders children directly. */
-function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string; disabled?: boolean; children: ReactNode }) {
-  if (disabled) {
-    return <>{children}</>;
-  }
+/** Embedded card for kind 31124 Blobbi state events — renders the pet visual inline. */
+function EmbeddedBlobbiCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
   return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
-      {children}
-    </ProfileHoverCard>
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+        <BlobbiStateCard event={event} />
+      </Suspense>
+    </EmbeddedCardShell>
   );
 }
 

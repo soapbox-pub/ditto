@@ -1,13 +1,10 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
-import { Capacitor } from "@capacitor/core";
-import { StatusBar, Style } from "@capacitor/status-bar";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
-import { useEffect } from "react";
 import { AppProvider } from "@/components/AppProvider";
 import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
@@ -24,6 +21,7 @@ import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
+import { secureStorage } from "@/lib/secureStorage";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -50,6 +48,7 @@ const queryClient = new QueryClient({
 const hardcodedConfig: AppConfig = {
   appName: "Ditto",
   appId: "ditto",
+  shareOrigin: import.meta.env.VITE_SHARE_ORIGIN || undefined,
   homePage: "feed",
   client: "naddr1qvzqqqru7cpzq7q6z5ns2hm5c8msyv83qwzxpxe52j8c4d4q5m92wsp9sflelkh9qqzkg6t5w3hswjl4yp",
   magicMouse: false,
@@ -114,8 +113,10 @@ const hardcodedConfig: AppConfig = {
     showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
+    showBadgeAwards: true,
     feedIncludeBadgeDefinitions: true,
     feedIncludeProfileBadges: true,
+    feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
     feedIncludeBlobbi: true,
     followsFeedShowReplies: true,
@@ -148,8 +149,15 @@ const hardcodedConfig: AppConfig = {
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
+  autoplayVideos: false,
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
+  sandboxDomain: 'iframe.diy',
+  sidebarWidgets: [
+    { id: 'trends' },
+    { id: 'hot-posts' },
+    { id: 'wikipedia' },
+  ],
 };
 
 /**
@@ -181,17 +189,6 @@ const defaultConfig: AppConfig = {
 export function App() {
   useNsecPasteGuard();
 
-  useEffect(() => {
-    // Initialize StatusBar for mobile apps
-    if (Capacitor.isNativePlatform()) {
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {
-        // StatusBar may not be available on all platforms
-      });
-      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {
-        // Ignore errors on unsupported platforms
-      });
-    }
-  }, []);
 
   return (
     <UnheadProvider head={head}>
@@ -199,7 +196,7 @@ export function App() {
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey="nostr:login">
+              <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />

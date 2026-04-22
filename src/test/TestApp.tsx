@@ -86,8 +86,10 @@ export function TestApp({ children }: TestAppProps) {
       showBadges: false,
       showBadgeDefinitions: true,
       showProfileBadges: true,
+      showBadgeAwards: true,
       feedIncludeBadgeDefinitions: false,
       feedIncludeProfileBadges: false,
+      feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeBlobbi: true,
       followsFeedShowReplies: true,
@@ -110,7 +112,10 @@ export function TestApp({ children }: TestAppProps) {
     plausibleDomain: "",
     plausibleEndpoint: "",
     savedFeeds: [],
+    autoplayVideos: false,
     imageQuality: 'compressed',
+    sandboxDomain: 'iframe.diy',
+    sidebarWidgets: [],
   };
 
   return (

@@ -1,5 +1,178 @@
 # Changelog
 
+## [2.10.3] - 2026-04-20
+
+### Added
+- Music discovery page with a curated Discover tab, artist profiles, playlist detail pages with full playback, genre browsing, and hot/top/new sorting
+- Swipe-to-dismiss gesture on full-screen image lightboxes -- flick up or down to close instead of reaching for the X button
+- Autoplay videos setting in Content preferences (off by default) that plays videos muted in feeds and profiles
+- Replies are now delivered to tagged users' inbox relays so they're more likely to see your response
+
+### Fixed
+- Status bar text could appear unreadable on light themes
+- Envelope cards in the Letters inbox were hard to tap on mobile
+- Wall compose box kept showing the previous post's text after submitting from the modal
+
+## [2.10.2] - 2026-04-18
+
+### Fixed
+- Sleep and wake actions on Blobbis no longer wipe out evolution progress, and existing Blobbis that got stuck are recovered automatically
+- Pages no longer crash when a post contains a malformed blurhash; a placeholder is shown instead
+- External content links (books, locations, and other identifiers) and relay pages no longer crash on unusual or malformed URLs
+- Custom profile themes with invalid color values no longer break the page
+
+## [2.10.1] - 2026-04-17
+
+### Fixed
+- QR codes, copy-link actions, and remote-login callbacks on the iOS and Android apps now produce real shareable URLs instead of broken `capacitor://localhost` ones
+
+## [2.10.0] - 2026-04-17
+
+### Added
+- Follow lists, follow sets, and follow packs now share a unified detail view with Feed, Members, and Comments tabs, plus infinite scroll through posts from everyone on the list
+- Follow All button lets you follow everyone on someone's list or pack in a single tap, and a Save button copies any list to your own account
+- Tapping the "Following" count on a profile now opens a proper shareable page for that follow list instead of a modal
+
+### Changed
+- Quote posts, replies, and hover cards now show rich previews when someone shares a follow list or pack
+- Blobbi care actions in your feed now read as "cared for their Blobbi" instead of "updated their Blobbi"
+
+### Fixed
+- Stuck pinch-to-zoom on iOS that could lock the app in a zoomed-out state after a stray gesture
+- Profile and follow-list links that point at legacy replaceable events now resolve correctly instead of showing a "not found" state
+
+## [2.9.0] - 2026-04-17
+
+### Added
+- Compose box overhaul: emoji, GIF, and sticker pickers now appear inline right where you're typing, drafts autosave so you never lose a post mid-thought, and the box guards against accidental dismissal
+- Badge awards now appear inline in your home, profile, and Badges feeds with a one-tap accept button
+- Reaction, repost, zap, and poll-vote detail views now show the full list of who interacted, not just a count
+
+### Changed
+- Hatching and evolving Blobbis no longer requires posting -- focus on the care actions that matter
+
+## [2.8.0] - 2026-04-16
+
+### Added
+- Back up your secret key right from Profile settings -- reveal, copy, and save it to iCloud Keychain, Android Credential Manager, or a local file
+- Blobbi mission progress now persists across page refreshes, so your hatching and evolution journey picks up right where you left off
+
+### Changed
+- AI chat has been overhauled with a cleaner layout, the Dork mascot across empty states, and a clear path to grab Shakespeare credits when you run out
+- Friendly error banners now explain when you've hit the rate limit or run out of AI credits, instead of cryptic failures
+
+### Fixed
+- Avatar shape selection during signup now actually saves to your profile
+- Blobbi interaction missions now tally correctly the moment you start incubating or evolving
+- Blobbi task progress displays the right numbers immediately on page load instead of showing 0 until everything catches up
+
+## [2.7.1] - 2026-04-16
+
+### Added
+- Tap the Home tab while already on Home to scroll to the top and refresh your feed
+- Blobbi hatch and evolve missions now count your existing posts, themes, and color moments retroactively -- no need to start from scratch
+- New Blobbis begin incubating and evolving immediately after adoption, so every care action counts toward your next milestone
+
+### Changed
+- Signup's save-key step is clearer: the button now reads "Save Key", shows a spinner while saving, and warns you before the key is revealed on screen
+- On de-Googled Android devices without a password manager, your key now safely falls back to a file in the app's Documents folder
+- Wallet connections and device keys are now stored in the iOS Keychain and Android KeyStore for stronger at-rest protection
+- Android's automatic cloud backup now excludes your wallet credentials
+
+### Fixed
+- Scroll position is preserved when you navigate back from a post, profile, or any other page -- no more getting bounced to the top of your feed
+- Custom saved feeds now cache content and support infinite scroll like the Home, Ditto, and Global feeds
+- Various security hardening across themes, letters, profile banners, direct messages, and sandboxed apps to protect against malformed data
+
+## [2.7.0] - 2026-04-14
+
+### Added
+- Customizable widget sidebar -- drag, drop, and rearrange widgets on your feed including Trending, Hot Posts, Bluesky, AI Chat, Blobbi, Music, Photos, Wikipedia, and more
+- Blobbi rooms -- swipe between living spaces, clean up after your pet, and earn XP from daily care routines
+- Native push notifications on iOS with author names, content previews, and smart grouping by category
+- Haptic feedback throughout the app -- taps, buzzes, and pulses when you react, zap, repost, pull to refresh, play games, and interact with your Blobbi
+- Hot Posts widget showing the most popular posts from your feed at a glance
+
+### Changed
+- Sidebar widgets are now clickable links that take you to their full pages
+- Blobbi widget shows live stats with circular ring indicators and quick action buttons
+
+### Fixed
+- Zaps embedded in posts now render as proper inline cards instead of blank space
+- Quote posts display media and Blobbi companions correctly
+- Deep linking on Google Play works again
+- Game controller buttons no longer trigger text selection on long-press on iOS
+
+## [2.6.6] - 2026-04-12
+
+### Fixed
+- Emoji and mention autocomplete dropdowns no longer get clipped by the compose box
+- Emoji shortcodes now render as color emoji instead of plain text glyphs
+- Dialogs and input fields on Android are no longer obscured by the virtual keyboard
+- Signing requests on Android are more reliable and no longer silently fail after switching apps
+
+## [2.6.5] - 2026-04-11
+
+### Changed
+- Apps and games load significantly faster on Android with smarter prefetching and server affinity
+- Native loading spinners replace HTML-based ones on iOS and Android for a smoother experience
+
+### Fixed
+- External API requests on Android no longer fail due to hostname restrictions
+- iOS App Store compliance issues resolved
+
+## [2.6.4] - 2026-04-11
+
+### Added
+- iCloud Keychain integration on iOS -- your login credentials are now saved and restored automatically across devices
+
+### Changed
+- Empty feeds show a friendlier state with a discover button to help you find people to follow
+- Signup flow simplified -- cleaner profile step with a single Continue button
+
+### Fixed
+- Avatar fallback now shows the user's initial instead of a question mark
+- Android 16+ devices no longer have content hidden behind system bars
+- Signup dialog background clears properly when switching between light and dark themes
+- Sticky compose button stays anchored to the bottom even on empty feeds
+
+## [2.6.3] - 2026-04-10
+
+### Added
+- Lightning invoices embedded in posts now render as tappable payment cards
+- Blobbi companions in the feed reflect their current condition and projected health
+
+### Changed
+- Profile headers are cleaner -- lightning addresses and verification badges moved out of the way, and website URLs no longer show a trailing slash
+- Login credentials are saved to your browser's built-in password manager for easier sign-in across sessions
+- "Request to Vanish" renamed to "Delete Account" for clarity
+
+### Fixed
+- Badge image uploads now show a recommended 1:1 aspect ratio hint so your badges don't get cropped unexpectedly
+- Security hardening for URLs and styles sourced from the network
+
+## [2.6.2] - 2026-04-08
+
+### Added
+- Share follow packs and follow sets via link -- recipients see an immersive preview with member avatars, a "Follow All" button, and a combined feed from everyone in the pack
+- Curated home feed with a mix of photos, short videos, livestreams, and music -- content types are spaced out so your timeline stays fresh and varied
+- "Write a letter" option on profile menus for a more personal way to reach out
+- Push vs persistent notification delivery option on Android
+
+### Changed
+- Webxdc games and apps always open fullscreen for a more immersive experience
+- Login credentials are now stored in the device's secure keychain on iOS and Android instead of plain local storage
+- Profile fields now appear inline instead of in a separate right sidebar
+- Trending hashtags removed from the logged-out homepage for a cleaner first impression
+
+### Fixed
+- Webxdc and nsites work natively on iOS and Android without relying on browser sandboxing tricks
+- File downloads now save directly to Documents on iOS and Android instead of silently failing
+- Mobile search no longer scrolls the page behind it and properly hides the bottom navigation bar
+- iOS swipe-back navigation works correctly throughout the app
+- Blobbi companions appear reliably on profiles instead of sometimes going missing
+- IndexedDB no longer crashes on devices with Lockdown Mode enabled
+
 ## [2.6.1] - 2026-04-06
 
 ### Added

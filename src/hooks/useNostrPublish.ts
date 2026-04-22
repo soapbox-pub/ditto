@@ -4,6 +4,7 @@ import { nip19 } from "nostr-tools";
 
 import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
+import { sendToInboxRelays } from "@/lib/inboxRelays";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -67,7 +68,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         const tags = [...(template.tags ?? [])];
 
         // Add the NIP-89 client tag if it doesn't exist
-        if (location.protocol === "https:" && !tags.some(([name]) => name === "client")) {
+        if (!tags.some(([name]) => name === "client")) {
           const clientTag = buildClientTag(config.clientName ?? config.appName, config.client);
           tags.push(clientTag);
         }
@@ -102,6 +103,23 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         }
 
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+
+        // NIP-65: For reply events (kind 1 and 1111), also send to the
+        // inbox (read) relays of tagged users so they receive the reply.
+        // This is fire-and-forget — it must not block the publish flow.
+        if (event.kind === 1 || event.kind === 1111) {
+          const taggedPubkeys = event.tags
+            .filter(([name]) => name === 'p' || name === 'P')
+            .map(([, pubkey]) => pubkey)
+            .filter(Boolean);
+
+          if (taggedPubkeys.length > 0) {
+            sendToInboxRelays(nostr, event, taggedPubkeys).catch(() => {
+              // Silently swallow — inbox delivery is best-effort.
+            });
+          }
+        }
+
         return event;
       } else {
         throw new Error("User is not logged in");

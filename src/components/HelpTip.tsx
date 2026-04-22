@@ -2,6 +2,7 @@ import { HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAppContext } from '@/hooks/useAppContext';
 import { getFAQItem } from '@/lib/helpContent';
 
 /**
@@ -62,7 +63,8 @@ interface HelpTipProps {
  * <label>Relays <HelpTip faqId="what-are-relays" /></label>
  */
 export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps) {
-  const item = getFAQItem(faqId);
+  const { config } = useAppContext();
+  const item = getFAQItem(config.appName, faqId);
   if (!item) return null;
 
   return (

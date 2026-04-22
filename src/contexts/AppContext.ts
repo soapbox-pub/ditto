@@ -142,10 +142,14 @@ export interface FeedSettings {
   showBadgeDefinitions: boolean;
   /** Show profile badges (kind 10008/30008) on the Badges page */
   showProfileBadges: boolean;
+  /** Show badge awards (kind 8) on the Badges page */
+  showBadgeAwards: boolean;
   /** Include badge definitions (kind 30009) in the follows/global feed */
   feedIncludeBadgeDefinitions: boolean;
   /** Include profile badges (kind 10008/30008) in the follows/global feed */
   feedIncludeProfileBadges: boolean;
+  /** Include badge awards (kind 8) in the follows/global feed */
+  feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
@@ -184,6 +188,14 @@ export interface AppConfig {
   appName: string;
   /** Application identifier used as a prefix for application-specific metadata (NIP-78 d-tags, etc). Default: "ditto". */
   appId: string;
+  /**
+   * Canonical origin used when generating shareable URLs (QR codes, copy-link,
+   * remote-login callbacks, etc). Falls back to `window.location.origin` when
+   * unset. Configure this in `ditto.json` for native builds, where
+   * `window.location.origin` is `capacitor://localhost` or `https://localhost`.
+   * Must NOT include a trailing slash.
+   */
+  shareOrigin?: string;
   /** Sidebar item ID to display on the homepage ("/"). Default: "feed". */
   homePage: string;
   /** Display name used in the NIP-89 "client" tag. Falls back to `appName` when not set. */
@@ -239,10 +251,24 @@ export interface AppConfig {
   plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
+  /** Autoplay videos in feeds and previews (muted). Default: false. */
+  autoplayVideos: boolean;
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */
   curatorPubkey?: string;
+  /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
+  sandboxDomain: string;
+  /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
+  sidebarWidgets: WidgetConfig[];
+}
+
+/** Configuration for a single widget in the right sidebar. */
+export interface WidgetConfig {
+  /** Widget type identifier (e.g. "trends", "blobbi", "wikipedia", "bluesky"). */
+  id: string;
+  /** User-configured height in pixels. Overrides the widget's default height. */
+  height?: number;
 }
 
 export interface AppContextType {

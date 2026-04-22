@@ -35,12 +35,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { NoteContent } from '@/components/NoteContent';
-import { EmojifiedText } from '@/components/CustomEmoji';
+import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
@@ -52,9 +49,10 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
-import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
+import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -311,15 +309,14 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
 function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const shareOrigin = useShareOrigin();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
   const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
   const pinned = isPinned(event.id);
   const isOwnPost = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
@@ -336,13 +333,14 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${nip19Id}`;
+    const url = `${shareOrigin}/${nip19Id}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Link copied to clipboard' });
     close();
   };
 
   const handleBookmark = () => {
+    impactLight();
     toggleBookmark.mutate(event.id);
     close();
   };
@@ -359,6 +357,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleTogglePin = () => {
+    impactLight();
     togglePin.mutate(event.id, {
       onSuccess: () => {
         toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
@@ -371,6 +370,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   };
 
   const handleMuteConversation = () => {
+    impactLight();
     const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
     const threadId = rootTag?.[1] ?? event.id;
     addMute.mutate(
@@ -406,34 +406,10 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
       <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 rounded-2xl overflow-y-auto [&>button]:hidden">
         <DialogTitle className="sr-only">Post options</DialogTitle>
 
-        {/* Post preview */}
-        <div className="px-4 pt-4 pb-3">
-          <div className="flex gap-3">
-            <Avatar shape={avatarShape} className="size-10 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {displayName[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="font-bold truncate">
-                  {author.data?.event ? (
-                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                  ) : displayName}
-                </span>
-                <span className="text-muted-foreground shrink-0">·</span>
-                <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
-              </div>
-              <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3 max-h-[4.5em] overflow-hidden">
-                {/^[A-Za-z0-9+/=_-]{20,}$/.test(event.content.trim()) ? (
-                  <span className="italic">Encrypted content</span>
-                ) : (
-                  <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Post preview — delegates to the shared EmbeddedPost used by quote
+            posts and reply indicators so every surface renders events the same way. */}
+        <div className="p-4">
+          <EmbeddedPost event={event} disableHoverCards />
         </div>
 
         <Separator />

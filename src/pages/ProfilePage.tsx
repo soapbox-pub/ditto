@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, Share2, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -47,7 +47,6 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
 import { canZap } from '@/lib/canZap';
-import { shareOrCopy } from '@/lib/share';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
@@ -62,6 +61,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
+import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -102,8 +102,12 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
-import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { impactMedium } from '@/lib/haptics';
+import { getStorageKey } from '@/lib/storageKey';
+import { cn } from '@/lib/utils';
+
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -167,6 +171,8 @@ interface ProfileMoreMenuProps {
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
+  const shareOrigin = useShareOrigin();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -196,7 +202,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${npubEncoded}`;
+    const url = `${shareOrigin}/${npubEncoded}`;
     navigator.clipboard.writeText(url);
     toast({ title: 'Profile link copied to clipboard' });
     close();
@@ -232,6 +238,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   const handleRecovery = () => openAfterClose(setRecoveryOpen);
   const handleGiveBadge = () => openAfterClose(setGiveBadgeOpen);
+  const handleWriteLetter = () => {
+    close();
+    navigate(`/letters/compose?to=${npubEncoded}`);
+  };
   const handleZap = () => {
     close();
     setTimeout(() => zapTriggerRef.current?.click(), 150);
@@ -302,6 +312,13 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                   icon={<Award className="size-5" />}
                   label="Award badge"
                   onClick={handleGiveBadge}
+                />
+              )}
+              {user && (
+                <MenuRow
+                  icon={<Mail className="size-5" />}
+                  label="Write a letter"
+                  onClick={handleWriteLetter}
                 />
               )}
               <MenuRow
@@ -435,46 +452,6 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
         </>
       )}
     </Link>
-  );
-}
-
-// ----- Following List Modal -----
-
-interface FollowingListModalProps {
-  pubkeys: string[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  displayName: string;
-}
-
-function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: FollowingListModalProps) {
-  const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <DialogTitle className="text-base font-bold">{displayName} follows</DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full size-8"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-        <ScrollArea className="max-h-[60vh]">
-          {pubkeys.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              Not following anyone yet.
-            </div>
-          ) : (
-            pubkeys.map((pk) => <FollowingUserRow key={pk} pubkey={pk} onNavigate={handleNavigate} />)
-          )}
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -657,7 +634,8 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   const isBtc = field.label === '$BTC';
-  const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+  const safeUrl = sanitizeUrl(field.value);
+  const isUrl = !!safeUrl;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(field.value);
@@ -746,17 +724,17 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
-  if (isUrl && isAudioUrl(field.value)) {
-    return <MiniAudioPlayer src={field.value} label={field.label || undefined} />;
+  if (isUrl && safeUrl && isAudioUrl(safeUrl)) {
+    return <MiniAudioPlayer src={safeUrl} label={field.label || undefined} />;
   }
 
-  if (isUrl && isImageUrl(field.value)) {
+  if (isUrl && safeUrl && isImageUrl(safeUrl)) {
     return (
       <div className="min-w-0">
         {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
-        <a href={field.value} target="_blank" rel="noopener noreferrer" className="block">
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
-            src={field.value}
+            src={safeUrl}
             alt={field.label || 'Profile image'}
             className="w-full max-w-sm rounded-lg object-cover"
             loading="lazy"
@@ -766,29 +744,29 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
     );
   }
 
-  if (isUrl && isVideoUrl(field.value)) {
+  if (isUrl && safeUrl && isVideoUrl(safeUrl)) {
     return (
       <div className="min-w-0">
         {field.label && <div className="text-sm text-muted-foreground mb-1">{field.label}</div>}
         <div className="rounded-lg overflow-hidden max-w-sm">
-          <VideoPlayer src={field.value} />
+          <VideoPlayer src={safeUrl} />
         </div>
       </div>
     );
   }
 
-  if (isUrl) {
+  if (isUrl && safeUrl) {
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <ExternalFavicon url={field.value} size={16} className="shrink-0" />
+        <ExternalFavicon url={safeUrl} size={16} className="shrink-0" />
         <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
         <a
-          href={field.value}
+          href={safeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-primary hover:underline truncate"
         >
-          {field.value.replace(/^https?:\/\//, '')}
+          {safeUrl.replace(/^https?:\/\//, '')}
         </a>
       </div>
     );
@@ -834,6 +812,15 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 
 function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Vertical swipe-to-dismiss state
+  const dragY = useRef<number | null>(null);
+  const verticalOffset = useRef(0);
+  const animatingRef = useRef(false);
+  const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  const DURATION = 280;
 
   // Keyboard navigation
   useEffect(() => {
@@ -853,6 +840,65 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     };
   }, []);
 
+  // Safety: clear animating lock on unmount so stale refs can't block controls
+  useEffect(() => () => { animatingRef.current = false; }, []);
+
+  /** Backdrop fades in-place; all visible content translates together via contentRef. */
+  const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
+    const el = containerRef.current;
+    const content = contentRef.current;
+    if (!el || !content) return;
+    const progress = Math.min(Math.abs(offsetY) / (window.innerHeight * 0.4), 1);
+    el.style.transition = transition ? `opacity ${transition.split(' ').slice(1).join(' ')}` : 'none';
+    el.style.opacity = String(1 - progress * 0.6);
+    content.style.transition = transition;
+    content.style.transform = `translateY(${offsetY}px)`;
+  }, []);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (animatingRef.current || e.touches.length >= 2) return;
+    dragY.current = e.touches[0].clientY;
+    applyVerticalDismiss(0, 'none');
+    verticalOffset.current = 0;
+  };
+
+  // Use non-passive touchmove to allow preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: TouchEvent) => {
+      if (dragY.current === null || animatingRef.current || e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - dragY.current;
+      // Only start tracking after a small threshold
+      if (Math.abs(dy) < 4) return;
+      e.preventDefault();
+      verticalOffset.current = dy;
+      applyVerticalDismiss(dy, 'none');
+    };
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, [applyVerticalDismiss]);
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (dragY.current === null || animatingRef.current) { dragY.current = null; return; }
+    const dy = e.changedTouches[0].clientY - dragY.current;
+    dragY.current = null;
+    const committed = Math.abs(dy) > window.innerHeight * 0.15;
+    if (committed) {
+      animatingRef.current = true;
+      const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
+      applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
+      setTimeout(() => {
+        verticalOffset.current = 0;
+        onClose();
+        animatingRef.current = false;
+      }, DURATION);
+    } else {
+      applyVerticalDismiss(0, `transform ${DURATION}ms ${EASING}`);
+      verticalOffset.current = 0;
+    }
+  };
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
@@ -869,47 +915,54 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
   return createPortal(
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
       onClick={handleBackdropClick}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
+      {/* Backdrop — fades in-place, never translates */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
-      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleDownload}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Open original"
-          >
-            <Download className="size-5" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+      {/* All interactive content — translated together during swipe-to-dismiss */}
+      <div ref={contentRef} className="absolute inset-0">
+        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDownload}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Open original"
+            >
+              <Download className="size-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-        )}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt=""
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
+        </div>
+
+        <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            </div>
           )}
-          onLoad={() => setIsLoaded(true)}
-          draggable={false}
-        />
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt=""
+            className={cn(
+              'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+              isLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={() => setIsLoaded(true)}
+            draggable={false}
+          />
+        </div>
       </div>
     </div>,
     document.body,
@@ -941,7 +994,6 @@ export function ProfilePage() {
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
-  const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -1344,6 +1396,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
   // Wall compose modal state (for FAB on wall tab)
   const [wallComposeOpen, setWallComposeOpen] = useState(false);
+  // Bumped after a successful post from the wall compose modal so the inline
+  // ComposeBox remounts with a cleared draft instead of showing stale text.
+  const [wallComposeKey, setWallComposeKey] = useState(0);
 
   // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
@@ -1382,7 +1437,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const profileThemeColors = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.colors : undefined;
 
   // First-time custom theme info modal
-  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
+  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage(getStorageKey(config.appId, 'seen-profile-theme-info'), false);
   const [themeInfoOpen, setThemeInfoOpen] = useState(false);
   const { updateFeedSettings } = useFeedSettings();
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
@@ -1414,7 +1469,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       setLocalProfileBg(profileTheme.background);
     }
   }, [editProfileThemeOpen, profileTheme]);
-  const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
+  const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>(getStorageKey(config.appId, 'dismissed-share-theme-snapshot'), null);
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
@@ -1605,6 +1660,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       } else {
         await follow(pubkey);
       }
+      impactMedium();
       toast({ title: isFollowing ? `Unfollowed @${displayName}` : `Followed @${displayName}` });
     } catch (err) {
       console.error('Follow toggle failed:', err);
@@ -2109,23 +2165,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
-                  {/* Share button (mobile only) */}
-                  {pubkey && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full size-10 sidebar:hidden"
-                      title="Share profile"
-                      onClick={async () => {
-                        const npubId = nip19.npubEncode(pubkey);
-                        const url = `${window.location.origin}/${npubId}`;
-                        const result = await shareOrCopy(url);
-                        if (result === 'copied') toast({ title: 'Profile link copied to clipboard' });
-                      }}
-                    >
-                      <Share2 className="size-5" />
-                    </Button>
-                  )}
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button
@@ -2173,24 +2212,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 ) : displayName}
               </h2>
               {metadata?.nip05 && (
-                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" showCheck />
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
-              {(metadata?.lud16 || metadata?.lud06) && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-                  <Zap className="size-3.5 text-amber-500 shrink-0" />
-                  <span className="truncate">{metadata.lud16 || metadata.lud06}</span>
-                </div>
-              )}
-              {metadata?.website && (
+              {metadata?.website && sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`) && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
                   <Globe className="size-3.5 text-muted-foreground shrink-0" />
                   <a
-                    href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`}
+                    href={sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="truncate text-primary hover:underline"
                   >
-                    {metadata.website.replace(/^https?:\/\//, '')}
+                    {metadata.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                   </a>
                 </div>
               )}
@@ -2207,15 +2240,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">followers</span>
                   </button>
                 )}
-                {profileFollowing && profileFollowing.count > 0 && (
-                  <button
+                {profileFollowing && profileFollowing.count > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`}
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    onClick={() => setFollowingModalOpen(true)}
                     title={`${profileFollowing.count} following`}
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
                     <span className="text-sm text-muted-foreground">following</span>
-                  </button>
+                  </Link>
                 )}
                 {streak > 1 && (
                   <div
@@ -2470,6 +2503,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
             {wallReplyTarget && profileFollowsMe && (
               <ComposeBox
+                key={wallComposeKey}
                 compact
                 replyTo={wallReplyTarget}
                 placeholder={`Write on ${displayName}'s wall`}
@@ -2484,7 +2518,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
                 placeholder={`Write on ${displayName}'s wall`}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] });
+                  setWallComposeKey((k) => k + 1);
+                }}
               />
             )}
 
@@ -2644,16 +2681,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {/* Follow QR dialog (own profile action bar button) */}
         {isOwnProfile && (
           <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
-        )}
-
-        {/* Following List Modal */}
-        {profileFollowing && profileFollowing.count > 0 && (
-          <FollowingListModal
-            pubkeys={profileFollowing.pubkeys}
-            open={followingModalOpen}
-            onOpenChange={setFollowingModalOpen}
-            displayName={displayName}
-          />
         )}
 
         {/* Followers List Modal */}

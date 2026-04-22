@@ -199,7 +199,7 @@ export function StationeryBackground({
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${s.imageUrl})`,
+            backgroundImage: `url("${s.imageUrl}")`,
             backgroundSize: s.imageMode === 'tile' ? 'auto' : 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: s.imageMode === 'tile' ? 'repeat' : 'no-repeat',
@@ -243,7 +243,7 @@ function ThemeMockup({ stationery }: { stationery: Stationery }) {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${s.imageUrl})`,
+            backgroundImage: `url("${s.imageUrl}")`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             opacity: 0.35,
@@ -312,7 +312,7 @@ export function StationeryPreview({
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${s.imageUrl})`,
+            backgroundImage: `url("${s.imageUrl}")`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}

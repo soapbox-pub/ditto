@@ -37,16 +37,16 @@
   <circle cx="100" cy="85" r="45" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
   
   <!-- Black ear patches -->
-  <circle cx="70" cy="45" r="18" fill="#1f2937" />
-  <circle cx="130" cy="45" r="18" fill="#1f2937" />
+  <circle cx="70" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
   
   <!-- Inner ears -->
-  <circle cx="70" cy="45" r="12" fill="#374151" />
-  <circle cx="130" cy="45" r="12" fill="#374151" />
+  <circle cx="70" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
   
   <!-- Eyes -->
-  <circle cx="85" cy="82" r="20" fill="#1f2937" />
-  <circle cx="115" cy="82" r="20" fill="#1f2937" />
+  <circle cx="85" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="115" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
   <circle cx="85" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <circle cx="115" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <path d="M 73 85 Q 85 88 97 85" stroke="#1e293b" stroke-width="3" fill="none" stroke-linecap="round" />

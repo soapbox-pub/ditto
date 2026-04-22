@@ -64,12 +64,15 @@ export const ThemeColorsCompatSchema = z.union([
 /** Zod schema for ThemeFont */
 export const ThemeFontSchema = z.object({
   family: z.string(),
-  url: z.string().optional(),
+  // Reject non-URL strings at the schema layer. Downstream consumers still
+  // run the value through \`sanitizeUrl()\` to enforce \`https:\` and strip
+  // \`javascript:\`/\`data:\` URIs before use — this is defense-in-depth.
+  url: z.url().optional(),
 });
 
 /** Zod schema for ThemeBackground */
 export const ThemeBackgroundSchema = z.object({
-  url: z.string(),
+  url: z.url(),
   mode: z.enum(['cover', 'tile']).optional(),
   dimensions: z.string().optional(),
   mimeType: z.string().optional(),
@@ -178,6 +181,8 @@ export const FeedSettingsSchema = z.looseObject({
   showDevelopment: z.boolean().optional(),
   feedIncludeDevelopment: z.boolean().optional(),
   feedIncludeBlobbi: z.boolean().optional(),
+  showBadgeAwards: z.boolean().optional(),
+  feedIncludeBadgeAwards: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -209,6 +214,7 @@ export const SavedFeedSchema = z.object({
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
   appId: z.string().optional(),
+  shareOrigin: z.string().url().optional(),
   homePage: z.string().optional(),
   clientName: z.string().optional(),
   /** NIP-19 naddr1 string for the kind 31990 handler event. */
@@ -244,8 +250,14 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  autoplayVideos: z.boolean(),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
+  sandboxDomain: z.string().optional(),
+  sidebarWidgets: z.array(z.object({
+    id: z.string(),
+    height: z.number().optional(),
+  })).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -301,6 +313,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
   notificationsEnabled: z.boolean().optional(),
+  notificationStyle: z.enum(['push', 'persistent']).optional(),
   notificationsCursor: z.number().optional(),
   notificationPreferences: z.object({
     reactions: z.boolean().optional(),
@@ -314,6 +327,10 @@ export const EncryptedSettingsSchema = z.looseObject({
   }).optional(),
   lastSync: z.number().optional(),
   sidebarOrder: z.array(z.string()).optional(),
+  sidebarWidgets: z.array(z.object({
+    id: z.string(),
+    height: z.number().optional(),
+  })).optional(),
   homePage: z.string().optional(),
   showGlobalFeed: z.boolean().optional(),
   showCommunityFeed: z.boolean().optional(),
@@ -323,6 +340,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     userCount: z.number(),
     nip05: z.record(z.string(), z.unknown()),
   }).optional(),
+  autoplayVideos: z.boolean().optional(),
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),

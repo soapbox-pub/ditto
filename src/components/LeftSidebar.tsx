@@ -76,7 +76,7 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  const getDisplayName = (account: Account) => account.metadata.name ?? genUserName(account.pubkey);
+  const getDisplayName = (account: Account) => account.metadata.display_name || account.metadata.name || genUserName(account.pubkey);
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
@@ -151,7 +151,7 @@ export function LeftSidebar() {
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
                     <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {(metadata?.name?.[0] || '?').toUpperCase()}
+                      {(metadata?.display_name || metadata?.name || genUserName(user.pubkey))[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
                   </Avatar>
                 )}

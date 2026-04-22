@@ -101,16 +101,24 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   useEffect(() => {
     if (!supported) return;
 
-    const client = new NostrPushClient(SERVER_PUBKEY, RPC_RELAYS);
-    clientRef.current = client;
+    let cancelled = false;
 
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((reg) => {
+    (async () => {
+      // Load the device key from secure storage before the rest of the bring-up
+      // sequence; everything below depends on \`clientRef.current\` being set.
+      const client = await NostrPushClient.create(SERVER_PUBKEY, RPC_RELAYS);
+      if (cancelled) {
+        client.destroy();
+        return;
+      }
+      clientRef.current = client;
+
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         swRegistrationRef.current = reg;
-        return navigator.serviceWorker.ready;
-      })
-      .then(async (reg) => {
+        await navigator.serviceWorker.ready;
+        if (cancelled) return;
+
         // Pre-fetch and cache the VAPID key so it is ready before the user
         // clicks "Enable". This keeps pushManager.subscribe() as the first
         // async step inside enable(), satisfying the browser's user-gesture
@@ -125,6 +133,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             console.warn('[push] Failed to pre-fetch VAPID key:', err);
           }
         }
+        if (cancelled) return;
         if (vapidKey) {
           vapidKeyRef.current = vapidKey;
         }
@@ -133,16 +142,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         // subscription exists, restore the enabled state silently.
         if (Notification.permission === 'granted') {
           const existing = await reg.pushManager.getSubscription();
+          if (cancelled) return;
           if (existing) {
             pushSubRef.current = existing;
             setPermission('granted');
             setEnabled(true);
           }
         }
-      })
-      .catch((err) => console.error('[push] SW registration failed:', err));
+      } catch (err) {
+        console.error('[push] SW registration failed:', err);
+      }
+    })();
 
     return () => {
+      cancelled = true;
       clientRef.current?.destroy();
       clientRef.current = null;
     };

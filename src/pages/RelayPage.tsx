@@ -53,7 +53,9 @@ export function RelayPage() {
   const relayUrl = useMemo(() => {
     if (!rawParam) return undefined;
     // If the wildcard param has no "://", it's encoded — decode it.
-    const url = rawParam.includes('://') ? rawParam : decodeURIComponent(rawParam);
+    let decoded: string;
+    try { decoded = decodeURIComponent(rawParam); } catch { decoded = rawParam; }
+    const url = rawParam.includes('://') ? rawParam : decoded;
     if (url.startsWith('wss://') || url.startsWith('ws://')) {
       return url;
     }

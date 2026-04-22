@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto Backup rules (Android 11 and below).
+
+    Ditto excludes WebView storage (Local Storage, IndexedDB, databases) and
+    any shared_prefs that hold sensitive credentials so they don't end up in
+    Google Drive backups. Keychain/KeyStore entries used by
+    capacitor-secure-storage-plugin are not backed up by default, so we don't
+    need to exclude those explicitly; but we also exclude the plugin's
+    SharedPreferences for defense in depth.
+
+    See: https://developer.android.com/guide/topics/data/autobackup
+-->
+<full-backup-content>
+    <!-- WebView: localStorage, IndexedDB, cookies, caches -->
+    <exclude domain="file" path="app_webview/" />
+    <exclude domain="database" path="webview.db" />
+    <exclude domain="database" path="webviewCache.db" />
+
+    <!-- capacitor-secure-storage-plugin fallback SharedPreferences -->
+    <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+
+    <!-- Capacitor preferences plugin — may contain app-level settings -->
+    <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+</full-backup-content>

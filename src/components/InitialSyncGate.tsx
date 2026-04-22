@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
-import { downloadTextFile } from "@/lib/downloadFile";
+import { saveNsec } from "@/lib/credentialManager";
+import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   type ReactNode,
@@ -45,7 +45,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
-import { getAvatarShape } from "@/lib/avatarShape";
+import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -256,7 +257,7 @@ function SetupQuestionnaire({
   isSignup?: boolean;
 }) {
   const { nostr } = useNostr();
-  const { updateConfig } = useAppContext();
+  const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
   const login = useLoginActions();
@@ -289,7 +290,8 @@ function SetupQuestionnaire({
     }
   }, [step, steps]);
 
-  // Keygen handler
+  // Keygen handler — generates the key and advances to the save step.
+  // The credential manager prompt is deferred until the user clicks "Continue".
   const handleGenerate = useCallback(() => {
     const sk = generateSecretKey();
     const encoded = nip19.nsecEncode(sk);
@@ -297,35 +299,50 @@ function SetupQuestionnaire({
     next();
   }, [next]);
 
-  // Download + login handler
-  const handleDownloadAndLogin = useCallback(async () => {
+  // Continue handler for the download step — saves the key via the best
+  // available method (native credential manager on iOS/Android, file download
+  // on web), logs in, and advances to the next step.
+  //
+  // If the user dismisses the iOS credential prompt, `saveNsec` resolves to
+  // `'dismissed'` and we still advance — dismissal is a legitimate choice
+  // (e.g. the user is saving the key in their own password manager).
+  //
+  // On Android, if no credential provider is available (e.g. GrapheneOS or
+  // other de-Googled devices), `saveNsec` falls back to writing the key to
+  // the app's Documents folder and returns `'saved-to-file'`. We surface a
+  // toast so the user knows where to find the backup file.
+  //
+  // Only unexpected errors (decode failure, filesystem write failure)
+  // surface as a destructive toast.
+  const handleDownloadContinue = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== "nsec") throw new Error("Invalid nsec");
 
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, "-")}-${npub.slice(5, 9)}.nsec.txt`;
 
-      await downloadTextFile(filename, nsec);
+      const result = await saveNsec(npub, nsec, config.appName);
 
-      // Let the user know where the file ended up on Android
-      if (Capacitor.getPlatform() === "android") {
-        toast({ title: "Key saved", description: `Saved to Download/${filename}` });
+      if (result === "saved-to-file") {
+        toast({
+          title: "Secret key saved",
+          description:
+            "Your secret key was saved to the Documents folder on your device.",
+        });
       }
 
-      // Log in with the new key
       login.nsec(nsec);
       next();
     } catch {
       toast({
-        title: "Download failed",
+        title: "Save failed",
         description:
-          "Could not download the key file. Please copy it manually.",
+          "Could not save the key. Please copy it manually.",
         variant: "destructive",
       });
     }
-  }, [nsec, login, next]);
+  }, [nsec, login, next, config.appName]);
 
   // Save settings and transition to the follows step (or outro if they have follows)
   const handleSaveAndContinue = useCallback(async () => {
@@ -385,8 +402,10 @@ function SetupQuestionnaire({
       showBadges: false,
       showBadgeDefinitions: true,
       showProfileBadges: true,
+      showBadgeAwards: true,
       feedIncludeBadgeDefinitions: false,
       feedIncludeProfileBadges: false,
+      feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeBlobbi: true,
       followsFeedShowReplies: true,
@@ -453,7 +472,7 @@ function SetupQuestionnaire({
           {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
-            <DownloadStep nsec={nsec} onDownload={handleDownloadAndLogin} />
+            <DownloadStep nsec={nsec} onContinue={handleDownloadContinue} />
           )}
 
           {step === "profile" && (
@@ -501,7 +520,7 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
           Create your account
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key pair. We'll generate one
+          Your identity on Nostr is a cryptographic key. We'll generate one
           for you now.
         </p>
       </div>
@@ -511,7 +530,7 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onGenerate}
       >
-        Generate my keys
+        Generate my key
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -520,22 +539,37 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
 
 function DownloadStep({
   nsec,
-  onDownload,
+  onContinue,
 }: {
   nsec: string;
-  onDownload: () => void;
+  onContinue: () => Promise<void> | void;
 }) {
+  const { config } = useAppContext();
   const [showKey, setShowKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Wrap the continue handler in an in-flight guard so rapid double-taps
+  // don't trigger multiple credential prompts. `finally` guarantees the
+  // button is re-enabled even if the handler throws, so users can never
+  // get stuck on a disabled button.
+  const handleClick = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await onContinue();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Save your secret key
+          Your secret key
         </h2>
         <p className="text-sm text-muted-foreground">
-          This is your only way to access your account. Download it and keep it
-          somewhere safe.
+          This secret key controls your account on {config.appName}. You'll need it to log in later. Without it, you'll lose your account.
         </p>
       </div>
 
@@ -544,6 +578,8 @@ function DownloadStep({
           type={showKey ? "text" : "password"}
           value={nsec}
           readOnly
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
           className="pr-10 font-mono text-base md:text-sm"
         />
         <Button
@@ -561,23 +597,39 @@ function DownloadStep({
         </Button>
       </div>
 
-      <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-        <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
-          Important
-        </p>
-        <p className="text-xs text-amber-900 dark:text-amber-300">
-          This key is your only means of accessing your account. If you lose it,
-          there is no way to recover it. Download it now to continue.
-        </p>
-      </div>
+      {showKey && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
+          <p className="text-xs text-amber-900 dark:text-amber-300">
+            NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account.{" "}
+            <a
+              href="https://soapbox.pub/blog/managing-nostr-keys/"
+              onClick={(e) => {
+                e.preventDefault();
+                openUrl("https://soapbox.pub/blog/managing-nostr-keys/");
+              }}
+              className="underline underline-offset-2 hover:no-underline"
+            >
+              Learn more
+            </a>
+          </p>
+        </div>
+      )}
 
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12"
-        onClick={onDownload}
+        onClick={handleClick}
+        disabled={isSaving}
       >
-        <Download className="w-4 h-4" />
-        Download and continue
+        {isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" /> Save Key
+          </>
+        )}
       </Button>
     </div>
   );
@@ -604,10 +656,8 @@ function ProfileStep({
     picture: "",
     banner: "",
     website: "",
+    shape: "",
   });
-  const [extraFields, setExtraFields] = useState<
-    Array<{ label: string; value: string }>
-  >([]);
   const [cropState, setCropState] = useState<{
     imageSrc: string;
     aspect: number;
@@ -662,16 +712,18 @@ function ProfileStep({
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
-    const hasData =
-      Object.values(profileData).some((v) => v) || extraFields.length > 0;
+    const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
       try {
-        const data: Record<string, unknown> = { ...profileData };
-        const validFields = extraFields.filter(
-          (f) => f.label.trim() && f.value.trim(),
-        );
-        if (validFields.length > 0)
-          data.fields = validFields.map((f) => [f.label, f.value]);
+        // Build the outgoing metadata, stripping empty strings and validating shape.
+        const { shape, ...rest } = profileData;
+        const data: Record<string, unknown> = { ...rest };
+        if (shape && isValidAvatarShape(shape)) {
+          data.shape = shape;
+        }
+        for (const key in data) {
+          if (data[key] === "") delete data[key];
+        }
         await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
@@ -685,7 +737,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, extraFields, publishEvent, queryClient, onNext]);
+  }, [user, profileData, publishEvent, queryClient, onNext]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -730,9 +782,10 @@ function ProfileStep({
             setProfileData((prev) => ({ ...prev, ...patch }))
           }
           onPickImage={handlePickImage}
+          onAvatarShape={(shape) =>
+            setProfileData((prev) => ({ ...prev, shape }))
+          }
           showNip05={false}
-          extraFields={extraFields}
-          onExtraFieldsChange={setExtraFields}
         />
       </div>
 
@@ -742,31 +795,21 @@ function ProfileStep({
         </div>
       )}
 
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onNext}
-          className="flex-1 rounded-full h-11"
-          disabled={isPublishing || isSaving}
-        >
-          Skip
-        </Button>
-        <Button
-          onClick={handlePublishProfile}
-          className="flex-1 rounded-full h-11 gap-1.5"
-          disabled={isPublishing || isUploading || isSaving}
-        >
-          {isPublishing || isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Saving…
-            </>
-          ) : (
-            <>
-              Continue <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      <Button
+        onClick={handlePublishProfile}
+        className="w-full rounded-full h-11 gap-1.5"
+        disabled={isPublishing || isUploading || isSaving}
+      >
+        {isPublishing || isSaving ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+          </>
+        ) : (
+          <>
+            Continue <ChevronRight className="w-4 h-4" />
+          </>
+        )}
+      </Button>
     </div>
   );
 }
@@ -786,8 +829,10 @@ function ThemeStep({
   isFirst?: boolean;
   isSaving?: boolean;
 }) {
-  const { customTheme } = useTheme();
-  const bgUrl = customTheme?.background?.url;
+  const { theme, customTheme, themes } = useTheme();
+  const resolved = resolveTheme(theme);
+  const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+  const bgUrl = activeConfig?.background?.url;
 
   return (
     <>

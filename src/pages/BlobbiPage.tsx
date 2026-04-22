@@ -3,11 +3,10 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, AlertTriangle, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, HeartHandshake, Package, Target, Droplets, Heart, Zap } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -28,9 +27,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
+
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { useIsMobile } from '@/hooks/useIsMobile';
+
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +39,7 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
+  filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
@@ -47,14 +48,12 @@ import {
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { ShopItem } from '@/blobbi/shop/types/shop.types';
 
 import {
   BlobbiActionInventoryModal,
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
-  BlobbiPostModal,
   useBlobbiUseInventoryItem,
   useBlobbiHatch,
   useBlobbiEvolve,
@@ -63,21 +62,21 @@ import {
   useStopIncubation,
   useStartEvolution,
   useStopEvolution,
-  useSyncTaskCompletions,
   useHatchTasks,
   useEvolveTasks,
-  useActiveTaskProcess,
-  getInteractionCount,
-  getEvolveInteractionCount,
   createMusicActivity,
   createSingActivity,
   createNoActivity,
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
-  useDailyMissions,
-  useClaimMissionReward,
-  type InventoryAction,
+   previewStatChanges,
+   useDailyMissions,
+   useAwardDailyXp,
+   usePersistEvolutionProgress,
+   applyXPGain,
+   POOP_CLEANUP_XP,
+   type InventoryAction,
   type DirectAction,
   type InlineActivityState,
   type SelectedTrack,
@@ -90,6 +89,20 @@ import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/com
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import {
+  BlobbiRoomShell,
+  BlobbiRoomHero,
+  ItemCarousel,
+  RoomActionButton,
+  type BlobbiRoomId,
+  type CarouselEntry,
+  type PoopState,
+  isValidRoomId,
+  DEFAULT_INITIAL_ROOM,
+  getPoopsInRoom,
+  hasAnyPoop,
+} from '@/blobbi/rooms';
+import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
@@ -123,14 +136,7 @@ function companionNeedsCare(companion: BlobbiCompanion): boolean {
   );
 }
 
-/** Map stat keys to indicator colors */
-const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
-  hunger: 'orange',
-  happiness: 'yellow',
-  health: 'green',
-  hygiene: 'blue',
-  energy: 'violet',
-};
+
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
@@ -192,35 +198,33 @@ function BlobbiContent() {
     invalidateProfile,
   });
   
-  // STEP 1: Build dList from profile.has[] + currentCompanion
-  const dList = useMemo(() => {
-    if (!profile) return undefined;
-    
-    // Build unique list: profile.has[] + currentCompanion (if not already in list)
-    const allDs = new Set<string>(profile.has);
-    if (profile.currentCompanion && !allDs.has(profile.currentCompanion)) {
-      allDs.add(profile.currentCompanion);
-    }
-    
-    const result = Array.from(allDs);
-    
-    if (DEBUG_BLOBBI) {
-      console.log('[Blobbi] dList:', result);
-    }
-    
-    return result.length > 0 ? result : undefined;
-  }, [profile]);
-  
-  // STEP 2 & 3: Fetch ALL Blobbi pets (with chunking in the hook)
+  // STEP 1: Fetch ALL the user's Blobbi events from relays (author is source of truth).
+  // No dList needed — useBlobbisCollection() without args queries by author + ecosystem tag.
+  // This ensures blobbis are never invisible due to a stale profile.has[] list.
   const {
-    companionsByD,
     companions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
     invalidate: invalidateCollection,
     updateCompanionEvent,
-  } = useBlobbisCollection(dList);
+  } = useBlobbisCollection();
   
+  // STEP 2: Filter out legacy companions that have been migrated to canonical format.
+  // A legacy Blobbi is hidden when a canonical Blobbi with the same name exists AND
+  // the legacy d-tag is no longer in profile.has (confirming migration occurred).
+  const filteredCompanions = useMemo(() => {
+    if (!profile) return companions;
+    return filterMigratedLegacyCompanions(companions, profile.has);
+  }, [companions, profile]);
+
+  const filteredCompanionsByD = useMemo(() => {
+    const record: Record<string, BlobbiCompanion> = {};
+    for (const c of filteredCompanions) {
+      record[c.d] = c;
+    }
+    return record;
+  }, [filteredCompanions]);
+
   // STEP 5: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
@@ -230,53 +234,63 @@ function BlobbiContent() {
   
   // STEP 6: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
-  // 2) first item from profile.has that exists in companionsByD - DEFAULT ONLY, never persisted
-  // 3) undefined (show selector)
+  // 2) first item from profile.has that exists in companionsByD - preferred ordering
+  // 3) first companion in the collection (covers blobbis missing from profile.has)
+  // 4) undefined (show selector)
   //
   // CRITICAL: Default selection must NEVER overwrite localStorage.
   // User selection persists only via handleSelectBlobbi, not via this computed value.
   const selectedD = useMemo(() => {
-    if (!profile) return undefined;
-    
-    // Priority 1: localStorage selection (if it exists in loaded collection)
+    // Priority 1: localStorage selection (if it exists in filtered collection)
     // USER SELECTION ALWAYS WINS - this is the authoritative source
-    if (storedSelectedD && companionsByD[storedSelectedD]) {
+    if (storedSelectedD && filteredCompanionsByD[storedSelectedD]) {
       if (DEBUG_BLOBBI) {
         console.log('[BlobbiPage] selectedD: using localStorage selection:', storedSelectedD);
       }
       return storedSelectedD;
     }
     
-    // Priority 2: First item from profile.has that exists in companionsByD
-    // This is a DEFAULT - it should NOT be persisted to localStorage
-    for (const d of profile.has) {
-      if (companionsByD[d]) {
-        if (DEBUG_BLOBBI) {
-          console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
-            '(storedSelectedD was:', storedSelectedD, 
-            storedSelectedD ? (companionsByD[storedSelectedD] ? 'exists' : 'NOT in companionsByD') : 'null', ')');
+    // Priority 2: First item from profile.has that exists in filtered collection
+    // This preserves the user's ordering preference from their profile
+    if (profile) {
+      for (const d of profile.has) {
+        if (filteredCompanionsByD[d]) {
+          if (DEBUG_BLOBBI) {
+            console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
+              '(storedSelectedD was:', storedSelectedD, 
+              storedSelectedD ? (filteredCompanionsByD[storedSelectedD] ? 'exists' : 'NOT in filteredCompanionsByD') : 'null', ')');
+          }
+          return d;
         }
-        return d;
       }
     }
     
-    // Priority 3: No valid selection
+    // Priority 3: First companion in the filtered collection
+    if (filteredCompanions.length > 0) {
+      const firstD = filteredCompanions[0].d;
+      if (DEBUG_BLOBBI) {
+        console.log('[BlobbiPage] selectedD: using first companion from collection:', firstD);
+      }
+      return firstD;
+    }
+    
+    // Priority 4: No valid selection
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
-  }, [profile, storedSelectedD, companionsByD]);
+  }, [profile, storedSelectedD, filteredCompanionsByD, filteredCompanions]);
   
   // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
   // This prevents the default selection from overwriting user selections during:
   // - WebSocket updates
   // - Query refetches  
-  // - Race conditions where storedSelectedD is not yet in companionsByD
+  // - Race conditions where storedSelectedD is not yet in filteredCompanionsByD
   //
   // User selections are only persisted via handleSelectBlobbi (line ~232).
   
-  // Get the selected companion from the collection
-  const companion = selectedD ? companionsByD[selectedD] ?? null : null;
+  // Get the selected companion from the filtered collection
+  const companion = selectedD ? filteredCompanionsByD[selectedD] ?? null : null;
   
   // Debug log to confirm which Blobbi is rendered (dev only)
   useEffect(() => {
@@ -292,7 +306,6 @@ function BlobbiContent() {
   }, [selectedD, companion]);
   
   // Combine loading/fetching states
-  const companionLoading = collectionLoading;
   const companionFetching = collectionFetching;
   const invalidateCompanion = invalidateCollection;
   
@@ -367,10 +380,12 @@ function BlobbiContent() {
         last_decay_at: nowStr,
       });
 
+      const prev = canonical.companion.event;
       const event = await publishEvent({
         kind: KIND_BLOBBI_STATE,
         content: canonical.content,
         tags: newTags,
+        prev,
       });
 
       updateCompanionEvent(event);
@@ -490,14 +505,13 @@ function BlobbiContent() {
   const pageState = useMemo(() => {
     if (profileLoading) return 'loading-profile';
     if (!profile) return 'no-profile';
-    if (!dList || dList.length === 0) return 'profile-no-pets';
-    if (companionLoading) return 'loading-companions';
-    if (companionFetching && companions.length === 0) return 'fetching-companions';
-    if (companions.length === 0) return 'pets-not-found';
+    if (collectionLoading) return 'loading-companions';
+    if (collectionFetching && companions.length === 0) return 'fetching-companions';
+    if (companions.length === 0) return 'no-pets';
     if (!selectedD) return 'no-selection';
     if (!companion) return 'companion-not-resolved';
     return 'dashboard';
-  }, [profileLoading, profile, dList, companionLoading, companionFetching, companions.length, selectedD, companion]);
+  }, [profileLoading, profile, collectionLoading, collectionFetching, companions.length, selectedD, companion]);
   
   // Debug log page state decisions
   if (DEBUG_BLOBBI) {
@@ -507,9 +521,8 @@ function BlobbiContent() {
       hasProfile: !!profile,
       profileName: profile?.name,
       profileHas: profile?.has?.length ?? 0,
-      dListLength: dList?.length ?? 0,
-      companionLoading,
-      companionFetching,
+      collectionLoading,
+      collectionFetching,
       companionsLoaded: companions.length,
       selectedD,
       hasCompanion: !!companion,
@@ -528,11 +541,11 @@ function BlobbiContent() {
   //
   // Ceremony decision tree:
   // 1. No profile → ceremony (brand new user, creates profile + egg)
-  // 2. Profile with no pets (empty has[]) → ceremony (creates egg)
-  // 3. Profile with pets → wait for companions to load, then:
+  // 2. Profile exists but no blobbis found on relays → ceremony (creates egg)
+  // 3. Profile with blobbis → inspect companion stages, then:
   //    a. Any baby/adult exists → skip ceremony (dashboard)
   //    b. Only eggs exist → ceremony with existingCompanion (reuses egg)
-  //    c. No companions resolved (stale refs) → ceremony (creates egg)
+  //    c. No companions resolved → ceremony (creates egg)
   const [ceremonyInProgress, setCeremonyInProgress] = useState(false);
   // Set to true once the companion-stage check has resolved so it doesn't
   // re-run on every render as companion data updates.
@@ -542,14 +555,14 @@ function BlobbiContent() {
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
   
   // Cases that definitely need ceremony (no need to wait for companions)
-  const definitelyNeedsCeremony = !profile || !dList || dList.length === 0;
+  const definitelyNeedsCeremony = !profile;
+  // Whether we've finished loading enough data to make the decision
+  const companionDataReady = !collectionLoading && (!collectionFetching || companions.length > 0);
   // Cases where we must inspect actual companion stages before deciding.
-  // This fires for ALL users with pets — regardless of onboardingDone —
+  // This fires for ALL users with a profile — regardless of onboardingDone —
   // so that accounts with onboardingDone=true but only eggs still get
   // the ceremony.
   const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
-  // Whether we've finished loading enough data to make the decision
-  const companionDataReady = !companionLoading && (!companionFetching || companions.length > 0);
   
   // Auto-start ceremony for definite cases (no profile / no pets)
   useEffect(() => {
@@ -593,8 +606,8 @@ function BlobbiContent() {
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
       setCeremonyInProgress(true);
     } else {
-      // Profile has pet d-tags but none resolved (stale references) — treat as new user
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions resolved');
+      // No blobbi events found on relays — treat as new user
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -636,19 +649,19 @@ function BlobbiContent() {
     );
   }
   
-  // After ceremony check, profile and dList must exist
-  if (!profile || !dList || dList.length === 0) {
+  // After ceremony check, profile must exist
+  if (!profile) {
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE D: Profile has pet references, but companions still loading ───
-  if (companionLoading) {
+  // ─── CASE D: Companions still loading ───
+  if (collectionLoading) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: loading companions');
     return <DashboardLoadingState />;
   }
   
-  // ─── CASE E: Profile has pet references, but companions not yet resolved (fetching) ───
-  if (companionFetching && companions.length === 0) {
+  // ─── CASE E: Companions not yet resolved (fetching) ───
+  if (collectionFetching && companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: syncing pets from relays');
     return (
       <DashboardShell>
@@ -667,8 +680,8 @@ function BlobbiContent() {
     );
   }
   
-  // ─── CASE F: Profile has pet references, but pets not found on relays ───
-  // This is a data sync issue - show error state, NOT onboarding
+  // ─── CASE F: No blobbi events found on relays ───
+  // This shouldn't normally happen after the ceremony check, but handle gracefully
   if (companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pets not found error');
     return (
@@ -680,7 +693,7 @@ function BlobbiContent() {
             </div>
             <h1 className="text-2xl font-bold">Pet Data Not Found</h1>
             <p className="text-muted-foreground">
-              Your profile references {dList.length} pet(s), but the data couldn't be loaded from relays.
+              No Blobbi data could be loaded from relays.
               This may be a sync issue - try refreshing the page.
             </p>
             <Button
@@ -701,12 +714,12 @@ function BlobbiContent() {
   
   // ─── CASE G: Companions loaded, but no valid selection ───
   // Show selector to pick which pet to display
-  if (!selectedD && companions.length > 0) {
+  if (!selectedD && filteredCompanions.length > 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
     return (
       <>
         <BlobbiSelectorPage
-          companions={companions}
+          companions={filteredCompanions}
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
@@ -738,7 +751,7 @@ function BlobbiContent() {
     return (
       <>
         <BlobbiSelectorPage
-          companions={companions}
+          companions={filteredCompanions}
           onSelect={handleSelectBlobbi}
           isLoading={companionFetching}
           onAdopt={() => setShowAdoptionFlow(true)}
@@ -771,7 +784,7 @@ function BlobbiContent() {
   return (
     <BlobbiDashboard
       companion={companion}
-      companions={companions}
+      companions={filteredCompanions}
       selectedD={selectedD}
       onSelectBlobbi={handleSelectBlobbi}
       onRest={handleRest}
@@ -825,8 +838,8 @@ function DashboardShell({ children }: DashboardShellProps) {
 
 // ─── Dashboard Drawer Type ────────────────────────────────────────────────────
 
-/** Which drawer is open; 'none' = all closed */
-type DashboardDrawer = 'none' | 'care' | 'items' | 'missions' | 'more';
+/** Which drawer is open; 'none' = room view visible */
+type DashboardDrawer = 'none' | 'missions' | 'more';
 
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
@@ -848,7 +861,7 @@ interface BlobbiDashboardProps {
   isHatching: boolean;
   isEvolving: boolean;
   // Adoption flow props
-  publishEvent: (params: { kind: number; content: string; tags: string[][] }) => Promise<import('@nostrify/nostrify').NostrEvent>;
+  publishEvent: (params: { kind: number; content: string; tags: string[][]; prev?: import('@nostrify/nostrify').NostrEvent }) => Promise<import('@nostrify/nostrify').NostrEvent>;
   updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   updateCompanionEvent: (event: import('@nostrify/nostrify').NostrEvent) => void;
   invalidateProfile: () => void;
@@ -861,6 +874,7 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     wasMigrated: boolean;
     profileAllTags: string[][];
+    profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
@@ -905,8 +919,20 @@ function BlobbiDashboard({
   const isEgg = companion.stage === 'egg';
   
   // ─── Active Drawer ───
-  const isMobile = useIsMobile();
-  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>(isMobile ? 'none' : 'care');
+  const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
+
+  // ─── Room Navigation ───
+  const [currentRoom, setCurrentRoom] = useState<BlobbiRoomId>(
+    isSleeping ? 'rest' : isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
+  );
+  const poopStateRef = useRef<PoopState | null>(null);
+
+  // Auto-navigate to bedroom when blobbi falls asleep
+  useEffect(() => {
+    if (isSleeping) {
+      setCurrentRoom('rest');
+    }
+  }, [isSleeping]);
   
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
@@ -1014,43 +1040,33 @@ function BlobbiDashboard({
   // Blobbi reaction state - drives visual reactions to activities
   const [blobbiReaction, setBlobbiReaction] = useState<BlobbiReactionState>('idle');
   
-  // Incubation/Hatch task state
-  const [showPostModal, setShowPostModal] = useState(false);
-  
   // State detection for tasks
   // Note: isEvolving prop = mutation pending state, isEvolvingState = companion in evolving state
-  const isIncubating = companion.state === 'incubating';
-  const isEvolvingState = companion.state === 'evolving';
+  const isIncubating = companion.progressionState === 'incubating';
+  const isEvolvingState = companion.progressionState === 'evolving';
   const isBaby = companion.stage === 'baby';
   const canStartIncubation = isEgg && !isIncubating && !isEvolvingState;
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
+  // Daily missions (per-user, kind 11125)
+  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  
   // Hatch tasks hook - only active when incubating (egg stage)
-  const hatchInteractionCount = getInteractionCount(companion);
+  // Evolution missions now come from companion (kind 31124), not dailyMissions
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
-    hatchInteractionCount
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
-  const evolveInteractionCount = getEvolveInteractionCount(companion);
+  // Evolution missions now come from companion (kind 31124), not dailyMissions
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
-    evolveInteractionCount
   );
   
   // ─── Unified Task Process Abstraction ───
   // This hook consolidates all scattered if/else logic for hatch vs evolve tasks
   // It provides:
   // - Unified config (type, isActive, interactionThreshold)
-  // - Unified tasks array
-  // - Badge count (includes ALL tasks: persistent + dynamic)
-  // - Sync data (includes ONLY persistent tasks)
-  const taskProcess = useActiveTaskProcess(companion, hatchTasks, evolveTasks);
-  
-  // Extract commonly used values for convenience
-  const refetchCurrentTasks = taskProcess.refetch;
-  
   // Start incubation hook
   const { mutateAsync: startIncubation, isPending: isStartingIncubation } = useStartIncubation({
     companion,
@@ -1080,97 +1096,6 @@ function BlobbiDashboard({
     updateCompanionEvent,
   });
   
-  // Sync hatch task completions hook
-  const { mutateAsync: syncTaskCompletions } = useSyncTaskCompletions({
-    companion,
-    ensureCanonicalBeforeAction,
-    updateCompanionEvent,
-  });
-  
-  // Anti-loop protection: track the last synced key to prevent infinite loops
-  const lastSyncedKeyRef = useRef<string>('');
-  
-  // ─── Extract values from taskProcess ───
-  // These replace the previous duplicated useMemo blocks
-  // IMPORTANT CHANGE: remainingTasksCount NOW includes dynamic tasks (for badge)
-  // This was a bug - dynamic tasks should count in badge but never sync to tags
-  const { 
-    completedPersistentTaskIds: completedTaskIds,  // Stable key for anti-loop
-    tasksToSync,                                    // Only persistent tasks (for sync)
-    isLoading: activeTasksLoading,                  // Loading state
-    config: { isActive: isInTaskProcess },          // Whether in a task process
-  } = taskProcess;
-  
-  // Memoize cached completion state for comparison
-  const cachedCompletedIds = useMemo(() => {
-    if (!companion) return '';
-    return [...companion.tasksCompleted].sort().join(',');
-  }, [companion]);
-  
-  // Sync task completions only when there's an actual diff
-  // CRITICAL: This effect uses multiple layers of protection against infinite loops:
-  // 1. Stable string keys (completedTaskIds) instead of array references
-  // 2. Anti-loop ref (lastSyncedKeyRef) to prevent re-triggering after publish
-  // 3. Early guards for loading/invalid states
-  // 4. Diff check against cached state
-  // 5. Dependencies are ONLY stable primitives - NO array references
-  // Works for BOTH incubating (hatch) and evolving processes
-  useEffect(() => {
-    // Guard: Not in an active task process
-    if (!isInTaskProcess) return;
-    
-    // Guard: Still loading
-    if (activeTasksLoading) return;
-    
-    // Guard: No completed tasks
-    if (!completedTaskIds) return;
-    
-    // Guard: Computed matches cached (no diff)
-    if (completedTaskIds === cachedCompletedIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: no diff', {
-          computed: completedTaskIds,
-          cached: cachedCompletedIds,
-        });
-      }
-      return;
-    }
-    
-    // ANTI-LOOP: Skip if we already synced this exact state
-    // This prevents the loop: publish -> cache update -> re-render -> publish again
-    if (lastSyncedKeyRef.current === completedTaskIds) {
-      if (DEBUG_BLOBBI) {
-        console.log('[BlobbiPage] Task sync skipped: already synced this key', completedTaskIds);
-      }
-      return;
-    }
-    
-    if (DEBUG_BLOBBI) {
-      console.log('[BlobbiPage] Task sync triggered:', {
-        computed: completedTaskIds,
-        cached: cachedCompletedIds,
-        lastSynced: lastSyncedKeyRef.current,
-      });
-    }
-    
-    // Mark as synced BEFORE calling sync to prevent race conditions
-    lastSyncedKeyRef.current = completedTaskIds;
-    
-    // Call sync (fire-and-forget, but log errors)
-    syncTaskCompletions(tasksToSync).catch(err => {
-      // On error, reset the ref so we can retry
-      lastSyncedKeyRef.current = '';
-      console.warn('Failed to sync task completions:', err);
-    });
-    // CRITICAL: Dependencies are ONLY stable primitives and memoized values
-    // - completedTaskIds: stable string key
-    // - cachedCompletedIds: stable string key  
-    // - tasksToSync: memoized, keyed off completedTaskIds
-    // - isInTaskProcess: derived boolean
-    // - activeTasksLoading: derived boolean
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedTaskIds, cachedCompletedIds, isInTaskProcess, activeTasksLoading]);
-  
   // ─── Set as Companion ───
   // Determines if this Blobbi is currently set as the user's companion
   const isCurrentCompanion = profile?.currentCompanion === companion.d;
@@ -1198,25 +1123,30 @@ function BlobbiDashboard({
     setIsUpdatingCompanion(true);
     
     try {
+      // Fetch fresh profile data from relays to avoid stale-read-then-write
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) return;
+
       let updatedTags: string[][];
       
       if (isCurrentCompanion) {
         // Remove companion: filter out all current_companion tags entirely
-        // First apply any other updates (none in this case), then filter out the tag
-        updatedTags = updateBlobbonautTags(profile.allTags, {})
+        updatedTags = updateBlobbonautTags(canonical.profileAllTags, {})
           .filter(tag => tag[0] !== 'current_companion');
       } else {
         // Set companion: first remove any existing current_companion tags, then add the new one
-        const tagsWithoutCompanion = profile.allTags.filter(tag => tag[0] !== 'current_companion');
+        const tagsWithoutCompanion = canonical.profileAllTags.filter(tag => tag[0] !== 'current_companion');
         updatedTags = updateBlobbonautTags(tagsWithoutCompanion, {
           current_companion: companion.d,
         });
       }
       
+      const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
         content: '',
         tags: updatedTags,
+        prev,
       });
       
       updateProfileEvent(event);
@@ -1238,7 +1168,7 @@ function BlobbiDashboard({
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1364,18 +1294,67 @@ function BlobbiDashboard({
     }
   };
   
-  // Handle opening shop from empty state (switches to items drawer)
+  // Handle opening shop from empty state — navigate to kitchen room
   const handleOpenShopFromAction = () => {
     setInventoryAction(null);
-    setActiveDrawer('items');
+    setCurrentRoom('kitchen');
   };
 
-  // ─── Daily Missions (for missions tab) ───
-  const dailyMissions = useDailyMissions({ availableStages });
-  const { mutate: claimReward, isPending: isClaimingReward } = useClaimMissionReward(
-    profile,
-    updateProfileEvent,
-  );
+  // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
+  usePersistEvolutionProgress(companion.d, updateCompanionEvent);
+
+  // Award XP when all daily missions are complete
+  const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
+  const dailyXpAwardedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dailyMissions.allComplete || !dailyMissions.raw) return;
+    // Only award once per date
+    const dateKey = dailyMissions.raw.date;
+    if (dailyXpAwardedRef.current === dateKey) return;
+    dailyXpAwardedRef.current = dateKey;
+    awardDailyXp({ missions: dailyMissions.raw });
+  }, [dailyMissions.allComplete, dailyMissions.raw, awardDailyXp]);
+
+  // ─── Poop Cleanup XP (debounced: batch multiple pickups into one publish) ───
+  const pendingPoopXpRef = useRef(0);
+  const poopXpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePoopCleaned = useCallback(() => {
+    pendingPoopXpRef.current += POOP_CLEANUP_XP;
+    toast({ title: `+${POOP_CLEANUP_XP} XP`, description: 'Cleaned up!' });
+
+    // Debounce: wait 1.5s after last pickup, then publish all accumulated XP
+    if (poopXpTimerRef.current) clearTimeout(poopXpTimerRef.current);
+    poopXpTimerRef.current = setTimeout(async () => {
+      const xpToAdd = pendingPoopXpRef.current;
+      pendingPoopXpRef.current = 0;
+      if (xpToAdd <= 0) return;
+
+      try {
+        const canonical = await ensureCanonicalBeforeAction();
+        if (!canonical) return;
+
+        const currentXP = canonical.companion.experience ?? 0;
+        const newXP = applyXPGain(currentXP, xpToAdd);
+
+        const newTags = updateBlobbiTags(canonical.allTags, {
+          experience: newXP.toString(),
+        });
+
+        const event = await publishEvent({
+          kind: KIND_BLOBBI_STATE,
+          content: canonical.content,
+          tags: newTags,
+          prev: canonical.companion.event,
+        });
+
+        updateCompanionEvent(event);
+      } catch (error) {
+        console.error('Failed to persist poop cleanup XP:', error);
+      }
+    }, 1500);
+  }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+
   // Handle using an item from the items tab
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
@@ -1407,34 +1386,14 @@ function BlobbiDashboard({
         />
       )}
 
-      {/* ─── Drawer + Tab Bar — overlays the hero ─── */}
+      {/* ─── Drawer + Tab Bar — overlays the room ─── */}
       <div className="absolute top-0 left-0 right-0 z-20">
-        {/* Sliding drawer — in flow, pushes tabs down when open */}
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
         >
           <ScrollArea style={{ height: 248 }}>
             <div className="max-w-2xl mx-auto w-full pb-4 pt-2">
-              {activeDrawer === 'care' && (
-                <CareTabContent
-                  isEgg={isEgg}
-                  isSleeping={isSleeping}
-                  onOpenItems={() => setActiveDrawer('items')}
-                  onDirectAction={handleDirectAction}
-                  onRest={onRest}
-                  actionInProgress={actionInProgress}
-                  isPublishing={isPublishing}
-                />
-              )}
-              {activeDrawer === 'items' && (
-                <ItemsTabContent
-                  allShopItems={getLiveShopItems()}
-                  onUseItem={handleUseItemFromTab}
-                  isUsingItem={isUsingItem}
-                  usingItemId={usingItemId}
-                />
-              )}
               {activeDrawer === 'missions' && (
                 <MissionsTabContent
                   isIncubating={isIncubating}
@@ -1451,10 +1410,7 @@ function BlobbiDashboard({
                   isStoppingIncubation={isStoppingIncubation}
                   onStopEvolution={handleStopEvolution}
                   isStoppingEvolution={isStoppingEvolution}
-                  onOpenPostModal={() => setShowPostModal(true)}
-                  dailyMissions={dailyMissions}
-                  onClaimReward={(id) => claimReward({ missionId: id })}
-                  isClaimingReward={isClaimingReward}
+                   dailyMissions={dailyMissions}
                   canStartIncubation={canStartIncubation}
                   canStartEvolution={canStartEvolution}
                   isStartingIncubation={isStartingIncubation}
@@ -1483,21 +1439,8 @@ function BlobbiDashboard({
           </ScrollArea>
         </div>
 
-        {/* The arc tab bar — below the drawer */}
         <SubHeaderBar pinned className="relative !top-0">
-          <TabButton label="Care" active={activeDrawer === 'care'} onClick={() => toggleDrawer('care')}>
-            <span className="flex items-center gap-1.5">
-              <HeartHandshake className="size-4" />
-              <span className="text-sm">Care</span>
-            </span>
-          </TabButton>
-          <TabButton label="Items" active={activeDrawer === 'items'} onClick={() => toggleDrawer('items')}>
-            <span className="flex items-center gap-1.5">
-              <Package className="size-4" />
-              <span className="text-sm">Items</span>
-            </span>
-          </TabButton>
-          <TabButton label="Missions" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
+          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
@@ -1512,209 +1455,95 @@ function BlobbiDashboard({
         </SubHeaderBar>
       </div>
 
-      {/* ─── Hero Section (always visible below drawer) ─── */}
-      <div ref={heroRef} className="relative flex-1 min-h-0 flex flex-col items-center justify-center px-4 sm:px-6 overflow-x-hidden">
-
-
-        {/* Main Blobbi Visual with stats crown + action buttons */}
-        {isActiveFloatingCompanion ? (
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <Footprints className="size-16 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">
-              {companion.name} is out exploring right now.
-            </p>
-            <button
-              onClick={handleSetAsCompanion}
-              disabled={isUpdatingCompanion}
-              className={cn(
-                'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out',
-                'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
-                isUpdatingCompanion && 'opacity-50 pointer-events-none',
-              )}
-              style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
-            >
-              {isUpdatingCompanion ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : (
-                <Footprints className="size-5" />
-              )}
-              <span>Bring {companion.name} home</span>
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center">
-            {/* Stats crown — arced above the Blobbi */}
-            {(() => {
-              const allStats = getVisibleStats(companion.stage).map(stat => ({
-                stat,
-                value: currentStats[stat] ?? 100,
-                status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
-                color: STAT_COLOR_MAP[stat],
-              }));
-              if (allStats.length === 0) return null;
-
-              const count = allStats.length;
-              const isSmall = heroWidth < 400;
-              const arcSpread = isSmall
-                ? (count <= 2 ? 90 : count <= 3 ? 130 : 160)
-                : (count <= 2 ? 80 : count <= 3 ? 120 : 160);
-              const arcHalf = arcSpread / 2;
-              const angles = count === 1
-                ? [0]
-                : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
-
-              return (
-                <div className="relative flex items-end justify-center w-full mb-14" style={{ height: 48 }}>
-                  {allStats.map((s, i) => {
-                    const angleDeg = angles[i];
-                    const angleRad = (angleDeg * Math.PI) / 180;
-                    // Scale radius based on container width: ~140 at 340px, ~210 at 640px+
-                    const radius = Math.min(210, Math.max(140, (heroWidth - 340) / (640 - 340) * (210 - 140) + 140));
-                    const x = Math.sin(angleRad) * radius;
-                    // Inverted: center (cos=1) is highest, edges droop down
-                    const y = Math.cos(angleRad) * radius - radius;
-
-                    return (
-                      <div
-                        key={s.stat}
-                        className="absolute transition-all duration-500"
-                        style={{
-                          transform: `translate(-50%, 0)`,
-                          left: `calc(50% + ${x.toFixed(1)}px)`,
-                          bottom: `${y.toFixed(1)}px`,
-                        }}
-                      >
-                        <StatIndicator
-                          stat={s.stat}
-                          value={s.value}
-                          color={s.color}
-                          status={s.status}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {/* Blobbi visual */}
-            <div
-              className="relative transition-all duration-500"
-              style={!isSleeping ? {
-                animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
-              } : undefined}
-            >
-              <div className="absolute inset-0 -m-24 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-              <BlobbiStageVisual
-                companion={companion}
-                size="lg"
-                animated={!isSleeping}
-                reaction={blobbiReaction}
-                recipe={hasDevOverride ? undefined : statusRecipe}
-                recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
-                emotion={effectiveEmotion}
-                className={isEgg
-                  ? 'size-44 min-[400px]:size-52 sm:size-64 md:size-80 lg:size-96'
-                  : 'size-64 min-[400px]:size-80 sm:size-96 md:size-[32rem] lg:size-[36rem]'
-                }
-              />
-            </div>
-
-            {/* Blobbi Name — hidden for eggs */}
-            {!isEgg && (
-              <h2
-                className="text-2xl sm:text-3xl font-bold text-center -mt-2"
-                style={{ color: companion.visualTraits.baseColor }}
-              >
-                {companion.name}
-              </h2>
-            )}
-          </div>
-        )}
-
-        {/* ── Action circles — below the Blobbi ── */}
-        {!isActiveFloatingCompanion && (
-          <div className="relative z-10 w-full px-4 sm:px-8 -mt-10 flex items-start justify-between">
-            {/* Photo — lower left */}
-            <button
-              onClick={() => setShowPhotoModal(true)}
-              className={cn(
-                'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                'hover:-translate-y-1 hover:scale-110 active:scale-95',
-              )}
-            >
-              <div
-                className="size-20 sm:size-24 rounded-full flex items-center justify-center text-pink-500"
-                style={{
-                  background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #ec4899 14%, transparent), color-mix(in srgb, #ec4899 4%, transparent) 70%)',
-                }}
-              >
-                <Camera className="size-9 sm:size-10" />
+      {/* ─── Room View (always visible behind drawer) ─── */}
+      <BlobbiRoomShell
+        roomId={currentRoom}
+        onChangeRoom={(room) => {
+          if (isSleeping) {
+            toast({ title: 'Zzz...', description: `${companion.name} is sleeping. Wake up first!` });
+            return;
+          }
+          setCurrentRoom(room);
+        }}
+        isSleeping={isSleeping}
+        hunger={currentStats.hunger}
+        lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
+        poopStateRef={poopStateRef}
+        onPoopCleaned={handlePoopCleaned}
+        hero={
+          <BlobbiRoomHero
+            companion={companion}
+            currentStats={currentStats}
+            isSleeping={isSleeping}
+            isEgg={isEgg}
+            statusRecipe={statusRecipe}
+            statusRecipeLabel={statusRecipeLabel}
+            effectiveEmotion={effectiveEmotion}
+            hasDevOverride={hasDevOverride}
+            blobbiReaction={blobbiReaction}
+            isActiveFloatingCompanion={isActiveFloatingCompanion}
+            isUpdatingCompanion={isUpdatingCompanion}
+            handleSetAsCompanion={handleSetAsCompanion}
+            heroRef={heroRef}
+            heroWidth={heroWidth}
+            roomId={currentRoom}
+          />
+        }
+        middleSlot={
+          <>
+            {inlineActivity.type === 'music' && (
+              <div className="px-4 sm:px-6 pb-2">
+                <InlineMusicPlayer
+                  selection={inlineActivity.selection}
+                  onChangeTrack={handleChangeTrack}
+                  onClose={handleCloseInlineActivity}
+                  onPlaybackStart={handleMusicPlaybackStart}
+                  onPlaybackStop={handleMusicPlaybackStop}
+                  isPublished={inlineActivity.isPublished}
+                  isPublishing={isDirectActionPending}
+                />
               </div>
-              <span className="text-xs font-medium text-muted-foreground">Photo</span>
-            </button>
-
-            {/* Companion — lower right */}
-            {canBeCompanion && (
-              <button
-                onClick={handleSetAsCompanion}
-                disabled={isUpdatingCompanion}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-                  'hover:-translate-y-1 hover:scale-110 active:scale-95',
-                  isUpdatingCompanion && 'opacity-50',
-                )}
-              >
-                <div
-                  className={cn('size-20 sm:size-24 rounded-full flex items-center justify-center', isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500')}
-                  style={{
-                    background: isCurrentCompanion
-                      ? 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #10b981 14%, transparent), color-mix(in srgb, #10b981 4%, transparent) 70%)'
-                      : 'radial-gradient(circle at 40% 35%, color-mix(in srgb, #8b5cf6 14%, transparent), color-mix(in srgb, #8b5cf6 4%, transparent) 70%)',
-                  }}
-                >
-                  {isUpdatingCompanion ? (
-                    <Loader2 className="size-9 sm:size-10 animate-spin" />
-                  ) : (
-                    <Footprints className="size-9 sm:size-10" />
-                  )}
-                </div>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {isCurrentCompanion ? 'With you' : 'Take along'}
-                </span>
-              </button>
             )}
-          </div>
+            {inlineActivity.type === 'sing' && (
+              <div className="px-4 sm:px-6 pb-2">
+                <InlineSingCard
+                  onConfirm={handleConfirmSing}
+                  onClose={handleCloseInlineActivity}
+                  onRecordingStart={handleSingRecordingStart}
+                  onRecordingStop={handleSingRecordingStop}
+                  isPublishing={isDirectActionPending}
+                />
+              </div>
+            )}
+          </>
+        }
+      >
+        {/* Per-room bottom bar */}
+        {!isActiveFloatingCompanion && (
+          <RoomBottomBar
+            room={currentRoom}
+            companion={companion}
+            profile={profile}
+            isEgg={isEgg}
+            isSleeping={isSleeping}
+            isUsingItem={isUsingItem}
+            usingItemId={usingItemId}
+            isPublishing={isPublishing}
+            actionInProgress={actionInProgress}
+            isDirectActionPending={isDirectActionPending}
+            isCurrentCompanion={isCurrentCompanion}
+            canBeCompanion={canBeCompanion}
+            isUpdatingCompanion={isUpdatingCompanion}
+            handleSetAsCompanion={handleSetAsCompanion}
+            handleUseItemFromTab={handleUseItemFromTab}
+            handleDirectAction={handleDirectAction}
+            onUseItem={onUseItem}
+            onRest={onRest}
+            setShowPhotoModal={setShowPhotoModal}
+            poopStateRef={poopStateRef}
+          />
         )}
-      </div>
-
-      {/* ─── Inline Activity Area (music/sing — floats above tabs) ─── */}
-      {inlineActivity.type === 'music' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineMusicPlayer
-            selection={inlineActivity.selection}
-            onChangeTrack={handleChangeTrack}
-            onClose={handleCloseInlineActivity}
-            onPlaybackStart={handleMusicPlaybackStart}
-            onPlaybackStop={handleMusicPlaybackStop}
-            isPublished={inlineActivity.isPublished}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-      {inlineActivity.type === 'sing' && (
-        <div className="px-4 sm:px-6 pb-2">
-          <InlineSingCard
-            onConfirm={handleConfirmSing}
-            onClose={handleCloseInlineActivity}
-            onRecordingStart={handleSingRecordingStart}
-            onRecordingStop={handleSingRecordingStop}
-            isPublishing={isDirectActionPending}
-          />
-        </div>
-      )}
-
-      {/* Tab content is now rendered in the drawer above */}
+      </BlobbiRoomShell>
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -1739,15 +1568,6 @@ function BlobbiDashboard({
         onOpenChange={setShowTrackPickerModal}
         onConfirm={handleTrackSelected}
         isLoading={isDirectActionPending}
-      />
-      
-      {/* Blobbi Post Modal - for hatch or evolve task */}
-      <BlobbiPostModal
-        open={showPostModal}
-        onOpenChange={setShowPostModal}
-        blobbiName={companion.name}
-        process={isEvolvingState ? 'evolve' : 'hatch'}
-        onSuccess={refetchCurrentTasks}
       />
       
       {/* Blobbi Photo Modal */}
@@ -1813,77 +1633,374 @@ function BlobbiDashboard({
   );
 }
 
-// ─── Care Tab Content ─────────────────────────────────────────────────────────
+// ─── Room Bottom Bar ──────────────────────────────────────────────────────────
 
-interface CareTabContentProps {
+interface RoomBottomBarProps {
+  room: BlobbiRoomId;
+  companion: BlobbiCompanion;
+  profile: BlobbonautProfile | null;
   isEgg: boolean;
   isSleeping: boolean;
-  onOpenItems: () => void;
-  onDirectAction: (action: DirectAction) => void;
-  onRest: () => void;
-  actionInProgress: string | null;
+  isUsingItem: boolean;
+  usingItemId: string | null;
   isPublishing: boolean;
+  actionInProgress: string | null;
+  isDirectActionPending: boolean;
+  isCurrentCompanion: boolean;
+  canBeCompanion: boolean;
+  isUpdatingCompanion: boolean;
+  handleSetAsCompanion: () => Promise<void>;
+  handleUseItemFromTab: (itemId: string) => void;
+  handleDirectAction: (action: DirectAction) => void;
+  onUseItem: (itemId: string, action: InventoryAction) => Promise<void>;
+  onRest: () => void;
+  setShowPhotoModal: React.Dispatch<React.SetStateAction<boolean>>;
+  poopStateRef: React.MutableRefObject<PoopState | null>;
 }
 
-function CareTabContent({
-  isEgg,
-  isSleeping,
-  onOpenItems,
-  onDirectAction,
-  onRest,
-  actionInProgress,
+function RoomBottomBar(props: RoomBottomBarProps) {
+  switch (props.room) {
+    case 'home': return <HomeBar {...props} />;
+    case 'kitchen': return <KitchenBar {...props} />;
+    case 'care': return <CareBar {...props} />;
+    case 'rest': return <RestBar {...props} />;
+    case 'closet': return <ClosetBar />;
+  }
+}
+
+// ── Home: toys + music/sing, photo left, companion right ──
+
+function HomeBar({
+  isUsingItem,
+  usingItemId,
   isPublishing,
-}: CareTabContentProps) {
-  const isDisabled = isPublishing || actionInProgress !== null;
+  actionInProgress,
+  isCurrentCompanion,
+  canBeCompanion,
+  isUpdatingCompanion,
+  handleSetAsCompanion,
+  handleUseItemFromTab,
+  handleDirectAction,
+  setShowPhotoModal,
+}: RoomBottomBarProps) {
+  const carouselItems = useMemo<CarouselEntry[]>(() => {
+    const toys = getLiveShopItems()
+      .filter(i => i.type === 'toy')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name }));
+    return [
+      ...toys,
+      {
+        id: '__action_music',
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-pink-500/15 text-pink-500"><Music className="size-5 sm:size-6" /></div>,
+        label: 'Music',
+      },
+      {
+        id: '__action_sing',
+        icon: <div className="size-10 sm:size-12 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-500"><Mic className="size-5 sm:size-6" /></div>,
+        label: 'Sing',
+      },
+    ];
+  }, []);
+
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  const handleCarouselUse = useCallback((id: string) => {
+    if (id === '__action_music') handleDirectAction('play_music');
+    else if (id === '__action_sing') handleDirectAction('sing');
+    else handleUseItemFromTab(id);
+  }, [handleDirectAction, handleUseItemFromTab]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[210px]">
-      <div className="flex items-center justify-center gap-3 min-[400px]:gap-6 sm:gap-10">
-        <CareActionButton
-          icon={<Package className="size-10 sm:size-12" />}
-          statIcon={<Sparkles className="size-3.5" />}
-          label="Items"
-          description="Feed, clean & heal"
-          color="text-sky-500"
-          onClick={onOpenItems}
-          disabled={isDisabled}
-        />
-
-        <CareActionButton
-          icon={<Music className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Music"
-          description="Play a tune"
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        <RoomActionButton
+          icon={<Camera className="size-7 sm:size-9" />}
+          label="Photo"
           color="text-pink-500"
-          onClick={() => onDirectAction('play_music')}
-          disabled={isDisabled}
+          glowHex="#ec4899"
+          onClick={() => setShowPhotoModal(true)}
         />
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={carouselItems}
+            onUse={handleCarouselUse}
+            activeItemId={isUsingItem ? usingItemId : null}
+            disabled={isDisabled}
+          />
+        </div>
+        {canBeCompanion ? (
+          <RoomActionButton
+            icon={<Footprints className="size-7 sm:size-9" />}
+            label={isCurrentCompanion ? 'With you' : 'Take along'}
+            color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
+            glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
+            onClick={handleSetAsCompanion}
+            disabled={isUpdatingCompanion}
+            loading={isUpdatingCompanion}
+          />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+}
 
-        <CareActionButton
-          icon={<Mic className="size-10 sm:size-12" />}
-          statIcon={<Heart className="size-3.5" />}
-          label="Sing"
-          description="Sing together"
-          color="text-purple-500"
-          onClick={() => onDirectAction('sing')}
-          disabled={isDisabled}
-        />
+// ── Kitchen: food carousel, shovel left (if poop), fridge right ──
 
+/** Lucide icon for each stat key */
+const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  hunger: Utensils,
+  happiness: Gamepad2,
+  health: Heart,
+  hygiene: Droplets,
+  energy: Zap,
+};
+
+function KitchenBar({
+  companion,
+  isUsingItem,
+  usingItemId,
+  isPublishing,
+  actionInProgress,
+  handleUseItemFromTab,
+  poopStateRef,
+}: RoomBottomBarProps) {
+  const [showFridge, setShowFridge] = useState(false);
+  const poopState = poopStateRef.current;
+
+  const foodItems = useMemo(() => {
+    const items = getLiveShopItems().filter(i => i.type === 'food');
+    return items.map(item => ({
+      ...item,
+      statChanges: previewStatChanges(companion.stats, item.effect),
+    }));
+  }, [companion.stats]);
+
+  const foodEntries = useMemo<CarouselEntry[]>(() =>
+    foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+  [foodItems]);
+
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+  const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
+  const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
+
+  return (
+    <>
+      {/* Poop display */}
+      {kitchenPoops.map((poop) => (
+        <button
+          key={poop.id}
+          onClick={() => poopState?.shovelMode && poopState.onRemovePoop(poop.id)}
+          className={cn(
+            'absolute z-10 transition-all duration-300',
+            poopState?.shovelMode ? 'cursor-pointer hover:scale-150 active:scale-75' : 'pointer-events-none',
+          )}
+          style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
+        >
+          <span className={cn('text-2xl sm:text-3xl block', poopState?.shovelMode && 'drop-shadow-lg')}>💩</span>
+        </button>
+      ))}
+
+      {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
+      {showFridge && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
+          <button
+            onClick={() => setShowFridge(false)}
+            className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close fridge"
+          >
+            <X className="size-5" strokeWidth={4} />
+          </button>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Refrigerator className="size-5 text-orange-500" />
+            <h3 className="text-sm font-semibold">Fridge</h3>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
+            {foodItems.map(item => {
+              const isThisUsing = isUsingItem && usingItemId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleUseItemFromTab(item.id)}
+                  disabled={isDisabled}
+                  className={cn(
+                    'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
+                    'hover:bg-foreground/5 active:scale-95',
+                    isThisUsing && 'bg-foreground/5',
+                    isDisabled && !isThisUsing && 'opacity-40',
+                  )}
+                >
+                  <span className="text-4xl leading-none">{item.icon}</span>
+                  <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                    {item.statChanges.map(({ stat, delta }) => {
+                      const Icon = STAT_ICON[stat];
+                      const positive = delta > 0;
+                      return (
+                        <span key={stat} className="flex items-center gap-0.5">
+                          {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
+                          <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                            {positive ? '+' : ''}{delta}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Normal bottom bar */}
+      <div className={ROOM_BOTTOM_BAR_CLASS}>
+        <div className="flex items-center justify-between gap-1 sm:gap-3">
+          {anyPoop && poopState ? (
+            <RoomActionButton
+              icon={<Shovel className="size-7 sm:size-9" />}
+              label={poopState.shovelMode ? 'Done' : 'Shovel'}
+              color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
+              glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
+              onClick={() => poopState.setShovelMode(prev => !prev)}
+              className={poopState.shovelMode ? 'ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background rounded-full' : ''}
+            />
+          ) : (
+            <div className="w-14 sm:w-20 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0 flex justify-center">
+            <ItemCarousel
+              items={foodEntries}
+              onUse={handleUseItemFromTab}
+              activeItemId={isUsingItem ? usingItemId : null}
+              disabled={isDisabled}
+            />
+          </div>
+          <RoomActionButton
+            icon={<Refrigerator className="size-7 sm:size-9" />}
+            label="Fridge"
+            color="text-orange-500"
+            glowHex="#f97316"
+            onClick={() => setShowFridge(true)}
+            disabled={isDisabled}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Care: hygiene + medicine carousel, context-sensitive side buttons ──
+
+function CareBar({
+  isUsingItem,
+  usingItemId,
+  isPublishing,
+  actionInProgress,
+  handleUseItemFromTab,
+}: RoomBottomBarProps) {
+  const allShopItems = useMemo(() => getLiveShopItems(), []);
+  const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
+  const treatItem = useMemo(() => allShopItems.find(i => i.type === 'food'), [allShopItems]);
+
+  const carouselEntries = useMemo<CarouselEntry[]>(() => {
+    const hygiene = hygieneItems
+      .filter(i => i.id !== 'hyg_towel')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'hygiene' }));
+    const medicine = allShopItems
+      .filter(i => i.type === 'medicine')
+      .map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'medicine' }));
+    return [...hygiene, ...medicine];
+  }, [hygieneItems, allShopItems]);
+
+  const [focusedMeta, setFocusedMeta] = useState(carouselEntries[0]?.meta ?? 'hygiene');
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setFocusedMeta(entry.meta ?? 'hygiene'), []);
+  const isHygieneFocused = focusedMeta === 'hygiene';
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+  const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
+
+  return (
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        {isHygieneFocused ? (
+          towelItem ? (
+            <RoomActionButton
+              icon={<TowelRack className="size-7 sm:size-9" />}
+              label="Towel"
+              color="text-cyan-500"
+              glowHex="#06b6d4"
+              onClick={() => handleUseItemFromTab(towelItem.id)}
+              disabled={isDisabled}
+              loading={isUsingItem && usingItemId === towelItem.id}
+            />
+          ) : (
+            <div className="w-14 sm:w-20 shrink-0" />
+          )
+        ) : treatItem ? (
+          <RoomActionButton
+            icon={<Candy className="size-7 sm:size-9" />}
+            label={treatItem.name}
+            color="text-pink-400"
+            glowHex="#f472b6"
+            onClick={() => handleUseItemFromTab(treatItem.id)}
+            disabled={isDisabled}
+          />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
+        )}
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={carouselEntries}
+            onUse={handleUseItemFromTab}
+            activeItemId={isUsingItem ? usingItemId : null}
+            disabled={isDisabled}
+            onFocusChange={handleFocusChange}
+          />
+        </div>
+        {isHygieneFocused ? (
+          <RoomActionButton
+            icon={<ShowerHead className="size-7 sm:size-9" />}
+            label="Shower"
+            color="text-blue-500"
+            glowHex="#3b82f6"
+            onClick={() => {
+              const shampoo = hygieneItems.find(i => i.id === 'hyg_shampoo');
+              if (shampoo) handleUseItemFromTab(shampoo.id);
+            }}
+            disabled={isDisabled}
+          />
+        ) : (
+          <div className="w-14 sm:w-20 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Rest: sleep/wake button centered ──
+
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem }: RoomBottomBarProps) {
+  const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  return (
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-center">
         {!isEgg && (
-          <CareActionButton
+          <RoomActionButton
             icon={
-              actionInProgress === 'rest' ? (
-                <Loader2 className="size-10 sm:size-12 animate-spin" />
-              ) : isSleeping ? (
-                <Sun className="size-10 sm:size-12" />
-              ) : (
-                <Moon className="size-10 sm:size-12" />
-              )
+              actionInProgress === 'rest'
+                ? <Loader2 className="size-7 sm:size-9 animate-spin" />
+                : isSleeping
+                  ? <Sun className="size-7 sm:size-9" />
+                  : <Moon className="size-7 sm:size-9" />
             }
-            statIcon={<Zap className="size-3.5" />}
-            label={isSleeping ? 'Wake' : 'Sleep'}
-            description={isSleeping ? 'Rise and shine' : 'Rest & recharge'}
+            label={isSleeping ? 'Wake up' : 'Sleep'}
             color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
+            glowHex={isSleeping ? '#f59e0b' : '#8b5cf6'}
             onClick={onRest}
             disabled={isDisabled}
           />
@@ -1893,111 +2010,14 @@ function CareTabContent({
   );
 }
 
-// ─── Care Action Button ───────────────────────────────────────────────────────
+// ── Closet: placeholder ──
 
-function CareActionButton({
-  icon,
-  statIcon,
-  label,
-  description,
-  color,
-  onClick,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  statIcon: React.ReactNode;
-  label: string;
-  description: string;
-  color: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
+function ClosetBar() {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex flex-col items-center gap-1.5 transition-all duration-300 ease-out',
-        'hover:-translate-y-2 hover:scale-105 active:scale-95',
-        disabled && 'opacity-40 pointer-events-none',
-      )}
-    >
-      <div className="relative">
-        <div
-          className={cn('size-16 min-[400px]:size-20 sm:size-24 rounded-full flex items-center justify-center', color)}
-          style={{
-            background: 'radial-gradient(circle at 40% 35%, color-mix(in srgb, currentColor 14%, transparent), color-mix(in srgb, currentColor 5%, transparent) 70%)',
-          }}
-        >
-          {icon}
-        </div>
-        <div className="absolute -bottom-1 -right-1 size-7 rounded-full flex items-center justify-center bg-background ring-2 ring-background">
-          <span className="text-muted-foreground">{statIcon}</span>
-        </div>
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-center gap-2 py-1">
+        <p className="text-xs text-muted-foreground/40 font-medium">Closet coming soon</p>
       </div>
-      <span className={cn('text-sm font-semibold', color)}>{label}</span>
-      <span className="text-[10px] leading-tight text-muted-foreground/70">{description}</span>
-    </button>
-  );
-}
-
-// ─── Items Tab Content ────────────────────────────────────────────────────────
-
-/** Lucide icon + color for each item category */
-function ItemTypeIndicator({ type }: { type: string }) {
-  switch (type) {
-    case 'food':
-      return <Utensils className="size-4 text-amber-400" strokeWidth={4} />;
-    case 'toy':
-      return <Gamepad2 className="size-4 text-rose-400" strokeWidth={4} />;
-    case 'medicine':
-      return <Heart className="size-4 text-emerald-400" strokeWidth={4} />;
-    case 'hygiene':
-      return <Droplets className="size-4 text-sky-400" strokeWidth={4} />;
-    default:
-      return null;
-  }
-}
-
-interface ItemsTabContentProps {
-  allShopItems: ShopItem[];
-  onUseItem: (itemId: string) => void;
-  isUsingItem: boolean;
-  usingItemId: string | null;
-}
-
-function ItemsTabContent({
-  allShopItems,
-  onUseItem,
-  isUsingItem,
-  usingItemId,
-}: ItemsTabContentProps) {
-  return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 gap-0.5">
-      {allShopItems.filter(i => i.status !== 'disabled').map((item) => {
-        const isThisUsing = isUsingItem && usingItemId === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onUseItem(item.id)}
-            disabled={isUsingItem}
-            className={cn(
-              'group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl transition-all duration-200',
-              'hover:bg-accent/50 hover:-translate-y-0.5 active:scale-[0.93] active:translate-y-0',
-              isThisUsing && 'bg-accent/40 -translate-y-0.5',
-              isUsingItem && !isThisUsing && 'opacity-40 pointer-events-none',
-            )}
-          >
-            {/* Stat category indicator — top-right */}
-            <span className="absolute top-1.5 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
-              <ItemTypeIndicator type={item.type} />
-            </span>
-            <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
-            <span className="text-[10px] text-muted-foreground font-medium truncate w-full text-center px-1">{item.name}</span>
-            {isThisUsing && <Loader2 className="size-3 animate-spin text-primary absolute bottom-1" />}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -2019,10 +2039,7 @@ interface MissionsTabContentProps {
   isStoppingIncubation: boolean;
   onStopEvolution: () => Promise<void>;
   isStoppingEvolution: boolean;
-  onOpenPostModal: () => void;
   dailyMissions: ReturnType<typeof useDailyMissions>;
-  onClaimReward: (id: string) => void;
-  isClaimingReward: boolean;
   canStartIncubation: boolean;
   canStartEvolution: boolean;
   isStartingIncubation: boolean;
@@ -2048,10 +2065,7 @@ function MissionsTabContent({
   isStoppingIncubation,
   onStopEvolution,
   isStoppingEvolution,
-  onOpenPostModal,
   dailyMissions,
-  onClaimReward,
-  isClaimingReward,
   canStartIncubation,
   canStartEvolution,
   isStartingIncubation,
@@ -2071,7 +2085,7 @@ function MissionsTabContent({
   const totalCount = tasks.length;
 
   const { missions } = dailyMissions;
-  const dailyCompleted = missions.filter(m => m.claimed).length;
+  const dailyCompleted = missions.filter(m => m.complete).length;
   const dailyTotal = missions.length;
 
   return (
@@ -2129,8 +2143,7 @@ function MissionsTabContent({
                 if (!task.action || !task.actionTarget) return;
                 switch (task.action) {
                   case 'navigate': navigate(task.actionTarget); break;
-                  case 'external_link': openUrl(task.actionTarget); break;
-                  case 'open_modal': if (task.actionTarget === 'blobbi_post') onOpenPostModal(); break;
+                   case 'external_link': openUrl(task.actionTarget); break;
                 }
               };
               const isActionable = !task.completed && !!task.action && !!task.actionTarget;
@@ -2235,58 +2248,43 @@ function MissionsTabContent({
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && missions.map(mission => {
-              const canClaim = mission.completed && !mission.claimed;
-              return (
-                <div
-                  key={mission.id}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
-                    canClaim && 'bg-amber-500/[0.06]',
-                  )}
-                >
-                  <DailyMissionIcon action={mission.action} claimed={mission.claimed} canClaim={canClaim} />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', mission.claimed && 'text-muted-foreground line-through')}>{mission.title}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
-                  </div>
-                  {!mission.claimed && (
-                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.currentCount}/{mission.requiredCount}</span>
-                  )}
-                  {canClaim && (
-                    <button
-                      onClick={() => onClaimReward(mission.id)}
-                      disabled={isClaimingReward}
-                      className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                    >
-                      Claim
-                    </button>
-                  )}
+            {!dailyMissions.noMissionsAvailable && missions.map(mission => (
+              <div
+                key={mission.id}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
+                  mission.complete && 'bg-emerald-500/[0.06]',
+                )}
+              >
+                <DailyMissionIcon action={mission.action} complete={mission.complete} />
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{mission.title}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
                 </div>
-              );
-            })}
+                {!mission.complete && (
+                  <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.progress}/{mission.target}</span>
+                )}
+                {mission.complete && (
+                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0">+{mission.xp} XP</span>
+                )}
+              </div>
+            ))}
 
             {/* Bonus row */}
-            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusAvailable && !dailyMissions.bonusClaimed && (
-              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-amber-500/[0.06]">
-                <div className="size-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="size-4 text-amber-500" />
+            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusUnlocked && (
+              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/[0.06]">
+                <div className="size-8 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
+                  <Sparkles className="size-4 text-violet-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium leading-tight">Daily Champion</p>
                   <p className="text-[10px] text-muted-foreground">All missions complete!</p>
                 </div>
-                <button
-                  onClick={() => onClaimReward('bonus_daily_complete')}
-                  disabled={isClaimingReward}
-                  className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Claim
-                </button>
+                <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400 shrink-0">+{dailyMissions.bonusXp} XP</span>
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.bonusClaimed && (
+            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
                 <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
@@ -2326,7 +2324,7 @@ function QuestTaskIcon({ taskId, completed }: { taskId: string; completed: boole
 
 // ─── Daily mission icon ───────────────────────────────────────────────────────
 
-function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claimed: boolean; canClaim: boolean }) {
+function DailyMissionIcon({ action, complete }: { action: string; complete: boolean }) {
   const iconClass = 'size-4';
   const icon = (() => {
     switch (action) {
@@ -2344,9 +2342,9 @@ function DailyMissionIcon({ action, claimed, canClaim }: { action: string; claim
   return (
     <div className={cn(
       'size-8 rounded-full flex items-center justify-center shrink-0',
-      claimed ? 'bg-emerald-500/15 text-emerald-500' : canClaim ? 'bg-amber-500/15 text-amber-500' : 'bg-muted/60 text-muted-foreground',
+      complete ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted/60 text-muted-foreground',
     )}>
-      {claimed ? <Check className="size-4" /> : icon}
+      {complete ? <Check className="size-4" /> : icon}
     </div>
   );
 }
@@ -2405,7 +2403,12 @@ function MoreTabContent({
                   'rounded-full p-1 transition-all',
                   isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '',
                 )}>
-                  <BlobbiStageVisual companion={c} size="sm" />
+                  <BlobbiStageVisual
+                    companion={c}
+                    size="sm"
+                    recipe={c.state === 'sleeping' ? buildSleepingRecipe() : undefined}
+                    recipeLabel={c.state === 'sleeping' ? 'sleeping' : undefined}
+                  />
                 </div>
                 {isCompanion && (
                   <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-background ring-2 ring-background flex items-center justify-center">
@@ -2474,83 +2477,6 @@ function MoreTabContent({
   );
 }
 
-// ─── Stat Indicator ───────────────────────────────────────────────────────────
-
-interface StatIndicatorProps {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
-}
-
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green: 'text-green-500',
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10',
-  yellow: 'bg-yellow-500/10',
-  green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10',
-  violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  violet: '#8b5cf6',
-};
-
-/** Lucide icon component for each stat */
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils,
-  happiness: Gamepad2,
-  health: Heart,
-  hygiene: Droplets,
-  energy: Zap,
-};
-
-function StatIndicator({ stat, value, color, status = 'normal' }: StatIndicatorProps) {
-  const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  return (
-    <div className={cn(
-      'relative size-[4.5rem] sm:size-20 rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
-      </svg>
-      {/* Icon with warning badge on its corner */}
-      <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-6 sm:size-7', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
-          <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3.5', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
-            strokeWidth={3}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 

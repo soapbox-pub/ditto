@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { EncryptedSettingsSchema } from "@/lib/schemas";
+import { getStorageKey } from "@/lib/storageKey";
 import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
 import { type EncryptedSettings, setLocalSettingsSync } from "./useEncryptedSettings";
@@ -34,9 +35,9 @@ const SYNC_TIMEOUT_MS = 8000;
  * Uses a localStorage flag so the sync screen only shows once per user
  * (not on every page refresh or new session while logged in).
  */
-export function isSyncDone(pubkey: string): boolean {
+export function isSyncDone(appId: string, pubkey: string): boolean {
   try {
-    return localStorage.getItem(`ditto:sync-done:${pubkey}`) === "1";
+    return localStorage.getItem(getStorageKey(appId, `sync-done:${pubkey}`)) === "1";
   } catch {
     return false;
   }
@@ -52,7 +53,7 @@ export function useInitialSync() {
   // for users who already completed it or who are logged out.
   const [phase, setPhase] = useState<SyncPhase>(() => {
     if (!user) return "idle";
-    if (isSyncDone(user.pubkey)) return "complete";
+    if (isSyncDone(config.appId, user.pubkey)) return "complete";
     return "idle";
   });
   const syncAttempted = useRef(false);
@@ -60,11 +61,11 @@ export function useInitialSync() {
   const markSyncComplete = useCallback(() => {
     if (!user) return;
     try {
-      localStorage.setItem(`ditto:sync-done:${user.pubkey}`, "1");
+      localStorage.setItem(getStorageKey(config.appId, `sync-done:${user.pubkey}`), "1");
     } catch {
       // localStorage may not be available
     }
-  }, [user]);
+  }, [user, config.appId]);
 
   // Reset when user changes
   useEffect(() => {
@@ -75,7 +76,7 @@ export function useInitialSync() {
     }
 
     // Skip sync if already completed for this user
-    if (isSyncDone(user.pubkey)) {
+    if (isSyncDone(config.appId, user.pubkey)) {
       setPhase("complete");
       return;
     }
@@ -322,7 +323,7 @@ export function useInitialSync() {
           }
 
           queryClient.setQueryData(["muteItems", muteEvent.id], items);
-          setCachedMuteItems(user.pubkey, items);
+          setCachedMuteItems(config.appId, user.pubkey, items);
 
           foundSettings = true;
         }

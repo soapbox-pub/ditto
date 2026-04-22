@@ -79,9 +79,14 @@ export function useBlobbiDevUpdate({
         tagUpdates.state = updates.state;
         changedFields.push('state');
         
-        // If changing to evolving/incubating, set state_started_at
-        if (updates.state === 'evolving' || updates.state === 'incubating') {
-          tagUpdates.state_started_at = now.toString();
+        // If changing to evolving/incubating (legacy dev support), set progression tags
+        if ((updates.state as string) === 'evolving' || (updates.state as string) === 'incubating') {
+          // Dev editor: treat these as progression, not activity state
+          tagUpdates.progression_state = updates.state;
+          tagUpdates.progression_started_at = now.toString();
+          // Override: don't put progression in the state tag
+          tagUpdates.state = 'active';
+          changedFields.push('progression_state');
         }
       }
 

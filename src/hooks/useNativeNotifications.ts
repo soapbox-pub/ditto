@@ -11,7 +11,7 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /** Interface for the native DittoNotification Capacitor plugin. */
 interface DittoNotificationPlugin {
-  configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[] }): Promise<void>;
+  configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; notificationStyle?: string }): Promise<void>;
 }
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
@@ -36,6 +36,7 @@ export function useNativeNotifications(): void {
 
   const prefs = settings?.notificationPreferences;
   const notificationsEnabled = settings?.notificationsEnabled ?? true;
+  const notificationStyle = settings?.notificationStyle ?? 'push';
   const enabledKinds = useMemo(
     () => getEnabledNotificationKinds(prefs),
     [prefs],
@@ -87,7 +88,8 @@ export function useNativeNotifications(): void {
       userPubkey: user.pubkey,
       relayUrls,
       enabledKinds,
+      notificationStyle,
       ...(authorsFilter ? { authors: authorsFilter } : {}),
     });
-  }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled, enabledKinds, authorsFilter]);
+  }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled, notificationStyle, enabledKinds, authorsFilter]);
 }
