@@ -5,7 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { ADULT_FORMS, type AdultForm, deriveAdultFormFromSeed } from '@/blobbi/adult-blobbi/types/adult.types';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
-import { applyColorGuardrails, hslToHex } from './color-guardrails';
+import { applyColorGuardrails, hexToHsl, hslToHex } from './color-guardrails';
 import type { Mission } from './missions';
 import { parseEvolutionContent } from './missions';
 
@@ -614,7 +614,7 @@ export function deriveSecondaryColorFromSeed(seed: string, baseHex?: string): st
   }
 
   // Harmonized derivation: shift from base
-  const baseHsl = hexToHslLocal(baseHex);
+  const baseHsl = hexToHsl(baseHex);
   const hueShift = (seedValue % 41) - 20;  // -20..+20 degrees
   const rem1 = Math.floor(seedValue / 41);
   const lOffset = (rem1 % 14) + 12;        // +12..+25 lightness
@@ -646,30 +646,6 @@ export function deriveEyeColorFromSeed(seed: string): string {
   const rem2 = Math.floor(rem1 / 61);
   const l = (rem2 % 46) + 10;  // 10..55
   return hslToHex(h, s, l);
-}
-
-/**
- * Local hex-to-HSL helper for use within this module.
- * Avoids a circular dependency on color-guardrails for the simple conversion.
- */
-function hexToHslLocal(hex: string): { h: number; s: number; l: number } {
-  const num = parseInt(hex.slice(1), 16);
-  const r = ((num >> 16) & 0xff) / 255;
-  const g = ((num >> 8) & 0xff) / 255;
-  const b = (num & 0xff) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h: number;
-  switch (max) {
-    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-    case g: h = ((b - r) / d + 2) / 6; break;
-    default: h = ((r - g) / d + 4) / 6; break;
-  }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 /**
@@ -705,7 +681,7 @@ export function deriveSizeFromSeed(seed: string): BlobbiSize {
 //
 // After the cutoff date this code becomes a no-op and can be removed entirely.
 //
-// Cutoff: Thursday 2026-05-01 00:00:00 UTC (next week's Thursday)
+// Cutoff: 2026-05-01 00:00:00 UTC
 //
 
 /** UTC timestamp when the compatibility window closes. */

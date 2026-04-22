@@ -56,9 +56,16 @@ export function useSeedIdentitySync(
       syncedRef.current.add(c.d);
     }
 
+    // Abort flag: set by the cleanup function when the effect is torn down
+    // (component unmount or dependency change). The async loop checks this
+    // before each publish and before calling updateCompanionEvent.
+    let aborted = false;
+
     // Process sequentially to avoid relay rate-limiting
     (async () => {
       for (const c of toSync) {
+        if (aborted) break;
+
         try {
           // Fetch the freshest version from relays to avoid stale overwrites
           // (another device may have updated the event since our cache was populated).
@@ -67,6 +74,8 @@ export function useSeedIdentitySync(
             authors: [c.event.pubkey],
             '#d': [c.d],
           });
+
+          if (aborted) break;
 
           if (!prev) {
             if (import.meta.env.DEV) {
@@ -84,16 +93,24 @@ export function useSeedIdentitySync(
             tags: newTags,
             prev,
           });
+
+          if (aborted) break;
+
           updateCompanionEvent(event);
           if (import.meta.env.DEV) {
             console.log('[SeedSync] Synced mirror tags for', c.d.slice(0, 20) + '...');
           }
         } catch (err) {
+          if (aborted) break;
           console.warn('[SeedSync] Failed to sync', c.d.slice(0, 20) + '...', err);
           // Remove from synced set so it can be retried next render
           syncedRef.current.delete(c.d);
         }
       }
     })();
+
+    return () => {
+      aborted = true;
+    };
   }, [companions, nostr, publishEvent, updateCompanionEvent]);
 }
