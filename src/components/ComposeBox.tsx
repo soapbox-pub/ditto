@@ -1477,7 +1477,7 @@ export function ComposeBox({
                     </TooltipTrigger>
                     {!trayOpen && <TooltipContent>More</TooltipContent>}
                   </Tooltip>
-                  <PopoverContent side="bottom" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
+                  <PopoverContent side="top" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
                     <div className="flex flex-col gap-0.5">
                       {!replyTo && (
                         <button
