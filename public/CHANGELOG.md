@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.10.4] - 2026-04-23
+
+### Added
+- Right-to-left text support for Arabic, Hebrew, and other RTL languages across posts, bios, and direct messages
+- Blobbis now close their eyes when falling asleep and open them when waking up with smooth one-shot animations
+
+### Changed
+- Eye color and secondary color now apply consistently across all adult Blobbi forms
+- Blobbi mission progress is now tracked per-Blobbi instead of per-account, so evolving multiple Blobbis no longer conflicts
+
+### Fixed
+- Swiping to dismiss a full-screen image could leave the controls flickering or locked in place
+- Sleeping Blobbis appeared with open eyes in the Blobbies tab grid
+- Catti reaction mouths rendered off-center instead of aligned with the face
+- Catti whiskers disappeared when showing a reaction mouth
+- Pandi eye tracking could lock onto ear patches instead of actual eyes
+- Adult Blobbi eyebrows floated away from the eyes on certain body shapes
+- Some adult Blobbi body shapes were not detected correctly for visual effects
+- Poll and spoiler menu in the compose modal was clipped off-screen on mobile
+- Duplicate Blobbis could appear when the legacy-to-new-format migration ran more than once
+
 ## [2.10.3] - 2026-04-20
 
 ### Added
