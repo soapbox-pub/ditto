@@ -56,7 +56,7 @@
   <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
   <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
   <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
   <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Eyes (white base) -->
