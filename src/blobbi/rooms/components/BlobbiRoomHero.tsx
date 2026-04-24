@@ -6,15 +6,18 @@
  * Top padding accounts for the floating room header overlay.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
-  Footprints, Loader2,
+  Footprints, Loader2, Navigation,
 } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
+import { STAT_HELP_TEXT } from '../lib/stat-guide-config';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
@@ -78,6 +81,8 @@ export interface BlobbiRoomHeroProps {
   roomId: BlobbiRoomId;
   /** Room order for dot indicators */
   roomOrder?: BlobbiRoomId[];
+  /** Called when the user taps "Guide me" on a low-stat popover. */
+  onGuide?: (stat: keyof BlobbiStats) => void;
   className?: string;
 }
 
@@ -100,6 +105,7 @@ export function BlobbiRoomHero({
   heroWidth,
   roomId,
   roomOrder = DEFAULT_ROOM_ORDER,
+  onGuide,
   className,
 }: BlobbiRoomHeroProps) {
   const roomMeta = ROOM_META[roomId];
@@ -137,7 +143,7 @@ export function BlobbiRoomHero({
       )}
     >
       <div className="relative flex flex-col items-center">
-        <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />
+        <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
           className="relative transition-all duration-500"
@@ -199,10 +205,12 @@ function StatsCrown({
   companion,
   currentStats,
   heroWidth,
+  onGuide,
 }: {
   companion: BlobbiCompanion;
   currentStats: BlobbiRoomHeroProps['currentStats'];
   heroWidth: number;
+  onGuide?: (stat: keyof BlobbiStats) => void;
 }) {
   const allStats = useMemo(() =>
     getVisibleStats(companion.stage).map(stat => ({
@@ -226,7 +234,7 @@ function StatsCrown({
     : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
   return (
-    <div className="relative flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40 }}>
+    <div className="relative flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40, animation: 'stat-glow-clock 2s linear infinite' }}>
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
@@ -244,11 +252,141 @@ function StatsCrown({
               bottom: `${y.toFixed(1)}px`,
             }}
           >
-            <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
+            {s.status !== 'normal' ? (
+              <StatIndicatorWithHelp
+                stat={s.stat}
+                value={s.value}
+                color={s.color}
+                status={s.status}
+                onGuide={onGuide}
+              />
+            ) : (
+              <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
+            )}
           </div>
         );
       })}
     </div>
+  );
+}
+
+// ─── Stat Indicator with Popover Help ─────────────────────────────────────────
+
+function StatIndicatorWithHelp({
+  stat,
+  value,
+  color,
+  status,
+  onGuide,
+}: {
+  stat: string;
+  value: number | undefined;
+  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
+  status: 'warning' | 'critical';
+  onGuide?: (stat: keyof BlobbiStats) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Tracks whether the current interaction is mouse-driven. */
+  const isMouseDriven = useRef(false);
+  const help = STAT_HELP_TEXT[stat as keyof BlobbiStats];
+
+  // Clear all pending timers (used on unmount and before scheduling new ones).
+  const clearTimers = useCallback(() => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
+  }, []);
+
+  // Clean up on unmount so no timer fires on a dead component.
+  useEffect(() => clearTimers, [clearTimers]);
+
+  // Shared hover-zone logic: entering trigger or content cancels pending
+  // close and schedules open. Leaving either schedules a delayed close.
+  // The delay bridges the gap between trigger and popover so the user can
+  // move their pointer from one to the other without flicker.
+  const hoverEnter = useCallback(() => {
+    clearTimers();
+    isMouseDriven.current = true;
+    openTimer.current = setTimeout(() => {
+      openTimer.current = null;          // clear ref once executed
+      setOpen(true);
+    }, 120);
+  }, [clearTimers]);
+
+  const hoverLeave = useCallback(() => {
+    clearTimers();
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;         // clear ref once executed
+      isMouseDriven.current = false;
+      setOpen(false);
+    }, 220);
+  }, [clearTimers]);
+
+  const handlePointerEnter = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    hoverEnter();
+  }, [hoverEnter]);
+
+  const handlePointerLeave = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    hoverLeave();
+  }, [hoverLeave]);
+
+  // Touch/click: Radix calls this for click-based toggles.
+  // Block it when mouse-hover is driving the interaction so the two
+  // systems don't fight.  On touch devices isMouseDriven is always false.
+  const handleOpenChange = useCallback((next: boolean) => {
+    if (isMouseDriven.current) return;
+    setOpen(next);
+  }, []);
+
+  const handleGuide = useCallback(() => {
+    clearTimers();
+    isMouseDriven.current = false;
+    setOpen(false);
+    onGuide?.(stat as keyof BlobbiStats);
+  }, [onGuide, stat, clearTimers]);
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <div
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          className="cursor-pointer"
+        >
+          <StatIndicator stat={stat} value={value} color={color} status={status} />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        sideOffset={8}
+        className="w-52 p-3"
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {help && (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">{help.title}</p>
+            <p className="text-xs text-muted-foreground">{help.description}</p>
+            {onGuide && (
+              <button
+                onClick={handleGuide}
+                className={cn(
+                  'flex items-center gap-1.5 w-full justify-center rounded-md px-3 py-1.5 text-xs font-semibold text-white transition-colors',
+                  'bg-primary hover:bg-primary/90 active:scale-95',
+                )}
+              >
+                <Navigation className="size-3" />
+                Guide me
+              </button>
+            )}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -270,12 +408,25 @@ function StatIndicator({
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
 
+  /* Box-shadow is driven by --stat-glow-intensity (0→1→0), animated once
+     on the StatsCrown parent.  All icons read the same inherited value,
+     giving true phase-lock regardless of individual mount timing. */
+  const glowStyle: CSSProperties | undefined =
+    status === 'warning'
+      ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 6px) calc(var(--stat-glow-intensity) * 2px) currentColor' }
+      : status === 'critical'
+        ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 10px) calc(var(--stat-glow-intensity) * 3px) currentColor' }
+        : undefined;
+
   return (
-    <div className={cn(
-      'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
-    )}>
+    <div
+      className={cn(
+        'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
+        STAT_BG_COLORS[color],
+        isLow && STAT_COLORS[color],
+      )}
+      style={glowStyle}
+    >
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
         <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
         <circle

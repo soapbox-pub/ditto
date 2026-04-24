@@ -5,7 +5,7 @@
  * Mobile: focused item only. Desktop: prev/next previews.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,8 @@ interface ItemCarouselProps {
   activeItemId?: string | null;
   disabled?: boolean;
   onFocusChange?: (entry: CarouselEntry) => void;
+  /** When set, the carousel visually guides the user toward this item. */
+  highlightId?: string | null;
   className?: string;
 }
 
@@ -35,15 +37,23 @@ export function ItemCarousel({
   activeItemId,
   disabled,
   onFocusChange,
+  highlightId,
   className,
 }: ItemCarouselProps) {
   const [index, setIndex] = useState(0);
   const count = items.length;
 
-  // Reset index when items change to avoid out-of-bounds access
+  // Clamp or preserve index when items change.
+  // Only reset when the focused item no longer exists or the index is out of
+  // bounds — not on every reference change (which happens every render if the
+  // parent rebuilds the array).
   useEffect(() => {
-    setIndex(0);
-  }, [items]);
+    setIndex((prev) => {
+      if (count === 0) return 0;
+      if (prev < count && items[prev]) return prev; // still valid
+      return Math.min(prev, count - 1);              // clamp to new bounds
+    });
+  }, [items, count]);
 
   const prev = useCallback(() => {
     setIndex(i => {
@@ -60,6 +70,21 @@ export function ItemCarousel({
       return n;
     });
   }, [count, items, onFocusChange]);
+
+  // ─── Guide highlight logic ──────────────────────────────────────────────
+  // Determine if the highlight target is currently focused, or which arrow
+  // direction leads to it via the shortest path in the circular list.
+  const highlightArrow = useMemo<'left' | 'right' | null>(() => {
+    if (!highlightId || count < 2) return null;
+    const targetIdx = items.findIndex(i => i.id === highlightId);
+    if (targetIdx === -1 || targetIdx === index) return null;
+
+    const rightDist = (targetIdx - index + count) % count;
+    const leftDist = (index - targetIdx + count) % count;
+    return rightDist <= leftDist ? 'right' : 'left';
+  }, [highlightId, items, index, count]);
+
+  const isHighlightFocused = !!highlightId && items[index]?.id === highlightId;
 
   if (count === 0) {
     return (
@@ -85,7 +110,9 @@ export function ItemCarousel({
           'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
+          highlightArrow === 'left' && 'text-primary',
         )}
+        style={highlightArrow === 'left' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label="Previous item"
       >
         <ChevronLeft className="size-4" />
@@ -109,7 +136,9 @@ export function ItemCarousel({
           'hover:bg-accent/20 active:scale-95',
           isThisActive && 'bg-accent/40',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
+          isHighlightFocused && 'ring-2 ring-primary/60',
         )}
+        style={isHighlightFocused ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
       >
         <span className="text-4xl sm:text-5xl leading-none">{current.icon}</span>
         <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 w-16 sm:w-20 text-center truncate">
@@ -134,7 +163,9 @@ export function ItemCarousel({
           'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
+          highlightArrow === 'right' && 'text-primary',
         )}
+        style={highlightArrow === 'right' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label="Next item"
       >
         <ChevronRight className="size-4" />

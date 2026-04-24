@@ -45,7 +45,9 @@ import {
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
+import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -99,10 +101,12 @@ import {
   type PoopState,
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
+  DEFAULT_ROOM_ORDER,
   getPoopsInRoom,
   hasAnyPoop,
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
+import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
@@ -123,16 +127,17 @@ const DEBUG_BLOBBI = import.meta.env.DEV;
 const CARE_THRESHOLD = 40;
 
 /**
- * Check if a companion needs care based on stat thresholds.
- * A Blobbi needs care if any stat is below CARE_THRESHOLD.
+ * Check if a companion needs care based on projected (decay-applied) stats.
+ * Uses the same projection as the main UI so the badge is consistent with
+ * what the user sees on the Blobbi page.
  */
 function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = companion;
+  const { stats } = calculateProjectedDecay(companion);
   return (
-    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
-    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
-    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
-    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
+    stats.hunger < CARE_THRESHOLD ||
+    stats.happiness < CARE_THRESHOLD ||
+    stats.hygiene < CARE_THRESHOLD ||
+    stats.health < CARE_THRESHOLD
   );
 }
 
@@ -933,7 +938,40 @@ function BlobbiDashboard({
       setCurrentRoom('rest');
     }
   }, [isSleeping]);
-  
+
+  // ─── Low-Status Guide Flow ───
+  const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
+
+  // Start a guide: build the target and set state
+  const handleGuide = useCallback((stat: keyof BlobbiStats) => {
+    setGuideTarget(buildGuideTarget(stat, currentRoom));
+  }, [currentRoom]);
+
+  // Advance step when the user navigates to the target room
+  useEffect(() => {
+    if (!guideTarget || guideTarget.step !== 'room') return;
+    if (currentRoom === guideTarget.targetRoom) {
+      setGuideTarget(prev => prev ? { ...prev, step: prev.targetType } : null);
+    }
+  }, [currentRoom, guideTarget]);
+
+  // Derived: room direction glow (null when already in the correct room)
+  const guideRoomDirection = useMemo(() => {
+    if (!guideTarget || guideTarget.step !== 'room') return null;
+    return getGuideRoomDirection(currentRoom, guideTarget.targetRoom, DEFAULT_ROOM_ORDER);
+  }, [guideTarget, currentRoom]);
+
+  // Derived: carousel item highlight (only when in correct room + on 'item' step)
+  const guideHighlightId = guideTarget?.step === 'item' ? guideTarget.targetItemId : null;
+
+  // Derived: action glow (only when in correct room + on 'action' step)
+  const guideActionGlow = guideTarget?.step === 'action' ? guideTarget.targetAction : null;
+
+  // Wrap onRest — guide cleanup is handled by the isSleeping effect below
+  const handleRestWithGuide = useCallback(() => {
+    onRest();
+  }, [onRest]);
+
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
     setActiveDrawer(prev => prev === drawer ? 'none' : drawer);
@@ -962,6 +1000,22 @@ function BlobbiDashboard({
   
   // Projected state with decay applied (UI-only, recalculates every 60s)
   const projectedState = useProjectedBlobbiState(companion);
+
+  // Clear sleep guide after companion actually enters sleeping state
+  useEffect(() => {
+    if (isSleeping && guideTarget?.targetAction === 'sleep') {
+      setGuideTarget(null);
+    }
+  }, [isSleeping, guideTarget]);
+
+  // Clear guide when the guided stat recovers above warning threshold
+  useEffect(() => {
+    if (!guideTarget || !projectedState) return;
+    const val = projectedState.stats[guideTarget.stat] ?? 100;
+    if (getStatStatus(companion.stage, guideTarget.stat, val) === 'normal') {
+      setGuideTarget(null);
+    }
+  }, [guideTarget, projectedState, companion.stage]);
   
   // Measure hero container width for responsive stat arc radius
   const heroRef = useRef<HTMLDivElement>(null);
@@ -1361,7 +1415,10 @@ function BlobbiDashboard({
     if (!action || isUsingItem) return;
     setUsingItemId(itemId);
     setActionOverrideEmotion(getActionEmotion(action as ActionType));
-    onUseItem(itemId, action).finally(() => {
+    onUseItem(itemId, action).then(() => {
+      // Clear guide only after the action succeeds
+      if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
+    }).finally(() => {
       setUsingItemId(null);
       setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
@@ -1470,6 +1527,7 @@ function BlobbiDashboard({
         lastFeedTimestamp={companion.lastInteraction ? companion.lastInteraction * 1000 : undefined}
         poopStateRef={poopStateRef}
         onPoopCleaned={handlePoopCleaned}
+        guideRoomDirection={guideRoomDirection}
         hero={
           <BlobbiRoomHero
             companion={companion}
@@ -1487,6 +1545,7 @@ function BlobbiDashboard({
             heroRef={heroRef}
             heroWidth={heroWidth}
             roomId={currentRoom}
+            onGuide={handleGuide}
           />
         }
         middleSlot={
@@ -1538,9 +1597,11 @@ function BlobbiDashboard({
             handleUseItemFromTab={handleUseItemFromTab}
             handleDirectAction={handleDirectAction}
             onUseItem={onUseItem}
-            onRest={onRest}
+            onRest={handleRestWithGuide}
             setShowPhotoModal={setShowPhotoModal}
             poopStateRef={poopStateRef}
+            guideHighlightId={guideHighlightId}
+            guideActionGlow={guideActionGlow}
           />
         )}
       </BlobbiRoomShell>
@@ -1656,6 +1717,10 @@ interface RoomBottomBarProps {
   onRest: () => void;
   setShowPhotoModal: React.Dispatch<React.SetStateAction<boolean>>;
   poopStateRef: React.MutableRefObject<PoopState | null>;
+  /** Item ID to highlight in the carousel (guide flow). */
+  guideHighlightId?: string | null;
+  /** Action to glow (guide flow, e.g. 'sleep'). */
+  guideActionGlow?: string | null;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -1682,6 +1747,7 @@ function HomeBar({
   handleUseItemFromTab,
   handleDirectAction,
   setShowPhotoModal,
+  guideHighlightId,
 }: RoomBottomBarProps) {
   const carouselItems = useMemo<CarouselEntry[]>(() => {
     const toys = getLiveShopItems()
@@ -1726,6 +1792,7 @@ function HomeBar({
             onUse={handleCarouselUse}
             activeItemId={isUsingItem ? usingItemId : null}
             disabled={isDisabled}
+            highlightId={guideHighlightId}
           />
         </div>
         {canBeCompanion ? (
@@ -1765,6 +1832,7 @@ function KitchenBar({
   actionInProgress,
   handleUseItemFromTab,
   poopStateRef,
+  guideHighlightId,
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
@@ -1878,6 +1946,7 @@ function KitchenBar({
               onUse={handleUseItemFromTab}
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
+              highlightId={guideHighlightId}
             />
           </div>
           <RoomActionButton
@@ -1902,6 +1971,7 @@ function CareBar({
   isPublishing,
   actionInProgress,
   handleUseItemFromTab,
+  guideHighlightId,
 }: RoomBottomBarProps) {
   const allShopItems = useMemo(() => getLiveShopItems(), []);
   const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
@@ -1959,6 +2029,7 @@ function CareBar({
             activeItemId={isUsingItem ? usingItemId : null}
             disabled={isDisabled}
             onFocusChange={handleFocusChange}
+            highlightId={guideHighlightId}
           />
         </div>
         {isHygieneFocused ? (
@@ -1983,7 +2054,7 @@ function CareBar({
 
 // ── Rest: sleep/wake button centered ──
 
-function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem }: RoomBottomBarProps) {
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, guideActionGlow }: RoomBottomBarProps) {
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   return (
@@ -2003,6 +2074,7 @@ function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, is
             glowHex={isSleeping ? '#f59e0b' : '#8b5cf6'}
             onClick={onRest}
             disabled={isDisabled}
+            glow={guideActionGlow === 'sleep'}
           />
         )}
       </div>
