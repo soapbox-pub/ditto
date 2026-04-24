@@ -97,8 +97,8 @@ import {
   ItemCarousel,
   RoomActionButton,
   useShovelDrag,
-  PassivePoopOverlay,
-  KitchenPoopOverlay,
+  PoopOverlay,
+  InteractivePoopOverlay,
   ShovelButton,
   type BlobbiRoomId,
   type CarouselEntry,
@@ -1776,7 +1776,7 @@ function HomeBar({
 
   return (
     <>
-      <PassivePoopOverlay poopStateRef={poopStateRef} />
+      <PoopOverlay poopStateRef={poopStateRef} roomId="home" />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           <RoomActionButton
@@ -1866,7 +1866,7 @@ function KitchenBar({
 
   return (
     <>
-      <KitchenPoopOverlay drag={drag} poopStateRef={poopStateRef} />
+      <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
 
       {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
       {showFridge && (
@@ -2010,7 +2010,7 @@ function CareBar({
 
   return (
     <>
-      <PassivePoopOverlay poopStateRef={poopStateRef} />
+      <PoopOverlay poopStateRef={poopStateRef} roomId="care" />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {leftButton}
@@ -2052,7 +2052,7 @@ function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, is
 
   return (
     <>
-      <PassivePoopOverlay poopStateRef={poopStateRef} />
+      <PoopOverlay poopStateRef={poopStateRef} roomId="rest" />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-center">
           {!isEgg && (

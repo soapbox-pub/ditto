@@ -25,7 +25,7 @@ export const OVERFEED_THRESHOLD = 95;
 const OVERFEED_CHANCE = 0.6;
 const HOURS_PER_POOP = 2;
 export const XP_PER_POOP = 5;
-const MAX_POOPS = 6;
+const MAX_POOPS = 3;
 
 const SAFE_POSITIONS: Array<{ bottom: number; left: number }> = [
   { bottom: 22, left: 8 },
@@ -71,8 +71,8 @@ export function generateInitialPoops(
     for (let i = 0; i < count; i++) {
       poops.push({
         id: nextPoopId(),
-      room: 'kitchen',
-      source: 'time',
+        room: 'kitchen',
+        source: 'time',
         createdAt: now - i * 1000,
         position: pickPosition(posIndex++),
       });

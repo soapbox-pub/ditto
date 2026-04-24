@@ -1,9 +1,13 @@
 /**
  * RoomPoopLayer — Poop rendering and shovel button components.
  *
- * Poops spawn in the kitchen but are visible in every room.
- * - `PassivePoopOverlay`: display-only poop emojis (all non-kitchen rooms)
- * - `KitchenPoopOverlay`: interactive poop emojis with drag hit-test refs
+ * Currently all poops spawn in the kitchen, but the rendering is
+ * room-aware: each overlay filters by `poop.room` so enabling
+ * multi-room spawning later only requires changing the spawn
+ * location in `poop-system.ts`.
+ *
+ * - `PoopOverlay`: display-only poop emojis (any room)
+ * - `InteractivePoopOverlay`: poop emojis with drag hit-test refs (kitchen)
  * - `ShovelButton`: draggable shovel action button (kitchen only)
  */
 
@@ -12,21 +16,24 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/useToast';
 
 import type { PoopState } from './BlobbiRoomShell';
+import type { BlobbiRoomId } from '../lib/room-config';
+import { getPoopsInRoom } from '../lib/poop-system';
 import { RoomActionButton } from './RoomActionButton';
 import type { ShovelDrag } from '../hooks/useShovelDrag';
 
-// ─── PassivePoopOverlay (non-kitchen rooms) ───────────────────────────────────
+// ─── PoopOverlay (passive, any room) ──────────────────────────────────────────
 
 /**
- * Static poop display for non-kitchen rooms. No interaction.
+ * Static poop display. Renders only poops assigned to `roomId`.
  */
-export function PassivePoopOverlay({ poopStateRef }: { poopStateRef: React.MutableRefObject<PoopState | null> }) {
+export function PoopOverlay({ poopStateRef, roomId }: { poopStateRef: React.MutableRefObject<PoopState | null>; roomId: BlobbiRoomId }) {
   const poopState = poopStateRef.current;
-  if (!poopState || poopState.poops.length === 0) return null;
+  const poops = poopState ? getPoopsInRoom(poopState.poops, roomId) : [];
+  if (poops.length === 0) return null;
 
   return (
     <>
-      {poopState.poops.map((poop) => (
+      {poops.map((poop) => (
         <div
           key={poop.id}
           className="absolute z-10 pointer-events-none select-none"
@@ -39,19 +46,20 @@ export function PassivePoopOverlay({ poopStateRef }: { poopStateRef: React.Mutab
   );
 }
 
-// ─── KitchenPoopOverlay (interactive) ─────────────────────────────────────────
+// ─── InteractivePoopOverlay (kitchen) ─────────────────────────────────────────
 
 /**
- * Interactive poop display for the kitchen.
- * Registers refs for drag hit-testing and renders the drag ghost.
+ * Interactive poop display. Renders poops assigned to `roomId`,
+ * registers refs for drag hit-testing, and shows the drag ghost.
  */
-export function KitchenPoopOverlay({ drag, poopStateRef }: { drag: ShovelDrag; poopStateRef: React.MutableRefObject<PoopState | null> }) {
+export function InteractivePoopOverlay({ drag, poopStateRef, roomId }: { drag: ShovelDrag; poopStateRef: React.MutableRefObject<PoopState | null>; roomId: BlobbiRoomId }) {
   const poopState = poopStateRef.current;
-  if (!poopState || (poopState.poops.length === 0 && !drag.isDragging)) return null;
+  const poops = poopState ? getPoopsInRoom(poopState.poops, roomId) : [];
+  if (poops.length === 0 && !drag.isDragging) return null;
 
   return (
     <>
-      {poopState.poops.map((poop) => (
+      {poops.map((poop) => (
         <div
           key={poop.id}
           ref={(el) => {

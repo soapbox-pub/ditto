@@ -30,4 +30,4 @@ export { ItemCarousel, type CarouselEntry } from './components/ItemCarousel';
 export { BlobbiRoomHero, type BlobbiRoomHeroProps } from './components/BlobbiRoomHero';
 export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';
 export { useShovelDrag, type ShovelDrag } from './hooks/useShovelDrag';
-export { PassivePoopOverlay, KitchenPoopOverlay, ShovelButton } from './components/RoomPoopLayer';
+export { PoopOverlay, InteractivePoopOverlay, ShovelButton } from './components/RoomPoopLayer';
