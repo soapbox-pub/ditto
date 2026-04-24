@@ -8,7 +8,6 @@
  * - BlobbiShopItemRow (shop listing)
  * - BlobbiPurchaseDialog (purchase confirmation)
  * - BlobbiInventoryModal (items listing)
- * - BlobbiActionInventoryModal (action item selection)
  * 
  * All consumers should use this component to ensure consistent display of item effects.
  */

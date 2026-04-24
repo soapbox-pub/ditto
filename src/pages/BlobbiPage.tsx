@@ -53,7 +53,6 @@ import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 import {
-  BlobbiActionInventoryModal,
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
@@ -1044,8 +1043,6 @@ function BlobbiDashboard({
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // Inventory action modal state (still used for the confirmation dialog)
-  const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
   
   // Track selection modal (for changing tracks in music player)
@@ -1294,29 +1291,6 @@ function BlobbiDashboard({
     setShowTrackPickerModal(true);
   };
   
-  // Handle using an item (always uses once)
-  const handleUseItem = async (itemId: string) => {
-    if (!inventoryAction || isUsingItem) return;
-    setUsingItemId(itemId);
-    // Set action emotion override while item is being used
-    setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
-    try {
-      await onUseItem(itemId, inventoryAction);
-      // Close the modal on success
-      setInventoryAction(null);
-    } finally {
-      setUsingItemId(null);
-      // Clear action emotion after a brief delay for visual feedback
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
-    }
-  };
-  
-  // Handle opening shop from empty state — navigate to kitchen room
-  const handleOpenShopFromAction = () => {
-    setInventoryAction(null);
-    setCurrentRoom('kitchen');
-  };
-
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
   usePersistEvolutionProgress(companion.d, updateCompanionEvent);
 
@@ -1564,21 +1538,6 @@ function BlobbiDashboard({
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
-      {/* Inventory Action Confirmation Modal (Feed/Play/Clean) */}
-      {inventoryAction && (
-        <BlobbiActionInventoryModal
-          open={!!inventoryAction}
-          onOpenChange={(open) => !open && setInventoryAction(null)}
-          action={inventoryAction}
-          companion={companion}
-          profile={profile}
-          onUseItem={handleUseItem}
-          onOpenShop={handleOpenShopFromAction}
-          isUsingItem={isUsingItem}
-          usingItemId={usingItemId}
-        />
-      )}
-      
       {/* Track Picker Modal */}
       <PlayMusicModal
         open={showTrackPickerModal}

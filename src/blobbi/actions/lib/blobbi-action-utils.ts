@@ -2,7 +2,7 @@
 
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
-import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { getBlobbiStatDisplayState, type CareState } from '@/blobbi/core/lib/blobbi-segments';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
@@ -274,78 +274,6 @@ export function hasHappinessEffectForEgg(effects: ItemEffect | undefined): boole
 // ─── Item Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Resolved catalog item with shop metadata
- */
-export interface ResolvedInventoryItem {
-  itemId: string;
-  quantity: number;
-  name: string;
-  icon: string;
-  type: ShopItemCategory;
-  effect?: ItemEffect;
-}
-
-/**
- * Options for filtering catalog items by action
- */
-export interface FilterInventoryOptions {
-  /** Companion stage - used to filter items by egg-compatible effects */
-  stage?: 'egg' | 'baby' | 'adult';
-}
-
-/**
- * Get all available items for an action type from the shop catalog.
- * Items are abilities/tools — no inventory ownership is required.
- * 
- * Filtering rules:
- * - Only items matching the action's item type are included
- * - Shell Repair Kit only appears in medicine modal for eggs
- * - For eggs: only items with egg-compatible effects are returned
- *   - medicine action: only items with health effect
- *   - clean action: only items with hygiene or happiness effect
- */
-export function filterInventoryByAction(
-  _storage: StorageItem[],
-  action: InventoryAction,
-  options: FilterInventoryOptions = {}
-): ResolvedInventoryItem[] {
-  const allowedType = ACTION_TO_ITEM_TYPE[action];
-  const result: ResolvedInventoryItem[] = [];
-  const isEgg = options.stage === 'egg';
-  const allItems = getLiveShopItems();
-
-  for (const shopItem of allItems) {
-    if (shopItem.type !== allowedType) continue;
-
-    // Shell Repair Kit: only show for eggs in medicine modal
-    if (shopItem.id === SHELL_REPAIR_KIT_ID && !isEgg) {
-      continue;
-    }
-
-    // For eggs, filter items by egg-compatible effects
-    if (isEgg) {
-      if (action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
-        continue; // Skip medicine without health effect
-      }
-      if (action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) {
-        continue; // Skip hygiene items without hygiene or happiness effect
-      }
-    }
-
-    result.push({
-      itemId: shopItem.id,
-      quantity: Infinity,
-      name: shopItem.name,
-      icon: shopItem.icon,
-      type: shopItem.type,
-      effect: shopItem.effect,
-    });
-  }
-
-  return result;
-}
-
-/**
  * Decrement item quantity in storage array.
  * If quantity becomes 0, removes the item entirely.
  * Returns a new storage array (immutable).
@@ -460,90 +388,6 @@ export function getStageRestrictionMessage(companion: BlobbiCompanion, action?: 
     return 'Eggs cannot use this item. Wait for your Blobbi to hatch!';
   }
   return null;
-}
-
-// ─── Stats Preview ────────────────────────────────────────────────────────────
-
-/**
- * Preview stats after applying an item's effects.
- * Useful for showing the user what will happen before confirming.
- */
-export function previewStatChanges(
-  currentStats: Partial<BlobbiStats>,
-  effects: ItemEffect | undefined
-): Array<{ stat: keyof BlobbiStats; current: number; after: number; delta: number }> {
-  if (!effects) return [];
-
-  const changes: Array<{ stat: keyof BlobbiStats; current: number; after: number; delta: number }> = [];
-  const statKeys: (keyof BlobbiStats)[] = ['hunger', 'happiness', 'energy', 'hygiene', 'health'];
-
-  for (const stat of statKeys) {
-    const delta = effects[stat];
-    if (delta !== undefined && delta !== 0) {
-      const current = currentStats[stat] ?? 0;
-      const after = clampStat(current + delta);
-      changes.push({ stat, current, after, delta });
-    }
-  }
-
-  return changes;
-}
-
-/**
- * Preview stat change for an egg.
- * Eggs use the 3-stat model: health, hygiene, happiness.
- */
-export type EggStatPreview = { stat: 'health' | 'hygiene' | 'happiness'; current: number; after: number; delta: number };
-
-/**
- * Preview medicine effects for an egg.
- * Medicine directly affects the egg's health stat.
- */
-export function previewMedicineForEgg(
-  currentHealth: number | undefined,
-  effects: ItemEffect | undefined
-): EggStatPreview[] {
-  if (!effects || effects.health === undefined || effects.health === 0) {
-    return [];
-  }
-
-  const current = currentHealth ?? 100;
-  const delta = effects.health;
-  const after = clampStat(current + delta);
-
-  return [{ stat: 'health', current, after, delta }];
-}
-
-/**
- * Preview clean (hygiene) effects for an egg.
- * Hygiene items directly affect the egg's hygiene stat.
- * May also include happiness bonus if the item has one.
- */
-export function previewCleanForEgg(
-  currentStats: { hygiene?: number; happiness?: number },
-  effects: ItemEffect | undefined
-): EggStatPreview[] {
-  if (!effects) return [];
-  
-  const results: EggStatPreview[] = [];
-  
-  // Hygiene effect
-  if (effects.hygiene !== undefined && effects.hygiene !== 0) {
-    const current = currentStats.hygiene ?? 100;
-    const delta = effects.hygiene;
-    const after = clampStat(current + delta);
-    results.push({ stat: 'hygiene', current, after, delta });
-  }
-  
-  // Happiness bonus (some hygiene items like bubble bath give happiness)
-  if (effects.happiness !== undefined && effects.happiness !== 0) {
-    const current = currentStats.happiness ?? 100;
-    const delta = effects.happiness;
-    const after = clampStat(current + delta);
-    results.push({ stat: 'happiness', current, after, delta });
-  }
-  
-  return results;
 }
 
 // ─── Segment-aware stat preview ───────────────────────────────────────────────

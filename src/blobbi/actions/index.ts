@@ -1,8 +1,6 @@
 // src/blobbi/actions/index.ts
 
 // Components
-export { BlobbiActionsModal } from './components/BlobbiActionsModal';
-export { BlobbiActionInventoryModal } from './components/BlobbiActionInventoryModal';
 export { PlayMusicModal } from './components/PlayMusicModal';
 export { SingModal } from './components/SingModal';
 export { InlineMusicPlayer } from './components/InlineMusicPlayer';
@@ -104,8 +102,6 @@ export {
   type InventoryAction,
   type DirectAction,
   type BlobbiAction,
-  type ResolvedInventoryItem,
-  type EggStatPreview,
   type ItemUsabilityResult,
   type StatChangeWithSegments,
   // Constants
@@ -124,17 +120,13 @@ export {
   clampStat,
   applyStat,
   applyItemEffects,
-  filterInventoryByAction,
   decrementStorageItem,
   canUseAction,
   canUseDirectAction,
   isActionVisibleForStage,
   canUseInventoryItems,
   getStageRestrictionMessage,
-  previewStatChanges,
   previewStatChangesWithSegments,
-  previewMedicineForEgg,
-  previewCleanForEgg,
   hasMedicineEffectForEgg,
   hasHygieneEffectForEgg,
   canUseItemForStage,
