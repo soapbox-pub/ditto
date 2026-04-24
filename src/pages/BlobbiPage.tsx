@@ -122,10 +122,6 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
-/** @deprecated Kept for reference — care badge now uses segment model. */
-const _CARE_THRESHOLD = 40;
-void _CARE_THRESHOLD;
-
 /** Stat keys checked for the companion selector care badge (excludes energy). */
 const CARE_BADGE_STATS = ['hunger', 'happiness', 'hygiene', 'health'] as const;
 
