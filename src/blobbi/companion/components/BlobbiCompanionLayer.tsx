@@ -395,8 +395,6 @@ export function BlobbiCompanionLayer() {
       {/* Overlay sits outside the zoom container so it stays at viewport scale */}
       <OverstimulationBlockOverlay
         isBlocked={isOverstimBlocked}
-        companionPosition={renderedPosition}
-        companionSize={config.size}
       />
     </>
   );

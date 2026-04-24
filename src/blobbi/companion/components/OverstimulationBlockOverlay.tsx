@@ -8,18 +8,19 @@
  *   4. Holds a red-tinted vignette for the duration of the block
  *   5. Smoothly reverses zoom + fades vignette when the block ends
  *
+ * The zoom origin is derived from `getBoundingClientRect()` on the
+ * companion's DOM element, so it targets the true visual center of
+ * Blobbi regardless of float offsets, transforms, or bounding box quirks.
+ *
  * The zoom is applied imperatively to `#root` so the entire page content
- * pulls toward Blobbi — not just the companion layer. The overlay elements
- * (vignette, shockwave) sit outside the zoom via a React portal on
- * `document.body` so they stay at viewport scale.
+ * pulls toward Blobbi. The overlay elements (vignette, shockwave) sit
+ * outside the zoom via a React portal on `document.body`.
  *
  * All animations use CSS transitions/keyframes for GPU compositing.
  */
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-
-import type { Position } from '../types/companion.types';
 
 // ─── Animation Timing ─────────────────────────────────────────────────────────
 
@@ -46,18 +47,12 @@ const ZOOM_OUT_MS = 700;
 interface OverstimulationBlockOverlayProps {
   /** Whether the blocked phase is currently active. */
   isBlocked: boolean;
-  /** Blobbi's current rendered position (top-left of the companion box). */
-  companionPosition: Position;
-  /** Blobbi's rendered size in pixels. */
-  companionSize: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OverstimulationBlockOverlay({
   isBlocked,
-  companionPosition,
-  companionSize,
 }: OverstimulationBlockOverlayProps) {
   // Track whether we should render overlay elements (stays true during fade-out)
   const [isVisible, setIsVisible] = useState(false);
@@ -81,8 +76,15 @@ export function OverstimulationBlockOverlay({
 
     if (isBlocked && !wasBlockedRef.current) {
       // Rising edge — snap zoom in
-      const cx = companionPosition.x + companionSize / 2;
-      const cy = companionPosition.y + companionSize;
+      // Query the companion DOM element directly for its true visual center
+      const el = document.querySelector<HTMLElement>('[data-blobbi-companion]');
+      let cx = window.innerWidth / 2;
+      let cy = window.innerHeight / 2;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        cx = rect.left + rect.width / 2;
+        cy = rect.top + rect.height / 2;
+      }
       originRef.current = { x: cx, y: cy };
 
       root.style.transformOrigin = `${cx}px ${cy}px`;
@@ -116,7 +118,7 @@ export function OverstimulationBlockOverlay({
     }
 
     wasBlockedRef.current = isBlocked;
-  }, [isBlocked, companionPosition, companionSize]);
+  }, [isBlocked]);
 
   // Clean up #root styles on unmount
   useEffect(() => {
