@@ -370,6 +370,25 @@ export function generatePetId10(): string {
 }
 
 /**
+ * Derive a deterministic 10-character lowercase hex petId for legacy migration.
+ *
+ * The same (pubkey, legacyD) pair always produces the same petId, which means
+ * the resulting canonical d-tag is stable across devices and sessions. This
+ * makes the entire migration chain deterministic: petId → canonicalD → seed →
+ * visual traits.
+ *
+ * Formula: sha256("blobbi:migration:v1|" + pubkey + ":" + legacyD).slice(0, 10)
+ *
+ * Only used during legacy → canonical migration. New egg creation still uses
+ * the random generatePetId10().
+ */
+export function deriveMigrationPetId(pubkey: string, legacyD: string): string {
+  const input = `blobbi:migration:v1|${pubkey}:${legacyD}`;
+  const hashBytes = sha256(new TextEncoder().encode(input));
+  return bytesToHex(hashBytes).slice(0, 10);
+}
+
+/**
  * Get the canonical d-tag for a Blobbi (Kind 31124).
  * Format: blobbi-{ownerPubkeyPrefix12}-{petId10}
  */
