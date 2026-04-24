@@ -107,6 +107,7 @@ export {
   type ResolvedInventoryItem,
   type EggStatPreview,
   type ItemUsabilityResult,
+  type StatChangeWithSegments,
   // Constants
   ACTION_TO_ITEM_TYPE,
   ACTION_METADATA,
@@ -131,6 +132,7 @@ export {
   canUseInventoryItems,
   getStageRestrictionMessage,
   previewStatChanges,
+  previewStatChangesWithSegments,
   previewMedicineForEgg,
   previewCleanForEgg,
   hasMedicineEffectForEgg,

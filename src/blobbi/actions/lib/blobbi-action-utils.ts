@@ -1,8 +1,9 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
-import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
+import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById, getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getBlobbiStatDisplayState, type CareState } from '@/blobbi/core/lib/blobbi-segments';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 
@@ -545,4 +546,80 @@ export function previewCleanForEgg(
   return results;
 }
 
+// ─── Segment-aware stat preview ───────────────────────────────────────────────
+
+/**
+ * A single stat change enriched with segment (bar) impact.
+ *
+ * Pure and deterministic — depends only on the inputs.
+ */
+export interface StatChangeWithSegments {
+  /** Which stat is affected. */
+  stat: keyof BlobbiStats;
+  /** Raw delta from the item effect (before clamping). */
+  delta: number;
+  /** Current stat value (clamped 1–100). */
+  beforeValue: number;
+  /** Projected stat value after applying the delta (clamped 1–100). */
+  afterValue: number;
+  /** Filled segments before applying the delta. */
+  beforeSegments: number;
+  /** Filled segments after applying the delta. */
+  afterSegments: number;
+  /** Change in filled segments (afterSegments − beforeSegments). */
+  segmentDelta: number;
+  /** Maximum segments for the current stage. */
+  maxSegments: number;
+  /** Care state before applying the delta. */
+  beforeCareState: CareState;
+  /** Care state after applying the delta. */
+  afterCareState: CareState;
+}
+
+/**
+ * Preview stat changes with segment (bar) impact for each affected stat.
+ *
+ * Uses `getBlobbiStatDisplayState` to derive segment counts before and after
+ * the item effect, so the result exactly matches what the user sees in the
+ * stat rings.
+ *
+ * For eggs, `segmentDelta` is always 0 because eggs are visually protected
+ * (all bars shown as full regardless of the internal value).
+ */
+export function previewStatChangesWithSegments(
+  currentStats: Partial<BlobbiStats>,
+  effects: ItemEffect | undefined,
+  stage: BlobbiStage,
+): StatChangeWithSegments[] {
+  if (!effects) return [];
+
+  const changes: StatChangeWithSegments[] = [];
+  const statKeys: (keyof BlobbiStats)[] = ['hunger', 'happiness', 'energy', 'hygiene', 'health'];
+
+  for (const stat of statKeys) {
+    const delta = effects[stat];
+    if (delta === undefined || delta === 0) continue;
+
+    const beforeValue = clampStat(currentStats[stat] ?? 0);
+    const afterValue = clampStat(beforeValue + delta);
+
+    const before = getBlobbiStatDisplayState({ stage, stat, value: beforeValue });
+    const after = getBlobbiStatDisplayState({ stage, stat, value: afterValue });
+
+    changes.push({
+      stat,
+      delta,
+      beforeValue,
+      afterValue,
+      beforeSegments: before.filled,
+      afterSegments: after.filled,
+      segmentDelta: after.filled - before.filled,
+      maxSegments: before.max,
+      beforeCareState: before.careState,
+      afterCareState: after.careState,
+    });
+  }
+
+  return changes;
+}
 

@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 
 import {
   filterInventoryByAction,
-  previewStatChanges,
+  previewStatChangesWithSegments,
   previewMedicineForEgg,
   previewCleanForEgg,
   canUseAction,
@@ -26,6 +26,7 @@ import {
   type InventoryAction,
   type ResolvedInventoryItem,
   type EggStatPreview,
+  type StatChangeWithSegments,
 } from '../lib/blobbi-action-utils';
 
 interface BlobbiActionInventoryModalProps {
@@ -156,6 +157,47 @@ interface BlobbiInventoryUseRowProps {
   disabled: boolean;
 }
 
+/** Format a segment delta as compact text: "+1 bar", "-2 bars", or "full". */
+function formatSegmentDelta(change: StatChangeWithSegments): string | null {
+  if (change.segmentDelta === 0) {
+    // Show "full" only when the after value hits max segments
+    return change.afterSegments === change.maxSegments && change.beforeSegments < change.maxSegments
+      ? 'full'
+      : null;
+  }
+  const abs = Math.abs(change.segmentDelta);
+  const sign = change.segmentDelta > 0 ? '+' : '-';
+  return `${sign}${abs} bar${abs !== 1 ? 's' : ''}`;
+}
+
+/** Render a single stat change with optional segment annotation. */
+function StatDelta({ stat, delta, segmentText }: { stat: string; delta: number; segmentText: string | null }) {
+  return (
+    <span className="text-xs">
+      <span
+        className={cn(
+          'font-medium',
+          delta > 0
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-red-600 dark:text-red-400',
+        )}
+      >
+        {delta > 0 ? '+' : ''}
+        {delta}
+      </span>
+      {segmentText && (
+        <span className="text-muted-foreground/70 ml-0.5">
+          ({segmentText})
+        </span>
+      )}
+      {' '}
+      <span className="text-muted-foreground capitalize">
+        {stat.replace('_', ' ')}
+      </span>
+    </span>
+  );
+}
+
 function BlobbiInventoryUseRow({
   item,
   companion,
@@ -172,13 +214,13 @@ function BlobbiInventoryUseRow({
   const { normalStatChanges, eggStatChanges } = useMemo(() => {
     if (isEgg && isMedicine) {
       return {
-        normalStatChanges: [],
+        normalStatChanges: [] as StatChangeWithSegments[],
         eggStatChanges: previewMedicineForEgg(companion.stats.health, item.effect),
       };
     }
     if (isEgg && isClean) {
       return {
-        normalStatChanges: [],
+        normalStatChanges: [] as StatChangeWithSegments[],
         eggStatChanges: previewCleanForEgg(
           { hygiene: companion.stats.hygiene, happiness: companion.stats.happiness },
           item.effect
@@ -186,10 +228,10 @@ function BlobbiInventoryUseRow({
       };
     }
     return {
-      normalStatChanges: previewStatChanges(companion.stats, item.effect),
+      normalStatChanges: previewStatChangesWithSegments(companion.stats, item.effect, companion.stage),
       eggStatChanges: [] as EggStatPreview[],
     };
-  }, [companion.stats, item.effect, isEgg, isMedicine, isClean]);
+  }, [companion.stats, companion.stage, item.effect, isEgg, isMedicine, isClean]);
 
   const hasChanges = normalStatChanges.length > 0 || eggStatChanges.length > 0;
 
@@ -215,41 +257,17 @@ function BlobbiInventoryUseRow({
           <div className="hidden sm:block">
             {hasChanges && (
               <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {normalStatChanges.map(({ stat, delta }) => (
-                  <span key={stat} className="text-xs">
-                    <span
-                      className={cn(
-                        'font-medium',
-                        delta > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}
-                    >
-                      {delta > 0 ? '+' : ''}
-                      {delta}
-                    </span>{' '}
-                    <span className="text-muted-foreground capitalize">
-                      {stat.replace('_', ' ')}
-                    </span>
-                  </span>
+                {normalStatChanges.map((change) => (
+                  <StatDelta
+                    key={change.stat}
+                    stat={change.stat}
+                    delta={change.delta}
+                    segmentText={formatSegmentDelta(change)}
+                  />
                 ))}
+                {/* Egg stat changes — raw deltas only, no segment info */}
                 {eggStatChanges.map(({ stat, delta }) => (
-                  <span key={stat} className="text-xs">
-                    <span
-                      className={cn(
-                        'font-medium',
-                        delta > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}
-                    >
-                      {delta > 0 ? '+' : ''}
-                      {delta}
-                    </span>{' '}
-                    <span className="text-muted-foreground capitalize">
-                      {stat.replace('_', ' ')}
-                    </span>
-                  </span>
+                  <StatDelta key={stat} stat={stat} delta={delta} segmentText={null} />
                 ))}
               </div>
             )}
@@ -274,41 +292,17 @@ function BlobbiInventoryUseRow({
       {/* Effect Preview - shown below on mobile */}
       {hasChanges && (
         <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 pl-13">
-          {normalStatChanges.map(({ stat, delta }) => (
-            <span key={stat} className="text-xs">
-              <span
-                className={cn(
-                  'font-medium',
-                  delta > 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                )}
-              >
-                {delta > 0 ? '+' : ''}
-                {delta}
-              </span>{' '}
-              <span className="text-muted-foreground capitalize">
-                {stat.replace('_', ' ')}
-              </span>
-            </span>
+          {normalStatChanges.map((change) => (
+            <StatDelta
+              key={change.stat}
+              stat={change.stat}
+              delta={change.delta}
+              segmentText={formatSegmentDelta(change)}
+            />
           ))}
+          {/* Egg stat changes — raw deltas only, no segment info */}
           {eggStatChanges.map(({ stat, delta }) => (
-            <span key={stat} className="text-xs">
-              <span
-                className={cn(
-                  'font-medium',
-                  delta > 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                )}
-              >
-                {delta > 0 ? '+' : ''}
-                {delta}
-              </span>{' '}
-              <span className="text-muted-foreground capitalize">
-                {stat.replace('_', ' ')}
-              </span>
-            </span>
+            <StatDelta key={stat} stat={stat} delta={delta} segmentText={null} />
           ))}
         </div>
       )}

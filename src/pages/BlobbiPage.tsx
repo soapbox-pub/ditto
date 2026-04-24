@@ -73,7 +73,7 @@ import {
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
-   previewStatChanges,
+   previewStatChangesWithSegments,
    useDailyMissions,
    useAwardDailyXp,
    usePersistEvolutionProgress,
@@ -1790,9 +1790,9 @@ function KitchenBar({
     const items = getLiveShopItems().filter(i => i.type === 'food');
     return items.map(item => ({
       ...item,
-      statChanges: previewStatChanges(companion.stats, item.effect),
+      statChanges: previewStatChangesWithSegments(companion.stats, item.effect, companion.stage),
     }));
-  }, [companion.stats]);
+  }, [companion.stats, companion.stage]);
 
   const foodEntries = useMemo<CarouselEntry[]>(() =>
     foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
@@ -1853,15 +1853,21 @@ function KitchenBar({
                   <span className="text-4xl leading-none">{item.icon}</span>
                   <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    {item.statChanges.map(({ stat, delta }) => {
-                      const Icon = STAT_ICON[stat];
-                      const positive = delta > 0;
+                    {item.statChanges.map((change) => {
+                      const Icon = STAT_ICON[change.stat];
+                      const positive = change.delta > 0;
+                      const segDelta = change.segmentDelta;
                       return (
-                        <span key={stat} className="flex items-center gap-0.5">
+                        <span key={change.stat} className="flex items-center gap-0.5">
                           {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
                           <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-                            {positive ? '+' : ''}{delta}
+                            {positive ? '+' : ''}{change.delta}
                           </span>
+                          {segDelta !== 0 && (
+                            <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                              {segDelta > 0 ? '+' : ''}{segDelta}▮
+                            </span>
+                          )}
                         </span>
                       );
                     })}
