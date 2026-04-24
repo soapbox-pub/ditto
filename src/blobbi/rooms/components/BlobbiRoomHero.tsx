@@ -6,16 +6,14 @@
  * Top padding accounts for the floating room header overlay.
  */
 
-import { useMemo, useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
-  Footprints, Loader2, Navigation,
+  Footprints, Loader2,
 } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
-import { STAT_HELP_TEXT } from '../lib/stat-guide-config';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
@@ -81,7 +79,7 @@ export interface BlobbiRoomHeroProps {
   roomId: BlobbiRoomId;
   /** Room order for dot indicators */
   roomOrder?: BlobbiRoomId[];
-  /** Called when the user taps "Guide me" on a low-stat popover. */
+  /** Called when the user taps a low-status stat icon to start the guide. */
   onGuide?: (stat: keyof BlobbiStats) => void;
   className?: string;
 }
@@ -245,148 +243,19 @@ function StatsCrown({
         return (
           <div
             key={s.stat}
-            className="absolute transition-all duration-500"
+            className={cn('absolute transition-all duration-500', s.status !== 'normal' && onGuide && 'cursor-pointer')}
             style={{
               transform: 'translate(-50%, 0)',
               left: `calc(50% + ${x.toFixed(1)}px)`,
               bottom: `${y.toFixed(1)}px`,
             }}
+            onClick={s.status !== 'normal' && onGuide ? () => onGuide(s.stat as keyof BlobbiStats) : undefined}
           >
-            {s.status !== 'normal' ? (
-              <StatIndicatorWithHelp
-                stat={s.stat}
-                value={s.value}
-                color={s.color}
-                status={s.status}
-                onGuide={onGuide}
-              />
-            ) : (
-              <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
-            )}
+            <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
           </div>
         );
       })}
     </div>
-  );
-}
-
-// ─── Stat Indicator with Popover Help ─────────────────────────────────────────
-
-function StatIndicatorWithHelp({
-  stat,
-  value,
-  color,
-  status,
-  onGuide,
-}: {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status: 'warning' | 'critical';
-  onGuide?: (stat: keyof BlobbiStats) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Tracks whether the current interaction is mouse-driven. */
-  const isMouseDriven = useRef(false);
-  const help = STAT_HELP_TEXT[stat as keyof BlobbiStats];
-
-  // Clear all pending timers (used on unmount and before scheduling new ones).
-  const clearTimers = useCallback(() => {
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
-  }, []);
-
-  // Clean up on unmount so no timer fires on a dead component.
-  useEffect(() => clearTimers, [clearTimers]);
-
-  // Shared hover-zone logic: entering trigger or content cancels pending
-  // close and schedules open. Leaving either schedules a delayed close.
-  // The delay bridges the gap between trigger and popover so the user can
-  // move their pointer from one to the other without flicker.
-  const hoverEnter = useCallback(() => {
-    clearTimers();
-    isMouseDriven.current = true;
-    openTimer.current = setTimeout(() => {
-      openTimer.current = null;          // clear ref once executed
-      setOpen(true);
-    }, 120);
-  }, [clearTimers]);
-
-  const hoverLeave = useCallback(() => {
-    clearTimers();
-    closeTimer.current = setTimeout(() => {
-      closeTimer.current = null;         // clear ref once executed
-      isMouseDriven.current = false;
-      setOpen(false);
-    }, 220);
-  }, [clearTimers]);
-
-  const handlePointerEnter = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== 'mouse') return;
-    hoverEnter();
-  }, [hoverEnter]);
-
-  const handlePointerLeave = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== 'mouse') return;
-    hoverLeave();
-  }, [hoverLeave]);
-
-  // Touch/click: Radix calls this for click-based toggles.
-  // Block it when mouse-hover is driving the interaction so the two
-  // systems don't fight.  On touch devices isMouseDriven is always false.
-  const handleOpenChange = useCallback((next: boolean) => {
-    if (isMouseDriven.current) return;
-    setOpen(next);
-  }, []);
-
-  const handleGuide = useCallback(() => {
-    clearTimers();
-    isMouseDriven.current = false;
-    setOpen(false);
-    onGuide?.(stat as keyof BlobbiStats);
-  }, [onGuide, stat, clearTimers]);
-
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <div
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
-          className="cursor-pointer"
-        >
-          <StatIndicator stat={stat} value={value} color={color} status={status} />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent
-        side="top"
-        sideOffset={8}
-        className="w-52 p-3"
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        {help && (
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">{help.title}</p>
-            <p className="text-xs text-muted-foreground">{help.description}</p>
-            {onGuide && (
-              <button
-                onClick={handleGuide}
-                className={cn(
-                  'flex items-center gap-1.5 w-full justify-center rounded-md px-3 py-1.5 text-xs font-semibold text-white transition-colors',
-                  'bg-primary hover:bg-primary/90 active:scale-95',
-                )}
-              >
-                <Navigation className="size-3" />
-                Guide me
-              </button>
-            )}
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }
 
