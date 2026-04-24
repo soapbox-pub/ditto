@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
+import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
+import type { BlobbiCompanion, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
@@ -205,12 +207,16 @@ function StatsCrown({
   heroWidth: number;
 }) {
   const allStats = useMemo(() =>
-    getVisibleStats(companion.stage).map(stat => ({
-      stat,
-      value: currentStats[stat] ?? 100,
-      status: getStatStatus(companion.stage, stat, currentStats[stat] ?? 100),
-      color: STAT_COLOR_MAP[stat],
-    })),
+    getVisibleStats(companion.stage).map(stat => {
+      const value = currentStats[stat] ?? 100;
+      const display = getBlobbiStatDisplayState({ stage: companion.stage, stat: stat as keyof BlobbiStats, value });
+      return {
+        stat,
+        value,
+        careState: display.careState,
+        color: STAT_COLOR_MAP[stat],
+      };
+    }),
   [companion.stage, currentStats]);
 
   if (allStats.length === 0) return null;
@@ -244,7 +250,7 @@ function StatsCrown({
               bottom: `${y.toFixed(1)}px`,
             }}
           >
-            <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
+            <StatIndicator stat={s.stat} value={s.value} color={s.color} careState={s.careState} />
           </div>
         );
       })}
@@ -258,15 +264,17 @@ function StatIndicator({
   stat,
   value,
   color,
-  status = 'normal',
+  careState = 'good',
 }: {
   stat: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
+  careState?: CareState;
 }) {
   const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
+  const showBadge = careState === 'attention' || careState === 'urgent';
+  const showPulse = careState === 'urgent';
+  const badgeColor = careState === 'urgent' ? 'text-red-500' : 'text-amber-500';
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
 
@@ -274,7 +282,7 @@ function StatIndicator({
     <div className={cn(
       'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
       STAT_BG_COLORS[color],
-      status === 'critical' && 'animate-pulse',
+      showPulse && 'animate-pulse',
     )}>
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
         <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
@@ -287,9 +295,9 @@ function StatIndicator({
       </svg>
       <div className="relative">
         {IconComponent && <IconComponent className={cn('size-5 sm:size-6', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
+        {showBadge && (
           <AlertTriangle
-            className={cn('absolute -top-1.5 -right-2 size-3', status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            className={cn('absolute -top-1.5 -right-2 size-3', badgeColor)}
             strokeWidth={3}
           />
         )}

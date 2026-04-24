@@ -48,6 +48,7 @@ import {
 import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -121,21 +122,31 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
-/** Stat threshold below which a Blobbi is considered to need care */
-const CARE_THRESHOLD = 40;
+/** @deprecated Kept for reference — care badge now uses segment model. */
+const _CARE_THRESHOLD = 40;
+void _CARE_THRESHOLD;
+
+/** Stat keys checked for the companion selector care badge (excludes energy). */
+const CARE_BADGE_STATS = ['hunger', 'happiness', 'hygiene', 'health'] as const;
 
 /**
- * Check if a companion needs care based on stat thresholds.
- * A Blobbi needs care if any stat is below CARE_THRESHOLD.
+ * Check if a companion needs care using the segment display model.
+ *
+ * Shows a care badge when:
+ * - any stat is `urgent`, OR
+ * - two or more stats are `attention`.
+ *
+ * Eggs always return `protected` from the helper, so they never show a badge.
  */
 function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = companion;
-  return (
-    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
-    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
-    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
-    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
-  );
+  let attentionCount = 0;
+  for (const stat of CARE_BADGE_STATS) {
+    const value = companion.stats[stat] ?? 100;
+    const { careState } = getBlobbiStatDisplayState({ stage: companion.stage, stat, value });
+    if (careState === 'urgent') return true;
+    if (careState === 'attention') attentionCount++;
+  }
+  return attentionCount >= 2;
 }
 
 

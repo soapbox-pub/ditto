@@ -1,5 +1,6 @@
 import { AlertTriangle, Utensils, Gamepad2, Heart, Droplets, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,10 @@ export interface StatIndicatorProps {
   stat: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
+  /** @deprecated Prefer `careState` from blobbi-segments. Kept for unmigrated callers. */
   status?: 'normal' | 'warning' | 'critical';
+  /** Segment-model care state. When provided, takes precedence over `status`. */
+  careState?: CareState;
   /** Visual size preset. Default: 'md'. */
   size?: 'sm' | 'md';
   /** When provided, renders as a clickable button. */
@@ -75,12 +79,25 @@ export function StatIndicator({
   value,
   color,
   status = 'normal',
+  careState,
   size = 'md',
   onClick,
   disabled,
 }: StatIndicatorProps) {
   const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
+
+  // When careState is provided (new segment model), derive badge/pulse from it.
+  // Otherwise fall back to old status-based behaviour for unmigrated callers.
+  const showBadge = careState
+    ? (careState === 'attention' || careState === 'urgent')
+    : (status === 'warning' || status === 'critical');
+  const showPulse = careState
+    ? careState === 'urgent'
+    : status === 'critical';
+  const badgeColor = careState
+    ? (careState === 'urgent' ? 'text-red-500' : 'text-amber-500')
+    : (status === 'critical' ? 'text-red-500' : 'text-amber-500');
+
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
   const preset = SIZE_PRESETS[size];
@@ -100,9 +117,9 @@ export function StatIndicator({
       {/* Icon with warning badge */}
       <div className="relative">
         {IconComponent && <IconComponent className={cn(preset.icon, STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
+        {showBadge && (
           <AlertTriangle
-            className={cn('absolute', preset.alertPos, preset.alertSize, status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            className={cn('absolute', preset.alertPos, preset.alertSize, badgeColor)}
             strokeWidth={3}
           />
         )}
@@ -114,7 +131,7 @@ export function StatIndicator({
     'relative rounded-full flex items-center justify-center',
     preset.container,
     STAT_BG_COLORS[color],
-    status === 'critical' && 'animate-pulse',
+    showPulse && 'animate-pulse',
   );
 
   if (onClick) {

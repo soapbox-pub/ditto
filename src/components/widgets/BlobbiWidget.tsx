@@ -12,7 +12,8 @@ import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompan
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
+import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, filterMigratedLegacyCompanions } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
@@ -364,7 +365,7 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
             stat={stat}
             value={stats[stat]}
             color={STAT_COLOR_MAP[stat]}
-            status={getStatStatus(stage, stat, stats[stat] ?? 100)}
+            careState={getBlobbiStatDisplayState({ stage, stat, value: stats[stat] ?? 100 }).careState}
             size="sm"
             onClick={() => handleStatClick(stat)}
             disabled={isActionPending}
