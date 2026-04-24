@@ -1149,6 +1149,7 @@ export function ComposeBox({
           <div className="relative">
             <textarea
               ref={textareaRef}
+              dir="auto"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onPointerDown={expand}

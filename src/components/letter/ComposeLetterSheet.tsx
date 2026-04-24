@@ -426,6 +426,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         bodyContent={({ lineHeightPx, stationeryTextColor: textColor, stationeryLineColor: lineColor, resolvedFontFamily: fontFamily }) => (
           <textarea
             ref={textareaRef}
+            dir="auto"
             value={body}
             onFocus={() => setOverlay('none')}
             onChange={(e) => {
