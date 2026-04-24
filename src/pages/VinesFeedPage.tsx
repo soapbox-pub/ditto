@@ -378,7 +378,9 @@ export function VineCard({
 		setIsPlaying(false);
 	}, [src]);
 
-	// Auto-play / auto-pause based on active state
+	// Auto-play / auto-pause based on active state.
+	// Vines always autoplay when active — the autoplayVideos setting only
+	// applies to inline video players in normal feeds, not snap-scroll vines.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !imeta.url) return;
@@ -386,20 +388,18 @@ export function VineCard({
 			video.currentTime = 0;
 			video.muted = globalMuted;
 			setIsMuted(globalMuted);
-			if (config.autoplayVideos) {
-				setIsAttemptingPlay(true);
-				video.play().catch(() => {
-					// Autoplay blocked — leave paused, user can tap
-					setIsAttemptingPlay(false);
-				});
-			}
+			setIsAttemptingPlay(true);
+			video.play().catch(() => {
+				// Autoplay blocked — leave paused, user can tap
+				setIsAttemptingPlay(false);
+			});
 		} else {
 			video.pause();
 			video.currentTime = 0;
 			setIsAttemptingPlay(false);
 			setIsBuffering(false);
 		}
-	}, [isActive, imeta.url, config.autoplayVideos, showCwOverlay]);
+	}, [isActive, imeta.url, showCwOverlay]);
 
 	const togglePlay = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation();
