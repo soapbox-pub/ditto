@@ -33,7 +33,7 @@ const VIGNETTE_FADE_IN_MS = 300;
 const VIGNETTE_FADE_OUT_MS = 600;
 
 /** Zoom scale factor when blocked. */
-const ZOOM_SCALE = 1.5;
+const ZOOM_SCALE = 5;
 
 /** Zoom-in duration (ms) — fast snap toward Blobbi. */
 const ZOOM_IN_MS = 280;
