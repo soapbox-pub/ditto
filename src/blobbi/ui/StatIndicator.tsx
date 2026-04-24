@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { AlertTriangle, Utensils, Gamepad2, Heart, Droplets, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -110,11 +111,22 @@ export function StatIndicator({
     </>
   );
 
+  /* Negative delay (-999999s) inside the shorthand locks every instance to
+     the same phase of the cycle regardless of mount time.  The delay MUST
+     live in the shorthand string — setting animationDelay as a separate
+     longhand conflicts with the shorthand's implicit delay:0. */
+  const glowStyle: CSSProperties | undefined =
+    status === 'warning'
+      ? { animation: 'stat-glow 2s ease-in-out -999999s infinite' }
+      : status === 'critical'
+        ? { animation: 'stat-glow-critical 2s ease-in-out -999999s infinite' }
+        : undefined;
+
   const baseClass = cn(
     'relative rounded-full flex items-center justify-center',
     preset.container,
     STAT_BG_COLORS[color],
-    status === 'critical' && 'animate-pulse',
+    isLow && STAT_COLORS[color],
   );
 
   if (onClick) {
@@ -127,6 +139,7 @@ export function StatIndicator({
           'transition-transform hover:scale-110 active:scale-95',
           disabled && 'opacity-40 pointer-events-none',
         )}
+        style={glowStyle}
         aria-label={`${stat} ${displayValue}%`}
       >
         {inner}
@@ -134,5 +147,5 @@ export function StatIndicator({
     );
   }
 
-  return <div className={baseClass}>{inner}</div>;
+  return <div className={baseClass} style={glowStyle}>{inner}</div>;
 }

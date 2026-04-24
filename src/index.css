@@ -715,6 +715,49 @@
   100% { opacity: 1; }
 }
 
+/* ── Shared glow clock for synchronised low-status icons ────────────────
+   A single animation on the StatsCrown parent drives --stat-glow-intensity
+   (0→1→0).  Children inherit its animated value and compute their own
+   box-shadow via calc(), giving perfect phase-lock regardless of when
+   individual icons mount or re-enter a low-status state. */
+@property --stat-glow-intensity {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+
+@keyframes stat-glow-clock {
+  0%, 8% { --stat-glow-intensity: 0; }
+  50% { --stat-glow-intensity: 1; }
+  92%, 100% { --stat-glow-intensity: 0; }
+}
+
+/* Legacy per-element keyframes — still used by the reusable StatIndicator
+   component (src/blobbi/ui/StatIndicator.tsx) outside the crown context. */
+@keyframes stat-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 6px 2px currentColor; }
+}
+
+@keyframes stat-glow-critical {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 10px 3px currentColor; }
+}
+
+/* Guide-target glow — quick blink + pause for nav arrows & carousel.
+   Applied at 1.1s linear: rise (0→8%), brief peak (8→18%), fall (18→28%),
+   idle (28→100% ≈ 0.8 s pause). */
+@keyframes guide-glow-slow {
+  0%, 28%, 100% { box-shadow: 0 0 0 0 transparent; }
+  8%, 18% { box-shadow: 0 0 4px 1.5px currentColor; }
+}
+
+/* Guide-target glow — action-button rhythm, kept punchier (4 s cycle) */
+@keyframes guide-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 8px 3px currentColor; }
+}
+
 /* Room navigation arrow nudge — subtle horizontal pulse */
 @keyframes room-arrow-nudge-left {
   0%, 100% { transform: translateX(0); }
