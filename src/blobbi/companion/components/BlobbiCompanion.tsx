@@ -62,6 +62,8 @@ interface BlobbiCompanionProps {
   onEndDrag: () => void;
   /** Click callback (when interaction is a click, not a drag) */
   onClick?: () => void;
+  /** When true, Blobbi ignores click interactions (overstimulation block). */
+  isClickBlocked?: boolean;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
   recipe?: BlobbiVisualRecipe;
   /** Label for the recipe (CSS class names). */
@@ -77,6 +79,12 @@ interface BlobbiCompanionProps {
   onPositionUpdate?: (position: Position) => void;
   /** Debug mode - disables animations and shows visual debug aids */
   debugMode?: boolean;
+  /**
+   * Called on every pointer move during an active drag with the raw
+   * pointer position. Used by the shake detection system to sample
+   * motion intensity without coupling this component to the tracker.
+   */
+  onDragSample?: (position: Position) => void;
 }
 
 export function BlobbiCompanion({
@@ -94,20 +102,24 @@ export function BlobbiCompanion({
   onUpdateDrag,
   onEndDrag,
   onClick,
+  isClickBlocked = false,
   recipe,
   recipeLabel,
   emotion,
   bodyEffects,
   onPositionUpdate,
   debugMode = false,
+  onDragSample,
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
 
-  // Click detection - distinguishes click from drag
+  // Click detection - distinguishes click from drag.
+  // When overstimulation blocks clicks, suppress the onClick callback.
+  const effectiveOnClick = isClickBlocked ? undefined : onClick;
   const clickDetection = useClickDetection({
-    onClick,
+    onClick: effectiveOnClick,
     onDragStart: onStartDrag,
   });
   
@@ -254,8 +266,11 @@ export function BlobbiCompanion({
       const newX = e.clientX - config.size / 2;
       const newY = e.clientY - config.size / 2;
       onUpdateDrag({ x: newX, y: newY });
+
+      // Feed raw pointer position to shake detection
+      onDragSample?.(position);
     }
-  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag]);
+  }, [clickDetection, motion.isDragging, config.size, onUpdateDrag, onDragSample]);
   
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (containerRef.current) {
@@ -274,6 +289,7 @@ export function BlobbiCompanion({
   return (
     <div
       ref={containerRef}
+      data-blobbi-companion
       className="select-none touch-none"
       style={{
         position: 'fixed',
