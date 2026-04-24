@@ -2165,7 +2165,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedLetterContent event={event} />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-                <BlobbiStateCard event={event} />
+                <BlobbiStateCard event={event} lookMode="follow-pointer" />
               </Suspense>
             ) : isBadgeAward ? (
               <BadgeAwardCard event={event} />
