@@ -893,10 +893,10 @@ const CRYSTI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   
   <!-- Crystal segments with rounded edges -->
   <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.8" />
-  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
+  <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
   <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
   <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
   <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Eyes (white base) -->
@@ -912,15 +912,21 @@ const CRYSTI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   <!-- Mouth -->
   <path d="M 90 115 Q 100 123 110 115" stroke="url(#crystiSmile)" stroke-width="3" fill="none" stroke-linecap="round" />
   
-  <!-- Floating sparkles -->
-  <circle cx="65" cy="65" r="2" fill="#fbbf24" opacity="0.9" />
-  <circle cx="135" cy="70" r="1.5" fill="#f472b6" opacity="0.8" />
-  <circle cx="70" cy="140" r="1" fill="#06b6d4" opacity="0.7" />
-  <circle cx="130" cy="135" r="2" fill="#fbbf24" opacity="0.6" />
-  <circle cx="50" cy="105" r="1.5" fill="#f472b6" opacity="0.8" />
-  <circle cx="150" cy="110" r="1" fill="#06b6d4" opacity="0.9" />
-  <circle cx="100" cy="40" r="1.5" fill="#fbbf24" opacity="0.7" />
-  <circle cx="100" cy="170" r="1" fill="#f472b6" opacity="0.8" />
+  <!-- Floating sparkles with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="15s" repeatCount="indefinite" />
+    <circle cx="65" cy="65" r="2" fill="#fbbf24" opacity="0.9" />
+    <circle cx="135" cy="70" r="1.5" fill="#f472b6" opacity="0.8" />
+    <circle cx="70" cy="140" r="1" fill="#06b6d4" opacity="0.7" />
+    <circle cx="130" cy="135" r="2" fill="#fbbf24" opacity="0.6" />
+  </g>
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="-360 100 100" dur="20s" repeatCount="indefinite" />
+    <circle cx="50" cy="105" r="1.5" fill="#f472b6" opacity="0.8" />
+    <circle cx="150" cy="110" r="1" fill="#06b6d4" opacity="0.9" />
+    <circle cx="100" cy="40" r="1.5" fill="#fbbf24" opacity="0.7" />
+    <circle cx="100" cy="170" r="1" fill="#f472b6" opacity="0.8" />
+  </g>
 </svg>`;
 
 const CRYSTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
@@ -977,12 +983,12 @@ const CRYSTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   <path d="M 100 55 L 135 82 L 135 128 L 100 155 L 65 128 L 65 82 Z" fill="url(#crystiInner)" opacity="0.7" />
   
   <!-- Crystal segments with rounded edges -->
-  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.6" />
-  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.5" />
-  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.5" />
-  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.4" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.4" />
-  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.6" />
+  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.8" />
+  <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
+  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
+  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Sleeping eyes -->
   <path d="M 78 95 Q 88 98 98 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />

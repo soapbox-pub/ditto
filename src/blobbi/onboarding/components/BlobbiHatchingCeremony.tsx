@@ -169,6 +169,7 @@ export function BlobbiHatchingCeremony({
 
   // Refs
   const setupAttempted = useRef(false);
+  const setupStarted = useRef(false);
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const previewRef = useRef(preview);
@@ -177,6 +178,8 @@ export function BlobbiHatchingCeremony({
   const eggContainerRef = useRef<HTMLDivElement>(null);
   const entrancePlayed = useRef(false);
   const eggTagsRef = useRef<string[][] | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   // ── Companion visuals ──
   const eggCompanion = useMemo(
@@ -243,6 +246,11 @@ export function BlobbiHatchingCeremony({
     setupInFlightFor.add(user.pubkey);
 
     const setup = async () => {
+      // Mark that the async work has begun — cleanup must NOT release the
+      // module-level guard once this point is reached, because setup() will
+      // release it in its own finally block when the work completes.
+      setupStarted.current = true;
+
       try {
         const currentProfile = profileRef.current;
         let latestProfileTags: string[][] | null = currentProfile?.allTags ?? null;
@@ -331,8 +339,12 @@ export function BlobbiHatchingCeremony({
     const timer = setTimeout(setup, 600);
     return () => {
       clearTimeout(timer);
-      // If the timer was cleared before setup ran, release the guard
-      if (user?.pubkey) setupInFlightFor.delete(user.pubkey);
+      // Only release the module-level guard if setup() never started.
+      // If setup() already began, it owns the guard and will release it
+      // in its own finally block when the async work completes.
+      if (!setupStarted.current && user?.pubkey) {
+        setupInFlightFor.delete(user.pubkey);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.pubkey]);
@@ -341,15 +353,17 @@ export function BlobbiHatchingCeremony({
     if (profile) profileRef.current = profile;
   }, [profile]);
 
-  // eggOnly mode: auto-complete after the egg is shown (skip hatching)
+  // eggOnly mode: auto-complete after the egg is shown (skip hatching).
+  // Uses onCompleteRef so the timer isn't reset when the parent re-renders
+  // with a new inline callback reference.
   useEffect(() => {
     if (!eggOnly || !eggVisible) return;
     const timer = setTimeout(() => {
       setPhase('complete');
-      onComplete?.();
+      onCompleteRef.current?.();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [eggOnly, eggVisible, onComplete]);
+  }, [eggOnly, eggVisible]);
 
   // Play entrance animation once
   useEffect(() => {

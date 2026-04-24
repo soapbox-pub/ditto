@@ -769,3 +769,21 @@
   50% { transform: translateX(3px); }
 }
 
+/* ── Overstimulation block overlay ─────────────────────────────────────────── */
+
+@keyframes overstim-vignette-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overstim-vignette-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes overstim-shockwave {
+  0%   { transform: scale(0.1); opacity: 1; }
+  60%  { opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+

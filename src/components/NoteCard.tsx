@@ -668,7 +668,7 @@ export const NoteCard = memo(function NoteCard({
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <BlobbiStateCard event={event} />
+            <BlobbiStateCard event={event} lookMode="follow-pointer" />
           </Suspense>
         ) : (
           <TruncatedNoteContent

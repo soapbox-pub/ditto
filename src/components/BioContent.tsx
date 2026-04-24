@@ -131,7 +131,7 @@ export function BioContent({ children, tags, className }: BioContentProps) {
   const tokens = useMemo(() => tokenizeBio(children), [children]);
 
   return (
-    <span className={className}>
+    <span dir="auto" className={className}>
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':

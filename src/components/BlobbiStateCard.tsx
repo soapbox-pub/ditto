@@ -1,13 +1,19 @@
 import { useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { BlobbiStageVisual, type BlobbiLookMode } from '@/blobbi/ui/BlobbiStageVisual';
 import { parseBlobbiEvent } from '@/blobbi/core/lib/blobbi';
 import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { resolveStatusRecipe, attenuateRecipeForFeed, EMPTY_RECIPE } from '@/blobbi/ui/lib/status-reactions';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 
-export function BlobbiStateCard({ event }: { event: NostrEvent }) {
+interface BlobbiStateCardProps {
+  event: NostrEvent;
+  /** Controls eye tracking behavior. Default: 'forward' (eyes look straight ahead). */
+  lookMode?: BlobbiLookMode;
+}
+
+export function BlobbiStateCard({ event, lookMode = 'forward' }: BlobbiStateCardProps) {
   const companion = useMemo(() => parseBlobbiEvent(event), [event]);
 
   const isSleeping = companion?.state === 'sleeping';
@@ -44,7 +50,7 @@ export function BlobbiStateCard({ event }: { event: NostrEvent }) {
           companion={companion}
           size="lg"
           animated={!isSleeping}
-          lookMode="forward"
+          lookMode={lookMode}
           recipe={feedRecipe}
           recipeLabel={feedRecipeLabel}
           className="size-48 sm:size-56"

@@ -48,6 +48,7 @@ import {
 import { applyBlobbiDecay, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
 import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -230,14 +231,18 @@ function BlobbiContent() {
     return record;
   }, [filteredCompanions]);
 
-  // STEP 5: localStorage for UI selection (user-scoped key)
+  // STEP 3: Sync visible companions whose mirror tags are stale.
+  // Republishes only companions with actual mismatches (needsSeedIdentitySync flag).
+  useSeedIdentitySync(filteredCompanions, updateCompanionEvent);
+
+  // STEP 4: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
   
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // STEP 6: Selection Priority
+  // STEP 5: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
   // 2) first item from profile.has that exists in companionsByD - preferred ordering
   // 3) first companion in the collection (covers blobbis missing from profile.has)
