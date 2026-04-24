@@ -82,7 +82,7 @@ export function OverstimulationBlockOverlay({
     if (isBlocked && !wasBlockedRef.current) {
       // Rising edge — snap zoom in
       const cx = companionPosition.x + companionSize / 2;
-      const cy = companionPosition.y + companionSize * 0.65;
+      const cy = companionPosition.y + companionSize * 0.8;
       originRef.current = { x: cx, y: cy };
 
       root.style.transformOrigin = `${cx}px ${cy}px`;
