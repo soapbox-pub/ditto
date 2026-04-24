@@ -24,6 +24,7 @@ export function OverstimulationBlockOverlay({ isBlocked }: Props) {
   const [shockwave, setShockwave] = useState(false);
   const wasBlocked = useRef(false);
   const origin = useRef({ x: 0, y: 0 });
+  const savedScroll = useRef(0);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -31,7 +32,13 @@ export function OverstimulationBlockOverlay({ isBlocked }: Props) {
     if (!root) return;
 
     if (isBlocked && !wasBlocked.current) {
-      // Find Blobbi's true visual center via DOM query
+      // Save scroll position and snap to top so sticky nav bars and
+      // scroll-hidden elements don't end up in broken positions when
+      // the zoom transform creates a new containing block.
+      savedScroll.current = window.scrollY;
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+
+      // Find Blobbi's true visual center via DOM query (after scroll reset)
       const el = document.querySelector<HTMLElement>('[data-blobbi-companion]');
       const cx = el ? el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 : window.innerWidth / 2;
       const cy = el ? el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2 : window.innerHeight / 2;
@@ -52,6 +59,7 @@ export function OverstimulationBlockOverlay({ isBlocked }: Props) {
       fadeTimer.current = setTimeout(() => {
         root.style.transform = root.style.transformOrigin = root.style.transition = '';
         document.body.style.overflow = '';
+        window.scrollTo({ top: savedScroll.current, behavior: 'instant' as ScrollBehavior });
         setVisible(false);
         fadeTimer.current = null;
       }, Math.max(VIGNETTE_OUT_MS, ZOOM_OUT_MS));
@@ -63,6 +71,7 @@ export function OverstimulationBlockOverlay({ isBlocked }: Props) {
     const root = document.getElementById('root');
     if (root) root.style.transform = root.style.transformOrigin = root.style.transition = '';
     document.body.style.overflow = '';
+    if (savedScroll.current) window.scrollTo({ top: savedScroll.current, behavior: 'instant' as ScrollBehavior });
     if (fadeTimer.current) clearTimeout(fadeTimer.current);
   }, []);
 
