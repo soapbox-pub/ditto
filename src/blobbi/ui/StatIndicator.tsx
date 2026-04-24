@@ -142,9 +142,7 @@ export interface StatIndicatorProps {
   stat: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  /** @deprecated Prefer `careState` from blobbi-segments. Kept for unmigrated callers. */
-  status?: 'normal' | 'warning' | 'critical';
-  /** Segment-model care state. When provided, takes precedence over `status`. */
+  /** Care state from the segment display model. Drives badge and pulse. */
   careState?: CareState;
   /** Segment counts for visual ring. When provided, renders segmented arcs. */
   segments?: { filled: number; max: number };
@@ -160,7 +158,6 @@ export function StatIndicator({
   stat,
   value,
   color,
-  status = 'normal',
   careState,
   segments,
   size = 'md',
@@ -169,17 +166,9 @@ export function StatIndicator({
 }: StatIndicatorProps) {
   const displayValue = value ?? 0;
 
-  // When careState is provided (new segment model), derive badge/pulse from it.
-  // Otherwise fall back to old status-based behaviour for unmigrated callers.
-  const showBadge = careState
-    ? (careState === 'attention' || careState === 'urgent')
-    : (status === 'warning' || status === 'critical');
-  const showPulse = careState
-    ? careState === 'urgent'
-    : status === 'critical';
-  const badgeColor = careState
-    ? (careState === 'urgent' ? 'text-red-500' : 'text-amber-500')
-    : (status === 'critical' ? 'text-red-500' : 'text-amber-500');
+  const showBadge = careState === 'attention' || careState === 'urgent';
+  const showPulse = careState === 'urgent';
+  const badgeColor = careState === 'urgent' ? 'text-red-500' : 'text-amber-500';
 
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
