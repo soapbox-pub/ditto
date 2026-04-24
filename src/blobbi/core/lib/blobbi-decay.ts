@@ -52,48 +52,62 @@ export interface DecayInput {
 
 /**
  * Baby stage decay rates (per hour).
- * 
- * Design goal: Needs attention every 3-5 hours.
+ *
+ * Design goal: First stat (energy) drops to "okay" (3/4) around 2.7 hours,
+ * first "attention" (2/4) around 5-6 hours. Simpler than adult, needs care
+ * sooner but not punitively.
+ *
+ * Health penalty thresholds are aligned to baby segment boundaries:
+ *   attention = value ≤ 50,  urgent = value ≤ 25.
+ * Penalties only begin at "attention" — no silent health drain while UI
+ * still shows "okay".
  */
 const BABY_DECAY = {
-  hunger: -7.0,
-  happiness: -4.0,
-  hygiene: -5.0,
+  hunger: -8.0,
+  happiness: -4.5,
+  hygiene: -6.0,
   energy: {
-    awake: -8.0,
-    sleeping: 6.0,  // Regeneration
+    awake: -9.0,
+    sleeping: 6.0,  // Legacy value — overridden by BABY_SLEEP_ENERGY_REGEN
   },
   health: {
-    base: -0.75,
-    hungerBelow70: -0.75,
-    hungerBelow40: -1.25,
-    hygieneBelow70: -0.75,
-    hygieneBelow40: -1.25,
+    base: -0.4,
+    // Tier 1: mild — stat in attention range (≤ 50)
+    hungerBelow50: -0.5,
+    hygieneBelow50: -0.5,
     energyBelow50: -0.5,
-    energyBelow25: -1.0,
     happinessBelow50: -0.5,
+    // Tier 2: strong — stat in urgent range (≤ 25)
+    hungerBelow25: -1.0,
+    hygieneBelow25: -1.0,
+    energyBelow25: -1.0,
     happinessBelow25: -1.0,
-    // Regeneration when all stats are >= 80
-    regenThreshold: 80,
+    // Regeneration when all stats are in "good" range (4/4 = value ≥ 76)
+    regenThreshold: 76,
     regenRate: 1.5,
   },
 } as const;
 
 /**
  * Adult stage decay rates (per hour).
- * 
- * Design goal: Needs attention every 5-7 hours.
+ *
+ * Design goal: First stat (energy) drops to "okay" (7/10) around 5-6 hours,
+ * first "attention" (6/10) around 7-8 hours. More resilient than baby — growing
+ * up should feel like a reward, not more annoyance.
+ *
+ * Adult penalty thresholds were already close to segment boundaries and
+ * are left unchanged.
  */
 const ADULT_DECAY = {
-  hunger: -4.5,
+  hunger: -5.0,
   happiness: -2.5,
-  hygiene: -3.5,
+  hygiene: -4.0,
   energy: {
-    awake: -5.0,
-    sleeping: 5.0,  // Regeneration
+    awake: -5.5,
+    sleeping: 5.0,  // Legacy value — overridden by ADULT_SLEEP_ENERGY_REGEN
   },
   health: {
-    base: -0.4,
+    base: -0.25,
     hungerBelow60: -0.5,
     hungerBelow30: -1.0,
     hygieneBelow60: -0.5,
@@ -285,23 +299,23 @@ function calculateBabyDecay(
   // Base health decay is 0 while sleeping.
   let healthDelta = isSleeping ? 0 : BABY_DECAY.health.base * elapsedHours;
   
-  // Hunger penalties
-  if (hunger < 70) healthDelta += BABY_DECAY.health.hungerBelow70 * penaltyMul * elapsedHours;
-  if (hunger < 40) healthDelta += BABY_DECAY.health.hungerBelow40 * penaltyMul * elapsedHours;
+  // Hunger penalties (aligned to baby segment boundaries: attention ≤ 50, urgent ≤ 25)
+  if (hunger <= 50) healthDelta += BABY_DECAY.health.hungerBelow50 * penaltyMul * elapsedHours;
+  if (hunger <= 25) healthDelta += BABY_DECAY.health.hungerBelow25 * penaltyMul * elapsedHours;
   
   // Hygiene penalties
-  if (hygiene < 70) healthDelta += BABY_DECAY.health.hygieneBelow70 * penaltyMul * elapsedHours;
-  if (hygiene < 40) healthDelta += BABY_DECAY.health.hygieneBelow40 * penaltyMul * elapsedHours;
+  if (hygiene <= 50) healthDelta += BABY_DECAY.health.hygieneBelow50 * penaltyMul * elapsedHours;
+  if (hygiene <= 25) healthDelta += BABY_DECAY.health.hygieneBelow25 * penaltyMul * elapsedHours;
   
   // Energy penalties
-  if (energy < 50) healthDelta += BABY_DECAY.health.energyBelow50 * penaltyMul * elapsedHours;
-  if (energy < 25) healthDelta += BABY_DECAY.health.energyBelow25 * penaltyMul * elapsedHours;
+  if (energy <= 50) healthDelta += BABY_DECAY.health.energyBelow50 * penaltyMul * elapsedHours;
+  if (energy <= 25) healthDelta += BABY_DECAY.health.energyBelow25 * penaltyMul * elapsedHours;
   
   // Happiness penalties
-  if (happiness < 50) healthDelta += BABY_DECAY.health.happinessBelow50 * penaltyMul * elapsedHours;
-  if (happiness < 25) healthDelta += BABY_DECAY.health.happinessBelow25 * penaltyMul * elapsedHours;
+  if (happiness <= 50) healthDelta += BABY_DECAY.health.happinessBelow50 * penaltyMul * elapsedHours;
+  if (happiness <= 25) healthDelta += BABY_DECAY.health.happinessBelow25 * penaltyMul * elapsedHours;
   
-  // Health regeneration (all stats >= 80)
+  // Health regeneration (all stats in "good" range: 4/4 = value ≥ 76)
   const threshold = BABY_DECAY.health.regenThreshold;
   if (hunger >= threshold && happiness >= threshold && hygiene >= threshold && energy >= threshold) {
     healthDelta += BABY_DECAY.health.regenRate * elapsedHours;
