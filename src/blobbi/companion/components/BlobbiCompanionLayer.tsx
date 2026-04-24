@@ -324,76 +324,80 @@ export function BlobbiCompanionLayer() {
   const debugGroundY = calculateGroundY(viewport.height, config.size, config);
 
   return (
-    <div
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 9999 }}
-      aria-hidden="true"
-    >
-      {DEBUG_GROUND_CONTACT && (
-        <DebugGroundOverlay
-          groundY={debugGroundY}
-          size={config.size}
-          viewportHeight={viewport.height}
-          paddingBottom={config.padding.bottom}
-          isEntering={isEntering}
-          entryState={entryState}
-        />
-      )}
+    <>
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 9999 }}
+        aria-hidden="true"
+      >
+        {DEBUG_GROUND_CONTACT && (
+          <DebugGroundOverlay
+            groundY={debugGroundY}
+            size={config.size}
+            viewportHeight={viewport.height}
+            paddingBottom={config.padding.bottom}
+            isEntering={isEntering}
+            entryState={entryState}
+          />
+        )}
 
-      <div className="pointer-events-auto">
-        <BlobbiCompanion
-          companion={companion}
-          state={state}
-          motion={motion}
-          eyeOffsetRef={eyeOffsetRef}
-          isEntering={isEntering}
-          entryProgress={entryProgress}
-          entryState={entryState}
-          wasResolvedFromStuck={wasResolvedFromStuck}
-          groundPosition={groundPosition}
-          viewport={viewport}
-          onStartDrag={handleStartDrag}
-          onUpdateDrag={updateDrag}
-          onEndDrag={handleEndDrag}
-          onClick={handleCompanionClick}
-          isClickBlocked={isOverstimBlocked}
-          recipe={companionRecipe}
-          recipeLabel={companionRecipeLabel}
-          onPositionUpdate={handlePositionUpdate}
-          onDragSample={handleDragSample}
-          debugMode={DEBUG_GROUND_CONTACT}
+        <div className="pointer-events-auto">
+          <BlobbiCompanion
+            companion={companion}
+            state={state}
+            motion={motion}
+            eyeOffsetRef={eyeOffsetRef}
+            isEntering={isEntering}
+            entryProgress={entryProgress}
+            entryState={entryState}
+            wasResolvedFromStuck={wasResolvedFromStuck}
+            groundPosition={groundPosition}
+            viewport={viewport}
+            onStartDrag={handleStartDrag}
+            onUpdateDrag={updateDrag}
+            onEndDrag={handleEndDrag}
+            onClick={handleCompanionClick}
+            isClickBlocked={isOverstimBlocked}
+            recipe={companionRecipe}
+            recipeLabel={companionRecipeLabel}
+            onPositionUpdate={handlePositionUpdate}
+            onDragSample={handleDragSample}
+            debugMode={DEBUG_GROUND_CONTACT}
+          />
+        </div>
+
+        <CompanionActionMenu
+          isOpen={menuState.isOpen}
+          companionPosition={renderedPosition}
+          companionSize={config.size}
+          actions={availableActions}
+          selectedAction={menuState.selectedAction}
+          onActionClick={handleActionClick}
+          onClickOutside={handleClickOutside}
+          isSleeping={isSleeping}
+        />
+
+        <HangingItems
+          isVisible={menuState.isOpen && menuState.selectedAction !== null}
+          selectedAction={menuState.selectedAction}
+          items={menuState.items}
+          viewportHeight={viewport.height}
+          groundOffset={config.padding.bottom}
+          companionPosition={renderedPosition}
+          companionSize={config.size}
+          onItemRelease={handleItemClick}
+          onItemLanded={handleItemLanded}
+          onItemUse={handleItemUse}
+          isItemOnCooldown={isItemOnCooldown}
         />
       </div>
 
-      <CompanionActionMenu
-        isOpen={menuState.isOpen}
-        companionPosition={renderedPosition}
-        companionSize={config.size}
-        actions={availableActions}
-        selectedAction={menuState.selectedAction}
-        onActionClick={handleActionClick}
-        onClickOutside={handleClickOutside}
-        isSleeping={isSleeping}
-      />
-
-      <HangingItems
-        isVisible={menuState.isOpen && menuState.selectedAction !== null}
-        selectedAction={menuState.selectedAction}
-        items={menuState.items}
-        viewportHeight={viewport.height}
-        groundOffset={config.padding.bottom}
-        companionPosition={renderedPosition}
-        companionSize={config.size}
-        onItemRelease={handleItemClick}
-        onItemLanded={handleItemLanded}
-        onItemUse={handleItemUse}
-        isItemOnCooldown={isItemOnCooldown}
-      />
+      {/* Overlay sits outside the zoom container so it stays at viewport scale */}
       <OverstimulationBlockOverlay
         isBlocked={isOverstimBlocked}
         companionPosition={renderedPosition}
         companionSize={config.size}
       />
-    </div>
+    </>
   );
 }

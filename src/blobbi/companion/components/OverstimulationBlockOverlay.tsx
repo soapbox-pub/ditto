@@ -1,39 +1,54 @@
 /**
  * OverstimulationBlockOverlay — Visual feedback when Blobbi is overstimulated.
  *
- * When Blobbi hits max overstimulation:
- *   1. A radial shockwave expands from Blobbi's position
- *   2. The UI disintegrates via CSS mask (grid cells shrink to nothing
- *      in a staggered wave from Blobbi) while dark debris particles
- *      burst outward on a canvas overlay
- *   3. A dark red vignette holds during the block period
- *   4. On recovery, mask cells grow back (UI reconstitutes) while
- *      debris converges and fades
+ * Renders a full-viewport overlay that:
+ *   1. Blocks all pointer events (functional: prevents further clicks)
+ *   2. Zooms the entire UI toward Blobbi's face (transform on #root)
+ *   3. Fires a one-shot radial shockwave from Blobbi's center position
+ *   4. Holds a red-tinted vignette for the duration of the block
+ *   5. Smoothly reverses zoom + fades vignette when the block ends
  *
- * Zero screen capture — the mask reveals/hides the live DOM directly.
- * Debris is drawn on a lightweight canvas (~350 rects per frame).
+ * The zoom is applied imperatively to `#root` so the entire page content
+ * pulls toward Blobbi — not just the companion layer. The overlay elements
+ * (vignette, shockwave) sit outside the zoom via a React portal on
+ * `document.body` so they stay at viewport scale.
  *
- * The overlay is portaled to `document.body` so it stays visible
- * while `#root` is masked away.
+ * All animations use CSS transitions/keyframes for GPU compositing.
  */
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { Position } from '../types/companion.types';
-import { crumble, type CrumbleHandle } from '../core/crumbleEngine';
 
 // ─── Animation Timing ─────────────────────────────────────────────────────────
 
+/** How long the shockwave ring takes to expand and fade (ms). */
 const SHOCKWAVE_DURATION_MS = 600;
+
+/** How long the vignette takes to fade in (ms). */
 const VIGNETTE_FADE_IN_MS = 300;
-const VIGNETTE_FADE_OUT_MS = 500;
+
+/** How long the vignette takes to fade out after unblock (ms). */
+const VIGNETTE_FADE_OUT_MS = 600;
+
+/** Zoom scale factor when blocked. */
+const ZOOM_SCALE = 1.5;
+
+/** Zoom-in duration (ms) — fast snap toward Blobbi. */
+const ZOOM_IN_MS = 280;
+
+/** Zoom-out duration (ms) — slower ease back to normal. */
+const ZOOM_OUT_MS = 700;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OverstimulationBlockOverlayProps {
+  /** Whether the blocked phase is currently active. */
   isBlocked: boolean;
+  /** Blobbi's current rendered position (top-left of the companion box). */
   companionPosition: Position;
+  /** Blobbi's rendered size in pixels. */
   companionSize: number;
 }
 
@@ -44,56 +59,97 @@ export function OverstimulationBlockOverlay({
   companionPosition,
   companionSize,
 }: OverstimulationBlockOverlayProps) {
+  // Track whether we should render overlay elements (stays true during fade-out)
   const [isVisible, setIsVisible] = useState(false);
+  // Track whether the shockwave should play (one-shot per block)
   const [showShockwave, setShowShockwave] = useState(false);
+  // Track previous blocked state to detect rising edge
   const wasBlockedRef = useRef(false);
+  // Capture the position at the moment the block starts (shockwave + zoom origin)
   const originRef = useRef({ x: 0, y: 0 });
-  const crumbleRef = useRef<CrumbleHandle | null>(null);
+  // Fade-out timer
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── #root zoom ────────────────────────────────────────────────────────────
+  // Imperatively apply transform to #root so the entire UI zooms toward
+  // Blobbi. The overlay sits in a portal on document.body, outside #root,
+  // so it stays at viewport scale.
 
   useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return;
+
     if (isBlocked && !wasBlockedRef.current) {
-      originRef.current = {
-        x: companionPosition.x + companionSize / 2,
-        y: companionPosition.y + companionSize / 2,
-      };
+      // Rising edge — snap zoom in
+      const cx = companionPosition.x + companionSize / 2;
+      const cy = companionPosition.y + companionSize / 2;
+      originRef.current = { x: cx, y: cy };
+
+      root.style.transformOrigin = `${cx}px ${cy}px`;
+      root.style.transition = `transform ${ZOOM_IN_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+      root.style.transform = `scale(${ZOOM_SCALE})`;
+      document.body.style.overflow = 'hidden';
+
+      // Clear any pending fade-out
+      if (fadeTimerRef.current) {
+        clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+
       setIsVisible(true);
       setShowShockwave(true);
-
-      // Start the crumble
-      crumbleRef.current = crumble(originRef.current);
     } else if (!isBlocked && wasBlockedRef.current) {
+      // Falling edge — ease zoom out
+      root.style.transition = `transform ${ZOOM_OUT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+      root.style.transform = 'scale(1)';
+
       setShowShockwave(false);
-      const handle = crumbleRef.current;
-      if (handle) {
-        handle.recover().then(() => {
-          handle.destroy();
-          crumbleRef.current = null;
-          setIsVisible(false);
-        });
-      } else {
+      fadeTimerRef.current = setTimeout(() => {
+        // Clean up inline styles completely after zoom-out finishes
+        root.style.transform = '';
+        root.style.transformOrigin = '';
+        root.style.transition = '';
+        document.body.style.overflow = '';
         setIsVisible(false);
-      }
+        fadeTimerRef.current = null;
+      }, Math.max(VIGNETTE_FADE_OUT_MS, ZOOM_OUT_MS));
     }
+
     wasBlockedRef.current = isBlocked;
   }, [isBlocked, companionPosition, companionSize]);
 
+  // Clean up #root styles on unmount
   useEffect(() => {
     return () => {
-      if (crumbleRef.current) {
-        crumbleRef.current.destroy();
-        crumbleRef.current = null;
+      const root = document.getElementById('root');
+      if (root) {
+        root.style.transform = '';
+        root.style.transformOrigin = '';
+        root.style.transition = '';
       }
+      document.body.style.overflow = '';
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     };
   }, []);
 
+  // Clear shockwave flag after its animation completes
   useEffect(() => {
     if (!showShockwave) return;
     const timer = setTimeout(() => setShowShockwave(false), SHOCKWAVE_DURATION_MS);
     return () => clearTimeout(timer);
   }, [showShockwave]);
 
-  const originX = isVisible ? originRef.current.x : 0;
-  const originY = isVisible ? originRef.current.y : 0;
+  // Origin state for CSS custom properties (synced from ref on rising edge)
+  const [originX, setOriginX] = useState(0);
+  const [originY, setOriginY] = useState(0);
+
+  useEffect(() => {
+    if (isVisible) {
+      setOriginX(originRef.current.x);
+      setOriginY(originRef.current.y);
+    }
+  }, [isVisible]);
+
   const originStyle = useMemo(() => ({
     '--shock-x': `${originX}px`,
     '--shock-y': `${originY}px`,
@@ -101,9 +157,10 @@ export function OverstimulationBlockOverlay({
 
   if (!isVisible) return null;
 
+  // Portal onto document.body so the overlay sits outside #root's zoom transform
   return createPortal(
     <>
-      {/* Vignette — blocks events + red tint */}
+      {/* Vignette overlay — blocks events + provides visual dimming */}
       <div
         aria-hidden
         style={{
@@ -125,12 +182,13 @@ export function OverstimulationBlockOverlay({
         }}
       />
 
-      {/* Shockwave ring */}
+      {/* Shockwave ring — one-shot expand + fade */}
       {showShockwave && (
         <div
           aria-hidden
           style={{
             position: 'fixed',
+            // Center the shockwave element on the origin
             left: `calc(var(--shock-x) - 50vmax)`,
             top: `calc(var(--shock-y) - 50vmax)`,
             width: '100vmax',
