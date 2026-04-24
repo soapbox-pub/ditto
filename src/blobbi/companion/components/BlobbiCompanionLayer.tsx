@@ -23,6 +23,7 @@ import { useOverstimulationReaction } from '../hooks/useOverstimulationReaction'
 import { useShakeReaction } from '../hooks/useShakeReaction';
 import { createShakeTracker, recordSample, computeShakeResult, resetTracker } from '../core/shakeDetection';
 import { BlobbiCompanion } from './BlobbiCompanion';
+import { OverstimulationBlockOverlay } from './OverstimulationBlockOverlay';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
@@ -388,18 +389,11 @@ export function BlobbiCompanionLayer() {
         onItemUse={handleItemUse}
         isItemOnCooldown={isItemOnCooldown}
       />
-      {/* Global click shield while Blobbi is in blocked (overstimulated) phase */}
-      {isOverstimBlocked && (
-        <div
-          aria-hidden
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            pointerEvents: 'all',
-          }}
-        />
-      )}
+      <OverstimulationBlockOverlay
+        isBlocked={isOverstimBlocked}
+        companionPosition={renderedPosition}
+        companionSize={config.size}
+      />
     </div>
   );
 }

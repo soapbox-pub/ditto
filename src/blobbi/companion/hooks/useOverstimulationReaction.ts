@@ -35,7 +35,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
-import { toast } from '@/hooks/useToast';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 
 // ─── Profile System ───────────────────────────────────────────────────────────
@@ -161,7 +160,6 @@ export function useOverstimulationReaction({
   const lastVisibleRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const blockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toastShownRef = useRef(false);
   const prevTimeRef = useRef(0);
 
   // Keep profile in a ref so the rAF loop doesn't need it as a dep
@@ -224,7 +222,6 @@ export function useOverstimulationReaction({
       if (newLevel <= 0) {
         levelRef.current = 0;
         phaseRef.current = 'idle';
-        toastShownRef.current = false;
         // Clear the sliding window so stale timestamps from this cycle
         // don't interfere with the next activation attempt.
         clicksRef.current.length = 0;
@@ -262,15 +259,6 @@ export function useOverstimulationReaction({
 
     const duration = BLOCK_MIN_MS + Math.random() * (BLOCK_MAX_MS - BLOCK_MIN_MS);
 
-    if (!toastShownRef.current) {
-      toastShownRef.current = true;
-      const seconds = Math.ceil(duration / 1000);
-      toast({
-        title: 'Too many clicks!',
-        description: `Blobbi is overwhelmed\u2026 calm down for ${seconds}s`,
-      });
-    }
-
     clearBlockTimer();
     blockTimerRef.current = setTimeout(() => {
       blockTimerRef.current = null;
@@ -292,7 +280,6 @@ export function useOverstimulationReaction({
       levelRef.current = 0;
       phaseRef.current = 'idle';
       lastVisibleRef.current = 0;
-      toastShownRef.current = false;
       setVisibleLevel(0);
       setPhase('idle');
       return;

@@ -99,15 +99,8 @@ export const DIZZY_NAUSEA_PROFILE: ShakeReactionProfile = {
 
 // ─── Thresholds & Timing ──────────────────────────────────────────────────────
 
-/**
- * Hunger stat at or above which shaking triggers nausea (very full).
- *
- * TEMPORARY DEBUG: The threshold check is currently bypassed so nausea
- * triggers on every shake regardless of hunger. See the `isNauseated`
- * assignment inside `onDragUpdate` and `onDragEnd`. Restore the real
- * threshold by removing the `true ||` override.
- */
-const _NAUSEA_HUNGER_THRESHOLD = 90;
+/** Hunger stat at or above which shaking triggers nausea (very full). */
+const NAUSEA_HUNGER_THRESHOLD = 90;
 
 /** Minimum dizzy duration (seconds) for a barely-qualifying shake. */
 const MIN_DIZZY_DURATION_S = 3;
@@ -295,13 +288,7 @@ export function useShakeReaction({
   const onDragUpdate = useCallback((result: ShakeResult) => {
     if (!result.triggered) return;
 
-    // TEMPORARY DEBUG: bypass hunger threshold so nausea triggers on every
-    // shake for easier testing. The real check is:
-    //   const isNauseated = hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
-    // TODO: restore the real threshold when debug testing is complete.
-    // eslint-disable-next-line no-constant-binary-expression
-    const isNauseated = true || hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
-
+    const isNauseated = hungerRef.current >= NAUSEA_HUNGER_THRESHOLD;
     const nauseaLevel = isNauseated ? Math.min(1, result.intensity) : 0;
 
     // Update nausea level live
@@ -336,10 +323,7 @@ export function useShakeReaction({
     const dizzyDurationS = MIN_DIZZY_DURATION_S +
       intensity * (MAX_DIZZY_DURATION_S - MIN_DIZZY_DURATION_S);
 
-    // TEMPORARY DEBUG: bypass hunger threshold (same as onDragUpdate).
-    // TODO: restore the real threshold when debug testing is complete.
-    // eslint-disable-next-line no-constant-binary-expression
-    const isNauseated = true || hungerRef.current >= _NAUSEA_HUNGER_THRESHOLD;
+    const isNauseated = hungerRef.current >= NAUSEA_HUNGER_THRESHOLD;
     const nauseaLevel = isNauseated ? Math.min(1, intensity) : 0;
 
     // Lock in the final nausea level and start draining immediately
