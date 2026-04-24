@@ -402,7 +402,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds, fetchNextPage, hasNextPage, isFetchingNextPage } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -417,6 +417,15 @@ export function SearchPage() {
     flushStreamBuffer();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [flushStreamBuffer]);
+
+  // Infinite scroll for posts tab
+  const { ref: postsScrollRef, inView: postsInView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (postsInView && hasNextPage && !isFetchingNextPage && activeTab === 'posts') {
+      fetchNextPage();
+    }
+  }, [postsInView, hasNextPage, isFetchingNextPage, fetchNextPage, activeTab]);
 
   return (
     <main className="flex-1 min-w-0">
@@ -794,6 +803,16 @@ export function SearchPage() {
                   }
                   return <NoteCard key={event.id} event={event} highlight={isNew} />;
                 })}
+                {/* Infinite scroll sentinel */}
+                {hasNextPage && (
+                  <div ref={postsScrollRef} className="py-4">
+                    {isFetchingNextPage && (
+                      <div className="flex justify-center">
+                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : debouncedSearchQuery.trim() ? (
               <EmptyState
