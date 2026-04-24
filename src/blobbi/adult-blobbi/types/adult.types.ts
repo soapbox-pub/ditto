@@ -113,6 +113,7 @@ export function resolveAdultForm(blobbi: Blobbi): AdultForm {
 export function deriveAdultFormFromSeed(seed: string): AdultForm {
   const slice = seed.slice(40, 48);
   const value = parseInt(slice, 16);
-  const index = Math.abs(value) % ADULT_FORMS.length;
+  if (Number.isNaN(value)) return getDefaultAdultForm();
+  const index = value % ADULT_FORMS.length;
   return ADULT_FORMS[index];
 }

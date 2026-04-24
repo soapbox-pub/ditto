@@ -542,9 +542,6 @@ export function isLegacyBlobbiD(d: string): boolean {
 // ─── Visual Trait Derivation ──────────────────────────────────────────────────
 
 /**
- * Derive a numeric value from a seed at a specific offset.
- * Uses 4 bytes (8 hex chars) starting at offset to create a deterministic number.
- * 
  * Seed offset layout (per spec):
  * - [0..8]   base_color   (H/S/L split from 32-bit value)
  * - [8..16]  secondary_color hue shift / lightness offset from base
@@ -555,10 +552,29 @@ export function isLegacyBlobbiD(d: string): boolean {
  * - [40..48] adult_type
  * - [48..64] reserved
  */
-function deriveIndexFromSeed(seed: string, offset: number, max: number): number {
+
+/**
+ * Read 8 hex chars from `seed` at `offset` and return the raw unsigned
+ * 32-bit integer (0 .. 0xFFFFFFFF).
+ *
+ * Returns 0 for empty/unparseable slices so callers never see NaN.
+ */
+function readSeedUint32(seed: string, offset: number): number {
   const slice = seed.slice(offset, offset + 8);
   const value = parseInt(slice, 16);
-  return Math.abs(value) % max;
+  return Number.isNaN(value) ? 0 : value;
+}
+
+/**
+ * Derive a bounded index from a seed at a specific offset.
+ * Uses 4 bytes (8 hex chars) starting at offset, then maps to [0, max).
+ *
+ * Use this for selecting from small arrays (patterns, marks, sizes, forms).
+ * For raw 32-bit entropy that will be decomposed further (e.g. into H/S/L
+ * components via successive division), use readSeedUint32() directly.
+ */
+function deriveIndexFromSeed(seed: string, offset: number, max: number): number {
+  return readSeedUint32(seed, offset) % max;
 }
 
 /**
@@ -576,7 +592,7 @@ function deriveIndexFromSeed(seed: string, offset: number, max: number): number 
  * regular adjustment.
  */
 export function deriveBaseColorFromSeed(seed: string): string {
-  const value = deriveIndexFromSeed(seed, 0, 0x100000000); // raw 32-bit
+  const value = readSeedUint32(seed, 0);
   const h = value % 360;
   const rem1 = Math.floor(value / 360);
   const s = (rem1 % 71) + 30;  // 30..100
@@ -600,7 +616,7 @@ export function deriveBaseColorFromSeed(seed: string): string {
  * @param baseHex - The already-resolved base color (after guardrails)
  */
 export function deriveSecondaryColorFromSeed(seed: string, baseHex?: string): string {
-  const seedValue = deriveIndexFromSeed(seed, 8, 0x100000000); // raw 32-bit
+  const seedValue = readSeedUint32(seed, 8);
 
   // Without a base color, fall back to independent HSL derivation
   // (same approach as base, but with a lighter range)
@@ -639,7 +655,7 @@ export function deriveSecondaryColorFromSeed(seed: string, baseHex?: string): st
  * applyColorGuardrails() at the call site.
  */
 export function deriveEyeColorFromSeed(seed: string): string {
-  const value = deriveIndexFromSeed(seed, 12, 0x100000000); // raw 32-bit
+  const value = readSeedUint32(seed, 12);
   const h = value % 360;
   const rem1 = Math.floor(value / 360);
   const s = (rem1 % 61) + 40;  // 40..100
@@ -709,6 +725,8 @@ export function adjustSeedForAdultType(seed: string, targetForm: AdultForm): str
   if (deriveAdultFormFromSeed(seed) === targetForm) return seed;
 
   const targetIndex = ADULT_FORMS.indexOf(targetForm);
+  if (targetIndex < 0) return seed; // unknown form — leave seed unchanged
+
   const prefix = seed.slice(0, 40);
   const suffix = seed.slice(48);
 
