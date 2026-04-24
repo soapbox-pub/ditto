@@ -21,7 +21,7 @@
  * inside the SVG continue running across parent rerenders.
  */
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -31,6 +31,7 @@ import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from 
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
+import { useRecipeFingerprint, useFillLevelUpdate } from './hooks/useFillLevelUpdate';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 export interface BlobbiAdultSvgRendererProps {
@@ -71,28 +72,8 @@ export function BlobbiAdultSvgRenderer({
   className,
 }: BlobbiAdultSvgRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // ── Structural recipe fingerprint ──────────────────────────────────────────
-  // Shallow-clones the recipe and strips only `angerRise.level` — the one
-  // field that changes at ~12 Hz during nausea/anger drain. Everything else
-  // (face parts, fill color, opacity, body effects) is preserved in the
-  // fingerprint so structural changes still trigger a full SVG rebuild.
-  //
-  // Because useMemo compares the resulting string by value (not reference),
-  // level-only changes produce the same fingerprint → `customizedSvg`
-  // memo stays stable → SVG DOM is preserved → SMIL animations survive.
-  const recipeFingerprint = useMemo(() => {
-    if (!recipeProp) return '';
-    const { bodyEffects, ...rest } = recipeProp;
-    if (!bodyEffects) return JSON.stringify(rest);
-    const { angerRise, ...otherEffects } = bodyEffects;
-    if (!angerRise) return JSON.stringify({ ...rest, bodyEffects: otherEffects });
-    const { level: _level, ...stableAngerRise } = angerRise;
-    return JSON.stringify({
-      ...rest,
-      bodyEffects: { ...otherEffects, angerRise: stableAngerRise },
-    });
-  }, [recipeProp]);
+  const recipeFingerprint = useRecipeFingerprint(recipeProp);
+  useFillLevelUpdate(containerRef, blobbi.id, recipeProp);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'adult customizedSvg rebuild');
@@ -122,45 +103,6 @@ export function BlobbiAdultSvgRenderer({
   }, [blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
-
-  // ── Imperative fill level update ──────────────────────────────────────────
-  // When only the angerRise level changes (~12× /sec during nausea drain),
-  // skip the full SVG rebuild and update the gradient stops directly on
-  // the existing DOM. This preserves SMIL animations (dizzy spirals,
-  // sleepy blink, etc.) that would be killed by dangerouslySetInnerHTML.
-  //
-  // Gradient ID contract:
-  //   applyVisualRecipe() passes blobbi.id as instanceId
-  //     → recipe.ts sets bodySpec.idPrefix = instanceId
-  //       → apply.ts uses idSuffix = spec.idPrefix
-  //         → generators.ts creates gradientId = `blobbi-anger-gradient-${idSuffix}`
-  //
-  // So the gradient ID in the SVG DOM is deterministically
-  // `blobbi-anger-gradient-${blobbi.id}`, which we look up below.
-  // The 3 stops in the static-level gradient are (bottom, edge, transparent),
-  // matching the order in generateAngerRiseEffect() (generators.ts).
-  const fillLevel = recipeProp?.bodyEffects?.angerRise?.level;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || fillLevel === undefined) return;
-
-    const gradientId = `blobbi-anger-gradient-${blobbi.id}`;
-    const gradient = container.querySelector(`#${CSS.escape(gradientId)}`);
-    if (!gradient) return;
-
-    const stops = gradient.querySelectorAll('stop');
-    if (stops.length < 3) return;
-
-    // Matches the feather constant in generateAngerRiseEffect().
-    const feather = 0.10;
-    const edgeOffset = Math.max(0, fillLevel - feather);
-    // stops[0] = bottom (unchanged — its offset is always 0%)
-    // stops[1] = feathered edge — moves with fill level
-    // stops[2] = transparent top — moves with fill level
-    stops[1]?.setAttribute('offset', String(edgeOffset));
-    stops[2]?.setAttribute('offset', String(fillLevel));
-  }, [fillLevel, blobbi.id]);
 
   return (
     <div

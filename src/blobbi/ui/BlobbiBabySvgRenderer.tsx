@@ -17,7 +17,7 @@
  *   - Companion runtime (drag, float, position)
  */
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -27,6 +27,7 @@ import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from 
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
+import { useRecipeFingerprint, useFillLevelUpdate } from './hooks/useFillLevelUpdate';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 export interface BlobbiBabySvgRendererProps {
@@ -67,22 +68,8 @@ export function BlobbiBabySvgRenderer({
   className,
 }: BlobbiBabySvgRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // ── Structural recipe fingerprint (see adult renderer for full explanation) ──
-  // Clones the recipe and strips only bodyEffects.angerRise.level so that
-  // level-only changes do not trigger a full SVG rebuild.
-  const recipeFingerprint = useMemo(() => {
-    if (!recipeProp) return '';
-    const { bodyEffects, ...rest } = recipeProp;
-    if (!bodyEffects) return JSON.stringify(rest);
-    const { angerRise, ...otherEffects } = bodyEffects;
-    if (!angerRise) return JSON.stringify({ ...rest, bodyEffects: otherEffects });
-    const { level: _level, ...stableAngerRise } = angerRise;
-    return JSON.stringify({
-      ...rest,
-      bodyEffects: { ...otherEffects, angerRise: stableAngerRise },
-    });
-  }, [recipeProp]);
+  const recipeFingerprint = useRecipeFingerprint(recipeProp);
+  useFillLevelUpdate(containerRef, blobbi.id, recipeProp);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
@@ -109,26 +96,6 @@ export function BlobbiBabySvgRenderer({
   }, [blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
-
-  // ── Imperative fill level update (see adult renderer for full explanation) ──
-  const fillLevel = recipeProp?.bodyEffects?.angerRise?.level;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || fillLevel === undefined) return;
-
-    const gradientId = `blobbi-anger-gradient-${blobbi.id}`;
-    const gradient = container.querySelector(`#${CSS.escape(gradientId)}`);
-    if (!gradient) return;
-
-    const stops = gradient.querySelectorAll('stop');
-    if (stops.length < 3) return;
-
-    const feather = 0.10;
-    const edgeOffset = Math.max(0, fillLevel - feather);
-    stops[1]?.setAttribute('offset', String(edgeOffset));
-    stops[2]?.setAttribute('offset', String(fillLevel));
-  }, [fillLevel, blobbi.id]);
 
   return (
     <div
