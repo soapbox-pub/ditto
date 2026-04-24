@@ -66,10 +66,7 @@ const BABY_DECAY = {
   hunger: -8.0,
   happiness: -4.5,
   hygiene: -6.0,
-  energy: {
-    awake: -9.0,
-    sleeping: 6.0,  // Legacy value — overridden by BABY_SLEEP_ENERGY_REGEN
-  },
+  energy: -9.0,
   health: {
     base: -0.4,
     // Tier 1: mild — stat in attention range (≤ 50)
@@ -102,10 +99,7 @@ const ADULT_DECAY = {
   hunger: -5.0,
   happiness: -2.5,
   hygiene: -4.0,
-  energy: {
-    awake: -5.5,
-    sleeping: 5.0,  // Legacy value — overridden by ADULT_SLEEP_ENERGY_REGEN
-  },
+  energy: -5.5,
   health: {
     base: -0.25,
     hungerBelow60: -0.5,
@@ -287,7 +281,7 @@ function calculateBabyDecay(
   const hungerDelta = BABY_DECAY.hunger * statMul * elapsedHours;
   const happinessDelta = BABY_DECAY.happiness * statMul * elapsedHours;
   const hygieneDelta = BABY_DECAY.hygiene * statMul * elapsedHours;
-  const energyDelta = (isSleeping ? BABY_SLEEP_ENERGY_REGEN : BABY_DECAY.energy.awake) * elapsedHours;
+  const energyDelta = (isSleeping ? BABY_SLEEP_ENERGY_REGEN : BABY_DECAY.energy) * elapsedHours;
   
   // Apply basic deltas
   hunger = clamp(hunger + roundDelta(hungerDelta));
@@ -351,7 +345,7 @@ function calculateAdultDecay(
   const hungerDelta = ADULT_DECAY.hunger * statMul * elapsedHours;
   const happinessDelta = ADULT_DECAY.happiness * statMul * elapsedHours;
   const hygieneDelta = ADULT_DECAY.hygiene * statMul * elapsedHours;
-  const energyDelta = (isSleeping ? ADULT_SLEEP_ENERGY_REGEN : ADULT_DECAY.energy.awake) * elapsedHours;
+  const energyDelta = (isSleeping ? ADULT_SLEEP_ENERGY_REGEN : ADULT_DECAY.energy) * elapsedHours;
   
   // Apply basic deltas
   hunger = clamp(hunger + roundDelta(hungerDelta));
