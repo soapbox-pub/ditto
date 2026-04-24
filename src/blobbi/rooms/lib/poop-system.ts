@@ -22,7 +22,7 @@ export interface PoopInstance {
 
 export const OVERFEED_THRESHOLD = 95;
 /** Probability (0-1) that overfeeding produces a poop. */
-const OVERFEED_CHANCE = 0.6;
+const OVERFEED_CHANCE = 0.2;
 const HOURS_PER_POOP = 2;
 export const XP_PER_POOP = 5;
 const MAX_POOPS = 3;
