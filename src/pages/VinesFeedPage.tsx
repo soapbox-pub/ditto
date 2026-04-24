@@ -52,6 +52,7 @@ import { formatNumber } from "@/lib/formatNumber";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 const VINE_KIND = 34236;
 
@@ -79,11 +80,6 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 // ─── Global mute state shared across vine cards ───────────────────────────────
-/** Module-level mute state shared across all vine/short players. */
-let globalMuted = true;
-function setGlobalMuted(v: boolean) {
-	globalMuted = v;
-}
 
 // ─── Hook: stream vine events for follows or global ──────────────────────────
 
@@ -349,7 +345,7 @@ export function VineCard({
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [hasStarted, setHasStarted] = useState(false);
 	const [isAttemptingPlay, setIsAttemptingPlay] = useState(isActive);
-	const [isMuted, setIsMuted] = useState(globalMuted);
+	const [isMuted, setIsMuted] = useState(isVineMuted);
 	// true once the browser has decoded enough to render the first frame
 	const [isVideoReady, setIsVideoReady] = useState(false);
 	// true when the video is stalling / rebuffering mid-playback
@@ -386,8 +382,8 @@ export function VineCard({
 		if (!video || !imeta.url) return;
 		if (isActive && !showCwOverlay) {
 			video.currentTime = 0;
-			video.muted = globalMuted;
-			setIsMuted(globalMuted);
+			video.muted = isVineMuted();
+			setIsMuted(isVineMuted());
 			setIsAttemptingPlay(true);
 			video.play().catch(() => {
 				// Autoplay blocked — leave paused, user can tap
@@ -418,7 +414,7 @@ export function VineCard({
 		if (!video) return;
 		const next = !video.muted;
 		video.muted = next;
-		setGlobalMuted(next);
+		setVineMuted(next);
 		setIsMuted(next);
 	}, []);
 

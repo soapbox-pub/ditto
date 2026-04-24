@@ -156,6 +156,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Pagination state
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+  const isFetchingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
   const oldestTimestampRef = useRef<number | null>(null);
 
@@ -276,6 +277,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
+    // Sort preference (NIP-50 extension)
+    if (options.sort === 'hot') {
+      searchParts.push('sort:hot');
+    } else if (options.sort === 'trending') {
+      searchParts.push('sort:trending');
+    }
+
     const searchFilter: NostrFilter = { ...streamFilter };
     if (searchParts.length > 0) {
       searchFilter.search = searchParts.join(' ');
@@ -287,13 +295,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       streamFilter.authors = resolvedAuthorPubkeys;
     }
 
-    // Sort preference (NIP-50 extension)
-    if (options.sort === 'hot') {
-      searchFilter.search = (searchFilter.search ? searchFilter.search + ' ' : '') + 'sort:hot';
-    } else if (options.sort === 'trending') {
-      searchFilter.search = (searchFilter.search ? searchFilter.search + ' ' : '') + 'sort:trending';
-    }
-
     return { searchFilter, streamFilter };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
   }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
@@ -302,9 +303,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const eventMapRef = useRef(new Map<string, NostrEvent>());
   const knownIdsRef = useRef(new Set<string>());
 
-  const addEvent = useCallback((event: NostrEvent, isStreamed: boolean) => {
+  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
+  const flushEventMap = useCallback(() => {
+    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+  }, []);
+
+  /** Ingest a single event into the event map / stream buffer. Returns true if the map was mutated. */
+  const ingestEvent = useCallback((event: NostrEvent, isStreamed: boolean): boolean => {
     const now = Math.floor(Date.now() / 1000);
-    if (event.created_at > now) return;
+    if (event.created_at > now) return false;
 
     // Dedupe key
     let dedupeKey: string;
@@ -317,26 +324,32 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
     if (isStreamed && initialLoadDoneRef.current && isScrolledRef.current) {
-      if (knownIdsRef.current.has(dedupeKey)) return;
+      if (knownIdsRef.current.has(dedupeKey)) return false;
       knownIdsRef.current.add(dedupeKey);
       streamBufferRef.current = [...streamBufferRef.current, event];
       setStreamBufferCount(streamBufferRef.current.length);
-      return;
+      return false;
     }
 
     // Addressable events (30000-39999) dedupe by pubkey+kind+d
     if (event.kind >= 30000 && event.kind < 40000) {
       const existing = eventMapRef.current.get(dedupeKey);
-      if (existing && existing.created_at >= event.created_at) return;
+      if (existing && existing.created_at >= event.created_at) return false;
       eventMapRef.current.set(dedupeKey, event);
     } else {
-      if (eventMapRef.current.has(dedupeKey)) return;
+      if (eventMapRef.current.has(dedupeKey)) return false;
       eventMapRef.current.set(dedupeKey, event);
     }
     knownIdsRef.current.add(dedupeKey);
-
-    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+    return true;
   }, []);
+
+  /** Add a single streamed event and flush immediately. */
+  const addStreamedEvent = useCallback((event: NostrEvent) => {
+    if (ingestEvent(event, true)) {
+      flushEventMap();
+    }
+  }, [ingestEvent, flushEventMap]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -346,6 +359,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setAllEvents([]);
     setIsLoading(true);
     setHasNextPage(true);
+    isFetchingRef.current = false;
     oldestTimestampRef.current = null;
     initialLoadDoneRef.current = false;
     streamBufferRef.current = [];
@@ -363,8 +377,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           { signal: ac.signal },
         );
         for (const event of events) {
-          addEvent(event, false);
+          ingestEvent(event, false);
         }
+        flushEventMap();
         // Track oldest timestamp for pagination
         if (events.length > 0) {
           const oldest = Math.min(...events.map((e) => e.created_at));
@@ -403,7 +418,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           if (!alive) break;
           
           if (msg[0] === 'EVENT') {
-            addEvent(msg[2], true);
+            addStreamedEvent(msg[2]);
           } else if (msg[0] === 'CLOSED') {
             break;
           }
@@ -417,12 +432,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- addEvent is a stable ref-based callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
   }, [nostr, paginationFilter]);
 
   /** Fetch the next page of older results. */
   const fetchNextPage = useCallback(async () => {
-    if (isFetchingNextPage || !hasNextPage || oldestTimestampRef.current === null) return;
+    if (isFetchingRef.current || !hasNextPage || oldestTimestampRef.current === null) return;
+    isFetchingRef.current = true;
     setIsFetchingNextPage(true);
     try {
       const { searchFilter } = paginationFilter;
@@ -430,8 +446,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         [{ ...searchFilter, until: oldestTimestampRef.current - 1, limit: PAGE_SIZE }],
       );
       for (const event of events) {
-        addEvent(event, false);
+        ingestEvent(event, false);
       }
+      flushEventMap();
       if (events.length > 0) {
         const oldest = Math.min(...events.map((e) => e.created_at));
         oldestTimestampRef.current = oldest;
@@ -440,12 +457,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         setHasNextPage(false);
       }
     } catch {
-      // query failed — don't break pagination, just stop
-      setHasNextPage(false);
+      // Transient failure — leave hasNextPage true so the user can retry
     } finally {
+      isFetchingRef.current = false;
       setIsFetchingNextPage(false);
     }
-  }, [isFetchingNextPage, hasNextPage, paginationFilter, nostr, addEvent]);
+  }, [hasNextPage, paginationFilter, nostr, ingestEvent, flushEventMap]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;

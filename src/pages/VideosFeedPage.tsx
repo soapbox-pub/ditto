@@ -281,46 +281,46 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
             </div>
           )}
         </div>
-      </ContentWarningGuard>
 
-      {/* Info row: avatar | title + channel + time */}
-      <div className="mt-2.5 flex gap-2.5">
-        <Link
-          to={profileUrl}
-          className="shrink-0 mt-0.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {author.isLoading ? (
-            <Skeleton className="size-8 rounded-full" />
-          ) : (
-            <Avatar shape={avatarShape} className="size-8">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          )}
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xs font-medium leading-snug line-clamp-2 mb-1">
-            {title}
-          </h3>
-          {author.isLoading ? (
-            <Skeleton className="h-2.5 w-20 mb-1" />
-          ) : (
-            <Link
-              to={profileUrl}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
-          )}
-          <p className="text-[11px] text-muted-foreground">
-            {timeAgo(event.created_at)}
-          </p>
+        {/* Info row: avatar | title + channel + time */}
+        <div className="mt-2.5 flex gap-2.5">
+          <Link
+            to={profileUrl}
+            className="shrink-0 mt-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.isLoading ? (
+              <Skeleton className="size-8 rounded-full" />
+            ) : (
+              <Avatar shape={avatarShape} className="size-8">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-medium leading-snug line-clamp-2 mb-1">
+              {title}
+            </h3>
+            {author.isLoading ? (
+              <Skeleton className="h-2.5 w-20 mb-1" />
+            ) : (
+              <Link
+                to={profileUrl}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {displayName}
+              </Link>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {timeAgo(event.created_at)}
+            </p>
+          </div>
         </div>
-      </div>
+      </ContentWarningGuard>
     </div>
   );
 }
@@ -680,10 +680,10 @@ function ShortThumb({
             </div>
           </div>
         </div>
+        <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors w-full overflow-hidden">
+          {title}
+        </p>
       </ContentWarningGuard>
-      <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors w-full overflow-hidden">
-        {title}
-      </p>
     </button>
   );
 }

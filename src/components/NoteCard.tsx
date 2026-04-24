@@ -113,6 +113,7 @@ import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -257,7 +258,6 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Parse single imeta tag into structured object (legacy, for kind 34236 vines). */
 /** Encodes the NIP-19 identifier for navigating to an event. */
 function encodeEventId(event: NostrEvent): string {
   // Addressable events (30000-39999) use naddr with their d-tag
@@ -1313,7 +1313,7 @@ function fmtDuration(seconds: string | undefined): string | undefined {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Inline video player for NIP-71 kind 21/22 events. */
+/** Inline video player for NIP-71 kind 21 events. */
 function VideoContent({ event }: { event: NostrEvent }) {
   const { url, thumbnail, duration } = useMemo(
     () => parseVideoImeta(event.tags),
@@ -1321,7 +1321,6 @@ function VideoContent({ event }: { event: NostrEvent }) {
   );
   const title = getTag(event.tags, "title");
   const description = event.content;
-  const isShort = event.kind === 22;
   const formattedDuration = fmtDuration(duration);
   const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
@@ -1330,23 +1329,11 @@ function VideoContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <div
-        className={cn(
-          "relative rounded-xl overflow-hidden bg-muted",
-          isShort ? "max-w-[280px]" : "",
-        )}
-      >
+      <div className="relative rounded-xl overflow-hidden bg-muted">
         <VideoPlayer src={url} poster={thumbnail} title={title ?? undefined} />
         {formattedDuration && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
             {formattedDuration}
-          </div>
-        )}
-        {isShort && (
-          <div className="absolute top-2 left-2 pointer-events-none">
-            <span className="text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
-              Short
-            </span>
           </div>
         )}
       </div>
@@ -1373,9 +1360,6 @@ function VideoContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Module-level mute state shared across all VineMedia instances in the feed. */
-let vineGlobalMuted = true;
-
 /** Media content for kind 22 / 34236 short-form video events — rendered at full card width. */
 function VineMedia({
   imeta,
@@ -1387,7 +1371,7 @@ function VineMedia({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(vineGlobalMuted);
+  const [isMuted, setIsMuted] = useState(isVineMuted);
 
   // Pause video when scrolled out of view
   useEffect(() => {
@@ -1416,8 +1400,8 @@ function VineMedia({
       // Start muted (required by browsers), then sync to shared state once playing
       video.muted = true;
       video.play().then(() => {
-        video.muted = vineGlobalMuted;
-        setIsMuted(vineGlobalMuted);
+        video.muted = isVineMuted();
+        setIsMuted(isVineMuted());
       }).catch(() => {
         // play blocked — leave paused
       });
@@ -1433,7 +1417,7 @@ function VineMedia({
     if (!video) return;
     const next = !video.muted;
     video.muted = next;
-    vineGlobalMuted = next;
+    setVineMuted(next);
     setIsMuted(next);
   };
 
