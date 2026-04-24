@@ -40,8 +40,9 @@ export function OverstimulationBlockOverlay({ isBlocked }: Props) {
 
       // Find Blobbi's true visual center via DOM query (after scroll reset)
       const el = document.querySelector<HTMLElement>('[data-blobbi-companion]');
-      const cx = el ? el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 : window.innerWidth / 2;
-      const cy = el ? el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2 : window.innerHeight / 2;
+      const rect = el?.getBoundingClientRect();
+      const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+      const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
       origin.current = { x: cx, y: cy };
 
       root.style.transformOrigin = `${cx}px ${cy}px`;

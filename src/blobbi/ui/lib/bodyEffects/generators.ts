@@ -34,6 +34,25 @@ import type {
   BodyPathInfo,
 } from './types';
 
+// ─── SVG Color Sanitization ───────────────────────────────────────────────────
+
+/** Hex color: #rgb, #rrggbb, or #rrggbbaa */
+const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** Named CSS color or functional notation (rgb/rgba/hsl/hsla with digits, commas, spaces, dots, %) */
+const FUNC_RE = /^(?:rgb|rgba|hsl|hsla)\(\s*[\d.,\s%]+\)$/i;
+const NAMED_RE = /^[a-z]{3,24}$/i;
+
+/**
+ * Validate a color value before interpolating it into SVG markup.
+ * Returns the color unchanged if it looks safe, otherwise returns a
+ * harmless fallback. This prevents SVG injection if a future caller
+ * ever passes user-controlled color strings.
+ */
+function sanitizeSvgColor(color: string, fallback = '#000'): string {
+  if (HEX_RE.test(color) || FUNC_RE.test(color) || NAMED_RE.test(color)) return color;
+  return fallback;
+}
+
 // ─── Body Path Detection ──────────────────────────────────────────────────────
 
 /**
@@ -728,6 +747,7 @@ export function generateAngerRiseEffect(
   const { pathD, minX, maxX, minY, maxY } = bodyPath;
   const bodyHeight = maxY - minY;
   const bodyWidth = maxX - minX;
+  const safeColor = sanitizeSvgColor(config.color);
   
   const suffix = idSuffix ?? Math.random().toString(36).slice(2, 8);
   const clipId = `blobbi-anger-clip-${suffix}`;
@@ -759,16 +779,16 @@ export function generateAngerRiseEffect(
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}" stop-opacity="${bottomOpacity}" />
-      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${config.color}" stop-opacity="${edgeOpacity}" />
-      <stop offset="${lvl}" stop-color="${config.color}" stop-opacity="0" />
+      <stop offset="0%" stop-color="${safeColor}" stop-opacity="${bottomOpacity}" />
+      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${safeColor}" stop-opacity="${edgeOpacity}" />
+      <stop offset="${lvl}" stop-color="${safeColor}" stop-opacity="0" />
     </linearGradient>`
     : `
     <clipPath id="${clipId}">
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}">
+      <stop offset="0%" stop-color="${safeColor}">
         <animate 
           attributeName="stop-opacity" 
           values="0;0.5;0.5" 
@@ -777,7 +797,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}">
+      <stop stop-color="${safeColor}">
         <animate 
           attributeName="offset" 
           values="0;1" 
@@ -792,7 +812,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}" stop-opacity="0">
+      <stop stop-color="${safeColor}" stop-opacity="0">
         <animate 
           attributeName="offset" 
           values="0;1" 
