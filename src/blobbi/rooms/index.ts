@@ -29,3 +29,5 @@ export { RoomActionButton } from './components/RoomActionButton';
 export { ItemCarousel, type CarouselEntry } from './components/ItemCarousel';
 export { BlobbiRoomHero, type BlobbiRoomHeroProps } from './components/BlobbiRoomHero';
 export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';
+export { useShovelDrag, type ShovelDrag } from './hooks/useShovelDrag';
+export { PoopOverlay, ShovelButton } from './components/RoomPoopLayer';

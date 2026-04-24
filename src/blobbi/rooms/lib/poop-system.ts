@@ -21,9 +21,17 @@ export interface PoopInstance {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const OVERFEED_THRESHOLD = 95;
+/** Probability (0-1) that overfeeding produces a poop. */
+const OVERFEED_CHANCE = 0.6;
 const HOURS_PER_POOP = 2;
 export const XP_PER_POOP = 5;
-const MAX_POOPS = 4;
+const MAX_POOPS = 6;
+
+const POOP_ELIGIBLE_ROOMS: BlobbiRoomId[] = ['care', 'kitchen', 'home', 'rest'];
+
+function pickRandomRoom(): BlobbiRoomId {
+  return POOP_ELIGIBLE_ROOMS[Math.floor(Math.random() * POOP_ELIGIBLE_ROOMS.length)];
+}
 
 const SAFE_POSITIONS: Array<{ bottom: number; left: number }> = [
   { bottom: 22, left: 8 },
@@ -53,10 +61,10 @@ export function generateInitialPoops(
   const now = Date.now();
   let posIndex = 0;
 
-  if (hunger >= OVERFEED_THRESHOLD) {
+  if (hunger >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
     poops.push({
       id: nextPoopId(),
-      room: 'kitchen',
+      room: pickRandomRoom(),
       source: 'overfeed',
       createdAt: now,
       position: pickPosition(posIndex++),
@@ -65,11 +73,11 @@ export function generateInitialPoops(
 
   if (lastFeedTimestamp) {
     const hoursSinceFeed = (now - lastFeedTimestamp) / (1000 * 60 * 60);
-    const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), 3);
+    const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), MAX_POOPS);
     for (let i = 0; i < count; i++) {
       poops.push({
         id: nextPoopId(),
-        room: 'kitchen',
+        room: pickRandomRoom(),
         source: 'time',
         createdAt: now - i * 1000,
         position: pickPosition(posIndex++),
@@ -80,7 +88,7 @@ export function generateInitialPoops(
   return poops;
 }
 
-/** Add a single poop to the list (capped at MAX_POOPS). */
+/** Add a single poop to a random room (capped at MAX_POOPS). */
 export function addPoop(
   poops: PoopInstance[],
   source: PoopInstance['source'] = 'overfeed',
@@ -90,7 +98,7 @@ export function addPoop(
     ...poops,
     {
       id: nextPoopId(),
-      room: 'kitchen',
+      room: pickRandomRoom(),
       source,
       createdAt: Date.now(),
       position: pickPosition(poops.length),
