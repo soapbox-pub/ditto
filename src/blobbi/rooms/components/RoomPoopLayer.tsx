@@ -24,12 +24,13 @@ import type { ShovelDrag } from '../hooks/useShovelDrag';
 // ─── PoopOverlay (passive, any room) ──────────────────────────────────────────
 
 /**
- * Static poop display. Renders only poops assigned to `roomId`.
+ * Static poop display. Shows all poops regardless of which room they
+ * spawned in — the mess follows the Blobbi everywhere.
  */
-export function PoopOverlay({ poopStateRef, roomId }: { poopStateRef: React.MutableRefObject<PoopState | null>; roomId: BlobbiRoomId }) {
+export function PoopOverlay({ poopStateRef }: { poopStateRef: React.MutableRefObject<PoopState | null> }) {
   const poopState = poopStateRef.current;
-  const poops = poopState ? getPoopsInRoom(poopState.poops, roomId) : [];
-  if (poops.length === 0) return null;
+  if (!poopState || poopState.poops.length === 0) return null;
+  const poops = poopState.poops;
 
   return (
     <>

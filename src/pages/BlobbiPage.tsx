@@ -1776,7 +1776,7 @@ function HomeBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} roomId="home" />
+      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           <RoomActionButton
@@ -2010,7 +2010,7 @@ function CareBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} roomId="care" />
+      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {leftButton}
@@ -2052,7 +2052,7 @@ function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, is
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} roomId="rest" />
+      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-center">
           {!isEgg && (
