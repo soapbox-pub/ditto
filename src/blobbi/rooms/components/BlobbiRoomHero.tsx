@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { SegmentedRing } from '@/blobbi/ui/StatIndicator';
 import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
@@ -214,6 +215,8 @@ function StatsCrown({
         stat,
         value,
         careState: display.careState,
+        filled: display.filled,
+        max: display.max,
         color: STAT_COLOR_MAP[stat],
       };
     }),
@@ -250,7 +253,7 @@ function StatsCrown({
               bottom: `${y.toFixed(1)}px`,
             }}
           >
-            <StatIndicator stat={s.stat} value={s.value} color={s.color} careState={s.careState} />
+            <StatIndicator stat={s.stat} value={s.value} color={s.color} careState={s.careState} filled={s.filled} max={s.max} />
           </div>
         );
       })}
@@ -265,11 +268,15 @@ function StatIndicator({
   value,
   color,
   careState = 'good',
+  filled,
+  max,
 }: {
   stat: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
   careState?: CareState;
+  filled?: number;
+  max?: number;
 }) {
   const displayValue = value ?? 0;
   const showBadge = careState === 'attention' || careState === 'urgent';
@@ -278,6 +285,8 @@ function StatIndicator({
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
 
+  const hasSegments = filled !== undefined && max !== undefined;
+
   return (
     <div className={cn(
       'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
@@ -285,13 +294,25 @@ function StatIndicator({
       showPulse && 'animate-pulse',
     )}>
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
+        {hasSegments ? (
+          <SegmentedRing
+            filled={filled}
+            max={max}
+            fillHex={ringHex}
+            strokeWidth={2.5}
+            gapDeg={16}
+          />
+        ) : (
+          <>
+            <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
+            <circle
+              cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
+              stroke={ringHex}
+              strokeDasharray={`${displayValue * 0.94} 100`}
+              className="transition-all duration-500"
+            />
+          </>
+        )}
       </svg>
       <div className="relative">
         {IconComponent && <IconComponent className={cn('size-5 sm:size-6', STAT_COLORS[color])} strokeWidth={2.5} />}

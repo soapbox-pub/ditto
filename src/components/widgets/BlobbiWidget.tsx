@@ -359,18 +359,22 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
 
       {/* Unified stat wheels — each is both a status indicator and an action button */}
       <div className="flex items-center justify-center gap-1.5 px-2">
-        {visibleStats.map((stat) => (
-          <StatIndicator
-            key={stat}
-            stat={stat}
-            value={stats[stat]}
-            color={STAT_COLOR_MAP[stat]}
-            careState={getBlobbiStatDisplayState({ stage, stat, value: stats[stat] ?? 100 }).careState}
-            size="sm"
-            onClick={() => handleStatClick(stat)}
-            disabled={isActionPending}
-          />
-        ))}
+        {visibleStats.map((stat) => {
+          const display = getBlobbiStatDisplayState({ stage, stat, value: stats[stat] ?? 100 });
+          return (
+            <StatIndicator
+              key={stat}
+              stat={stat}
+              value={stats[stat]}
+              color={STAT_COLOR_MAP[stat]}
+              careState={display.careState}
+              segments={{ filled: display.filled, max: display.max }}
+              size="sm"
+              onClick={() => handleStatClick(stat)}
+              disabled={isActionPending}
+            />
+          );
+        })}
       </div>
     </div>
   );
