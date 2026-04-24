@@ -1,5 +1,5 @@
 /**
- * Stat Guide Configuration — mappings and helpers for the low-status guided UX.
+ * Stat Guide Configuration — mappings and helpers for the stat-guided UX.
  *
  * Centralises:
  *   stat → target room
@@ -57,15 +57,6 @@ export const STAT_GUIDE_ACTION: Partial<Record<keyof BlobbiStats, string>> = {
   energy: 'sleep',
 };
 
-/** Contextual help text shown in the stat popover. */
-export const STAT_HELP_TEXT: Record<keyof BlobbiStats, { title: string; description: string }> = {
-  hunger:    { title: 'Blobbi is hungry!',     description: 'Head to the Kitchen and pick some food.' },
-  happiness: { title: 'Blobbi is feeling sad…', description: 'Go Home and play with a toy!' },
-  health:    { title: 'Blobbi needs care!',     description: 'Visit the Care Room for medicine.' },
-  hygiene:   { title: 'Blobbi needs a bath!',   description: 'Go to the Care Room for hygiene items.' },
-  energy:    { title: 'Blobbi is tired!',       description: 'Head to the Bedroom and put Blobbi to sleep.' },
-};
-
 // ─── Room carousel item constraints ───────────────────────────────────────────
 
 /**
@@ -117,7 +108,7 @@ export function findGuideItemForStat(stat: keyof BlobbiStats): string | null {
 // ─── Guide target builder ─────────────────────────────────────────────────────
 
 /**
- * Build a `GuideTarget` for a low stat, automatically resolving the correct
+ * Build a `GuideTarget` for a stat, automatically resolving the correct
  * room, target type, item/action, and initial step.
  *
  * `currentRoom` determines whether the guide starts at the 'room' step

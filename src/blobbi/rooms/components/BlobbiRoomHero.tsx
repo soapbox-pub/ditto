@@ -79,7 +79,7 @@ export interface BlobbiRoomHeroProps {
   roomId: BlobbiRoomId;
   /** Room order for dot indicators */
   roomOrder?: BlobbiRoomId[];
-  /** Called when the user taps a low-status stat icon to start the guide. */
+  /** Called when the user taps any stat icon to start the guide. */
   onGuide?: (stat: keyof BlobbiStats) => void;
   className?: string;
 }
@@ -144,12 +144,12 @@ export function BlobbiRoomHero({
         <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
-          className="relative transition-all duration-500"
+          className="relative transition-all duration-500 pointer-events-none"
           style={!isSleeping ? {
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
         >
-          <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl" />
           <BlobbiStageVisual
             companion={companion}
             size="lg"
@@ -232,7 +232,7 @@ function StatsCrown({
     : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
   return (
-    <div className="relative flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40, animation: 'stat-glow-clock 2s linear infinite' }}>
+    <div className="relative z-10 flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40, animation: 'stat-glow-clock 2s linear infinite' }}>
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
@@ -243,13 +243,13 @@ function StatsCrown({
         return (
           <div
             key={s.stat}
-            className={cn('absolute transition-all duration-500', s.status !== 'normal' && onGuide && 'cursor-pointer')}
+            className={cn('absolute transition-all duration-500', onGuide && 'cursor-pointer')}
             style={{
               transform: 'translate(-50%, 0)',
               left: `calc(50% + ${x.toFixed(1)}px)`,
               bottom: `${y.toFixed(1)}px`,
             }}
-            onClick={s.status !== 'normal' && onGuide ? () => onGuide(s.stat as keyof BlobbiStats) : undefined}
+            onClick={onGuide ? () => onGuide(s.stat as keyof BlobbiStats) : undefined}
           >
             <StatIndicator stat={s.stat} value={s.value} color={s.color} status={s.status} />
           </div>

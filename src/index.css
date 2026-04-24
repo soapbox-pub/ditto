@@ -745,8 +745,8 @@
 }
 
 /* Guide-target glow — quick blink + pause for nav arrows & carousel.
-   1.4 s cycle, linear: rise (0→8%), brief peak (8→18%), fall (18→28%),
-   idle (28→100% ≈ 1 s pause). */
+   Applied at 1.1s linear: rise (0→8%), brief peak (8→18%), fall (18→28%),
+   idle (28→100% ≈ 0.8 s pause). */
 @keyframes guide-glow-slow {
   0%, 28%, 100% { box-shadow: 0 0 0 0 transparent; }
   8%, 18% { box-shadow: 0 0 4px 1.5px currentColor; }

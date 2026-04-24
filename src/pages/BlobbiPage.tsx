@@ -45,8 +45,7 @@ import {
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
-import { applyBlobbiDecay, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
-import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
@@ -128,17 +127,16 @@ const DEBUG_BLOBBI = import.meta.env.DEV;
 const CARE_THRESHOLD = 40;
 
 /**
- * Check if a companion needs care based on projected (decay-applied) stats.
- * Uses the same projection as the main UI so the badge is consistent with
- * what the user sees on the Blobbi page.
+ * Check if a companion needs care based on stat thresholds.
+ * A Blobbi needs care if any stat is below CARE_THRESHOLD.
  */
 function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = calculateProjectedDecay(companion);
+  const { stats } = companion;
   return (
-    stats.hunger < CARE_THRESHOLD ||
-    stats.happiness < CARE_THRESHOLD ||
-    stats.hygiene < CARE_THRESHOLD ||
-    stats.health < CARE_THRESHOLD
+    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
+    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
+    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
+    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
   );
 }
 
@@ -944,7 +942,7 @@ function BlobbiDashboard({
     }
   }, [isSleeping]);
 
-  // ─── Low-Status Guide Flow ───
+  // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
 
   // Start a guide: build the target and set state
@@ -971,11 +969,6 @@ function BlobbiDashboard({
 
   // Derived: action glow (only when in correct room + on 'action' step)
   const guideActionGlow = guideTarget?.step === 'action' ? guideTarget.targetAction : null;
-
-  // Wrap onRest — guide cleanup is handled by the isSleeping effect below
-  const handleRestWithGuide = useCallback(() => {
-    onRest();
-  }, [onRest]);
 
   // Toggle drawer: tapping same tab closes it, tapping another opens that one
   const toggleDrawer = useCallback((drawer: DashboardDrawer) => {
@@ -1013,14 +1006,8 @@ function BlobbiDashboard({
     }
   }, [isSleeping, guideTarget]);
 
-  // Clear guide when the guided stat recovers above warning threshold
-  useEffect(() => {
-    if (!guideTarget || !projectedState) return;
-    const val = projectedState.stats[guideTarget.stat] ?? 100;
-    if (getStatStatus(companion.stage, guideTarget.stat, val) === 'normal') {
-      setGuideTarget(null);
-    }
-  }, [guideTarget, projectedState, companion.stage]);
+  // Guide is cleared by completion events (item used, sleep started,
+  // or a different stat clicked), not by the stat recovering to normal.
   
   // Measure hero container width for responsive stat arc radius
   const heroRef = useRef<HTMLDivElement>(null);
@@ -1602,7 +1589,7 @@ function BlobbiDashboard({
             handleUseItemFromTab={handleUseItemFromTab}
             handleDirectAction={handleDirectAction}
             onUseItem={onUseItem}
-            onRest={handleRestWithGuide}
+            onRest={onRest}
             setShowPhotoModal={setShowPhotoModal}
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
