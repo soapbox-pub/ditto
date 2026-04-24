@@ -36,6 +36,7 @@ import { useBlobbiCompanionMotion } from './useBlobbiCompanionMotion';
 import { useBlobbiCompanionGaze } from './useBlobbiCompanionGaze';
 import { useBlobbiAttention } from './useBlobbiAttention';
 import { useBlobbiEntryAnimation } from './useBlobbiEntryAnimation';
+import { useRouteReaction } from './useRouteReaction';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 
 /** Options for triggering attention */
@@ -189,7 +190,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
   }, [viewport.width, viewport.height]);
   
   // Attention management - will be activated after entry completes
-  const { currentAttention, triggerAttention } = useBlobbiAttention({
+  const { currentAttention, triggerAttention, clearAttention } = useBlobbiAttention({
     isActive: isVisible && hasEnteredOnce,
   });
   
@@ -275,6 +276,16 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     onStart: handleEntryStart,
   });
   
+  // Route-change reactions — look at main content area after navigation
+  useRouteReaction({
+    pathname: location.pathname,
+    triggerAttention,
+    clearAttention,
+    hasEnteredOnce,
+    isEntering,
+    isDragging: motion.isDragging,
+  });
+
   // Companion should be hidden during route transition delay
   const shouldBeVisible = isVisible && !isHiddenForTransition;
   
