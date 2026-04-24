@@ -41,6 +41,7 @@ import {
   updateBlobbonautTags,
   filterMigratedLegacyCompanions,
   type BlobbiCompanion,
+  type BlobbiStats,
   type BlobbonautProfile,
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
@@ -1514,6 +1515,7 @@ function BlobbiDashboard({
           <RoomBottomBar
             room={currentRoom}
             companion={companion}
+            currentStats={currentStats}
             profile={profile}
             isEgg={isEgg}
             isSleeping={isSleeping}
@@ -1614,6 +1616,8 @@ function BlobbiDashboard({
 interface RoomBottomBarProps {
   room: BlobbiRoomId;
   companion: BlobbiCompanion;
+  /** Projected stats (decay-applied) matching what the stat rings display. */
+  currentStats: BlobbiStats;
   profile: BlobbonautProfile | null;
   isEgg: boolean;
   isSleeping: boolean;
@@ -1735,6 +1739,7 @@ const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 
 function KitchenBar({
   companion,
+  currentStats,
   isUsingItem,
   usingItemId,
   isPublishing,
@@ -1749,9 +1754,9 @@ function KitchenBar({
     const items = getLiveShopItems().filter(i => i.type === 'food');
     return items.map(item => ({
       ...item,
-      statChanges: previewStatChangesWithSegments(companion.stats, item.effect, companion.stage),
+      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
     }));
-  }, [companion.stats, companion.stage]);
+  }, [currentStats, companion.stage]);
 
   const foodEntries = useMemo<CarouselEntry[]>(() =>
     foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
