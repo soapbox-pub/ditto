@@ -97,7 +97,8 @@ import {
   ItemCarousel,
   RoomActionButton,
   useShovelDrag,
-  PoopOverlay,
+  PassivePoopOverlay,
+  KitchenPoopOverlay,
   ShovelButton,
   type BlobbiRoomId,
   type CarouselEntry,
@@ -1746,8 +1747,6 @@ function HomeBar({
   poopStateRef,
   guideHighlightId,
 }: RoomBottomBarProps) {
-  const drag = useShovelDrag({ poopState: poopStateRef.current, roomId: 'home' });
-
   const carouselItems = useMemo<CarouselEntry[]>(() => {
     const toys = getLiveShopItems()
       .filter(i => i.type === 'toy')
@@ -1777,20 +1776,16 @@ function HomeBar({
 
   return (
     <>
-      <PoopOverlay drag={drag} />
+      <PassivePoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
-          {drag.anyPoopInRoom ? (
-            <ShovelButton drag={drag} />
-          ) : (
-            <RoomActionButton
-              icon={<Camera className="size-7 sm:size-9" />}
-              label="Photo"
-              color="text-pink-500"
-              glowHex="#ec4899"
-              onClick={() => setShowPhotoModal(true)}
-            />
-          )}
+          <RoomActionButton
+            icon={<Camera className="size-7 sm:size-9" />}
+            label="Photo"
+            color="text-pink-500"
+            glowHex="#ec4899"
+            onClick={() => setShowPhotoModal(true)}
+          />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
               items={carouselItems}
@@ -1843,7 +1838,7 @@ function KitchenBar({
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
-  const drag = useShovelDrag({ poopState, roomId: 'kitchen' });
+  const drag = useShovelDrag(poopState);
 
   const foodItems = useMemo(() => {
     const items = getLiveShopItems().filter(i => i.type === 'food');
@@ -1871,7 +1866,7 @@ function KitchenBar({
 
   return (
     <>
-      <PoopOverlay drag={drag} />
+      <KitchenPoopOverlay drag={drag} poopStateRef={poopStateRef} />
 
       {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
       {showFridge && (
@@ -1966,8 +1961,6 @@ function CareBar({
   poopStateRef,
   guideHighlightId,
 }: RoomBottomBarProps) {
-  const drag = useShovelDrag({ poopState: poopStateRef.current, roomId: 'care' });
-
   const allShopItems = useMemo(() => getLiveShopItems(), []);
   const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
   const treatItem = useMemo(() => allShopItems.find(i => i.type === 'food'), [allShopItems]);
@@ -1988,10 +1981,7 @@ function CareBar({
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
 
-  // Left button: shovel takes priority when poop is in this room
-  const leftButton = drag.anyPoopInRoom ? (
-    <ShovelButton drag={drag} />
-  ) : isHygieneFocused ? (
+  const leftButton = isHygieneFocused ? (
     towelItem ? (
       <RoomActionButton
         icon={<TowelRack className="size-7 sm:size-9" />}
@@ -2020,7 +2010,7 @@ function CareBar({
 
   return (
     <>
-      <PoopOverlay drag={drag} />
+      <PassivePoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {leftButton}
@@ -2058,15 +2048,13 @@ function CareBar({
 // ── Rest: sleep/wake button centered ──
 
 function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, poopStateRef, guideActionGlow }: RoomBottomBarProps) {
-  const drag = useShovelDrag({ poopState: poopStateRef.current, roomId: 'rest' });
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   return (
     <>
-      <PoopOverlay drag={drag} />
+      <PassivePoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
-        <div className="flex items-center justify-center gap-4">
-          {drag.anyPoopInRoom && <ShovelButton drag={drag} />}
+        <div className="flex items-center justify-center">
           {!isEgg && (
             <RoomActionButton
               icon={

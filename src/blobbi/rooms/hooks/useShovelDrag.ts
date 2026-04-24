@@ -3,24 +3,17 @@
  *
  * Encapsulates pointer tracking, poop hit-testing, and cleanup dispatch.
  * Works with both mouse (desktop) and touch (mobile).
+ * Used only in the kitchen where the shovel lives.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from '@/hooks/useToast';
 
 import type { PoopState } from '../components/BlobbiRoomShell';
-import type { BlobbiRoomId } from '../lib/room-config';
-import { getPoopsInRoom, hasAnyPoop } from '../lib/poop-system';
+import { hasAnyPoop } from '../lib/poop-system';
 
-interface UseShovelDragOptions {
-  poopState: PoopState | null;
-  roomId: BlobbiRoomId;
-}
-
-export function useShovelDrag({ poopState, roomId }: UseShovelDragOptions) {
-  const roomPoops = poopState ? getPoopsInRoom(poopState.poops, roomId) : [];
-  const anyPoopInRoom = roomPoops.length > 0;
-  const anyPoopGlobal = poopState ? hasAnyPoop(poopState.poops) : false;
+export function useShovelDrag(poopState: PoopState | null) {
+  const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
 
   const [isDragging, setIsDragging] = useState(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -31,12 +24,9 @@ export function useShovelDrag({ poopState, roomId }: UseShovelDragOptions) {
   const [hoveredPoopId, setHoveredPoopId] = useState<string | null>(null);
 
   const startDrag = useCallback((clientX: number, clientY: number) => {
-    if (!anyPoopInRoom || !shovelRef.current) {
-      if (!anyPoopInRoom) {
-        toast({
-          title: 'Nothing to clean here!',
-          description: anyPoopGlobal ? 'Try another room.' : 'Your Blobbi hasn\'t made a mess.',
-        });
+    if (!anyPoop || !shovelRef.current) {
+      if (!anyPoop) {
+        toast({ title: 'Nothing to clean!', description: 'Your Blobbi hasn\'t made a mess.' });
       }
       return;
     }
@@ -50,7 +40,7 @@ export function useShovelDrag({ poopState, roomId }: UseShovelDragOptions) {
       y: clientY - dragOffsetRef.current.y,
     });
     setIsDragging(true);
-  }, [anyPoopInRoom, anyPoopGlobal]);
+  }, [anyPoop]);
 
   const moveDrag = useCallback((clientX: number, clientY: number) => {
     if (!isDragging) return;
@@ -114,9 +104,7 @@ export function useShovelDrag({ poopState, roomId }: UseShovelDragOptions) {
   }, [endDrag]);
 
   return {
-    roomPoops,
-    anyPoopInRoom,
-    anyPoopGlobal,
+    anyPoop,
     isDragging,
     dragPos,
     hoveredPoopId,
