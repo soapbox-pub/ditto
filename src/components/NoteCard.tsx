@@ -22,6 +22,8 @@ import {
   Sparkles,
   UserCheck,
   Users,
+  Volume2,
+  VolumeX,
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
@@ -111,6 +113,7 @@ import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -255,23 +258,6 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Parse single imeta tag into structured object (legacy, for kind 34236 vines). */
-function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
-  const imetaTag = tags.find(([name]) => name === "imeta");
-  if (!imetaTag) return {};
-  const result: Record<string, string> = {};
-  for (let i = 1; i < imetaTag.length; i++) {
-    const part = imetaTag[i];
-    const spaceIdx = part.indexOf(" ");
-    if (spaceIdx === -1) continue;
-    const key = part.slice(0, spaceIdx);
-    const value = part.slice(spaceIdx + 1);
-    if (key === "url") result.url = value;
-    else if (key === "image") result.thumbnail = value;
-  }
-  return result;
-}
-
 /** Encodes the NIP-19 identifier for navigating to an event. */
 function encodeEventId(event: NostrEvent): string {
   // Addressable events (30000-39999) use naddr with their d-tag
@@ -391,7 +377,7 @@ export const NoteCard = memo(function NoteCard({
     auxOpenPost(e);
   };
 
-  const isVine = event.kind === 34236;
+  const isVine = event.kind === 34236 || event.kind === 22;
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
@@ -415,9 +401,7 @@ export const NoteCard = memo(function NoteCard({
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
-  const isNormalVideo = event.kind === 21;
-  const isShortVideo = event.kind === 22;
-  const isVideo = isNormalVideo || isShortVideo;
+  const isVideo = event.kind === 21;
   const isMusicTrack = event.kind === 36787;
   const isMusicPlaylist = event.kind === 34139;
   const isPodcastEpisode = event.kind === 30054;
@@ -521,9 +505,9 @@ export const NoteCard = memo(function NoteCard({
   }, [event, isReply]);
   const parentEventId = parentHints?.id;
 
-  // Kind 34236 specific
+  // Kind 22 / 34236 specific
   const imeta = useMemo(
-    () => (isVine ? parseImeta(event.tags) : undefined),
+    () => (isVine ? parseVideoImeta(event.tags) : undefined),
     [event.tags, isVine],
   );
   const vineTitle = isVine ? getTag(event.tags, "title") : undefined;
@@ -1329,7 +1313,7 @@ function fmtDuration(seconds: string | undefined): string | undefined {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Inline video player for NIP-71 kind 21/22 events. */
+/** Inline video player for NIP-71 kind 21 events. */
 function VideoContent({ event }: { event: NostrEvent }) {
   const { url, thumbnail, duration } = useMemo(
     () => parseVideoImeta(event.tags),
@@ -1337,7 +1321,6 @@ function VideoContent({ event }: { event: NostrEvent }) {
   );
   const title = getTag(event.tags, "title");
   const description = event.content;
-  const isShort = event.kind === 22;
   const formattedDuration = fmtDuration(duration);
   const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
@@ -1346,23 +1329,11 @@ function VideoContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <div
-        className={cn(
-          "relative rounded-xl overflow-hidden bg-muted",
-          isShort ? "max-w-[280px]" : "",
-        )}
-      >
+      <div className="relative rounded-xl overflow-hidden bg-muted">
         <VideoPlayer src={url} poster={thumbnail} title={title ?? undefined} />
         {formattedDuration && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
             {formattedDuration}
-          </div>
-        )}
-        {isShort && (
-          <div className="absolute top-2 left-2 pointer-events-none">
-            <span className="text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
-              Short
-            </span>
           </div>
         )}
       </div>
@@ -1389,7 +1360,7 @@ function VideoContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Media content for kind 34236 vine events — rendered at full card width. */
+/** Media content for kind 22 / 34236 short-form video events — rendered at full card width. */
 function VineMedia({
   imeta,
   hashtags,
@@ -1400,6 +1371,7 @@ function VineMedia({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(isVineMuted);
 
   // Pause video when scrolled out of view
   useEffect(() => {
@@ -1425,12 +1397,28 @@ function VineMedia({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play();
-      setIsPlaying(true);
+      // Start muted (required by browsers), then sync to shared state once playing
+      video.muted = true;
+      video.play().then(() => {
+        video.muted = isVineMuted();
+        setIsMuted(isVineMuted());
+      }).catch(() => {
+        // play blocked — leave paused
+      });
     } else {
       video.pause();
       setIsPlaying(false);
     }
+  };
+
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    const next = !video.muted;
+    video.muted = next;
+    setVineMuted(next);
+    setIsMuted(next);
   };
 
   return (
@@ -1448,6 +1436,7 @@ function VineMedia({
             className="w-full max-h-[70vh] object-cover"
             loop
             playsInline
+            muted
             preload="none"
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
@@ -1458,6 +1447,20 @@ function VineMedia({
                 <Play className="size-7 text-white ml-1" fill="white" />
               </div>
             </div>
+          )}
+          {/* Mute/unmute toggle */}
+          {isPlaying && (
+            <button
+              className="absolute bottom-2.5 right-2.5 z-10 size-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+              onClick={handleMuteToggle}
+              aria-label={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? (
+                <VolumeX className="size-4" />
+              ) : (
+                <Volume2 className="size-4" />
+              )}
+            </button>
           )}
         </div>
       )}

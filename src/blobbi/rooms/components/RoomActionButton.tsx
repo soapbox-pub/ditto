@@ -16,6 +16,8 @@ interface RoomActionButtonProps {
   disabled?: boolean;
   loading?: boolean;
   badge?: React.ReactNode;
+  /** When true, the button pulses with a guide-glow animation. */
+  glow?: boolean;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export function RoomActionButton({
   disabled,
   loading,
   badge,
+  glow,
   className,
 }: RoomActionButtonProps) {
   return (
@@ -43,7 +46,11 @@ export function RoomActionButton({
     >
       <div className="relative">
         <div
-          className={cn('size-14 sm:size-20 rounded-full flex items-center justify-center', color)}
+          className={cn(
+            'size-14 sm:size-20 rounded-full flex items-center justify-center',
+            color,
+            glow && 'animate-[guide-glow_4s_ease-in-out_infinite]',
+          )}
           style={{
             background: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
           }}

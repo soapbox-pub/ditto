@@ -6,7 +6,7 @@
  * Top padding accounts for the floating room header overlay.
  */
 
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
   Footprints, Loader2,
@@ -81,6 +81,8 @@ export interface BlobbiRoomHeroProps {
   roomId: BlobbiRoomId;
   /** Room order for dot indicators */
   roomOrder?: BlobbiRoomId[];
+  /** Called when the user taps any stat icon to start the guide. */
+  onGuide?: (stat: keyof BlobbiStats) => void;
   className?: string;
 }
 
@@ -103,6 +105,7 @@ export function BlobbiRoomHero({
   heroWidth,
   roomId,
   roomOrder = DEFAULT_ROOM_ORDER,
+  onGuide,
   className,
 }: BlobbiRoomHeroProps) {
   const roomMeta = ROOM_META[roomId];
@@ -140,15 +143,15 @@ export function BlobbiRoomHero({
       )}
     >
       <div className="relative flex flex-col items-center">
-        <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} />
+        <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
-          className="relative transition-all duration-500"
+          className="relative transition-all duration-500 pointer-events-none"
           style={!isSleeping ? {
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
         >
-          <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl" />
           <BlobbiStageVisual
             companion={companion}
             size="lg"
@@ -202,10 +205,12 @@ function StatsCrown({
   companion,
   currentStats,
   heroWidth,
+  onGuide,
 }: {
   companion: BlobbiCompanion;
   currentStats: BlobbiRoomHeroProps['currentStats'];
   heroWidth: number;
+  onGuide?: (stat: keyof BlobbiStats) => void;
 }) {
   const allStats = useMemo(() =>
     getVisibleStats(companion.stage).map(stat => {
@@ -235,7 +240,7 @@ function StatsCrown({
     : allStats.map((_, i) => -arcHalf + (arcSpread / (count - 1)) * i);
 
   return (
-    <div className="relative flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40 }}>
+    <div className="relative z-10 flex items-end justify-center w-full mb-4 sm:mb-8" style={{ height: 40, animation: 'stat-glow-clock 2s linear infinite' }}>
       {allStats.map((s, i) => {
         const angleDeg = angles[i];
         const angleRad = (angleDeg * Math.PI) / 180;
@@ -246,12 +251,13 @@ function StatsCrown({
         return (
           <div
             key={s.stat}
-            className="absolute transition-all duration-500"
+            className={cn('absolute transition-all duration-500', onGuide && 'cursor-pointer')}
             style={{
               transform: 'translate(-50%, 0)',
               left: `calc(50% + ${x.toFixed(1)}px)`,
               bottom: `${y.toFixed(1)}px`,
             }}
+            onClick={onGuide ? () => onGuide(s.stat as keyof BlobbiStats) : undefined}
           >
             <StatIndicator stat={s.stat} value={s.value} color={s.color} careState={s.careState} filled={s.filled} max={s.max} />
           </div>
@@ -286,13 +292,28 @@ function StatIndicator({
   const IconComponent = STAT_ICON_MAP[stat];
 
   const hasSegments = filled !== undefined && max !== undefined;
+  const isLow = careState === 'attention' || careState === 'urgent';
 
-  return (
-    <div className={cn(
-      'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
-      STAT_BG_COLORS[color],
-      showPulse && 'animate-pulse',
-    )}>
+  /* Box-shadow is driven by --stat-glow-intensity (0→1→0), animated once
+     on the StatsCrown parent. All icons read the same inherited value,
+     giving true phase-lock regardless of individual mount timing. */
+  const glowStyle: CSSProperties | undefined =
+    careState === 'attention'
+      ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 6px) calc(var(--stat-glow-intensity) * 2px) currentColor' }
+      : careState === 'urgent'
+        ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 10px) calc(var(--stat-glow-intensity) * 3px) currentColor' }
+        : undefined;
+
+    return (
+      <div
+        className={cn(
+          'relative size-14 sm:size-[4.5rem] rounded-full flex items-center justify-center',
+          STAT_BG_COLORS[color],
+          isLow && STAT_COLORS[color],
+          showPulse && 'animate-pulse',
+        )}
+        style={glowStyle}
+      >
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
         {hasSegments ? (
           <SegmentedRing

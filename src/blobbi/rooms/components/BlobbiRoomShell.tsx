@@ -55,6 +55,8 @@ interface BlobbiRoomShellProps {
   poopStateRef?: React.MutableRefObject<PoopState | null>;
   /** Called when a poop is cleaned. Parent handles toast/XP persistence. */
   onPoopCleaned?: () => void;
+  /** When set, the matching room-nav arrow glows to guide the user. */
+  guideRoomDirection?: 'left' | 'right' | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -74,6 +76,7 @@ export function BlobbiRoomShell({
   lastFeedTimestamp,
   poopStateRef,
   onPoopCleaned,
+  guideRoomDirection,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -161,13 +164,15 @@ export function BlobbiRoomShell({
           'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
+          guideRoomDirection === 'left' && 'text-primary',
         )}
+        style={guideRoomDirection === 'left' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label={`Go to ${leftDest.label}`}
       >
         <ChevronLeft
           className="size-7 sm:size-8 shrink-0"
           strokeWidth={4}
-          style={{ animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties}
+          style={guideRoomDirection !== 'left' ? { animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties : undefined}
         />
       </button>
 
@@ -180,13 +185,15 @@ export function BlobbiRoomShell({
           'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
+          guideRoomDirection === 'right' && 'text-primary',
         )}
+        style={guideRoomDirection === 'right' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label={`Go to ${rightDest.label}`}
       >
         <ChevronRight
           className="size-7 sm:size-8 shrink-0"
           strokeWidth={4}
-          style={{ animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties}
+          style={guideRoomDirection !== 'right' ? { animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties : undefined}
         />
       </button>
     </div>
