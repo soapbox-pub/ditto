@@ -4,7 +4,6 @@
  * Centralises:
  *   stat → target room
  *   stat → target type (item vs action)
- *   stat → contextual help text
  *   stat → first eligible item (catalog order)
  *   GuideTarget builder
  */

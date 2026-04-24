@@ -950,11 +950,16 @@ function BlobbiDashboard({
     setGuideTarget(buildGuideTarget(stat, currentRoom));
   }, [currentRoom]);
 
-  // Advance step when the user navigates to the target room
+  // Sync guide step with current room:
+  // - entering the target room advances from 'room' to 'item'/'action'
+  // - leaving the target room reverts back to 'room'
   useEffect(() => {
-    if (!guideTarget || guideTarget.step !== 'room') return;
-    if (currentRoom === guideTarget.targetRoom) {
+    if (!guideTarget) return;
+    const inTargetRoom = currentRoom === guideTarget.targetRoom;
+    if (guideTarget.step === 'room' && inTargetRoom) {
       setGuideTarget(prev => prev ? { ...prev, step: prev.targetType } : null);
+    } else if (guideTarget.step !== 'room' && !inTargetRoom) {
+      setGuideTarget(prev => prev ? { ...prev, step: 'room' } : null);
     }
   }, [currentRoom, guideTarget]);
 
@@ -1005,9 +1010,6 @@ function BlobbiDashboard({
       setGuideTarget(null);
     }
   }, [isSleeping, guideTarget]);
-
-  // Guide is cleared by completion events (item used, sleep started,
-  // or a different stat clicked), not by the stat recovering to normal.
   
   // Measure hero container width for responsive stat arc radius
   const heroRef = useRef<HTMLDivElement>(null);
