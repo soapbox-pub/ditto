@@ -17,7 +17,9 @@ export { ROOM_BOTTOM_BAR_CLASS } from './lib/room-layout';
 export {
   type PoopInstance,
   XP_PER_POOP,
+  OVERFEED_THRESHOLD,
   generateInitialPoops,
+  addPoop,
   getPoopsInRoom,
   removePoop,
   hasAnyPoop,

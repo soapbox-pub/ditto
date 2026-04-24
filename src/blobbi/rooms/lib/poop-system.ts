@@ -2,6 +2,7 @@
  * Ephemeral poop system.
  *
  * Generated on page mount based on hunger + time since last feed.
+ * Additional poops can be spawned reactively (e.g. overfeeding).
  * No persistence -- purely local React state.
  */
 
@@ -19,11 +20,10 @@ export interface PoopInstance {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OVERFEED_THRESHOLD = 95;
+export const OVERFEED_THRESHOLD = 95;
 const HOURS_PER_POOP = 2;
 export const XP_PER_POOP = 5;
-
-const POOP_ELIGIBLE_ROOMS: BlobbiRoomId[] = ['care', 'kitchen', 'home', 'rest'];
+const MAX_POOPS = 4;
 
 const SAFE_POSITIONS: Array<{ bottom: number; left: number }> = [
   { bottom: 22, left: 8 },
@@ -67,10 +67,9 @@ export function generateInitialPoops(
     const hoursSinceFeed = (now - lastFeedTimestamp) / (1000 * 60 * 60);
     const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), 3);
     for (let i = 0; i < count; i++) {
-      const room = POOP_ELIGIBLE_ROOMS[Math.floor(Math.random() * POOP_ELIGIBLE_ROOMS.length)];
       poops.push({
         id: nextPoopId(),
-        room,
+        room: 'kitchen',
         source: 'time',
         createdAt: now - i * 1000,
         position: pickPosition(posIndex++),
@@ -79,6 +78,24 @@ export function generateInitialPoops(
   }
 
   return poops;
+}
+
+/** Add a single poop to the list (capped at MAX_POOPS). */
+export function addPoop(
+  poops: PoopInstance[],
+  source: PoopInstance['source'] = 'overfeed',
+): PoopInstance[] {
+  if (poops.length >= MAX_POOPS) return poops;
+  return [
+    ...poops,
+    {
+      id: nextPoopId(),
+      room: 'kitchen',
+      source,
+      createdAt: Date.now(),
+      position: pickPosition(poops.length),
+    },
+  ];
 }
 
 export function getPoopsInRoom(poops: PoopInstance[], room: BlobbiRoomId): PoopInstance[] {

@@ -102,6 +102,7 @@ import {
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
   DEFAULT_ROOM_ORDER,
+  OVERFEED_THRESHOLD,
   getPoopsInRoom,
   hasAnyPoop,
 } from '@/blobbi/rooms';
@@ -1827,6 +1828,7 @@ function KitchenBar({
   handleUseItemFromTab,
   poopStateRef,
   guideHighlightId,
+  guideActionGlow,
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
@@ -1847,22 +1849,142 @@ function KitchenBar({
   const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
   const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
 
+  // ─── Drag-to-clean state ───
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const shovelRef = useRef<HTMLButtonElement>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Track the poop element being hovered during drag
+  const poopRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [hoveredPoopId, setHoveredPoopId] = useState<string | null>(null);
+
+  const startDrag = useCallback((clientX: number, clientY: number) => {
+    if (!anyPoop || !shovelRef.current) {
+      if (!anyPoop) toast({ title: 'Nothing to clean!', description: 'Your Blobbi hasn\'t made a mess.' });
+      return;
+    }
+    const rect = shovelRef.current.getBoundingClientRect();
+    dragOriginRef.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    dragOffsetRef.current = { x: clientX - (rect.left + rect.width / 2), y: clientY - (rect.top + rect.height / 2) };
+    setDragPos({ x: clientX - dragOffsetRef.current.x, y: clientY - dragOffsetRef.current.y });
+    setIsDragging(true);
+  }, [anyPoop]);
+
+  const moveDrag = useCallback((clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    const x = clientX - dragOffsetRef.current.x;
+    const y = clientY - dragOffsetRef.current.y;
+    setDragPos({ x, y });
+
+    // Hit-test poops
+    let found: string | null = null;
+    poopRefs.current.forEach((el, id) => {
+      const r = el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+        found = id;
+      }
+    });
+    setHoveredPoopId(found);
+  }, [isDragging]);
+
+  const endDrag = useCallback(() => {
+    if (!isDragging) return;
+    if (hoveredPoopId && poopState) {
+      poopState.onRemovePoop(hoveredPoopId);
+    }
+    setIsDragging(false);
+    setDragPos(null);
+    setHoveredPoopId(null);
+    dragOriginRef.current = null;
+  }, [isDragging, hoveredPoopId, poopState]);
+
+  // Mouse handlers
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY);
+  }, [startDrag]);
+
+  // Global mouse move/up listeners while dragging
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => moveDrag(e.clientX, e.clientY);
+    const onUp = () => endDrag();
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isDragging, moveDrag, endDrag]);
+
+  // Touch handlers — stopPropagation prevents BlobbiRoomShell swipe navigation
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY);
+  }, [startDrag]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, [moveDrag]);
+
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    endDrag();
+  }, [endDrag]);
+
+  // Feed-with-overfeed: wrap handleUseItemFromTab to trigger poop on overfeed
+  const handleFeedItem = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    handleUseItemFromTab(itemId);
+    // If hunger was already at overfeed threshold before feeding, spawn poop after action
+    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD) {
+      // The feed will resolve asynchronously; we spawn the poop optimistically
+      // since the stat was already high enough to trigger it
+      poopState?.addPoop('overfeed');
+    }
+  }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
+
   return (
     <>
       {/* Poop display */}
       {kitchenPoops.map((poop) => (
-        <button
+        <div
           key={poop.id}
-          onClick={() => poopState?.shovelMode && poopState.onRemovePoop(poop.id)}
+          ref={(el) => {
+            if (el) poopRefs.current.set(poop.id, el);
+            else poopRefs.current.delete(poop.id);
+          }}
           className={cn(
-            'absolute z-10 transition-all duration-300',
-            poopState?.shovelMode ? 'cursor-pointer hover:scale-150 active:scale-75' : 'pointer-events-none',
+            'absolute z-10 transition-transform duration-200 pointer-events-none select-none',
+            hoveredPoopId === poop.id && isDragging && 'scale-150',
           )}
           style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
         >
-          <span className={cn('text-2xl sm:text-3xl block', poopState?.shovelMode && 'drop-shadow-lg')}>💩</span>
-        </button>
+          <span className={cn('text-2xl sm:text-3xl block', isDragging && 'drop-shadow-lg')}>💩</span>
+        </div>
       ))}
+
+      {/* Dragging shovel ghost — fixed position following pointer */}
+      {isDragging && dragPos && (
+        <div
+          className="fixed z-[60] pointer-events-none"
+          style={{
+            left: dragPos.x,
+            top: dragPos.y,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <div className="size-14 sm:size-20 rounded-full flex items-center justify-center text-amber-600 bg-amber-500/15 ring-2 ring-amber-500/40 shadow-lg">
+            <Shovel className="size-7 sm:size-9" />
+          </div>
+        </div>
+      )}
 
       {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
       {showFridge && (
@@ -1886,7 +2008,7 @@ function KitchenBar({
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleUseItemFromTab(item.id)}
+                  onClick={() => handleFeedItem(item.id)}
                   disabled={isDisabled}
                   className={cn(
                     'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
@@ -1922,22 +2044,28 @@ function KitchenBar({
       {/* Normal bottom bar */}
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
-          {anyPoop && poopState ? (
-            <RoomActionButton
-              icon={<Shovel className="size-7 sm:size-9" />}
-              label={poopState.shovelMode ? 'Done' : 'Shovel'}
-              color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
-              glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
-              onClick={() => poopState.setShovelMode(prev => !prev)}
-              className={poopState.shovelMode ? 'ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background rounded-full' : ''}
-            />
-          ) : (
-            <div className="w-14 sm:w-20 shrink-0" />
-          )}
+          <RoomActionButton
+            ref={shovelRef}
+            icon={<Shovel className="size-7 sm:size-9" />}
+            label="Shovel"
+            color="text-stone-500"
+            glowHex="#78716c"
+            onClick={() => {
+              if (!anyPoop) {
+                toast({ title: 'Nothing to clean!', description: 'Your Blobbi hasn\'t made a mess.' });
+              }
+            }}
+            onMouseDown={anyPoop ? onMouseDown : undefined}
+            onTouchStart={anyPoop ? onTouchStart : undefined}
+            onTouchMove={anyPoop ? onTouchMove : undefined}
+            onTouchEnd={anyPoop ? onTouchEnd : undefined}
+            className={cn(anyPoop && 'touch-action-none', isDragging && 'opacity-30')}
+            glow={anyPoop && guideActionGlow === 'clean'}
+          />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
               items={foodEntries}
-              onUse={handleUseItemFromTab}
+              onUse={handleFeedItem}
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
