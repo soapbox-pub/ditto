@@ -272,14 +272,16 @@ export function ComposeBox({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotedEvent]); // Only run on mount / quotedEvent change, not on every content change
 
-  // Auto-resize textarea height as content grows/shrinks
+  // Auto-resize textarea height as content grows/shrinks.
+  // Also re-run when previewMode toggles off so the remounted textarea
+  // is sized to fit its content immediately.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     // Reset to auto so shrinking is detected correctly
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [content]);
+  }, [content, previewMode]);
 
   // Auto-save draft content to localStorage (debounced to avoid thrashing)
   useEffect(() => {
