@@ -1,7 +1,7 @@
 /**
  * useDailyMissions - Hook for reading daily mission state
  *
- * Provides reactive access to the current day's missions.
+ * Provides reactive access to the current day's daily missions.
  * Progress tracking is done via the tracker module (non-React).
  * Completion is implicit (derived from count/events vs target).
  * XP is awarded automatically when missions complete.
@@ -10,6 +10,9 @@
  * switch, hydrates from kind 11125 content JSON if the session store
  * is empty. Completed missions are persisted by `useAwardDailyXp`;
  * intermediate progress resets on page refresh.
+ *
+ * NOTE: Evolution missions are NOT managed here. They live on kind 31124
+ * (per-Blobbi) and are handled by the evolution session store.
  */
 
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
@@ -34,9 +37,9 @@ import {
 } from '../lib/daily-missions';
 
 import {
-  readMissionsFromStorage,
-  writeMissionsToStorage,
-  hydrateFromPersisted,
+  readDailyFromStorage,
+  writeDailyToStorage,
+  hydrateDailyFromPersisted,
 } from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,7 +69,7 @@ export interface UseDailyMissionsOptions {
   /**
    * Raw content string from the kind 11125 profile event.
    * Pass `profile.content` here. The hook parses it to extract
-   * persisted missions and hydrates the session store on first load.
+   * persisted daily missions and hydrates the session store on first load.
    */
   profileContent?: string;
 }
@@ -113,32 +116,23 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     if (hydratedRef.current === pubkey) return; // already hydrated this session
 
     // Check if session store already has data for this pubkey
-    const existing = readMissionsFromStorage(pubkey);
+    const existing = readDailyFromStorage(pubkey);
     if (existing) {
       hydratedRef.current = pubkey;
       return;
     }
 
-    // Parse persisted missions from profile content
+    // Parse persisted daily missions from profile content
     const parsed = parseProfileContent(profileContent);
     if (parsed.missions && !needsDailyReset(parsed.missions)) {
-      // Daily missions are still current — hydrate the full object
-      hydrateFromPersisted(parsed.missions, pubkey);
-    } else if (parsed.missions?.evolution?.length) {
-      // Daily missions need a reset, but evolution missions survive across days.
-      // Seed the store with fresh dailies + persisted evolution so the raw memo
-      // picks them up instead of creating missions with evolution: [].
-      const fresh = createDailyMissionsContent(
-        getTodayDateString(),
-        parsed.missions.evolution,
-        pubkey,
-        availableStages,
-      );
-      writeMissionsToStorage(fresh, pubkey);
+      // Daily missions are still current — hydrate
+      hydrateDailyFromPersisted(parsed.missions, pubkey);
     }
+    // If daily missions need a reset, the raw memo below will create fresh ones.
+
     hydratedRef.current = pubkey;
     setVersion((v) => v + 1);
-  }, [pubkey, profileContent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pubkey, profileContent]);
 
   // Listen for tracker events
   useEffect(() => {
@@ -152,11 +146,9 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
 
   // Read and ensure current state.
   // CRITICAL: Don't create a fresh store entry until hydration is complete.
-  // Creating one prematurely would overwrite persisted evolution missions
-  // because `hydrateFromPersisted` no-ops when the store already has data.
   const hydrated = hydratedRef.current === pubkey;
   const raw = useMemo((): MissionsContent | undefined => {
-    const stored = readMissionsFromStorage(pubkey);
+    const stored = readDailyFromStorage(pubkey);
 
     if (!needsDailyReset(stored)) return stored;
 
@@ -164,14 +156,13 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     // hydration effect to seed persisted data before creating fresh missions.
     if (!stored && !hydrated) return undefined;
 
-    // Reset for new day, preserve evolution missions
+    // Reset for new day
     const fresh = createDailyMissionsContent(
       getTodayDateString(),
-      stored?.evolution ?? [],
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh, pubkey);
+    writeDailyToStorage(fresh, pubkey);
     return fresh;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, pubkey, stagesKey, hydrated]);
@@ -203,14 +194,13 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const forceReset = useCallback(() => {
     const fresh = createDailyMissionsContent(
       getTodayDateString(),
-      raw?.evolution ?? [],
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh, pubkey);
+    writeDailyToStorage(fresh, pubkey);
     setVersion((v) => v + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pubkey, stagesKey, raw?.evolution]);
+  }, [pubkey, stagesKey]);
 
   return {
     missions,

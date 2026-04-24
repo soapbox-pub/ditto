@@ -3,13 +3,13 @@
 /**
  * Hook to compute hatch task progress.
  *
- * Progress is stored in `MissionsContent.evolution[]` on kind 11125.
+ * Progress is stored in the kind 31124 Blobbi event content JSON (per-Blobbi).
  * - Interactions: TallyMission tracked via `trackEvolutionMissionTally`
  * - Event-based tasks: EventMission, backfilled from retroactive Nostr queries
  *
  * The Nostr queries discover event IDs that satisfy event-based tasks and
- * feed them into the evolution tracker. The evolution array is the source of
- * truth for completion state.
+ * feed them into the evolution tracker. The evolution array (from companion
+ * or session store) is the source of truth for completion state.
  */
 
 import { useEffect, useRef, useMemo } from 'react';
@@ -19,9 +19,14 @@ import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import type { Mission } from '@/blobbi/core/lib/missions';
 import { missionProgress, isEventMission } from '@/blobbi/core/lib/missions';
-import { trackEvolutionMissionEvent, readMissionsFromStorage, ensureSessionStore, writeMissionsToStorage } from '../lib/daily-mission-tracker';
+import {
+  trackEvolutionMissionEvent,
+  readEvolutionFromStorage,
+  writeEvolutionToStorage,
+  hydrateEvolutionFromPersisted,
+} from '../lib/daily-mission-tracker';
 import {
   HATCH_MISSIONS,
   HATCH_REQUIRED_INTERACTIONS,
@@ -99,45 +104,71 @@ export interface HatchTasksResult {
  * Hook to compute hatch task progress from evolution missions + Nostr event backfill.
  *
  * @param companion - The Blobbi companion (must be incubating)
- * @param missions - Current MissionsContent from the session store
  */
 export function useHatchTasks(
   companion: BlobbiCompanion | null,
-  missions: MissionsContent | undefined,
 ): HatchTasksResult {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
   const pubkey = user?.pubkey;
+  const companionD = companion?.d;
   const isIncubating = companion?.progressionState === 'incubating';
-  const evolution = useMemo(() => missions?.evolution ?? [], [missions?.evolution]);
+
+  // Read evolution from companion (31124 content) or session store
+  const evolution = useMemo((): Mission[] => {
+    if (!pubkey || !companionD) return [];
+    // Session store takes priority (has latest in-session progress)
+    const fromStore = readEvolutionFromStorage(pubkey, companionD);
+    if (fromStore && fromStore.length > 0) return fromStore;
+    // Fall back to companion's persisted evolution from 31124 content
+    return companion?.evolution ?? [];
+  }, [pubkey, companionD, companion?.evolution]);
+
+  // ─── Hydrate evolution store from companion on mount ───
+  // If the companion has persisted evolution data but the session store is empty,
+  // seed the session store so tally tracking works immediately.
+  const hydratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isIncubating || !pubkey || !companionD) return;
+    const hydrateKey = `${pubkey}:${companionD}`;
+    if (hydratedRef.current === hydrateKey) return;
+    hydratedRef.current = hydrateKey;
+
+    const companionEvolution = companion?.evolution ?? [];
+    if (companionEvolution.length > 0) {
+      hydrateEvolutionFromPersisted(companionEvolution, pubkey, companionD);
+    }
+  }, [isIncubating, pubkey, companionD, companion?.evolution]);
 
   // ─── Ensure evolution missions exist and match current definitions ───
   // Safety net: if the companion is incubating but evolution[] is empty
-  // (e.g. persist didn't fire, hydration lost them), re-populate from
+  // (e.g. persist didn't fire, old content format), re-populate from
   // the static definitions so tally tracking works immediately.
-  // Also handles schema migrations: if persisted missions don't match
-  // the current HATCH_MISSIONS (e.g. a mission was added or removed),
-  // rebuild from definitions while preserving progress for surviving missions.
-  const ensuredRef = useRef(false);
+  // Scoped by pubkey:d so switching Blobbis re-runs the check.
+  const ensuredRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isIncubating || !pubkey || ensuredRef.current) return;
+    const ensureKey = `${pubkey}:${companionD}`;
+    if (!isIncubating || !pubkey || !companionD || ensuredRef.current === ensureKey) return;
 
-    const store = ensureSessionStore(pubkey);
-    if (store.evolution.length === 0) {
-      writeMissionsToStorage({ ...store, evolution: createHatchMissions() }, pubkey);
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
-    } else if (!evolutionMatchesDefinitions(store.evolution, HATCH_MISSIONS)) {
-      const migrated = migrateEvolutionMissions(store.evolution, HATCH_MISSIONS);
-      writeMissionsToStorage({ ...store, evolution: migrated }, pubkey);
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true } }));
+    const fromStore = readEvolutionFromStorage(pubkey, companionD);
+    const current = fromStore && fromStore.length > 0 ? fromStore : (companion?.evolution ?? []);
+
+    if (current.length === 0) {
+      const fresh = createHatchMissions();
+      writeEvolutionToStorage(fresh, pubkey, companionD);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
+    } else if (!evolutionMatchesDefinitions(current, HATCH_MISSIONS)) {
+      const migrated = migrateEvolutionMissions(current, HATCH_MISSIONS);
+      writeEvolutionToStorage(migrated, pubkey, companionD);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: companionD } }));
     }
-    ensuredRef.current = true;
-  }, [isIncubating, pubkey, evolution]);
+    ensuredRef.current = ensureKey;
+  }, [isIncubating, pubkey, companionD, companion?.evolution]);
 
   // ─── Retroactive Nostr Queries (discover event IDs to backfill) ───
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['hatch-tasks', pubkey],
+    queryKey: ['hatch-tasks', pubkey, companionD],
     queryFn: async () => {
       if (!pubkey) return null;
 
@@ -159,7 +190,6 @@ export function useHatchTasks(
   });
 
   // ─── Compute event counts directly from Nostr query results ───
-  // These are the authoritative counts for event-based tasks.
   const queryCounts: Record<string, number> = useMemo(() => {
     if (!data) return {} as Record<string, number>;
     return {
@@ -172,33 +202,28 @@ export function useHatchTasks(
   const lastBackfilledDataRef = useRef<typeof data>(null);
 
   useEffect(() => {
-    if (!data || !pubkey || evolution.length === 0) return;
+    if (!data || !pubkey || !companionD || evolution.length === 0) return;
     if (data === lastBackfilledDataRef.current) return;
     lastBackfilledDataRef.current = data;
 
-    const current = readMissionsFromStorage(pubkey);
-    if (!current || current.evolution.length === 0) return;
-    const evo = current.evolution;
+    const current = readEvolutionFromStorage(pubkey, companionD);
+    if (!current || current.length === 0) return;
 
     for (const event of data.themeEvents) {
-      const m = findEvolutionMission(evo, 'create_theme');
+      const m = findEvolutionMission(current, 'create_theme');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('create_theme', event.id, pubkey);
+        trackEvolutionMissionEvent('create_theme', event.id, pubkey, companionD);
       }
     }
     for (const event of data.colorMomentEvents) {
-      const m = findEvolutionMission(evo, 'color_moment');
+      const m = findEvolutionMission(current, 'color_moment');
       if (m && isEventMission(m) && !m.events.includes(event.id)) {
-        trackEvolutionMissionEvent('color_moment', event.id, pubkey);
+        trackEvolutionMissionEvent('color_moment', event.id, pubkey, companionD);
       }
     }
-  }, [data, pubkey, evolution]);
+  }, [data, pubkey, companionD, evolution]);
 
   // ─── Build task view models ───
-  // For event-based tasks, use the MAX of the Nostr query count and the
-  // evolution mission progress. The query is authoritative but the mission
-  // store may have progress from a previous session that hasn't been
-  // re-queried yet.
   const tasks: HatchTask[] = HATCH_MISSIONS.map((def) => {
     const mission = findEvolutionMission(evolution, def.id);
     const missionCount = mission ? missionProgress(mission) : 0;

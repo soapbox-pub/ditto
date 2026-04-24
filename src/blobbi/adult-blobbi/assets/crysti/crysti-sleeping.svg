@@ -52,12 +52,12 @@
   <path d="M 100 55 L 135 82 L 135 128 L 100 155 L 65 128 L 65 82 Z" fill="url(#crystiInner)" opacity="0.7" />
   
   <!-- Crystal segments with rounded edges -->
-  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.6" />
-  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.5" />
-  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.5" />
-  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.4" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.4" />
-  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.6" />
+  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.8" />
+  <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
+  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
+  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Sleeping eyes -->
   <path d="M 78 95 Q 88 98 98 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />

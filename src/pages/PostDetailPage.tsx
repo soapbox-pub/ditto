@@ -126,6 +126,7 @@ const VANISH_KIND = 62;
 /** Map a kind number to a human-readable shell title for the loading state. */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return "Loading...";
+  if (kind === 34139) return "Playlist Details";
   if (MUSIC_KINDS.has(kind)) return "Track Details";
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
@@ -2164,7 +2165,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedLetterContent event={event} />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-                <BlobbiStateCard event={event} />
+                <BlobbiStateCard event={event} lookMode="follow-pointer" />
               </Suspense>
             ) : isBadgeAward ? (
               <BadgeAwardCard event={event} />

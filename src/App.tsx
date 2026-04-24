@@ -1,12 +1,10 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
-import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
-import { useEffect } from "react";
 import { AppProvider } from "@/components/AppProvider";
 import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
@@ -151,6 +149,7 @@ const hardcodedConfig: AppConfig = {
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
+  autoplayVideos: false,
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
@@ -190,17 +189,6 @@ const defaultConfig: AppConfig = {
 export function App() {
   useNsecPasteGuard();
 
-  useEffect(() => {
-    // Initialize system bars for mobile apps.
-    // On Android 16+ (API 36), edge-to-edge is enforced by the OS so
-    // setOverlaysWebView / setBackgroundColor no longer work. The new
-    // SystemBars API (bundled with @capacitor/core 8+) is the replacement.
-    if (Capacitor.isNativePlatform()) {
-      SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {
-        // SystemBars may not be available on all platforms
-      });
-    }
-  }, []);
 
   return (
     <UnheadProvider head={head}>

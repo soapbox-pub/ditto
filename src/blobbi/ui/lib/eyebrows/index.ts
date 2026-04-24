@@ -3,7 +3,7 @@
  * 
  * Canonical owner of all eyebrow-related logic:
  * - Generation (straight, curved, per-eye overrides)
- * - Variant/form offset adjustments
+ * - Eye-size-aware vertical placement
  * - Animated bounce styles
  */
 
@@ -17,7 +17,7 @@ export type {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export { EYEBROW_CLASSES, FORM_EYEBROW_OFFSETS } from './generators';
+export { EYEBROW_CLASSES } from './generators';
 
 // ─── Generators ───────────────────────────────────────────────────────────────
 

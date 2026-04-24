@@ -267,10 +267,9 @@ export function createMission(def: DailyMissionDefinition): Mission {
   return { id: def.id, target: def.target, count: 0 } satisfies TallyMission;
 }
 
-/** Create a fresh MissionsContent for a new day, preserving evolution missions */
+/** Create a fresh MissionsContent for a new day */
 export function createDailyMissionsContent(
   dateString: string,
-  existingEvolution: Mission[],
   pubkey?: string,
   availableStages?: BlobbiStage[],
 ): MissionsContent {
@@ -278,7 +277,6 @@ export function createDailyMissionsContent(
   return {
     date: dateString,
     daily: defs.map(createMission),
-    evolution: existingEvolution,
     rerolls: MAX_DAILY_REROLLS,
   };
 }
@@ -324,39 +322,41 @@ export function trackEvent(
   return { ...missions, daily: updated };
 }
 
+// ─── Evolution Mission Tracking (operates on Mission[] directly) ─────────────
+
 /**
- * Track progress for an evolution mission by tally.
+ * Increment tally for an evolution mission by ID.
+ * Returns a new array (immutable). Used by the evolution session store.
  */
 export function trackEvolutionTally(
-  missions: MissionsContent,
+  evolution: Mission[],
   missionId: string,
   incrementBy: number = 1,
-): MissionsContent {
-  const updated = missions.evolution.map((m) => {
+): Mission[] {
+  return evolution.map((m) => {
     if (m.id !== missionId) return m;
     if (!isTallyMission(m)) return m;
     if (m.count >= m.target) return m;
     return { ...m, count: Math.min(m.count + incrementBy, m.target) };
   });
-  return { ...missions, evolution: updated };
 }
 
 /**
- * Append an event ID to an evolution mission.
+ * Append a Nostr event ID to an evolution mission.
+ * Returns a new array (immutable). Used by the evolution session store.
  */
 export function trackEvolutionEvent(
-  missions: MissionsContent,
+  evolution: Mission[],
   missionId: string,
   eventId: string,
-): MissionsContent {
-  const updated = missions.evolution.map((m) => {
+): Mission[] {
+  return evolution.map((m) => {
     if (m.id !== missionId) return m;
     if (!isEventMission(m)) return m;
     if (m.events.length >= m.target) return m;
     if (m.events.includes(eventId)) return m;
     return { ...m, events: [...m.events, eventId] };
   });
-  return { ...missions, evolution: updated };
 }
 
 // ─── Completion Queries ──────────────────────────────────────────────────────
@@ -364,11 +364,6 @@ export function trackEvolutionEvent(
 /** Whether all daily missions are complete */
 export function areAllDailyComplete(missions: MissionsContent): boolean {
   return missions.daily.length > 0 && missions.daily.every(isMissionComplete);
-}
-
-/** Whether all evolution missions are complete */
-export function areAllEvolutionComplete(missions: MissionsContent): boolean {
-  return missions.evolution.length > 0 && missions.evolution.every(isMissionComplete);
 }
 
 /** Total XP available from today's daily missions (including bonus if all complete) */

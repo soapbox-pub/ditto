@@ -593,7 +593,7 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <div className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <div dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':

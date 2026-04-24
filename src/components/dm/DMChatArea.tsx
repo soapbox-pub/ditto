@@ -91,7 +91,7 @@ const MessageBubble = memo(({
           </div>
         ) : (
           // Kind 4 (NIP-04) and Kind 14 (NIP-17 text): Display plain text
-          <p className="text-sm whitespace-pre-wrap break-words">
+          <p dir="auto" className="text-sm whitespace-pre-wrap break-words">
             {message.decryptedContent}
           </p>
         )}

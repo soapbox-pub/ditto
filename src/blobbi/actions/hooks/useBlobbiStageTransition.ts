@@ -27,19 +27,22 @@ import {
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@/blobbi/core/lib/blobbi-tag-schema';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
+import { createEvolveMissions } from '../lib/evolution-missions';
+import { writeEvolutionToStorage, clearEvolutionFromStorage } from '../lib/daily-mission-tracker';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 
 // ─── Content Helpers ──────────────────────────────────────────────────────────
 
 /**
  * Generate the content string for a Blobbi at a given stage.
- * Format: "{name} is a {stage} Blobbi."
- * 
- * Uses correct grammar: "an egg" vs "a baby/adult"
+ * Now stores JSON with an optional evolution array.
+ * Falls back to a descriptive JSON content when no evolution is active.
  */
-function generateBlobbiContent(name: string, stage: BlobbiStage): string {
-  const article = stage === 'egg' ? 'an' : 'a';
-  return `${name} is ${article} ${stage} Blobbi.`;
+function generateBlobbiContent(_name: string, _stage: BlobbiStage): string {
+  // Return empty JSON — evolution will be populated separately when needed.
+  // The old plain-text format ("Luna is an egg Blobbi.") is no longer used.
+  return JSON.stringify({});
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -209,9 +212,13 @@ export function useBlobbiHatch({
         progression_started_at: nowStr,
       });
 
-      // ─── Generate New Content for Baby Stage ───
-      // CRITICAL: Content must reflect the new stage
-      const newContent = generateBlobbiContent(canonical.companion.name, 'baby');
+      // ─── Write evolution missions into 31124 content ───
+      // Baby auto-starts evolution, so seed the missions immediately.
+      const evolveMissions = createEvolveMissions();
+      const newContent = serializeEvolutionContent(
+        generateBlobbiContent(canonical.companion.name, 'baby'),
+        evolveMissions,
+      );
 
       // ─── Publish Event ───
       const event = await publishEvent({
@@ -221,6 +228,12 @@ export function useBlobbiHatch({
       });
 
       updateCompanionEvent(event);
+
+      // ─── Seed evolution session store for immediate tally tracking ───
+      if (user?.pubkey) {
+        writeEvolutionToStorage(evolveMissions, user.pubkey, canonical.companion.d);
+        window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
+      }
 
       return {
         previousStage: 'egg',
@@ -360,9 +373,11 @@ export function useBlobbiEvolve({
         progression_state: 'none',
       });
 
-      // ─── Generate New Content for Adult Stage ───
-      // CRITICAL: Content must reflect the new stage
-      const newContent = generateBlobbiContent(canonical.companion.name, 'adult');
+      // ─── Clear evolution from 31124 content (progression complete) ───
+      const newContent = serializeEvolutionContent(
+        generateBlobbiContent(canonical.companion.name, 'adult'),
+        [],
+      );
 
       // ─── Publish Event ───
       const event = await publishEvent({
@@ -372,6 +387,11 @@ export function useBlobbiEvolve({
       });
 
       updateCompanionEvent(event);
+
+      // ─── Clear evolution session store ───
+      if (user?.pubkey) {
+        clearEvolutionFromStorage(user.pubkey, canonical.companion.d);
+      }
 
       return {
         previousStage: 'baby',

@@ -48,8 +48,9 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally } from '@/blobbi/actions/lib/daily-mission-tracker';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@/blobbi/actions/lib/daily-mission-tracker';
 import type { DailyMissionAction } from '@/blobbi/actions/lib/daily-missions';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 
 import type { UseItemFunction } from './BlobbiActionsContextDef';
@@ -354,9 +355,18 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       const progressionState = companion.progressionState;
       const updatedTags = companion.allTags;
       if (progressionState === 'incubating' || progressionState === 'evolving') {
-        trackEvolutionMissionTally('interactions', 1, user?.pubkey);
+        trackEvolutionMissionTally('interactions', 1, user?.pubkey, companion.d);
       }
       
+      // ─── Build content with latest evolution state ───
+      let content = companion.event.content;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        const evo = readEvolutionFromStorage(user?.pubkey, companion.d);
+        if (evo && evo.length > 0) {
+          content = serializeEvolutionContent(companion.event.content, evo);
+        }
+      }
+
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(companion) ?? {};
       
@@ -369,7 +379,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       
       const blobbiEvent = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: companion.event.content,
+        content,
         tags: blobbiTags,
       });
       
