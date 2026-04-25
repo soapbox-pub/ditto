@@ -1515,6 +1515,9 @@ function BlobbiDashboard({
      *  touching React state. */
     const isActive = () => mountedRef.current && seq === feedSeqRef.current;
 
+    // ── Overfeed check (must run before the mutation fires) ──
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
+
     // ── Lock + visual + audio ──
     setUsingItemId(itemId);
     setActionOverrideEmotion('chewing');
@@ -1628,7 +1631,7 @@ function BlobbiDashboard({
         setUsingItemId(null);
       }
     }, 5000);
-  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers]);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
 
   const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
   
@@ -2067,6 +2070,28 @@ const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   energy: Zap,
 };
 
+/**
+ * Shared overfeed check.  Call synchronously at the moment of feeding,
+ * before the mutation fires, so `hungerBefore` captures the pre-feed value.
+ *
+ * Both the tap-to-feed (`handleFeedItem`) and drag-to-feed
+ * (`handleFeedFromDrag`) paths must call this to keep poop behaviour
+ * consistent.
+ */
+function maybeOverfeedPoop(
+  action: string | null | undefined,
+  hungerBefore: number,
+  poopState: PoopState | null,
+): void {
+  if (
+    action === 'feed' &&
+    hungerBefore >= OVERFEED_THRESHOLD &&
+    Math.random() < OVERFEED_CHANCE
+  ) {
+    poopState?.addPoop('overfeed');
+  }
+}
+
 function KitchenBar({
   companion,
   isUsingItem,
@@ -2100,11 +2125,8 @@ function KitchenBar({
   // Feed-with-overfeed: wrap handleUseItemFromTab to trigger poop on overfeed.
   const handleFeedItem = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
-    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
     handleUseItemFromTab(itemId);
-    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
-      poopState?.addPoop('overfeed');
-    }
   }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
 
   // Build pointer-down handler for food drag-to-feed.
