@@ -6,6 +6,7 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
+| 30078 | Buddy Identity       | NIP-78 app-specific data storing an encrypted AI buddy identity (`<appId>/buddy` d-tag, NIP-44 self-encrypted `{nsec, name, soul}`). See [`src/NIP.md`](src/NIP.md) for full spec. |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |

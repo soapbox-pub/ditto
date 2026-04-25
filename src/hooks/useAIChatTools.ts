@@ -47,6 +47,14 @@ export const TOOLS = Object.entries(TOOL_REGISTRY).map(
   ([name, tool]) => toolToOpenAI(name, tool),
 );
 
+/** Short human-readable summaries for each tool (name + first sentence of description). */
+export const TOOL_SUMMARIES: { name: string; summary: string }[] = Object.entries(TOOL_REGISTRY).map(
+  ([name, tool]) => ({
+    name,
+    summary: tool.description.split(/[.\n]/)[0].trim(),
+  }),
+);
+
 // ─── Hook ───
 
 export function useAIChatTools() {
