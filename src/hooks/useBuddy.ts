@@ -46,7 +46,7 @@ export interface BuddyIdentity {
 
 /** Zod schema for validating decrypted buddy secrets. */
 const BuddySecretsSchema = z.object({
-  nsec: z.string().min(1),
+  nsec: z.string().regex(/^[0-9a-f]{64}$/),
   name: z.string().min(1),
   soul: z.string().min(1),
 });
