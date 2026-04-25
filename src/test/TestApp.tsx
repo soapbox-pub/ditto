@@ -6,6 +6,7 @@ import { AppProvider } from "@/components/AppProvider";
 import NostrProvider from "@/components/NostrProvider";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
+import { ScreenEffectProvider } from "@/contexts/ScreenEffectContext";
 
 interface TestAppProps {
   children: React.ReactNode;
@@ -130,7 +131,9 @@ export function TestApp({ children }: TestAppProps) {
           <NostrLoginProvider storageKey="test-login">
             <NostrProvider>
               <NWCProvider>
-                <BrowserRouter>{children}</BrowserRouter>
+                <ScreenEffectProvider>
+                  <BrowserRouter>{children}</BrowserRouter>
+                </ScreenEffectProvider>
               </NWCProvider>
             </NostrProvider>
           </NostrLoginProvider>
