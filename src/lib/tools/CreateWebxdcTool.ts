@@ -3,7 +3,7 @@ import { zipSync, strToU8 } from 'fflate';
 
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-import { getBuddyOrEphemeralKey, signAndPublishWithProfile, createBuddyUploader } from './helpers';
+import { BUDDY_KEY_UNAVAILABLE_ERROR, getBuddyKey, signAndPublishAsBuddy, createBuddyUploader } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -32,6 +32,8 @@ export const CreateWebxdcTool: Tool<Params> = {
   description: `Create and publish a WebXDC mini-app. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run inside a sandboxed iframe with no internet access.
 
 You provide the app name and source code. The tool handles everything else: packaging into a .xdc archive, uploading to Blossom, and publishing as a kind 1063 Nostr event that other users can launch directly from their feed.
+
+The Blossom upload and published Nostr event are signed by Buddy's identity.
 
 **Two modes for source code:**
 - **Simple (html param):** Provide a single self-contained HTML string. Best for small apps.
@@ -78,6 +80,11 @@ Only one of html or files is needed. If both are provided, files takes priority.
     }
     if (!filesMap && !html) {
       return { result: JSON.stringify({ error: 'Either "html" or "files" is required.' }) };
+    }
+
+    const buddyKey = getBuddyKey(ctx.getBuddySecretKey);
+    if (!buddyKey) {
+      return { result: JSON.stringify({ error: BUDDY_KEY_UNAVAILABLE_ERROR }) };
     }
 
     // Build the .xdc archive in memory using fflate
@@ -127,7 +134,7 @@ Only one of html or files is needed. If both are provided, files takes priority.
     const xdcFile = new File([zipped], `${slug}.xdc`, { type: 'application/x-webxdc' });
 
     // Upload to Blossom
-    const uploader = createBuddyUploader(ctx.getBuddySecretKey, ctx.user.signer, ctx.config);
+    const uploader = createBuddyUploader(buddyKey.sk, ctx.config);
 
     const uploadTags = await uploader.upload(xdcFile);
     let blossomUrl = uploadTags[0][1];
@@ -156,18 +163,16 @@ Only one of html or files is needed. If both are provided, files takes priority.
     const imageUrl = sanitizeUrl((args.image_url ?? '').trim());
     if (imageUrl) eventTags.push(['image', imageUrl]);
 
-    const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(ctx.getBuddySecretKey);
-    const webxdcEvent = await signAndPublishWithProfile(
-      ctx.nostr, sk, isBuddy,
+    const webxdcEvent = await signAndPublishAsBuddy(
+      ctx.nostr, buddyKey.sk,
       { kind: 1063, content: description || appName, tags: eventTags, created_at: Math.floor(Date.now() / 1000) },
-      { name: 'Dork App Maker', about: 'WebXDC apps created by Dork AI' },
     );
 
     return {
       result: JSON.stringify({
         success: true,
         event_id: webxdcEvent.id,
-        pubkey,
+        pubkey: buddyKey.pubkey,
         name: appName,
         url: blossomUrl,
         size: xdcFile.size,

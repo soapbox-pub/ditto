@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { proxyUrl } from '@/lib/proxyUrl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
-import { createBuddyUploader } from './helpers';
+import { BUDDY_KEY_UNAVAILABLE_ERROR, createBuddyUploader, getBuddyKey } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -34,7 +34,7 @@ export const UploadFromUrlTool: Tool<Params> = {
 
 Supports any file type: images (png, jpg, gif, webp, svg), WebXDC apps (.xdc), archives (.zip), video, audio, documents, etc. MIME types are detected from file extensions — .xdc files are uploaded as application/x-webxdc.
 
-Use this after fetch_page to upload discovered files, or directly with known URLs. Each file is fetched via CORS proxy and uploaded to Blossom. The user must be logged in.
+Use this after fetch_page to upload discovered files, or directly with known URLs. Each file is fetched via CORS proxy and uploaded to Blossom. The user must be logged in and the upload is signed by Buddy.
 
 Handles up to 50 files per call. Returns an array of objects with the original URL, the Blossom URL, detected MIME type, and a suggested shortcode derived from the filename.`,
 
@@ -50,7 +50,12 @@ Handles up to 50 files per call. Returns an array of objects with the original U
       return { result: JSON.stringify({ error: 'At least one URL is required.' }) };
     }
 
-    const uploader = createBuddyUploader(ctx.getBuddySecretKey, ctx.user.signer, ctx.config);
+    const buddyKey = getBuddyKey(ctx.getBuddySecretKey);
+    if (!buddyKey) {
+      return { result: JSON.stringify({ error: BUDDY_KEY_UNAVAILABLE_ERROR }) };
+    }
+
+    const uploader = createBuddyUploader(buddyKey.sk, ctx.config);
 
     const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; mime_type?: string; error?: string }> = [];
 
