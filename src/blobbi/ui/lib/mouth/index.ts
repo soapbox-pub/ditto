@@ -43,6 +43,7 @@ export {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateEatingMouth,
   generateChewingMouth,
   generateDrool,
   generateFoodIcon,
@@ -52,4 +53,7 @@ export {
   computeDroolAnchor,
   generateDroolAtAnchor,
   type DroolAnchor,
+  // Action-mouth geometry (shared by eating + chewing)
+  computeActionMouthGeometry,
+  type ActionMouthGeometry,
 } from './generators';
