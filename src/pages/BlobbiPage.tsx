@@ -1835,6 +1835,7 @@ function BlobbiDashboard({
       {/* ─── Crumb burst overlay (chewing feedback) ─── */}
       {crumbBurst && (
         <CrumbBurst
+          key={feedSeqRef.current}
           crumbX={crumbBurst.crumbX}
           crumbY={crumbBurst.crumbY}
           rewardX={crumbBurst.rewardX}
