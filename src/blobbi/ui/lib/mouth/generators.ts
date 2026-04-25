@@ -427,17 +427,20 @@ export function generateChewingMouth(mouth: MouthPosition): string {
   const cx = (mouth.startX + mouth.endX) / 2;
   const cy = mouth.controlY;
 
-  // Mouth dimensions: slightly smaller than the eating mouth (rx 6, ry 7)
-  // so the transition from eating → chewing feels natural.
-  const rx = 4;
-  const ryOpen = 5;
-  const ryClosed = 1;
+  // Scale the chewing ellipse from the detected mouth width so wide-mouthed
+  // variants (e.g. Froggi, 110 px) get a proportional chomp instead of a
+  // fixed 8 px dot.  Clamped to [4, 14] for reasonable visual bounds.
+  const halfWidth = (mouth.endX - mouth.startX) / 2;
+  const rx = Math.min(14, Math.max(4, halfWidth * 0.35));
+  const ryOpen = rx * 1.25;
+  const ryClosed = Math.max(1, rx * 0.25);
 
   // ~300ms per chomp cycle → fast enough to look like chewing
   const dur = 0.3;
 
   return `<ellipse
     class="blobbi-mouth blobbi-mouth-chewing"
+    data-blobbi-mouth="1"
     cx="${cx}" cy="${cy}"
     rx="${rx}" ry="${ryOpen}"
     fill="#1f2937"
