@@ -85,7 +85,6 @@ import {
   type BlobbiReactionState,
   type StartIncubationMode,
 } from '@/blobbi/actions';
-// DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';

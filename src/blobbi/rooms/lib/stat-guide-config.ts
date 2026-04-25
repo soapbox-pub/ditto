@@ -87,7 +87,7 @@ const ROOM_CAROUSEL_EXCLUDED: Partial<Record<BlobbiRoomId, Set<string>>> = {
  * Scans in catalog order (matching real carousel display order).
  * Returns null for action-type stats (energy) or if no eligible item exists.
  */
-export function findGuideItemForStat(stat: keyof BlobbiStats): string | null {
+function findGuideItemForStat(stat: keyof BlobbiStats): string | null {
   if (STAT_GUIDE_TYPE[stat] !== 'item') return null;
 
   const room = STAT_ROOM_MAP[stat];
