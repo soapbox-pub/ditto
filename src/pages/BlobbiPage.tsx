@@ -41,18 +41,18 @@ import {
   updateBlobbonautTags,
   filterMigratedLegacyCompanions,
   type BlobbiCompanion,
+  type BlobbiStats,
   type BlobbonautProfile,
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 import {
-  BlobbiActionInventoryModal,
   PlayMusicModal,
   InlineMusicPlayer,
   InlineSingCard,
@@ -72,7 +72,7 @@ import {
   getActionForItem,
   trackDailyMissionProgress,
   getStreakTagUpdates,
-   previewStatChanges,
+   previewStatChangesWithSegments,
    useDailyMissions,
    useAwardDailyXp,
    usePersistEvolutionProgress,
@@ -127,21 +127,27 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
-/** Stat threshold below which a Blobbi is considered to need care */
-const CARE_THRESHOLD = 40;
+/** Stat keys checked for the companion selector care badge (excludes energy). */
+const CARE_BADGE_STATS = ['hunger', 'happiness', 'hygiene', 'health'] as const;
 
 /**
- * Check if a companion needs care based on stat thresholds.
- * A Blobbi needs care if any stat is below CARE_THRESHOLD.
+ * Check if a companion needs care using the segment display model.
+ *
+ * Shows a care badge when:
+ * - any stat is `urgent`, OR
+ * - two or more stats are `attention`.
+ *
+ * Eggs always return `protected` from the helper, so they never show a badge.
  */
 function companionNeedsCare(companion: BlobbiCompanion): boolean {
-  const { stats } = companion;
-  return (
-    (stats.hunger !== undefined && stats.hunger < CARE_THRESHOLD) ||
-    (stats.happiness !== undefined && stats.happiness < CARE_THRESHOLD) ||
-    (stats.hygiene !== undefined && stats.hygiene < CARE_THRESHOLD) ||
-    (stats.health !== undefined && stats.health < CARE_THRESHOLD)
-  );
+  let attentionCount = 0;
+  for (const stat of CARE_BADGE_STATS) {
+    const value = companion.stats[stat] ?? 100;
+    const { careState } = getBlobbiStatDisplayState({ stage: companion.stage, stat, value });
+    if (careState === 'urgent') return true;
+    if (careState === 'attention') attentionCount++;
+  }
+  return attentionCount >= 2;
 }
 
 
@@ -1079,8 +1085,6 @@ function BlobbiDashboard({
   // Adoption flow modal state
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // Inventory action modal state (still used for the confirmation dialog)
-  const [inventoryAction, setInventoryAction] = useState<InventoryAction | null>(null);
   const [usingItemId, setUsingItemId] = useState<string | null>(null);
   
   // Track selection modal (for changing tracks in music player)
@@ -1329,29 +1333,6 @@ function BlobbiDashboard({
     setShowTrackPickerModal(true);
   };
   
-  // Handle using an item (always uses once)
-  const handleUseItem = async (itemId: string) => {
-    if (!inventoryAction || isUsingItem) return;
-    setUsingItemId(itemId);
-    // Set action emotion override while item is being used
-    setActionOverrideEmotion(getActionEmotion(inventoryAction as ActionType));
-    try {
-      await onUseItem(itemId, inventoryAction);
-      // Close the modal on success
-      setInventoryAction(null);
-    } finally {
-      setUsingItemId(null);
-      // Clear action emotion after a brief delay for visual feedback
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
-    }
-  };
-  
-  // Handle opening shop from empty state — navigate to kitchen room
-  const handleOpenShopFromAction = () => {
-    setInventoryAction(null);
-    setCurrentRoom('kitchen');
-  };
-
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
   usePersistEvolutionProgress(companion.d, updateCompanionEvent);
 
@@ -1580,6 +1561,7 @@ function BlobbiDashboard({
           <RoomBottomBar
             room={currentRoom}
             companion={companion}
+            currentStats={currentStats}
             profile={profile}
             isEgg={isEgg}
             isSleeping={isSleeping}
@@ -1606,21 +1588,6 @@ function BlobbiDashboard({
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
-      {/* Inventory Action Confirmation Modal (Feed/Play/Clean) */}
-      {inventoryAction && (
-        <BlobbiActionInventoryModal
-          open={!!inventoryAction}
-          onOpenChange={(open) => !open && setInventoryAction(null)}
-          action={inventoryAction}
-          companion={companion}
-          profile={profile}
-          onUseItem={handleUseItem}
-          onOpenShop={handleOpenShopFromAction}
-          isUsingItem={isUsingItem}
-          usingItemId={usingItemId}
-        />
-      )}
-      
       {/* Track Picker Modal */}
       <PlayMusicModal
         open={showTrackPickerModal}
@@ -1697,6 +1664,8 @@ function BlobbiDashboard({
 interface RoomBottomBarProps {
   room: BlobbiRoomId;
   companion: BlobbiCompanion;
+  /** Projected stats (decay-applied) matching what the stat rings display. */
+  currentStats: BlobbiStats;
   profile: BlobbonautProfile | null;
   isEgg: boolean;
   isSleeping: boolean;
@@ -1828,6 +1797,7 @@ const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 
 function KitchenBar({
   companion,
+  currentStats,
   isUsingItem,
   usingItemId,
   isPublishing,
@@ -1845,9 +1815,9 @@ function KitchenBar({
     const items = getLiveShopItems().filter(i => i.type === 'food');
     return items.map(item => ({
       ...item,
-      statChanges: previewStatChanges(companion.stats, item.effect),
+      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
     }));
-  }, [companion.stats]);
+  }, [currentStats, companion.stage]);
 
   const foodEntries = useMemo<CarouselEntry[]>(() =>
     foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
@@ -1903,15 +1873,21 @@ function KitchenBar({
                   <span className="text-4xl leading-none">{item.icon}</span>
                   <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    {item.statChanges.map(({ stat, delta }) => {
-                      const Icon = STAT_ICON[stat];
-                      const positive = delta > 0;
+                    {item.statChanges.map((change) => {
+                      const Icon = STAT_ICON[change.stat];
+                      const positive = change.delta > 0;
+                      const segDelta = change.segmentDelta;
                       return (
-                        <span key={stat} className="flex items-center gap-0.5">
+                        <span key={change.stat} className="flex items-center gap-0.5">
                           {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
                           <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-                            {positive ? '+' : ''}{delta}
+                            {positive ? '+' : ''}{change.delta}
                           </span>
+                          {segDelta !== 0 && (
+                            <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                              {segDelta > 0 ? '+' : ''}{segDelta}▮
+                            </span>
+                          )}
                         </span>
                       );
                     })}

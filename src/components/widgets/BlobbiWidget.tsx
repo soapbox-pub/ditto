@@ -12,7 +12,8 @@ import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompan
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
+import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, filterMigratedLegacyCompanions } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
@@ -358,18 +359,22 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
 
       {/* Unified stat wheels — each is both a status indicator and an action button */}
       <div className="flex items-center justify-center gap-1.5 px-2">
-        {visibleStats.map((stat) => (
-          <StatIndicator
-            key={stat}
-            stat={stat}
-            value={stats[stat]}
-            color={STAT_COLOR_MAP[stat]}
-            status={getStatStatus(stage, stat, stats[stat] ?? 100)}
-            size="sm"
-            onClick={() => handleStatClick(stat)}
-            disabled={isActionPending}
-          />
-        ))}
+        {visibleStats.map((stat) => {
+          const display = getBlobbiStatDisplayState({ stage, stat, value: stats[stat] ?? 100 });
+          return (
+            <StatIndicator
+              key={stat}
+              stat={stat}
+              value={stats[stat]}
+              color={STAT_COLOR_MAP[stat]}
+              careState={display.careState}
+              segments={{ filled: display.filled, max: display.max }}
+              size="sm"
+              onClick={() => handleStatClick(stat)}
+              disabled={isActionPending}
+            />
+          );
+        })}
       </div>
     </div>
   );
