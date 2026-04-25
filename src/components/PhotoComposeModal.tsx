@@ -342,6 +342,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
                         <input
                           type="text"
+                          dir="auto"
                           value={img.alt}
                           onChange={(e) => handleAltChange(index, e.target.value)}
                           placeholder="Alt text (accessibility)"
@@ -392,6 +393,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
               </label>
               <Input
                 id="photo-title"
+                dir="auto"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Give your photo a title"
@@ -407,6 +409,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
               </label>
               <textarea
                 id="photo-caption"
+                dir="auto"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="Write a caption... (supports #hashtags)"

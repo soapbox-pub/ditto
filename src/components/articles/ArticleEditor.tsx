@@ -633,6 +633,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           {/* Title — always visible, slightly smaller when keyboard is up on mobile */}
           <input
             type="text"
+            dir="auto"
             value={article.title}
             onChange={(e) => updateArticle('title', e.target.value)}
             onBlur={handleBlurSave}
@@ -664,6 +665,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <Label htmlFor="summary" className="text-muted-foreground text-xs">Summary</Label>
                     <Textarea
                       id="summary"
+                      dir="auto"
                       value={article.summary}
                       onChange={(e) => updateArticle('summary', e.target.value)}
                       placeholder="A brief description of your article..."
@@ -728,6 +730,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
                 <Textarea
                   id="summary"
+                  dir="auto"
                   value={article.summary}
                   onChange={(e) => updateArticle('summary', e.target.value)}
                   placeholder="A brief description of your article..."
