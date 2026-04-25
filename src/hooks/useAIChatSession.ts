@@ -23,7 +23,11 @@ export interface AIChatSessionOptions {
 
 // ─── Persistence ───
 
-const CHAT_STORAGE_KEY = 'ditto:ai-chat-messages';
+const CHAT_STORAGE_KEY_PREFIX = 'ditto:ai-chat-messages';
+
+function chatStorageKey(appId: string, pubkey: string): string {
+  return `${CHAT_STORAGE_KEY_PREFIX}:${appId}:${pubkey}`;
+}
 
 /** Zod schema for a single persisted chat message. */
 const StoredToolCallSchema = z.object({
@@ -46,14 +50,14 @@ const StoredMessageSchema = z.object({
 
 const StoredMessagesSchema = z.array(StoredMessageSchema);
 
-function loadMessages(): DisplayMessage[] {
+function loadMessages(storageKey: string): DisplayMessage[] {
   try {
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = StoredMessagesSchema.safeParse(JSON.parse(raw));
     if (!parsed.success) {
       console.warn('Discarding corrupted AI chat history:', parsed.error.message);
-      localStorage.removeItem(CHAT_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
       return [];
     }
     return parsed.data.map((m) => ({
@@ -68,11 +72,11 @@ function loadMessages(): DisplayMessage[] {
 }
 
 /** Persist messages and return the serialized byte size. */
-function saveMessages(messages: DisplayMessage[]): number {
+function saveMessages(storageKey: string, messages: DisplayMessage[]): number {
   try {
     const stored = messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }));
     const json = JSON.stringify(stored);
-    localStorage.setItem(CHAT_STORAGE_KEY, json);
+    localStorage.setItem(storageKey, json);
     return new Blob([json]).size;
   } catch {
     // Storage full or unavailable — silently ignore
@@ -81,9 +85,9 @@ function saveMessages(messages: DisplayMessage[]): number {
 }
 
 /** Measure byte size of the current persisted messages without re-serializing. */
-function measureStorageBytes(): number {
+function measureStorageBytes(storageKey: string): number {
   try {
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     return raw ? new Blob([raw]).size : 0;
   } catch {
     return 0;
@@ -98,8 +102,9 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const { config } = useAppContext();
   const { sendStreamingMessage, getAvailableModels, getCreditsBalance, isLoading: apiLoading, error: apiError, clearError } = useShakespeare();
   const { executeToolCall, savedFeeds } = useAIChatTools();
+  const storageKey = user ? chatStorageKey(config.appId, user.pubkey) : null;
 
-  const [messages, setMessages] = useState<DisplayMessage[]>(loadMessages);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -111,16 +116,33 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
 
   // Capacity tracking
   const [lastPromptTokens, setLastPromptTokens] = useState(0);
-  const [storageBytes, setStorageBytes] = useState(measureStorageBytes);
+  const [storageBytes, setStorageBytes] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [loadedStorageKey, setLoadedStorageKey] = useState<string | null>(null);
+
+  // Load messages from the current user's scoped storage key.
+  useEffect(() => {
+    if (!storageKey) {
+      setLoadedStorageKey(null);
+      setMessages([]);
+      setStorageBytes(0);
+      return;
+    }
+
+    const loaded = loadMessages(storageKey);
+    setMessages(loaded);
+    setStorageBytes(measureStorageBytes(storageKey));
+    setLoadedStorageKey(storageKey);
+  }, [storageKey]);
 
   // Persist messages to localStorage and update storage bytes
   useEffect(() => {
-    const bytes = saveMessages(messages);
+    if (!storageKey || loadedStorageKey !== storageKey) return;
+    const bytes = saveMessages(storageKey, messages);
     setStorageBytes(bytes);
-  }, [messages]);
+  }, [storageKey, loadedStorageKey, messages]);
 
   // Scroll to bottom on new messages or streaming text updates
   useEffect(() => {
@@ -215,11 +237,11 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   // Clear conversation
   const handleClear = useCallback(() => {
     setMessages([]);
-    localStorage.removeItem(CHAT_STORAGE_KEY);
+    if (storageKey) localStorage.removeItem(storageKey);
     setLastPromptTokens(0);
     setStorageBytes(0);
     clearError();
-  }, [clearError]);
+  }, [storageKey, clearError]);
 
   // Handle sending a message. Pass `override` to send arbitrary text (e.g. suggestion chips).
   const handleSend = useCallback(async (override?: string) => {
