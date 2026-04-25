@@ -20,6 +20,7 @@ import {
 } from '../lib/room-config';
 import {
   generateInitialPoops,
+  addPoop as addPoopInstance,
   removePoop,
   type PoopInstance,
 } from '../lib/poop-system';
@@ -28,9 +29,9 @@ import {
 
 export interface PoopState {
   poops: PoopInstance[];
-  shovelMode: boolean;
-  setShovelMode: React.Dispatch<React.SetStateAction<boolean>>;
   onRemovePoop: (poopId: string) => void;
+  /** Spawn a single poop (e.g. from overfeeding). */
+  addPoop: (source?: PoopInstance['source']) => void;
 }
 
 interface BlobbiRoomShellProps {
@@ -108,8 +109,6 @@ export function BlobbiRoomShell({
 
   // ─── Poop system (ephemeral) ───
   const [poops, setPoops] = useState<PoopInstance[]>([]);
-  const [shovelMode, setShovelMode] = useState(false);
-
   useEffect(() => {
     setPoops(generateInitialPoops(hunger, lastFeedTimestamp));
   // Only on mount
@@ -122,14 +121,17 @@ export function BlobbiRoomShell({
       if (remaining.length < prev.length) {
         onPoopCleaned?.();
       }
-      if (remaining.length === 0) setShovelMode(false);
       return remaining;
     });
   }, [onPoopCleaned]);
 
+  const addPoop = useCallback((source: PoopInstance['source'] = 'overfeed') => {
+    setPoops(prev => addPoopInstance(prev, source));
+  }, []);
+
   const poopState: PoopState = useMemo(() => ({
-    poops, shovelMode, setShovelMode, onRemovePoop,
-  }), [poops, shovelMode, onRemovePoop]);
+    poops, onRemovePoop, addPoop,
+  }), [poops, onRemovePoop, addPoop]);
 
   if (poopStateRef) poopStateRef.current = poopState;
 

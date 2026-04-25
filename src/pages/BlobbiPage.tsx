@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, Shovel, TowelRack, X } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
@@ -96,14 +96,18 @@ import {
   BlobbiRoomHero,
   ItemCarousel,
   RoomActionButton,
+  useShovelDrag,
+  PoopOverlay,
+  InteractivePoopOverlay,
+  ShovelButton,
   type BlobbiRoomId,
   type CarouselEntry,
   type PoopState,
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
   DEFAULT_ROOM_ORDER,
-  getPoopsInRoom,
-  hasAnyPoop,
+  OVERFEED_THRESHOLD,
+  OVERFEED_CHANCE,
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
@@ -1741,6 +1745,7 @@ function HomeBar({
   handleUseItemFromTab,
   handleDirectAction,
   setShowPhotoModal,
+  poopStateRef,
   guideHighlightId,
 }: RoomBottomBarProps) {
   const carouselItems = useMemo<CarouselEntry[]>(() => {
@@ -1771,39 +1776,42 @@ function HomeBar({
   }, [handleDirectAction, handleUseItemFromTab]);
 
   return (
-    <div className={ROOM_BOTTOM_BAR_CLASS}>
-      <div className="flex items-center justify-between gap-1 sm:gap-3">
-        <RoomActionButton
-          icon={<Camera className="size-7 sm:size-9" />}
-          label="Photo"
-          color="text-pink-500"
-          glowHex="#ec4899"
-          onClick={() => setShowPhotoModal(true)}
-        />
-        <div className="flex-1 min-w-0 flex justify-center">
-          <ItemCarousel
-            items={carouselItems}
-            onUse={handleCarouselUse}
-            activeItemId={isUsingItem ? usingItemId : null}
-            disabled={isDisabled}
-            highlightId={guideHighlightId}
-          />
-        </div>
-        {canBeCompanion ? (
+    <>
+      <PoopOverlay poopStateRef={poopStateRef} />
+      <div className={ROOM_BOTTOM_BAR_CLASS}>
+        <div className="flex items-center justify-between gap-1 sm:gap-3">
           <RoomActionButton
-            icon={<Footprints className="size-7 sm:size-9" />}
-            label={isCurrentCompanion ? 'With you' : 'Take along'}
-            color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
-            glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
-            onClick={handleSetAsCompanion}
-            disabled={isUpdatingCompanion}
-            loading={isUpdatingCompanion}
+            icon={<Camera className="size-7 sm:size-9" />}
+            label="Photo"
+            color="text-pink-500"
+            glowHex="#ec4899"
+            onClick={() => setShowPhotoModal(true)}
           />
-        ) : (
-          <div className="w-14 sm:w-20 shrink-0" />
-        )}
+          <div className="flex-1 min-w-0 flex justify-center">
+            <ItemCarousel
+              items={carouselItems}
+              onUse={handleCarouselUse}
+              activeItemId={isUsingItem ? usingItemId : null}
+              disabled={isDisabled}
+              highlightId={guideHighlightId}
+            />
+          </div>
+          {canBeCompanion ? (
+            <RoomActionButton
+              icon={<Footprints className="size-7 sm:size-9" />}
+              label={isCurrentCompanion ? 'With you' : 'Take along'}
+              color={isCurrentCompanion ? 'text-emerald-500' : 'text-violet-500'}
+              glowHex={isCurrentCompanion ? '#10b981' : '#8b5cf6'}
+              onClick={handleSetAsCompanion}
+              disabled={isUpdatingCompanion}
+              loading={isUpdatingCompanion}
+            />
+          ) : (
+            <div className="w-14 sm:w-20 shrink-0" />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1827,9 +1835,11 @@ function KitchenBar({
   handleUseItemFromTab,
   poopStateRef,
   guideHighlightId,
+  guideActionGlow,
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
+  const drag = useShovelDrag(poopState);
 
   const foodItems = useMemo(() => {
     const items = getLiveShopItems().filter(i => i.type === 'food');
@@ -1844,25 +1854,20 @@ function KitchenBar({
   [foodItems]);
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
-  const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
-  const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
+
+  // Feed-with-overfeed: wrap handleUseItemFromTab to trigger poop on overfeed
+  const handleFeedItem = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    handleUseItemFromTab(itemId);
+    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
+      poopState?.addPoop('overfeed');
+    }
+  }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
 
   return (
     <>
-      {/* Poop display */}
-      {kitchenPoops.map((poop) => (
-        <button
-          key={poop.id}
-          onClick={() => poopState?.shovelMode && poopState.onRemovePoop(poop.id)}
-          className={cn(
-            'absolute z-10 transition-all duration-300',
-            poopState?.shovelMode ? 'cursor-pointer hover:scale-150 active:scale-75' : 'pointer-events-none',
-          )}
-          style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
-        >
-          <span className={cn('text-2xl sm:text-3xl block', poopState?.shovelMode && 'drop-shadow-lg')}>💩</span>
-        </button>
-      ))}
+      <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
 
       {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
       {showFridge && (
@@ -1886,7 +1891,7 @@ function KitchenBar({
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleUseItemFromTab(item.id)}
+                  onClick={() => handleFeedItem(item.id)}
                   disabled={isDisabled}
                   className={cn(
                     'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
@@ -1922,22 +1927,11 @@ function KitchenBar({
       {/* Normal bottom bar */}
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
-          {anyPoop && poopState ? (
-            <RoomActionButton
-              icon={<Shovel className="size-7 sm:size-9" />}
-              label={poopState.shovelMode ? 'Done' : 'Shovel'}
-              color={poopState.shovelMode ? 'text-amber-600' : 'text-stone-500'}
-              glowHex={poopState.shovelMode ? '#d97706' : '#78716c'}
-              onClick={() => poopState.setShovelMode(prev => !prev)}
-              className={poopState.shovelMode ? 'ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background rounded-full' : ''}
-            />
-          ) : (
-            <div className="w-14 sm:w-20 shrink-0" />
-          )}
+          <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
               items={foodEntries}
-              onUse={handleUseItemFromTab}
+              onUse={handleFeedItem}
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
@@ -1965,6 +1959,7 @@ function CareBar({
   isPublishing,
   actionInProgress,
   handleUseItemFromTab,
+  poopStateRef,
   guideHighlightId,
 }: RoomBottomBarProps) {
   const allShopItems = useMemo(() => getLiveShopItems(), []);
@@ -1987,92 +1982,100 @@ function CareBar({
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
 
+  const leftButton = isHygieneFocused ? (
+    towelItem ? (
+      <RoomActionButton
+        icon={<TowelRack className="size-7 sm:size-9" />}
+        label="Towel"
+        color="text-cyan-500"
+        glowHex="#06b6d4"
+        onClick={() => handleUseItemFromTab(towelItem.id)}
+        disabled={isDisabled}
+        loading={isUsingItem && usingItemId === towelItem.id}
+      />
+    ) : (
+      <div className="w-14 sm:w-20 shrink-0" />
+    )
+  ) : treatItem ? (
+    <RoomActionButton
+      icon={<Candy className="size-7 sm:size-9" />}
+      label={treatItem.name}
+      color="text-pink-400"
+      glowHex="#f472b6"
+      onClick={() => handleUseItemFromTab(treatItem.id)}
+      disabled={isDisabled}
+    />
+  ) : (
+    <div className="w-14 sm:w-20 shrink-0" />
+  );
+
   return (
-    <div className={ROOM_BOTTOM_BAR_CLASS}>
-      <div className="flex items-center justify-between gap-1 sm:gap-3">
-        {isHygieneFocused ? (
-          towelItem ? (
-            <RoomActionButton
-              icon={<TowelRack className="size-7 sm:size-9" />}
-              label="Towel"
-              color="text-cyan-500"
-              glowHex="#06b6d4"
-              onClick={() => handleUseItemFromTab(towelItem.id)}
+    <>
+      <PoopOverlay poopStateRef={poopStateRef} />
+      <div className={ROOM_BOTTOM_BAR_CLASS}>
+        <div className="flex items-center justify-between gap-1 sm:gap-3">
+          {leftButton}
+          <div className="flex-1 min-w-0 flex justify-center">
+            <ItemCarousel
+              items={carouselEntries}
+              onUse={handleUseItemFromTab}
+              activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
-              loading={isUsingItem && usingItemId === towelItem.id}
+              onFocusChange={handleFocusChange}
+              highlightId={guideHighlightId}
+            />
+          </div>
+          {isHygieneFocused ? (
+            <RoomActionButton
+              icon={<ShowerHead className="size-7 sm:size-9" />}
+              label="Shower"
+              color="text-blue-500"
+              glowHex="#3b82f6"
+              onClick={() => {
+                const shampoo = hygieneItems.find(i => i.id === 'hyg_shampoo');
+                if (shampoo) handleUseItemFromTab(shampoo.id);
+              }}
+              disabled={isDisabled}
             />
           ) : (
             <div className="w-14 sm:w-20 shrink-0" />
-          )
-        ) : treatItem ? (
-          <RoomActionButton
-            icon={<Candy className="size-7 sm:size-9" />}
-            label={treatItem.name}
-            color="text-pink-400"
-            glowHex="#f472b6"
-            onClick={() => handleUseItemFromTab(treatItem.id)}
-            disabled={isDisabled}
-          />
-        ) : (
-          <div className="w-14 sm:w-20 shrink-0" />
-        )}
-        <div className="flex-1 min-w-0 flex justify-center">
-          <ItemCarousel
-            items={carouselEntries}
-            onUse={handleUseItemFromTab}
-            activeItemId={isUsingItem ? usingItemId : null}
-            disabled={isDisabled}
-            onFocusChange={handleFocusChange}
-            highlightId={guideHighlightId}
-          />
+          )}
         </div>
-        {isHygieneFocused ? (
-          <RoomActionButton
-            icon={<ShowerHead className="size-7 sm:size-9" />}
-            label="Shower"
-            color="text-blue-500"
-            glowHex="#3b82f6"
-            onClick={() => {
-              const shampoo = hygieneItems.find(i => i.id === 'hyg_shampoo');
-              if (shampoo) handleUseItemFromTab(shampoo.id);
-            }}
-            disabled={isDisabled}
-          />
-        ) : (
-          <div className="w-14 sm:w-20 shrink-0" />
-        )}
       </div>
-    </div>
+    </>
   );
 }
 
 // ── Rest: sleep/wake button centered ──
 
-function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, guideActionGlow }: RoomBottomBarProps) {
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, poopStateRef, guideActionGlow }: RoomBottomBarProps) {
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   return (
-    <div className={ROOM_BOTTOM_BAR_CLASS}>
-      <div className="flex items-center justify-center">
-        {!isEgg && (
-          <RoomActionButton
-            icon={
-              actionInProgress === 'rest'
-                ? <Loader2 className="size-7 sm:size-9 animate-spin" />
-                : isSleeping
-                  ? <Sun className="size-7 sm:size-9" />
-                  : <Moon className="size-7 sm:size-9" />
-            }
-            label={isSleeping ? 'Wake up' : 'Sleep'}
-            color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
-            glowHex={isSleeping ? '#f59e0b' : '#8b5cf6'}
-            onClick={onRest}
-            disabled={isDisabled}
-            glow={guideActionGlow === 'sleep'}
-          />
-        )}
+    <>
+      <PoopOverlay poopStateRef={poopStateRef} />
+      <div className={ROOM_BOTTOM_BAR_CLASS}>
+        <div className="flex items-center justify-center">
+          {!isEgg && (
+            <RoomActionButton
+              icon={
+                actionInProgress === 'rest'
+                  ? <Loader2 className="size-7 sm:size-9 animate-spin" />
+                  : isSleeping
+                    ? <Sun className="size-7 sm:size-9" />
+                    : <Moon className="size-7 sm:size-9" />
+              }
+              label={isSleeping ? 'Wake up' : 'Sleep'}
+              color={isSleeping ? 'text-amber-500' : 'text-violet-500'}
+              glowHex={isSleeping ? '#f59e0b' : '#8b5cf6'}
+              onClick={onRest}
+              disabled={isDisabled}
+              glow={guideActionGlow === 'sleep'}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
