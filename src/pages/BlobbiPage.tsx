@@ -108,6 +108,7 @@ import {
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import { useFoodDrag, type UseFoodDragReturn } from '@/blobbi/rooms/hooks/useFoodDrag';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
@@ -1384,20 +1385,182 @@ function BlobbiDashboard({
     }, 1500);
   }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
-  // Handle using an item from the items tab
+  // Shared timer ref for the post-action emotion cleanup (used by both
+  // tap-to-use and drag-to-feed paths). Cleared at the start of every new
+  // action sequence and on unmount so a stale timer from one path cannot
+  // clobber the emotion set by a newer action.
+  const actionCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Handle using an item from the items tab (tap-to-use, non-drag path).
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
+    clearTimeout(actionCleanupRef.current);
     setUsingItemId(itemId);
     setActionOverrideEmotion(getActionEmotion(action as ActionType));
     onUseItem(itemId, action).then(() => {
-      // Clear guide only after the action succeeds
       if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
     }).finally(() => {
       setUsingItemId(null);
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
+      actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
   };
+
+  // ─── Food drag-to-feed ───────────────────────────────────────────────────
+  //
+  // Visual sequence:  eating (open mouth) → chewing + crumbs (700ms) → happy (1500ms) → null
+  // Mutation timing:  starts immediately on drop — no delay.
+  //
+  // The chewing phase is purely visual. The mutation fires right away so
+  // Nostr publishing and stat changes are not blocked by the animation.
+  // If the mutation fails, we skip the happy phase and clear the override.
+  //
+  // Race-condition strategy:
+  //   feedSeqRef  — monotonically increasing counter. Every timer and promise
+  //                 continuation captures the value at invocation and bails
+  //                 out if a newer sequence has started.
+  //   mountedRef  — set to false on unmount. All continuations check this
+  //                 before calling setState.
+
+  const [crumbBurst, setCrumbBurst] = useState<{ x: number; y: number } | null>(null);
+
+  const feedSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  // Timer refs for chew→happy transition, happy→null cleanup, crumb cleanup,
+  // and a hard safety timeout that prevents chewing from getting stuck.
+  const chewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const happyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const crumbTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearFeedTimers = useCallback(() => {
+    clearTimeout(actionCleanupRef.current);
+    actionCleanupRef.current = undefined;
+    clearTimeout(chewTimerRef.current);
+    chewTimerRef.current = undefined;
+    clearTimeout(happyTimerRef.current);
+    happyTimerRef.current = undefined;
+    clearTimeout(crumbTimerRef.current);
+    crumbTimerRef.current = undefined;
+    clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = undefined;
+  }, []);
+
+  // Clean up all feed timers and mark unmounted.
+  useEffect(() => () => {
+    mountedRef.current = false;
+    clearFeedTimers();
+  }, [clearFeedTimers]);
+
+  const handleNearMouthChange = useCallback((near: boolean) => {
+    setActionOverrideEmotion(near ? 'eating' : null);
+  }, []);
+
+  /** Drag-to-feed handler: fires mutation immediately, overlays chewing
+   *  animation for 700ms, then transitions to happy if the mutation
+   *  succeeded, or clears the override on failure.
+   *
+   *  Every async continuation (timer callbacks, .then, .finally) captures
+   *  the current `seq` value and checks `seq === feedSeqRef.current` before
+   *  writing state. If a newer sequence has started (or the component
+   *  unmounted), the continuation is a no-op. */
+  const handleFeedFromDrag = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    if (!action || isUsingItem) return;
+
+    // Cancel any in-flight feed animation timers from a prior sequence.
+    clearFeedTimers();
+
+    // Stamp this sequence so all continuations can verify ownership.
+    const seq = ++feedSeqRef.current;
+
+    /** Guard: returns true only when this sequence is still active and
+     *  the component is mounted. Every continuation calls this before
+     *  touching React state. */
+    const isActive = () => mountedRef.current && seq === feedSeqRef.current;
+
+    // ── Lock + visual ──
+    setUsingItemId(itemId);
+    setActionOverrideEmotion('chewing');
+
+    // Spawn crumb particles at the mouth position.
+    const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setCrumbBurst({ x: r.left + r.width * 0.5, y: r.top + r.height * 0.67 });
+      crumbTimerRef.current = setTimeout(() => {
+        if (isActive()) setCrumbBurst(null);
+      }, 700);
+    }
+
+    // ── Mutation starts NOW — no delay ──
+    //
+    // Two async boundaries must both complete before the post-chew
+    // transition fires:
+    //   1. The 700ms chewing timer  (visual minimum)
+    //   2. The onUseItem promise    (mutation)
+    //
+    // `mutationResult` is 'pending' until the promise settles, then
+    // 'ok' or 'failed'. `chewDone` flips to true when the timer fires.
+    // Whichever boundary fires second sees both flags set and calls
+    // `tryTransition()`, which applies the correct emotion once.
+
+    let mutationResult: 'pending' | 'ok' | 'failed' = 'pending';
+    let chewDone = false;
+
+    /** Apply the post-chew emotion. Only called when BOTH the chew timer
+     *  has elapsed AND the mutation has settled. Guarded by isActive(). */
+    const tryTransition = () => {
+      if (!chewDone || mutationResult === 'pending') return;
+      if (!isActive()) return;
+      // Normal flow completed — cancel the safety timeout.
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = undefined;
+      if (mutationResult === 'ok') {
+        setActionOverrideEmotion('happy');
+        happyTimerRef.current = setTimeout(() => {
+          if (isActive()) setActionOverrideEmotion(null);
+        }, 1500);
+      } else {
+        setActionOverrideEmotion(null);
+      }
+    };
+
+    onUseItem(itemId, action).then(
+      () => {
+        mutationResult = 'ok';
+        if (isActive() && guideTarget?.targetItemId === itemId) {
+          setGuideTarget(null);
+        }
+      },
+      () => { mutationResult = 'failed'; },
+    ).finally(() => {
+      if (isActive()) setUsingItemId(null);
+      tryTransition();
+    });
+
+    // ── After chewing phase, check if mutation also settled ──
+    chewTimerRef.current = setTimeout(() => {
+      chewDone = true;
+      tryTransition();
+    }, 700);
+
+    // ── Hard safety timeout ──
+    // If the mutation promise never settles (network hang, relay timeout,
+    // TanStack Query edge case), chewing would stay on forever.  This
+    // forces a clear after 5 seconds regardless.  Cleared by tryTransition
+    // when the normal flow completes, and by clearFeedTimers on new
+    // sequence / unmount.
+    safetyTimerRef.current = setTimeout(() => {
+      if (isActive()) {
+        setActionOverrideEmotion(null);
+        setUsingItemId(null);
+      }
+    }, 5000);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers]);
+
+  const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
   
   return (
     <DashboardShell>
@@ -1578,9 +1741,30 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
+            foodDragHook={foodDragHook}
           />
         )}
       </BlobbiRoomShell>
+
+      {/* ─── Food drag ghost overlay ─── */}
+      {foodDragHook.drag && (
+        <div
+          ref={foodDragHook.ghostRef}
+          className="fixed pointer-events-none z-[60]"
+          style={{
+            left: foodDragHook.drag.startX,
+            top: foodDragHook.drag.startY,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <span className="text-4xl sm:text-5xl drop-shadow-lg transition-transform duration-150">
+            {foodDragHook.drag.emoji}
+          </span>
+        </div>
+      )}
+
+      {/* ─── Crumb burst overlay (chewing feedback) ─── */}
+      {crumbBurst && <CrumbBurst x={crumbBurst.x} y={crumbBurst.y} />}
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -1684,6 +1868,8 @@ interface RoomBottomBarProps {
   guideHighlightId?: string | null;
   /** Action to glow (guide flow, e.g. 'sleep'). */
   guideActionGlow?: string | null;
+  /** Food drag hook for drag-to-feed in the kitchen. */
+  foodDragHook?: UseFoodDragReturn;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -1797,6 +1983,7 @@ function KitchenBar({
   handleUseItemFromTab,
   poopStateRef,
   guideHighlightId,
+  foodDragHook,
 }: RoomBottomBarProps) {
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
@@ -1814,6 +2001,20 @@ function KitchenBar({
   [foodItems]);
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  // Build pointer-down handler for food drag-to-feed.
+  // After pointerdown, the drag hook owns the lifecycle via global window
+  // listeners — the carousel button plays no further role.
+  const centerPointerHandlers = useMemo(() => {
+    if (!foodDragHook || foodEntries.length === 0 || isDisabled) return undefined;
+    const { onDragStart: start } = foodDragHook;
+    return {
+      onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => {
+        const rawItem = foodItems.find(i => i.id === entry.id);
+        start(e, entry.id, rawItem?.icon ?? '🍽');
+      },
+    };
+  }, [foodDragHook, foodEntries, foodItems, isDisabled]);
   const kitchenPoops = poopState ? getPoopsInRoom(poopState.poops, 'kitchen') : [];
   const anyPoop = poopState ? hasAnyPoop(poopState.poops) : false;
 
@@ -1917,6 +2118,7 @@ function KitchenBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              centerPointerHandlers={centerPointerHandlers}
             />
           </div>
           <RoomActionButton
@@ -2606,6 +2808,47 @@ function DashboardLoadingState() {
         </div>
       </div>
     </DashboardShell>
+  );
+}
+
+// ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
+
+/** Crumb particle configs — 6 tiny dots radiating from the mouth. */
+const CRUMB_PARTICLES = [
+  { dx: -18, dy: 14, delay: 0, size: 4 },
+  { dx: 12, dy: 18, delay: 30, size: 3 },
+  { dx: -8, dy: 22, delay: 60, size: 5 },
+  { dx: 20, dy: 10, delay: 50, size: 3 },
+  { dx: -22, dy: 8, delay: 80, size: 4 },
+  { dx: 6, dy: 24, delay: 20, size: 3 },
+] as const;
+
+/**
+ * Small burst of crumb particles rendered at a fixed viewport position.
+ * Each crumb falls outward and fades via the `crumb-fall` CSS animation.
+ * Renders pointer-events-none and aria-hidden; purely decorative.
+ */
+function CrumbBurst({ x, y }: { x: number; y: number }) {
+  return (
+    <div
+      className="fixed pointer-events-none z-[60]"
+      style={{ left: x, top: y }}
+      aria-hidden="true"
+    >
+      {CRUMB_PARTICLES.map((p, i) => (
+        <span
+          key={i}
+          className="absolute rounded-full bg-amber-700/80 animate-crumb-fall"
+          style={{
+            width: p.size,
+            height: p.size,
+            animationDelay: `${p.delay}ms`,
+            '--crumb-dx': `${p.dx}px`,
+            '--crumb-dy': `${p.dy}px`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
   );
 }
 

@@ -93,6 +93,11 @@ export function BlobbiRoomShell({
   const touchStartX = useReactRef<number | null>(null);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    // If the touch started on a food-drag handle (the carousel food button),
+    // skip the swipe — that gesture drives a food drag, not a room change.
+    // This check is synchronous (DOM attribute), so it works even before
+    // React re-renders with the drag state from the same pointerdown.
+    if ((e.target as HTMLElement).closest?.('[data-food-drag]')) return;
     touchStartX.current = e.touches[0].clientX;
   }, [touchStartX]);
 

@@ -56,6 +56,7 @@ import {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateChewingMouth,
   generateFoodIcon,
   applySleepyMouth,
   computeDroolAnchor,
@@ -121,6 +122,8 @@ export interface MouthRecipe {
   bigSmile?: BigSmileConfig;
   /** Droopy/weak mouth */
   droopyMouth?: DroopyMouthConfig;
+  /** Chewing/chomping animated mouth */
+  chewingMouth?: true;
   /** Sleepy breathing mouth (canonical replacement) */
   sleepyMouth?: true;
 }
@@ -358,6 +361,22 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   adoring: {
     eyes: { wateryEyes: { includeWaterFill: false } },
     mouth: { roundMouth: { rx: 2.5, ry: 3, filled: true } },
+  },
+
+  // ── Eating ──────────────────────────────────────────────────────────────────
+  // Mouth wide open, ready to receive food. Used during food-drag when the
+  // dragged item is near Blobbi's mouth. Simple filled round mouth — no
+  // extra eye or brow effects so it layers cleanly over the current status.
+  eating: {
+    mouth: { roundMouth: { rx: 6, ry: 7, filled: true } },
+  },
+
+  // ── Chewing ─────────────────────────────────────────────────────────────────
+  // Animated chomping mouth shown briefly after food is successfully fed.
+  // Uses SMIL animation to oscillate the mouth open/closed. No extra eye
+  // or brow effects so it layers over the current status like eating does.
+  chewing: {
+    mouth: { chewingMouth: true },
   },
 
   // ── Hungry ──────────────────────────────────────────────────────────────────
@@ -846,6 +865,8 @@ export function applyVisualRecipe(
       svgText = replaceMouthSection(svgText, generateBigSmile(mouth.position, recipe.mouth.bigSmile));
     } else if (recipe.mouth.droopyMouth) {
       svgText = replaceMouthSection(svgText, generateDroopyMouth(mouth.position, recipe.mouth.droopyMouth));
+    } else if (recipe.mouth.chewingMouth) {
+      svgText = replaceMouthSection(svgText, generateChewingMouth(mouth.position));
     }
     // Note: sleepyMouth is handled in the sleepy animation section below
   }

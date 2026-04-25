@@ -480,6 +480,30 @@
   }
 }
 
+/* ─── Crumb Burst (food-drag chewing feedback) ───────────────────────────────── */
+
+@keyframes crumb-fall {
+  0% {
+    opacity: 1;
+    transform: translate(var(--crumb-dx), 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.5);
+  }
+}
+
+.animate-crumb-fall {
+  animation: crumb-fall 600ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-crumb-fall {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 /* ─── Blobbi Eye Animation ───────────────────────────────────────────────────── */
 
 /**

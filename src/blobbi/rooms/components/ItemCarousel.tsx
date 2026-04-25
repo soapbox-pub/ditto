@@ -26,6 +26,14 @@ interface ItemCarouselProps {
   onFocusChange?: (entry: CarouselEntry) => void;
   /** When set, the carousel visually guides the user toward this item. */
   highlightId?: string | null;
+  /** Optional pointer-down handler forwarded to the center (focused) item.
+   *  Used by KitchenBar for food drag-to-feed. Receives the currently focused
+   *  entry so the caller doesn't need to track index state.  After pointerdown,
+   *  the drag hook owns the lifecycle via global window listeners — the button
+   *  does not need onPointerMove / onPointerUp / onPointerCancel. */
+  centerPointerHandlers?: {
+    onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => void;
+  };
   className?: string;
 }
 
@@ -38,6 +46,7 @@ export function ItemCarousel({
   disabled,
   onFocusChange,
   highlightId,
+  centerPointerHandlers,
   className,
 }: ItemCarouselProps) {
   const [index, setIndex] = useState(0);
@@ -127,8 +136,10 @@ export function ItemCarousel({
       )}
 
       <button
-        onClick={() => onUse(current.id)}
+        onClick={centerPointerHandlers ? undefined : () => onUse(current.id)}
+        onPointerDown={centerPointerHandlers ? (e: React.PointerEvent<HTMLButtonElement>) => centerPointerHandlers.onPointerDown(e, current) : undefined}
         disabled={disabled}
+        data-food-drag={centerPointerHandlers ? '' : undefined}
         className={cn(
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
           'w-20 h-[4.5rem] sm:w-24 sm:h-[5.5rem] rounded-2xl',
@@ -137,6 +148,7 @@ export function ItemCarousel({
           isThisActive && 'bg-accent/40',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
           isHighlightFocused && 'ring-2 ring-primary/60',
+          centerPointerHandlers && 'touch-none',
         )}
         style={isHighlightFocused ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
       >

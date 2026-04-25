@@ -6,7 +6,7 @@
  * Top padding accounts for the floating room header overlay.
  */
 
-import { useMemo, type CSSProperties } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
   Footprints, Loader2,
@@ -88,7 +88,13 @@ export interface BlobbiRoomHeroProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BlobbiRoomHero({
+/**
+ * Memoized so that high-frequency drag-state updates in the parent
+ * (BlobbiDashboard) do not propagate into the Blobbi visual subtree.
+ * All props from the parent are stable references during food drag,
+ * so memo effectively short-circuits the entire subtree.
+ */
+export const BlobbiRoomHero = memo(function BlobbiRoomHero({
   companion,
   currentStats,
   isSleeping,
@@ -146,6 +152,7 @@ export function BlobbiRoomHero({
         <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
+          data-blobbi-visual
           className="relative transition-all duration-500 pointer-events-none"
           style={!isSleeping ? {
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
@@ -197,7 +204,7 @@ export function BlobbiRoomHero({
       </div>
     </div>
   );
-}
+});
 
 // ─── Stats Crown ──────────────────────────────────────────────────────────────
 
