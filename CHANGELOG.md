@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.10.5] - 2026-04-25
+
+### Added
+- Blobbi eye tracking -- your companion's eyes follow content on your feed and post detail pages, including touch support on mobile
+- Blobbi overstimulation reaction -- tap your Blobbi too many times and it zooms in with a shockwave, blocking interactions until it calms down
+- Shake-to-dizzy reaction -- shake your phone to make your Blobbi go woozy with a nausea fill effect
+- Blobbi route-transition reactions -- your companion glances at where you tapped before looking at new content when navigating
+- Guided care flow -- low-status indicators glow to get your attention, and tapping any stat icon walks you to the right room to help
+- Drag-to-clean shovel -- swipe poop away instead of tapping a button, with poops now visible across all rooms
+- Pandi color customizer with tinted-white body and dark-tinted patches
+- Vines now appear in feeds -- short videos render inline with volume control
+- Infinite scroll pagination on the search page
+- Right-to-left text support expanded to articles, compose box, and letters
+
+### Changed
+- Blobbi colors are now generated from the seed instead of fixed palettes, giving every Blobbi a unique look
+- Adult Blobbi type is now derived from the seed for fully deterministic visual identity
+
+### Fixed
+- Content warnings were not applied on the video and vine feed pages -- videos with sensitive tags played without blur or filtering
+- Compose textarea lost its expanded height when toggling the markdown preview on and off
+- Crysti Blobbi was missing sparkle animations, had a broken pink facet path, and mismatched sleeping opacities
+- Adopting another Blobbi could create a duplicate egg due to a race condition in the hatching ceremony
+
 ## [2.10.4] - 2026-04-23
 
 ### Added
