@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
@@ -334,7 +334,7 @@ export function useBuddy() {
     return getStoredNsec();
   }, []);
 
-  return useMemo(() => ({
+  return {
     /** The resolved buddy identity, or null if none configured. */
     buddy,
     /** True while loading from relays / decrypting. */
@@ -349,7 +349,7 @@ export function useBuddy() {
     resetBuddy,
     /** Get the buddy's secret key from localStorage (for signing events). */
     getBuddySecretKey,
-  }), [buddy, isLoading, hasBuddy, createBuddy, updateSoul, resetBuddy, getBuddySecretKey]);
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
