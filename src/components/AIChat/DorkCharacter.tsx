@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 // ─── Dork's intro messages ───────────────────────────────────────────────────
@@ -20,9 +21,12 @@ interface DorkOverlayProps {
   onDismiss: () => void;
 }
 
-// Preload Dork image
-const dorkImg = new Image();
-dorkImg.src = '/dork.webp';
+// Preload Dork images (one per dialogue step)
+const DORK_IMAGES = ['/dork1.webp', '/dork2.webp', '/dork3.webp'];
+DORK_IMAGES.forEach((src) => {
+  const img = new Image();
+  img.src = src;
+});
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -95,7 +99,7 @@ export function DorkOverlay({ open, onDismiss }: DorkOverlayProps) {
 
   if (state === 'hidden' && !open) return null;
 
-  return (
+  return createPortal(
     <>
       <style>{`
         @keyframes dork-enter-up {
@@ -172,7 +176,7 @@ export function DorkOverlay({ open, onDismiss }: DorkOverlayProps) {
             >
               <div className={cn(state === 'entering' && 'dork-wave')}>
                 <img
-                  src="/dork.webp"
+                  src={DORK_IMAGES[messageIndex] ?? DORK_IMAGES[0]}
                   alt="Dork"
                   className="w-56 sm:w-64 md:w-72 h-auto drop-shadow-2xl"
                   draggable={false}
@@ -182,6 +186,7 @@ export function DorkOverlay({ open, onDismiss }: DorkOverlayProps) {
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 }
