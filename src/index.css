@@ -487,18 +487,45 @@
     opacity: 1;
     transform: translate(var(--crumb-dx), 0) scale(1);
   }
+  60% {
+    opacity: 0.7;
+  }
   100% {
     opacity: 0;
-    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.5);
+    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.4);
   }
 }
 
 .animate-crumb-fall {
-  animation: crumb-fall 600ms ease-out forwards;
+  animation: crumb-fall 1100ms ease-out forwards;
+}
+
+/* Floating reward word that drifts upward and fades out */
+@keyframes reward-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scale(0.9);
+  }
+}
+
+.animate-reward-pop {
+  animation: reward-pop 1100ms ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-crumb-fall {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .animate-reward-pop {
     animation: none !important;
     opacity: 0 !important;
   }

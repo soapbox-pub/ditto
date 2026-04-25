@@ -1408,7 +1408,13 @@ function BlobbiDashboard({
 
   // ─── Food drag-to-feed ───────────────────────────────────────────────────
   //
-  // Visual sequence:  eating (open mouth) → chewing + crumbs (700ms) → happy (1500ms) → null
+  // Timing constants — tweak these to tune how the feed reward feels.
+  const CHEW_DURATION_MS = 1200;   // chewing animation before → happy
+  const CRUMB_DURATION_MS = 1200;  // how long crumb particles stay visible
+  const HAPPY_DURATION_MS = 1500;  // happy face after chewing
+  //
+  // Visual sequence:
+  //   eating (open mouth) → chewing + crumbs (CHEW_DURATION_MS) → happy (HAPPY_DURATION_MS) → null
   // Mutation timing:  starts immediately on drop — no delay.
   //
   // The chewing phase is purely visual. The mutation fires right away so
@@ -1458,8 +1464,8 @@ function BlobbiDashboard({
   }, []);
 
   /** Drag-to-feed handler: fires mutation immediately, overlays chewing
-   *  animation for 700ms, then transitions to happy if the mutation
-   *  succeeded, or clears the override on failure.
+   *  animation for CHEW_DURATION_MS, then transitions to happy if the
+   *  mutation succeeded, or clears the override on failure.
    *
    *  Every async continuation (timer callbacks, .then, .finally) captures
    *  the current `seq` value and checks `seq === feedSeqRef.current` before
@@ -1491,15 +1497,15 @@ function BlobbiDashboard({
       setCrumbBurst({ x: r.left + r.width * 0.5, y: r.top + r.height * 0.67 });
       crumbTimerRef.current = setTimeout(() => {
         if (isActive()) setCrumbBurst(null);
-      }, 700);
+      }, CRUMB_DURATION_MS);
     }
 
     // ── Mutation starts NOW — no delay ──
     //
     // Two async boundaries must both complete before the post-chew
     // transition fires:
-    //   1. The 700ms chewing timer  (visual minimum)
-    //   2. The onUseItem promise    (mutation)
+    //   1. The CHEW_DURATION_MS chewing timer  (visual minimum)
+    //   2. The onUseItem promise               (mutation)
     //
     // `mutationResult` is 'pending' until the promise settles, then
     // 'ok' or 'failed'. `chewDone` flips to true when the timer fires.
@@ -1521,7 +1527,7 @@ function BlobbiDashboard({
         setActionOverrideEmotion('happy');
         happyTimerRef.current = setTimeout(() => {
           if (isActive()) setActionOverrideEmotion(null);
-        }, 1500);
+        }, HAPPY_DURATION_MS);
       } else {
         setActionOverrideEmotion(null);
       }
@@ -1544,7 +1550,7 @@ function BlobbiDashboard({
     chewTimerRef.current = setTimeout(() => {
       chewDone = true;
       tryTransition();
-    }, 700);
+    }, CHEW_DURATION_MS);
 
     // ── Hard safety timeout ──
     // If the mutation promise never settles (network hang, relay timeout,
@@ -2813,32 +2819,56 @@ function DashboardLoadingState() {
 
 // ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
 
-/** Crumb particle configs — 6 tiny dots radiating from the mouth. */
-const CRUMB_PARTICLES = [
-  { dx: -18, dy: 14, delay: 0, size: 4 },
-  { dx: 12, dy: 18, delay: 30, size: 3 },
-  { dx: -8, dy: 22, delay: 60, size: 5 },
-  { dx: 20, dy: 10, delay: 50, size: 3 },
-  { dx: -22, dy: 8, delay: 80, size: 4 },
-  { dx: 6, dy: 24, delay: 20, size: 3 },
-] as const;
+/** Reward words — one is picked at random on each feed. */
+const REWARD_WORDS = ['yum!', 'nom!', 'mmm!'] as const;
 
 /**
- * Small burst of crumb particles rendered at a fixed viewport position.
- * Each crumb falls outward and fades via the `crumb-fall` CSS animation.
- * Renders pointer-events-none and aria-hidden; purely decorative.
+ * Crumb particle configs — 12 dots radiating from the mouth in warm
+ * food-like colours. Each entry defines its trajectory offset (dx/dy),
+ * staggered start delay, rendered size, and Tailwind colour class.
+ */
+const CRUMB_PARTICLES: ReadonlyArray<{
+  dx: number; dy: number; delay: number; size: number; color: string;
+}> = [
+  // inner ring — small, fast
+  { dx: -10, dy:  12, delay:   0, size: 4, color: 'bg-amber-600/90' },
+  { dx:   8, dy:  14, delay:  30, size: 3, color: 'bg-orange-500/85' },
+  { dx:  -4, dy:  18, delay:  60, size: 5, color: 'bg-amber-700/90' },
+  { dx:  14, dy:   8, delay:  40, size: 4, color: 'bg-yellow-600/80' },
+  // middle ring — medium spread
+  { dx: -20, dy:  16, delay:  80, size: 5, color: 'bg-orange-600/85' },
+  { dx:  18, dy:  20, delay:  50, size: 4, color: 'bg-amber-500/90' },
+  { dx:  -6, dy:  26, delay: 100, size: 6, color: 'bg-amber-700/80' },
+  { dx:  24, dy:  12, delay:  70, size: 5, color: 'bg-yellow-700/80' },
+  // outer ring — larger, more delay
+  { dx: -28, dy:  10, delay: 120, size: 5, color: 'bg-orange-500/75' },
+  { dx:  26, dy:  22, delay: 110, size: 6, color: 'bg-amber-600/80' },
+  { dx: -14, dy:  30, delay: 140, size: 4, color: 'bg-yellow-600/75' },
+  { dx:   2, dy:  32, delay: 130, size: 5, color: 'bg-orange-600/80' },
+];
+
+/**
+ * Burst of crumb particles + a tiny floating reward word, rendered at a
+ * fixed viewport position (the mouth).  Each crumb falls outward and
+ * fades via the `crumb-fall` CSS animation.  The reward word floats
+ * upward via `reward-pop`.  Both are pointer-events-none and
+ * aria-hidden; purely decorative.
  */
 function CrumbBurst({ x, y }: { x: number; y: number }) {
+  // Pick a stable random word for this burst instance.
+  const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
+
   return (
     <div
       className="fixed pointer-events-none z-[60]"
       style={{ left: x, top: y }}
       aria-hidden="true"
     >
+      {/* Crumb particles */}
       {CRUMB_PARTICLES.map((p, i) => (
         <span
           key={i}
-          className="absolute rounded-full bg-amber-700/80 animate-crumb-fall"
+          className={`absolute rounded-full ${p.color} animate-crumb-fall`}
           style={{
             width: p.size,
             height: p.size,
@@ -2848,6 +2878,11 @@ function CrumbBurst({ x, y }: { x: number; y: number }) {
           } as React.CSSProperties}
         />
       ))}
+
+      {/* Floating reward word */}
+      <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none">
+        {word}
+      </span>
     </div>
   );
 }
