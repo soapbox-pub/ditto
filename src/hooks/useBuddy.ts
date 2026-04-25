@@ -14,8 +14,8 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** localStorage key for the buddy agent's secret key (hex-encoded). */
-const BUDDY_NSEC_STORAGE = 'ditto:buddy-nsec';
+/** localStorage key prefix for the buddy agent's secret key (hex-encoded). */
+const BUDDY_NSEC_STORAGE_PREFIX = 'ditto:buddy-nsec';
 
 /** Suffix appended to `config.appId` for the NIP-78 d-tag. */
 const BUDDY_DTAG_SUFFIX = '/buddy';
@@ -53,9 +53,14 @@ const BuddySecretsSchema = z.object({
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
+/** Build the per-user localStorage key for the buddy nsec cache. */
+function buddyNsecStorageKey(appId: string, pubkey: string): string {
+  return `${BUDDY_NSEC_STORAGE_PREFIX}:${appId}:${pubkey}`;
+}
+
 /** Read the buddy nsec from localStorage, or null if not present. */
-function getStoredNsec(): Uint8Array | null {
-  const hex = localStorage.getItem(BUDDY_NSEC_STORAGE);
+function getStoredNsec(storageKey: string): Uint8Array | null {
+  const hex = localStorage.getItem(storageKey);
   if (!hex) return null;
   try {
     return hexToBytes(hex);
@@ -65,13 +70,13 @@ function getStoredNsec(): Uint8Array | null {
 }
 
 /** Persist the buddy nsec to localStorage. */
-function storeNsec(sk: Uint8Array): void {
-  localStorage.setItem(BUDDY_NSEC_STORAGE, bytesToHex(sk));
+function storeNsec(storageKey: string, sk: Uint8Array): void {
+  localStorage.setItem(storageKey, bytesToHex(sk));
 }
 
 /** Remove the buddy nsec from localStorage. */
-function clearStoredNsec(): void {
-  localStorage.removeItem(BUDDY_NSEC_STORAGE);
+function clearStoredNsec(storageKey: string): void {
+  localStorage.removeItem(storageKey);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -94,11 +99,12 @@ export function useBuddy() {
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   const dTag = `${config.appId}${BUDDY_DTAG_SUFFIX}`;
+  const buddyStorageKey = user ? buddyNsecStorageKey(config.appId, user.pubkey) : null;
 
   // ── Query the kind 30078 buddy event from relays ────────────────────────
 
   const buddyEventQuery = useQuery({
-    queryKey: ['buddy-event', user?.pubkey],
+    queryKey: ['buddy-event', user?.pubkey, dTag],
     queryFn: async () => {
       if (!user) return null;
 
@@ -120,38 +126,38 @@ export function useBuddy() {
   // ── Decrypt buddy secrets from the relay event ──────────────────────────
 
   const buddyQuery = useQuery<BuddyIdentity | null>({
-    queryKey: ['buddy-identity', buddyEventQuery.data?.id],
+    queryKey: ['buddy-identity', user?.pubkey, dTag, buddyEventQuery.data?.id],
     queryFn: async () => {
       const event = buddyEventQuery.data;
-      if (!event || !user) return null;
+      if (!event || !user || !buddyStorageKey) return null;
 
       // Always need to decrypt to get name + soul
       const secrets = await decryptSecrets(event, user);
       if (!secrets) return null;
 
+      const sk = hexToBytes(secrets.nsec);
+      const pubkey = getPublicKey(sk);
+      const eventPubkey = event.tags.find(([t]) => t === 'p')?.[1];
+
       // Try localStorage nsec first
-      const localSk = getStoredNsec();
+      const localSk = getStoredNsec(buddyStorageKey);
       if (localSk) {
-        const pubkey = getPublicKey(localSk);
-        // Verify the localStorage key matches the event's p-tag
-        const eventPubkey = event.tags.find(([t]) => t === 'p')?.[1];
-        if (eventPubkey && eventPubkey !== pubkey) {
-          // Mismatch — restore from decrypted secrets
-          clearStoredNsec();
-          const sk = hexToBytes(secrets.nsec);
-          storeNsec(sk);
-          return { pubkey: getPublicKey(sk), name: secrets.name, soul: secrets.soul, event };
+        const localPubkey = getPublicKey(localSk);
+        // Verify the scoped cache matches the encrypted relay-backed secret.
+        if (localPubkey === pubkey && (!eventPubkey || eventPubkey === pubkey)) {
+          return { pubkey, name: secrets.name, soul: secrets.soul, event };
         }
-        return { pubkey, name: secrets.name, soul: secrets.soul, event };
+
+        // Mismatch — restore from decrypted secrets.
+        clearStoredNsec(buddyStorageKey);
       }
 
-      // localStorage empty — restore nsec from decrypted secrets
-      const sk = hexToBytes(secrets.nsec);
-      storeNsec(sk);
+      // localStorage empty or stale — restore nsec from decrypted secrets.
+      storeNsec(buddyStorageKey, sk);
 
-      return { pubkey: getPublicKey(sk), name: secrets.name, soul: secrets.soul, event };
+      return { pubkey, name: secrets.name, soul: secrets.soul, event };
     },
-    enabled: !!buddyEventQuery.data && !!user,
+    enabled: !!buddyEventQuery.data && !!user && !!buddyStorageKey,
     staleTime: Infinity,
     gcTime: Infinity,
   });
@@ -162,13 +168,11 @@ export function useBuddy() {
     mutationFn: async ({ name, soul, picture }: { name: string; soul: string; picture?: string }) => {
       if (!user) throw new Error('User not logged in');
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
+      if (!buddyStorageKey) throw new Error('Buddy storage is unavailable');
 
       // Generate buddy keypair
       const sk = generateSecretKey();
       const pubkey = getPublicKey(sk);
-
-      // Persist nsec to localStorage
-      storeNsec(sk);
 
       // Build kind 0 profile for the buddy agent
       const profileContent = JSON.stringify({
@@ -209,12 +213,15 @@ export function useBuddy() {
         ],
       });
 
+      // Cache nsec locally only after the durable identity event succeeds.
+      storeNsec(buddyStorageKey, sk);
+
       return { pubkey, name, soul, event: buddyEvent } satisfies BuddyIdentity;
     },
     onSuccess: (identity) => {
       // Update caches
-      queryClient.setQueryData(['buddy-event', user?.pubkey], identity.event);
-      queryClient.setQueryData(['buddy-identity', identity.event.id], identity);
+      queryClient.setQueryData(['buddy-event', user?.pubkey, dTag], identity.event);
+      queryClient.setQueryData(['buddy-identity', user?.pubkey, dTag, identity.event.id], identity);
     },
   });
 
@@ -224,10 +231,7 @@ export function useBuddy() {
     mutationFn: async (newSoul: string) => {
       if (!user) throw new Error('User not logged in');
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
-
-      // Get the current nsec (must exist if buddy exists)
-      const localSk = getStoredNsec();
-      if (!localSk) throw new Error('Buddy nsec not found in localStorage');
+      if (!buddyStorageKey) throw new Error('Buddy storage is unavailable');
 
       // Fetch fresh from relay — never read from cache for read-modify-write
       const prev = await fetchFreshEvent(nostr, {
@@ -240,12 +244,13 @@ export function useBuddy() {
       const freshSecrets = await decryptSecrets(prev, user);
       if (!freshSecrets) throw new Error('Failed to decrypt buddy secrets');
 
-      const pubkey = getPublicKey(localSk);
+      const sk = hexToBytes(freshSecrets.nsec);
+      const pubkey = getPublicKey(sk);
       const currentName = freshSecrets.name;
 
       // Encrypt updated secrets (preserve name from fresh event)
       const secrets: BuddySecrets = {
-        nsec: bytesToHex(localSk),
+        nsec: freshSecrets.nsec,
         name: currentName,
         soul: newSoul,
       };
@@ -273,17 +278,19 @@ export function useBuddy() {
         }),
         tags: [],
         created_at: Math.floor(Date.now() / 1000),
-      }, localSk) as NostrEvent;
+      }, sk) as NostrEvent;
 
       nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }).catch(() => {
         toast({ title: 'Buddy profile update failed', description: 'The buddy\'s updated profile could not be published to relays.', variant: 'destructive' });
       });
 
+      storeNsec(buddyStorageKey, sk);
+
       return { pubkey, name: currentName, soul: newSoul, event: buddyEvent } satisfies BuddyIdentity;
     },
     onSuccess: (identity) => {
-      queryClient.setQueryData(['buddy-event', user?.pubkey], identity.event);
-      queryClient.setQueryData(['buddy-identity', identity.event.id], identity);
+      queryClient.setQueryData(['buddy-event', user?.pubkey, dTag], identity.event);
+      queryClient.setQueryData(['buddy-identity', user?.pubkey, dTag, identity.event.id], identity);
     },
   });
 
@@ -294,7 +301,7 @@ export function useBuddy() {
       if (!user) throw new Error('User not logged in');
 
       // Clear localStorage
-      clearStoredNsec();
+      if (buddyStorageKey) clearStoredNsec(buddyStorageKey);
 
       // Fetch the current event so useNostrPublish can preserve published_at
       const prev = await fetchFreshEvent(nostr, {
@@ -317,7 +324,7 @@ export function useBuddy() {
       return emptyEvent;
     },
     onSuccess: () => {
-      queryClient.setQueryData(['buddy-event', user?.pubkey], null);
+      queryClient.setQueryData(['buddy-event', user?.pubkey, dTag], null);
       // Clear all buddy-identity cache entries (the key includes a dynamic event ID)
       queryClient.removeQueries({ queryKey: ['buddy-identity'] });
     },
@@ -331,8 +338,8 @@ export function useBuddy() {
 
   /** Get the buddy's secret key from localStorage. Only call when buddy exists. */
   const getBuddySecretKey = useCallback((): Uint8Array | null => {
-    return getStoredNsec();
-  }, []);
+    return buddyStorageKey ? getStoredNsec(buddyStorageKey) : null;
+  }, [buddyStorageKey]);
 
   return {
     /** The resolved buddy identity, or null if none configured. */
