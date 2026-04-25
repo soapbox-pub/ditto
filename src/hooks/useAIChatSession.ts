@@ -331,7 +331,8 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         apiMessages = buildApiMessages(currentMessages);
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      // User-initiated stop — no error message needed
+      if (controller.signal.aborted) return;
 
       // Surface unexpected errors (e.g. buildApiMessages failure, loop bookkeeping)
       // so the user gets feedback instead of streaming silently stopping.
