@@ -1412,6 +1412,8 @@ function BlobbiDashboard({
   const CHEW_DURATION_MS = 1200;   // chewing animation before → happy
   const CRUMB_DURATION_MS = 1200;  // how long crumb particles stay visible
   const HAPPY_DURATION_MS = 1500;  // happy face after chewing
+  const CRUMB_Y_OFFSET = 4;      // px below the mouth center where crumbs spawn
+  const REWARD_Y_RATIO = 0.08;    // fraction of visual height from top for reward text
   //
   // Visual sequence:
   //   eating (open mouth) → chewing + crumbs (CHEW_DURATION_MS) → happy (HAPPY_DURATION_MS) → null
@@ -1428,7 +1430,10 @@ function BlobbiDashboard({
   //   mountedRef  — set to false on unmount. All continuations check this
   //                 before calling setState.
 
-  const [crumbBurst, setCrumbBurst] = useState<{ x: number; y: number } | null>(null);
+  const [crumbBurst, setCrumbBurst] = useState<{
+    crumbX: number; crumbY: number;   // crumb particle origin (just below the mouth)
+    rewardX: number; rewardY: number; // reward text anchor (above the head)
+  } | null>(null);
 
   const feedSeqRef = useRef(0);
   const mountedRef = useRef(true);
@@ -1490,11 +1495,18 @@ function BlobbiDashboard({
     setUsingItemId(itemId);
     setActionOverrideEmotion('chewing');
 
-    // Spawn crumb particles at the mouth position.
+    // Spawn crumb particles just below the mouth, and anchor the reward
+    // text above the head.  Both are derived from the visual bounding box.
     const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
     if (el) {
       const r = el.getBoundingClientRect();
-      setCrumbBurst({ x: r.left + r.width * 0.5, y: r.top + r.height * 0.67 });
+      const centerX = r.left + r.width * 0.5;
+      setCrumbBurst({
+        crumbX: centerX,
+        crumbY: r.top + r.height * 0.67 + CRUMB_Y_OFFSET,
+        rewardX: centerX,
+        rewardY: r.top + r.height * REWARD_Y_RATIO,
+      });
       crumbTimerRef.current = setTimeout(() => {
         if (isActive()) setCrumbBurst(null);
       }, CRUMB_DURATION_MS);
@@ -1770,7 +1782,14 @@ function BlobbiDashboard({
       )}
 
       {/* ─── Crumb burst overlay (chewing feedback) ─── */}
-      {crumbBurst && <CrumbBurst x={crumbBurst.x} y={crumbBurst.y} />}
+      {crumbBurst && (
+        <CrumbBurst
+          crumbX={crumbBurst.crumbX}
+          crumbY={crumbBurst.crumbY}
+          rewardX={crumbBurst.rewardX}
+          rewardY={crumbBurst.rewardY}
+        />
+      )}
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -2820,7 +2839,7 @@ function DashboardLoadingState() {
 // ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
 
 /** Reward words — one is picked at random on each feed. */
-const REWARD_WORDS = ['yum!', 'nom!', 'mmm!'] as const;
+const REWARD_WORDS = ['nhom!', 'yum!', 'nom!', 'mmm!'] as const;
 
 /**
  * Crumb particle configs — 12 dots radiating from the mouth in warm
@@ -2830,60 +2849,73 @@ const REWARD_WORDS = ['yum!', 'nom!', 'mmm!'] as const;
 const CRUMB_PARTICLES: ReadonlyArray<{
   dx: number; dy: number; delay: number; size: number; color: string;
 }> = [
-  // inner ring — small, fast
-  { dx: -10, dy:  12, delay:   0, size: 4, color: 'bg-amber-600/90' },
-  { dx:   8, dy:  14, delay:  30, size: 3, color: 'bg-orange-500/85' },
-  { dx:  -4, dy:  18, delay:  60, size: 5, color: 'bg-amber-700/90' },
-  { dx:  14, dy:   8, delay:  40, size: 4, color: 'bg-yellow-600/80' },
-  // middle ring — medium spread
-  { dx: -20, dy:  16, delay:  80, size: 5, color: 'bg-orange-600/85' },
-  { dx:  18, dy:  20, delay:  50, size: 4, color: 'bg-amber-500/90' },
-  { dx:  -6, dy:  26, delay: 100, size: 6, color: 'bg-amber-700/80' },
-  { dx:  24, dy:  12, delay:  70, size: 5, color: 'bg-yellow-700/80' },
-  // outer ring — larger, more delay
-  { dx: -28, dy:  10, delay: 120, size: 5, color: 'bg-orange-500/75' },
-  { dx:  26, dy:  22, delay: 110, size: 6, color: 'bg-amber-600/80' },
-  { dx: -14, dy:  30, delay: 140, size: 4, color: 'bg-yellow-600/75' },
-  { dx:   2, dy:  32, delay: 130, size: 5, color: 'bg-orange-600/80' },
+  // inner ring — tight around the mouth
+  { dx:  -5, dy:   6, delay:   0, size: 4, color: 'bg-amber-600/90' },
+  { dx:   4, dy:   8, delay:  30, size: 3, color: 'bg-orange-500/85' },
+  { dx:  -2, dy:  10, delay:  60, size: 5, color: 'bg-amber-700/90' },
+  { dx:   7, dy:   5, delay:  40, size: 4, color: 'bg-yellow-600/80' },
+  // middle ring — mouth-width spread
+  { dx: -12, dy:  10, delay:  80, size: 5, color: 'bg-orange-600/85' },
+  { dx:  10, dy:  13, delay:  50, size: 4, color: 'bg-amber-500/90' },
+  { dx:  -3, dy:  16, delay: 100, size: 6, color: 'bg-amber-700/80' },
+  { dx:  14, dy:   8, delay:  70, size: 5, color: 'bg-yellow-700/80' },
+  // outer ring — just past the mouth edges
+  { dx: -16, dy:   7, delay: 120, size: 5, color: 'bg-orange-500/75' },
+  { dx:  15, dy:  14, delay: 110, size: 6, color: 'bg-amber-600/80' },
+  { dx:  -8, dy:  20, delay: 140, size: 4, color: 'bg-yellow-600/75' },
+  { dx:   1, dy:  22, delay: 130, size: 5, color: 'bg-orange-600/80' },
 ];
 
 /**
- * Burst of crumb particles + a tiny floating reward word, rendered at a
- * fixed viewport position (the mouth).  Each crumb falls outward and
- * fades via the `crumb-fall` CSS animation.  The reward word floats
- * upward via `reward-pop`.  Both are pointer-events-none and
- * aria-hidden; purely decorative.
+ * Burst of crumb particles + a tiny floating reward word.
+ *
+ * Crumbs are anchored at (crumbX, crumbY) — just below the mouth — and
+ * fall outward via the `crumb-fall` CSS animation.
+ *
+ * The reward word is anchored at (rewardX, rewardY) — above the head —
+ * and floats upward via `reward-pop`.
+ *
+ * Both layers are pointer-events-none and aria-hidden; purely decorative.
  */
-function CrumbBurst({ x, y }: { x: number; y: number }) {
+function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
+  crumbX: number; crumbY: number;
+  rewardX: number; rewardY: number;
+}) {
   // Pick a stable random word for this burst instance.
   const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
 
   return (
-    <div
-      className="fixed pointer-events-none z-[60]"
-      style={{ left: x, top: y }}
-      aria-hidden="true"
-    >
-      {/* Crumb particles */}
-      {CRUMB_PARTICLES.map((p, i) => (
-        <span
-          key={i}
-          className={`absolute rounded-full ${p.color} animate-crumb-fall`}
-          style={{
-            width: p.size,
-            height: p.size,
-            animationDelay: `${p.delay}ms`,
-            '--crumb-dx': `${p.dx}px`,
-            '--crumb-dy': `${p.dy}px`,
-          } as React.CSSProperties}
-        />
-      ))}
+    <>
+      {/* Crumb particles — anchored just below the mouth */}
+      <div
+        className="fixed pointer-events-none z-[60]"
+        style={{ left: crumbX, top: crumbY }}
+        aria-hidden="true"
+      >
+        {CRUMB_PARTICLES.map((p, i) => (
+          <span
+            key={i}
+            className={`absolute rounded-full ${p.color} animate-crumb-fall`}
+            style={{
+              width: p.size,
+              height: p.size,
+              animationDelay: `${p.delay}ms`,
+              '--crumb-dx': `${p.dx}px`,
+              '--crumb-dy': `${p.dy}px`,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
 
-      {/* Floating reward word */}
-      <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none">
+      {/* Floating reward word — anchored above the head */}
+      <span
+        className="fixed pointer-events-none z-[60] text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none"
+        style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
+        aria-hidden="true"
+      >
         {word}
       </span>
-    </div>
+    </>
   );
 }
 
