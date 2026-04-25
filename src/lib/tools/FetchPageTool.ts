@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { proxyUrl } from '@/lib/proxyUrl';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -18,9 +19,9 @@ The page is fetched through a CORS proxy so it works in the browser. Images are 
   inputSchema,
 
   async execute(args: Params, ctx: ToolContext): Promise<ToolResult> {
-    const url = args.url.trim();
+    const url = sanitizeUrl(args.url.trim());
     if (!url) {
-      return { result: JSON.stringify({ error: 'A URL is required.' }) };
+      return { result: JSON.stringify({ error: 'A valid HTTPS URL is required.' }) };
     }
 
     let html: string;

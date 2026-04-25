@@ -170,6 +170,13 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     return apiMessages;
   }, [systemPrompt]);
 
+  // Clear conversation
+  const handleClear = useCallback(() => {
+    setMessages([]);
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    clearError();
+  }, [clearError]);
+
   // Handle sending a message. Pass `override` to send arbitrary text (e.g. suggestion chips).
   const handleSend = useCallback(async (override?: string) => {
     const trimmed = (override ?? input).trim();
@@ -324,15 +331,24 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         apiMessages = buildApiMessages(currentMessages);
       }
     } catch (err) {
-      // Silently handle user-initiated abort and other errors
-      // (API-level errors are surfaced via apiError from useShakespeare)
       if (err instanceof DOMException && err.name === 'AbortError') return;
+
+      // Surface unexpected errors (e.g. buildApiMessages failure, loop bookkeeping)
+      // so the user gets feedback instead of streaming silently stopping.
+      // API-level errors are already surfaced via apiError from useShakespeare.
+      const errorText = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: `Something went wrong: ${errorText}`,
+        timestamp: new Date(),
+      }]);
     } finally {
       abortRef.current = null;
       setIsStreaming(false);
       setStreamingText('');
     }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError]);
+  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError, handleClear]);
 
   // Stop an in-flight generation
   const handleStop = useCallback(() => {
@@ -346,13 +362,6 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
       handleSend();
     }
   }, [handleSend]);
-
-  // Clear conversation
-  const handleClear = useCallback(() => {
-    setMessages([]);
-    localStorage.removeItem(CHAT_STORAGE_KEY);
-    clearError();
-  }, [clearError]);
 
   return {
     // State
