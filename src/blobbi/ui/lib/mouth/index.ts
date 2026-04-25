@@ -56,4 +56,6 @@ export {
   // Action-mouth geometry (shared by eating + chewing)
   computeActionMouthGeometry,
   type ActionMouthGeometry,
+  // Chewing timing (shared with feeding sound)
+  CHEW_CYCLE_SEC,
 } from './generators';

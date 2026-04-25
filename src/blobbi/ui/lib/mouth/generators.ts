@@ -497,11 +497,17 @@ export function generateEatingMouth(mouth: MouthPosition): string {
  *
  * @param mouth - Detected mouth position from the neutral SVG
  */
+/**
+ * Duration of one chewing chomp cycle in seconds.
+ * Used by both the SMIL mouth animation and the synchronized feeding sound.
+ * ~300ms per cycle → fast enough to look like chewing.
+ */
+export const CHEW_CYCLE_SEC = 0.3;
+
 export function generateChewingMouth(mouth: MouthPosition): string {
   const g = computeActionMouthGeometry(mouth);
 
-  // ~300ms per chomp cycle → fast enough to look like chewing
-  const dur = 0.3;
+  const dur = CHEW_CYCLE_SEC;
 
   return `<ellipse
     class="blobbi-mouth blobbi-mouth-chewing"
