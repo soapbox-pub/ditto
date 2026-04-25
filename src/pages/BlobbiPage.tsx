@@ -107,6 +107,7 @@ import {
   DEFAULT_INITIAL_ROOM,
   DEFAULT_ROOM_ORDER,
   OVERFEED_THRESHOLD,
+  OVERFEED_CHANCE,
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
@@ -1859,7 +1860,7 @@ function KitchenBar({
     const action = getActionForItem(itemId);
     const hungerBeforeFeed = companion.stats.hunger ?? 0;
     handleUseItemFromTab(itemId);
-    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD) {
+    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
       poopState?.addPoop('overfeed');
     }
   }, [companion.stats.hunger, handleUseItemFromTab, poopState]);

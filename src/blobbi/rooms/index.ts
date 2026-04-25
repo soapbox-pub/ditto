@@ -18,6 +18,7 @@ export {
   type PoopInstance,
   XP_PER_POOP,
   OVERFEED_THRESHOLD,
+  OVERFEED_CHANCE,
   generateInitialPoops,
   addPoop,
   getPoopsInRoom,
