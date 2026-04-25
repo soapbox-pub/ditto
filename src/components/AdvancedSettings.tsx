@@ -111,7 +111,7 @@ function BuddySettingsSection() {
           <Select
             value={config.aiModel || (aiModels.length > 0 ? aiModels[0].id : '')}
             onValueChange={(value) => {
-              updateConfig(() => ({ aiModel: value }));
+              updateConfig((current) => ({ ...current, aiModel: value }));
               toast({ title: 'AI model updated' });
             }}
             disabled={aiModelsLoading || aiModels.length === 0}
@@ -207,7 +207,7 @@ function BuddySettingsSection() {
               const defaultPrompt = DEFAULT_SYSTEM_PROMPT_TEMPLATE;
               const valueToStore = trimmed === defaultPrompt ? '' : trimmed;
               if (valueToStore !== config.aiSystemPrompt) {
-                updateConfig(() => ({ aiSystemPrompt: valueToStore }));
+                updateConfig((current) => ({ ...current, aiSystemPrompt: valueToStore }));
                 toast({ title: valueToStore ? 'System prompt updated' : 'System prompt reset to default' });
               }
             }}
@@ -223,7 +223,7 @@ function BuddySettingsSection() {
               className="h-7 text-xs text-muted-foreground"
               onClick={() => {
                 setSystemPromptDraft(DEFAULT_SYSTEM_PROMPT_TEMPLATE);
-                updateConfig(() => ({ aiSystemPrompt: '' }));
+                updateConfig((current) => ({ ...current, aiSystemPrompt: '' }));
                 toast({ title: 'System prompt reset to default' });
               }}
             >
