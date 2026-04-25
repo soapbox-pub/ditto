@@ -267,16 +267,20 @@ export function useStatusReaction({
   // ── Determine final output ──
   const isOverrideActive = actionOverride !== null && actionOverride !== undefined;
 
-  let finalRecipe: BlobbiVisualRecipe;
-  let finalLabel: string;
+  // Memoize the override recipe so the same actionOverride value produces
+  // a stable object reference. Without this, every parent re-render during
+  // food-drag creates a new recipe object, which propagates through the
+  // unmemoized visual tree and forces unnecessary JSON.stringify calls in
+  // useRecipeFingerprint.
+  const overrideRecipe = useMemo(
+    () => (isOverrideActive ? resolveVisualRecipe(actionOverride) : EMPTY_RECIPE),
+    // actionOverride is a string enum — when it doesn't change, the memo
+    // returns the same object reference.
+    [isOverrideActive, actionOverride],
+  );
 
-  if (isOverrideActive) {
-    finalRecipe = resolveVisualRecipe(actionOverride);
-    finalLabel = actionOverride;
-  } else {
-    finalRecipe = currentResult.recipe;
-    finalLabel = currentResult.label;
-  }
+  const finalRecipe = isOverrideActive ? overrideRecipe : currentResult.recipe;
+  const finalLabel = isOverrideActive ? actionOverride : currentResult.label;
 
   const isStatusReactionActive = currentResult.label !== 'neutral' && !isOverrideActive;
 

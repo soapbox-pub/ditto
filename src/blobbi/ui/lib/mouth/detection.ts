@@ -267,9 +267,9 @@ export function replaceCurrentMouth(svgText: string, newMouthSvg: string): strin
     });
   }
   
-  // Also match blobbi-mouth elements with children (non-self-closing, e.g. animated paths)
-  // Pattern: <path class="...blobbi-mouth..." ...>...</path>
-  const openCloseMouthRegex = /<path[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*>[\s\S]*?<\/path>/g;
+  // Also match blobbi-mouth elements with children (non-self-closing, e.g. animated paths/ellipses)
+  // Pattern: <path|ellipse class="...blobbi-mouth..." ...>...</path|ellipse>
+  const openCloseMouthRegex = /<(path|ellipse)[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*>[\s\S]*?<\/\1>/g;
   const openCloseMatches = svgText.match(openCloseMouthRegex);
   if (openCloseMatches && openCloseMatches.length > 0) {
     let replaced = false;

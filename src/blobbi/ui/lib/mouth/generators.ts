@@ -411,6 +411,43 @@ export function generateSleepyMouth(centerX: number, centerY: number): string {
   </ellipse>`;
 }
 
+// ─── Chewing Mouth ────────────────────────────────────────────────────────────
+
+/**
+ * Generate a chewing/chomping mouth SVG.
+ *
+ * Uses SMIL animation on the vertical radius (`ry`) to cycle between
+ * an open mouth and a nearly-closed mouth, producing a rhythmic chomping
+ * effect. The animation runs indefinitely (capped by the emotion timeout
+ * in the React layer).
+ *
+ * @param mouth - Detected mouth position from the neutral SVG
+ */
+export function generateChewingMouth(mouth: MouthPosition): string {
+  const cx = (mouth.startX + mouth.endX) / 2;
+  const cy = mouth.controlY;
+
+  // Mouth dimensions: slightly smaller than the eating mouth (rx 6, ry 7)
+  // so the transition from eating → chewing feels natural.
+  const rx = 4;
+  const ryOpen = 5;
+  const ryClosed = 1;
+
+  // ~300ms per chomp cycle → fast enough to look like chewing
+  const dur = 0.3;
+
+  return `<ellipse
+    class="blobbi-mouth blobbi-mouth-chewing"
+    cx="${cx}" cy="${cy}"
+    rx="${rx}" ry="${ryOpen}"
+    fill="#1f2937"
+  >
+    <animate attributeName="ry" values="${ryOpen};${ryClosed};${ryOpen}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+  </ellipse>`;
+}
+
+// ─── Sleepy Mouth ─────────────────────────────────────────────────────────────
+
 /**
  * Apply the canonical sleepy mouth to a Blobbi SVG.
  * 

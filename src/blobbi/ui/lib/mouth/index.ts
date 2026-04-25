@@ -43,6 +43,7 @@ export {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateChewingMouth,
   generateDrool,
   generateFoodIcon,
   generateSleepyMouth,
