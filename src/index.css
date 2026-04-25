@@ -485,14 +485,14 @@
 @keyframes crumb-fall {
   0% {
     opacity: 1;
-    transform: translate(var(--crumb-dx), 0) scale(1);
+    transform: translate(0, 0) scale(1);
   }
   60% {
     opacity: 0.7;
   }
   100% {
     opacity: 0;
-    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.4);
+    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.3);
   }
 }
 
