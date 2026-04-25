@@ -4,6 +4,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import { BUDDY_KEY_UNAVAILABLE_ERROR, getBuddyKey, signAndPublishAsBuddy, createBuddyUploader } from './helpers';
+import { sanitizeToolFetchUrl } from './sanitizeToolFetchUrl';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -116,8 +117,8 @@ Only one of html or files is needed. If both are provided, files takes priority.
           .filter(([, url]) => typeof url === 'string' && url.trim())
           .map(async ([filename, url]) => {
             if (!isSafeFilename(filename)) throw new Error(`Unsafe asset filename rejected: "${filename}". Use simple relative paths only.`);
-            const safeUrl = sanitizeUrl(url);
-            if (!safeUrl) throw new Error(`Invalid asset URL for "${filename}": must be a valid HTTPS URL.`);
+            const safeUrl = sanitizeToolFetchUrl(url);
+            if (!safeUrl) throw new Error(`Invalid asset URL for "${filename}": must be a valid public HTTPS URL.`);
             const res = await globalThis.fetch(safeUrl, { signal: AbortSignal.timeout(60_000) });
             if (!res.ok) throw new Error(`Failed to fetch asset "${filename}" from ${safeUrl}: ${res.status}`);
             return [filename, new Uint8Array(await res.arrayBuffer())] as const;
