@@ -56,6 +56,7 @@ import {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateEatingMouth,
   generateChewingMouth,
   generateFoodIcon,
   applySleepyMouth,
@@ -122,6 +123,8 @@ export interface MouthRecipe {
   bigSmile?: BigSmileConfig;
   /** Droopy/weak mouth */
   droopyMouth?: DroopyMouthConfig;
+  /** Eating open mouth (variant-aware via computeActionMouthGeometry) */
+  eatingMouth?: true;
   /** Chewing/chomping animated mouth */
   chewingMouth?: true;
   /** Sleepy breathing mouth (canonical replacement) */
@@ -368,7 +371,7 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // dragged item is near Blobbi's mouth. Simple filled round mouth — no
   // extra eye or brow effects so it layers cleanly over the current status.
   eating: {
-    mouth: { roundMouth: { rx: 6, ry: 7, filled: true } },
+    mouth: { eatingMouth: true },
   },
 
   // ── Chewing ─────────────────────────────────────────────────────────────────
@@ -865,6 +868,8 @@ export function applyVisualRecipe(
       svgText = replaceMouthSection(svgText, generateBigSmile(mouth.position, recipe.mouth.bigSmile));
     } else if (recipe.mouth.droopyMouth) {
       svgText = replaceMouthSection(svgText, generateDroopyMouth(mouth.position, recipe.mouth.droopyMouth));
+    } else if (recipe.mouth.eatingMouth) {
+      svgText = replaceMouthSection(svgText, generateEatingMouth(mouth.position));
     } else if (recipe.mouth.chewingMouth) {
       svgText = replaceMouthSection(svgText, generateChewingMouth(mouth.position));
     }

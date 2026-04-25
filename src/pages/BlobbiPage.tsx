@@ -1521,37 +1521,45 @@ function BlobbiDashboard({
     // Spawn crumb particles just below the mouth, and anchor the reward
     // text above the head.
     //
-    // Crumb origin: use the actual chewing-mouth element (marked with
-    // data-blobbi-mouth) when available so crumbs align with the real
+    // The crumb origin is read from the actual chewing-mouth element
+    // (marked with data-blobbi-mouth) so crumbs align with the real
     // mouth regardless of adult variant.  Falls back to the visual
     // bounding box ratio when the marker is absent (e.g. Owli/beak).
+    //
+    // Wrapped in requestAnimationFrame so the DOM query runs *after*
+    // React has committed the chewing mouth from the state update above.
+    // Without this, the query would see the previous eating/neutral
+    // mouth (or no marker at all) because React 18 batches setState.
     //
     // Reward text: always anchored above the head via the visual rect.
     const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
     if (el) {
-      const r = el.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        if (!isActive()) return;
 
-      const mouthEl = el.querySelector<SVGElement>('[data-blobbi-mouth]');
-      let crumbOriginX: number;
-      let crumbOriginY: number;
-      if (mouthEl) {
-        const mr = mouthEl.getBoundingClientRect();
-        crumbOriginX = mr.left + mr.width / 2;
-        crumbOriginY = mr.top + mr.height / 2 + CRUMB_Y_OFFSET;
-      } else {
-        crumbOriginX = r.left + r.width * 0.5;
-        crumbOriginY = r.top + r.height * 0.67 + CRUMB_Y_OFFSET;
-      }
+        const r = el.getBoundingClientRect();
+        const mouthEl = el.querySelector<SVGElement>('[data-blobbi-mouth]');
+        let crumbOriginX: number;
+        let crumbOriginY: number;
+        if (mouthEl) {
+          const mr = mouthEl.getBoundingClientRect();
+          crumbOriginX = mr.left + mr.width / 2;
+          crumbOriginY = mr.top + mr.height / 2 + CRUMB_Y_OFFSET;
+        } else {
+          crumbOriginX = r.left + r.width * 0.5;
+          crumbOriginY = r.top + r.height * 0.67 + CRUMB_Y_OFFSET;
+        }
 
-      setCrumbBurst({
-        crumbX: crumbOriginX,
-        crumbY: crumbOriginY,
-        rewardX: r.left + r.width * 0.5,
-        rewardY: r.top + r.height * REWARD_Y_RATIO,
+        setCrumbBurst({
+          crumbX: crumbOriginX,
+          crumbY: crumbOriginY,
+          rewardX: r.left + r.width * 0.5,
+          rewardY: r.top + r.height * REWARD_Y_RATIO,
+        });
+        crumbTimerRef.current = setTimeout(() => {
+          if (isActive()) setCrumbBurst(null);
+        }, CRUMB_DURATION_MS);
       });
-      crumbTimerRef.current = setTimeout(() => {
-        if (isActive()) setCrumbBurst(null);
-      }, CRUMB_DURATION_MS);
     }
 
     // ── Mutation starts NOW — no delay ──
