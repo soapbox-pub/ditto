@@ -221,6 +221,8 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     setIsStreaming(true);
     setStreamingText('');
 
+    let streamAccumulator = '';
+
     try {
       const MAX_TOOL_ROUNDS = 10;
       let apiMessages = buildApiMessages(newMessages);
@@ -230,7 +232,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         if (controller.signal.aborted) break;
 
         // Stream the response — text chunks update streamingText in real-time
-        let streamAccumulator = '';
+        streamAccumulator = '';
         const response = await sendStreamingMessage(
           apiMessages,
           selectedModel,
@@ -331,8 +333,18 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         apiMessages = buildApiMessages(currentMessages);
       }
     } catch (err) {
-      // User-initiated stop — no error message needed
-      if (controller.signal.aborted) return;
+      // User-initiated stop — preserve whatever was streamed so far
+      if (controller.signal.aborted) {
+        if (streamAccumulator.trim()) {
+          setMessages((prev) => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant' as const,
+            content: streamAccumulator,
+            timestamp: new Date(),
+          }]);
+        }
+        return;
+      }
 
       // Surface unexpected errors (e.g. buildApiMessages failure, loop bookkeeping)
       // so the user gets feedback instead of streaming silently stopping.
