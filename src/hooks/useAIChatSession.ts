@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
-import { useShakespeare, sortModelsByCost, type ChatMessage } from '@/hooks/useShakespeare';
+import { useShakespeare, sortModelsByCost, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools, TOOLS } from '@/hooks/useAIChatTools';
@@ -9,6 +9,9 @@ import { type DisplayMessage, type ToolCall } from '@/lib/aiChatTools';
 import { buildSystemPrompt, type UserIdentity } from '@/lib/aiChatSystemPrompt';
 
 import type { NostrEvent } from '@nostrify/nostrify';
+
+/** Conservative localStorage budget for chat messages (4 MB). */
+const MAX_STORAGE_BYTES = 4 * 1024 * 1024;
 
 /** Options for configuring the AI chat session with a buddy identity. */
 export interface AIChatSessionOptions {
@@ -64,12 +67,26 @@ function loadMessages(): DisplayMessage[] {
   }
 }
 
-function saveMessages(messages: DisplayMessage[]): void {
+/** Persist messages and return the serialized byte size. */
+function saveMessages(messages: DisplayMessage[]): number {
   try {
     const stored = messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }));
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(stored));
+    const json = JSON.stringify(stored);
+    localStorage.setItem(CHAT_STORAGE_KEY, json);
+    return new Blob([json]).size;
   } catch {
     // Storage full or unavailable — silently ignore
+    return 0;
+  }
+}
+
+/** Measure byte size of the current persisted messages without re-serializing. */
+function measureStorageBytes(): number {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    return raw ? new Blob([raw]).size : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -89,14 +106,20 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
 
   // Resolve the effective model: config value, or fetch the cheapest as default
   const [defaultModel, setDefaultModel] = useState('');
+  const [models, setModels] = useState<Model[]>([]);
   const selectedModel = config.aiModel || defaultModel;
+
+  // Capacity tracking
+  const [lastPromptTokens, setLastPromptTokens] = useState(0);
+  const [storageBytes, setStorageBytes] = useState(measureStorageBytes);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Persist messages to localStorage
+  // Persist messages to localStorage and update storage bytes
   useEffect(() => {
-    saveMessages(messages);
+    const bytes = saveMessages(messages);
+    setStorageBytes(bytes);
   }, [messages]);
 
   // Scroll to bottom on new messages or streaming text updates
@@ -104,23 +127,42 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText]);
 
-  // Fetch cheapest model as fallback when no model is configured
+  // Fetch available models (for default model + context_window lookup)
   useEffect(() => {
-    if (!user || config.aiModel) return;
+    if (!user) return;
 
     let cancelled = false;
     getAvailableModels()
       .then((response) => {
         if (cancelled) return;
-        const sorted = sortModelsByCost(response.data);
-        if (sorted.length > 0) {
-          setDefaultModel(sorted[0].id);
+        setModels(response.data);
+        if (!config.aiModel) {
+          const sorted = sortModelsByCost(response.data);
+          if (sorted.length > 0) {
+            setDefaultModel(sorted[0].id);
+          }
         }
       })
       .catch(() => {});
 
     return () => { cancelled = true; };
   }, [user, config.aiModel, getAvailableModels]);
+
+  // Compute capacity ratio (0 to 1) — max of token usage and storage usage
+  const contextWindow = useMemo(() => {
+    if (!selectedModel || models.length === 0) return 0;
+    // selectedModel may be "model-id" or "shakespeare/model-id"
+    const model = models.find((m) => m.id === selectedModel || m.fullId === selectedModel);
+    return model?.context_window ?? 0;
+  }, [selectedModel, models]);
+
+  const capacity = useMemo(() => {
+    const tokenRatio = contextWindow > 0 && lastPromptTokens > 0
+      ? lastPromptTokens / contextWindow
+      : 0;
+    const storageRatio = storageBytes / MAX_STORAGE_BYTES;
+    return Math.min(Math.max(tokenRatio, storageRatio), 1);
+  }, [lastPromptTokens, contextWindow, storageBytes]);
 
   // Build the system prompt — dynamic based on buddy identity, saved feeds, user identity, + optional custom override
   const savedFeedLabels = useMemo(() => savedFeeds.map((f) => f.label), [savedFeeds]);
@@ -174,6 +216,8 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const handleClear = useCallback(() => {
     setMessages([]);
     localStorage.removeItem(CHAT_STORAGE_KEY);
+    setLastPromptTokens(0);
+    setStorageBytes(0);
     clearError();
   }, [clearError]);
 
@@ -202,6 +246,18 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     }
 
     if (!selectedModel) return;
+
+    // Block sends when conversation capacity is exhausted
+    if (capacity >= 1) {
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: 'This conversation has reached its limit. Use /clear to start a fresh conversation.',
+        timestamp: new Date(),
+      }]);
+      setInput('');
+      return;
+    }
 
     clearError();
     setInput('');
@@ -244,8 +300,11 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
           controller.signal,
         );
 
-        // Stream finished — clear the streaming text
+        // Stream finished — clear the streaming text and update token usage
         setStreamingText('');
+        if (response.usage.prompt_tokens > 0) {
+          setLastPromptTokens(response.usage.prompt_tokens);
+        }
 
         const choice = response.choices[0];
         const assistantMsg = choice.message;
@@ -361,7 +420,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
       setIsStreaming(false);
       setStreamingText('');
     }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendStreamingMessage, executeToolCall, clearError, handleClear]);
+  }, [input, selectedModel, isStreaming, messages, capacity, buildApiMessages, sendStreamingMessage, executeToolCall, clearError, handleClear]);
 
   // Stop an in-flight generation
   const handleStop = useCallback(() => {
@@ -387,6 +446,13 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     apiLoading,
     apiError,
     messagesEndRef,
+
+    // Capacity
+    capacity,
+    lastPromptTokens,
+    contextWindow,
+    storageBytes,
+    maxStorageBytes: MAX_STORAGE_BYTES,
 
     // Actions
     handleSend,
