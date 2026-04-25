@@ -16,6 +16,10 @@ export interface DisplayMessage {
   toolCallId?: string;
   /** A Nostr event published by a tool, rendered inline in the chat. */
   nostrEvent?: NostrEvent;
+  /** When set, the message is a client-generated notice rather than model output. Determines visual styling:
+   *  - `'info'`: muted informational notice (e.g. /tools listing, unknown command)
+   *  - `'error'`: destructive-styled warning (e.g. capacity exhausted, unexpected error) */
+  noticeVariant?: 'info' | 'error';
 }
 
 export interface ToolCall {

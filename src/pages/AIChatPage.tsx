@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Bot, Send, Square, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -21,6 +21,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { cn } from '@/lib/utils';
+
+// ─── Slash Commands ───
+
+const SLASH_COMMANDS = [
+  { command: '/clear', description: 'Clear conversation history' },
+  { command: '/new', description: 'Start a new conversation' },
+  { command: '/tools', description: 'List available tools' },
+];
 
 // ─── Page Component ───
 
@@ -153,14 +162,13 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
       {/* Input Area */}
       <div className="shrink-0 p-4">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <Textarea
+          <SlashCommandInput
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={setInput}
             onKeyDown={handleKeyDown}
+            onSend={handleSend}
             placeholder={!selectedModel ? 'Select a model first...' : `Message ${buddy.name}...`}
             disabled={!selectedModel || isStreaming}
-            className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
-            rows={1}
           />
           {isStreaming ? (
             <Button
@@ -281,7 +289,7 @@ function CapacityRing({ capacity, promptTokens, contextWindow, storageBytes, max
             </svg>
           </div>
         </TooltipTrigger>
-        <TooltipContent>
+        <TooltipContent side="bottom">
           <p className="text-xs">
             Tokens: {promptTokens.toLocaleString()} / {contextWindow.toLocaleString()} ({tokenPct}%)
             <br />
@@ -309,5 +317,120 @@ function CreditsBadge({ getCredits }: { getCredits: () => Promise<{ amount: numb
     <Badge variant="secondary" className="text-xs tabular-nums shrink-0">
       {isLoading ? '...' : formatted ?? '--'}
     </Badge>
+  );
+}
+
+/** Text input with a slash-command autocomplete dropdown. */
+function SlashCommandInput({ value, onChange, onKeyDown, onSend, placeholder, disabled }: {
+  value: string;
+  onChange: (v: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onSend: (override?: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [menuDismissed, setMenuDismissed] = useState(false);
+
+  // Filter commands based on input
+  const matches = useMemo(() => {
+    if (!value.startsWith('/') || menuDismissed) return [];
+    const typed = value.toLowerCase();
+    return SLASH_COMMANDS.filter((c) => c.command.startsWith(typed));
+  }, [value, menuDismissed]);
+
+  const showMenu = matches.length > 0 && !disabled;
+
+  // Reset selection when matches change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [matches.length]);
+
+  // Un-dismiss when input stops being a slash command or is cleared
+  useEffect(() => {
+    if (!value.startsWith('/')) setMenuDismissed(false);
+  }, [value]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setMenuDismissed(true);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu]);
+
+  const selectCommand = useCallback((cmd: string) => {
+    onChange(cmd);
+    setMenuDismissed(true);
+    // Auto-send slash commands immediately
+    onSend(cmd);
+  }, [onChange, onSend]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (showMenu) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + matches.length) % matches.length);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % matches.length);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        selectCommand(matches[selectedIndex].command);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMenuDismissed(true);
+        return;
+      }
+    }
+    // Fall through to parent handler (Enter → send, etc.)
+    onKeyDown(e);
+  }, [showMenu, matches, selectedIndex, selectCommand, onKeyDown]);
+
+  return (
+    <div ref={wrapperRef} className="relative flex-1 min-w-0">
+      {/* Autocomplete menu */}
+      {showMenu && (
+        <div className="absolute bottom-full left-0 right-0 mb-1.5 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 slide-in-from-bottom-2 duration-150 z-10">
+          {matches.map((cmd, i) => (
+            <button
+              key={cmd.command}
+              className={cn(
+                'w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm transition-colors',
+                i === selectedIndex ? 'bg-secondary' : 'hover:bg-secondary/50',
+              )}
+              onMouseEnter={() => setSelectedIndex(i)}
+              onMouseDown={(e) => {
+                e.preventDefault(); // Keep textarea focus
+                selectCommand(cmd.command);
+              }}
+            >
+              <span className="font-mono text-xs font-semibold text-foreground">{cmd.command}</span>
+              <span className="text-muted-foreground text-xs">{cmd.description}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <Textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
+        rows={1}
+      />
+    </div>
   );
 }

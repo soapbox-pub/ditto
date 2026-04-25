@@ -37,6 +37,37 @@ export function BuddyThinking() {
 export function MessageBubble({ message }: { message: DisplayMessage }) {
   const isUser = message.role === 'user';
 
+  // System notices — info vs error styling
+  if (message.noticeVariant) {
+    const isError = message.noticeVariant === 'error';
+    return (
+      <div className="flex items-start">
+        <div className="max-w-[85%] min-w-0">
+          <div className={cn(
+            'rounded-2xl px-4 py-2.5 text-sm rounded-tl-md border',
+            isError
+              ? 'bg-red-500/15 border-red-500/25 text-red-700 dark:text-red-400'
+              : 'bg-primary/15 border-primary/25 text-primary',
+          )}>
+            <div className={cn(
+              'prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:text-xs',
+              isError
+                ? 'text-red-700 dark:text-red-400 prose-strong:text-red-800 dark:prose-strong:text-red-300 prose-code:text-red-600 dark:prose-code:text-red-400 marker:text-red-700 dark:marker:text-red-400'
+                : 'text-primary prose-strong:text-primary prose-code:text-primary/80 marker:text-primary',
+            )}>
+              <Markdown rehypePlugins={[rehypeSanitize]}>
+                {message.content}
+              </Markdown>
+            </div>
+          </div>
+          <span className="text-[10px] text-muted-foreground/60 px-1">
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
