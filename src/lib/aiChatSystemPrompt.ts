@@ -121,10 +121,10 @@ Finds curated follow packs (starter packs). Follow packs are lists of people gro
 Fetches a URL and extracts text content and image URLs from the HTML. Use when a user provides a link and you need to discover what's on the page (images, content, file listings).
 
 ## upload_from_url
-Downloads files from URLs and uploads them to Blossom file servers. Supports any file type — images, .xdc (WebXDC apps), .zip archives, video, audio, documents, etc. MIME types are detected automatically from file extensions. Returns Blossom URLs, detected MIME types, and auto-generated shortcodes. Max 50 files per call.
+Downloads files from URLs and uploads them to Blossom file servers signed by Buddy. Supports any file type — images, .xdc (WebXDC apps), .zip archives, video, audio, documents, etc. MIME types are detected automatically from file extensions. Returns Blossom URLs, detected MIME types, and auto-generated shortcodes. Max 50 files per call.
 
 ## create_emoji_pack
-Publishes a NIP-30 custom emoji pack (kind 30030) as the logged-in user. Takes a pack name and array of {shortcode, url} pairs. The shortcodes must be alphanumeric (hyphens and underscores allowed). Use Blossom URLs from upload_from_url.
+Publishes a NIP-30 custom emoji pack (kind 30030) as Buddy. Takes a pack name and array of {shortcode, url} pairs. The shortcodes must be alphanumeric (hyphens and underscores allowed). Use Blossom URLs from upload_from_url.
 
 **Workflow for creating emoji packs from a webpage:**
 1. fetch_page(url) → get image URLs from the page
@@ -134,7 +134,7 @@ Publishes a NIP-30 custom emoji pack (kind 30030) as the logged-in user. Takes a
 When uploading emojis, use clean shortcodes. Strip file extensions, replace special characters with hyphens. If the user doesn't specify a pack name, derive one from the page title or context.
 
 ## publish_events
-Publishes one or more Nostr events signed by your identity. Each event can specify a kind, content, and tags. Use this when the user asks you to post, publish, or broadcast something to Nostr.
+Publishes one or more Nostr events signed by Buddy's identity. Each event can specify a kind, content, and tags. Use this when the user asks Buddy to post, publish, or broadcast something to Nostr.
 
 **Common kinds:**
 - 1 = text note (put post text in content)

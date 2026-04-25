@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { finalizeEvent } from 'nostr-tools';
 
-import { getBuddyOrEphemeralKey } from './helpers';
+import { BUDDY_KEY_UNAVAILABLE_ERROR, getBuddyKey } from './helpers';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { Tool, ToolResult, ToolContext } from './Tool';
@@ -17,7 +17,7 @@ const inputSchema = z.object({
 type Params = z.infer<typeof inputSchema>;
 
 export const PublishEventsTool: Tool<Params> = {
-  description: `Publish one or more Nostr events signed by your identity. Each event can specify a kind, content, and tags. Defaults: kind 1 (text note), empty content, empty tags, current timestamp.
+  description: `Publish one or more Nostr events signed by Buddy's identity. Each event can specify a kind, content, and tags. Defaults: kind 1 (text note), empty content, empty tags, current timestamp.
 
 Common kinds: 1 = text note, 6 = repost, 7 = reaction (content is "+" or emoji), 30023 = long-form article.
 
@@ -32,7 +32,11 @@ Tags are arrays of strings, e.g. [["t", "nostr"], ["p", "<hex-pubkey>"]] for a h
       return { result: JSON.stringify({ error: 'At least one event is required.' }) };
     }
 
-    const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(ctx.getBuddySecretKey);
+    const buddyKey = getBuddyKey(ctx.getBuddySecretKey);
+    if (!buddyKey) {
+      return { result: JSON.stringify({ error: BUDDY_KEY_UNAVAILABLE_ERROR }) };
+    }
+
     const currentTimestamp = Math.floor(Date.now() / 1000);
 
     const finalized: NostrEvent[] = args.events.map((partial) =>
@@ -41,18 +45,8 @@ Tags are arrays of strings, e.g. [["t", "nostr"], ["p", "<hex-pubkey>"]] for a h
         content: partial.content ?? '',
         tags: partial.tags ?? [],
         created_at: currentTimestamp,
-      }, sk) as NostrEvent,
+      }, buddyKey.sk) as NostrEvent,
     );
-
-    if (!isBuddy) {
-      const profileEvent = finalizeEvent({
-        kind: 0,
-        content: JSON.stringify({ name: 'Dork Publisher', about: 'Events published by Dork AI' }),
-        tags: [],
-        created_at: currentTimestamp,
-      }, sk) as NostrEvent;
-      await ctx.nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) });
-    }
 
     await Promise.all(
       finalized.map((event) => ctx.nostr.event(event, { signal: AbortSignal.timeout(5000) })),
@@ -63,7 +57,7 @@ Tags are arrays of strings, e.g. [["t", "nostr"], ["p", "<hex-pubkey>"]] for a h
     return {
       result: JSON.stringify({
         success: true,
-        pubkey,
+        pubkey: buddyKey.pubkey,
         events_published: finalized.length,
         events: finalized.map((e) => ({
           id: e.id,
