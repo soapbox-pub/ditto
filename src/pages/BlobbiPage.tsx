@@ -91,6 +91,7 @@ import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/com
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import { playMunchSound } from '@/blobbi/ui/lib/munchSound';
 import {
   BlobbiRoomShell,
   BlobbiRoomHero,
@@ -1491,9 +1492,10 @@ function BlobbiDashboard({
      *  touching React state. */
     const isActive = () => mountedRef.current && seq === feedSeqRef.current;
 
-    // ── Lock + visual ──
+    // ── Lock + visual + audio ──
     setUsingItemId(itemId);
     setActionOverrideEmotion('chewing');
+    playMunchSound();
 
     // Spawn crumb particles just below the mouth, and anchor the reward
     // text above the head.
