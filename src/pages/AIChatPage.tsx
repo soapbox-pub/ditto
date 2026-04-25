@@ -9,13 +9,16 @@ import { BuddyOnboarding } from '@/components/AIChat/BuddyOnboarding';
 import { DorkOverlay } from '@/components/AIChat/DorkCharacter';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useAIChatSession } from '@/hooks/useAIChatSession';
 import { useBuddy, type BuddyIdentity } from '@/hooks/useBuddy';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getAvatarShape } from '@/lib/avatarShape';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 // ─── Page Component ───
@@ -111,7 +114,7 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
       <ScrollArea className="flex-1">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           {messages.length === 0 ? (
-            <EmptyState buddyName={buddy.name} onSuggestion={handleSend} />
+            <EmptyState buddyName={buddy.name} buddyPubkey={buddy.pubkey} onSuggestion={handleSend} />
           ) : (
             messages.filter((msg) => msg.role !== 'tool_result').map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
@@ -190,7 +193,10 @@ function greetings(name: string): string[] {
   ];
 }
 
-function EmptyState({ buddyName, onSuggestion }: { buddyName: string; onSuggestion: (text: string) => void }) {
+function EmptyState({ buddyName, buddyPubkey, onSuggestion }: { buddyName: string; buddyPubkey: string; onSuggestion: (text: string) => void }) {
+  const buddyAuthor = useAuthor(buddyPubkey);
+  const buddyMetadata = buddyAuthor.data?.metadata;
+
   const greeting = useMemo(() => {
     const g = greetings(buddyName);
     return g[Math.floor(Math.random() * g.length)];
@@ -198,7 +204,12 @@ function EmptyState({ buddyName, onSuggestion }: { buddyName: string; onSuggesti
 
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-4 text-center select-none animate-in fade-in duration-500">
-      <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
+      <Avatar shape={getAvatarShape(buddyMetadata)} className="size-20">
+        <AvatarImage src={buddyMetadata?.picture} alt={buddyName} />
+        <AvatarFallback className="bg-primary/10 text-primary">
+          <Bot className="size-8" />
+        </AvatarFallback>
+      </Avatar>
       <p className="text-sm text-muted-foreground">{greeting}</p>
       <div className="flex flex-col gap-2 w-full max-w-sm mt-2">
         {SUGGESTIONS.map((text) => (
