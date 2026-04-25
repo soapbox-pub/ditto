@@ -1,11 +1,13 @@
-import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
+import { getPublicKey, finalizeEvent } from 'nostr-tools';
 import { NSecSigner } from '@nostrify/nostrify';
 import { BlossomUploader } from '@nostrify/nostrify/uploaders';
 
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 
-import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { ToolContext } from './Tool';
+
+export const BUDDY_KEY_UNAVAILABLE_ERROR = 'Buddy key is unavailable. Open Buddy once to restore the key, then try again.';
 
 /** Fetch the logged-in user's contact list pubkeys (kind 3 `p` tags). */
 export async function fetchContactPubkeys(ctx: ToolContext): Promise<string[]> {
@@ -23,49 +25,29 @@ export async function fetchContactPubkeys(ctx: ToolContext): Promise<string[]> {
   }
 }
 
-/** Get the buddy secret key or generate an ephemeral one. */
-export function getBuddyOrEphemeralKey(getBuddySecretKey: () => Uint8Array | null) {
+/** Get the buddy secret key, or null when it cannot be restored. */
+export function getBuddyKey(getBuddySecretKey: () => Uint8Array | null) {
   const buddySk = getBuddySecretKey();
-  const sk = buddySk ?? generateSecretKey();
-  return { sk, pubkey: getPublicKey(sk), isBuddy: !!buddySk };
+  return buddySk ? { sk: buddySk, pubkey: getPublicKey(buddySk) } : null;
 }
 
-/**
- * Sign and publish a Nostr event, plus a throwaway kind-0 profile when using
- * an ephemeral key (buddy already has a profile).
- */
-export async function signAndPublishWithProfile(
+/** Sign and publish a Nostr event with the buddy key. */
+export async function signAndPublishAsBuddy(
   nostr: ToolContext['nostr'],
   sk: Uint8Array,
-  isBuddy: boolean,
   event: { kind: number; content: string; tags: string[][]; created_at: number },
-  profileMeta: { name: string; about: string },
 ): Promise<NostrEvent> {
   const signed = finalizeEvent(event, sk) as NostrEvent;
-  const publishes: Promise<void>[] = [
-    nostr.event(signed, { signal: AbortSignal.timeout(5000) }),
-  ];
-  if (!isBuddy) {
-    const profileEvent = finalizeEvent({
-      kind: 0,
-      content: JSON.stringify(profileMeta),
-      tags: [],
-      created_at: event.created_at,
-    }, sk) as NostrEvent;
-    publishes.push(nostr.event(profileEvent, { signal: AbortSignal.timeout(5000) }));
-  }
-  await Promise.all(publishes);
+  await nostr.event(signed, { signal: AbortSignal.timeout(5000) });
   return signed;
 }
 
-/** Create a BlossomUploader configured with buddy or user signer. */
+/** Create a BlossomUploader configured with the buddy signer. */
 export function createBuddyUploader(
-  getBuddySecretKey: () => Uint8Array | null,
-  userSigner: NostrSigner,
+  buddySk: Uint8Array,
   config: ToolContext['config'],
 ): BlossomUploader {
-  const buddySk = getBuddySecretKey();
-  const signer = buddySk ? new NSecSigner(buddySk) : userSigner;
+  const signer = new NSecSigner(buddySk);
   const servers = getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers);
   return new BlossomUploader({
     servers,

@@ -46,7 +46,7 @@ export interface ToolContext {
     blossomServerMetadata: { servers: string[]; updatedAt: number };
     useAppBlossomServers: boolean;
   };
-  /** Get the buddy secret key (returns null if no buddy is configured). */
+  /** Get the buddy secret key (returns null if unavailable). */
   getBuddySecretKey: () => Uint8Array | null;
   /** Saved feed definitions. */
   savedFeeds: Array<{

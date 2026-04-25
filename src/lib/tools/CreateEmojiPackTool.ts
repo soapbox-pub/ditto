@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-import { getBuddyOrEphemeralKey, signAndPublishWithProfile } from './helpers';
+import { BUDDY_KEY_UNAVAILABLE_ERROR, getBuddyKey, signAndPublishAsBuddy } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -17,7 +17,7 @@ const inputSchema = z.object({
 type Params = z.infer<typeof inputSchema>;
 
 export const CreateEmojiPackTool: Tool<Params> = {
-  description: `Create and publish a NIP-30 custom emoji pack (kind 30030 event). The pack is published as the logged-in user.
+  description: `Create and publish a NIP-30 custom emoji pack (kind 30030 event). The pack is published as Buddy.
 
 Takes a pack name and an array of emoji entries (shortcode + image URL). Shortcodes must be alphanumeric with hyphens and underscores only. The image URLs should be Blossom URLs from a prior upload_from_url call.
 
@@ -63,18 +63,21 @@ After publishing, the emoji pack appears in the user's feed and can be added to 
       ...sanitizedEmojis.map((e) => ['emoji', e.shortcode, e.url]),
     ];
 
-    const { sk, pubkey, isBuddy } = getBuddyOrEphemeralKey(ctx.getBuddySecretKey);
-    const emojiPackEvent = await signAndPublishWithProfile(
-      ctx.nostr, sk, isBuddy,
+    const buddyKey = getBuddyKey(ctx.getBuddySecretKey);
+    if (!buddyKey) {
+      return { result: JSON.stringify({ error: BUDDY_KEY_UNAVAILABLE_ERROR }) };
+    }
+
+    const emojiPackEvent = await signAndPublishAsBuddy(
+      ctx.nostr, buddyKey.sk,
       { kind: 30030, content: '', tags, created_at: Math.floor(Date.now() / 1000) },
-      { name: 'Dork Emoji Maker', about: 'Emoji packs created by Dork AI' },
     );
 
     return {
       result: JSON.stringify({
         success: true,
         event_id: emojiPackEvent.id,
-        pubkey,
+        pubkey: buddyKey.pubkey,
         name: packName,
         slug: dTag,
         emoji_count: sanitizedEmojis.length,
