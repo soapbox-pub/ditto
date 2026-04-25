@@ -1,12 +1,11 @@
 /**
  * RoomPoopLayer — Poop rendering and shovel button components.
  *
- * Currently all poops spawn in the kitchen, but the rendering is
- * room-aware: each overlay filters by `poop.room` so enabling
- * multi-room spawning later only requires changing the spawn
- * location in `poop-system.ts`.
+ * All poops spawn in the kitchen. `PoopOverlay` renders them in every
+ * room so the mess follows the Blobbi around. Cleaning is only possible
+ * in the kitchen via `InteractivePoopOverlay` + drag-to-clean shovel.
  *
- * - `PoopOverlay`: display-only poop emojis (any room)
+ * - `PoopOverlay`: display-only poop emojis, shown in all rooms
  * - `InteractivePoopOverlay`: poop emojis with drag hit-test refs (kitchen)
  * - `ShovelButton`: draggable shovel action button (kitchen only)
  */
