@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 import { proxyUrl } from '@/lib/proxyUrl';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
 import { BUDDY_KEY_UNAVAILABLE_ERROR, createBuddyUploader, getBuddyKey } from './helpers';
+import { sanitizeToolFetchUrl } from './sanitizeToolFetchUrl';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
 
@@ -60,9 +61,9 @@ Handles up to 50 files per call. Returns an array of objects with the original U
     const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; mime_type?: string; error?: string }> = [];
 
     for (const fileUrl of urls) {
-      const safeUrl = sanitizeUrl(fileUrl);
+      const safeUrl = sanitizeToolFetchUrl(fileUrl);
       if (!safeUrl) {
-        results.push({ original_url: fileUrl, shortcode: '', error: 'Invalid or non-HTTPS URL' });
+        results.push({ original_url: fileUrl, shortcode: '', error: 'Invalid, private, or non-HTTPS URL' });
         continue;
       }
 
