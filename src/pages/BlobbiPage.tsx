@@ -2865,31 +2865,41 @@ function DashboardLoadingState() {
 // ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
 
 /** Reward words — one is picked at random on each feed. */
-const REWARD_WORDS = ['nhom!', 'yum!', 'nom!', 'mmm!'] as const;
+const REWARD_WORDS = [
+  'nhom!', 'nom nom!', 'yum!', 'yum yum!', 'mmm~',
+  'munch!', 'cronch!', 'tasty!', 'hehe!', '\u2661',
+] as const;
 
 /**
- * Crumb particle configs — 12 dots radiating from the mouth in warm
- * food-like colours. Each entry defines its trajectory offset (dx/dy),
- * staggered start delay, rendered size, and Tailwind colour class.
+ * Crumb particle configs — 12 small dots that spawn from a compact
+ * mouth-shaped strip and tumble mostly downward.
+ *
+ * `sx`/`sy` — spawn offset from the mouth center (mouth ~16 px wide).
+ * `dx`/`dy` — drift from the spawn point during the fall animation.
+ * `delay`   — staggered start for a natural feel.
+ * `size`    — 2–4 px (small crumbs with a few medium ones).
+ * `color`   — warm food-like Tailwind colour class.
  */
 const CRUMB_PARTICLES: ReadonlyArray<{
-  dx: number; dy: number; delay: number; size: number; color: string;
+  sx: number; sy: number; dx: number; dy: number;
+  delay: number; size: number; color: string;
 }> = [
-  // inner ring — tight around the mouth
-  { dx:  -5, dy:   6, delay:   0, size: 4, color: 'bg-amber-600/90' },
-  { dx:   4, dy:   8, delay:  30, size: 3, color: 'bg-orange-500/85' },
-  { dx:  -2, dy:  10, delay:  60, size: 5, color: 'bg-amber-700/90' },
-  { dx:   7, dy:   5, delay:  40, size: 4, color: 'bg-yellow-600/80' },
-  // middle ring — mouth-width spread
-  { dx: -12, dy:  10, delay:  80, size: 5, color: 'bg-orange-600/85' },
-  { dx:  10, dy:  13, delay:  50, size: 4, color: 'bg-amber-500/90' },
-  { dx:  -3, dy:  16, delay: 100, size: 6, color: 'bg-amber-700/80' },
-  { dx:  14, dy:   8, delay:  70, size: 5, color: 'bg-yellow-700/80' },
-  // outer ring — just past the mouth edges
-  { dx: -16, dy:   7, delay: 120, size: 5, color: 'bg-orange-500/75' },
-  { dx:  15, dy:  14, delay: 110, size: 6, color: 'bg-amber-600/80' },
-  { dx:  -8, dy:  20, delay: 140, size: 4, color: 'bg-yellow-600/75' },
-  { dx:   1, dy:  22, delay: 130, size: 5, color: 'bg-orange-600/80' },
+  // left side of mouth
+  { sx: -7, sy:  0, dx: -4, dy: 14, delay:   0, size: 2, color: 'bg-amber-600/90' },
+  { sx: -5, sy:  1, dx: -2, dy: 18, delay:  50, size: 3, color: 'bg-orange-500/85' },
+  { sx: -8, sy: -1, dx: -5, dy: 12, delay: 100, size: 2, color: 'bg-yellow-600/80' },
+  // center of mouth
+  { sx: -2, sy:  2, dx:  1, dy: 20, delay:  30, size: 3, color: 'bg-amber-700/90' },
+  { sx:  1, sy:  3, dx: -1, dy: 24, delay:  80, size: 4, color: 'bg-orange-600/85' },
+  { sx:  0, sy:  2, dx:  2, dy: 16, delay: 120, size: 2, color: 'bg-amber-500/90' },
+  // right side of mouth
+  { sx:  5, sy:  1, dx:  3, dy: 18, delay:  40, size: 3, color: 'bg-amber-600/80' },
+  { sx:  7, sy:  0, dx:  5, dy: 14, delay:  90, size: 2, color: 'bg-yellow-700/80' },
+  { sx:  8, sy: -1, dx:  4, dy: 12, delay: 130, size: 2, color: 'bg-orange-500/75' },
+  // a few extra that fall a bit further for depth
+  { sx: -3, sy:  2, dx: -3, dy: 26, delay:  60, size: 4, color: 'bg-amber-700/80' },
+  { sx:  3, sy:  2, dx:  2, dy: 28, delay: 110, size: 3, color: 'bg-yellow-600/75' },
+  { sx:  0, sy:  3, dx:  0, dy: 22, delay: 140, size: 2, color: 'bg-orange-600/80' },
 ];
 
 /**
@@ -2923,6 +2933,8 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
             key={i}
             className={`absolute rounded-full ${p.color} animate-crumb-fall`}
             style={{
+              left: p.sx,
+              top: p.sy,
               width: p.size,
               height: p.size,
               animationDelay: `${p.delay}ms`,
