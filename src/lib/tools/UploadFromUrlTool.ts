@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { proxyUrl } from '@/lib/proxyUrl';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { createBuddyUploader } from './helpers';
 
 import type { Tool, ToolResult, ToolContext } from './Tool';
@@ -54,8 +55,14 @@ Handles up to 50 files per call. Returns an array of objects with the original U
     const results: Array<{ original_url: string; blossom_url?: string; shortcode: string; mime_type?: string; error?: string }> = [];
 
     for (const fileUrl of urls) {
+      const safeUrl = sanitizeUrl(fileUrl);
+      if (!safeUrl) {
+        results.push({ original_url: fileUrl, shortcode: '', error: 'Invalid or non-HTTPS URL' });
+        continue;
+      }
+
       try {
-        const proxied = proxyUrl({ template: ctx.config.corsProxy, url: fileUrl });
+        const proxied = proxyUrl({ template: ctx.config.corsProxy, url: safeUrl });
         const response = await fetch(proxied, { signal: AbortSignal.timeout(30_000) });
 
         if (!response.ok) {
@@ -65,7 +72,7 @@ Handles up to 50 files per call. Returns an array of objects with the original U
 
         const blob = await response.blob();
 
-        const pathname = new URL(fileUrl).pathname;
+        const pathname = new URL(safeUrl).pathname;
         const filename = pathname.split('/').pop() || 'file';
         const dotIndex = filename.lastIndexOf('.');
         const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
