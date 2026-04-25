@@ -404,6 +404,7 @@ export function useShakespeare() {
       let finishReason = 'stop';
       let responseId = '';
       let responseModel = model;
+      let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
       const toolCalls: Map<number, ToolCallFunction> = new Map();
 
       /** Process a single parsed SSE data object, accumulating deltas. */
@@ -449,7 +450,16 @@ export function useShakespeare() {
       const processSSEData = (data: string) => {
         if (data === '[DONE]') return;
         try {
-          processDelta(JSON.parse(data));
+          const parsed = JSON.parse(data);
+          // Capture usage from the final chunk (which has choices: [] and real token counts)
+          if (parsed.usage?.prompt_tokens) {
+            usage = {
+              prompt_tokens: parsed.usage.prompt_tokens,
+              completion_tokens: parsed.usage.completion_tokens ?? 0,
+              total_tokens: parsed.usage.total_tokens ?? 0,
+            };
+          }
+          processDelta(parsed);
         } catch {
           // Malformed JSON — nothing to do
         }
@@ -506,7 +516,7 @@ export function useShakespeare() {
           },
           finish_reason: finishReason,
         }],
-        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        usage,
       };
     } catch (err) {
       if (err instanceof RateLimitError) {

@@ -17,6 +17,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -88,6 +89,7 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
   const {
     messages, input, setInput, isStreaming, streamingText, selectedModel,
     apiLoading, apiError, messagesEndRef,
+    capacity, lastPromptTokens, contextWindow, storageBytes, maxStorageBytes,
     handleSend, handleStop, handleKeyDown, handleClear, getCredits,
   } = useAIChatSession({ buddyName: buddy.name, buddySoul: buddy.soul });
 
@@ -96,6 +98,13 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
       {/* Header */}
       <PageHeader title={buddy.name} icon={<Bot className="size-5" />} className="shrink-0 py-3">
         <div className="flex items-center gap-2">
+          <CapacityRing
+            capacity={capacity}
+            promptTokens={lastPromptTokens}
+            contextWindow={contextWindow}
+            storageBytes={storageBytes}
+            maxStorageBytes={maxStorageBytes}
+          />
           <CreditsBadge getCredits={getCredits} />
           <Button
             variant="ghost"
@@ -223,6 +232,64 @@ function EmptyState({ buddyName, buddyPubkey, onSuggestion }: { buddyName: strin
         ))}
       </div>
     </div>
+  );
+}
+
+/** Conversation capacity ring — appears at ≥75% usage. */
+function CapacityRing({ capacity, promptTokens, contextWindow, storageBytes, maxStorageBytes }: {
+  capacity: number;
+  promptTokens: number;
+  contextWindow: number;
+  storageBytes: number;
+  maxStorageBytes: number;
+}) {
+  if (capacity < 0.75) return null;
+
+  const pct = Math.min(capacity * 100, 100);
+  const size = 20;
+  const strokeWidth = 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+
+  // Color: amber at 75-89%, red at 90%+
+  const ringColor = pct >= 90 ? 'text-destructive' : 'text-amber-500';
+
+  const tokenPct = contextWindow > 0 ? ((promptTokens / contextWindow) * 100).toFixed(0) : '—';
+  const storageMB = (storageBytes / (1024 * 1024)).toFixed(1);
+  const maxMB = (maxStorageBytes / (1024 * 1024)).toFixed(0);
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="cursor-help shrink-0">
+            <svg width={size} height={size} className="transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+                className="text-muted/30"
+              />
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                className={`${ringColor} transition-all duration-300 ease-in-out`}
+              />
+            </svg>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">
+            Tokens: {promptTokens.toLocaleString()} / {contextWindow.toLocaleString()} ({tokenPct}%)
+            <br />
+            Storage: {storageMB} / {maxMB} MB
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
