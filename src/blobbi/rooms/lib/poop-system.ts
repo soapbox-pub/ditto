@@ -67,7 +67,7 @@ export function generateInitialPoops(
 
   if (lastFeedTimestamp) {
     const hoursSinceFeed = (now - lastFeedTimestamp) / (1000 * 60 * 60);
-    const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), MAX_POOPS);
+    const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), MAX_POOPS - poops.length);
     for (let i = 0; i < count; i++) {
       poops.push({
         id: nextPoopId(),

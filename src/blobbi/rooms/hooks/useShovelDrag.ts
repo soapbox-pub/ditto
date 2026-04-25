@@ -7,8 +7,6 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { toast } from '@/hooks/useToast';
-
 import type { PoopState } from '../components/BlobbiRoomShell';
 import { hasAnyPoop } from '../lib/poop-system';
 
@@ -24,12 +22,7 @@ export function useShovelDrag(poopState: PoopState | null) {
   const [hoveredPoopId, setHoveredPoopId] = useState<string | null>(null);
 
   const startDrag = useCallback((clientX: number, clientY: number) => {
-    if (!anyPoop || !shovelRef.current) {
-      if (!anyPoop) {
-        toast({ title: 'Nothing to clean!', description: 'Your Blobbi hasn\'t made a mess.' });
-      }
-      return;
-    }
+    if (!anyPoop || !shovelRef.current) return;
     const rect = shovelRef.current.getBoundingClientRect();
     dragOffsetRef.current = {
       x: clientX - (rect.left + rect.width / 2),
