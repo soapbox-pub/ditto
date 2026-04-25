@@ -18,6 +18,16 @@ const inputSchema = z.object({
 
 type Params = z.infer<typeof inputSchema>;
 
+/** Only allow simple relative paths — no traversal, no absolute paths, no backslashes. */
+const SAFE_FILENAME = /^[a-zA-Z0-9_-][a-zA-Z0-9_./-]*$/;
+
+function isSafeFilename(name: string): boolean {
+  if (!name || !SAFE_FILENAME.test(name)) return false;
+  // Reject path traversal and absolute paths
+  const segments = name.split('/');
+  return segments.every((s) => s !== '..' && s !== '' && s !== '.');
+}
+
 export const CreateWebxdcTool: Tool<Params> = {
   description: `Create and publish a WebXDC mini-app. WebXDC apps are self-contained HTML5 apps (games, tools, widgets) that run inside a sandboxed iframe with no internet access.
 
@@ -78,6 +88,9 @@ Only one of html or files is needed. If both are provided, files takes priority.
 
     if (filesMap) {
       for (const [filename, content] of Object.entries(filesMap)) {
+        if (!isSafeFilename(filename)) {
+          return { result: JSON.stringify({ error: `Unsafe filename rejected: "${filename}". Use simple relative paths only.` }) };
+        }
         if (typeof content === 'string') {
           entries[filename] = strToU8(content);
         }
@@ -95,6 +108,7 @@ Only one of html or files is needed. If both are provided, files takes priority.
         Object.entries(args.asset_urls)
           .filter(([, url]) => typeof url === 'string' && url.trim())
           .map(async ([filename, url]) => {
+            if (!isSafeFilename(filename)) throw new Error(`Unsafe asset filename rejected: "${filename}". Use simple relative paths only.`);
             const safeUrl = sanitizeUrl(url);
             if (!safeUrl) throw new Error(`Invalid asset URL for "${filename}": must be a valid HTTPS URL.`);
             const res = await globalThis.fetch(safeUrl, { signal: AbortSignal.timeout(60_000) });
