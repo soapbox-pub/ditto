@@ -11,7 +11,7 @@ import { LinkEmbed } from '@/components/LinkEmbed';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
-import { extractYouTubeId, extractWikipediaTitle, extractBlueskyPost } from '@/lib/linkEmbed';
+import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlueskyPost } from '@/lib/linkEmbed';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { shareOrCopy } from '@/lib/share';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -26,6 +26,7 @@ import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
+import { useWikidataEntity } from '@/hooks/useWikidataEntity';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
@@ -36,14 +37,53 @@ import { cn } from '@/lib/utils';
 
 export function UrlContentHeader({ url }: { url: string }) {
   const wikiTitle = useMemo(() => extractWikipediaTitle(url), [url]);
+  const wikidataId = useMemo(() => extractWikidataId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
 
   if (wikiTitle) {
     return <WikipediaArticleHeader title={wikiTitle} url={url} />;
   }
 
+  if (wikidataId) {
+    return <WikidataEntityHeader id={wikidataId} url={url} />;
+  }
+
   if (blueskyPost) {
     return <BlueskyPostHeader author={blueskyPost.author} rkey={blueskyPost.rkey} url={url} />;
+  }
+
+  return <LinkEmbed url={url} showActions={false} />;
+}
+
+// ---------------------------------------------------------------------------
+// Wikidata entity header — resolves the entity to its Wikipedia article and
+// delegates to WikipediaArticleHeader. Falls back to LinkEmbed when there is
+// no English Wikipedia sitelink (or while resolving fails).
+// ---------------------------------------------------------------------------
+
+function WikidataEntityHeader({ id, url }: { id: string; url: string }) {
+  const { data: entity, isLoading } = useWikidataEntity(id);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <Skeleton className="w-full aspect-[16/9]" />
+        <div className="p-5 space-y-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entity?.wikipediaTitle && entity.wikipediaUrl) {
+    return <WikipediaArticleHeader title={entity.wikipediaTitle} url={entity.wikipediaUrl} />;
   }
 
   return <LinkEmbed url={url} showActions={false} />;

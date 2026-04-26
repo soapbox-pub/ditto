@@ -126,6 +126,29 @@ export function extractArchiveOrgId(url: string): string | null {
 }
 
 /**
+ * Extract a Wikidata entity ID (Q…, P…, or L…) from a Wikidata URL, or null if not one.
+ *
+ * Supports the "globally unique" concept URI form described at
+ * https://www.wikidata.org/wiki/Wikidata:Identifiers:
+ *   - https://www.wikidata.org/entity/Q42
+ *   - http://www.wikidata.org/entity/Q42
+ * …as well as the browser-facing page URL:
+ *   - https://www.wikidata.org/wiki/Q42
+ */
+export function extractWikidataId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'wikidata.org') return null;
+    // Match /entity/{id} or /wiki/{id} where id is Q|P|L followed by digits.
+    const match = u.pathname.match(/^\/(?:entity|wiki)\/([QPL]\d+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Extract a Wikipedia article title from a Wikipedia URL, or null if not a Wikipedia article link.
  * Supports en.wikipedia.org/wiki/{title} and other language subdomains.
  */
