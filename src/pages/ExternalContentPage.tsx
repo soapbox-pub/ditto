@@ -39,10 +39,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
+import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { useToast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
-import { extractWikipediaTitle, extractWikidataId } from '@/lib/linkEmbed';
+import { extractWikipediaTitle, extractWikidataId, extractGathererCard } from '@/lib/linkEmbed';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { BookReview } from '@/lib/bookstr';
@@ -178,7 +179,20 @@ export function ExternalContentPage() {
   const { data: wikidataEntity } = useWikidataEntity(directWikiTitle ? null : wikidataId);
   const wikiTitle = directWikiTitle ?? wikidataEntity?.wikipediaTitle ?? null;
   const { data: wikiSummary } = useWikipediaSummary(wikiTitle);
-  const resolvedTitle = wikiSummary?.title ?? linkPreview?.title;
+
+  // For Gatherer URLs, look up the card on Scryfall for its real name. The
+  // same query is made (and cached) by GathererCardHeader, so this adds no
+  // extra network traffic.
+  const gathererCard = useMemo(() => linkPreviewUrl ? extractGathererCard(linkPreviewUrl) : null, [linkPreviewUrl]);
+  const scryfallLookup = useMemo(() => {
+    if (!gathererCard) return null;
+    return gathererCard.kind === 'multiverse'
+      ? { kind: 'multiverse' as const, multiverseId: gathererCard.multiverseId }
+      : { kind: 'set' as const, set: gathererCard.set, number: gathererCard.number, lang: gathererCard.lang };
+  }, [gathererCard]);
+  const { data: scryfallCard } = useScryfallCard(scryfallLookup);
+
+  const resolvedTitle = wikiSummary?.title ?? scryfallCard?.name ?? linkPreview?.title;
 
   const pageTitle = resolvedTitle ?? (content ? headerLabel(content) : 'External Content');
 
