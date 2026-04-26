@@ -1719,6 +1719,7 @@ function HomeBar({
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:home`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
 
   const carouselItems = useMemo<CarouselEntry[]>(() => {
     const toys = getLiveShopItems()
@@ -1767,7 +1768,7 @@ function HomeBar({
               disabled={isDisabled}
               highlightId={guideHighlightId}
               initialItemId={storedFocusId ?? undefined}
-              onFocusChange={(entry) => setStoredFocusId(entry.id)}
+              onFocusChange={handleFocusChange}
             />
           </div>
           {canBeCompanion ? (
@@ -1814,6 +1815,7 @@ function KitchenBar({
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
   const drag = useShovelDrag(poopState);
@@ -1919,7 +1921,7 @@ function KitchenBar({
               disabled={isDisabled}
               highlightId={guideHighlightId}
               initialItemId={storedFocusId ?? undefined}
-              onFocusChange={(entry) => setStoredFocusId(entry.id)}
+              onFocusChange={handleFocusChange}
             />
           </div>
           <RoomActionButton
