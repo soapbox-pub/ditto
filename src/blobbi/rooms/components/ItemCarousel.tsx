@@ -27,6 +27,8 @@ interface ItemCarouselProps {
   /** When set, the carousel visually guides the user toward this item. */
   highlightId?: string | null;
   className?: string;
+  /** Seed the initial focused item by id (e.g. from localStorage). Falls back to index 0. */
+  initialItemId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -39,8 +41,15 @@ export function ItemCarousel({
   onFocusChange,
   highlightId,
   className,
+  initialItemId,
 }: ItemCarouselProps) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => {
+    if (initialItemId) {
+      const i = items.findIndex(item => item.id === initialItemId);
+      if (i !== -1) return i;
+    }
+    return 0;
+  });
   const count = items.length;
 
   // Clamp or preserve index when items change.
