@@ -26,9 +26,12 @@ import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
+import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
+import { cardPrimaryImage } from '@/lib/scryfall';
 
 
 /** Default classes shared by all comment context rows. */
@@ -708,8 +711,14 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     return <IsbnCommentContext identifier={identifier} className={className} />;
   }
 
-  // URL identifiers get special treatment — show page title with favicon
+  // URL identifiers get special treatment — show page title with favicon.
+  // Gatherer URLs are routed to a Scryfall-backed renderer that shows the
+  // actual card name instead of the raw URL.
   if (identifier.startsWith('http://') || identifier.startsWith('https://')) {
+    const gathererCard = extractGathererCard(identifier);
+    if (gathererCard) {
+      return <GathererCardCommentContext card={gathererCard} url={identifier} className={className} />;
+    }
     return <UrlCommentContext url={identifier} className={className} />;
   }
 
@@ -884,6 +893,85 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
               {authors && (
                 <p className="text-xs text-muted-foreground truncate">
                   by {authors}
+                </p>
+              )}
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for gatherer.wizards.com URLs — resolves the URL to a
+ * Magic: The Gathering card via Scryfall and shows the card's real name
+ * (e.g. "Xenagos, God of Revels") instead of the raw URL.
+ */
+function GathererCardCommentContext({
+  card,
+  url,
+  className,
+}: {
+  card: GathererCard;
+  url: string;
+  className?: string;
+}) {
+  const lookup = useMemo(() => (
+    card.kind === 'multiverse'
+      ? { kind: 'multiverse' as const, multiverseId: card.multiverseId }
+      : { kind: 'set' as const, set: card.set, number: card.number, lang: card.lang }
+  ), [card]);
+  const { data: scryCard, isLoading } = useScryfallCard(lookup);
+  const link = `/i/${encodeURIComponent(url)}`;
+
+  const displayText = scryCard?.name ?? 'Magic card';
+  const coverUrl = scryCard ? cardPrimaryImage(scryCard, 'small') : undefined;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardsIcon className="size-3.5 shrink-0" />
+            {displayText}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-72 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 px-4 py-3">
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={scryCard?.name ?? 'Magic card'}
+                className="w-9 h-12 rounded object-cover shrink-0"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
+                <CardsIcon className="size-4 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CardsIcon className="size-3 shrink-0" />
+                <span>Magic Card</span>
+              </div>
+              <p className="text-sm font-medium truncate mt-0.5">
+                {scryCard?.name ?? 'Unknown card'}
+              </p>
+              {scryCard?.set_name && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {scryCard.set_name}
                 </p>
               )}
             </div>

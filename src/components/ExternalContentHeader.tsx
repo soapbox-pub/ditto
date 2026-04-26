@@ -11,7 +11,11 @@ import { LinkEmbed } from '@/components/LinkEmbed';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
-import { extractYouTubeId, extractWikipediaTitle, extractBlueskyPost } from '@/lib/linkEmbed';
+import { CardsIcon } from '@/components/icons/CardsIcon';
+import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlueskyPost, extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
+import { GathererCardHeader } from '@/components/GathererCardHeader';
+import { useScryfallCard } from '@/hooks/useScryfallCard';
+import { cardPrimaryImage } from '@/lib/scryfall';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { shareOrCopy } from '@/lib/share';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -26,6 +30,7 @@ import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
+import { useWikidataEntity } from '@/hooks/useWikidataEntity';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
@@ -36,14 +41,58 @@ import { cn } from '@/lib/utils';
 
 export function UrlContentHeader({ url }: { url: string }) {
   const wikiTitle = useMemo(() => extractWikipediaTitle(url), [url]);
+  const wikidataId = useMemo(() => extractWikidataId(url), [url]);
   const blueskyPost = useMemo(() => extractBlueskyPost(url), [url]);
+  const gathererCard = useMemo(() => extractGathererCard(url), [url]);
 
   if (wikiTitle) {
     return <WikipediaArticleHeader title={wikiTitle} url={url} />;
   }
 
+  if (wikidataId) {
+    return <WikidataEntityHeader id={wikidataId} url={url} />;
+  }
+
   if (blueskyPost) {
     return <BlueskyPostHeader author={blueskyPost.author} rkey={blueskyPost.rkey} url={url} />;
+  }
+
+  if (gathererCard) {
+    return <GathererCardHeader card={gathererCard} url={url} />;
+  }
+
+  return <LinkEmbed url={url} showActions={false} />;
+}
+
+// ---------------------------------------------------------------------------
+// Wikidata entity header — resolves the entity to its Wikipedia article and
+// delegates to WikipediaArticleHeader. Falls back to LinkEmbed when there is
+// no English Wikipedia sitelink (or while resolving fails).
+// ---------------------------------------------------------------------------
+
+function WikidataEntityHeader({ id, url }: { id: string; url: string }) {
+  const { data: entity, isLoading } = useWikidataEntity(id);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <Skeleton className="w-full aspect-[16/9]" />
+        <div className="p-5 space-y-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entity?.wikipediaTitle && entity.wikipediaUrl) {
+    return <WikipediaArticleHeader title={entity.wikipediaTitle} url={entity.wikipediaUrl} />;
   }
 
   return <LinkEmbed url={url} showActions={false} />;
@@ -742,8 +791,15 @@ export function ExternalContentPreview({ identifier }: { identifier: string }) {
   const link = `/i/${encodeURIComponent(identifier)}`;
 
   switch (content.type) {
-    case 'url':
+    case 'url': {
+      // Route Gatherer URLs to a Scryfall-backed compact preview that shows
+      // the real card name and art instead of the raw page's oEmbed data.
+      const gathererCard = extractGathererCard(content.value);
+      if (gathererCard) {
+        return <GathererCardPreview card={gathererCard} url={content.value} link={link} />;
+      }
       return <UrlPreview url={content.value} link={link} />;
+    }
     case 'isbn':
       return <BookPreview isbn={content.value} link={link} />;
     case 'iso3166':
@@ -881,6 +937,80 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
         {authors && (
           <p className="text-xs text-muted-foreground truncate">
             by {authors}
+          </p>
+        )}
+      </div>
+
+      <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+    </Link>
+  );
+}
+
+/**
+ * Compact preview for a Magic: The Gathering card linked via gatherer.wizards.com.
+ * Fetches the real card from Scryfall and shows its art + name + set name in
+ * the same px-4 py-3 row shape used by BookPreview and the other compact variants.
+ */
+function GathererCardPreview({ card, url, link }: { card: GathererCard; url: string; link: string }) {
+  const lookup = useMemo(() => (
+    card.kind === 'multiverse'
+      ? { kind: 'multiverse' as const, multiverseId: card.multiverseId }
+      : { kind: 'set' as const, set: card.set, number: card.number, lang: card.lang }
+  ), [card]);
+  const { data: scryCard, isLoading } = useScryfallCard(lookup);
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-9 h-12 rounded-md shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const coverUrl = scryCard ? cardPrimaryImage(scryCard, 'small') : undefined;
+
+  let fallbackHost: string;
+  try {
+    fallbackHost = new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    fallbackHost = url;
+  }
+
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
+    >
+      {coverUrl ? (
+        <img
+          src={coverUrl}
+          alt={scryCard?.name ?? 'Magic card'}
+          className="w-9 h-12 rounded-md object-cover shrink-0 shadow-sm"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-9 h-12 rounded-md bg-secondary flex items-center justify-center shrink-0">
+          <CardsIcon className="size-4 text-muted-foreground/40" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CardsIcon className="size-3 shrink-0" />
+          <span>Magic Card</span>
+        </div>
+        <p className="text-sm font-medium truncate mt-0.5">
+          {scryCard?.name ?? fallbackHost}
+        </p>
+        {scryCard?.set_name && (
+          <p className="text-xs text-muted-foreground truncate">
+            {scryCard.set_name}
           </p>
         )}
       </div>
