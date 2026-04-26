@@ -156,9 +156,9 @@ function CardDisplay({ card, url }: { card: ScryfallCard; url: string }) {
 }
 
 /**
- * Card image with a mouse-driven 3D tilt effect matching the badge showcase.
- * Tap-to-open behaviour is preserved; touch interactions don't activate the
- * tilt so scrolling and tapping still work naturally on mobile.
+ * Card image with a 3D tilt effect matching the badge showcase. Supports
+ * mouse, pen, and touch input: on touch, press-and-drag drives the tilt,
+ * while a quick tap still opens the lightbox via the inner button.
  */
 function CardImageTilt({
   src,
@@ -171,38 +171,74 @@ function CardImageTilt({
 }) {
   const tilt = useCardTilt(18, 1.04);
   const glareRef = useRef<HTMLDivElement>(null);
+  const glareFadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const updateGlare = useCallback((clientX: number, clientY: number) => {
+    const el = tilt.ref.current;
+    const glare = glareRef.current;
+    if (!el || !glare) return;
+    const rect = el.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+    glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
+    glare.style.opacity = '1';
+  }, [tilt.ref]);
+
+  const fadeGlare = useCallback(() => {
+    const glare = glareRef.current;
+    if (glare) glare.style.opacity = '0';
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerDown(e);
+      if (e.pointerType === 'touch') {
+        clearTimeout(glareFadeTimerRef.current);
+        updateGlare(e.clientX, e.clientY);
+      }
+    },
+    [tilt, updateGlare],
+  );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.pointerType === 'touch') return;
       tilt.onPointerMove(e);
-
-      const el = tilt.ref.current;
-      const glare = glareRef.current;
-      if (!el || !glare) return;
-      const rect = el.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      glare.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 35%, transparent 65%)`;
-      glare.style.opacity = '1';
+      // Mirror useCardTilt: for touch, only update while finger is down.
+      if (e.pointerType === 'touch' && !tilt.isTouchActive) return;
+      updateGlare(e.clientX, e.clientY);
     },
-    [tilt],
+    [tilt, updateGlare],
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tilt.onPointerUp(e);
+      if (e.pointerType === 'touch') {
+        clearTimeout(glareFadeTimerRef.current);
+        glareFadeTimerRef.current = setTimeout(fadeGlare, 600);
+      }
+    },
+    [tilt, fadeGlare],
   );
 
   const handlePointerLeave = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.pointerType === 'touch') return;
       tilt.onPointerLeave(e);
-      const glare = glareRef.current;
-      if (glare) glare.style.opacity = '0';
+      if (e.pointerType === 'touch') {
+        clearTimeout(glareFadeTimerRef.current);
+        glareFadeTimerRef.current = setTimeout(fadeGlare, 600);
+      } else {
+        fadeGlare();
+      }
     },
-    [tilt],
+    [tilt, fadeGlare],
   );
 
-  // Override touch-action back to auto so scrolling works normally on touch.
+  // Allow vertical page scrolling to still work on touch — tilt is driven
+  // by horizontal drags and brief holds.
   const style: React.CSSProperties = {
     ...tilt.style,
-    touchAction: 'auto',
+    touchAction: 'pan-y',
     transformStyle: 'preserve-3d',
   };
 
@@ -210,7 +246,9 @@ function CardImageTilt({
     <div
       ref={tilt.ref}
       style={style}
+      onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       className="relative select-none"
     >
