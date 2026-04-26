@@ -932,6 +932,7 @@ function BlobbiDashboard({
   isDevUpdating,
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
+  const { user } = useCurrentUser();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -941,7 +942,7 @@ function BlobbiDashboard({
 
   // ─── Room Navigation ───
   // Persisted room: only written on user-driven room changes (sleep override is UI-only).
-  const roomStorageKey = `blobbi:room:${companion.event.pubkey}:${companion.d}`;
+  const roomStorageKey = `blobbi:room:${user?.pubkey ?? 'anon'}:${companion.d}`;
   const roomDefault = isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM;
   const [storedRoom, setStoredRoom] = useLocalStorage<BlobbiRoomId>(roomStorageKey, roomDefault);
   // Effective room: sleeping temporarily forces 'rest'; waking up returns to storedRoom.
@@ -1578,7 +1579,7 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
-            carouselKeyPrefix={`blobbi:carousel:${companion.event.pubkey}:${companion.d}`}
+            carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
           />
         )}
       </BlobbiRoomShell>
@@ -1969,11 +1970,18 @@ function CareBar({
     }
     return carouselEntries[0]?.meta ?? 'hygiene';
   });
+
+  // Sync focusedMeta when storedFocusId changes after mount (e.g. Blobbi switch).
+  useEffect(() => {
+    if (!storedFocusId) return;
+    const stored = carouselEntries.find(e => e.id === storedFocusId);
+    if (stored) setFocusedMeta(stored.meta ?? 'hygiene');
+  }, [storedFocusId, carouselEntries]);
+
   const handleFocusChange = useCallback((entry: CarouselEntry) => {
     setFocusedMeta(entry.meta ?? 'hygiene');
     setStoredFocusId(entry.id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setStoredFocusId]);
   const isHygieneFocused = focusedMeta === 'hygiene';
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
