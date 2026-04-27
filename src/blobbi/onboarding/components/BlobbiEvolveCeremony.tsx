@@ -144,7 +144,7 @@ export function BlobbiEvolveCeremony({
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showAdult ? revealBg : darkBg,
-        transition: 'background 2s ease-out',
+        transition: 'background 0.8s ease-out',
       }}
     >
       {/* ── Vignette shadow for depth ── */}
@@ -235,10 +235,14 @@ export function BlobbiEvolveCeremony({
       {showAdult && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '18%' }}>
           {/* Rotating radiant glow */}
-          <div className={cn(
-            'absolute',
-            adultVisible ? 'animate-onboard-golden-fadein' : 'opacity-0',
-          )}>
+          <div
+            className="absolute"
+            style={{
+              opacity: adultVisible ? 1 : 0,
+              transform: adultVisible ? 'scale(1)' : 'scale(0.7)',
+              transition: 'opacity 0.8s cubic-bezier(0.22,1,0.36,1), transform 0.8s cubic-bezier(0.22,1,0.36,1)',
+            }}
+          >
             <div
               className="animate-onboard-golden-rotate"
               style={{
@@ -264,7 +268,7 @@ export function BlobbiEvolveCeremony({
           {/* Bright center shine */}
           <div
             className={cn(
-              'absolute rounded-full transition-opacity duration-1000',
+              'absolute rounded-full transition-opacity duration-500',
               adultVisible ? 'opacity-100' : 'opacity-0',
             )}
             style={{
@@ -277,7 +281,7 @@ export function BlobbiEvolveCeremony({
           {/* Wider halo */}
           <div
             className={cn(
-              'absolute rounded-full transition-opacity [transition-duration:2000ms]',
+              'absolute rounded-full transition-opacity [transition-duration:800ms]',
               adultVisible ? 'opacity-100' : 'opacity-0',
             )}
             style={{
@@ -358,7 +362,7 @@ export function BlobbiEvolveCeremony({
 
           {/* The adult blobbi */}
           <div className={cn(
-            'relative transition-opacity duration-1000',
+            'relative transition-opacity duration-500',
             adultVisible ? 'opacity-100' : 'opacity-0',
           )}>
             <BlobbiStageVisual
