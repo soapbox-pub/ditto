@@ -120,6 +120,17 @@ const tileNavItemRegistry = new Map<string, TileNavRegistration>();
 const tileNavItemListeners = new Set<() => void>();
 
 /**
+ * Snapshot reference published to `useSyncExternalStore` consumers.
+ *
+ * We can't return the live `tileNavItemRegistry` from `getSnapshot`
+ * because `useSyncExternalStore` uses `Object.is` to detect changes —
+ * mutating the same `Map` in place would never trigger a re-render. A
+ * fresh `ReadonlyMap` is published on every write instead.
+ */
+let tileNavItemSnapshot: ReadonlyMap<string, TileNavRegistration> =
+  new Map(tileNavItemRegistry);
+
+/**
  * Replace the entire registry with the provided entries. Notifies
  * subscribers so `useSyncExternalStore` consumers re-render.
  */
@@ -133,6 +144,10 @@ export function setTileNavItemRegistry(
       iconUrl: entry.iconUrl,
     });
   }
+  // Publish a fresh snapshot so useSyncExternalStore's Object.is check
+  // detects the change. If we returned the live Map, listeners would
+  // fire but React would see no change and skip the re-render.
+  tileNavItemSnapshot = new Map(tileNavItemRegistry);
   for (const listener of tileNavItemListeners) listener();
 }
 
@@ -147,7 +162,7 @@ export function getTileNavItemRegistrySnapshot(): ReadonlyMap<
   string,
   TileNavRegistration
 > {
-  return tileNavItemRegistry;
+  return tileNavItemSnapshot;
 }
 
 /** A sidebar-capable item with everything needed for display and navigation. */

@@ -254,17 +254,23 @@ function TileGenerationCardInner({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs
+          TabsList keeps its default h-10 + p-1 so the active-state shadow
+          pill isn't clipped. We keep labels short and allow them to hide
+          on narrow widths (the icon carries the meaning). */}
       <Tabs defaultValue="preview" className="px-4">
-        <TabsList className="grid w-full grid-cols-3 h-8">
-          <TabsTrigger value="preview" className="text-xs gap-1.5">
-            <Eye className="size-3" /> Preview
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="preview" className="gap-1.5 text-xs px-2">
+            <Eye className="size-3.5 shrink-0" />
+            <span className="truncate">Preview</span>
           </TabsTrigger>
-          <TabsTrigger value="code" className="text-xs gap-1.5">
-            <Code2 className="size-3" /> Code
+          <TabsTrigger value="code" className="gap-1.5 text-xs px-2">
+            <Code2 className="size-3.5 shrink-0" />
+            <span className="truncate">Code</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="text-xs gap-1.5">
-            <SettingsIcon className="size-3" /> {settingsLabel}
+          <TabsTrigger value="settings" className="gap-1.5 text-xs px-2">
+            <SettingsIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{settingsLabel}</span>
           </TabsTrigger>
         </TabsList>
 

@@ -837,32 +837,41 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
 function MessageBubble({ message }: { message: DisplayMessage }) {
   const isUser = message.role === 'user';
 
+  // When an assistant response is a pure tool call (e.g. `preview_tile`
+  // with no explanatory prose) the `content` field is empty. Render just
+  // the tool-call UI in that case — otherwise we'd show an empty bubble
+  // floating above the tile preview card.
+  const hasContent = message.content.trim().length > 0;
+  const hasToolCalls = !!message.toolCalls && message.toolCalls.length > 0;
+
   return (
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
-        <div
-          className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm',
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-md'
-              : 'bg-secondary/60 border border-border rounded-tl-md',
-          )}
-        >
-          {isUser ? (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-              <Markdown rehypePlugins={[rehypeSanitize]}>
-                {message.content}
-              </Markdown>
-            </div>
-          )}
-        </div>
+        {hasContent && (
+          <div
+            className={cn(
+              'rounded-2xl px-4 py-2.5 text-sm',
+              isUser
+                ? 'bg-primary text-primary-foreground rounded-tr-md'
+                : 'bg-secondary/60 border border-border rounded-tl-md',
+            )}
+          >
+            {isUser ? (
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            ) : (
+              <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+                <Markdown rehypePlugins={[rehypeSanitize]}>
+                  {message.content}
+                </Markdown>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tool call indicators */}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {message.toolCalls.map((tc) => (
+        {hasToolCalls && (
+          <div className={cn('flex flex-wrap gap-1.5', hasContent && 'mt-1')}>
+            {message.toolCalls!.map((tc) => (
               <ToolCallBadge key={tc.id} toolCall={tc} />
             ))}
           </div>
