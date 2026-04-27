@@ -125,19 +125,24 @@ function FeaturedTab({ curatorPubkey }: { curatorPubkey?: string }) {
     staleTime: 60_000,
     queryFn: async ({ signal }) => {
       if (!curatorPubkey) return [];
+      // Note: we intentionally don't filter by `#s` at the relay level.
+      // Many relays don't index the single-letter `s` tag, which would
+      // cause valid tiles to silently disappear from Featured/Browse.
+      // We post-filter by schema version below.
       const results = await nostr.query(
         [
           {
             kinds: [TILE_KIND],
             authors: [curatorPubkey],
             '#t': ['nostr-canvas-tile'],
-            '#s': [TILE_SCHEMA],
             limit: 60,
           },
         ],
         { signal },
       );
-      return [...results].sort((a, b) => b.created_at - a.created_at);
+      return [...results]
+        .filter((e) => tagValue(e, 's') === TILE_SCHEMA)
+        .sort((a, b) => b.created_at - a.created_at);
     },
   });
 
@@ -174,18 +179,22 @@ function BrowseTab() {
     queryKey: ['tiles-browse'],
     staleTime: 60_000,
     queryFn: async ({ signal }) => {
+      // Don't filter by `#s` at the relay — many relays don't index
+      // single-letter tags they don't recognise, and `s` is new. Post-
+      // filter by schema version client-side instead.
       const results = await nostr.query(
         [
           {
             kinds: [TILE_KIND],
             '#t': ['nostr-canvas-tile'],
-            '#s': [TILE_SCHEMA],
             limit: 200,
           },
         ],
         { signal },
       );
-      return [...results].sort((a, b) => b.created_at - a.created_at);
+      return [...results]
+        .filter((e) => tagValue(e, 's') === TILE_SCHEMA)
+        .sort((a, b) => b.created_at - a.created_at);
     },
   });
 
