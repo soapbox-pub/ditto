@@ -257,7 +257,10 @@ export const AppConfigSchema = z.object({
   sidebarWidgets: z.array(z.object({
     id: z.string(),
     height: z.number().optional(),
+    tileIdentifier: z.string().optional(),
   })).optional(),
+  installedTiles: z.array(z.string()).optional(),
+  tileSettings: z.record(z.string(), z.record(z.string(), z.string())).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
@@ -330,6 +333,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   sidebarWidgets: z.array(z.object({
     id: z.string(),
     height: z.number().optional(),
+    tileIdentifier: z.string().optional(),
   })).optional(),
   homePage: z.string().optional(),
   showGlobalFeed: z.boolean().optional(),
@@ -353,4 +357,6 @@ export const EncryptedSettingsSchema = z.looseObject({
       return result.success ? [result.data] : [];
     })
   ).optional(),
+  installedTiles: z.array(z.string()).optional(),
+  tileSettings: z.record(z.string(), z.record(z.string(), z.string())).optional(),
 });

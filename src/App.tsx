@@ -119,6 +119,7 @@ const hardcodedConfig: AppConfig = {
     "notifications",
     "search",
     "blobbi",
+    "tiles",
     "badges",
     "emojis",
     "letters",
@@ -151,6 +152,8 @@ const hardcodedConfig: AppConfig = {
     { id: 'hot-posts' },
     { id: 'wikipedia' },
   ],
+  installedTiles: [],
+  tileSettings: {},
 };
 
 /**

@@ -261,14 +261,35 @@ export interface AppConfig {
   sandboxDomain: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /**
+   * NIP-19 `naddr1…` identifiers for nostr-canvas tiles (kind 30207) the user
+   * has installed. The list is synced via EncryptedSettings. The raw event
+   * bodies are cached separately in `localStorage['nostr:tiles:cache']`.
+   */
+  installedTiles?: string[];
+  /**
+   * Per-tile user-configured setting values, keyed by tile identifier
+   * (`<nip05>:<name>`). Each inner record maps setting key → stringified value.
+   */
+  tileSettings?: Record<string, Record<string, string>>;
 }
 
 /** Configuration for a single widget in the right sidebar. */
 export interface WidgetConfig {
-  /** Widget type identifier (e.g. "trends", "blobbi", "wikipedia", "bluesky"). */
+  /**
+   * Widget type identifier. Built-in widgets have well-known ids
+   * (e.g. "trends", "blobbi", "wikipedia", "bluesky"). Use `"tile"` to mount
+   * an installed nostr-canvas tile as a widget; the tile identifier goes in
+   * `tileIdentifier`.
+   */
   id: string;
   /** User-configured height in pixels. Overrides the widget's default height. */
   height?: number;
+  /**
+   * For `id === 'tile'`, the identifier (`<nip05>:<name>`) of the installed
+   * nostr-canvas tile to render as this widget. Ignored for all other ids.
+   */
+  tileIdentifier?: string;
 }
 
 export interface AppContextType {
