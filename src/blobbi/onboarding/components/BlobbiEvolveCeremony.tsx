@@ -103,22 +103,22 @@ export function BlobbiEvolveCeremony({
       setShowFlash(true);
       notificationSuccess();
     }, 2800);
-    // flash -> reveal after 3.6s total (flash auto-fades via CSS animation)
+    // flash -> reveal after 3.2s total (near-instant swap)
     const t2 = setTimeout(() => {
       setShowFlash(false);
       setPhase('reveal');
       setAdultVisible(true);
-    }, 3600);
-    // reveal -> dialog after 5.4s total
-    const t3 = setTimeout(() => setPhase('dialog'), 5400);
-    // dialog -> fadeout after 8.4s total
+    }, 3200);
+    // reveal -> dialog after 5s total
+    const t3 = setTimeout(() => setPhase('dialog'), 5000);
+    // dialog -> fadeout after 8s total
     const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
         setPhase('complete');
         onComplete();
       }, 2000);
-    }, 8400);
+    }, 8000);
 
     return () => {
       clearTimeout(t1);
@@ -144,7 +144,7 @@ export function BlobbiEvolveCeremony({
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showAdult ? revealBg : darkBg,
-        transition: 'background 0.8s ease-out',
+        transition: 'background 0.15s ease-out',
       }}
     >
       {/* ── Vignette shadow for depth ── */}
@@ -240,7 +240,7 @@ export function BlobbiEvolveCeremony({
             style={{
               opacity: adultVisible ? 1 : 0,
               transform: adultVisible ? 'scale(1)' : 'scale(0.7)',
-              transition: 'opacity 0.8s cubic-bezier(0.22,1,0.36,1), transform 0.8s cubic-bezier(0.22,1,0.36,1)',
+              transition: 'opacity 0.2s ease-out, transform 0.2s ease-out',
             }}
           >
             <div
@@ -268,7 +268,7 @@ export function BlobbiEvolveCeremony({
           {/* Bright center shine */}
           <div
             className={cn(
-              'absolute rounded-full transition-opacity duration-500',
+              'absolute rounded-full transition-opacity duration-150',
               adultVisible ? 'opacity-100' : 'opacity-0',
             )}
             style={{
@@ -281,7 +281,7 @@ export function BlobbiEvolveCeremony({
           {/* Wider halo */}
           <div
             className={cn(
-              'absolute rounded-full transition-opacity [transition-duration:800ms]',
+              'absolute rounded-full transition-opacity duration-200',
               adultVisible ? 'opacity-100' : 'opacity-0',
             )}
             style={{
@@ -362,7 +362,7 @@ export function BlobbiEvolveCeremony({
 
           {/* The adult blobbi */}
           <div className={cn(
-            'relative transition-opacity duration-500',
+            'relative transition-opacity duration-150',
             adultVisible ? 'opacity-100' : 'opacity-0',
           )}>
             <BlobbiStageVisual
