@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   ShieldCheck,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -36,11 +37,19 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useInstalledTiles } from '@/hooks/useInstalledTiles';
 import { useCanvasGate } from '@/lib/nostr-canvas/canvasGate';
-import { decodeTileNaddr } from '@/lib/nostr-canvas/identifiers';
+import {
+  decodeTileNaddr,
+  tileVerificationState,
+} from '@/lib/nostr-canvas/identifiers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // ---------------------------------------------------------------------------
@@ -138,10 +147,12 @@ export function TileDetailPage() {
     uninstallTile(naddr);
   };
 
-  const nip05Match = metadata?.nip05
-    ? metadata.nip05.toLowerCase() ===
-      parsed.identifier.split(':')[0]?.toLowerCase()
-    : false;
+  // Don't classify until the author's kind-0 has finished loading —
+  // otherwise a verified tile flashes the yellow warning before the
+  // metadata arrives.
+  const verification = author.isLoading
+    ? null
+    : tileVerificationState(event, metadata);
 
   return (
     <main className="pb-16 sidebar:pb-0">
@@ -197,11 +208,36 @@ export function TileDetailPage() {
                       metadata?.name ??
                       parsed.identifier.split(':')[0]}
                   </span>
-                  {nip05Match && (
-                    <ShieldCheck
-                      className="size-3.5 shrink-0 text-emerald-500"
-                      aria-label="NIP-05 verified"
-                    />
+                  {verification === 'verified' && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ShieldCheck
+                          className="size-3.5 shrink-0 text-emerald-500"
+                          aria-label="NIP-05 verified"
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        The tile's identifier matches the author's NIP-05.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {verification === 'unverified' && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          role="img"
+                          aria-label="Unverified author"
+                          className="flex size-4 shrink-0 items-center justify-center rounded-full bg-yellow-400/90 text-yellow-950"
+                        >
+                          <AlertTriangle className="size-2.5" strokeWidth={2.5} />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        The author hasn't published a NIP-05 identifier that
+                        matches this tile's namespace. Install only if you
+                        trust the author.
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
