@@ -19,8 +19,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
-import { DMProvider, type DMConfig } from "@/components/DMProvider";
-import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
@@ -28,11 +26,6 @@ import { ScreenEffectProvider } from "@/contexts/ScreenEffectContext";
 import { ScreenEffectRenderer } from "@/components/ScreenEffectRenderer";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
-
-const dmConfig: DMConfig = {
-  enabled: false,
-  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
-};
 
 const head = createHead({
   plugins: [InferSeoMetaPlugin()],
@@ -221,18 +214,16 @@ export function App() {
                     <NativeNotifications />
 
                     <NWCProvider>
-                      <DMProvider config={dmConfig}>
-                        <ScreenEffectProvider>
-                          <EmotionDevProvider>
-                            <TooltipProvider>
-                              <InitialSyncGate>
-                                <ScreenEffectRenderer />
-                                <AppRouter />
-                              </InitialSyncGate>
-                            </TooltipProvider>
-                          </EmotionDevProvider>
-                        </ScreenEffectProvider>
-                      </DMProvider>
+                      <ScreenEffectProvider>
+                        <EmotionDevProvider>
+                          <TooltipProvider>
+                            <InitialSyncGate>
+                              <ScreenEffectRenderer />
+                              <AppRouter />
+                            </InitialSyncGate>
+                          </TooltipProvider>
+                        </EmotionDevProvider>
+                      </ScreenEffectProvider>
                     </NWCProvider>
                   </EventStoreProvider>
                 </NostrProvider>
