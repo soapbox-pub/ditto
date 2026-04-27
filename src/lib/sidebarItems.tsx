@@ -15,6 +15,7 @@ import {
   Earth,
   Film,
   HelpCircle,
+  LayoutGrid,
 
   MessageSquare,
   MessageSquareMore,
@@ -150,6 +151,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
+  { id: 'tiles', label: 'Tiles', path: '/tiles', icon: LayoutGrid },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },

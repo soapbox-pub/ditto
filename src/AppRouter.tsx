@@ -68,6 +68,9 @@ const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
+const TileDetailPage = lazy(() => import("./pages/TileDetailPage").then(m => ({ default: m.TileDetailPage })));
+const TileRunPage = lazy(() => import("./pages/TileRunPage").then(m => ({ default: m.TileRunPage })));
+const TilesPage = lazy(() => import("./pages/TilesPage").then(m => ({ default: m.TilesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
 const UserListsPage = lazy(() => import("./pages/UserListsPage").then(m => ({ default: m.UserListsPage })));
@@ -267,6 +270,11 @@ export function AppRouter() {
             <Route path="/letters" element={<LettersPage />} />
             <Route path="/letters/compose" element={<LetterComposePage />} />
             <Route path="/settings/letters" element={<LetterPreferencesPage />} />
+            {/* nostr-canvas tiles. Specific paths must precede /tiles/:naddr
+                so react-router doesn't try to match /tiles/run/... as a naddr. */}
+            <Route path="/tiles" element={<TilesPage />} />
+            <Route path="/tiles/run/:identifier" element={<TileRunPage />} />
+            <Route path="/tiles/:naddr" element={<TileDetailPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />
