@@ -103,22 +103,22 @@ export function BlobbiEvolveCeremony({
       setShowFlash(true);
       notificationSuccess();
     }, 2800);
-    // flash -> reveal after 4.2s total
+    // flash -> reveal after 3.6s total (flash auto-fades via CSS animation)
     const t2 = setTimeout(() => {
       setShowFlash(false);
       setPhase('reveal');
-      setTimeout(() => setAdultVisible(true), 400);
-    }, 4200);
-    // reveal -> dialog after 6s total
-    const t3 = setTimeout(() => setPhase('dialog'), 6000);
-    // dialog -> fadeout after 9s total
+      setAdultVisible(true);
+    }, 3600);
+    // reveal -> dialog after 5.4s total
+    const t3 = setTimeout(() => setPhase('dialog'), 5400);
+    // dialog -> fadeout after 8.4s total
     const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
         setPhase('complete');
         onComplete();
       }, 2000);
-    }, 9000);
+    }, 8400);
 
     return () => {
       clearTimeout(t1);
