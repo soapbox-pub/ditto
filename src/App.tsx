@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { AppProvider } from "@/components/AppProvider";
-import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -19,16 +18,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
-import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
-
-const dmConfig: DMConfig = {
-  enabled: false,
-  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
-};
 
 const head = createHead({
   plugins: [InferSeoMetaPlugin()],
@@ -202,7 +195,6 @@ export function App() {
                   <NativeNotifications />
 
                     <NWCProvider>
-                    <DMProvider config={dmConfig}>
                       <EmotionDevProvider>
                         <TooltipProvider>
                           <InitialSyncGate>
@@ -210,8 +202,7 @@ export function App() {
                           </InitialSyncGate>
                         </TooltipProvider>
                       </EmotionDevProvider>
-                    </DMProvider>
-                  </NWCProvider>
+                    </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>

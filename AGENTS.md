@@ -16,14 +16,14 @@ Ditto is a Nostr client built with React 19.x, TailwindCSS 3.x, Vite, shadcn/ui,
 
 ## Project Structure
 
-- `/src/components/` — UI components. `ui/` holds shadcn primitives; `auth/` holds login components; `dm/` holds direct-messaging UI (built on `DMContext`).
+- `/src/components/` — UI components. `ui/` holds shadcn primitives; `auth/` holds login components.
 - `/src/hooks/` — custom hooks. Discover the full set with `ls src/hooks/`. Key ones: `useNostr`, `useAuthor`, `useCurrentUser`, `useNostrPublish`, `useUploadFile`, `useAppContext`, `useTheme`, `useToast`, `useLoggedInAccounts`, `useLoginActions`, `useIsMobile`, `useZaps`, `useWallet`, `useNWC`, `useShakespeare`.
 - `/src/pages/` — page components wired into `AppRouter.tsx`. The catch-all `/:nip19` route is handled by `NIP19Page.tsx` (see the `nip19-routing` skill).
 - `/src/lib/` — utility functions and shared logic.
-- `/src/contexts/` — React context providers (`AppContext`, `NWCContext`, `DMContext`).
+- `/src/contexts/` — React context providers (`AppContext`, `NWCContext`).
 - `/src/test/` — testing utilities including the `TestApp` wrapper.
 - `/public/` — static assets.
-- `App.tsx` — **already configured** with `QueryClientProvider`, `NostrProvider`, `UnheadProvider`, `AppProvider`, `NostrLoginProvider`, `NWCContext`, `DMContext`. Read before editing; changes are rarely needed.
+- `App.tsx` — **already configured** with `QueryClientProvider`, `NostrProvider`, `UnheadProvider`, `AppProvider`, `NostrLoginProvider`, `NWCContext`. Read before editing; changes are rarely needed.
 - `AppRouter.tsx` — React Router configuration.
 - `NIP.md` — custom kinds documented by this project (see the `nostr-kinds` skill).
 
@@ -214,7 +214,6 @@ Load the matching skill when the feature requires it:
 - **`nostr-encryption`** — NIP-44 / NIP-04 via the user's signer (DMs, gift wraps, private content).
 - **`nostr-relay-pools`** — `nostr.relay(url)` / `nostr.group([urls])` for targeted queries.
 - **`nostr-comments`** — Ditto's threaded comments (NIP-10 for kind 1, NIP-22 for everything else).
-- **`nostr-direct-messages`** — DM implementation via `DMContext` (NIP-04 + NIP-17).
 - **`nostr-infinite-scroll`** — feed pagination patterns.
 - **`nip85-stats`** — NIP-85 trusted-assertion stats (followers, zap totals, etc.).
 - **`ai-chat`** — Shakespeare AI streaming chat interfaces.
