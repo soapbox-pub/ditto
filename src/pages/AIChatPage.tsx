@@ -82,19 +82,70 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
     type: 'function',
     function: {
       name: 'preview_tile',
-      description: `Generate a nostr-canvas tile and show a live preview inline in the chat. A tile is a small sandboxed Lua program that renders inside a host Nostr client: it can react to events, request capabilities (fetch, publish-event, nip44 encrypt/decrypt, navigate), declare settings, and emit a UI tree (stack, row, text, markdown, image, button, form, input, dropdown, checkbox, spoiler, etc.).
+      description: `Generate a nostr-canvas tile and show a live preview inline in the chat. A tile is a small sandboxed Lua 5.4 program that renders inside a host Nostr client: it can react to events, fetch URLs, publish events, sign/encrypt/decrypt, declare settings, and emit a declarative UI tree.
 
 Use this tool when the user asks you to build, generate, prototype, design, or iterate on a tile. The preview renders live; the user can then install or publish the tile from the preview card.
 
-**Lua API crib sheet** (see NIP.md for the full spec):
+**Lifecycle — the script exposes module-level Lua globals. Do NOT return a table.**
 
-- The script must return a table with fields: \`render(props, settings, ctx)\` returning a UI node; optional \`subscribe(filter, ctx)\` to listen for events; optional \`onEvent(event, ctx)\`; optional \`init(ctx)\` for one-shot setup.
-- UI nodes are tables with a \`type\` field: "stack", "row", "text", "markdown", "image", "button", "divider", "color", "nevent", "embedded", "form", "input", "dropdown", "checkbox", "spoiler". Stacks and rows nest children via \`children\`.
-- Buttons have \`on_click\` handlers. Forms have \`on_submit\`. Handlers are Lua functions that receive \`ctx\`.
-- \`ctx\` exposes: \`ctx.set_output(node)\` to re-render, \`ctx.request(capability, args)\` to invoke a capability, \`ctx.settings.<key>\` to read settings, \`ctx.store.get(key)\` / \`ctx.store.set(key, value)\` for per-user KV storage, \`ctx.toast(msg, variant)\`, \`ctx.navigate(path)\`, \`ctx.request_cache(filter)\` for cached queries.
-- Keep the Lua self-contained. Do not reference undefined globals. Use only standard Lua syntax plus the \`ctx\` helpers.
+- \`register(rctx)\` — called once at install time. Only \`rctx.register_events(filter, opts)\` and \`rctx.register_nav_item(opts)\` are available. No scripting API, no \`get_scripting_api()\`, no state, no rendering.
+- \`init()\` — called once when the tile is instantiated. Full scripting API is available. Set up listeners, subscriptions, timers, initial state here.
+- \`render()\` — called whenever a fresh UI tree is needed. Takes **no arguments**. Returns a UI node.
+- \`destroy()\` — optional cleanup.
 
-**Identifier**: supply a short lowercase \`slug\` (letters, digits, hyphens). The runtime will build a draft identifier from the user's pubkey.`,
+**Scripting API** (available in \`init\`/\`render\`/\`destroy\` only):
+
+\`\`\`lua
+local api   = get_scripting_api()
+local ctx   = api.ctx
+local store = api.store
+local util  = api.util
+local ui    = api.ui
+\`\`\`
+
+**UI constructors (\`api.ui\`)** — build the UI tree only through these. Do NOT return raw \`{ type = "..." }\` tables.
+
+- Containers: \`ui.Stack(children, opts)\`, \`ui.Row(children, opts)\`, \`ui.Scroll(children, opts)\`, \`ui.Spoiler(title, children, opts)\`. \`opts\`: \`align\`, \`justify\`, \`gap\` ("sm"/"md"/"lg"), \`surface\` (boolean), \`id\`.
+- Leaves: \`ui.Text(text, opts)\` (opts: \`style\`, \`variant\`, \`text_size\`, \`truncate\`, \`md\`), \`ui.Markdown(content)\`, \`ui.Image(url, opts)\` (opts: \`max_width\`, \`max_height\`, \`avatar\`), \`ui.Button(text, opts)\` (opts: \`variant\`, \`action\`, \`payload\`, \`onclick\`, \`submit_form\`), \`ui.Divider()\`, \`ui.Color(hex)\`, \`ui.NEvent(nip19)\`.
+- Forms: \`ui.Form(children, opts)\`, \`ui.Input({ name, label, placeholder, default_value })\`, \`ui.Dropdown({ name, label, options, default_value })\`, \`ui.Checkbox({ name, label, default_value })\`.
+- Embed another tile: \`ui.Embedded(identifier, { props, compact })\`.
+
+**\`ctx\` methods:**
+
+- \`ctx.request_render()\` — redraw the tile after state changes.
+- \`ctx.get_setting(key)\` → string | nil. Read a declared setting. **Never use \`ctx.settings.<key>\`.**
+- \`ctx.on_settings_update(cb)\` → listener id.
+- \`ctx.on_input(action, cb)\` → listener id. Handles button clicks where the button was made with \`ui.Button(label, { action = "<action>" })\`. cb receives the button's payload.
+- \`ctx.on_form_submit(form_id, cb)\` — cb receives \`{ values = { ... } }\`.
+- \`ctx.get_public_key(cb)\` — cb receives \`{ ok, pubkey }\`.
+- \`ctx.request_profile(pubkey, cb)\` — cb receives \`(pubkey, metadata_table)\`.
+- \`ctx.request_cache(filter)\` — filter looks like \`{ kinds = {1}, authors = {...}, limit = 20 }\`.
+- \`ctx.on_relevant_event(cb)\` — cb receives an event for filters from past \`request_cache\` calls.
+- \`ctx.fetch({ url, method, headers, body }, cb)\` — HTTPS only; cb receives \`{ ok, status, body, error }\`.
+- \`ctx.publish_event(event, cb)\`, \`ctx.request_sign(event, cb)\`, \`ctx.nip44_encrypt(pubkey, plaintext, cb)\`, \`ctx.nip44_decrypt(pubkey, ciphertext, cb)\`.
+- \`ctx.navigate(target, cb)\` — \`target\` is a nip19 pointer string or \`{ identifier = "<tile_id>", props = {...} }\`.
+- \`ctx.show_toast(message, variant)\`, \`ctx.show_modal(opts, cb)\`.
+- \`ctx.set_timeout(cb, ms)\` → id, \`ctx.clear_timeout(id)\`.
+- \`ctx.emit(type, payload)\`, \`ctx.on(type, cb)\`, \`ctx.on_our(type, cb)\`, \`ctx.off(type, id)\`.
+- \`ctx.identifier\`, \`ctx.placement\` ("widget" | "event" | "main"), \`ctx.props\`.
+
+**\`store\`** (values are strings):
+
+\`store.get(key)\`, \`store.set(key, value)\`, \`store.delete(key)\`, plus helpers \`store.get_number(key, default)\`, \`store.set_number(key, value)\`, \`store.get_json(key)\`, \`store.set_json(key, value)\`.
+
+**\`util\`:** \`util.encode_json(v)\`, \`util.decode_json(s)\`, \`util.format_time(epoch_sec)\`, \`util.resolve_handle(pubkey)\`, \`util.debug(v)\`.
+
+**Settings:** declared via this tool's \`settings\` parameter (not in Lua), read with \`ctx.get_setting("<key>")\`. Types: \`text\`, \`boolean\` (stored as \`"true"\`/\`"false"\`), \`dropdown\` (stored as the selected value string).
+
+**Rules — follow strictly:**
+
+- Use ONLY the functions, fields, and constructors listed in this description. If a helper isn't listed above, it does not exist — do not invent, guess, or extrapolate. No \`ctx.set_output\`, no \`ctx.settings.*\`, no \`ctx.request(capability, ...)\`, no \`render(props, settings, ctx)\` signature, no raw \`{ type = "stack" }\` tables.
+- The script MUST expose \`init\` and \`render\` as module-level globals. Do NOT return a table from the script.
+- \`render()\` takes no arguments. Mutate state from \`init\` callbacks (listeners, fetches, timers, input handlers), then call \`ctx.request_render()\`.
+- \`register()\` runs in a restricted environment. Do not call \`get_scripting_api()\` or any \`ctx\`/\`store\`/\`util\`/\`ui\` function inside it.
+- Keep the script self-contained and syntactically valid Lua 5.4.
+
+**Identifier:** supply a short lowercase \`slug\` (letters, digits, hyphens). The runtime builds a draft identifier from the user's pubkey.`,
       parameters: {
         type: 'object' as const,
         properties: {
@@ -128,7 +179,7 @@ Use this tool when the user asks you to build, generate, prototype, design, or i
             items: {
               type: 'object',
               properties: {
-                key: { type: 'string', description: 'Setting key (used as `ctx.settings.<key>` inside Lua).' },
+                key: { type: 'string', description: 'Setting key (used as `ctx.get_setting("<key>")` inside Lua).' },
                 label: { type: 'string', description: 'Human-readable label shown in the settings UI.' },
                 type: { type: 'string', enum: ['text', 'boolean', 'dropdown'], description: 'Field type.' },
                 default: { type: 'string', description: 'Default value (string form; booleans accept "true"/"false").' },
@@ -364,14 +415,17 @@ You have two tools:
 
 When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
 
-**preview_tile** — generate a nostr-canvas tile and show a live preview inline. Tiles are small sandboxed Lua programs that render a UI tree inside the host client. Use this when the user asks you to build, design, prototype, or iterate on a tile.
+**preview_tile** — generate a nostr-canvas tile and show a live preview inline. Tiles are small sandboxed Lua 5.4 programs that render a declarative UI tree inside the host client. Use this when the user asks you to build, design, prototype, or iterate on a tile.
 
 Guidelines for writing tiles:
-- Return a Lua table with at minimum a \`render(props, settings, ctx)\` function that returns a UI node.
-- UI nodes are Lua tables with a \`type\` field: "stack", "row", "text", "markdown", "image", "button", "divider", "color", "form", "input", "dropdown", "checkbox", "spoiler", "nevent".
-- Use \`ctx.set_output(node)\` to re-render, \`ctx.request(capability, args)\` for capabilities, \`ctx.settings.<key>\` for settings, \`ctx.store\` for per-user KV storage.
-- Capabilities (must be requested): "fetch", "publish-event", "sign-event", "get-pubkey", "nip44-encrypt", "nip44-decrypt", "navigate", "register-events".
-- Keep the Lua self-contained. Pick a short lowercase slug, a friendly name, and a one-line summary.
+- Tile scripts expose **module-level Lua globals**: \`register(rctx)\` (install-time declarations, no scripting API), \`init()\` (one-shot setup, full API), \`render()\` → UI node (no arguments), and optional \`destroy()\`. **Do NOT** return a table from the script and **do NOT** define \`render(props, settings, ctx)\` — that signature is not valid.
+- Inside \`init\`/\`render\`/\`destroy\`, reach the API via \`local api = get_scripting_api()\` and pull out \`api.ctx\`, \`api.store\`, \`api.util\`, \`api.ui\`. The tool description has the authoritative crib sheet — follow it exactly.
+- Build UI with \`ui.Stack\`, \`ui.Row\`, \`ui.Text\`, \`ui.Markdown\`, \`ui.Image\`, \`ui.Button\`, \`ui.Form\`, \`ui.Input\`, \`ui.Dropdown\`, \`ui.Checkbox\`, \`ui.Spoiler\`, \`ui.Divider\`, \`ui.NEvent\`, \`ui.Embedded\`. Don't emit raw \`{ type = "stack", ... }\` tables.
+- Handle button clicks via \`ctx.on_input("<action>", cb)\` inside \`init\`, where the button was created with \`ui.Button(label, { action = "<action>" })\`. Trigger a redraw with \`ctx.request_render()\`.
+- Read settings with \`ctx.get_setting("<key>")\` (never \`ctx.settings.<key>\`). Settings are declared via the \`settings\` array parameter of this tool.
+- Persist per-user state with \`store.get\`/\`store.set\` (strings) or \`store.get_number\`/\`store.set_number\`/\`store.get_json\`/\`store.set_json\`.
+- Use \`ctx.fetch({ url, method, headers }, cb)\` for HTTPS requests; \`ctx.publish_event(event, cb)\` / \`ctx.request_sign(event, cb)\` for signing; \`ctx.nip44_encrypt\`/\`ctx.nip44_decrypt\` for encrypted content.
+- Keep it self-contained, syntactically valid Lua. Pick a short lowercase slug, a friendly name, and a one-line summary.
 
 When you use a tool, briefly describe what you did. After preview_tile, the preview is shown inline; let the user iterate before installing.
 
