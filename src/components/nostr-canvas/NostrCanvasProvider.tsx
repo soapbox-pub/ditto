@@ -348,5 +348,4 @@ function ToastBridge(): null {
 
 // Suppress TS `unused import` error when the types are only referenced inside
 // comments: this keeps the reference alive and documents the contract.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _ReferencedTypes = NostrifyEvent | ModalRequest;

@@ -29,6 +29,7 @@ These event kinds were created by community contributors and are supported by Di
 | 37516 | Geocache               | Geocache listing for real-world treasure hunting                 | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
+| 30207 | Nostr Canvas Tile      | Addressable sandboxed Lua tile definition with UI, events, settings | See [Nostr Canvas Tiles](#nostr-canvas-tiles) below                                        |
 
 ---
 
@@ -440,3 +441,48 @@ Albums are represented as kind 34139 playlist events with a `["t", "album"]` tag
 - Track ordering follows the order of `a` tags in the event
 - The same detail view, playback, and commenting features apply to both albums and playlists
 
+---
+
+## Nostr Canvas Tiles
+
+Ditto embeds the [nostr-canvas](https://github.com/soapboxsocial/nostr-canvas) runtime to render small sandboxed Lua programs ("tiles") that can participate in the feed, show sidebar widgets, declare nav items, and respond to events. The canonical tile specification — kind **30207**, its tag schema, and the Lua API — lives in the library's own `NIP.md`. This section documents how Ditto integrates that runtime into the host app.
+
+### Lazy runtime
+
+The nostr-canvas runtime is loaded on demand. The gate — implemented by `src/lib/nostr-canvas/canvasGate.ts` and `src/components/nostr-canvas/LazyNostrCanvasRoot.tsx` — opens automatically when any of the following is true:
+
+- The user navigates to a `/tiles/*` route.
+- `AppConfig.installedTiles` is non-empty.
+- A widget config with `id === 'tile'` (or starting with `tile:`) is in `AppConfig.sidebarWidgets`.
+- Any consumer calls `useCanvasGate().requestGate()` imperatively.
+
+Components that want to read the runtime without forcing it to mount call `useSafeNostrCanvas()`; it returns `undefined` until the runtime is live, so feed items, `NoteCard`, and `Feed` can all call it unconditionally.
+
+### Installed tiles
+
+The user's installed-tile list lives on `AppConfig.installedTiles` as an array of `naddr1…` identifiers — synced via encrypted settings, but the raw kind-30207 events are cached **locally only** under `localStorage['nostr:tiles:cache']` (LRU-capped at 2 MB) so device sync doesn't pump Lua source through the settings event.
+
+`useInstalledTiles()` is the install/uninstall API. Installing a tile caches its event, opens the gate, and lets the provider's `InstalledTilesBinder` reconcile `installedTiles` ↔ `runtime.getInstalledIdentifiers()` on every change.
+
+### Feed and widget integration
+
+Tiles that declare `include_in_feed` event registrations take precedence over Ditto's native kind renderers. `NoteCard` calls `useTileRegistrations().findRendererForEvent(event)` at the top of its dispatch ladder; if a tile matches, it renders `<TileView placement="event" props={{ event }} />` and short-circuits the native path. `Feed` merges `useTileRegistrations().feedKinds` into its base filter via the new `extraKinds` option on `useFeed`. Registrations are walked in reverse order so the latest-installed tile wins.
+
+For the sidebar, `WidgetConfig.tileIdentifier` pins a tile identifier onto a widget entry. The widget config id is `tile:<identifier>` (so multiple tile widgets coexist without collision), and `WidgetSidebar` synthesizes a `WidgetDefinition` at render time from the cached kind-30207 event — label, icon, and description all come from the tile itself.
+
+### Draft identifiers
+
+Two identifier forms are in use:
+
+- **Local drafts** — `<npubShort>.local:<slug>` (see `buildLocalDraftIdentifier`). Used for AI-generated previews and anything installed before the user sets a verified NIP-05. The `.local` suffix sits outside the NIP-05 address grammar so drafts can never collide with a publishable identifier.
+- **Publishable** — `<nip05>:<slug>` (see `buildPublishableIdentifier`). The only form that is safe to publish to relays. `canPublishTile(metadata)` returns `true` when the user's kind-0 metadata has a well-formed `nip05` field; the Install/Publish buttons gate on this.
+
+### AI-generated tiles
+
+The AI chat's `preview_tile` tool lets the model emit a full tile payload (Lua source + metadata + settings schema) and render it inline in the chat. Drafts live in an in-memory store (`src/lib/nostr-canvas/draftStore.ts`) keyed by the draft identifier; the tool result contains the identifier and the `TileGenerationCard` component reads the payload back on render. Drafts are never persisted — the user must hit **Install** (signs a kind-30207 event locally and adds it to `installedTiles`) or **Publish** (same but via `useNostrPublish`, gated on NIP-05). Page reloads clear the store; stale tool-call bubbles show an "Preview expired" placeholder.
+
+### Security
+
+- Tile events are untrusted. Lua runs inside the nostr-canvas sandbox; all capability invocations flow through a user-prompted permission layer (`capabilityCache.ts`) that Ditto persists per pubkey under `localStorage['nostr:canvas:perms:<pubkey>:…']`.
+- Every URL surfaced by a tile (images, icons, banners) is routed through `sanitizeUrl()` before landing in `href`/`src`. The `fetch` capability strips cookie and auth headers and only permits `https:` targets through the configured CORS proxy.
+- Tile addressable-event queries on the Browse tab are filtered by `verifyTileDTag`, which checks the tile's `d`-tag NIP-05 prefix against the author's kind-0 `nip05`. Mismatches are hidden so impersonators can't claim someone else's NIP-05 namespace.

@@ -64,7 +64,10 @@ export function useTileRegistrations(): TileRegistrationsResult {
   const { gateOpen } = useCanvasGate();
   const canvas = useSafeNostrCanvas();
 
-  const registrations = gateOpen ? canvas?.registrations ?? [] : [];
+  const registrations = useMemo(
+    () => (gateOpen ? canvas?.registrations ?? [] : []),
+    [gateOpen, canvas?.registrations],
+  );
 
   const feedRegistrations = useMemo(
     () => registrations.filter((r) => r.include_in_feed),

@@ -11,7 +11,7 @@
  *    and settings entry points live here.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
