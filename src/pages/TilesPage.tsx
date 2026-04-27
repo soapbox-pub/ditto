@@ -18,12 +18,13 @@ import { useNostr } from '@nostrify/react';
 import { Link } from 'react-router-dom';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { NSchema as n } from '@nostrify/nostrify';
-import { LayoutGrid, Star, Package, Globe } from 'lucide-react';
+import { LayoutGrid, Star, Package, Globe, AlertTriangle } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useInstalledTiles } from '@/hooks/useInstalledTiles';
@@ -32,7 +33,7 @@ import {
   getDTag,
   parseTileIdentifier,
   tileEventToNaddr,
-  verifyTileDTag,
+  tileVerificationState,
 } from '@/lib/nostr-canvas/identifiers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -339,9 +340,20 @@ function TileCard({
   const author = useAuthor(event.pubkey);
   const metadata: NostrMetadata | undefined = author.data?.metadata;
 
-  // In browse mode, hide tiles whose d-tag prefix doesn't match the author's
-  // kind-0 nip05 claim — protects against unverified/lookalike tiles.
-  if (verifyAuthor && !verifyTileDTag(event, metadata)) return null;
+  const verification = tileVerificationState(event, metadata);
+
+  // In browse mode, hide tiles whose `d` tag is structurally malformed
+  // (no `d`, missing `:`, or a syntactically invalid NIP-05 prefix) — those
+  // can't be installed correctly anyway. Well-formed-but-unverified tiles
+  // stay visible with a warning badge so discovery still works when authors
+  // haven't published kind-0 metadata.
+  if (verifyAuthor && verification === 'malformed') return null;
+
+  // Don't show an "unverified" badge while we're still waiting on the
+  // author's metadata — otherwise verified tiles flash a warning before
+  // the kind-0 arrives.
+  const showUnverifiedBadge =
+    verifyAuthor && verification === 'unverified' && !author.isLoading;
 
   const naddr = tileEventToNaddr(event);
   const image = tileImage(event);
@@ -377,11 +389,31 @@ function TileCard({
               <LayoutGrid className="size-10" />
             </div>
           )}
-        {version && (
-          <span className="absolute right-2 top-2 rounded-md bg-black/60 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-            v{version}
-          </span>
-        )}
+        <div className="absolute right-2 top-2 flex items-center gap-1.5">
+          {showUnverifiedBadge && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  role="img"
+                  aria-label="Unverified author"
+                  className="flex size-6 items-center justify-center rounded-full bg-yellow-400/90 text-yellow-950 shadow-sm backdrop-blur-sm"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <AlertTriangle className="size-3.5" strokeWidth={2.5} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-xs">
+                The author hasn't published a NIP-05 identifier that matches
+                this tile's namespace. Install only if you trust the author.
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {version && (
+            <span className="rounded-md bg-black/60 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+              v{version}
+            </span>
+          )}
+        </div>
       </div>
       <div className="space-y-1 p-3">
         <h3 className="truncate text-sm font-semibold group-hover:text-primary">

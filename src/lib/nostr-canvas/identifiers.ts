@@ -26,14 +26,21 @@ export function getDTag(event: NostrEvent): string | undefined {
 /**
  * Split a tile identifier into its NIP-05 address and slug parts.
  * Returns `null` for malformed identifiers.
+ *
+ * Tolerates a leading `@` on the NIP-05 portion (e.g.
+ * `@alice@nostr.com:weather` is parsed as `nip05="alice@nostr.com"`,
+ * `slug="weather"`). The spec requires no leading `@`, but some tile
+ * authors write the identifier in its "display" form; accepting it
+ * avoids surprising users with ghost-hidden tiles.
  */
 export function parseTileIdentifier(
   identifier: string,
 ): { nip05: string; slug: string } | null {
   const colon = identifier.indexOf(':');
   if (colon === -1) return null;
-  const nip05 = identifier.slice(0, colon);
+  const rawNip05 = identifier.slice(0, colon);
   const slug = identifier.slice(colon + 1);
+  const nip05 = rawNip05.startsWith('@') ? rawNip05.slice(1) : rawNip05;
   if (!nip05 || !slug) return null;
   return { nip05, slug };
 }
@@ -64,6 +71,37 @@ export function verifyTileDTag(
   const claim = metadata?.nip05;
   if (!claim) return false;
   return claim.toLowerCase() === parts.nip05.toLowerCase();
+}
+
+/**
+ * Classify a tile event against its author's metadata, for Browse-tab
+ * display purposes.
+ *
+ * - `malformed` — the event has no `d` tag, or the `d` tag isn't in
+ *   `<nip05>:<slug>` form. These tiles are unloadable; hide them.
+ * - `unverified` — the `d` tag is well-formed but the author's kind-0
+ *   metadata doesn't advertise a matching `nip05`. Show the tile but
+ *   flag it with a warning so the user knows the identifier isn't
+ *   backed by a claim the author made.
+ * - `verified` — the `d` tag's NIP-05 prefix matches the author's
+ *   kind-0 `nip05` claim.
+ */
+export type TileVerification = 'malformed' | 'unverified' | 'verified';
+
+export function tileVerificationState(
+  event: NostrEvent,
+  metadata: NostrMetadata | undefined | null,
+): TileVerification {
+  const d = getDTag(event);
+  if (!d) return 'malformed';
+  const parts = parseTileIdentifier(d);
+  if (!parts) return 'malformed';
+  if (!NIP05_RE.test(parts.nip05)) return 'malformed';
+  const claim = metadata?.nip05;
+  if (typeof claim === 'string' && claim.toLowerCase() === parts.nip05.toLowerCase()) {
+    return 'verified';
+  }
+  return 'unverified';
 }
 
 /**
