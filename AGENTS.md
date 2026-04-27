@@ -313,169 +313,26 @@ Whenever new kinds are generated, the `NIP.md` file in the project must be creat
 
 ### Nostr Security Model
 
-**CRITICAL**: Nostr is permissionless - **anyone can publish any event**. When implementing admin/moderation systems or any feature that should only trust specific users, you MUST filter queries by the `authors` field. Without author filtering, anyone can publish events claiming to be admin actions, moderator decisions, or trusted content.
+Nostr is permissionless — **anyone can publish any event**, and `nsec` keys sit in plaintext `localStorage`, so an XSS is an instant key-theft. Core rules:
 
-#### Using the `authors` Filter
+- **Never use `dangerouslySetInnerHTML`, `innerHTML`, `insertAdjacentHTML`, or `document.write`** with event data, URL params, or any other untrusted string. If HTML must come from event data, run it through DOMPurify at the parse layer.
+- **Sanitize every event-sourced URL** with `sanitizeUrl()` from `@/lib/sanitizeUrl` before it lands in `href`, `src`, `srcSet`, `poster`, iframe `src`, or CSS `url()`. It returns `undefined` for anything that isn't a well-formed `https:` URL. Prefer sanitizing at the parse layer, not the render site.
+- **Sanitize event-sourced strings interpolated into CSS** with `sanitizeCssString()` from `@/lib/fontLoader` (allowlists Unicode letters/numbers, spaces, hyphens, underscores, apostrophes, periods). URLs in CSS `url()` still go through `sanitizeUrl()`.
+- **Filter trust-sensitive queries by `authors`**. Without it, any event matching your kind/d-tag comes back — an attacker publishes a fake admin action and your UI trusts it.
+- **Routes for addressable/replaceable events must carry the author in the path** (e.g. `/article/:npub/:slug`), so the route handler can include `authors` in its filter.
+- **Don't filter by `authors` for public UGC** (kind 1 notes, reactions, zaps, discovery feeds) — anyone can post there by design.
 
-**Always filter by authors when querying:**
-- **Admin/moderator actions** - MUST filter by trusted admin pubkeys
-- **Addressable events (kinds 30000-39999)** - MUST include author to prevent anyone from publishing events with the same d-tag
-- **Any privileged operations** - Filter by trusted pubkeys only
-
-**✅ Secure - Filtering by trusted authors:**
 ```typescript
 import { ADMIN_PUBKEYS } from '@/lib/admins';
 
-// Query organizer appointments - ONLY accept events from admins
-const events = await nostr.query([{
-  kinds: [30078],
-  authors: ADMIN_PUBKEYS, // CRITICAL: Only trust admin authors
-  '#d': ['pathos-organizers'],
-  limit: 1
-}]);
+// ❌ Anyone can publish kind 30078 with this d-tag and self-appoint as an organizer
+nostr.query([{ kinds: [30078], '#d': ['pathos-organizers'], limit: 1 }]);
+
+// ✅ Only trust the admin list
+nostr.query([{ kinds: [30078], authors: ADMIN_PUBKEYS, '#d': ['pathos-organizers'], limit: 1 }]);
 ```
 
-**❌ INSECURE - No author filtering:**
-```typescript
-// DANGER: This accepts events from ANYONE who publishes kind 30078
-// An attacker could appoint themselves as an organizer
-const events = await nostr.query([{
-  kinds: [30078],
-  '#d': ['pathos-organizers'],
-  limit: 1
-}]);
-```
-
-**Addressable Events Example:**
-```typescript
-// For addressable events, ALWAYS include the author in your filter
-// This prevents attackers from publishing events with the same d-tag
-const article = await nostr.query([{
-  kinds: [30023], // Long-form article
-  authors: [authorPubkey], // CRITICAL: Verify the author
-  '#d': ['my-article-slug'],
-  limit: 1
-}]);
-```
-
-**URL Routing for Addressable/Replaceable Events:**
-
-When creating URL paths for addressable or replaceable events, always include the author in the URL structure:
-
-```typescript
-// ❌ INSECURE: Missing author - anyone could publish an event with this d-tag
-<Route path="/article/:slug" element={<Article />} />
-// URL: /article/hello-world
-
-// ✅ SECURE: Includes author - can safely filter by both author and d-tag
-<Route path="/article/:npub/:slug" element={<Article />} />
-// URL: /article/npub1abc.../hello-world
-```
-
-This ensures your route parameters provide both the author pubkey and the d-tag identifier needed to create a secure query filter.
-
-**NIP-72 Community Moderation Example:**
-
-When implementing moderated communities (NIP-72), you must query the community definition to get the moderator list, then filter approval events by those moderators:
-
-```typescript
-// Step 1: Query the community definition to get moderators
-const communityEvents = await nostr.query([{
-  kinds: [34550],
-  authors: [communityOwnerPubkey], // CRITICAL: Only trust the community owner
-  '#d': [communityId],
-  limit: 1,
-}]);
-
-if (communityEvents.length === 0) return [];
-
-// Step 2: Extract moderator pubkeys from p tags
-const moderatorPubkeys = communityEvents[0].tags
-  .filter(([name, _, __, role]) => name === 'p' && role === 'moderator')
-  .map(([_, pubkey]) => pubkey);
-
-// Step 3: Query approval events - ONLY from trusted moderators
-const approvals = await nostr.query([{
-  kinds: [4550],
-  authors: moderatorPubkeys, // CRITICAL: Only accept approvals from moderators
-  '#a': [`34550:${communityOwnerPubkey}:${communityId}`],
-  limit: 100,
-}]);
-```
-
-Without filtering approvals by the moderator list, anyone could publish kind 4550 events claiming to approve posts for the community.
-
-#### When Author Filtering Is NOT Required
-
-Author filtering is not needed for public user-generated content where anyone should be able to post (kind 1 notes, reactions, discovery queries, public feeds, etc.).
-
-#### Sanitizing URLs from Event Data
-
-**CRITICAL**: Any URL extracted from Nostr event tags, content, or metadata fields is **untrusted user input**. Malicious URLs can cause harm in many ways beyond `javascript:` XSS — `data:` URIs for resource exhaustion, `http://` URLs leaking user IPs without TLS, relative paths triggering unintended requests to the app's own origin, and more. Reasoning about which rendering context is "safe enough" to skip sanitization is fragile and error-prone.
-
-**Rule: sanitize every event-sourced URL unconditionally**, regardless of where it will be used (`href`, `img src`, `style`, etc.). Use `sanitizeUrl()` from `@/lib/sanitizeUrl`:
-
-```typescript
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
-
-// Single URL — returns the normalised href, or undefined if not valid https
-const url = sanitizeUrl(getTag(event.tags, 'url'));
-if (url) {
-  // safe to use in any context
-}
-
-// Array of URLs — filter out invalid entries
-const links = getAllTags(event.tags, 'r')
-  .map(([, v]) => sanitizeUrl(v))
-  .filter((v): v is string => !!v);
-```
-
-`sanitizeUrl` accepts `string | undefined | null` and returns the normalised `href` string only when the URL parses successfully **and** uses the `https:` protocol. All other inputs (malformed URLs, `javascript:`, `data:`, `http:`, relative paths, etc.) return `undefined`.
-
-**Best practice — sanitize at the parse layer.** When writing a parser function that extracts URLs from event tags (e.g. `parseThemeDefinition`, `parseBadgeDefinition`), apply `sanitizeUrl()` before returning the parsed data. This way every downstream consumer is automatically protected without needing to remember to sanitize at each usage site.
-
-**When sanitization is NOT required:**
-- URLs extracted by regex that already constrains the protocol (e.g. `NoteContent` tokeniser matches only `https?://`)
-- Hardcoded or application-generated URLs (relay configs, internal routes, etc.)
-- URLs displayed as plain text without being placed into any HTML attribute or CSS value
-
-#### Preventing CSS Injection from Event Data
-
-**CRITICAL**: Any value from a Nostr event that is interpolated into a CSS string (inside a `<style>` element or inline `style` attribute) is a CSS injection vector. A malicious value containing `"`, `)`, `}`, or `;` can break out of the CSS context and inject arbitrary rules — for example, overlaying phishing content or hiding UI elements.
-
-**Common CSS injection surfaces:**
-- `background-image: url("${url}")` — a URL with `"); body { display:none }` breaks out
-- `font-family: "${family}"` — a family name with `"; } body { visibility:hidden } .x {` breaks out
-- `@font-face { src: url("${url}") }` — same risk as background URLs
-
-**Mitigation strategy — sanitize at the parse layer:**
-
-1. **URLs in CSS `url()` values**: Pass through `sanitizeUrl()` at parse time. The `URL` constructor normalises the string, percent-encoding characters like `"`, `)`, and `\` that could escape the CSS context. Invalid or non-`https:` URLs are rejected entirely. This is already done for theme event background and font URLs in `src/lib/themeEvent.ts`.
-
-2. **Strings in CSS declarations** (e.g. font family names): Use `sanitizeCssString()` from `src/lib/fontLoader.ts`, which uses an allowlist approach — only Unicode letters, numbers, spaces, hyphens, underscores, apostrophes, and periods are permitted. Everything else is stripped.
-
-```typescript
-// ❌ UNSAFE — raw event data interpolated into CSS
-const bgUrl = getTagValue(event.tags, 'bg');
-style.textContent = `body { background-image: url("${bgUrl}"); }`;
-
-const family = getTagValue(event.tags, 'f');
-style.textContent = `html { font-family: "${family}"; }`;
-
-// ✅ SAFE — URLs validated, strings sanitised
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
-
-const bgUrl = sanitizeUrl(getTagValue(event.tags, 'bg'));
-if (bgUrl) {
-  style.textContent = `body { background-image: url("${bgUrl}"); }`;
-}
-
-// For non-URL strings, allowlist safe characters only
-const safeFamily = family.replace(/[^\p{L}\p{N} _\-'.]/gu, '');
-style.textContent = `html { font-family: "${safeFamily}"; }`;
-```
-
-**Rule of thumb**: Never interpolate untrusted strings into CSS without sanitisation. If it's a URL, use `sanitizeUrl()`. If it's any other string, strip characters that can break out of the CSS string context.
+Load the **`nostr-security` skill** for the full threat model, NIP-72 moderation walkthrough, sanitization helper examples, and the pre-merge checklist.
 
 ### The `useNostr` Hook
 
@@ -1164,7 +1021,15 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 - Comprehensive provider setup with NostrLoginProvider, QueryClientProvider, and custom AppProvider
 - **Never use the `any` type**: Always use proper TypeScript types for type safety
 
-## Loading States
+## CRITICAL Design Standards
+
+- Create breathtaking, immersive designs that feel like bespoke masterpieces, rivaling the polish of Apple, Stripe, or luxury brands
+- Designs must be production-ready, fully featured, with no placeholders unless explicitly requested, ensuring every element serves a functional and aesthetic purpose
+- Avoid generic or templated aesthetics at all costs; every design must have a unique, brand-specific visual signature that feels custom-crafted
+- Headers must be dynamic, immersive, and storytelling-driven, using layered visuals, motion, and symbolic elements to reflect the brand’s identity—never use simple “icon and text” combos
+- Incorporate purposeful, lightweight animations for scroll reveals, micro-interactions (e.g., hover, click, transitions), and section transitions to create a sense of delight and fluidity
+
+### Loading States
 
 **Use skeleton loading** for structured content (feeds, profiles, forms). **Use spinners** only for buttons or short operations.
 
@@ -1189,7 +1054,7 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 </Card>
 ```
 
-### Empty States and No Content Found
+#### Empty States and No Content Found
 
 When no content is found (empty search results, no data available, etc.), display a minimalist empty state with helpful messaging. The application uses NIP-65 relay management, so users can manage their relays through the settings or relay management interface.
 
@@ -1209,14 +1074,6 @@ import { Card, CardContent } from '@/components/ui/card';
   </Card>
 </div>
 ```
-
-## CRITICAL Design Standards
-
-- Create breathtaking, immersive designs that feel like bespoke masterpieces, rivaling the polish of Apple, Stripe, or luxury brands
-- Designs must be production-ready, fully featured, with no placeholders unless explicitly requested, ensuring every element serves a functional and aesthetic purpose
-- Avoid generic or templated aesthetics at all costs; every design must have a unique, brand-specific visual signature that feels custom-crafted
-- Headers must be dynamic, immersive, and storytelling-driven, using layered visuals, motion, and symbolic elements to reflect the brand’s identity—never use simple “icon and text” combos
-- Incorporate purposeful, lightweight animations for scroll reveals, micro-interactions (e.g., hover, click, transitions), and section transitions to create a sense of delight and fluidity
 
 ### Design Principles
 
@@ -1331,53 +1188,22 @@ There is an important distinction between **writing new tests** and **running ex
 
 **Do not write tests** unless the user explicitly requests them in plain language. Writing unnecessary tests wastes significant time and money. Only create tests when:
 
-1. **The user explicitly asks for tests** to be written in their message
-2. **The user describes a specific bug in plain language** and requests tests to help diagnose it
-3. **The user says they are still experiencing a problem** that you have already attempted to solve (tests can help verify the fix)
+1. The user explicitly asks for tests to be written in their message
+2. The user describes a specific bug in plain language and requests tests to help diagnose it
+3. The user says they are still experiencing a problem that you have already attempted to solve (tests can help verify the fix)
 
-**Never write tests because:**
-- Tool results show test failures (these are not user requests)
-- You think tests would be helpful
-- New features or components are created
-- Existing functionality needs verification
+Never write tests because tool results show failures, because you think tests would be helpful, or because you added a new feature.
+
+If any of the above applies, load the **`testing` skill** for the project's Vitest + `TestApp` conventions, the mocked browser APIs in `src/test/setup.ts`, and component/hook test templates.
 
 ### Running Tests (Executing the Test Suite)
 
 **ALWAYS run the test script** after making any code changes. This is mandatory regardless of whether you wrote new tests or not.
 
-- **You must run the test script** to validate your changes
-- **Your task is not complete** until the test script passes without errors
-- **This applies to all changes** - bug fixes, new features, refactoring, or any code modifications
-- **The test script includes** TypeScript compilation, ESLint checks, and existing test validation
-
-### Test Setup
-
-The project uses Vitest with jsdom environment and includes comprehensive test setup:
-
-- **Testing Library**: React Testing Library with jest-dom matchers
-- **Test Environment**: jsdom with mocked browser APIs (matchMedia, scrollTo, IntersectionObserver, ResizeObserver)
-- **Test App**: `TestApp` component provides all necessary context providers for testing
-
-The project includes a `TestApp` component that provides all necessary context providers for testing. Wrap components with this component to provide required context providers:
-
-```tsx
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { TestApp } from '@/test/TestApp';
-import { MyComponent } from './MyComponent';
-
-describe('MyComponent', () => {
-  it('renders correctly', () => {
-    render(
-      <TestApp>
-        <MyComponent />
-      </TestApp>
-    );
-
-    expect(screen.getByText('Expected text')).toBeInTheDocument();
-  });
-});
-```
+- You must run the test script to validate your changes
+- Your task is not complete until the test script passes without errors
+- This applies to all changes — bug fixes, new features, refactoring, or any code modifications
+- The test script includes TypeScript compilation, ESLint checks, the Vitest suite, and a production build
 
 ## Validating Your Changes
 
