@@ -15,10 +15,10 @@ import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { NSchema as n } from '@nostrify/nostrify';
-import { LayoutGrid, Star, Package, Globe, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, Star, Package, Globe, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -71,6 +71,27 @@ function tileVersion(event: NostrEvent): string | undefined {
 
 export function TilesPage() {
   const { config } = useAppContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL-bound tab selection — `?tab=browse`, `?tab=installed`, or
+  // defaulted to `featured`. Keeping the active tab in the URL means
+  // hitting the back button from a tile detail page lands on the tab
+  // the user came from, not always on Featured.
+  const rawTab = searchParams.get('tab');
+  const activeTab =
+    rawTab === 'browse' || rawTab === 'installed' ? rawTab : 'featured';
+
+  const setActiveTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'featured') {
+      next.delete('tab');
+    } else {
+      next.set('tab', value);
+    }
+    // `replace: true` avoids creating a new history entry per tab click;
+    // the user's back button should step back past the whole Tiles page.
+    setSearchParams(next, { replace: true });
+  };
 
   useSeoMeta({
     title: `Tiles | ${config.appName}`,
@@ -82,7 +103,7 @@ export function TilesPage() {
     <main className="pb-16 sidebar:pb-0">
       <PageHeader title="Tiles" icon={<LayoutGrid className="size-5" />} />
 
-      <Tabs defaultValue="featured" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="sticky top-mobile-bar sidebar:top-0 z-10 bg-background/85 backdrop-blur-md border-b border-border px-4 pb-3">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="featured">
@@ -321,10 +342,17 @@ function TileGrid({
   events: NostrEvent[];
   verifyAuthor?: boolean;
 }) {
+  const { installedNaddrs } = useInstalledTiles();
+  const installedSet = useMemo(() => new Set(installedNaddrs), [installedNaddrs]);
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {events.map((event) => (
-        <TileCard key={event.id} event={event} verifyAuthor={verifyAuthor} />
+        <TileCard
+          key={event.id}
+          event={event}
+          verifyAuthor={verifyAuthor}
+          installedSet={installedSet}
+        />
       ))}
     </div>
   );
@@ -333,9 +361,11 @@ function TileGrid({
 function TileCard({
   event,
   verifyAuthor,
+  installedSet,
 }: {
   event: NostrEvent;
   verifyAuthor?: boolean;
+  installedSet: ReadonlySet<string>;
 }) {
   const author = useAuthor(event.pubkey);
   const metadata: NostrMetadata | undefined = author.data?.metadata;
@@ -356,6 +386,7 @@ function TileCard({
     verifyAuthor && verification === 'unverified' && !author.isLoading;
 
   const naddr = tileEventToNaddr(event);
+  const isInstalled = installedSet.has(naddr);
   const image = tileImage(event);
   const summary = tileSummary(event);
   const version = tileVersion(event);
@@ -367,8 +398,11 @@ function TileCard({
     <Link
       to={`/tiles/${naddr}`}
       className={cn(
-        'group block overflow-hidden rounded-xl border border-border bg-card',
-        'transition-colors hover:border-primary/40',
+        'group block overflow-hidden rounded-xl border bg-card',
+        'transition-colors',
+        isInstalled
+          ? 'border-emerald-500/40 hover:border-emerald-500/70'
+          : 'border-border hover:border-primary/40',
       )}
     >
       <div className="relative aspect-[16/9] bg-gradient-to-br from-primary/10 to-muted/20">
@@ -389,6 +423,25 @@ function TileCard({
               <LayoutGrid className="size-10" />
             </div>
           )}
+        {isInstalled && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="img"
+                aria-label="Installed"
+                onClick={(e) => e.preventDefault()}
+                className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-emerald-500/95 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm backdrop-blur-sm"
+              >
+                <CheckCircle2 className="size-3.5" strokeWidth={2.5} />
+                Installed
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              You have this tile installed. Open it from the Installed tab or
+              your sidebar.
+            </TooltipContent>
+          </Tooltip>
+        )}
         <div className="absolute right-2 top-2 flex items-center gap-1.5">
           {showUnverifiedBadge && (
             <Tooltip>
