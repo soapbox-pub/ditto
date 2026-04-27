@@ -22,9 +22,12 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LinkFooter } from '@/components/LinkFooter';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useInstalledTiles } from '@/hooks/useInstalledTiles';
+import { getDTag } from '@/lib/nostr-canvas/identifiers';
 import { getWidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
+import { LayoutGrid } from 'lucide-react';
 
 // ── Lazy-loaded widget components ────────────────────────────────────────────
 
@@ -38,13 +41,20 @@ const BlueskyWidget = lazy(() => import('@/components/widgets/BlueskyWidget').th
 const PhotoWidget = lazy(() => import('@/components/widgets/PhotoWidget').then((m) => ({ default: m.PhotoWidget })));
 const MusicWidget = lazy(() => import('@/components/widgets/MusicWidget').then((m) => ({ default: m.MusicWidget })));
 const FeedWidget = lazy(() => import('@/components/widgets/FeedWidget').then((m) => ({ default: m.FeedWidget })));
+const TileWidget = lazy(() => import('@/components/widgets/TileWidget').then((m) => ({ default: m.TileWidget })));
 
 const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').then((m) => ({ default: m.WidgetPickerDialog })));
 
 // ── Widget content resolver ──────────────────────────────────────────────────
 
-function WidgetContent({ id }: { id: string }) {
-  switch (id) {
+function WidgetContent({ config }: { config: WidgetConfig }) {
+  // Tile widgets are keyed by `tile:<identifier>` so multiple tiles can
+  // coexist in the sidebar without id collisions. Everything else uses
+  // its flat widget id directly.
+  if (config.id === 'tile' || config.id.startsWith('tile:')) {
+    return <TileWidget tileIdentifier={config.tileIdentifier} />;
+  }
+  switch (config.id) {
     case 'trends':
       return <TrendingWidget />;
     case 'hot-posts':
@@ -136,7 +146,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
       >
         <ErrorBoundary fallback={<WidgetErrorFallback name={definition.label} />} reportToSentry>
           <Suspense fallback={<WidgetSkeleton />}>
-            <WidgetContent id={config.id} />
+            <WidgetContent config={config} />
           </Suspense>
         </ErrorBoundary>
       </WidgetCard>
@@ -152,11 +162,44 @@ export function WidgetSidebar() {
   const { config, updateConfig } = useAppContext();
   const widgets = config.sidebarWidgets ?? EMPTY_WIDGETS;
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { installedTiles } = useInstalledTiles();
 
-  // Filter out widgets with unknown definitions
+  /**
+   * Resolve a widget config to its runtime definition. Built-in widgets
+   * live in the static `WIDGET_DEFINITIONS` registry; tile widgets are
+   * resolved against the user's installed-tile list so their label
+   * reflects whatever the tile event currently declares.
+   */
+  const resolveDefinition = useCallback(
+    (w: WidgetConfig): WidgetDefinition | undefined => {
+      if (w.id === 'tile' || w.id.startsWith('tile:')) {
+        if (!w.tileIdentifier) return undefined;
+        const entry = installedTiles.find(
+          (t) => getDTag(t.event) === w.tileIdentifier,
+        );
+        const name =
+          entry?.event.tags.find(([name]) => name === 'name')?.[1] ??
+          w.tileIdentifier;
+        return {
+          id: w.id,
+          label: name,
+          description: w.tileIdentifier,
+          icon: LayoutGrid,
+          defaultHeight: 320,
+          minHeight: 160,
+          maxHeight: 700,
+          category: 'personal',
+        };
+      }
+      return getWidgetDefinition(w.id);
+    },
+    [installedTiles],
+  );
+
+  // Filter out widgets with unknown/missing definitions.
   const validWidgets = useMemo(
-    () => widgets.filter((w) => getWidgetDefinition(w.id)),
-    [widgets],
+    () => widgets.filter((w) => !!resolveDefinition(w)),
+    [widgets, resolveDefinition],
   );
 
   const updateWidgets = useCallback((updater: (current: WidgetConfig[]) => WidgetConfig[]) => {
@@ -174,10 +217,10 @@ export function WidgetSidebar() {
     updateWidgets((ws) => ws.map((w) => w.id === id ? { ...w, height } : w));
   }, [updateWidgets]);
 
-  const addWidget = useCallback((id: string) => {
+  const addWidget = useCallback((entry: { id: string; tileIdentifier?: string }) => {
     updateWidgets((ws) => {
-      if (ws.some((w) => w.id === id)) return ws;
-      return [...ws, { id }];
+      if (ws.some((w) => w.id === entry.id)) return ws;
+      return [...ws, entry];
     });
   }, [updateWidgets]);
 
@@ -206,7 +249,7 @@ export function WidgetSidebar() {
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2 flex-1">
             {validWidgets.map((w) => {
-              const def = getWidgetDefinition(w.id);
+              const def = resolveDefinition(w);
               if (!def) return null;
               return (
                 <SortableWidget
