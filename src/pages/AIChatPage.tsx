@@ -3,6 +3,7 @@ import { useSeoMeta } from '@unhead/react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import type { SettingsField } from '@soapbox.pub/nostr-canvas';
 
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
@@ -19,8 +20,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import { cn } from '@/lib/utils';
 import { DorkThinking } from '@/components/DorkThinking';
+import { TileGenerationCard } from '@/components/ai/TileGenerationCard';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { buildLocalDraftIdentifier } from '@/lib/nostr-canvas/identifiers';
+import { putTileDraft } from '@/lib/nostr-canvas/draftStore';
 
 import type { ThemeConfig } from '@/themes';
 
@@ -74,6 +78,81 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'preview_tile',
+      description: `Generate a nostr-canvas tile and show a live preview inline in the chat. A tile is a small sandboxed Lua program that renders inside a host Nostr client: it can react to events, request capabilities (fetch, publish-event, nip44 encrypt/decrypt, navigate), declare settings, and emit a UI tree (stack, row, text, markdown, image, button, form, input, dropdown, checkbox, spoiler, etc.).
+
+Use this tool when the user asks you to build, generate, prototype, design, or iterate on a tile. The preview renders live; the user can then install or publish the tile from the preview card.
+
+**Lua API crib sheet** (see NIP.md for the full spec):
+
+- The script must return a table with fields: \`render(props, settings, ctx)\` returning a UI node; optional \`subscribe(filter, ctx)\` to listen for events; optional \`onEvent(event, ctx)\`; optional \`init(ctx)\` for one-shot setup.
+- UI nodes are tables with a \`type\` field: "stack", "row", "text", "markdown", "image", "button", "divider", "color", "nevent", "embedded", "form", "input", "dropdown", "checkbox", "spoiler". Stacks and rows nest children via \`children\`.
+- Buttons have \`on_click\` handlers. Forms have \`on_submit\`. Handlers are Lua functions that receive \`ctx\`.
+- \`ctx\` exposes: \`ctx.set_output(node)\` to re-render, \`ctx.request(capability, args)\` to invoke a capability, \`ctx.settings.<key>\` to read settings, \`ctx.store.get(key)\` / \`ctx.store.set(key, value)\` for per-user KV storage, \`ctx.toast(msg, variant)\`, \`ctx.navigate(path)\`, \`ctx.request_cache(filter)\` for cached queries.
+- Keep the Lua self-contained. Do not reference undefined globals. Use only standard Lua syntax plus the \`ctx\` helpers.
+
+**Identifier**: supply a short lowercase \`slug\` (letters, digits, hyphens). The runtime will build a draft identifier from the user's pubkey.`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          slug: {
+            type: 'string',
+            description: 'Short lowercase slug for the tile, letters/digits/hyphens only (e.g. "weather", "pomodoro", "mood-tracker"). Becomes part of the tile identifier.',
+          },
+          name: {
+            type: 'string',
+            description: 'Human-friendly display name shown in the install UI (e.g. "Weather", "Pomodoro Timer").',
+          },
+          summary: {
+            type: 'string',
+            description: 'One-line plain-text summary of what the tile does. Shown in the browse list and above the preview.',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional longer markdown description shown on the tile detail page. Use this to document features and how to use the tile.',
+          },
+          image_url: {
+            type: 'string',
+            description: 'Optional URL to a banner/icon image for the tile. Must be a direct link to a publicly accessible image file.',
+          },
+          source: {
+            type: 'string',
+            description: 'The full Lua source code for the tile. Must be syntactically valid Lua that returns a table with at least a `render` function.',
+          },
+          settings: {
+            type: 'array',
+            description: 'Optional list of settings fields the tile declares. Each becomes a configurable value under the tile\'s settings panel.',
+            items: {
+              type: 'object',
+              properties: {
+                key: { type: 'string', description: 'Setting key (used as `ctx.settings.<key>` inside Lua).' },
+                label: { type: 'string', description: 'Human-readable label shown in the settings UI.' },
+                type: { type: 'string', enum: ['text', 'boolean', 'dropdown'], description: 'Field type.' },
+                default: { type: 'string', description: 'Default value (string form; booleans accept "true"/"false").' },
+                options: {
+                  type: 'array',
+                  description: 'For dropdown fields only: list of {label, value} options.',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      label: { type: 'string' },
+                      value: { type: 'string' },
+                    },
+                    required: ['label', 'value'],
+                  },
+                },
+              },
+              required: ['key', 'label', 'type'],
+            },
+          },
+        },
+        required: ['slug', 'name', 'summary', 'source'],
+      },
+    },
+  },
 ];
 
 // ─── Message Types ───
@@ -103,6 +182,7 @@ function isValidHsl(value: unknown): value is string {
 
 function useToolExecutor() {
   const { applyCustomTheme } = useTheme();
+  const { user } = useCurrentUser();
 
   const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
     switch (name) {
@@ -161,10 +241,105 @@ function useToolExecutor() {
 
         return JSON.stringify(result);
       }
+      case 'preview_tile': {
+        if (!user) {
+          return JSON.stringify({ error: 'You must be logged in to generate tiles.' });
+        }
+
+        const { slug, name: tileName, summary, description, image_url, source, settings } = args;
+
+        if (typeof slug !== 'string' || !slug.trim()) {
+          return JSON.stringify({ error: 'Missing required field: slug.' });
+        }
+        if (typeof tileName !== 'string' || !tileName.trim()) {
+          return JSON.stringify({ error: 'Missing required field: name.' });
+        }
+        if (typeof summary !== 'string' || !summary.trim()) {
+          return JSON.stringify({ error: 'Missing required field: summary.' });
+        }
+        if (typeof source !== 'string' || !source.trim()) {
+          return JSON.stringify({ error: 'Missing required field: source.' });
+        }
+
+        const identifier = buildLocalDraftIdentifier(user.pubkey, slug);
+
+        // Only keep an image URL if it's a well-formed https URL.
+        let safeImage: string | undefined;
+        if (typeof image_url === 'string' && image_url.trim()) {
+          const sanitized = sanitizeUrl(image_url.trim());
+          if (sanitized) safeImage = sanitized;
+        }
+
+        // Parse + validate the settings array. The Lua runtime expects a
+        // `SettingsField[]` shape; anything weird is dropped.
+        const safeSettings: SettingsField[] = [];
+        if (Array.isArray(settings)) {
+          for (const raw of settings) {
+            if (!raw || typeof raw !== 'object') continue;
+            const entry = raw as Record<string, unknown>;
+            const key = typeof entry.key === 'string' ? entry.key : '';
+            const label = typeof entry.label === 'string' ? entry.label : '';
+            const type = entry.type;
+            if (!key || !label) continue;
+            if (type === 'text') {
+              safeSettings.push({
+                key,
+                label,
+                type: 'text',
+                default: typeof entry.default === 'string' ? entry.default : undefined,
+              });
+            } else if (type === 'boolean') {
+              const def =
+                typeof entry.default === 'boolean'
+                  ? entry.default
+                  : entry.default === 'true'
+                  ? true
+                  : entry.default === 'false'
+                  ? false
+                  : undefined;
+              safeSettings.push({ key, label, type: 'boolean', default: def });
+            } else if (type === 'dropdown' && Array.isArray(entry.options)) {
+              const options = entry.options
+                .map((opt) => {
+                  if (!opt || typeof opt !== 'object') return null;
+                  const o = opt as Record<string, unknown>;
+                  if (typeof o.label !== 'string' || typeof o.value !== 'string') return null;
+                  return { label: o.label, value: o.value };
+                })
+                .filter((o): o is { label: string; value: string } => o !== null);
+              if (options.length === 0) continue;
+              safeSettings.push({
+                key,
+                label,
+                type: 'dropdown',
+                options,
+                default: typeof entry.default === 'string' ? entry.default : undefined,
+              });
+            }
+          }
+        }
+
+        putTileDraft({
+          identifier,
+          name: tileName,
+          summary,
+          description: typeof description === 'string' ? description : undefined,
+          image: safeImage,
+          script: source,
+          settings: safeSettings,
+        });
+
+        return JSON.stringify({
+          success: true,
+          identifier,
+          name: tileName,
+          summary,
+        });
+      }
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
-  }, [applyCustomTheme]);
+  }, [applyCustomTheme, user]);
 
   return { executeToolCall };
 }
@@ -177,20 +352,30 @@ function buildSystemPrompt(appName: string): ChatMessage {
     role: 'system',
     content: `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
 
-You have a set_theme tool that applies a full custom theme. It supports:
+You have two tools:
 
-**Colors** (required): Three HSL values without the "hsl()" wrapper (e.g. "228 20% 10%"):
-- background: page background color
-- text: main text/foreground color (must contrast well with background)
-- primary: accent color for buttons, links, and highlights
-
-**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
-
-**Background image** (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
+**set_theme** — apply a full custom theme.
+- Colors (required): Three HSL values without the "hsl()" wrapper (e.g. "228 20% 10%"):
+  - background: page background color
+  - text: main text/foreground color (must contrast well with background)
+  - primary: accent color for buttons, links, and highlights
+- Font (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
+- Background image (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
 
 When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
 
-Be concise and friendly. When you use a tool, briefly describe the theme you created.`,
+**preview_tile** — generate a nostr-canvas tile and show a live preview inline. Tiles are small sandboxed Lua programs that render a UI tree inside the host client. Use this when the user asks you to build, design, prototype, or iterate on a tile.
+
+Guidelines for writing tiles:
+- Return a Lua table with at minimum a \`render(props, settings, ctx)\` function that returns a UI node.
+- UI nodes are Lua tables with a \`type\` field: "stack", "row", "text", "markdown", "image", "button", "divider", "color", "form", "input", "dropdown", "checkbox", "spoiler", "nevent".
+- Use \`ctx.set_output(node)\` to re-render, \`ctx.request(capability, args)\` for capabilities, \`ctx.settings.<key>\` for settings, \`ctx.store\` for per-user KV storage.
+- Capabilities (must be requested): "fetch", "publish-event", "sign-event", "get-pubkey", "nip44-encrypt", "nip44-decrypt", "navigate", "register-events".
+- Keep the Lua self-contained. Pick a short lowercase slug, a friendly name, and a one-line summary.
+
+When you use a tool, briefly describe what you did. After preview_tile, the preview is shown inline; let the user iterate before installing.
+
+Be concise and friendly.`,
   };
 }
 
@@ -644,6 +829,9 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
     colors?: { background?: string; text?: string; primary?: string };
     font?: string;
     background?: { url?: string; mode?: string };
+    identifier?: string;
+    name?: string;
+    summary?: string;
   } = {};
   try {
     resultParsed = JSON.parse(toolCall.result || '{}');
@@ -652,6 +840,24 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
   }
 
   const isSuccess = resultParsed.success === true;
+
+  // Inline tile preview — render the full generation card instead of a badge.
+  if (toolCall.name === 'preview_tile') {
+    if (!isSuccess || !resultParsed.identifier) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20">
+          {resultParsed.error ?? 'Tile preview failed'}
+        </span>
+      );
+    }
+    return (
+      <TileGenerationCard
+        draftIdentifier={resultParsed.identifier}
+        className="w-full mt-1"
+      />
+    );
+  }
+
   const colors = resultParsed.colors;
 
   if (toolCall.name !== 'set_theme' || !isSuccess) {
