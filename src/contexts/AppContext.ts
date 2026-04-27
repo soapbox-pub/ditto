@@ -64,8 +64,8 @@ export interface FeedSettings {
   showTreasureFoundLogs: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
-  /** Show Follow Packs (kind 39089) link in sidebar */
-  showPacks: boolean;
+  /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */
+  showPeopleLists: boolean;
   /** Include Vines in the follows/global feed */
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
@@ -76,8 +76,8 @@ export interface FeedSettings {
   feedIncludeTreasureFoundLogs: boolean;
   /** Include Colors in the follows/global feed */
   feedIncludeColors: boolean;
-  /** Include Follow Packs in the follows/global feed */
-  feedIncludePacks: boolean;
+  /** Include People Lists (kind 3 follow lists, kind 30000 people sets, kind 39089 follow packs) in the follows/global feed */
+  feedIncludePeopleLists: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */

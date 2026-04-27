@@ -341,17 +341,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 39089,
     id: 'packs',
-    showKey: 'showPacks',
-    feedKey: 'feedIncludePacks',
+    showKey: 'showPeopleLists',
+    feedKey: 'feedIncludePeopleLists',
     // Also include related people-list kinds under the same feed toggle:
     // kind 3 (NIP-02 follow list) and kind 30000 (NIP-51 follow set).
     extraFeedKinds: [3, 30000],
-    label: 'Follow Packs',
-    description: 'Curated follow recommendations and lists',
+    label: 'People Lists',
+    description: 'Follow packs, follow lists, and people sets',
     route: 'packs',
     addressable: true,
     section: 'social',
-    blurb: 'Curated lists of people to follow. Browse or create your own.',
+    blurb: 'Curated lists of people to follow — follow packs, follow lists, and people sets. Browse or create your own.',
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
   {
