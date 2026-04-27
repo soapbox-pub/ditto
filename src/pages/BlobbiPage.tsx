@@ -26,6 +26,7 @@ import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
+import { BlobbiEvolveCeremony } from '@/blobbi/onboarding/components/BlobbiEvolveCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
@@ -1036,10 +1037,12 @@ function BlobbiDashboard({
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showHatchCeremony, setShowHatchCeremony] = useState(false);
+  const [showEvolveCeremony, setShowEvolveCeremony] = useState(false);
   
-  // Reset hatch ceremony when switching companions
+  // Reset hatch/evolve ceremony when switching companions
   useEffect(() => {
     setShowHatchCeremony(false);
+    setShowEvolveCeremony(false);
   }, [selectedD]);
   
   // DEV ONLY: Emotion panel state
@@ -1440,8 +1443,8 @@ function BlobbiDashboard({
                   evolveTasks={evolveTasks}
                   onHatch={async () => setShowHatchCeremony(true)}
                   isHatching={isHatching || showHatchCeremony}
-                  onEvolve={onEvolve}
-                  isEvolving={isEvolving}
+                  onEvolve={async () => setShowEvolveCeremony(true)}
+                  isEvolving={isEvolving || showEvolveCeremony}
                   onStopIncubation={handleStopIncubation}
                   isStoppingIncubation={isStoppingIncubation}
                   onStopEvolution={handleStopEvolution}
@@ -1466,7 +1469,7 @@ function BlobbiDashboard({
                   onAdopt={() => setShowAdoptionFlow(true)}
                   onDevOpenEditor={() => setShowDevEditor(true)}
                   onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? onEvolve : undefined}
+                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? () => setShowEvolveCeremony(true) : undefined}
                   isHatching={isHatching}
                   isEvolving={isEvolving}
                 />
@@ -1616,6 +1619,19 @@ function BlobbiDashboard({
             setStoredSelectedD={setStoredSelectedD}
             existingCompanion={companion}
             onComplete={() => setShowHatchCeremony(false)}
+          />
+        </div>,
+        document.body,
+      )}
+
+      {/* Evolve Ceremony — portaled to document.body like the hatch ceremony */}
+      {showEvolveCeremony && createPortal(
+        <div className="fixed inset-0 z-[100] bg-background">
+          <BlobbiEvolveCeremony
+            companion={companion}
+            onEvolve={onEvolve}
+            onComplete={() => setShowEvolveCeremony(false)}
+            updateCompanionEvent={updateCompanionEvent}
           />
         </div>,
         document.body,

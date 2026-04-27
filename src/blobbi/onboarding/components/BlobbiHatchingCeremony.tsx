@@ -196,6 +196,28 @@ export function BlobbiHatchingCeremony({
 
   const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
 
+  // ── Derive reveal background from baby's base color ──
+  // Parse hex to RGB, then create a muted, low-intensity version for the background
+  const revealBg = useMemo(() => {
+    const hex = eggColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Create 5 stops with increasing lightness/desaturation
+    // Blend toward white to reduce intensity, keeping a hint of the hue
+    const blend = (channel: number, whiteAmount: number) =>
+      Math.round(channel + (255 - channel) * whiteAmount);
+
+    const s0 = `rgb(${blend(r, 0.65)},${blend(g, 0.65)},${blend(b, 0.65)})`;
+    const s1 = `rgb(${blend(r, 0.68)},${blend(g, 0.68)},${blend(b, 0.68)})`;
+    const s2 = `rgb(${blend(r, 0.72)},${blend(g, 0.72)},${blend(b, 0.72)})`;
+    const s3 = `rgb(${blend(r, 0.76)},${blend(g, 0.76)},${blend(b, 0.76)})`;
+    const s4 = `rgb(${blend(r, 0.80)},${blend(g, 0.80)},${blend(b, 0.80)})`;
+
+    return `radial-gradient(ellipse at 50% 45%, ${s0} 0%, ${s1} 25%, ${s2} 50%, ${s3} 75%, ${s4} 100%)`;
+  }, [eggColor]);
+
   // ── Typewriter for current dialog line ──
   const currentDialogText = phase === 'dialog' ? (BIRTH_DIALOG[dialogLineIndex] ?? '') : '';
   const dialogTypewriter = useTypewriter(currentDialogText, dialogActive);
@@ -602,7 +624,7 @@ export function BlobbiHatchingCeremony({
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showBaby
-          ? 'radial-gradient(ellipse at 50% 45%, rgb(60,140,180) 0%, rgb(70,160,195) 25%, rgb(85,175,205) 50%, rgb(100,190,210) 75%, rgb(115,195,195) 100%)'
+          ? revealBg
           : 'radial-gradient(ellipse at center, #0a1a2a 0%, #081520 50%, #060f18 100%)',
         transition: 'background 2s ease-out',
       }}
@@ -616,6 +638,16 @@ export function BlobbiHatchingCeremony({
             transitionDuration: '3000ms',
             background: `radial-gradient(ellipse at 50% 50%, ${eggColor}30 0%, transparent 60%)`,
             opacity: (isEggPhase || isHatching) ? 0.07 : 0.05,
+          }}
+        />
+      )}
+
+      {/* ── Vignette shadow for reveal phase — adds depth so blobbi pops ── */}
+      {showBaby && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.25) 100%)',
           }}
         />
       )}

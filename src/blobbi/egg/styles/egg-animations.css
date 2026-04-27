@@ -765,6 +765,39 @@
   animation: onboard-golden-fadein 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* ─── Evolve Ceremony Animations ─────────────────────────────────────────────── */
+
+/* Energy particles spiral inward toward the blobbi */
+@keyframes evolve-spiral-in {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) translateX(250px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.8;
+    transform: rotate(540deg) translateX(20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(720deg) translateX(0px) scale(0);
+  }
+}
+
+/* Pulsing glow behind baby during gather/surge */
+@keyframes evolve-glow-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
 /* Reduced motion overrides for onboarding */
 @media (prefers-reduced-motion: reduce) {
   .animate-egg-onboard-breathe,
