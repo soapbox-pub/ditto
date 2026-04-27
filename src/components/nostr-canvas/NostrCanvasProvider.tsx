@@ -53,6 +53,7 @@ import {
 } from '@/lib/nostr-canvas/adapter';
 import { createScopedPermissionCache } from '@/lib/nostr-canvas/capabilityCache';
 import { getCachedTileEvent } from '@/lib/nostr-canvas/tileCache';
+import { setTileNavItemRegistry } from '@/lib/sidebarItems';
 import { CanvasMount } from '@/lib/nostr-canvas/useSafeNostrCanvas';
 import { TilePermissionDialog } from '@/components/nostr-canvas/TilePermissionDialog';
 import { TileModalSlot } from '@/components/nostr-canvas/TileModalSlot';
@@ -199,6 +200,7 @@ function NostrCanvasRuntimeProvider({
     <LibProvider adapter={adapter} options={{ onPermissionRequest }}>
       <CanvasMount />
       <InstalledTilesBinder />
+      <TileNavItemBinder />
       <AuthBroadcaster />
       {children}
       <TileModalSlot />
@@ -276,6 +278,68 @@ function InstalledTilesBinder(): null {
       }
     }
   }, [installed, runtime]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// TileNavItemBinder — push runtime nav items into the sidebar registry
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirrors the live `useNostrCanvas().navItems` list into the module-level
+ * tile-nav-item registry consumed by `sidebarItems.tsx`. The sidebar's
+ * `itemLabel`/`itemPath`/`sidebarItemIcon` helpers read from that
+ * registry synchronously so synthetic `tile-nav:<identifier>` ids resolve
+ * without threading a React context through every caller.
+ *
+ * Additionally, this component appends every new tile nav item to
+ * `AppConfig.sidebarOrder` the first time it appears — so installing a
+ * tile with a nav item puts it directly in the user's sidebar, the same
+ * way a newly-registered widget ends up in the widget sidebar. The user
+ * can reorder or hide it afterwards like any other sidebar entry.
+ */
+function TileNavItemBinder(): null {
+  const { navItems } = useNostrCanvas();
+  const { config, updateConfig } = useAppContext();
+
+  // Re-publish the registry whenever nav items change so sidebar
+  // consumers subscribed via useSyncExternalStore re-render.
+  useEffect(() => {
+    setTileNavItemRegistry(
+      navItems.map((n) => ({ identifier: n.identifier, label: n.label })),
+    );
+  }, [navItems]);
+
+  // Auto-add new tile nav items to the sidebar order. We only append ids
+  // the user hasn't seen before — if they explicitly removed one, we
+  // don't re-add it on their next render.
+  const addedOnceRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const order = config.sidebarOrder ?? [];
+    const toAppend: string[] = [];
+    for (const n of navItems) {
+      const id = `tile-nav:${n.identifier}`;
+      if (addedOnceRef.current.has(id)) continue;
+      if (order.includes(id)) {
+        addedOnceRef.current.add(id);
+        continue;
+      }
+      addedOnceRef.current.add(id);
+      toAppend.push(id);
+    }
+    if (toAppend.length === 0) return;
+    updateConfig((c) => ({
+      ...c,
+      sidebarOrder: [...(c.sidebarOrder ?? []), ...toAppend],
+    }));
+  }, [navItems, config.sidebarOrder, updateConfig]);
+
+  // Cleanup: drop the registry on unmount so stale nav items don't
+  // linger after the runtime tears down.
+  useEffect(() => {
+    return () => setTileNavItemRegistry([]);
+  }, []);
 
   return null;
 }

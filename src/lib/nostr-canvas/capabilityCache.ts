@@ -17,8 +17,10 @@
 import {
   createPermissionCache,
   createStoragePermissionBackend,
-  type PermissionCache,
+  type Capability,
   type MinimalStorage,
+  type PermissionCache,
+  type PermissionDecision,
 } from '@soapbox.pub/nostr-canvas';
 
 const STORAGE_KEY_PREFIX = 'nostr:canvas:perms:';
@@ -89,5 +91,75 @@ export function clearScopedPermissions(pubkey: string | null): void {
   }
   for (const key of keys) {
     window.localStorage.removeItem(key);
+  }
+}
+
+/** A single stored permission decision. */
+export interface PermissionEntry {
+  identifier: string;
+  capability: Capability;
+  decision: PermissionDecision;
+}
+
+/**
+ * Enumerate every permission decision stored under the given pubkey's
+ * scope. The library itself doesn't expose enumeration (its cache only
+ * provides `get`/`set`/`delete`), so we read `localStorage` keys
+ * directly using the same `<prefix><identifier>\u0000<capability>` key
+ * format that `createStoragePermissionBackend` writes.
+ *
+ * Returns an empty array when `localStorage` is unavailable.
+ */
+export function listScopedPermissions(pubkey: string | null): PermissionEntry[] {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  const scope = pubkey ?? 'anon';
+  const prefix = `${STORAGE_KEY_PREFIX}${scope}:`;
+  const out: PermissionEntry[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (!key || !key.startsWith(prefix)) continue;
+    const rest = key.slice(prefix.length);
+    const sep = rest.indexOf('\u0000');
+    if (sep === -1) continue;
+    const identifier = rest.slice(0, sep);
+    const capability = rest.slice(sep + 1) as Capability;
+    const value = window.localStorage.getItem(key);
+    if (value === 'granted' || value === 'denied') {
+      out.push({ identifier, capability, decision: value });
+    }
+  }
+  return out;
+}
+
+/**
+ * Forget a single `(identifier, capability)` decision under the given
+ * pubkey's scope. No-op when the decision wasn't set.
+ */
+export function revokeScopedPermission(
+  pubkey: string | null,
+  identifier: string,
+  capability: Capability,
+): void {
+  // Reuse the same key format `createStoragePermissionBackend` writes.
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const scope = pubkey ?? 'anon';
+  const key = `${STORAGE_KEY_PREFIX}${scope}:${identifier}\u0000${capability}`;
+  window.localStorage.removeItem(key);
+}
+
+/**
+ * Forget every stored permission decision for a given tile identifier
+ * under the given pubkey's scope. Called when a tile is uninstalled so
+ * reinstalling it doesn't silently resurrect old grants.
+ */
+export function forgetTilePermissions(
+  pubkey: string | null,
+  identifier: string,
+): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  for (const entry of listScopedPermissions(pubkey)) {
+    if (entry.identifier === identifier) {
+      revokeScopedPermission(pubkey, identifier, entry.capability);
+    }
   }
 }

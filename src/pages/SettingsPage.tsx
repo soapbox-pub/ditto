@@ -73,6 +73,13 @@ const settingsSections: SettingsSection[] = [
     illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
+  {
+    id: 'tiles',
+    label: 'Tiles',
+    description: 'Configure installed tiles and manage their permissions',
+    path: '/settings/tiles',
+    requiresAuth: true,
+  },
 ];
 
 export function SettingsPage() {

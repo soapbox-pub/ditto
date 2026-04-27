@@ -2,7 +2,15 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri } from "@/lib/sidebarItems";
+import {
+  SIDEBAR_ITEMS,
+  SIDEBAR_ITEM_IDS,
+  SIDEBAR_DIVIDER_ID,
+  isExternalUri,
+  isNostrUri,
+  isTileNavItemId,
+} from "@/lib/sidebarItems";
+import { useTileNavItemIds } from "@/hooks/useTileNavItemIds";
 import { useCallback, useMemo } from "react";
 
 // ── Order computation ─────────────────────────────────────────────────────────
@@ -49,7 +57,12 @@ function computeOrderedItems(
     if (seen.has(item)) continue;
     seen.add(item);
 
-    if (SIDEBAR_ITEM_IDS.has(item) || isNostrUri(item) || isExternalUri(item)) {
+    if (
+      SIDEBAR_ITEM_IDS.has(item) ||
+      isNostrUri(item) ||
+      isExternalUri(item) ||
+      isTileNavItemId(item)
+    ) {
       ordered.push(item);
     }
     // else: unknown entry — skip
@@ -71,6 +84,7 @@ export interface HiddenSidebarItem {
 
 function computeHiddenItems(
   orderedItems: string[],
+  tileNavItems: Array<{ id: string; label: string }>,
 ): HiddenSidebarItem[] {
   const visibleSet = new Set(orderedItems);
   const hidden: HiddenSidebarItem[] = [];
@@ -78,6 +92,15 @@ function computeHiddenItems(
   for (const item of SIDEBAR_ITEMS) {
     if (!visibleSet.has(item.id)) {
       hidden.push({ id: item.id, label: item.label });
+    }
+  }
+
+  // Tile nav items that have been hidden should also show up in the
+  // "add back" list so the user can restore them without reinstalling
+  // the tile.
+  for (const navItem of tileNavItems) {
+    if (!visibleSet.has(navItem.id)) {
+      hidden.push({ id: navItem.id, label: navItem.label });
     }
   }
 
@@ -93,6 +116,7 @@ export function useFeedSettings() {
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+  const tileNavItems = useTileNavItemIds();
 
   const orderedItems = useMemo(
     () => computeOrderedItems(config.sidebarOrder),
@@ -100,8 +124,8 @@ export function useFeedSettings() {
   );
 
   const hiddenItems = useMemo(
-    () => computeHiddenItems(orderedItems),
-    [orderedItems],
+    () => computeHiddenItems(orderedItems, tileNavItems),
+    [orderedItems, tileNavItems],
   );
 
   const updateFeedSettings = useCallback(

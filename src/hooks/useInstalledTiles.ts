@@ -15,7 +15,8 @@ import { useCallback, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
-import { tileEventToNaddr } from '@/lib/nostr-canvas/identifiers';
+import { getDTag, tileEventToNaddr } from '@/lib/nostr-canvas/identifiers';
+import { tileNavItemId } from '@/lib/sidebarItems';
 import {
   getCachedTileEvent,
   listCachedTileEvents,
@@ -96,13 +97,23 @@ export function useInstalledTiles(): UseInstalledTilesResult {
   const uninstallTile = useCallback(
     (naddr: string): boolean => {
       let wasPresent = false;
+      // Resolve the tile's identifier before we remove the cached event so
+      // we can strip any matching synthetic tile-nav sidebar entry too.
+      const cachedEvent = getCachedTileEvent(naddr);
+      const identifier = cachedEvent ? getDTag(cachedEvent) : undefined;
+      const navSidebarId = identifier ? tileNavItemId(identifier) : undefined;
+
       updateConfig((c) => {
         const current = c.installedTiles ?? [];
         if (!current.includes(naddr)) return c;
         wasPresent = true;
+        const nextOrder = navSidebarId
+          ? (c.sidebarOrder ?? []).filter((id) => id !== navSidebarId)
+          : c.sidebarOrder;
         return {
           ...c,
           installedTiles: current.filter((entry) => entry !== naddr),
+          sidebarOrder: nextOrder ?? c.sidebarOrder,
         };
       });
       removeCachedTileEvent(naddr);

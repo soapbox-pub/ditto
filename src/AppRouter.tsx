@@ -70,6 +70,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ defa
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TileDetailPage = lazy(() => import("./pages/TileDetailPage").then(m => ({ default: m.TileDetailPage })));
 const TileRunPage = lazy(() => import("./pages/TileRunPage").then(m => ({ default: m.TileRunPage })));
+const TileSettingsPage = lazy(() => import("./pages/TileSettingsPage").then(m => ({ default: m.TileSettingsPage })));
 const TilesPage = lazy(() => import("./pages/TilesPage").then(m => ({ default: m.TilesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
@@ -184,6 +185,7 @@ export function AppRouter() {
             />
             <Route path="/settings/magic" element={<MagicSettingsPage />} />
             <Route path="/settings/network" element={<NetworkSettingsPage />} />
+            <Route path="/settings/tiles" element={<TileSettingsPage />} />
             <Route path="/lists" element={<UserListsPage />} />
             <Route path="/events" element={<EventsFeedPage />} />
             <Route path="/photos" element={<PhotosFeedPage />} />

@@ -78,6 +78,78 @@ export function isExternalUri(id: string): boolean {
   );
 }
 
+/** Prefix used for synthetic sidebar ids backed by a tile nav-item. */
+export const TILE_NAV_ITEM_PREFIX = "tile-nav:";
+
+/** Returns true when the id is a tile nav-item synthetic id. */
+export function isTileNavItemId(id: string): boolean {
+  return id.startsWith(TILE_NAV_ITEM_PREFIX);
+}
+
+/** Build a synthetic sidebar id for a tile nav item. */
+export function tileNavItemId(identifier: string): string {
+  return `${TILE_NAV_ITEM_PREFIX}${identifier}`;
+}
+
+/** Extract the tile identifier from a synthetic tile-nav sidebar id. */
+export function tileNavItemIdentifier(id: string): string {
+  return id.startsWith(TILE_NAV_ITEM_PREFIX)
+    ? id.slice(TILE_NAV_ITEM_PREFIX.length)
+    : id;
+}
+
+/**
+ * Module-level registry of live tile nav-items (keyed by tile identifier).
+ *
+ * The nostr-canvas runtime is loaded lazily, so the set of declared nav
+ * items isn't known until a tile actually registers. `TileNavItemBinder`
+ * (inside `NostrCanvasProvider`) pushes the runtime's list into this
+ * registry; the sidebar lookup helpers below read from it synchronously.
+ *
+ * We keep this outside React state so `sidebarItems.tsx` can stay
+ * context-free (every caller of `itemLabel`/`itemPath`/`sidebarItemIcon`
+ * would otherwise need to thread a lookup fn through).
+ */
+interface TileNavRegistration {
+  label: string;
+  /** Optional raw image URL for the icon. Sanitised at read time. */
+  iconUrl?: string;
+}
+
+const tileNavItemRegistry = new Map<string, TileNavRegistration>();
+const tileNavItemListeners = new Set<() => void>();
+
+/**
+ * Replace the entire registry with the provided entries. Notifies
+ * subscribers so `useSyncExternalStore` consumers re-render.
+ */
+export function setTileNavItemRegistry(
+  entries: Array<{ identifier: string; label: string; iconUrl?: string }>,
+): void {
+  tileNavItemRegistry.clear();
+  for (const entry of entries) {
+    tileNavItemRegistry.set(entry.identifier, {
+      label: entry.label,
+      iconUrl: entry.iconUrl,
+    });
+  }
+  for (const listener of tileNavItemListeners) listener();
+}
+
+/** Subscribe to registry changes. Used by useSyncExternalStore. */
+export function subscribeTileNavItemRegistry(listener: () => void): () => void {
+  tileNavItemListeners.add(listener);
+  return () => tileNavItemListeners.delete(listener);
+}
+
+/** Snapshot of currently-registered tile nav items. */
+export function getTileNavItemRegistrySnapshot(): ReadonlyMap<
+  string,
+  TileNavRegistration
+> {
+  return tileNavItemRegistry;
+}
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */
@@ -214,12 +286,19 @@ export function sidebarItemIcon(
   id: string,
   size = "size-6",
 ): React.ReactElement {
+  if (isTileNavItemId(id)) {
+    return <LayoutGrid className={size} />;
+  }
   const Icon = SIDEBAR_ITEM_MAP.get(id)?.icon ?? Palette;
   return <Icon className={size} />;
 }
 
 /** Lookup display label for a sidebar item ID. */
 export function itemLabel(id: string): string {
+  if (isTileNavItemId(id)) {
+    const identifier = tileNavItemIdentifier(id);
+    return tileNavItemRegistry.get(identifier)?.label ?? identifier;
+  }
   return SIDEBAR_ITEM_MAP.get(id)?.label ?? id;
 }
 
@@ -229,6 +308,9 @@ export function itemPath(
   profilePath?: string,
   homePage?: string,
 ): string {
+  if (isTileNavItemId(id)) {
+    return `/tiles/run/${encodeURIComponent(tileNavItemIdentifier(id))}`;
+  }
   if (id === "profile" && profilePath) return profilePath;
   if (homePage && id === homePage) return "/";
   return SIDEBAR_ITEM_MAP.get(id)?.path ?? `/${id}`;
@@ -274,6 +356,15 @@ export function isItemActive(
   profilePath?: string,
   homePage?: string,
 ): boolean {
+  // Tile nav items: active when the /tiles/run/... path matches.
+  if (isTileNavItemId(id)) {
+    const identifier = tileNavItemIdentifier(id);
+    return (
+      pathname === `/tiles/run/${encodeURIComponent(identifier)}` ||
+      pathname === `/tiles/run/${identifier}`
+    );
+  }
+
   // Nostr URI items: active when pathname matches /<nip19>
   if (isNostrUri(id)) {
     const nip19Id = nostrUriToNip19(id);
