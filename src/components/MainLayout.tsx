@@ -6,6 +6,7 @@ import { MobileDrawer } from '@/components/MobileDrawer';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
+import { LazyNostrCanvasRoot } from '@/components/nostr-canvas/LazyNostrCanvasRoot';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -143,7 +144,9 @@ export function MainLayout() {
 
   return (
     <LayoutStoreContext.Provider value={store}>
-      <MainLayoutInner />
+      <LazyNostrCanvasRoot>
+        <MainLayoutInner />
+      </LazyNostrCanvasRoot>
     </LayoutStoreContext.Provider>
   );
 }
