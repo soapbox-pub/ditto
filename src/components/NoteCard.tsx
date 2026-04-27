@@ -47,6 +47,8 @@ import {
 } from "@/components/ColorMomentContent";
 import { CommentContext } from "@/components/CommentContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { TileView } from "@/components/nostr-canvas/TileView";
+import { useTileRegistrations } from "@/hooks/useTileRegistrations";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
@@ -380,6 +382,13 @@ export const NoteCard = memo(function NoteCard({
   const isVine = event.kind === 34236 || event.kind === 22;
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
+
+  // Check installed nostr-canvas tiles. When any installed tile has declared
+  // a feed renderer matching this event, it wins over the native dispatch
+  // below (per the project's "installed tiles override natives" decision).
+  // Before the canvas gate opens, this returns null and we fall through.
+  const { findRendererForEvent } = useTileRegistrations();
+  const tileRenderer = findRendererForEvent(event);
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
@@ -555,7 +564,13 @@ export const NoteCard = memo(function NoteCard({
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
       <ContentWarningGuard event={event}>
-        {isPhoto ? (
+        {tileRenderer ? (
+          <TileView
+            identifier={tileRenderer.identifier}
+            placement="event"
+            props={{ event }}
+          />
+        ) : isPhoto ? (
           <PhotoContent event={event} />
         ) : isVideo ? (
           <VideoContent event={event} />

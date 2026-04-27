@@ -33,6 +33,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
+import { useTileRegistrations } from '@/hooks/useTileRegistrations';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -63,6 +64,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
+  // Kinds declared by installed nostr-canvas tiles as feed-renderable. We
+  // widen the main feed query so these events actually arrive to be rendered
+  // via the tile branch in NoteCard. If the caller already passed explicit
+  // `kinds` we leave them alone — kind-specific pages have their own scope.
+  const { feedKinds: tileFeedKinds } = useTileRegistrations();
+  const effectiveExtraKinds = useMemo(
+    () => (kinds ? [] : tileFeedKinds),
+    [kinds, tileFeedKinds],
+  );
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -136,7 +146,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       : 'global';
   const feedQuery = useFeed(
     isCoreFeedTab ? feedTabForQuery : 'global',
-    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+    (kinds || tagFilters)
+      ? { kinds, tagFilters }
+      : effectiveExtraKinds.length > 0
+      ? { extraKinds: effectiveExtraKinds }
+      : undefined,
   );
 
   // Curated Ditto feed: latest content from the curator's follow list.

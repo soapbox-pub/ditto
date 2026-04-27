@@ -36,6 +36,13 @@ interface FeedPage {
 interface UseFeedOptions {
   /** Override the kinds list instead of using feed settings. Used by kind-specific pages. */
   kinds?: number[];
+  /**
+   * Extra kinds to merge into the default feed-settings-derived kinds list.
+   * Unlike `kinds`, this does not override — it unions with what feed
+   * settings already yield. Used to include kinds that installed
+   * nostr-canvas tiles have declared as feed-renderable.
+   */
+  extraKinds?: number[];
   /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
   tagFilters?: Record<string, string[]>;
 }
@@ -51,7 +58,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const { feedSettings } = useFeedSettings();
 
   // Build the full kinds list from user settings, or use the override.
-  const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
+  const allKinds = options?.kinds
+    ?? (options?.extraKinds?.length
+      ? [...new Set([...getEnabledFeedKinds(feedSettings), ...options.extraKinds])]
+      : getEnabledFeedKinds(feedSettings));
 
   const tagFilters = options?.tagFilters;
 
