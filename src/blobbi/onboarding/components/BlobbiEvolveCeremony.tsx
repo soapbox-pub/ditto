@@ -2,12 +2,10 @@
  * BlobbiEvolveCeremony - Immersive evolution experience (baby -> adult)
  *
  * Flow:
- *   1. Full-screen backdrop with baby blobbi centered, pulsing glow
- *   2. Energy particles spiral inward toward the blobbi
- *   3. Glow intensifies, blobbi scales up slightly
- *   4. Screen flash — evolution mutation fires
- *   5. Flash clears — adult blobbi revealed with sparkles + radiant glow
- *   6. Brief dialog, then fade to white and complete
+ *   1. Full-screen dark backdrop with baby blobbi centered, pulsing glow + spiraling particles
+ *   2. Screen flash — evolution mutation fires
+ *   3. Flash clears — adult blobbi revealed with sparkles + radiant glow
+ *   4. Brief dialog, then fade to white and complete
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -22,8 +20,7 @@ import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 // ─── Phase Machine ────────────────────────────────────────────────────────────
 
 type EvolvePhase =
-  | 'gather'     // baby visible, energy gathering
-  | 'surge'      // glow intensifies, scale up
+  | 'gather'     // baby visible, energy gathering with spiraling particles
   | 'flash'      // screen flash, mutation fires
   | 'reveal'     // flash clears, adult revealed with sparkles
   | 'dialog'     // congratulatory text
@@ -90,7 +87,7 @@ export function BlobbiEvolveCeremony({
     return `radial-gradient(ellipse at 50% 45%, ${s0} 0%, ${s1} 25%, ${s2} 50%, ${s3} 75%, ${s4} 100%)`;
   }, [r, g, b]);
 
-  // Dark background for gather/surge phases
+  // Dark background for gather phase
   const darkBg = useMemo(() => {
     const dr = Math.round(r * 0.12);
     const dg = Math.round(g * 0.12);
@@ -100,37 +97,34 @@ export function BlobbiEvolveCeremony({
 
   // ── Phase timeline ──
   useEffect(() => {
-    // gather -> surge after 1.8s
-    const t1 = setTimeout(() => setPhase('surge'), 1800);
-    // surge -> flash after 3.3s total
-    const t2 = setTimeout(() => {
+    // gather -> flash after 2.8s
+    const t1 = setTimeout(() => {
       setPhase('flash');
       setShowFlash(true);
       notificationSuccess();
-    }, 3300);
-    // flash -> reveal after 4.7s total
-    const t3 = setTimeout(() => {
+    }, 2800);
+    // flash -> reveal after 4.2s total
+    const t2 = setTimeout(() => {
       setShowFlash(false);
       setPhase('reveal');
       setTimeout(() => setAdultVisible(true), 400);
-    }, 4700);
-    // reveal -> dialog after 6.5s total
-    const t4 = setTimeout(() => setPhase('dialog'), 6500);
-    // dialog -> fadeout after 9.5s total
-    const t5 = setTimeout(() => {
+    }, 4200);
+    // reveal -> dialog after 6s total
+    const t3 = setTimeout(() => setPhase('dialog'), 6000);
+    // dialog -> fadeout after 9s total
+    const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
         setPhase('complete');
         onComplete();
       }, 2000);
-    }, 9500);
+    }, 9000);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
-      clearTimeout(t5);
     };
   }, [onComplete]);
 
@@ -142,10 +136,8 @@ export function BlobbiEvolveCeremony({
     }
   }, [phase, onEvolve]);
 
-  const showBaby = phase === 'gather' || phase === 'surge';
+  const showBaby = phase === 'gather';
   const showAdult = phase === 'reveal' || phase === 'dialog';
-  const isSurge = phase === 'surge';
-  const isGatherOrSurge = showBaby;
 
   return (
     <div
@@ -165,25 +157,23 @@ export function BlobbiEvolveCeremony({
         />
       )}
 
-      {/* ── Ambient color glow (gather/surge phases) ── */}
-      {isGatherOrSurge && (
+      {/* ── Ambient color glow (gather phase) ── */}
+      {showBaby && (
         <div
-          className="absolute inset-0 transition-opacity"
+          className="absolute inset-0"
           style={{
-            transitionDuration: '1500ms',
             background: `radial-gradient(ellipse at 50% 50%, rgba(${r},${g},${b},0.25) 0%, transparent 60%)`,
-            opacity: isSurge ? 0.6 : 0.15,
+            opacity: 0.15,
           }}
         />
       )}
 
-      {/* ── Spiraling energy particles (gather + surge) ── */}
-      {isGatherOrSurge && (
+      {/* ── Spiraling energy particles (gather phase) ── */}
+      {showBaby && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: 12 }).map((_, i) => {
             const angle = (i / 12) * 360;
             const delay = i * 0.25;
-            const duration = isSurge ? 1.5 : 3;
             return (
               <div
                 key={`particle-${i}`}
@@ -195,8 +185,8 @@ export function BlobbiEvolveCeremony({
                   background: i % 2 === 0
                     ? `radial-gradient(circle, rgba(${r},${g},${b},0.9) 0%, transparent 70%)`
                     : `radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%)`,
-                  animation: `evolve-spiral-in ${duration}s ease-in ${delay}s infinite`,
-                  transform: `rotate(${angle}deg) translateX(${isSurge ? 100 : 200}px)`,
+                  animation: `evolve-spiral-in 3s ease-in ${delay}s infinite`,
+                  transform: `rotate(${angle}deg) translateX(200px)`,
                 }}
               />
             );
@@ -204,29 +194,22 @@ export function BlobbiEvolveCeremony({
         </div>
       )}
 
-      {/* ── Baby blobbi (gather + surge) ── */}
+      {/* ── Baby blobbi (gather phase) ── */}
       {showBaby && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: '10%' }}>
           {/* Pulsing glow behind baby */}
           <div
             className="absolute rounded-full"
             style={{
-              width: isSurge ? 400 : 250,
-              height: isSurge ? 400 : 250,
-              background: `radial-gradient(circle, rgba(${r},${g},${b},${isSurge ? 0.5 : 0.2}) 0%, transparent 70%)`,
+              width: 250,
+              height: 250,
+              background: `radial-gradient(circle, rgba(${r},${g},${b},0.2) 0%, transparent 70%)`,
               filter: 'blur(20px)',
-              transition: 'all 1.5s ease-out',
               animation: 'evolve-glow-pulse 2s ease-in-out infinite',
             }}
           />
 
-          <div
-            className="relative"
-            style={{
-              transform: isSurge ? 'scale(1.1)' : 'scale(1)',
-              transition: 'transform 1.5s cubic-bezier(0.22, 1, 0.36, 1)',
-            }}
-          >
+          <div className="relative">
             <BlobbiStageVisual
               companion={companion}
               size="lg"
