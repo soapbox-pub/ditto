@@ -99,6 +99,7 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@sentry/react": "^10.42.0",
+    "@soapbox.pub/nostr-canvas": "^0.1.1",
     "@tanstack/react-query": "^5.56.2",
     "@unhead/addons": "^2.1.13",
     "@unhead/react": "^2.1.13",
