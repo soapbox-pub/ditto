@@ -22,7 +22,7 @@
  * installs, and the `.local:` identifier produces confusing UX.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { settingFieldToTag, TILE_SCHEMA_VERSION } from '@soapbox.pub/nostr-canvas';
@@ -30,14 +30,13 @@ import {
   Code2,
   ExternalLink,
   Eye,
-  ImagePlus,
   Loader2,
   Play,
   Send,
   Settings as SettingsIcon,
   Sparkles,
-  X,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ImageField } from '@/components/ui/ImageField';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -59,7 +59,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useInstalledTiles } from '@/hooks/useInstalledTiles';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import {
   buildPublishableIdentifier,
@@ -376,7 +375,11 @@ function TileGenerationCardInner({
 
         {user && !canPublish && (
           <p className="px-4 pb-3 -mt-1 text-[11px] text-muted-foreground">
-            Set a verified NIP-05 address on your profile to publish tiles to the marketplace.
+            You don&apos;t have a NIP-05 configured.{' '}
+            <Link to="/settings/profile" className="underline hover:text-foreground">
+              Set one
+            </Link>{' '}
+            to publish your tile.
           </p>
         )}
       </div>
@@ -419,10 +422,8 @@ function TilePublishModal({
 }: TilePublishModalProps) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { installTile } = useInstalledTiles();
   const { toast } = useToast();
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(draft.name);
   const [summary, setSummary] = useState(draft.summary);
@@ -434,22 +435,6 @@ function TilePublishModal({
     () => buildPublishableIdentifier(nip05, draftSlug),
     [nip05, draftSlug],
   );
-
-  const handleImagePick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const tags = await uploadFile(file);
-      const url = tags[0]?.[1];
-      if (url) setImageUrl(url);
-    } catch (err) {
-      toast({
-        title: 'Image upload failed',
-        description: err instanceof Error ? err.message : 'Unknown error.',
-        variant: 'destructive',
-      });
-    }
-  }, [uploadFile, toast]);
 
   const handlePublish = useCallback(async () => {
     if (!user || publishing || !publishableId) return;
@@ -503,8 +488,6 @@ function TilePublishModal({
     draft, publishEvent, installTile, toast, onPublished,
   ]);
 
-  const safePreviewImage = sanitizeUrl(imageUrl);
-
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-lg">
@@ -516,54 +499,7 @@ function TilePublishModal({
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Image */}
-          <div className="space-y-1.5">
-            <Label>Banner image</Label>
-            <div className="flex items-start gap-3">
-              <div
-                className="relative size-20 shrink-0 rounded-lg border border-border bg-muted overflow-hidden cursor-pointer group"
-                onClick={() => imageInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && imageInputRef.current?.click()}
-              >
-                {safePreviewImage ? (
-                  <img src={safePreviewImage} alt="" className="size-full object-cover"
-                    onError={() => setImageUrl('')} />
-                ) : (
-                  <div className="flex size-full items-center justify-center text-muted-foreground">
-                    <ImagePlus className="size-6" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  {isUploading
-                    ? <Loader2 className="size-5 text-white animate-spin" />
-                    : <ImagePlus className="size-5 text-white" />}
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <Input
-                  placeholder="https://… (or click to upload)"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="text-xs"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Click the preview to upload via Blossom, or paste a URL.
-                </p>
-              </div>
-            </div>
-            <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImagePick} />
-            {safePreviewImage && (
-              <button
-                type="button"
-                onClick={() => setImageUrl('')}
-                className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
-              >
-                <X className="size-3" /> Remove image
-              </button>
-            )}
-          </div>
+          <ImageField label="Banner image" value={imageUrl} onChange={setImageUrl} />
 
           <div className="space-y-1.5">
             <Label htmlFor="tile-publish-name">Name</Label>
@@ -592,8 +528,8 @@ function TilePublishModal({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onClose} disabled={publishing || isUploading}>Cancel</Button>
-          <Button onClick={handlePublish} disabled={publishing || isUploading || !publishableId} className="gap-1.5">
+          <Button variant="outline" onClick={onClose} disabled={publishing}>Cancel</Button>
+          <Button onClick={handlePublish} disabled={publishing || !publishableId} className="gap-1.5">
             {publishing
               ? <><Loader2 className="size-3.5 animate-spin" /> Publishing…</>
               : <><Send className="size-3.5" /> Publish</>}
