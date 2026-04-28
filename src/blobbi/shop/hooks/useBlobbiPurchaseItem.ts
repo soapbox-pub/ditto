@@ -87,7 +87,7 @@ export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) 
       // Publish updated profile event
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: currentProfile.event.content ?? '',
         tags: updatedTags,
       });
 
