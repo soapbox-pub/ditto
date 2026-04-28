@@ -100,14 +100,14 @@ export function BlobbiEvolveCeremony({
       setAdultVisible(true);
       setTextVisible(true);
     }, 3200);
-    // fadeout after 10s total
+    // fadeout starts at 6s, takes 2s to complete, ceremony closes at 8s
     const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
         setPhase('complete');
         onCompleteRef.current();
       }, 2000);
-    }, 8000);
+    }, 6000);
 
     return () => {
       clearTimeout(t1);
