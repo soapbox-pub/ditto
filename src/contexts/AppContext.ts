@@ -267,7 +267,11 @@ export interface AppConfig {
   sandboxDomain: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
-  /** Preferred AI model identifier (e.g. "shakespeare/tybalt"). Empty string = auto-select cheapest. */
+  /** Base URL for the AI chat-completions provider (OpenAI-compatible /v1 endpoint). */
+  aiBaseURL: string;
+  /** API key for the AI provider. Empty string = use NIP-98 auth (only valid for Shakespeare). */
+  aiApiKey: string;
+  /** AI model identifier sent to the provider (e.g. "grok-4.1-fast", "claude-opus-4.6"). */
   aiModel: string;
   /** Custom system prompt for the AI buddy. Empty string = use default template. */
   aiSystemPrompt: string;

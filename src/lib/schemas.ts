@@ -261,6 +261,8 @@ export const AppConfigSchema = z.object({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  aiBaseURL: z.string().optional(),
+  aiApiKey: z.string().optional(),
   aiModel: z.string().optional(),
   aiSystemPrompt: z.string().optional(),
 });

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
-import { useShakespeare, sortModelsByCost, type ChatMessage, type Model } from '@/hooks/useShakespeare';
+import { useShakespeare, type ChatMessage, type Model } from '@/hooks/useShakespeare';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAIChatTools, TOOLS, TOOL_SUMMARIES } from '@/hooks/useAIChatTools';
@@ -110,10 +110,11 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
 
-  // Resolve the effective model: config value, or fetch the cheapest as default
-  const [defaultModel, setDefaultModel] = useState('');
+  // The selected model comes directly from config. `config.aiModel` always has
+  // a value (default: `grok-4.1-fast`, hardcoded in App.tsx). The model may or
+  // may not appear in `/v1/models` — that's fine; it's resolved server-side.
   const [models, setModels] = useState<Model[]>([]);
-  const selectedModel = config.aiModel || defaultModel;
+  const selectedModel = config.aiModel;
 
   // Capacity tracking
   const [lastPromptTokens, setLastPromptTokens] = useState(0);
@@ -150,7 +151,9 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText]);
 
-  // Fetch available models (for default model + context_window lookup)
+  // Fetch available models for context_window lookup. The default model may
+  // not be in this list (e.g. the hidden free model), in which case the
+  // capacity indicator degrades gracefully.
   useEffect(() => {
     if (!user) return;
 
@@ -159,17 +162,11 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
       .then((response) => {
         if (cancelled) return;
         setModels(response.data);
-        if (!config.aiModel) {
-          const sorted = sortModelsByCost(response.data);
-          if (sorted.length > 0) {
-            setDefaultModel(sorted[0].id);
-          }
-        }
       })
       .catch(() => {});
 
     return () => { cancelled = true; };
-  }, [user, config.aiModel, getAvailableModels]);
+  }, [user, getAvailableModels]);
 
   // Compute capacity ratio (0 to 1) — max of token usage and storage usage
   const contextWindow = useMemo(() => {
