@@ -26,6 +26,8 @@ interface ItemCarouselProps {
   onFocusChange?: (entry: CarouselEntry) => void;
   /** When set, the carousel visually guides the user toward this item. */
   highlightId?: string | null;
+  /** When set, seeds the initial index to this item's position. */
+  initialItemId?: string | null;
   className?: string;
 }
 
@@ -38,9 +40,16 @@ export function ItemCarousel({
   disabled,
   onFocusChange,
   highlightId,
+  initialItemId,
   className,
 }: ItemCarouselProps) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => {
+    if (initialItemId) {
+      const idx = items.findIndex(i => i.id === initialItemId);
+      return idx >= 0 ? idx : 0;
+    }
+    return 0;
+  });
   const count = items.length;
 
   // Clamp or preserve index when items change.
@@ -55,9 +64,16 @@ export function ItemCarousel({
     });
   }, [items, count]);
 
+  // Clamp synchronously: the effect above resets state *after* render, so on
+  // the first render with a shorter items array the stale index can exceed
+  // the new length. Using the clamped value for all reads below prevents the
+  // out-of-bounds access that would otherwise crash.
+  const safeIndex = count === 0 ? 0 : Math.min(index, count - 1);
+
   const prev = useCallback(() => {
     setIndex(i => {
-      const n = (i - 1 + count) % count;
+      const clamped = Math.min(i, count - 1);
+      const n = (clamped - 1 + count) % count;
       onFocusChange?.(items[n]);
       return n;
     });
@@ -65,7 +81,8 @@ export function ItemCarousel({
 
   const next = useCallback(() => {
     setIndex(i => {
-      const n = (i + 1) % count;
+      const clamped = Math.min(i, count - 1);
+      const n = (clamped + 1) % count;
       onFocusChange?.(items[n]);
       return n;
     });
@@ -94,9 +111,9 @@ export function ItemCarousel({
     );
   }
 
-  const current = items[index];
-  const prevItem = items[(index - 1 + count) % count];
-  const nextItem = items[(index + 1) % count];
+  const current = items[safeIndex];
+  const prevItem = items[(safeIndex - 1 + count) % count];
+  const nextItem = items[(safeIndex + 1) % count];
   const isThisActive = activeItemId === current.id;
   const showPreviews = count >= 3;
 

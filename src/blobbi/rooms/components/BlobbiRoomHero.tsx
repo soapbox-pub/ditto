@@ -14,6 +14,8 @@ import {
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { SegmentedRing } from '@/blobbi/ui/StatIndicator';
+import { ReactionSparkles, ReactionBubbles } from '@/blobbi/ui/ReactionOverlays';
+import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
 import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
@@ -21,6 +23,7 @@ import type { BlobbiCompanion, BlobbiStats } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
+import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { BlobbiRoomId } from '../lib/room-config';
 import { ROOM_META, DEFAULT_ROOM_ORDER, getRoomIndex } from '../lib/room-config';
 import { cn } from '@/lib/utils';
@@ -81,6 +84,8 @@ export interface BlobbiRoomHeroProps {
   roomId: BlobbiRoomId;
   /** Room order for dot indicators */
   roomOrder?: BlobbiRoomId[];
+  /** Temporary interaction reaction state (sparkles, bubbles, hearts, body animation). */
+  interactionReaction?: InteractionReactionState;
   /** Called when the user taps any stat icon to start the guide. */
   onGuide?: (stat: keyof BlobbiStats) => void;
   className?: string;
@@ -104,6 +109,7 @@ export function BlobbiRoomHero({
   heroRef,
   heroWidth,
   roomId,
+  interactionReaction,
   roomOrder = DEFAULT_ROOM_ORDER,
   onGuide,
   className,
@@ -146,7 +152,10 @@ export function BlobbiRoomHero({
         <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
-          className="relative transition-all duration-500 pointer-events-none"
+          className={cn(
+            'relative transition-all duration-500 pointer-events-none',
+            interactionReaction?.bodyAnimation,
+          )}
           style={!isSleeping ? {
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
@@ -165,6 +174,10 @@ export function BlobbiRoomHero({
               : 'size-48 min-[400px]:size-60 sm:size-72 md:size-80 lg:size-96'
             }
           />
+          {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
+          <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
+          <ReactionBubbles active={interactionReaction?.bubbles ?? false} />
+          <FloatingSocialHearts active={interactionReaction?.hearts ?? false} />
         </div>
 
         {!isEgg && (

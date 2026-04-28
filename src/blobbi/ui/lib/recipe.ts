@@ -104,6 +104,8 @@ export interface EyeRecipe {
   sleepyBlink?: { cycleDuration: number };
   /** Sleeping state: eyes permanently closed, no blink cycle */
   sleepingClosed?: true;
+  /** Happy closed eyes: upward-curving arcs (^_^ squint). No Zzz or mouth change. */
+  happyArc?: true;
 }
 
 /**
@@ -271,6 +273,14 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // Used as override during positive actions.
   happy: {},
 
+  // ── Blissful ────────────────────────────────────────────────────────────────
+  // Happy closed eyes (^_^ squint) + big smile. Used during feed interaction
+  // reaction for a visibly content/satisfied look.
+  blissful: {
+    eyes: { happyArc: true },
+    mouth: { bigSmile: { widthScale: 1.1, curveScale: 1.2 } },
+  },
+
   // ── Angry ───────────────────────────────────────────────────────────────────
   // Frustrated, upset. Intense frown, sharp angled brows, flushed body.
   angry: {
@@ -333,7 +343,7 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // Used during play and joyful activities.
   excited: {
     eyes: { starEyes: { points: 5, color: '#fbbf24', scale: 0.9 } },
-    mouth: { bigSmile: { widthScale: 1.3, curveScale: 1.4 } },
+    mouth: { bigSmile: { widthScale: 1.15, curveScale: 1.2 } },
   },
 
   // ── ExcitedB ────────────────────────────────────────────────────────────────
@@ -665,6 +675,52 @@ function generateSleepingZzz(): string {
 }
 
 /**
+ * Apply happy arc eyes (^_^ squint): upward-curving arcs over closed eyes.
+ *
+ * Similar to sleeping closed eyes but with **upward**-curving arcs (happy
+ * squint shape) and no Zzz, no mouth replacement, no sleeping class.
+ * Used during the feed interaction reaction for a content/blissful look.
+ */
+function applyHappyArcEyes(svgText: string, eyes: EyePosition[]): string {
+  // Close eyes permanently by moving clip-path rects to fully closed position
+  const clipRectRegex = new RegExp(
+    `<rect\\s+class="${EYE_CLASSES.clipRect}"\\s+x="([^"]+)"\\s+y="([^"]+)"\\s+width="([^"]+)"\\s+height="([^"]+)"\\s*/>`,
+    'g'
+  );
+  svgText = svgText.replace(clipRectRegex, (_match, x, y, width, height) => {
+    const baseY = parseFloat(y);
+    const fullHeight = parseFloat(height);
+    const closedOffset = fullHeight * 0.95;
+    const closedY = baseY + closedOffset;
+    const closedHeight = fullHeight - closedOffset;
+    // Include a dummy SMIL <animate> element so the JS blink loop in
+    // useBlobbiEyes detects it and skips overriding the closed position.
+    // Without this, the rAF blink loop resets clip-rects to the open state.
+    return `<rect class="${EYE_CLASSES.clipRect}" x="${x}" y="${closedY}" width="${width}" height="${closedHeight}"><animate attributeName="y" values="${closedY}" dur="0.001s" fill="freeze" /></rect>`;
+  });
+
+  // Draw UPWARD-curving arcs (^_^ shape)
+  // Control point is ABOVE baseline (lineY - curveDepth) to curve upward
+  const arcLines = eyes.map(eye => {
+    const lineWidth = eye.radius * 1.6;
+    const startX = eye.cx - lineWidth / 2;
+    const endX = eye.cx + lineWidth / 2;
+    const curveDepth = eye.radius * 0.5;
+    const yOffset = eye.radius * 0.75;
+    const lineY = eye.cy + yOffset;
+    return `<path class="blobbi-happy-eye blobbi-happy-eye-${eye.side}" d="M ${startX} ${lineY} Q ${eye.cx} ${lineY - curveDepth} ${endX} ${lineY}" stroke="#111827" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="1" />`;
+  }).join('\n');
+
+  const overlays = `
+  <g class="blobbi-happy-arc-overlays">
+    ${arcLines}
+  </g>`;
+  svgText = svgText.replace('</svg>', overlays + '\n</svg>');
+
+  return svgText;
+}
+
+/**
  * Apply sleeping state visuals: permanently closed eyes + Zzz.
  *
  * Unlike `applySleepyAnimation` (which cycles between open/closed for the
@@ -893,6 +949,12 @@ export function applyVisualRecipe(
   // Mutually exclusive with sleepyBlink — sleepingClosed takes precedence
   if (recipe.eyes?.sleepingClosed && !recipe.eyes?.sleepyBlink) {
     svgText = applySleepingClosedEyes(svgText, eyes, mouthAnchor);
+  }
+
+  // ── Happy arc eyes (^_^ squint) ──
+  // Mutually exclusive with sleeping/sleepy — only fires when those are absent.
+  if (recipe.eyes?.happyArc && !recipe.eyes?.sleepyBlink && !recipe.eyes?.sleepingClosed) {
+    svgText = applyHappyArcEyes(svgText, eyes);
   }
 
   // ── Animated eyebrows ──

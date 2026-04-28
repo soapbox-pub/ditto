@@ -3,10 +3,16 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X, Activity, Users } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
+import { useBlobbiActivityHistory } from '@/blobbi/core/hooks/useBlobbiActivityHistory';
+import { useCanonicalSync } from '@/blobbi/core/hooks/useCanonicalSync';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -20,6 +26,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
@@ -33,12 +40,15 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
+import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
+  statsToTagUpdates,
   filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbiStats,
@@ -111,7 +121,8 @@ import {
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
-import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
+import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
@@ -381,21 +392,13 @@ function BlobbiContent() {
       });
 
       // Build the new tags with decayed stats + new state
-      const nowStr = now.toString();
-
       // Get streak updates (putting to sleep/waking counts as care activity)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
 
       const newTags = updateBlobbiTags(canonical.allTags, {
         state: newState,
-        hunger: decayResult.stats.hunger.toString(),
-        happiness: decayResult.stats.happiness.toString(),
-        health: decayResult.stats.health.toString(),
-        hygiene: decayResult.stats.hygiene.toString(),
-        energy: decayResult.stats.energy.toString(),
+        ...statsToTagUpdates(decayResult.stats, now),
         ...streakUpdates,
-        last_interaction: nowStr,
-        last_decay_at: nowStr,
       });
 
       const prev = canonical.companion.event;
@@ -730,42 +733,10 @@ function BlobbiContent() {
     );
   }
   
-  // ─── CASE G: Companions loaded, but no valid selection ───
+  // ─── CASE G/H: No valid selection or companion not resolved ───
   // Show selector to pick which pet to display
-  if (!selectedD && filteredCompanions.length > 0) {
+  if (!selectedD || !companion) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
-    return (
-      <>
-        <BlobbiSelectorPage
-          companions={filteredCompanions}
-          onSelect={handleSelectBlobbi}
-          isLoading={companionFetching}
-          onAdopt={() => setShowAdoptionFlow(true)}
-          currentCompanion={profile?.currentCompanion}
-        />
-        
-        {/* Adoption Flow Modal */}
-        <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-            <BlobbiOnboardingFlow
-              profile={profile}
-              updateProfileEvent={updateProfileEvent}
-              updateCompanionEvent={updateCompanionEvent}
-              invalidateProfile={invalidateProfile}
-              invalidateCompanion={invalidateCompanion}
-              setStoredSelectedD={setStoredSelectedD}
-              adoptionOnly={true}
-              onComplete={() => setShowAdoptionFlow(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
-  
-  // ─── CASE H: Selection exists but companion not resolved (edge case) ───
-  if (!companion || !selectedD) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: selector (companion not resolved)');
     return (
       <>
         <BlobbiSelectorPage
@@ -857,7 +828,7 @@ function DashboardShell({ children }: DashboardShellProps) {
 // ─── Dashboard Drawer Type ────────────────────────────────────────────────────
 
 /** Which drawer is open; 'none' = room view visible */
-type DashboardDrawer = 'none' | 'missions' | 'more';
+type DashboardDrawer = 'none' | 'missions' | 'activity' | 'more';
 
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
@@ -952,6 +923,78 @@ function BlobbiDashboard({
     }
   }, [isSleeping]);
 
+    // ─── Interaction Activity ───
+  // Disabled for eggs: they do not participate in social stat-loss/care flow.
+  const { interactions, isLoading: interactionsLoading } = useBlobbiInteractions(isEgg ? null : companion);
+
+  // Interaction reaction layer — temporary visual rewards for care actions.
+  // Produces emotion overrides, body animations, and particle overlays.
+  // Placed before useCanonicalSync so the trigger can be passed directly.
+  const { state: interactionReaction, trigger: triggerInteractionReaction } = useInteractionReaction();
+
+  // ─── Automatic Canonical Sync ───
+  // On mount (or companion switch), persist accumulated decay and consolidate
+  // pending social interactions in a single publish. Replaces the old manual
+  // "Apply pending care" button. Runs at most once per companion d-tag.
+  const handleSocialConsolidated = useCallback(() => {
+    triggerInteractionReaction('social_hearts');
+  }, [triggerInteractionReaction]);
+
+  useCanonicalSync({
+    companion,
+    interactions,
+    interactionsLoading,
+    updateCompanionEvent,
+    ensureCanonicalBeforeAction,
+    onSocialConsolidated: handleSocialConsolidated,
+  });
+
+  // ─── Social Permission Toggle ───
+  const [isSocialToggling, setIsSocialToggling] = useState(false);
+
+  const handleToggleSocial = useCallback(async (open: boolean) => {
+    if (!companion) return;
+
+    setIsSocialToggling(true);
+    try {
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        setIsSocialToggling(false);
+        return;
+      }
+
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        social: open ? 'open' : 'closed',
+      });
+
+      const prev = canonical.companion.event;
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+        prev,
+      });
+
+      updateCompanionEvent(event);
+
+      toast({
+        title: open ? 'Social interactions enabled' : 'Social interactions disabled',
+        description: open
+          ? 'Other people can now care for this Blobbi.'
+          : 'Only you can interact with this Blobbi.',
+      });
+    } catch (error) {
+      console.error('Failed to toggle social permission:', error);
+      toast({
+        title: 'Failed to update',
+        description: 'Could not change the social interaction setting. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSocialToggling(false);
+    }
+  }, [companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+
   // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
 
@@ -1011,7 +1054,9 @@ function BlobbiDashboard({
   const { companion: activeCompanion } = useBlobbiCompanionData();
   const isActiveFloatingCompanion = activeCompanion?.d === companion.d;
   
-  // Projected state with decay applied (UI-only, recalculates every 60s)
+  // Projected state with decay applied (UI-only, recalculates every 60s).
+  // Owner surfaces use decay-only — social effects are incorporated via
+  // explicit consolidation, not pre-applied projection.
   const projectedState = useProjectedBlobbiState(companion);
 
   // Clear sleep guide after companion actually enters sleeping state
@@ -1048,14 +1093,17 @@ function BlobbiDashboard({
   // DEV ONLY: Get effective emotion (dev override or base)
   const devEmotionOverride = useEffectiveEmotion();
   
-  // Action override emotion - set when Blobbi is doing an action (eating, cleaning, etc.)
-  // This takes priority over status reactions but not dev override
-  const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
+  // Music/sing override — persistent while the activity is active (not auto-clearing).
+  // Separate from interactionReaction because music is a duration-based activity,
+  // not a short reward reaction.
+  const [musicOverrideEmotion, setMusicOverrideEmotion] = useState<BlobbiEmotion | null>(null);
   
   // Status-based automatic reactions (recipe-first pipeline).
   // Uses projected stats (with decay applied) for accurate reactions.
   // Body effects (dirt, stink) are folded into the recipe by the resolver —
   // no separate bodyEffects prop needed.
+  //
+  // Override priority: interaction reaction > music override > status reactions.
   const currentStats = useMemo(() => ({
     hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
     happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
@@ -1064,10 +1112,13 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
+  // Combined emotion override: interaction reaction wins over music.
+  const combinedEmotionOverride = interactionReaction.emotionOverride ?? musicOverrideEmotion;
+
   const { recipe: rawStatusRecipe, recipeLabel: rawStatusRecipeLabel } = useStatusReaction({
     stats: currentStats,
     enabled: !isEgg, // Keep enabled during sleep so body effects still resolve
-    actionOverride: isSleeping ? null : actionOverrideEmotion,
+    actionOverride: isSleeping ? null : combinedEmotionOverride,
   });
 
   // When sleeping, overlay the sleeping face on top of the status recipe.
@@ -1303,29 +1354,29 @@ function BlobbiDashboard({
   const handleCloseInlineActivity = () => {
     setInlineActivity(createNoActivity());
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle music playback state changes (for Blobbi reaction)
   const handleMusicPlaybackStart = () => {
     setBlobbiReaction('listening');
-    setActionOverrideEmotion(getActionEmotion('music'));
+    setMusicOverrideEmotion(getActionEmotion('music'));
   };
   
   const handleMusicPlaybackStop = () => {
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle sing recording state changes (for Blobbi reaction)
   const handleSingRecordingStart = () => {
     setBlobbiReaction('singing');
-    setActionOverrideEmotion(getActionEmotion('sing'));
+    setMusicOverrideEmotion(getActionEmotion('sing'));
   };
   
   const handleSingRecordingStop = () => {
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle opening track picker to change track (from inline player)
@@ -1388,18 +1439,52 @@ function BlobbiDashboard({
     }, 1500);
   }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
-  // Handle using an item from the items tab
+  // Handle using an item from the items tab.
+  // Triggers a temporary interaction reaction based on the action type.
+  // For 'clean' actions, detects whether the Blobbi was visibly dirty before
+  // the action and uses 'clean_complete' if the dirt was fully removed.
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
     setUsingItemId(itemId);
-    setActionOverrideEmotion(getActionEmotion(action as ActionType));
+
+    // Snapshot hygiene before the action for clean_complete detection.
+    // "Visibly dirty" = hygiene below the warning threshold (< 70).
+    const wasDirtyBefore = action === 'clean'
+      && currentStats.hygiene < SEVERITY_THRESHOLDS.warning;
+
+    // Map inventory action to reaction type (feed/play/clean/medicine → reaction).
+    const reactionType = INVENTORY_TO_REACTION[action] ?? 'feed';
+
+    // For non-clean actions, trigger immediately (facial expression before action completes).
+    if (action !== 'clean') {
+      triggerInteractionReaction(reactionType);
+    }
+
     onUseItem(itemId, action).then(() => {
-      // Clear guide only after the action succeeds
       if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
+
+      // For clean actions, trigger after the action succeeds so we can
+      // detect clean_complete from the updated projected stats.
+      if (action === 'clean') {
+        // After the action, the companion cache is already updated.
+        // The projected state will recalculate on next render, but we can
+        // check whether the item's hygiene effect crossed the threshold.
+        // The action result doesn't return the new hygiene value directly,
+        // so we use the item's known effect + snapshot.
+        const shopItem = getShopItemById(itemId);
+        const hygieneGain = shopItem?.effect?.hygiene ?? 0;
+        const projectedHygiene = currentStats.hygiene + hygieneGain;
+        const isNowClean = projectedHygiene >= SEVERITY_THRESHOLDS.warning;
+
+        if (wasDirtyBefore && isNowClean) {
+          triggerInteractionReaction('clean_complete');
+        } else {
+          triggerInteractionReaction('clean');
+        }
+      }
     }).finally(() => {
       setUsingItemId(null);
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
   };
   
@@ -1455,6 +1540,15 @@ function BlobbiDashboard({
                   onStartEvolution={handleStartEvolution}
                 />
               )}
+              {activeDrawer === 'activity' && (
+                <ActivityTabContent
+                  companion={companion}
+                  socialOpen={companion.socialOpen}
+                  onToggleSocial={handleToggleSocial}
+                  isSocialToggling={isSocialToggling}
+                  isEgg={isEgg}
+                />
+              )}
               {activeDrawer === 'more' && (
                 <MoreTabContent
                   companion={companion}
@@ -1480,6 +1574,12 @@ function BlobbiDashboard({
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
+            </span>
+          </TabButton>
+          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')}>
+            <span className="flex items-center gap-1.5">
+              <Activity className="size-4" />
+              <span className="text-sm">Activity</span>
             </span>
           </TabButton>
           <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
@@ -1518,6 +1618,7 @@ function BlobbiDashboard({
             effectiveEmotion={effectiveEmotion}
             hasDevOverride={hasDevOverride}
             blobbiReaction={blobbiReaction}
+            interactionReaction={isEgg ? undefined : interactionReaction}
             isActiveFloatingCompanion={isActiveFloatingCompanion}
             isUpdatingCompanion={isUpdatingCompanion}
             handleSetAsCompanion={handleSetAsCompanion}
@@ -2522,6 +2623,138 @@ function MoreTabContent({
   );
 }
 
+
+// ─── Activity Tab Content ─────────────────────────────────────────────────────
+
+/** Action label + emoji for display in the activity list */
+const INTERACTION_ACTION_DISPLAY: Record<string, { label: string; icon: string }> = {
+  feed: { label: 'Feed', icon: '🍎' },
+  play: { label: 'Play', icon: '⚽' },
+  clean: { label: 'Clean', icon: '🧼' },
+  medicate: { label: 'Medicine', icon: '💊' },
+};
+
+interface ActivityTabContentProps {
+  companion: BlobbiCompanion;
+  socialOpen: boolean;
+  onToggleSocial: (open: boolean) => Promise<void>;
+  isSocialToggling: boolean;
+  isEgg: boolean;
+}
+
+function ActivityTabContent({ companion, socialOpen, onToggleSocial, isSocialToggling, isEgg }: ActivityTabContentProps) {
+  // Use the history hook: fetches recent interactions WITHOUT checkpoint filtering,
+  // so consumed interactions remain visible in the activity history.
+  const { interactions: allInteractions, isLoading } = useBlobbiActivityHistory(isEgg ? null : companion);
+
+  // Recency rule: if more than 20 interactions available, apply 24h filter.
+  // Otherwise show the most recent ones regardless of age.
+  const displayInteractions = useMemo(() => {
+    if (allInteractions.length <= 20) {
+      return allInteractions;
+    }
+    const cutoff = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+    return allInteractions.filter((ix) => ix.createdAt >= cutoff).slice(0, 20);
+  }, [allInteractions]);
+
+  const socialToggleId = 'blobbi-social-toggle';
+
+  return (
+    <div className="px-4 sm:px-6 space-y-4">
+      {/* ─── Social Permission Toggle (hidden for eggs) ─── */}
+      {isEgg ? (
+        <div className="flex items-center gap-2.5 rounded-lg border border-dashed p-3">
+          <Egg className="size-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Social care settings will unlock after your Blobbi hatches.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+          <label htmlFor={socialToggleId} className="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+            <Users className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">Allow others to care for this Blobbi</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {socialOpen ? 'Anyone can feed, play, and clean.' : 'Only you can interact.'}
+              </p>
+            </div>
+          </label>
+          <Switch
+            id={socialToggleId}
+            checked={socialOpen}
+            onCheckedChange={onToggleSocial}
+            disabled={isSocialToggling}
+            aria-label="Allow other people to care for this Blobbi"
+          />
+        </div>
+      )}
+
+      {/* ─── Recent Caretakers List ─── */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayInteractions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <Activity className="size-6 mb-2 opacity-40" />
+          <p className="text-sm">No recent activity</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {allInteractions.length > 20 ? 'Recent caretakers (last 24h)' : 'Recent caretakers'}
+          </p>
+          <div className="space-y-1">
+            {displayInteractions.map((ix) => {
+              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action] ?? { label: ix.action, icon: '❓' };
+              const item = ix.itemId ? getShopItemById(ix.itemId) : undefined;
+
+              return (
+                <div
+                  key={ix.event.id}
+                  className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/40 text-sm"
+                >
+                  <span className="text-base leading-none">{actionInfo.icon}</span>
+                  <span className="font-medium">{actionInfo.label}</span>
+                  {item && (
+                    <span className="text-muted-foreground truncate max-w-[7rem]">
+                      {item.icon} {item.name}
+                    </span>
+                  )}
+                  <span className="ml-auto flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
+                    <CaretakerLink pubkey={ix.authorPubkey} />
+                    <span>{timeAgo(ix.createdAt)}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Small inline component to resolve + link a caretaker's display name. */
+function CaretakerLink({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const profilePath = getProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <Link
+      to={profilePath}
+      className="font-medium text-foreground hover:underline truncate max-w-[6rem]"
+      title={displayName}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {displayName}
+    </Link>
+  );
+}
 
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 

@@ -272,6 +272,8 @@ interface BlobbiWidgetContentProps {
 }
 
 function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, isCurrentCompanion, isActiveFloatingCompanion, isUpdatingCompanion, onToggleCompanion }: BlobbiWidgetContentProps) {
+  // Projected state with decay only — owner surfaces do not pre-project social
+  // effects. Social effects are incorporated via explicit consolidation.
   const projected = useProjectedBlobbiState(companion);
   const defaultStats: BlobbiStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
   const stats = projected?.stats ?? defaultStats;

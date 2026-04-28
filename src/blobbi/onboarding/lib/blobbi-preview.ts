@@ -188,6 +188,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     lastDecayAt: preview.createdAt,
     generation: 1,
     breedingReady: false,
+    socialOpen: false,
     experience: 0,
     careStreak: 1,
     careStreakLastAt: preview.createdAt,

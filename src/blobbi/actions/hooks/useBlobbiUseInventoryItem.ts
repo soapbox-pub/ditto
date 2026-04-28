@@ -1,6 +1,6 @@
 // src/blobbi/actions/hooks/useBlobbiUseInventoryItem.ts
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -29,6 +29,10 @@ import type { DailyMissionAction } from '../lib/daily-missions';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
+
+// Import NostrEvent type
+import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * Request payload for using an item on a Blobbi companion
@@ -70,10 +74,9 @@ export interface UseBlobbiUseInventoryItemParams {
   updateCompanionEvent: (event: NostrEvent) => void;
   /** Update profile event in local cache */
   updateProfileEvent: (event: NostrEvent) => void;
+  /** UI surface originating the interaction (used for kind 1124 source tag). Defaults to 'blobbi-page'. */
+  interactionSource?: string;
 }
-
-// Import NostrEvent type
-import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * Hook to use an item on a Blobbi companion.
@@ -93,9 +96,11 @@ export function useBlobbiUseInventoryItem({
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
   updateProfileEvent: _updateProfileEvent,
+  interactionSource = 'blobbi-page',
 }: UseBlobbiUseInventoryItemParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ itemId, action }: UseItemRequest): Promise<UseItemResult> => {
@@ -281,10 +286,29 @@ export function useBlobbiUseInventoryItem({
 
       updateCompanionEvent(blobbiEvent);
 
+      // ─── Emit kind 1124 interaction event (best-effort, fire-and-forget) ───
+      // ownerPubkey comes from the target Blobbi event, not the logged-in user,
+      // so the tags remain correct if this path is later reused for non-owner interactions.
+      const interactionAction = INTERNAL_TO_INTERACTION_ACTION[action];
+      if (interactionAction) {
+        emitInteractionEvent(publishEvent, {
+          ownerPubkey: canonical.companion.event.pubkey,
+          blobbiDTag: canonical.companion.d,
+          action: interactionAction,
+          source: interactionSource,
+          itemId,
+        });
+      }
+
       // Items are free to use — no storage decrement needed.
-      // No query invalidation needed — the optimistic update above keeps the
-      // cache correct, and ensureCanonicalBeforeAction fetches fresh from relays
-      // before every mutation (read-modify-write pattern).
+      // The 31124 canonical state is already updated above. Invalidate the
+      // interactions query so the social projection picks up the new 1124.
+      {
+        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        queryClient.invalidateQueries({
+          queryKey: ['blobbi-interactions', coordinate],
+        });
+      }
 
       return {
         itemName: shopItem.name,
