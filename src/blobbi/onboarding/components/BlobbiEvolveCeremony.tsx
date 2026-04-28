@@ -115,9 +115,9 @@ export function BlobbiEvolveCeremony({
       setPhase('reveal');
       setAdultVisible(true);
     }, 3200);
-    // reveal -> dialog after 5s total
-    const t3 = setTimeout(() => setPhase('dialog'), 5000);
-    // dialog -> fadeout after 8s total
+    // reveal -> dialog after 7s total
+    const t3 = setTimeout(() => setPhase('dialog'), 7000);
+    // dialog -> fadeout after 10s total
     const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
