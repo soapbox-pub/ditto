@@ -693,30 +693,17 @@ export function getAllExtraKindNumbers(): number[] {
 }
 
 /**
- * Extract a human-readable fallback label from an event for display by clients
- * that don't know how to render the event's kind.
+ * Extract the NIP-31 `alt` tag — the author's own human-readable fallback
+ * text for clients that don't know how to render the event's kind.
  *
- * Resolution order (per NIP-31):
- * 1. NIP-31 `alt` tag — the author's own fallback text
- * 2. `title` tag — common on articles, calendar events, streams, podcasts, etc.
- * 3. `name` tag — common on badges, emoji packs, people lists
- * 4. `summary` or `description` tag
- * 5. `d` tag — the addressable identifier (last resort, often a slug)
+ * Only `alt` is consulted. Other tags (`title`, `name`, `summary`,
+ * `description`, `d`) are intentionally excluded: they have kind-specific
+ * semantics and are not guaranteed to be safe user-facing text. When `alt`
+ * is missing, callers should render a neutral "unsupported kind" tombstone.
  *
- * Returns `undefined` if the event carries no displayable text at all.
+ * Returns `undefined` if the event has no `alt` tag (or it's blank).
  */
 export function getEventFallbackText(event: NostrEvent): string | undefined {
-  const getTag = (name: string) => {
-    const value = event.tags.find(([n]) => n === name)?.[1];
-    return value && value.trim().length > 0 ? value.trim() : undefined;
-  };
-
-  return (
-    getTag('alt') ||
-    getTag('title') ||
-    getTag('name') ||
-    getTag('summary') ||
-    getTag('description') ||
-    getTag('d')
-  );
+  const alt = event.tags.find(([n]) => n === 'alt')?.[1];
+  return alt && alt.trim().length > 0 ? alt.trim() : undefined;
 }

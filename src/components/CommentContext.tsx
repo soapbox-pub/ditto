@@ -208,9 +208,11 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
  * Get a singular comment-context label for a kind number.
  * Only uses KIND_LABELS (which has proper singular forms with articles).
  * Never falls through to EXTRA_KINDS labels since those are plural/categorical.
+ * Unknown kinds render as "an unsupported event" — never as "a post", which
+ * would misrepresent arbitrary event kinds as text notes.
  */
 function getKindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? 'a post';
+  return KIND_LABELS[kind] ?? 'an unsupported event';
 }
 
 /** Parse a rootKind string into a label, handling both numeric and external content kinds. */
@@ -277,6 +279,7 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   const title = event.tags.find(([name]) => name === 'title')?.[1];
   const name = event.tags.find(([name]) => name === 'name')?.[1];
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+  const alt = event.tags.find(([name]) => name === 'alt')?.[1]?.trim();
   const displayTitle = title || name || dTag;
 
   // Kinds with a custom postfix (e.g. "Ditto on Zapstore")
@@ -291,10 +294,17 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     return { text: `${displayTitle} ${suffix}`, icon };
   }
 
-  // Generic: just use the title if available
-  if (displayTitle) return { text: displayTitle, icon };
+  // Known kinds: use the conventional title/name/d tag if available.
+  if (KIND_LABELS[event.kind] && displayTitle) {
+    return { text: displayTitle, icon };
+  }
 
-  // Fall back to kind label
+  // Unknown kinds: only trust the NIP-31 `alt` tag. title/name/d have
+  // kind-specific semantics we can't interpret; `d` in particular is often
+  // an opaque compound identifier.
+  if (alt) return { text: alt, icon };
+
+  // Fall back to kind label ("an unsupported event" for unknown kinds).
   return { text: getKindLabel(event.kind), icon };
 }
 

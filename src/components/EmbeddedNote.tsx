@@ -346,17 +346,13 @@ function EmbeddedNoteCard({
   const tagMeta = useMemo(() => {
     // Content kinds with real content always render that content below.
     if (isContentKind && hasContent) return undefined;
-    const getTag = (name: string) => {
-      const v = event.tags.find(([n]) => n === name)?.[1];
-      return v && v.trim().length > 0 ? v.trim() : undefined;
-    };
-    // NIP-31 `alt` is the author's own fallback. Prefer title/name for
-    // addressable content that has those conventional tags; otherwise
-    // use alt or the d-tag identifier.
-    const title = getTag('title') || getTag('name') || getTag('alt') || getTag('d');
-    const description = getTag('summary') || getTag('description');
-    if (!title && !description) return undefined;
-    return { title, description };
+    // NIP-31 `alt` is the author's own fallback for clients that can't
+    // render the kind. Other tags (title, name, d, …) have kind-specific
+    // semantics and are not reliably safe as user-facing preview text.
+    const altTag = event.tags.find(([n]) => n === 'alt')?.[1];
+    const title = altTag && altTag.trim().length > 0 ? altTag.trim() : undefined;
+    if (!title) return undefined;
+    return { title, description: undefined as string | undefined };
   }, [isContentKind, hasContent, event.tags]);
 
   // Unknown/unsupported kind with no displayable tags and no content-kind body.
