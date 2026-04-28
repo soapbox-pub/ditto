@@ -7,7 +7,7 @@
  * leave feedback and reactions.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
@@ -17,10 +17,13 @@ import { nip19 } from 'nostr-tools';
 import { parseTileDefEvent } from '@soapbox.pub/nostr-canvas';
 import {
   ArrowLeft,
+  Check,
+  Copy,
   Download,
   ExternalLink,
   LayoutGrid,
   MessageSquare,
+  RefreshCw,
   ShieldCheck,
   Trash2,
   AlertTriangle,
@@ -42,6 +45,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -51,7 +55,9 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInstalledTiles } from '@/hooks/useInstalledTiles';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useCanvasGate } from '@/lib/nostr-canvas/canvasGate';
+import { toast } from '@/hooks/useToast';
 import {
   decodeTileNaddr,
   tileVerificationState,
@@ -71,6 +77,7 @@ export function TileDetailPage() {
     installTile,
     uninstallTile,
     isInstalledByNaddr,
+    getInstalledEvent,
   } = useInstalledTiles();
 
   const decoded = useMemo(() => decodeTileNaddr(naddr), [naddr]);
@@ -109,6 +116,17 @@ export function TileDetailPage() {
 
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
+  const profileUrl = useProfileUrl(event?.pubkey ?? '', metadata);
+  const [identifierCopied, setIdentifierCopied] = useState(false);
+
+  const handleCopyIdentifier = () => {
+    if (!parsed) return;
+    navigator.clipboard.writeText(parsed.identifier).then(() => {
+      setIdentifierCopied(true);
+      setTimeout(() => setIdentifierCopied(false), 1500);
+      toast({ title: 'Identifier copied' });
+    });
+  };
 
   useSeoMeta({
     title: parsed
@@ -140,9 +158,18 @@ export function TileDetailPage() {
   }
 
   const installed = isInstalledByNaddr(naddr);
+  const installedEvent = installed ? getInstalledEvent(naddr) : undefined;
+  const installedVersion = installedEvent?.tags.find(([t]) => t === 'v')?.[1] ?? '0';
+  const hasUpdate = installed && installedEvent != null && installedEvent.created_at < event.created_at;
   const image = sanitizeUrl(parsed.image);
 
   const handleInstall = () => {
+    installTile(event);
+    requestGate();
+  };
+
+  // Re-installing over an existing entry replaces the cached event, acting as an update.
+  const handleUpdate = () => {
     installTile(event);
     requestGate();
   };
@@ -190,11 +217,34 @@ export function TileDetailPage() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold leading-tight">{parsed.name}</h1>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleCopyIdentifier}
+                          className="text-xl font-bold leading-tight hover:opacity-75 transition-opacity text-left"
+                        >
+                          {parsed.name}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="flex items-center gap-1.5">
+                        <code className="text-xs">{parsed.identifier}</code>
+                        {identifierCopied
+                          ? <Check className="size-3 shrink-0 text-emerald-500" />
+                          : <Copy className="size-3 shrink-0" />}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Badge variant="secondary">v{parsed.version}</Badge>
+                  <Badge variant="outline">Lua</Badge>
+                </div>
                 <div className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                  <span className="truncate">
-                    by {metadata?.display_name ?? metadata?.name ?? parsed.identifier.split(':')[0]}
-                  </span>
+                  <span>by </span>
+                  <Link to={profileUrl} className="hover:underline truncate">
+                    {metadata?.display_name ?? metadata?.name ?? parsed.identifier.split(':')[0]}
+                  </Link>
                   {verification === 'verified' && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -222,11 +272,6 @@ export function TileDetailPage() {
                     </Tooltip>
                   )}
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <code className="rounded bg-muted px-1.5 py-0.5">{parsed.identifier}</code>
-                  <Badge variant="secondary">v{parsed.version}</Badge>
-                  <Badge variant="outline">Lua</Badge>
-                </div>
               </div>
             </div>
 
@@ -234,10 +279,23 @@ export function TileDetailPage() {
               <p className="text-sm text-muted-foreground">{parsed.summary}</p>
             )}
 
+            {hasUpdate && (
+              <p className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
+                <RefreshCw className="size-3.5 shrink-0" />
+                v{installedVersion} → v{parsed.version}
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {installed ? (
                 <>
-                  <Button asChild>
+                  {hasUpdate && (
+                    <Button onClick={handleUpdate}>
+                      <RefreshCw className="size-4" />
+                      Update
+                    </Button>
+                  )}
+                  <Button variant={hasUpdate ? 'outline' : 'default'} asChild>
                     <Link to={`/tiles/run/${encodeURIComponent(parsed.identifier)}`}>
                       <ExternalLink className="size-4" />
                       Open
