@@ -154,6 +154,8 @@ export interface FeedSettings {
   feedIncludeVanish: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
+  /** Include Tile publications (kind 30207) in the follows/global feed */
+  feedIncludeTiles: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

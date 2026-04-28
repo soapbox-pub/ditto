@@ -7,6 +7,7 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  LayoutGrid,
   ListMusic,
   Mail,
   MessageCircle,
@@ -57,6 +58,7 @@ import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { TilePublishCard } from "@/components/TilePublishCard";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -432,6 +434,7 @@ export const NoteCard = memo(function NoteCard({
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
+  const isTilePublish = event.kind === 30207;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -465,7 +468,8 @@ export const NoteCard = memo(function NoteCard({
     !isVanish &&
     !isZap &&
     !isProfile &&
-    !isBlobbiState;
+    !isBlobbiState &&
+    !isTilePublish;
 
   const isComment = event.kind === 1111;
   const isReply = isTextNote && !isComment && isReplyEvent(event);
@@ -669,6 +673,8 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <BlobbiStateCard event={event} lookMode="follow-pointer" />
           </Suspense>
+        ) : isTilePublish ? (
+          <TilePublishCard event={event} />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -1824,6 +1830,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
     noun: "Blobbi",
     nounRoute: "/blobbi",
+  },
+  30207: {
+    icon: LayoutGrid,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "tile",
+    nounRoute: "/tiles",
   },
   39089: {
     icon: PartyPopper,

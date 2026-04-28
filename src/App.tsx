@@ -112,6 +112,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
     feedIncludeBlobbi: true,
+    feedIncludeTiles: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [

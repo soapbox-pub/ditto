@@ -1,5 +1,5 @@
 import { nip19 } from 'nostr-tools';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import NotFound from './NotFound';
@@ -112,6 +112,9 @@ export function NIP19Page() {
 
     case 'naddr': {
       const addr = decoded.data as AddressPointer;
+      if (addr.kind === 30207) {
+        return <Navigate to={`/tiles/${encodeURIComponent(identifier)}`} replace />;
+      }
       return <AddrPostDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} relays={addr.relays} />;
     }
 

@@ -408,6 +408,7 @@ function SetupQuestionnaire({
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeBlobbi: true,
+      feedIncludeTiles: true,
       followsFeedShowReplies: true,
     };
 

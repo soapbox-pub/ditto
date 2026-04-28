@@ -482,6 +482,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Tiles (feed-only — dedicated page at /tiles)
+  {
+    kind: 30207,
+    id: 'tiles',
+    feedKey: 'feedIncludeTiles',
+    label: 'Tiles',
+    description: 'Nostr Canvas tile publications',
+    addressable: true,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Mini-apps built in Lua that run directly inside Ditto. When someone you follow publishes a new tile, it shows up here.',
+  },
   // Development
   {
     kind: 30617,

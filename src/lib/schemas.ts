@@ -181,6 +181,7 @@ export const FeedSettingsSchema = z.looseObject({
   showDevelopment: z.boolean().optional(),
   feedIncludeDevelopment: z.boolean().optional(),
   feedIncludeBlobbi: z.boolean().optional(),
+  feedIncludeTiles: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
   feedIncludeBadgeAwards: z.boolean().optional(),
 });

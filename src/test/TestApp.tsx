@@ -92,6 +92,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeBlobbi: true,
+      feedIncludeTiles: true,
       followsFeedShowReplies: true,
     },
     sidebarOrder: [],
