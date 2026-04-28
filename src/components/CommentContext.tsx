@@ -3,10 +3,10 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
+  Award, BarChart3, BookOpen, Bird, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
-  UserCheck, Users, Vote, Zap,
+  Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -116,6 +116,7 @@ const KIND_LABELS: Record<number, string> = {
   8211: 'a letter',
   1617: 'a patch',
   1618: 'a pull request',
+  2473: 'a bird detection',
   3367: 'a color moment',
   7516: 'a found log',
   15128: 'an nsite',
@@ -146,6 +147,7 @@ const KIND_LABELS: Record<number, string> = {
   37381: 'a Magic deck',
   37516: 'a treasure',
   30000: 'a follow set',
+  30621: 'a constellation',
   39089: 'a follow pack',
   9735: 'a zap',
   31124: 'a Blobbi',
@@ -198,6 +200,8 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   3367: Palette,
   9735: Zap,
   31124: Egg,
+  2473: Bird,
+  30621: Stars,
 };
 
 /**
@@ -233,6 +237,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   39089: 'follow pack',
   37381: 'deck',
   37516: 'treasure',
+  30621: 'constellation',
   34550: 'community',
   30054: 'episode',
   30055: 'trailer',

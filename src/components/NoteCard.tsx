@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  Bird,
   Camera,
   Egg,
   FileCode,
@@ -20,6 +21,7 @@ import {
   SmilePlus,
   PartyPopper,
   Sparkles,
+  Stars,
   UserCheck,
   Users,
   Volume2,
@@ -54,6 +56,8 @@ import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
+import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -382,6 +386,8 @@ export const NoteCard = memo(function NoteCard({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isBirdDetection = event.kind === 2473;
+  const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
@@ -430,6 +436,8 @@ export const NoteCard = memo(function NoteCard({
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isBirdDetection &&
+    !isConstellation &&
     !isPeopleList &&
     !isArticle &&
     !isMagicDeck &&
@@ -576,6 +584,10 @@ export const NoteCard = memo(function NoteCard({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
+        ) : isBirdDetection ? (
+          <BirdDetectionContent event={event} />
+        ) : isConstellation ? (
+          <ConstellationContent event={event} />
         ) : isPeopleList ? (
           <PeopleListContent event={event} />
         ) : isArticle ? (
@@ -1833,6 +1845,16 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "playlist",
     nounRoute: "/music",
+  },
+  2473: {
+    icon: Bird,
+    action: "heard a",
+    noun: "bird",
+  },
+  30621: {
+    icon: Stars,
+    action: (event) => publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" }),
+    noun: "constellation",
   },
   3: {
     icon: UserCheck,

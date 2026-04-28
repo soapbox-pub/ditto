@@ -183,6 +183,9 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBlobbi: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
   feedIncludeBadgeAwards: z.boolean().optional(),
+  showBirdstar: z.boolean().optional(),
+  feedIncludeBirdDetections: z.boolean().optional(),
+  feedIncludeConstellations: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */

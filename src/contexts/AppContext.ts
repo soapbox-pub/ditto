@@ -154,6 +154,12 @@ export interface FeedSettings {
   feedIncludeVanish: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
+  /** Show Birdstar (kind 2473 bird detections + kind 30621 custom constellations) link in sidebar */
+  showBirdstar: boolean;
+  /** Include bird detections (kind 2473) in the follows/global feed */
+  feedIncludeBirdDetections: boolean;
+  /** Include custom constellations (kind 30621) in the follows/global feed */
+  feedIncludeConstellations: boolean;
   /** Include replies in the follows feed (default: true) */
   followsFeedShowReplies: boolean;
 }

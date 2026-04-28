@@ -112,6 +112,9 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
     feedIncludeBlobbi: true,
+    showBirdstar: true,
+    feedIncludeBirdDetections: true,
+    feedIncludeConstellations: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
