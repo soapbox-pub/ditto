@@ -18,6 +18,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import {
+  ChevronDown,
   LayoutGrid,
   Loader2,
   Rss,
@@ -214,6 +215,11 @@ export function TileSettingsPage() {
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+
+  const toggleCard = useCallback((identifier: string) => {
+    setOpenCards((prev) => ({ ...prev, [identifier]: !prev[identifier] }));
+  }, []);
 
   const [permissions, setPermissions] = useState<Record<string, PermissionEntry[]>>(
     () => groupPermissions(listScopedPermissions(user?.pubkey ?? null)),
@@ -411,100 +417,126 @@ export function TileSettingsPage() {
 
               return (
                 <Card key={row.identifier} className="overflow-hidden">
-                  <div className="flex items-center gap-3 border-b border-border bg-muted/30 p-3">
-                    <div className="size-10 shrink-0 overflow-hidden rounded-md bg-muted">
-                      {row.image ? (
-                        <img src={row.image} alt="" className="size-full object-cover" loading="lazy"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                      ) : (
-                        <div className="flex size-full items-center justify-center text-muted-foreground">
-                          <LayoutGrid className="size-5" />
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-3 bg-muted/30 p-3">
                     {row.naddr ? (
-                      <Link to={`/tiles/${row.naddr}`} className="flex-1 min-w-0 hover:opacity-75 transition-opacity">
-                        <p className="truncate font-medium text-sm">{row.name}</p>
-                        <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                      <Link to={`/tiles/${row.naddr}`} className="size-10 shrink-0 overflow-hidden rounded-md bg-muted hover:opacity-75 transition-opacity">
+                        {row.image ? (
+                          <img src={row.image} alt="" className="size-full object-cover" loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        ) : (
+                          <div className="flex size-full items-center justify-center text-muted-foreground">
+                            <LayoutGrid className="size-5" />
+                          </div>
+                        )}
                       </Link>
                     ) : (
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-sm">{row.name}</p>
-                        <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                      <div className="size-10 shrink-0 overflow-hidden rounded-md bg-muted">
+                        {row.image ? (
+                          <img src={row.image} alt="" className="size-full object-cover" loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        ) : (
+                          <div className="flex size-full items-center justify-center text-muted-foreground">
+                            <LayoutGrid className="size-5" />
+                          </div>
+                        )}
                       </div>
                     )}
-                    {row.naddr && (
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleUninstall(row.naddr!, row.identifier, row.name)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
+                    <button
+                      type="button"
+                      className="flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+                      onClick={() => toggleCard(row.identifier)}
+                    >
+                      <p className="truncate font-medium text-sm">{row.name}</p>
+                      <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                    </button>
+                    <Button
+                      variant="ghost" size="sm"
+                      className="text-muted-foreground hover:text-muted-foreground hover:bg-transparent hover:opacity-75 transition-opacity"
+                      onClick={() => toggleCard(row.identifier)}
+                      aria-label={openCards[row.identifier] ? 'Collapse settings' : 'Expand settings'}
+                    >
+                      <ChevronDown
+                        className={`size-4 transition-transform duration-200 ${openCards[row.identifier] ? 'rotate-180' : ''}`}
+                      />
+                    </Button>
                   </div>
 
-                  <CardContent className="p-4 space-y-5">
-                    {/* Feed toggle — only shown when the tile declares include_in_feed */}
-                    {feedCapableIdentifiers.has(row.identifier) && (
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Rss className="size-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-none">Show in feed</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Display this tile's events in your home feed.
-                            </p>
+                  {openCards[row.identifier] && (
+                    <CardContent className="p-4 space-y-5 border-t border-border">
+                      {/* Feed toggle — only shown when the tile declares include_in_feed */}
+                      {feedCapableIdentifiers.has(row.identifier) && (
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Rss className="size-4 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-none">Show in feed</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Display this tile's events in your home feed.
+                              </p>
+                            </div>
                           </div>
+                          <Switch
+                            checked={isFeedEnabled(row.identifier)}
+                            onCheckedChange={(v) => toggleFeed(row.identifier, v)}
+                          />
                         </div>
-                        <Switch
-                          checked={isFeedEnabled(row.identifier)}
-                          onCheckedChange={(v) => toggleFeed(row.identifier, v)}
-                        />
-                      </div>
-                    )}
+                      )}
 
-                    {fields.length > 0 && (
-                      <section className="space-y-3">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Settings</h3>
-                        <div className="space-y-3">
-                          {fields.map((field) => (
-                            <TileSettingInput
-                              key={field.key}
-                              field={field}
-                              value={draftValue(row.identifier, field)}
-                              onChange={(v) => setDraft(row.identifier, field.key, v)}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex justify-end">
-                          <Button size="sm" onClick={() => saveTile(row.identifier, fields)} disabled={!runtime || saved}>
-                            {saved ? 'Saved' : 'Save'}
+                      {fields.length > 0 && (
+                        <section className="space-y-3">
+                          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Settings</h3>
+                          <div className="space-y-3">
+                            {fields.map((field) => (
+                              <TileSettingInput
+                                key={field.key}
+                                field={field}
+                                value={draftValue(row.identifier, field)}
+                                onChange={(v) => setDraft(row.identifier, field.key, v)}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex justify-end">
+                            <Button size="sm" onClick={() => saveTile(row.identifier, fields)} disabled={!runtime || saved}>
+                              {saved ? 'Saved' : 'Save'}
+                            </Button>
+                          </div>
+                        </section>
+                      )}
+
+                      {perms.length > 0 && (
+                        <section className="space-y-2">
+                          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Permissions</h3>
+                          <ul className="space-y-1">
+                            {perms.map((p) => (
+                              <PermissionRow
+                                key={p.capability}
+                                capability={p.capability}
+                                decision={p.decision}
+                                onRevoke={() => handleRevoke(row.identifier, p.capability)}
+                              />
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+
+                      {!feedCapableIdentifiers.has(row.identifier) && fields.length === 0 && perms.length === 0 && (
+                        <p className="text-sm text-muted-foreground">This tile has no settings or permissions yet.</p>
+                      )}
+
+                      {row.naddr && (
+                        <div className="pt-2 border-t border-border flex justify-end">
+                          <Button
+                            variant="ghost" size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-transparent hover:opacity-75 gap-1.5"
+                            onClick={() => handleUninstall(row.naddr!, row.identifier, row.name)}
+                          >
+                            <Trash2 className="size-4" />
+                            Uninstall
                           </Button>
                         </div>
-                      </section>
-                    )}
-
-                    {perms.length > 0 && (
-                      <section className="space-y-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Permissions</h3>
-                        <ul className="space-y-1">
-                          {perms.map((p) => (
-                            <PermissionRow
-                              key={p.capability}
-                              capability={p.capability}
-                              decision={p.decision}
-                              onRevoke={() => handleRevoke(row.identifier, p.capability)}
-                            />
-                          ))}
-                        </ul>
-                      </section>
-                    )}
-
-                    {!feedCapableIdentifiers.has(row.identifier) && fields.length === 0 && perms.length === 0 && (
-                      <p className="text-sm text-muted-foreground">This tile has no settings or permissions yet.</p>
-                    )}
-                  </CardContent>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
               );
             })
