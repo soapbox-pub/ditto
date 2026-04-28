@@ -1,8 +1,10 @@
 import { lazy, Suspense, useMemo } from 'react';
-import { Sparkles } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
 /**
@@ -58,6 +60,24 @@ function parseConstellation(event: NostrEvent): ParsedConstellation {
 export function ConstellationContent({ event, className }: ConstellationContentProps) {
   const { title, description, edges } = useMemo(() => parseConstellation(event), [event]);
 
+  // Birdstar routes constellations at `/:nip19` using the event's naddr1
+  // coordinate (kind 30621 is addressable). Build the link once so we can
+  // drop it into a "View on Birdstar" action below the map.
+  const birdstarUrl = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (!dTag) return undefined;
+    try {
+      const naddr = nip19.naddrEncode({
+        kind: event.kind,
+        pubkey: event.pubkey,
+        identifier: dTag,
+      });
+      return `https://birdstar.app/${naddr}`;
+    } catch {
+      return undefined;
+    }
+  }, [event]);
+
   return (
     <div className={cn('mt-2', className)}>
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
@@ -75,9 +95,19 @@ export function ConstellationContent({ event, className }: ConstellationContentP
             <h3 className="truncate text-[15px] font-semibold leading-tight">
               {title}
             </h3>
-            <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-              {edges.length} {edges.length === 1 ? 'edge' : 'edges'}
-            </span>
+            {birdstarUrl && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openUrl(birdstarUrl);
+                }}
+                className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                View on Birdstar
+                <ExternalLink aria-hidden className="size-3" />
+              </button>
+            )}
           </div>
           {description && (
             <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-muted-foreground">
