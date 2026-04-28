@@ -261,6 +261,7 @@ export const AppConfigSchema = z.object({
   })).optional(),
   installedTiles: z.array(z.string()).optional(),
   tileSettings: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  tilesFeedDisabled: z.array(z.string()).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

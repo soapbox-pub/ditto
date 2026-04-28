@@ -27,6 +27,7 @@ import type {
   NavItem,
 } from '@soapbox.pub/nostr-canvas';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCanvasGate } from '@/lib/nostr-canvas/canvasGate';
 import { useSafeNostrCanvas } from '@/lib/nostr-canvas/useSafeNostrCanvas';
 
@@ -63,6 +64,12 @@ function collectFeedKinds(registrations: EventRegistration[]): number[] {
 export function useTileRegistrations(): TileRegistrationsResult {
   const { gateOpen } = useCanvasGate();
   const canvas = useSafeNostrCanvas();
+  const { config } = useAppContext();
+
+  const feedDisabled = useMemo(
+    () => new Set(config.tilesFeedDisabled ?? []),
+    [config.tilesFeedDisabled],
+  );
 
   const registrations = useMemo(
     () => (gateOpen ? canvas?.registrations ?? [] : []),
@@ -70,8 +77,8 @@ export function useTileRegistrations(): TileRegistrationsResult {
   );
 
   const feedRegistrations = useMemo(
-    () => registrations.filter((r) => r.include_in_feed),
-    [registrations],
+    () => registrations.filter((r) => r.include_in_feed && !feedDisabled.has(r.identifier)),
+    [registrations, feedDisabled],
   );
 
   const feedKinds = useMemo(

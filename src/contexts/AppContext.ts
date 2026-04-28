@@ -272,6 +272,12 @@ export interface AppConfig {
    * (`<nip05>:<name>`). Each inner record maps setting key → stringified value.
    */
   tileSettings?: Record<string, Record<string, string>>;
+  /**
+   * Tile identifiers (`<nip05>:<name>`) whose feed registrations have been
+   * disabled by the user. Even if the tile declares `include_in_feed = true`,
+   * it will not appear in the feed when its identifier is in this list.
+   */
+  tilesFeedDisabled?: string[];
 }
 
 /** Configuration for a single widget in the right sidebar. */

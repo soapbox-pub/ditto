@@ -21,8 +21,7 @@ import {
   ExternalLink,
   LayoutGrid,
   Loader2,
-  ShieldCheck,
-  ShieldX,
+  Rss,
   Trash2,
   Trash,
 } from 'lucide-react';
@@ -59,7 +58,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInstalledTiles } from '@/hooks/useInstalledTiles';
@@ -104,7 +102,7 @@ function tagValue(event: NostrEvent, name: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TileSettingsPage() {
-  const { config } = useAppContext();
+  const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { gateOpen, requestGate } = useCanvasGate();
   const canvas = useSafeNostrCanvas();
@@ -124,6 +122,15 @@ export function TileSettingsPage() {
 
   const runtime = canvas?.runtime;
   const settingsFields = canvas?.settingsFields ?? {};
+  // Identifiers of tiles that have registered at least one include_in_feed event.
+  const feedCapableIdentifiers = useMemo(
+    () => new Set(
+      (canvas?.registrations ?? [])
+        .filter((r) => r.include_in_feed)
+        .map((r) => r.identifier),
+    ),
+    [canvas?.registrations],
+  );
 
   // ── Published tiles query ─────────────────────────────────────────────────
 
@@ -249,6 +256,26 @@ export function TileSettingsPage() {
       setPermissions(groupPermissions(listScopedPermissions(user?.pubkey ?? null)));
     },
     [user?.pubkey],
+  );
+
+  const isFeedEnabled = useCallback(
+    (identifier: string) => !(config.tilesFeedDisabled ?? []).includes(identifier),
+    [config.tilesFeedDisabled],
+  );
+
+  const toggleFeed = useCallback(
+    (identifier: string, enabled: boolean) => {
+      updateConfig((c) => {
+        const current = c.tilesFeedDisabled ?? [];
+        return {
+          ...c,
+          tilesFeedDisabled: enabled
+            ? current.filter((id) => id !== identifier)
+            : [...current.filter((id) => id !== identifier), identifier],
+        };
+      });
+    },
+    [updateConfig],
   );
 
   const handleUninstall = useCallback(
@@ -420,6 +447,25 @@ export function TileSettingsPage() {
                   </div>
 
                   <CardContent className="p-4 space-y-5">
+                    {/* Feed toggle — only shown when the tile declares include_in_feed */}
+                    {feedCapableIdentifiers.has(row.identifier) && (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Rss className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-none">Show in feed</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Display this tile's events in your home feed.
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isFeedEnabled(row.identifier)}
+                          onCheckedChange={(v) => toggleFeed(row.identifier, v)}
+                        />
+                      </div>
+                    )}
+
                     {fields.length > 0 && (
                       <section className="space-y-3">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Settings</h3>
@@ -433,16 +479,18 @@ export function TileSettingsPage() {
                             />
                           ))}
                         </div>
-                        <Button size="sm" onClick={() => saveTile(row.identifier, fields)} disabled={!runtime || saved}>
-                          {saved ? 'Saved' : 'Save'}
-                        </Button>
+                        <div className="flex justify-end">
+                          <Button size="sm" onClick={() => saveTile(row.identifier, fields)} disabled={!runtime || saved}>
+                            {saved ? 'Saved' : 'Save'}
+                          </Button>
+                        </div>
                       </section>
                     )}
 
                     {perms.length > 0 && (
                       <section className="space-y-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Permissions</h3>
-                        <ul className="divide-y divide-border rounded-md border border-border">
+                        <ul className="space-y-1">
                           {perms.map((p) => (
                             <PermissionRow
                               key={p.capability}
@@ -455,7 +503,7 @@ export function TileSettingsPage() {
                       </section>
                     )}
 
-                    {fields.length === 0 && perms.length === 0 && (
+                    {!feedCapableIdentifiers.has(row.identifier) && fields.length === 0 && perms.length === 0 && (
                       <p className="text-sm text-muted-foreground">This tile has no settings or permissions yet.</p>
                     )}
                   </CardContent>
@@ -582,18 +630,37 @@ function TileSettingInput({ field, value, onChange }: { field: SettingsField; va
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Capability metadata
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CAPABILITY_META: Record<Capability, { label: string; description: string }> = {
+  'get-pubkey':       { label: 'Read your public key',    description: 'Let this tile see your npub.' },
+  'sign-event':       { label: 'Sign events',             description: 'Allow this tile to sign Nostr events on your behalf.' },
+  'publish-event':    { label: 'Publish events',          description: 'Allow this tile to publish events to your relays.' },
+  'nip44-encrypt':    { label: 'Encrypt messages',        description: 'Allow this tile to encrypt data using NIP-44.' },
+  'nip44-decrypt':    { label: 'Decrypt messages',        description: 'Allow this tile to decrypt data using NIP-44.' },
+  'fetch':            { label: 'Make network requests',   description: 'Allow this tile to fetch data from external URLs.' },
+  'navigate':         { label: 'Navigate',                description: 'Allow this tile to trigger in-app navigation.' },
+  'register-events':  { label: 'Register event filters',  description: 'Allow this tile to subscribe to Nostr event streams.' },
+};
+
 function PermissionRow({ capability, decision, onRevoke }: { capability: Capability; decision: PermissionDecision; onRevoke: () => void }) {
+  const meta = CAPABILITY_META[capability] ?? { label: capability, description: '' };
+  const granted = decision === 'granted';
   return (
-    <li className="flex items-center gap-3 px-3 py-2">
-      <span className="flex-1 truncate text-sm font-mono">{capability}</span>
-      <Badge variant={decision === 'granted' ? 'default' : 'destructive'} className="gap-1">
-        {decision === 'granted' ? <ShieldCheck className="size-3" /> : <ShieldX className="size-3" />}
-        {decision}
-      </Badge>
-      <Button variant="ghost" size="sm" onClick={onRevoke}
-        title={decision === 'granted' ? 'Revoke this grant' : 'Forget this denial'}>
-        Forget
-      </Button>
+    <li className="flex items-center justify-between gap-3 py-2">
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-none">{meta.label}</p>
+        {meta.description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{meta.description}</p>
+        )}
+      </div>
+      <Switch
+        checked={granted}
+        onCheckedChange={() => onRevoke()}
+        aria-label={granted ? `Revoke ${meta.label}` : `Forget denial of ${meta.label}`}
+      />
     </li>
   );
 }
