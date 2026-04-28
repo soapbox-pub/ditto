@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Bird, ExternalLink } from 'lucide-react';
+import { Bird, ExternalLink, MessageCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,7 +27,7 @@ interface BirdDetectionContentProps {
   className?: string;
 }
 
-function extractWikidataId(tags: string[][]): string | null {
+function extractWikidata(tags: string[][]): { id: string; url: string } | null {
   // A valid detection pairs an `i` tag with `k: web`. There may be multiple
   // i/k pairs in principle; we take the first `i` whose URL matches.
   for (const tag of tags) {
@@ -34,7 +35,7 @@ function extractWikidataId(tags: string[][]): string | null {
     const value = tag[1];
     if (typeof value !== 'string') continue;
     const m = value.match(WIKIDATA_URL_RE);
-    if (m) return m[1];
+    if (m) return { id: m[1], url: value };
   }
   return null;
 }
@@ -51,13 +52,13 @@ function extractAltSpecies(tags: string[][]): { common?: string; scientific?: st
 }
 
 export function BirdDetectionContent({ event, className }: BirdDetectionContentProps) {
-  const wikidataId = useMemo(() => extractWikidataId(event.tags), [event.tags]);
+  const wikidata = useMemo(() => extractWikidata(event.tags), [event.tags]);
   const altSpecies = useMemo(() => extractAltSpecies(event.tags), [event.tags]);
   const note = event.content.trim();
 
   // Resolve Wikidata → English Wikipedia title, then fetch the Wikipedia
   // summary (extract + thumbnail) for the title.
-  const { data: entity, isLoading: entityLoading } = useWikidataEntity(wikidataId);
+  const { data: entity, isLoading: entityLoading } = useWikidataEntity(wikidata?.id ?? null);
   const wikipediaTitle = entity?.wikipediaTitle ?? null;
   const { data: summary, isLoading: summaryLoading } = useWikipediaSummary(wikipediaTitle);
 
@@ -72,6 +73,12 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
   const thumbnail = sanitizeUrl(summary?.thumbnail?.source);
   const articleUrl = sanitizeUrl(summary?.articleUrl);
 
+  // "Discuss" routes the user to Ditto's external-content page for this
+  // species' Wikidata URL. Other users' kind 2473 detections and NIP-22
+  // comments both attach to the same `i`-tag identifier, so the discussion
+  // thread aggregates naturally across clients.
+  const discussPath = wikidata ? `/i/${encodeURIComponent(wikidata.url)}` : undefined;
+
   // When the user's own freeform note exists we show it above the
   // Wikipedia-derived summary. `content` can be empty per the NIP.
   const timeStr = new Date(event.created_at * 1000).toLocaleTimeString([], {
@@ -79,7 +86,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
     minute: '2-digit',
   });
 
-  if (!wikidataId) {
+  if (!wikidata) {
     // Shouldn't happen for a valid kind 2473 (the NIP requires the i tag),
     // but render something useful rather than silently dropping the event.
     return (
@@ -150,17 +157,31 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
             </p>
           )}
 
-          {articleUrl && (
-            <a
-              href={articleUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex w-fit items-center gap-1 pt-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ExternalLink className="size-3" />
-              Wikipedia
-            </a>
+          {(articleUrl || discussPath) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+              {discussPath && (
+                <Link
+                  to={discussPath}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <MessageCircle className="size-3" />
+                  Discuss
+                </Link>
+              )}
+              {articleUrl && (
+                <a
+                  href={articleUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <ExternalLink className="size-3" />
+                  Wikipedia
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>

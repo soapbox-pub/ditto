@@ -5,6 +5,7 @@ import { useSeoMeta } from "@unhead/react";
 import {
   AlertCircle,
   ArrowLeft,
+  Bird,
   Check,
   ChevronRight,
   Copy,
@@ -16,6 +17,7 @@ import {
   Rocket,
   Share2,
   Star,
+  Stars,
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
@@ -2038,6 +2040,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
           {isNsite && (
             <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
+          )}
+          {isBirdDetection && (
+            <EventActionHeader pubkey={event.pubkey} icon={Bird} action="heard a" noun="bird" />
+          )}
+          {isConstellation && (
+            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
           )}
 
           {/* Author row */}
