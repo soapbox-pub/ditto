@@ -65,6 +65,10 @@ export function BlobbiEvolveCeremony({
   const [adultVisible, setAdultVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const evolveTriggered = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const onEvolveRef = useRef(onEvolve);
+  onEvolveRef.current = onEvolve;
 
   const baseColor = companion.visualTraits.baseColor ?? '#8b5cf6';
   const { r, g, b } = useMemo(() => hexToRgb(baseColor), [baseColor]);
@@ -96,6 +100,8 @@ export function BlobbiEvolveCeremony({
   }, [r, g, b]);
 
   // ── Phase timeline ──
+  // Uses onCompleteRef so parent re-renders (from the evolve mutation updating
+  // companion data) don't restart the timer chain.
   useEffect(() => {
     // gather -> flash after 2.8s
     const t1 = setTimeout(() => {
@@ -116,7 +122,7 @@ export function BlobbiEvolveCeremony({
       setFadeOut(true);
       setTimeout(() => {
         setPhase('complete');
-        onComplete();
+        onCompleteRef.current();
       }, 2000);
     }, 8000);
 
@@ -126,15 +132,15 @@ export function BlobbiEvolveCeremony({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [onComplete]);
+  }, []);
 
   // ── Fire evolve mutation during flash ──
   useEffect(() => {
     if (phase === 'flash' && !evolveTriggered.current) {
       evolveTriggered.current = true;
-      onEvolve().catch(console.error);
+      onEvolveRef.current().catch(console.error);
     }
-  }, [phase, onEvolve]);
+  }, [phase]);
 
   const showBaby = phase === 'gather';
   const showAdult = phase === 'reveal' || phase === 'dialog';
