@@ -5,14 +5,16 @@
  * module-level draft store, registers it with the nostr-canvas runtime as
  * an ephemeral definition, and exposes three tabs:
  *
- *   • Preview — live `TileView` rendered at the chosen placement hint.
+ *   • Preview — shows a Play overlay; clicking it starts the live TileView.
+ *     Only one tile preview across the entire chat can be running at once —
+ *     activating a second one stops the first.
  *   • Code    — read-only pane showing the Lua source.
  *   • Settings — declared setting fields and their types.
  *
  * The footer has two actions:
- *   • **Install locally** — signs a kind-30207 event with the draft's
- *     `.local:` identifier and stores it in `AppConfig.installedTiles`. The
- *     tile works immediately but is not shareable (NIP-05 verification fails).
+ *   • **Install locally** — signs a kind-30207 event with the draft's local
+ *     identifier and stores it in `AppConfig.installedTiles`. The tile works
+ *     immediately but is not shareable (not a real NIP-05 namespace).
  *   • **Publish** — opens a modal where the user can review/edit name,
  *     summary, description, upload a banner image via Blossom, and then
  *     publish a properly-identified kind-30207 event (using `<nip05>:<slug>`
@@ -21,7 +23,7 @@
  *     automatically installed.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { settingFieldToTag, TILE_SCHEMA_VERSION } from '@soapbox.pub/nostr-canvas';
@@ -33,6 +35,7 @@ import {
   Eye,
   ImagePlus,
   Loader2,
+  Play,
   Send,
   Settings as SettingsIcon,
   Sparkles,
@@ -70,7 +73,44 @@ import { cn } from '@/lib/utils';
 
 const TILE_KIND = 30207;
 
-/** Placement hint options shown above the tile preview. */
+// ---------------------------------------------------------------------------
+// Active-preview store — only one tile preview runs at a time across the
+// whole chat. Module-level so all card instances share the same state.
+// ---------------------------------------------------------------------------
+
+type Listener = () => void;
+let activePreviewId: string | null = null;
+const previewListeners = new Set<Listener>();
+
+function setActivePreview(id: string | null): void {
+  activePreviewId = id;
+  for (const l of previewListeners) l();
+}
+
+function subscribeActivePreview(listener: Listener): () => void {
+  previewListeners.add(listener);
+  return () => previewListeners.delete(listener);
+}
+
+function getActivePreview(): string | null {
+  return activePreviewId;
+}
+
+/** Returns [isActive, activate, deactivate] for a given preview slot id. */
+function useActivePreview(id: string): [boolean, () => void, () => void] {
+  const current = useSyncExternalStore(subscribeActivePreview, getActivePreview, getActivePreview);
+  const isActive = current === id;
+  const activate = useCallback(() => setActivePreview(id), [id]);
+  const deactivate = useCallback(() => {
+    if (activePreviewId === id) setActivePreview(null);
+  }, [id]);
+  return [isActive, activate, deactivate];
+}
+
+// ---------------------------------------------------------------------------
+// Placement hint options
+// ---------------------------------------------------------------------------
+
 const PLACEMENT_OPTIONS = [
   { value: 'widget', label: 'Widget' },
   { value: 'main', label: 'Main' },
@@ -78,6 +118,10 @@ const PLACEMENT_OPTIONS = [
 ] as const;
 
 type PlacementHint = typeof PLACEMENT_OPTIONS[number]['value'];
+
+// ---------------------------------------------------------------------------
+// Public component
+// ---------------------------------------------------------------------------
 
 interface TileGenerationCardProps {
   draftIdentifier: string;
@@ -90,12 +134,15 @@ export function TileGenerationCard({ draftIdentifier, className }: TileGeneratio
   const { requestGate } = useCanvasGate();
   const runtime = useSafeNostrCanvas();
 
-  // Open the gate as soon as the card mounts so the runtime spins up.
+  // Open the gate as soon as the card mounts so the runtime spins up in the
+  // background while the user reads the response. The tile won't actually
+  // instantiate until they click Play.
   useEffect(() => {
     requestGate();
   }, [requestGate]);
 
-  // Register the draft with the runtime once it's available.
+  // Register the draft with the runtime once it's available. We register
+  // eagerly (before Play is clicked) so the first render is instant.
   const [registered, setRegistered] = useState(false);
   useEffect(() => {
     if (!runtime || !draft || registered) return;
@@ -139,6 +186,10 @@ export function TileGenerationCard({ draftIdentifier, className }: TileGeneratio
   );
 }
 
+// ---------------------------------------------------------------------------
+// Inner component (split to keep hooks above the early return)
+// ---------------------------------------------------------------------------
+
 interface TileGenerationCardInnerProps {
   draft: NonNullable<ReturnType<typeof getTileDraft>>;
   runtime: ReturnType<typeof useSafeNostrCanvas>;
@@ -167,6 +218,15 @@ function TileGenerationCardInner({
   const [installedNaddr, setInstalledNaddr] = useState<string | null>(null);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
 
+  // Each card gets a stable slot id for the global active-preview store.
+  const previewSlotId = useMemo(() => draft.identifier, [draft.identifier]);
+  const [previewActive, activatePreview, deactivatePreview] = useActivePreview(previewSlotId);
+
+  // If the preview tab is no longer selected, stop the running tile.
+  const handleTabChange = useCallback((tab: string) => {
+    if (tab !== 'preview') deactivatePreview();
+  }, [deactivatePreview]);
+
   const alreadyInstalled = installedNaddr ? isInstalledByNaddr(installedNaddr) : false;
 
   // Extract slug from the draft identifier (everything after the last colon).
@@ -175,7 +235,7 @@ function TileGenerationCardInner({
     return colon !== -1 ? draft.identifier.slice(colon + 1) : draft.identifier;
   }, [draft.identifier]);
 
-  /** Build an unsigned kind-30207 template from the draft for local install. */
+  /** Build an unsigned kind-30207 template for local install. */
   const buildLocalTileTemplate = useCallback(() => {
     const tags: string[][] = [
       ['d', draft.identifier],
@@ -194,7 +254,7 @@ function TileGenerationCardInner({
     return { kind: TILE_KIND, content: draft.script, tags };
   }, [draft]);
 
-  /** Install locally with the draft's .local: identifier (not publishable). */
+  /** Install locally with the draft's local identifier (not publishable). */
   const handleLocalInstall = useCallback(async () => {
     if (!user || installing) return;
     setInstalling(true);
@@ -256,7 +316,7 @@ function TileGenerationCardInner({
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="preview" className="px-4">
+        <Tabs defaultValue="preview" className="px-4" onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="preview" className="gap-1.5 text-xs px-2">
               <Eye className="size-3.5 shrink-0" />
@@ -291,18 +351,47 @@ function TileGenerationCardInner({
                 </button>
               ))}
             </div>
-            <div className="rounded-xl border border-border bg-secondary/30 p-3 min-h-[160px]">
-              {runtime && registered ? (
-                <TileView
-                  identifier={draft.identifier}
-                  placement={placement}
-                />
-              ) : (
-                <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">
-                  Spinning up runtime…
+
+            {/* Preview area — covered by Play overlay until activated */}
+            <div className="relative rounded-xl border border-border bg-secondary/30 min-h-[160px]">
+              {previewActive && runtime && registered ? (
+                <div className="p-3">
+                  <TileView
+                    identifier={draft.identifier}
+                    placement={placement}
+                  />
                 </div>
+              ) : (
+                /* Play overlay — also shown if runtime hasn't loaded yet */
+                <button
+                  type="button"
+                  onClick={activatePreview}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+                  aria-label="Run tile preview"
+                >
+                  <div className="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    {!runtime ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      <Play className="size-5 ml-0.5" />
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {!runtime ? 'Loading runtime…' : 'Click to run preview'}
+                  </span>
+                </button>
               )}
             </div>
+
+            {previewActive && (
+              <button
+                type="button"
+                onClick={deactivatePreview}
+                className="mt-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Stop preview
+              </button>
+            )}
           </TabsContent>
 
           <TabsContent value="code" className="mt-3">
@@ -343,14 +432,14 @@ function TileGenerationCardInner({
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-4">
-          {/* Local install — always available when logged in */}
+          {/* Local install */}
           <Button
             size="sm"
             variant="secondary"
             onClick={handleLocalInstall}
             disabled={installing || !user || alreadyInstalled}
             className="gap-1.5"
-            title="Install locally (not shareable — use Publish to share)"
+            title="Install locally (use Publish to share with others)"
           >
             {alreadyInstalled ? (
               <>
@@ -488,10 +577,7 @@ function TilePublishModal({
     const trimmedName = name.trim();
     const trimmedSummary = summary.trim();
     if (!trimmedName || !trimmedSummary) {
-      toast({
-        title: 'Name and summary are required',
-        variant: 'destructive',
-      });
+      toast({ title: 'Name and summary are required', variant: 'destructive' });
       return;
     }
 
@@ -513,7 +599,6 @@ function TilePublishModal({
         if (tag) tags.push(tag);
       }
 
-      // useNostrPublish signs + publishes and auto-adds the NIP-89 client tag.
       const signed = await publishEvent({
         kind: TILE_KIND,
         content: draft.script,

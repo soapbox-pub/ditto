@@ -115,16 +115,18 @@ function shortPubkeyTag(pubkey: string): string {
 
 /**
  * Produce a stable, per-user, **local-only** tile identifier that lets a
- * user install a draft tile before they've registered a NIP-05. The `.local`
- * suffix keeps it outside the reserved NIP-05 address grammar so drafts can
- * never collide with a publishable identifier.
+ * user install a draft tile before they've registered a NIP-05. The format
+ * is `<pubkey12>@local:<slug>` — the fake `@local` domain passes the
+ * `parseTileDefEvent` identifier validation (which requires an `@` before
+ * the colon) while the `.local` TLD makes it syntactically impossible to
+ * confuse with a real NIP-05 address or a publishable tile identifier.
  */
 export function buildLocalDraftIdentifier(
   pubkey: string,
   slug: string,
 ): string {
   const normalisedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 64);
-  return `${shortPubkeyTag(pubkey)}.local:${normalisedSlug}`;
+  return `${shortPubkeyTag(pubkey)}@local:${normalisedSlug}`;
 }
 
 /**
