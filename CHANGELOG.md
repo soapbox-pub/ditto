@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.11.2] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds no longer leak opaque identifiers or raw post content into previews and hover cards -- when an author-written description is missing, the card shows the "not supported" tombstone instead of an internal lookup string
+
 ## [2.11.1] - 2026-04-28
 
 ### Fixed
