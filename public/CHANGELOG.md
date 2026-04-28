@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.11.1] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds now show a clean fallback card with the author's description (or a "not supported" tombstone) instead of rendering raw JSON or empty content through the text-note parser -- applies in feeds, post detail, embedded quotes, reply context, compose previews, notifications, and inline nostr: mentions
+
 ## [2.11.0] - 2026-04-28
 
 ### Added
