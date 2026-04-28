@@ -11,6 +11,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
@@ -103,14 +104,32 @@ function ProfileSnapshotCard({
           : 'border-border hover:border-primary/20 hover:bg-secondary/30',
       )}
     >
-      {isCurrent && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
-          <Check className="size-3.5" />
-          Current
-        </div>
-      )}
+      {/* Top-right action: "Current" badge or "Restore" button */}
+      <div className="absolute top-3 right-3">
+        {isCurrent ? (
+          <div className="flex items-center gap-1 text-xs font-medium text-primary">
+            <Check className="size-3.5" />
+            Current
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs rounded-lg gap-1.5"
+            onClick={onRestore}
+            disabled={isRestoring}
+          >
+            {isRestoring ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}
+            Restore
+          </Button>
+        )}
+      </div>
 
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 pr-24">
         {/* Avatar */}
         <Avatar shape={avatarShape} className="size-11 shrink-0 ring-2 ring-background">
           {metadata?.picture ? (
@@ -135,26 +154,6 @@ function ProfileSnapshotCard({
           </div>
         </div>
       </div>
-
-      {/* Restore button */}
-      {!isCurrent && (
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            Restore
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -189,12 +188,31 @@ function ThemeSnapshotCard({
           : 'border-border hover:border-primary/20',
       )}
     >
-      {isCurrent && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
-          <Check className="size-3.5" />
-          Current
-        </div>
-      )}
+      {/* Top-right action: "Current" badge or "Restore" button.
+          Floats over the theme mockup — use backdrop-blur to stay legible on any theme. */}
+      <div className="absolute top-3 right-3 z-10">
+        {isCurrent ? (
+          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
+            <Check className="size-3.5" />
+            Current
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs rounded-lg gap-1.5 bg-background/80 backdrop-blur-sm"
+            onClick={onRestore}
+            disabled={isRestoring}
+          >
+            {isRestoring ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}
+            Restore
+          </Button>
+        )}
+      </div>
 
       {/* Theme mini-mockup */}
       <div
@@ -224,31 +242,12 @@ function ThemeSnapshotCard({
         </div>
       </div>
 
-      {/* Info + restore */}
-      <div className="px-4 py-3 flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{title}</div>
-          <div className="text-[11px] text-muted-foreground/70">
-            {formatDate(event.created_at)}
-          </div>
+      {/* Info */}
+      <div className="px-4 py-3 min-w-0">
+        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="text-[11px] text-muted-foreground/70">
+          {formatDate(event.created_at)}
         </div>
-
-        {!isCurrent && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5 shrink-0"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            Restore
-          </Button>
-        )}
       </div>
     </div>
   );
@@ -267,10 +266,16 @@ function FollowsSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
-  const followCount = useMemo(
-    () => event.tags.filter(([name]) => name === 'p').length,
+  // Reverse so newest follows (appended to the end of the tag list) appear first.
+  const followedPubkeys = useMemo(
+    () =>
+      event.tags
+        .filter(([name, value]) => name === 'p' && typeof value === 'string' && /^[0-9a-f]{64}$/.test(value))
+        .map(([, value]) => value)
+        .reverse(),
     [event.tags],
   );
+  const followCount = followedPubkeys.length;
 
   return (
     <div
@@ -281,30 +286,14 @@ function FollowsSnapshotCard({
           : 'border-border hover:border-primary/20 hover:bg-secondary/30',
       )}
     >
-      {isCurrent && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
-          <Check className="size-3.5" />
-          Current
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center size-11 shrink-0 rounded-full bg-primary/10">
-          <Users className="size-5 text-primary" />
-        </div>
-
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="font-semibold text-sm">
-            {followCount.toLocaleString()} {followCount === 1 ? 'follow' : 'follows'}
+      {/* Top-right action: "Current" badge or "Restore" button */}
+      <div className="absolute top-3 right-3">
+        {isCurrent ? (
+          <div className="flex items-center gap-1 text-xs font-medium text-primary">
+            <Check className="size-3.5" />
+            Current
           </div>
-          <div className="text-[11px] text-muted-foreground/70">
-            {formatDate(event.created_at)}
-          </div>
-        </div>
-      </div>
-
-      {!isCurrent && (
-        <div className="mt-3 flex justify-end">
+        ) : (
           <Button
             variant="outline"
             size="sm"
@@ -319,8 +308,20 @@ function FollowsSnapshotCard({
             )}
             Restore
           </Button>
+        )}
+      </div>
+
+      {followCount > 0 ? (
+        <div className="pr-24">
+          <PeopleAvatarStack pubkeys={followedPubkeys} maxVisible={8} size="md" />
         </div>
+      ) : (
+        <div className="text-sm text-muted-foreground pr-24">No follows</div>
       )}
+
+      <div className="text-[11px] text-muted-foreground/70 mt-2">
+        {formatDate(event.created_at)}
+      </div>
     </div>
   );
 }

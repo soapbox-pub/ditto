@@ -1,6 +1,6 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { ComponentType } from 'react';
-import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, UserCheck, Users } from 'lucide-react';
+import { Bird, Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -341,17 +341,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 39089,
     id: 'packs',
-    showKey: 'showPacks',
-    feedKey: 'feedIncludePacks',
+    showKey: 'showPeopleLists',
+    feedKey: 'feedIncludePeopleLists',
     // Also include related people-list kinds under the same feed toggle:
     // kind 3 (NIP-02 follow list) and kind 30000 (NIP-51 follow set).
     extraFeedKinds: [3, 30000],
-    label: 'Follow Packs',
-    description: 'Curated follow recommendations and lists',
+    label: 'People Lists',
+    description: 'Follow packs, follow lists, and people sets',
     route: 'packs',
     addressable: true,
     section: 'social',
-    blurb: 'Curated lists of people to follow. Browse or create your own.',
+    blurb: 'Curated lists of people to follow — follow packs, follow lists, and people sets. Browse or create your own.',
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
   {
@@ -482,6 +482,31 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Birdstar (feed-only — external app, no Ditto page)
+  {
+    kind: 2473,
+    id: 'bird-detections',
+    feedKey: 'feedIncludeBirdDetections',
+    label: 'Bird Detections',
+    description: 'Species heard in the wild (Birdsong Spotter)',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Bird-by-ear detections — someone heard a species sing or call, and logged the sighting. Identified by Wikidata entity.',
+    sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
+  },
+  {
+    kind: 30621,
+    id: 'constellations',
+    feedKey: 'feedIncludeConstellations',
+    label: 'Constellations',
+    description: 'User-drawn custom star figures (Starpoint)',
+    addressable: true,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Custom constellations drawn star-by-star on an interactive sky map. Trace your own figures and share them on Nostr.',
+    sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
+  },
   // Development
   {
     kind: 30617,
@@ -577,6 +602,8 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   15128: Globe,
   35128: Globe,
   30817: CircleAlert,
+  2473: Bird,
+  30621: Stars,
 };
 
 /**

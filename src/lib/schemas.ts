@@ -147,14 +147,14 @@ export const FeedSettingsSchema = z.looseObject({
   showTreasureGeocaches: z.boolean().optional(),
   showTreasureFoundLogs: z.boolean().optional(),
   showColors: z.boolean().optional(),
-  showPacks: z.boolean().optional(),
+  showPeopleLists: z.boolean().optional(),
   showStreams: z.boolean().optional(),
   feedIncludeVines: z.boolean().optional(),
   feedIncludePolls: z.boolean().optional(),
   feedIncludeTreasureGeocaches: z.boolean().optional(),
   feedIncludeTreasureFoundLogs: z.boolean().optional(),
   feedIncludeColors: z.boolean().optional(),
-  feedIncludePacks: z.boolean().optional(),
+  feedIncludePeopleLists: z.boolean().optional(),
   feedIncludeStreams: z.boolean().optional(),
   showDecks: z.boolean().optional(),
   feedIncludeDecks: z.boolean().optional(),
@@ -183,6 +183,9 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBlobbi: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
   feedIncludeBadgeAwards: z.boolean().optional(),
+  showBirdstar: z.boolean().optional(),
+  feedIncludeBirdDetections: z.boolean().optional(),
+  feedIncludeConstellations: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */

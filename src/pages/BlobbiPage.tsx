@@ -933,6 +933,7 @@ function BlobbiDashboard({
   isDevUpdating,
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
+  const { user } = useCurrentUser();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -941,17 +942,13 @@ function BlobbiDashboard({
   const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
 
   // ─── Room Navigation ───
-  const [currentRoom, setCurrentRoom] = useState<BlobbiRoomId>(
-    isSleeping ? 'rest' : isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
-  );
+  // Persisted room: only written on user-driven room changes (sleep override is UI-only).
+  const roomStorageKey = `blobbi:room:${user?.pubkey ?? 'anon'}:${companion.d}`;
+  const roomDefault = isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM;
+  const [storedRoom, setStoredRoom] = useLocalStorage<BlobbiRoomId>(roomStorageKey, roomDefault);
+  // Effective room: sleeping temporarily forces 'rest'; waking up returns to storedRoom.
+  const currentRoom: BlobbiRoomId = isSleeping ? 'rest' : isValidRoomId(storedRoom) ? storedRoom : DEFAULT_INITIAL_ROOM;
   const poopStateRef = useRef<PoopState | null>(null);
-
-  // Auto-navigate to bedroom when blobbi falls asleep
-  useEffect(() => {
-    if (isSleeping) {
-      setCurrentRoom('rest');
-    }
-  }, [isSleeping]);
 
   // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
@@ -1502,7 +1499,7 @@ function BlobbiDashboard({
             toast({ title: 'Zzz...', description: `${companion.name} is sleeping. Wake up first!` });
             return;
           }
-          setCurrentRoom(room);
+          setStoredRoom(room);
         }}
         isSleeping={isSleeping}
         hunger={currentStats.hunger}
@@ -1585,6 +1582,7 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
+            carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
           />
         )}
       </BlobbiRoomShell>
@@ -1703,6 +1701,8 @@ interface RoomBottomBarProps {
   guideHighlightId?: string | null;
   /** Action to glow (guide flow, e.g. 'sleep'). */
   guideActionGlow?: string | null;
+  /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
+  carouselKeyPrefix: string;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -1731,7 +1731,11 @@ function HomeBar({
   setShowPhotoModal,
   poopStateRef,
   guideHighlightId,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:home`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
+
   const carouselItems = useMemo<CarouselEntry[]>(() => {
     const toys = getLiveShopItems()
       .filter(i => i.type === 'toy')
@@ -1778,6 +1782,8 @@ function HomeBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
+              onFocusChange={handleFocusChange}
             />
           </div>
           {canBeCompanion ? (
@@ -1821,7 +1827,10 @@ function KitchenBar({
   poopStateRef,
   guideHighlightId,
   guideActionGlow,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
   const drag = useShovelDrag(poopState);
@@ -1926,6 +1935,8 @@ function KitchenBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
+              onFocusChange={handleFocusChange}
             />
           </div>
           <RoomActionButton
@@ -1952,6 +1963,7 @@ function CareBar({
   handleUseItemFromTab,
   poopStateRef,
   guideHighlightId,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const allShopItems = useMemo(() => getLiveShopItems(), []);
   const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
@@ -1967,8 +1979,26 @@ function CareBar({
     return [...hygiene, ...medicine];
   }, [hygieneItems, allShopItems]);
 
-  const [focusedMeta, setFocusedMeta] = useState(carouselEntries[0]?.meta ?? 'hygiene');
-  const handleFocusChange = useCallback((entry: CarouselEntry) => setFocusedMeta(entry.meta ?? 'hygiene'), []);
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:care`, null);
+  const [focusedMeta, setFocusedMeta] = useState(() => {
+    if (storedFocusId) {
+      const stored = carouselEntries.find(e => e.id === storedFocusId);
+      if (stored) return stored.meta ?? 'hygiene';
+    }
+    return carouselEntries[0]?.meta ?? 'hygiene';
+  });
+
+  // Sync focusedMeta when storedFocusId changes after mount (e.g. Blobbi switch).
+  useEffect(() => {
+    if (!storedFocusId) return;
+    const stored = carouselEntries.find(e => e.id === storedFocusId);
+    if (stored) setFocusedMeta(stored.meta ?? 'hygiene');
+  }, [storedFocusId, carouselEntries]);
+
+  const handleFocusChange = useCallback((entry: CarouselEntry) => {
+    setFocusedMeta(entry.meta ?? 'hygiene');
+    setStoredFocusId(entry.id);
+  }, [setStoredFocusId]);
   const isHygieneFocused = focusedMeta === 'hygiene';
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
@@ -2014,6 +2044,7 @@ function CareBar({
               disabled={isDisabled}
               onFocusChange={handleFocusChange}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
             />
           </div>
           {isHygieneFocused ? (

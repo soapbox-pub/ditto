@@ -59,7 +59,7 @@ import { shouldHideFeedEvent } from '@/lib/feedUtils';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { genUserName } from '@/lib/genUserName';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { parsePeopleList } from '@/lib/packUtils';
+import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 type Tab = 'feed' | 'members' | 'comments';
@@ -314,6 +314,10 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }),
     [event, authorMetadata, authorName],
   );
+  // Reversed for kind 3 follow lists so newest follows show first; identity
+  // for curated kinds. Used only for display — mutations and filters continue
+  // to use the original `pubkeys` array.
+  const displayPubkeys = useMemo(() => getDisplayPubkeys(event, pubkeys), [event, pubkeys]);
   const safeImage = useMemo(() => sanitizeUrl(image), [image]);
 
   // Batch-fetch all member profiles
@@ -608,7 +612,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         <PeopleListFeedTab pubkeys={pubkeys} tabKey={shareNip19} />
       ) : activeTab === 'members' ? (
         <PeopleListMembersTab
-          pubkeys={pubkeys}
+          pubkeys={displayPubkeys}
           membersMap={membersMap}
           membersLoading={membersLoading}
           followedPubkeys={followedPubkeys}
