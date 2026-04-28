@@ -11,16 +11,15 @@
  *   • Code    — read-only pane showing the Lua source.
  *   • Settings — declared setting fields and their types.
  *
- * The footer has two actions:
- *   • **Install locally** — signs a kind-30207 event with the draft's local
- *     identifier and stores it in `AppConfig.installedTiles`. The tile works
- *     immediately but is not shareable (not a real NIP-05 namespace).
- *   • **Publish** — opens a modal where the user can review/edit name,
- *     summary, description, upload a banner image via Blossom, and then
- *     publish a properly-identified kind-30207 event (using `<nip05>:<slug>`
- *     as the d-tag) that will be visible in the Browse marketplace. Requires
- *     a verified NIP-05 address on the account. After publish the tile is also
- *     automatically installed.
+ * The sole action is **Publish** — opens a review modal where the user can
+ * edit name, summary, description, upload a banner image via Blossom, and
+ * then publish a kind-30207 event with a proper `<nip05>:<slug>` d-tag.
+ * Requires a verified NIP-05 on the account. On success the user is
+ * navigated to the tile's marketplace page so they can install from there.
+ *
+ * Local install is intentionally removed: tiles published to relays can be
+ * unpublished via kind-5 deletion; there is no equivalent undo for local-only
+ * installs, and the `.local:` identifier produces confusing UX.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -28,8 +27,6 @@ import { useNavigate } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { settingFieldToTag, TILE_SCHEMA_VERSION } from '@soapbox.pub/nostr-canvas';
 import {
-  Bookmark,
-  Check,
   Code2,
   ExternalLink,
   Eye,
@@ -67,6 +64,7 @@ import { useToast } from '@/hooks/useToast';
 import {
   buildPublishableIdentifier,
   canPublishTile,
+  tileEventToNaddr,
 } from '@/lib/nostr-canvas/identifiers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -96,7 +94,6 @@ function getActivePreview(): string | null {
   return activePreviewId;
 }
 
-/** Returns [isActive, activate, deactivate] for a given preview slot id. */
 function useActivePreview(id: string): [boolean, () => void, () => void] {
   const current = useSyncExternalStore(subscribeActivePreview, getActivePreview, getActivePreview);
   const isActive = current === id;
@@ -134,15 +131,10 @@ export function TileGenerationCard({ draftIdentifier, className }: TileGeneratio
   const { requestGate } = useCanvasGate();
   const runtime = useSafeNostrCanvas();
 
-  // Open the gate as soon as the card mounts so the runtime spins up in the
-  // background while the user reads the response. The tile won't actually
-  // instantiate until they click Play.
   useEffect(() => {
     requestGate();
   }, [requestGate]);
 
-  // Register the draft with the runtime once it's available. We register
-  // eagerly (before Play is clicked) so the first render is instant.
   const [registered, setRegistered] = useState(false);
   useEffect(() => {
     if (!runtime || !draft || registered) return;
@@ -187,7 +179,7 @@ export function TileGenerationCard({ draftIdentifier, className }: TileGeneratio
 }
 
 // ---------------------------------------------------------------------------
-// Inner component (split to keep hooks above the early return)
+// Inner component
 // ---------------------------------------------------------------------------
 
 interface TileGenerationCardInnerProps {
@@ -210,86 +202,29 @@ function TileGenerationCardInner({
   const metadata = author.data?.metadata;
   const canPublish = canPublishTile(metadata);
 
-  const { installTile, isInstalledByNaddr } = useInstalledTiles();
-  const { toast } = useToast();
-
   const [placement, setPlacement] = useState<PlacementHint>('widget');
-  const [installing, setInstalling] = useState(false);
-  const [installedNaddr, setInstalledNaddr] = useState<string | null>(null);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
 
-  // Each card gets a stable slot id for the global active-preview store.
   const previewSlotId = useMemo(() => draft.identifier, [draft.identifier]);
   const [previewActive, activatePreview, deactivatePreview] = useActivePreview(previewSlotId);
 
-  // If the preview tab is no longer selected, stop the running tile.
   const handleTabChange = useCallback((tab: string) => {
     if (tab !== 'preview') deactivatePreview();
   }, [deactivatePreview]);
 
-  const alreadyInstalled = installedNaddr ? isInstalledByNaddr(installedNaddr) : false;
-
-  // Extract slug from the draft identifier (everything after the last colon).
   const draftSlug = useMemo(() => {
     const colon = draft.identifier.lastIndexOf(':');
     return colon !== -1 ? draft.identifier.slice(colon + 1) : draft.identifier;
   }, [draft.identifier]);
 
-  /** Build an unsigned kind-30207 template for local install. */
-  const buildLocalTileTemplate = useCallback(() => {
-    const tags: string[][] = [
-      ['d', draft.identifier],
-      ['t', 'nostr-canvas-tile'],
-      ['s', TILE_SCHEMA_VERSION],
-      ['name', draft.name],
-      ['language', 'lua'],
-    ];
-    if (draft.summary) tags.push(['summary', draft.summary]);
-    if (draft.description) tags.push(['description', draft.description]);
-    if (draft.image) tags.push(['image', draft.image]);
-    for (const field of draft.settings) {
-      const tag = settingFieldToTag(field);
-      if (tag) tags.push(tag);
-    }
-    return { kind: TILE_KIND, content: draft.script, tags };
-  }, [draft]);
-
-  /** Install locally with the draft's local identifier (not publishable). */
-  const handleLocalInstall = useCallback(async () => {
-    if (!user || installing) return;
-    setInstalling(true);
-    try {
-      const template = buildLocalTileTemplate();
-      const signed: NostrEvent = await user.signer.signEvent({
-        ...template,
-        created_at: Math.floor(Date.now() / 1000),
-      });
-      const naddr = installTile(signed);
-      setInstalledNaddr(naddr);
-      toast({
-        title: 'Tile installed locally',
-        description: 'Available in your tile list. Use Publish to share it.',
-      });
-    } catch (err) {
-      console.error('Install failed:', err);
-      toast({
-        title: 'Install failed',
-        description: err instanceof Error ? err.message : 'Unknown error.',
-        variant: 'destructive',
-      });
-    } finally {
-      setInstalling(false);
-    }
-  }, [user, installing, buildLocalTileTemplate, installTile, toast]);
-
   const openFullView = useCallback(() => {
     navigate(`/tiles/run/${encodeURIComponent(draft.identifier)}`);
   }, [navigate, draft.identifier]);
 
-  const settingsLabel = useMemo(() => {
-    if (draft.settings.length === 0) return 'Settings';
-    return `Settings (${draft.settings.length})`;
-  }, [draft.settings.length]);
+  const settingsLabel = useMemo(
+    () => draft.settings.length === 0 ? 'Settings' : `Settings (${draft.settings.length})`,
+    [draft.settings.length],
+  );
 
   return (
     <>
@@ -319,21 +254,17 @@ function TileGenerationCardInner({
         <Tabs defaultValue="preview" className="px-4" onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="preview" className="gap-1.5 text-xs px-2">
-              <Eye className="size-3.5 shrink-0" />
-              <span className="truncate">Preview</span>
+              <Eye className="size-3.5 shrink-0" /><span className="truncate">Preview</span>
             </TabsTrigger>
             <TabsTrigger value="code" className="gap-1.5 text-xs px-2">
-              <Code2 className="size-3.5 shrink-0" />
-              <span className="truncate">Code</span>
+              <Code2 className="size-3.5 shrink-0" /><span className="truncate">Code</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5 text-xs px-2">
-              <SettingsIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{settingsLabel}</span>
+              <SettingsIcon className="size-3.5 shrink-0" /><span className="truncate">{settingsLabel}</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="preview" className="mt-3">
-            {/* Placement selector */}
             <div className="flex items-center gap-1 mb-2">
               {PLACEMENT_OPTIONS.map((opt) => (
                 <button
@@ -352,17 +283,12 @@ function TileGenerationCardInner({
               ))}
             </div>
 
-            {/* Preview area — covered by Play overlay until activated */}
             <div className="relative rounded-xl border border-border bg-secondary/30 min-h-[160px]">
               {previewActive && runtime && registered ? (
                 <div className="p-3">
-                  <TileView
-                    identifier={draft.identifier}
-                    placement={placement}
-                  />
+                  <TileView identifier={draft.identifier} placement={placement} />
                 </div>
               ) : (
-                /* Play overlay — also shown if runtime hasn't loaded yet */
                 <button
                   type="button"
                   onClick={activatePreview}
@@ -370,11 +296,9 @@ function TileGenerationCardInner({
                   aria-label="Run tile preview"
                 >
                   <div className="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    {!runtime ? (
-                      <Loader2 className="size-5 animate-spin" />
-                    ) : (
-                      <Play className="size-5 ml-0.5" />
-                    )}
+                    {!runtime
+                      ? <Loader2 className="size-5 animate-spin" />
+                      : <Play className="size-5 ml-0.5" />}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {!runtime ? 'Loading runtime…' : 'Click to run preview'}
@@ -411,16 +335,12 @@ function TileGenerationCardInner({
                   <li key={field.key} className="px-3 py-2 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{field.label}</span>
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {field.type}
-                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{field.type}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                       <code className="text-[10px] text-muted-foreground truncate">{field.key}</code>
                       {field.default !== undefined && (
-                        <span className="text-[10px] text-muted-foreground">
-                          default: {String(field.default)}
-                        </span>
+                        <span className="text-[10px] text-muted-foreground">default: {String(field.default)}</span>
                       )}
                     </div>
                   </li>
@@ -432,72 +352,45 @@ function TileGenerationCardInner({
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-4">
-          {/* Local install */}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleLocalInstall}
-            disabled={installing || !user || alreadyInstalled}
-            className="gap-1.5"
-            title="Install locally (use Publish to share with others)"
-          >
-            {alreadyInstalled ? (
-              <>
-                <Check className="size-3.5" /> Installed
-              </>
-            ) : (
-              <>
-                <Bookmark className="size-3.5" /> {installing ? 'Installing…' : 'Install'}
-              </>
-            )}
-          </Button>
-
-          {/* Publish — requires NIP-05; opens a review modal */}
           <Button
             size="sm"
             onClick={() => setPublishModalOpen(true)}
-            disabled={!user}
+            disabled={!user || !canPublish}
             className="gap-1.5"
             title={
-              canPublish
-                ? 'Review and publish to your relays'
-                : 'Set a verified NIP-05 address on your profile to publish tiles'
+              !user
+                ? 'Log in to publish'
+                : !canPublish
+                  ? 'A verified NIP-05 address is required to publish'
+                  : 'Review and publish to your relays'
             }
           >
             <Send className="size-3.5" />
             Publish
           </Button>
 
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={openFullView}
-            className="gap-1.5 ml-auto"
-          >
+          <Button size="sm" variant="ghost" onClick={openFullView} className="gap-1.5 ml-auto">
             <ExternalLink className="size-3.5" /> Open
           </Button>
         </div>
 
-        {!canPublish && user && (
+        {user && !canPublish && (
           <p className="px-4 pb-3 -mt-1 text-[11px] text-muted-foreground">
             Set a verified NIP-05 address on your profile to publish tiles to the marketplace.
           </p>
         )}
       </div>
 
-      {/* Publish modal */}
       {publishModalOpen && user && (
         <TilePublishModal
           draft={draft}
           draftSlug={draftSlug}
           nip05={metadata?.nip05}
-          canPublish={canPublish}
           onClose={() => setPublishModalOpen(false)}
           onPublished={(naddr) => {
-            setInstalledNaddr(naddr);
             setPublishModalOpen(false);
+            navigate(`/tiles/${naddr}`);
           }}
-          installTile={installTile}
         />
       )}
     </>
@@ -512,35 +405,31 @@ interface TilePublishModalProps {
   draft: NonNullable<ReturnType<typeof getTileDraft>>;
   draftSlug: string;
   nip05: string | undefined;
-  canPublish: boolean;
   onClose: () => void;
+  /** Called with the naddr of the published tile so the parent can navigate. */
   onPublished: (naddr: string) => void;
-  installTile: (event: NostrEvent) => string;
 }
 
 function TilePublishModal({
   draft,
   draftSlug,
   nip05,
-  canPublish,
   onClose,
   onPublished,
-  installTile,
 }: TilePublishModalProps) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { installTile } = useInstalledTiles();
   const { toast } = useToast();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(draft.name);
   const [summary, setSummary] = useState(draft.summary);
   const [description, setDescription] = useState(draft.description ?? '');
-  // Start with the AI-provided image URL; user can replace it with an upload.
   const [imageUrl, setImageUrl] = useState(draft.image ?? '');
   const [publishing, setPublishing] = useState(false);
 
-  // Derive the final publishable identifier from the user's NIP-05 + slug.
   const publishableId = useMemo(
     () => buildPublishableIdentifier(nip05, draftSlug),
     [nip05, draftSlug],
@@ -563,16 +452,7 @@ function TilePublishModal({
   }, [uploadFile, toast]);
 
   const handlePublish = useCallback(async () => {
-    if (!user || publishing) return;
-
-    if (!canPublish || !publishableId) {
-      toast({
-        title: 'NIP-05 required',
-        description: 'Set a verified NIP-05 address on your profile to publish tiles.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!user || publishing || !publishableId) return;
 
     const trimmedName = name.trim();
     const trimmedSummary = summary.trim();
@@ -599,19 +479,14 @@ function TilePublishModal({
         if (tag) tags.push(tag);
       }
 
-      const signed = await publishEvent({
-        kind: TILE_KIND,
-        content: draft.script,
-        tags,
-      });
+      const signed = await publishEvent({ kind: TILE_KIND, content: draft.script, tags });
 
-      // Also install locally so the user can run it immediately.
-      const naddr = installTile(signed as unknown as NostrEvent);
+      // Also install locally so the user can run it immediately from
+      // the marketplace page they're about to land on.
+      installTile(signed as unknown as NostrEvent);
 
-      toast({
-        title: 'Tile published',
-        description: 'Your tile is live on your relays and installed locally.',
-      });
+      const naddr = tileEventToNaddr(signed as unknown as NostrEvent);
+      toast({ title: 'Tile published', description: 'Taking you to your tile…' });
       onPublished(naddr);
     } catch (err) {
       console.error('Publish failed:', err);
@@ -624,8 +499,8 @@ function TilePublishModal({
       setPublishing(false);
     }
   }, [
-    user, publishing, canPublish, publishableId, name, summary, description,
-    imageUrl, draft, publishEvent, installTile, toast, onPublished,
+    user, publishing, publishableId, name, summary, description, imageUrl,
+    draft, publishEvent, installTile, toast, onPublished,
   ]);
 
   const safePreviewImage = sanitizeUrl(imageUrl);
@@ -641,7 +516,7 @@ function TilePublishModal({
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Image upload */}
+          {/* Image */}
           <div className="space-y-1.5">
             <Label>Banner image</Label>
             <div className="flex items-start gap-3">
@@ -653,28 +528,22 @@ function TilePublishModal({
                 onKeyDown={(e) => e.key === 'Enter' && imageInputRef.current?.click()}
               >
                 {safePreviewImage ? (
-                  <img
-                    src={safePreviewImage}
-                    alt=""
-                    className="size-full object-cover"
-                    onError={() => setImageUrl('')}
-                  />
+                  <img src={safePreviewImage} alt="" className="size-full object-cover"
+                    onError={() => setImageUrl('')} />
                 ) : (
                   <div className="flex size-full items-center justify-center text-muted-foreground">
                     <ImagePlus className="size-6" />
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  {isUploading ? (
-                    <Loader2 className="size-5 text-white animate-spin" />
-                  ) : (
-                    <ImagePlus className="size-5 text-white" />
-                  )}
+                  {isUploading
+                    ? <Loader2 className="size-5 text-white animate-spin" />
+                    : <ImagePlus className="size-5 text-white" />}
                 </div>
               </div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 <Input
-                  placeholder="https://… (or click the image to upload)"
+                  placeholder="https://… (or click to upload)"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   className="text-xs"
@@ -684,13 +553,7 @@ function TilePublishModal({
                 </p>
               </div>
             </div>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={handleImagePick}
-            />
+            <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImagePick} />
             {safePreviewImage && (
               <button
                 type="button"
@@ -702,70 +565,38 @@ function TilePublishModal({
             )}
           </div>
 
-          {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="tile-publish-name">Name</Label>
-            <Input
-              id="tile-publish-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Weather Station"
-            />
+            <Input id="tile-publish-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Weather Station" />
           </div>
 
-          {/* Summary */}
           <div className="space-y-1.5">
             <Label htmlFor="tile-publish-summary">Summary</Label>
-            <Input
-              id="tile-publish-summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="One-line description"
-            />
+            <Input id="tile-publish-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="One-line description" />
           </div>
 
-          {/* Description */}
           <div className="space-y-1.5">
             <Label htmlFor="tile-publish-description">
-              Description{' '}
-              <span className="text-muted-foreground font-normal">(optional, Markdown)</span>
+              Description <span className="text-muted-foreground font-normal">(optional, Markdown)</span>
             </Label>
-            <Textarea
-              id="tile-publish-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe your tile in more detail…"
-              rows={3}
-            />
+            <Textarea id="tile-publish-description" value={description} onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your tile in more detail…" rows={3} />
           </div>
 
-          {/* Identifier preview */}
           <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 space-y-0.5">
             <p className="text-xs font-medium text-muted-foreground">Tile identifier</p>
-            {publishableId ? (
-              <code className="text-xs">{publishableId}</code>
-            ) : (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                A verified NIP-05 address is required to publish. Set one in your profile settings.
-              </p>
-            )}
+            {publishableId
+              ? <code className="text-xs">{publishableId}</code>
+              : <p className="text-xs text-amber-600 dark:text-amber-400">NIP-05 required to publish.</p>}
           </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onClose} disabled={publishing || isUploading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handlePublish}
-            disabled={publishing || isUploading || !canPublish || !publishableId}
-            className="gap-1.5"
-          >
-            {publishing ? (
-              <><Loader2 className="size-3.5 animate-spin" /> Publishing…</>
-            ) : (
-              <><Send className="size-3.5" /> Publish</>
-            )}
+          <Button variant="outline" onClick={onClose} disabled={publishing || isUploading}>Cancel</Button>
+          <Button onClick={handlePublish} disabled={publishing || isUploading || !publishableId} className="gap-1.5">
+            {publishing
+              ? <><Loader2 className="size-3.5 animate-spin" /> Publishing…</>
+              : <><Send className="size-3.5" /> Publish</>}
           </Button>
         </DialogFooter>
       </DialogContent>
