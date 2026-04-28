@@ -22,8 +22,7 @@ import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 type EvolvePhase =
   | 'gather'     // baby visible, energy gathering with spiraling particles
   | 'flash'      // screen flash, mutation fires
-  | 'reveal'     // flash clears, adult revealed with sparkles
-  | 'dialog'     // congratulatory text
+  | 'reveal'     // flash clears, adult revealed with sparkles + text
   | 'complete';  // fade out
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -63,6 +62,7 @@ export function BlobbiEvolveCeremony({
   const [phase, setPhase] = useState<EvolvePhase>('gather');
   const [showFlash, setShowFlash] = useState(false);
   const [adultVisible, setAdultVisible] = useState(false);
+  const [textVisible, setTextVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const evolveTriggered = useRef(false);
   const onCompleteRef = useRef(onComplete);
@@ -115,9 +115,9 @@ export function BlobbiEvolveCeremony({
       setPhase('reveal');
       setAdultVisible(true);
     }, 3200);
-    // reveal -> dialog after 9s total
-    const t3 = setTimeout(() => setPhase('dialog'), 9000);
-    // dialog -> fadeout after 12s total
+    // show text 1.5s into reveal (4.7s total)
+    const t3 = setTimeout(() => setTextVisible(true), 4700);
+    // fadeout after 10s total
     const t4 = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => {
@@ -143,7 +143,7 @@ export function BlobbiEvolveCeremony({
   }, [phase]);
 
   const showBaby = phase === 'gather';
-  const showAdult = phase === 'reveal' || phase === 'dialog';
+  const showAdult = phase === 'reveal';
 
   return (
     <div
@@ -381,9 +381,12 @@ export function BlobbiEvolveCeremony({
         </div>
       )}
 
-      {/* ── Dialog text ── */}
-      {phase === 'dialog' && (
-        <div className="absolute inset-x-0 bottom-0 flex justify-center pb-28 sm:pb-36 px-8">
+      {/* ── Dialog text (fades in during reveal) ── */}
+      {showAdult && (
+        <div
+          className="absolute inset-x-0 bottom-0 flex justify-center pb-28 sm:pb-36 px-8 transition-opacity duration-700"
+          style={{ opacity: textVisible ? 1 : 0 }}
+        >
           <div className="relative max-w-md w-full text-center">
             {/* Soft feathered backdrop */}
             <div
@@ -397,7 +400,7 @@ export function BlobbiEvolveCeremony({
               }}
             />
 
-            <div className="relative animate-onboard-soft-fade-in">
+            <div className="relative">
               <p className="text-base sm:text-lg text-white leading-relaxed font-light">
                 {companion.name} has evolved!
               </p>
