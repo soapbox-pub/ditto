@@ -78,6 +78,7 @@ const settingsSections: SettingsSection[] = [
     label: 'Tiles',
     description: 'Configure installed tiles and manage their permissions',
     path: '/settings/tiles',
+    illustration: '/tiles-palette-intro.png',
     requiresAuth: true,
   },
 ];
