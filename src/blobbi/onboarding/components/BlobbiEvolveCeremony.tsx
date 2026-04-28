@@ -8,7 +8,7 @@
  *   4. Brief dialog, then fade to white and complete
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { notificationSuccess } from '@/lib/haptics';
@@ -16,6 +16,47 @@ import { cn } from '@/lib/utils';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+
+// ─── Typewriter Hook ──────────────────────────────────────────────────────────
+
+function useTypewriter(fullText: string, active: boolean, speed = 35) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    setDisplayed('');
+    setDone(false);
+    indexRef.current = 0;
+  }, [fullText]);
+
+  useEffect(() => {
+    if (!active || done) return;
+
+    intervalRef.current = setInterval(() => {
+      indexRef.current++;
+      const next = fullText.slice(0, indexRef.current);
+      setDisplayed(next);
+      if (indexRef.current >= fullText.length) {
+        setDone(true);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+    }, speed);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [active, done, fullText, speed]);
+
+  const complete = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setDisplayed(fullText);
+    setDone(true);
+  }, [fullText]);
+
+  return { displayed, done, complete };
+}
 
 // ─── Phase Machine ────────────────────────────────────────────────────────────
 
@@ -73,6 +114,12 @@ export function BlobbiEvolveCeremony({
   const baseColor = companion.visualTraits.baseColor ?? '#8b5cf6';
   const { r, g, b } = useMemo(() => hexToRgb(baseColor), [baseColor]);
 
+  // ── Typewriter for reveal text ──
+  const line1 = `${companion.name} has evolved!`;
+  const line2 = 'A new chapter begins...';
+  const typewriter1 = useTypewriter(line1, textVisible);
+  const typewriter2 = useTypewriter(line2, typewriter1.done);
+
   // Build adult companion for visual preview (same visual traits, stage=adult)
   const adultCompanion = useMemo((): BlobbiCompanion => ({
     ...companion,
@@ -114,9 +161,8 @@ export function BlobbiEvolveCeremony({
       setShowFlash(false);
       setPhase('reveal');
       setAdultVisible(true);
+      setTextVisible(true);
     }, 3200);
-    // show text 1.5s into reveal (4.7s total)
-    const t3 = setTimeout(() => setTextVisible(true), 4700);
     // fadeout after 10s total
     const t4 = setTimeout(() => {
       setFadeOut(true);
@@ -129,7 +175,6 @@ export function BlobbiEvolveCeremony({
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
       clearTimeout(t4);
     };
   }, []);
@@ -381,12 +426,9 @@ export function BlobbiEvolveCeremony({
         </div>
       )}
 
-      {/* ── Dialog text (fades in during reveal) ── */}
-      {showAdult && (
-        <div
-          className="absolute inset-x-0 bottom-0 flex justify-center pb-28 sm:pb-36 px-8 transition-opacity duration-700"
-          style={{ opacity: textVisible ? 1 : 0 }}
-        >
+      {/* ── Typewriter text (appears during reveal) ── */}
+      {showAdult && textVisible && (
+        <div className="absolute inset-x-0 bottom-0 flex justify-center pb-28 sm:pb-36 px-8">
           <div className="relative max-w-md w-full text-center">
             {/* Soft feathered backdrop */}
             <div
@@ -401,12 +443,20 @@ export function BlobbiEvolveCeremony({
             />
 
             <div className="relative">
-              <p className="text-base sm:text-lg text-white leading-relaxed font-light">
-                {companion.name} has evolved!
+              <p className="text-base sm:text-lg text-white leading-relaxed font-light min-h-[1.5em]">
+                {typewriter1.displayed}
+                {!typewriter1.done && (
+                  <span className="inline-block w-[2px] h-[1em] bg-white/50 ml-0.5 animate-pulse align-text-bottom" />
+                )}
               </p>
-              <p className="text-sm text-white/60 mt-2 font-light">
-                A new chapter begins...
-              </p>
+              {typewriter1.done && (
+                <p className="text-sm text-white/60 mt-2 font-light min-h-[1.25em]">
+                  {typewriter2.displayed}
+                  {!typewriter2.done && (
+                    <span className="inline-block w-[2px] h-[0.85em] bg-white/30 ml-0.5 animate-pulse align-text-bottom" />
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>
