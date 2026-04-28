@@ -44,6 +44,9 @@ import {
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
 
+import { useTypewriter } from '../hooks/useTypewriter';
+import { buildRevealGradient } from '../lib/ceremony-colors';
+
 // ─── Dialog Lines ─────────────────────────────────────────────────────────────
 
 const BIRTH_DIALOG: string[] = [
@@ -66,49 +69,6 @@ type CeremonyPhase =
   | 'dialog'      // typewriter dialog lines
   | 'naming'
   | 'complete';
-
-// ─── Typewriter Hook ──────────────────────────────────────────────────────────
-
-function useTypewriter(fullText: string, active: boolean, speed = 35) {
-  const [displayed, setDisplayed] = useState('');
-  const [done, setDone] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const indexRef = useRef(0);
-
-  // Reset when text changes
-  useEffect(() => {
-    setDisplayed('');
-    setDone(false);
-    indexRef.current = 0;
-  }, [fullText]);
-
-  // Run typewriter
-  useEffect(() => {
-    if (!active || done) return;
-
-    intervalRef.current = setInterval(() => {
-      indexRef.current++;
-      const next = fullText.slice(0, indexRef.current);
-      setDisplayed(next);
-      if (indexRef.current >= fullText.length) {
-        setDone(true);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      }
-    }, speed);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [active, done, fullText, speed]);
-
-  const complete = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setDisplayed(fullText);
-    setDone(true);
-  }, [fullText]);
-
-  return { displayed, done, complete };
-}
 
 // Module-level guard: prevents duplicate egg creation if the component remounts
 // (e.g. React strict mode, parent re-render causing unmount/remount).
@@ -196,27 +156,8 @@ export function BlobbiHatchingCeremony({
 
   const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
 
-  // ── Derive reveal background from baby's base color ──
-  // Parse hex to RGB, then create a muted, low-intensity version for the background
-  const revealBg = useMemo(() => {
-    const hex = eggColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    // Create 5 stops with increasing lightness/desaturation
-    // Blend toward white to reduce intensity, keeping a hint of the hue
-    const blend = (channel: number, whiteAmount: number) =>
-      Math.round(channel + (255 - channel) * whiteAmount);
-
-    const s0 = `rgb(${blend(r, 0.65)},${blend(g, 0.65)},${blend(b, 0.65)})`;
-    const s1 = `rgb(${blend(r, 0.68)},${blend(g, 0.68)},${blend(b, 0.68)})`;
-    const s2 = `rgb(${blend(r, 0.72)},${blend(g, 0.72)},${blend(b, 0.72)})`;
-    const s3 = `rgb(${blend(r, 0.76)},${blend(g, 0.76)},${blend(b, 0.76)})`;
-    const s4 = `rgb(${blend(r, 0.80)},${blend(g, 0.80)},${blend(b, 0.80)})`;
-
-    return `radial-gradient(ellipse at 50% 45%, ${s0} 0%, ${s1} 25%, ${s2} 50%, ${s3} 75%, ${s4} 100%)`;
-  }, [eggColor]);
+  // Derive reveal background from baby's base color
+  const revealBg = useMemo(() => buildRevealGradient(eggColor), [eggColor]);
 
   // ── Typewriter for current dialog line ──
   const currentDialogText = phase === 'dialog' ? (BIRTH_DIALOG[dialogLineIndex] ?? '') : '';

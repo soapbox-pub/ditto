@@ -1631,7 +1631,6 @@ function BlobbiDashboard({
             companion={companion}
             onEvolve={onEvolve}
             onComplete={() => setShowEvolveCeremony(false)}
-            updateCompanionEvent={updateCompanionEvent}
           />
         </div>,
         document.body,

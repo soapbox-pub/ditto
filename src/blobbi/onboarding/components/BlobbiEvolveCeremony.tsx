@@ -8,8 +8,7 @@
  *   4. Brief dialog, then fade to white and complete
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 import { notificationSuccess } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -17,46 +16,8 @@ import { cn } from '@/lib/utils';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 
-// ─── Typewriter Hook ──────────────────────────────────────────────────────────
-
-function useTypewriter(fullText: string, active: boolean, speed = 35) {
-  const [displayed, setDisplayed] = useState('');
-  const [done, setDone] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const indexRef = useRef(0);
-
-  useEffect(() => {
-    setDisplayed('');
-    setDone(false);
-    indexRef.current = 0;
-  }, [fullText]);
-
-  useEffect(() => {
-    if (!active || done) return;
-
-    intervalRef.current = setInterval(() => {
-      indexRef.current++;
-      const next = fullText.slice(0, indexRef.current);
-      setDisplayed(next);
-      if (indexRef.current >= fullText.length) {
-        setDone(true);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      }
-    }, speed);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [active, done, fullText, speed]);
-
-  const complete = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setDisplayed(fullText);
-    setDone(true);
-  }, [fullText]);
-
-  return { displayed, done, complete };
-}
+import { useTypewriter } from '../hooks/useTypewriter';
+import { hexToRgb, buildRevealGradient } from '../lib/ceremony-colors';
 
 // ─── Phase Machine ────────────────────────────────────────────────────────────
 
@@ -74,23 +35,6 @@ interface BlobbiEvolveCeremonyProps {
   onEvolve: () => Promise<void>;
   /** Called when the animation is complete and the overlay should close. */
   onComplete: () => void;
-  /** Optimistically update the companion event in cache. */
-  updateCompanionEvent: (event: NostrEvent) => void;
-}
-
-// ─── Color Helpers ────────────────────────────────────────────────────────────
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.substring(0, 2), 16),
-    g: parseInt(h.substring(2, 4), 16),
-    b: parseInt(h.substring(4, 6), 16),
-  };
-}
-
-function blendToWhite(channel: number, amount: number): number {
-  return Math.round(channel + (255 - channel) * amount);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -129,14 +73,7 @@ export function BlobbiEvolveCeremony({
   }), [companion]);
 
   // Background: baby's base color blended toward white for a soft pastel
-  const revealBg = useMemo(() => {
-    const s0 = `rgb(${blendToWhite(r, 0.65)},${blendToWhite(g, 0.65)},${blendToWhite(b, 0.65)})`;
-    const s1 = `rgb(${blendToWhite(r, 0.68)},${blendToWhite(g, 0.68)},${blendToWhite(b, 0.68)})`;
-    const s2 = `rgb(${blendToWhite(r, 0.72)},${blendToWhite(g, 0.72)},${blendToWhite(b, 0.72)})`;
-    const s3 = `rgb(${blendToWhite(r, 0.76)},${blendToWhite(g, 0.76)},${blendToWhite(b, 0.76)})`;
-    const s4 = `rgb(${blendToWhite(r, 0.80)},${blendToWhite(g, 0.80)},${blendToWhite(b, 0.80)})`;
-    return `radial-gradient(ellipse at 50% 45%, ${s0} 0%, ${s1} 25%, ${s2} 50%, ${s3} 75%, ${s4} 100%)`;
-  }, [r, g, b]);
+  const revealBg = useMemo(() => buildRevealGradient(baseColor), [baseColor]);
 
   // Dark background for gather phase
   const darkBg = useMemo(() => {
@@ -192,6 +129,7 @@ export function BlobbiEvolveCeremony({
 
   return (
     <div
+      data-evolve-ceremony
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showAdult ? revealBg : darkBg,

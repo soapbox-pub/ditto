@@ -821,4 +821,11 @@
     transform: none !important;
     filter: none !important;
   }
+
+  /* Evolve ceremony uses inline animation styles, so target all descendants */
+  [data-evolve-ceremony] *,
+  [data-evolve-ceremony] {
+    animation: none !important;
+    transition: none !important;
+  }
 }
