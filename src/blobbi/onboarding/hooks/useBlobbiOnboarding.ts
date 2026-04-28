@@ -16,6 +16,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -32,6 +33,7 @@ import {
   updateBlobbonautTags,
   type BlobbonautProfile,
 } from '@/blobbi/core/lib/blobbi';
+import { publishProfileUpdate } from '@/blobbi/core/lib/publishProfileUpdate';
 
 import {
   generateEggPreview,
@@ -156,6 +158,7 @@ export function useBlobbiOnboarding({
   adoptionOnly = false,
 }: UseBlobbiOnboardingOptions): UseBlobbiOnboardingResult {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   
   // Get kind 0 metadata for name suggestion
@@ -368,16 +371,15 @@ export function useBlobbiOnboarding({
     setActionInProgress('reroll');
     
     try {
-      // First, deduct coins from profile
-      const newCoins = coins - BLOBBI_PREVIEW_REROLL_COST;
-      const updatedTags = updateBlobbonautTags(profile.allTags, {
-        coins: newCoins.toString(),
-      });
-      
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: profile.event.content ?? '',
-        tags: updatedTags,
+      // Deduct coins via safe read-modify-write
+      const profileEvent = await publishProfileUpdate({
+        nostr,
+        pubkey: user.pubkey,
+        publishEvent,
+        fallbackProfile: profile,
+        buildTags: (latest) => updateBlobbonautTags(latest.allTags, {
+          coins: (latest.coins - BLOBBI_PREVIEW_REROLL_COST).toString(),
+        }),
       });
       
       updateProfileEvent(profileEvent);
@@ -462,20 +464,20 @@ export function useBlobbiOnboarding({
       // Eggs should never be auto-assigned as the floating companion.
       // NOTE: blobbi_onboarding_done is NOT set here — adoption alone does not
       // complete onboarding. It is set when the first-hatch tour finishes.
-      const newCoins = coins - BLOBBI_ADOPTION_COST;
-      const newHas = [...profile.has, preview.d];
-      
-      const profileUpdates: Record<string, string | string[]> = {
-        coins: newCoins.toString(),
-        has: newHas,
-      };
-      
-      const updatedProfileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
-      
-      const profileEvent = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: profile.event.content ?? '',
-        tags: updatedProfileTags,
+      const previewD = preview.d;
+      const profileEvent = await publishProfileUpdate({
+        nostr,
+        pubkey: user.pubkey,
+        publishEvent,
+        fallbackProfile: profile,
+        buildTags: (latest) => {
+          const newCoins = latest.coins - BLOBBI_ADOPTION_COST;
+          const newHas = [...latest.has, previewD];
+          return updateBlobbonautTags(latest.allTags, {
+            coins: newCoins.toString(),
+            has: newHas,
+          });
+        },
       });
       
       updateProfileEvent(profileEvent);
@@ -505,7 +507,7 @@ export function useBlobbiOnboarding({
       setIsProcessing(false);
       setActionInProgress(null);
     }
-  }, [user?.pubkey, profile, preview, coins, publishEvent, updateCompanionEvent, updateProfileEvent, setStoredSelectedD, invalidateProfile, invalidateCompanion, onComplete]);
+  }, [user?.pubkey, profile, preview, coins, nostr, publishEvent, updateCompanionEvent, updateProfileEvent, setStoredSelectedD, invalidateProfile, invalidateCompanion, onComplete]);
   
   // ─── Return ─────────────────────────────────────────────────────────────────
   

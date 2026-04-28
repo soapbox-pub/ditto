@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -36,6 +37,7 @@ import {
   type BlobbonautProfile,
   type BlobbiCompanion,
 } from '@/blobbi/core/lib/blobbi';
+import { publishProfileUpdate } from '@/blobbi/core/lib/publishProfileUpdate';
 
 import {
   generateEggPreview,
@@ -146,6 +148,7 @@ export function BlobbiHatchingCeremony({
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
 
@@ -313,6 +316,7 @@ export function BlobbiHatchingCeremony({
             kind: KIND_BLOBBONAUT_PROFILE,
             content: latestProfileContent,
             tags: updatedTags,
+            prev: currentProfile?.event,
           });
 
           updateProfileEvent(updatedProfileEvent);
@@ -516,14 +520,15 @@ export function BlobbiHatchingCeremony({
 
       // Mark onboarding done
       const currentProfile = profileRef.current;
-      if (currentProfile) {
-        const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
-          blobbi_onboarding_done: 'true',
-        });
-        const profileEvent = await publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: currentProfile.event.content ?? '',
-          tags: updatedTags,
+      if (currentProfile && user?.pubkey) {
+        const profileEvent = await publishProfileUpdate({
+          nostr,
+          pubkey: user.pubkey,
+          publishEvent,
+          fallbackProfile: currentProfile,
+          buildTags: (latest) => updateBlobbonautTags(latest.allTags, {
+            blobbi_onboarding_done: 'true',
+          }),
         });
         updateProfileEvent(profileEvent);
       }
@@ -533,7 +538,7 @@ export function BlobbiHatchingCeremony({
     } catch (error) {
       console.error('[HatchingCeremony] Failed to persist completion:', error);
     }
-  }, [publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
+  }, [nostr, user?.pubkey, publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
 
   // ── Naming submit ──
   const handleNameSubmit = useCallback(async () => {

@@ -1,16 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { PurchaseRequest } from '../types/shop.types';
-import type { BlobbonautProfile, StorageItem } from '@/blobbi/core/lib/blobbi';
+import type { StorageItem } from '@/blobbi/core/lib/blobbi';
 import {
-  KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   createStorageTags,
+  type BlobbonautProfile,
 } from '@/blobbi/core/lib/blobbi';
+import { publishProfileUpdate } from '@/blobbi/core/lib/publishProfileUpdate';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 
 /**
@@ -24,6 +26,7 @@ import { getShopItemById } from '../lib/blobbi-shop-items';
  */
 export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
@@ -51,44 +54,43 @@ export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) 
       // Calculate total cost
       const totalCost = price * quantity;
 
-      // Check affordability
+      // Check affordability (validated against stale profile — if stale,
+      // the relay's version will be used for actual tag construction)
       if (currentProfile.coins < totalCost) {
         throw new Error(`Insufficient coins. You need ${totalCost} coins but only have ${currentProfile.coins}.`);
       }
 
-      // Calculate new coins
-      const newCoins = currentProfile.coins - totalCost;
+      // Publish with read-modify-write via the fresh relay profile
+      const event = await publishProfileUpdate({
+        nostr,
+        pubkey: user.pubkey,
+        publishEvent,
+        fallbackProfile: currentProfile,
+        buildTags: (latest) => {
+          // Recalculate coins from the fresh profile
+          const newCoins = latest.coins - totalCost;
 
-      // Update storage (stack or add)
-      const existingIndex = currentProfile.storage.findIndex(s => s.itemId === itemId);
-      let newStorage: StorageItem[];
+          // Update storage from the fresh profile (stack or add)
+          const existingIndex = latest.storage.findIndex(s => s.itemId === itemId);
+          let newStorage: StorageItem[];
 
-      if (existingIndex >= 0) {
-        // Stack: increase quantity of existing item
-        newStorage = [...currentProfile.storage];
-        newStorage[existingIndex] = {
-          ...newStorage[existingIndex],
-          quantity: newStorage[existingIndex].quantity + quantity,
-        };
-      } else {
-        // Add: append new item to storage
-        newStorage = [...currentProfile.storage, { itemId, quantity }];
-      }
+          if (existingIndex >= 0) {
+            newStorage = [...latest.storage];
+            newStorage[existingIndex] = {
+              ...newStorage[existingIndex],
+              quantity: newStorage[existingIndex].quantity + quantity,
+            };
+          } else {
+            newStorage = [...latest.storage, { itemId, quantity }];
+          }
 
-      // Build updated tags
-      // createStorageTags returns [['storage', 'itemId:quantity'], ...], we need just the values
-      const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
-      
-      const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
-        coins: newCoins.toString(),
-        storage: storageValues, // Array of 'itemId:quantity' strings
-      });
+          const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
 
-      // Publish updated profile event
-      const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content: currentProfile.event.content ?? '',
-        tags: updatedTags,
+          return updateBlobbonautTags(latest.allTags, {
+            coins: newCoins.toString(),
+            storage: storageValues,
+          });
+        },
       });
 
       return { event, item, quantity, totalCost };

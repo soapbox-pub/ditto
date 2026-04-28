@@ -199,6 +199,7 @@ export function useBlobbiMigration() {
         kind: KIND_BLOBBONAUT_PROFILE,
         content: profile.event.content ?? '',
         tags: profileTags,
+        prev: profile.event,
       });
       
       // Update query caches (optimistic — no invalidation needed since we

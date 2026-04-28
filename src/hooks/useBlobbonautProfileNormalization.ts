@@ -85,6 +85,7 @@ export function useBlobbonautProfileNormalization({
           kind: KIND_BLOBBONAUT_PROFILE,
           content: profile.event.content ?? '',
           tags: normalizedTags,
+          prev: profile.event,
         });
         
         updateProfileEvent(event);

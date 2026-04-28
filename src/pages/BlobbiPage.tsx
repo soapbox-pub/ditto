@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
+import { useNostr } from '@nostrify/react';
 import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -47,6 +48,7 @@ import {
 } from '@/blobbi/core/lib/blobbi';
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { publishProfileUpdate } from '@/blobbi/core/lib/publishProfileUpdate';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
@@ -195,6 +197,7 @@ function LoggedOutState() {
 
 function BlobbiContent() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   
@@ -603,14 +606,15 @@ function BlobbiContent() {
       // User already has a hatched blobbi — skip ceremony entirely.
       // Auto-fix the onboardingDone flag if it was missing.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
-      if (profile && !profile.onboardingDone) {
-        const updatedTags = updateBlobbonautTags(profile.allTags, {
-          blobbi_onboarding_done: 'true',
-        });
-        publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: profile.event.content ?? '',
-          tags: updatedTags,
+      if (profile && !profile.onboardingDone && user?.pubkey) {
+        publishProfileUpdate({
+          nostr,
+          pubkey: user.pubkey,
+          publishEvent,
+          fallbackProfile: profile,
+          buildTags: (latest) => updateBlobbonautTags(latest.allTags, {
+            blobbi_onboarding_done: 'true',
+          }),
         }).then(event => {
           updateProfileEvent(event);
           invalidateProfile();
