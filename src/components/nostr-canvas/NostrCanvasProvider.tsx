@@ -169,14 +169,24 @@ function NostrCanvasRuntimeProvider({
     [],
   );
 
-  const onPermissionRequest = useMemo(
-    // NB: the library captures `onPermissionRequest` at construction time
-    // and never re-reads it. We wrap a stable closure that forwards to the
-    // current cache + prompt.
-    () =>
-      permissionCacheRef.current.wrap(async (identifier, capability) => {
-        return promptUser(identifier, capability);
-      }),
+  // The library captures `onPermissionRequest` at construction time and never
+  // re-reads it, so this must be a stable closure that always reads the
+  // *current* permission cache from the ref. Using .wrap() here would bake in
+  // the cache object that existed when the memo ran, breaking permission checks
+  // after account switches (the cache changes but the closure doesn't).
+  const onPermissionRequest = useCallback(
+    async (identifier: string, capability: Capability): Promise<PermissionDecision> => {
+      const cache = permissionCacheRef.current;
+      // Short-circuit if a decision is already stored (covers both the
+      // "previously granted" and "previously denied" cases, and correctly
+      // re-prompts if the decision has been revoked via TileSettingsPage).
+      const cached = cache.get(identifier, capability);
+      if (cached !== undefined) return cached;
+      const decision = await promptUser(identifier, capability);
+      // Persist so the user isn't asked again for the same tile + capability.
+      cache.set(identifier, capability, decision);
+      return decision;
+    },
     [promptUser],
   );
 

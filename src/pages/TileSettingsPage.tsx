@@ -11,13 +11,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { LayoutGrid, Trash2, ShieldCheck, ShieldX } from 'lucide-react';
+import { ExternalLink, LayoutGrid, Trash2, ShieldCheck, ShieldX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type {
   Capability,
   PermissionDecision,
   SettingsField,
 } from '@soapbox.pub/nostr-canvas';
+import { parseTileDefEvent } from '@soapbox.pub/nostr-canvas';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -183,7 +185,7 @@ export function TileSettingsPage() {
   const rows = useMemo(() => {
     const byIdent: Record<
       string,
-      { naddr?: string; name: string; image?: string; identifier: string }
+      { naddr?: string; name: string; image?: string; identifier: string; event?: NostrEvent }
     > = {};
     for (const { naddr, event } of installedTiles) {
       const identifier = getDTag(event);
@@ -195,6 +197,7 @@ export function TileSettingsPage() {
           event.tags.find(([n]) => n === 'name')?.[1] ??
           identifier,
         image: sanitizeUrl(event.tags.find(([n]) => n === 'image')?.[1]),
+        event,
       };
     }
     // Include any tile identifier that only has orphan permissions.
@@ -234,7 +237,33 @@ export function TileSettingsPage() {
           </Card>
         ) : (
           rows.map((row) => {
-            const fields = settingsFields[row.identifier] ?? [];
+            // Start with the fields declared in the tile's event tags — these
+            // are always available from the local cache, even before the runtime
+            // has mounted a tile instance. Then overlay any runtime-reported
+            // fields (keyed by `field.key`), which win on collision so a tile
+            // can conditionally add or replace fields at runtime.
+            const eventFields: SettingsField[] = (() => {
+              if (!row.event) return [];
+              try {
+                return parseTileDefEvent({
+                  id: row.event.id,
+                  pubkey: row.event.pubkey,
+                  created_at: row.event.created_at,
+                  kind: row.event.kind,
+                  content: row.event.content,
+                  tags: row.event.tags,
+                })?.settings ?? [];
+              } catch {
+                return [];
+              }
+            })();
+            const runtimeFields: SettingsField[] = settingsFields[row.identifier] ?? [];
+            // Merge: event fields first, then runtime fields override by key.
+            const fieldMap = new Map<string, SettingsField>(
+              eventFields.map((f) => [f.key, f]),
+            );
+            for (const f of runtimeFields) fieldMap.set(f.key, f);
+            const fields = Array.from(fieldMap.values());
             const perms = permissions[row.identifier] ?? [];
             const saved = !!savedIds[row.identifier];
             return (
@@ -264,6 +293,18 @@ export function TileSettingsPage() {
                       {row.identifier}
                     </p>
                   </div>
+                  {row.naddr && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Link to={`/tiles/${row.naddr}`} title="View in marketplace">
+                        <ExternalLink className="size-4" />
+                      </Link>
+                    </Button>
+                  )}
                   {row.naddr && (
                     <Button
                       variant="ghost"

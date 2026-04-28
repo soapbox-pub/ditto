@@ -15,7 +15,7 @@ import { useCallback, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
-import { getDTag, tileEventToNaddr } from '@/lib/nostr-canvas/identifiers';
+import { decodeTileNaddr, getDTag, tileEventToNaddr } from '@/lib/nostr-canvas/identifiers';
 import { tileNavItemId } from '@/lib/sidebarItems';
 import {
   getCachedTileEvent,
@@ -128,7 +128,26 @@ export function useInstalledTiles(): UseInstalledTilesResult {
   );
 
   const isInstalledByNaddr = useCallback(
-    (naddr: string): boolean => installedNaddrs.includes(naddr),
+    (naddr: string): boolean => {
+      // First try exact string match (fast path — covers the common case where
+      // both the stored naddr and the query naddr were produced without relay
+      // hints, or with identical hints).
+      if (installedNaddrs.includes(naddr)) return true;
+      // Slow path: decode both sides and compare (kind, pubkey, identifier).
+      // This handles the case where the stored naddr was produced with a relay
+      // hint but the queried naddr wasn't, or vice versa.
+      const decoded = decodeTileNaddr(naddr);
+      if (!decoded) return false;
+      return installedNaddrs.some((n) => {
+        const d = decodeTileNaddr(n);
+        return (
+          d !== null &&
+          d.kind === decoded.kind &&
+          d.pubkey === decoded.pubkey &&
+          d.identifier === decoded.identifier
+        );
+      });
+    },
     [installedNaddrs],
   );
 

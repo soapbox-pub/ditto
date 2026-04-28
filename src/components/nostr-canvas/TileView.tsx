@@ -357,7 +357,13 @@ function TileNode({ node }: { node: TileOutput }): ReactNode {
           alt=""
           style={style}
           className={cn(
-            node.avatar ? 'rounded-full object-cover' : 'max-w-full h-auto',
+            node.avatar
+              ? 'rounded-full object-cover shrink-0'
+              // Non-avatar: constrain to natural size, never stretch to fill
+              // flex space. max-w-full ensures it doesn't overflow narrow
+              // containers; object-contain keeps the aspect ratio; self-center
+              // centres it in the cross-axis of any flex parent.
+              : 'max-w-full object-contain self-center',
             growClass,
           )}
         />
