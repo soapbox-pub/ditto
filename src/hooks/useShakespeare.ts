@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
+import { useAppContext } from './useAppContext';
 import type { NUser } from '@nostrify/react/login';
 
 /** Error subclass carrying rate-limit metadata. */
@@ -125,7 +126,18 @@ export interface CreditsResponse {
 
 // ─── Provider Configuration ───
 
-const SHAKESPEARE_API_URL = 'https://ai.shakespeare.diy/v1';
+/** Default Shakespeare AI endpoint when no override is configured. */
+const DEFAULT_SHAKESPEARE_API_URL = 'https://ai.shakespeare.diy/v1';
+
+/** True when `url` points at the Shakespeare-hosted AI proxy (NIP-98 auth). */
+function isShakespeareEndpoint(url: string): boolean {
+  try {
+    const host = new URL(url).host;
+    return host === 'ai.shakespeare.diy' || host.endsWith('.shakespeare.diy');
+  } catch {
+    return false;
+  }
+}
 
 // ─── Helpers ───
 
@@ -262,11 +274,42 @@ function formatError(err: unknown): string {
 
 export function useShakespeare() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Unix-ms timestamp until which the client is rate-limited, or null. */
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Resolve the configured provider base URL with a safe trailing-slash strip.
+  // An empty `aiBaseURL` falls back to the Shakespeare default so existing
+  // clients that haven't persisted the new field keep working.
+  const apiUrl = useMemo(() => {
+    const raw = (config.aiBaseURL || DEFAULT_SHAKESPEARE_API_URL).trim();
+    return raw.replace(/\/+$/, '');
+  }, [config.aiBaseURL]);
+
+  // Build an Authorization header for the provider. Non-empty `aiApiKey`
+  // switches to Bearer auth (for bring-your-own-key endpoints like OpenAI);
+  // otherwise we fall back to NIP-98 (only meaningful against Shakespeare).
+  const buildAuthHeader = useCallback(async (
+    method: string,
+    url: string,
+    body?: unknown,
+  ): Promise<string> => {
+    const apiKey = config.aiApiKey.trim();
+    if (apiKey) {
+      return `Bearer ${apiKey}`;
+    }
+    if (!isShakespeareEndpoint(url)) {
+      throw new Error(
+        'An API key is required when using a non-Shakespeare AI endpoint. ' +
+        'Set one in Buddy settings or switch the base URL back to Shakespeare.',
+      );
+    }
+    const token = await createNIP98Token(method, url, body, user ?? undefined);
+    return `Nostr ${token}`;
+  }, [config.aiApiKey, user]);
 
   // Auto-clear retryAfter once the cooldown expires.
   useEffect(() => {
@@ -313,16 +356,12 @@ export function useShakespeare() {
         ...options,
       };
 
-      const token = await createNIP98Token(
-        'POST',
-        `${SHAKESPEARE_API_URL}/chat/completions`,
-        requestBody,
-        user,
-      );
-      const response = await fetch(`${SHAKESPEARE_API_URL}/chat/completions`, {
+      const chatUrl = `${apiUrl}/chat/completions`;
+      const authHeader = await buildAuthHeader('POST', chatUrl, requestBody);
+      const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Nostr ${token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -342,7 +381,7 @@ export function useShakespeare() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, apiUrl, buildAuthHeader]);
 
   // ─── Chat completions (streaming) ───
   //
@@ -374,16 +413,12 @@ export function useShakespeare() {
         ...options,
       };
 
-      const token = await createNIP98Token(
-        'POST',
-        `${SHAKESPEARE_API_URL}/chat/completions`,
-        requestBody,
-        user,
-      );
-      const response = await fetch(`${SHAKESPEARE_API_URL}/chat/completions`, {
+      const chatUrl = `${apiUrl}/chat/completions`;
+      const authHeader = await buildAuthHeader('POST', chatUrl, requestBody);
+      const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Nostr ${token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -530,7 +565,7 @@ export function useShakespeare() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, apiUrl, buildAuthHeader]);
 
   // ─── Credit balance (Shakespeare AI only) ───
 
@@ -540,16 +575,11 @@ export function useShakespeare() {
     }
 
     try {
-      const token = await createNIP98Token(
-        'GET',
-        `${SHAKESPEARE_API_URL}/credits`,
-        undefined,
-        user,
-      );
-
-      const response = await fetch(`${SHAKESPEARE_API_URL}/credits`, {
+      const creditsUrl = `${apiUrl}/credits`;
+      const authHeader = await buildAuthHeader('GET', creditsUrl);
+      const response = await fetch(creditsUrl, {
         method: 'GET',
-        headers: { 'Authorization': `Nostr ${token}` },
+        headers: { 'Authorization': authHeader },
       });
 
       await handleAPIError(response);
@@ -557,7 +587,7 @@ export function useShakespeare() {
     } catch (err) {
       throw new Error(formatError(err));
     }
-  }, [user]);
+  }, [user, apiUrl, buildAuthHeader]);
 
   // ─── Available models (merged from both providers) ───
 
@@ -570,15 +600,11 @@ export function useShakespeare() {
     setError(null);
 
     try {
-      const token = await createNIP98Token(
-        'GET',
-        `${SHAKESPEARE_API_URL}/models`,
-        undefined,
-        user,
-      );
-      const response = await fetch(`${SHAKESPEARE_API_URL}/models`, {
+      const modelsUrl = `${apiUrl}/models`;
+      const authHeader = await buildAuthHeader('GET', modelsUrl);
+      const response = await fetch(modelsUrl, {
         method: 'GET',
-        headers: { 'Authorization': `Nostr ${token}` },
+        headers: { 'Authorization': authHeader },
       });
       await handleAPIError(response);
       const result = (await response.json()) as ModelsResponse;
@@ -597,7 +623,7 @@ export function useShakespeare() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, apiUrl, buildAuthHeader]);
 
   return {
     // State

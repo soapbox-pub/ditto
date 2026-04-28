@@ -160,7 +160,9 @@ const hardcodedConfig: AppConfig = {
     { id: 'hot-posts' },
     { id: 'wikipedia' },
   ],
-  aiModel: '',
+  aiBaseURL: 'https://ai.shakespeare.diy/v1',
+  aiApiKey: '',
+  aiModel: 'grok-4.1-fast',
   aiSystemPrompt: '',
 };
 

@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useShakespeare, sortModelsByCost, type Model } from '@/hooks/useShakespeare';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBuddy } from '@/hooks/useBuddy';
 import { DEFAULT_SYSTEM_PROMPT_TEMPLATE } from '@/lib/aiChatSystemPrompt';
+
+/** Hardcoded default values for buddy provider fields. Used for "Reset" buttons. */
+const DEFAULT_AI_BASE_URL = 'https://ai.shakespeare.diy/v1';
+const DEFAULT_AI_MODEL = 'grok-4.1-fast';
 
 /** The build-time default DSN from the environment variable. */
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
@@ -72,72 +74,162 @@ function SettingsSection({
 function BuddySettingsSection() {
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
-  const { user } = useCurrentUser();
-  const { getAvailableModels } = useShakespeare();
   const { buddy, hasBuddy, updateSoul } = useBuddy();
   const [open, setOpen] = useState(false);
-  const [aiModels, setAiModels] = useState<Model[]>([]);
-  const [aiModelsLoading, setAiModelsLoading] = useState(false);
   const [soulDraft, setSoulDraft] = useState('');
   const [soulSaving, setSoulSaving] = useState(false);
+  const [baseUrlDraft, setBaseUrlDraft] = useState(config.aiBaseURL);
+  const [apiKeyDraft, setApiKeyDraft] = useState(config.aiApiKey);
+  const [modelDraft, setModelDraft] = useState(config.aiModel);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [systemPromptDraft, setSystemPromptDraft] = useState(config.aiSystemPrompt || DEFAULT_SYSTEM_PROMPT_TEMPLATE);
 
   useEffect(() => {
     if (buddy?.soul) setSoulDraft(buddy.soul);
   }, [buddy?.soul]);
 
-  useEffect(() => {
-    if (!open || !user || aiModels.length > 0) return;
-    let cancelled = false;
-    setAiModelsLoading(true);
-    getAvailableModels()
-      .then((response) => {
-        if (cancelled) return;
-        setAiModels(sortModelsByCost(response.data));
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setAiModelsLoading(false); });
-    return () => { cancelled = true; };
-  }, [open, user, aiModels.length, getAvailableModels]);
+  // Keep drafts in sync when config changes from elsewhere (e.g. reset).
+  useEffect(() => { setBaseUrlDraft(config.aiBaseURL); }, [config.aiBaseURL]);
+  useEffect(() => { setApiKeyDraft(config.aiApiKey); }, [config.aiApiKey]);
+  useEffect(() => { setModelDraft(config.aiModel); }, [config.aiModel]);
+
+  const commitBaseUrl = () => {
+    const trimmed = baseUrlDraft.trim().replace(/\/+$/, '');
+    if (!trimmed) {
+      // Empty => restore default so there is always a working endpoint.
+      setBaseUrlDraft(DEFAULT_AI_BASE_URL);
+      if (config.aiBaseURL !== DEFAULT_AI_BASE_URL) {
+        updateConfig((current) => ({ ...current, aiBaseURL: DEFAULT_AI_BASE_URL }));
+        toast({ title: 'Base URL reset to Shakespeare default' });
+      }
+      return;
+    }
+    if (trimmed !== config.aiBaseURL) {
+      updateConfig((current) => ({ ...current, aiBaseURL: trimmed }));
+      toast({ title: 'AI base URL updated' });
+    }
+  };
+
+  const commitApiKey = () => {
+    const trimmed = apiKeyDraft.trim();
+    if (trimmed !== config.aiApiKey) {
+      updateConfig((current) => ({ ...current, aiApiKey: trimmed }));
+      toast({ title: trimmed ? 'API key updated' : 'API key cleared (using NIP-98 auth)' });
+    }
+  };
+
+  const commitModel = () => {
+    const trimmed = modelDraft.trim();
+    if (!trimmed) {
+      // Empty => restore default model so the chat isn't broken.
+      setModelDraft(DEFAULT_AI_MODEL);
+      if (config.aiModel !== DEFAULT_AI_MODEL) {
+        updateConfig((current) => ({ ...current, aiModel: DEFAULT_AI_MODEL }));
+        toast({ title: 'Model reset to default' });
+      }
+      return;
+    }
+    if (trimmed !== config.aiModel) {
+      updateConfig((current) => ({ ...current, aiModel: trimmed }));
+      toast({ title: 'AI model updated' });
+    }
+  };
+
+  const resetProviderDefaults = () => {
+    setBaseUrlDraft(DEFAULT_AI_BASE_URL);
+    setApiKeyDraft('');
+    setModelDraft(DEFAULT_AI_MODEL);
+    updateConfig((current) => ({
+      ...current,
+      aiBaseURL: DEFAULT_AI_BASE_URL,
+      aiApiKey: '',
+      aiModel: DEFAULT_AI_MODEL,
+    }));
+    toast({ title: 'Provider settings reset to defaults' });
+  };
+
+  const providerIsDefault =
+    config.aiBaseURL === DEFAULT_AI_BASE_URL &&
+    config.aiApiKey === '' &&
+    config.aiModel === DEFAULT_AI_MODEL;
 
   return (
     <SettingsSection title="Buddy" open={open} onOpenChange={setOpen}>
       <div className="px-4 py-4 space-y-4 border-b border-border">
         <div className="space-y-2">
-          <Label htmlFor="ai-model">Model</Label>
-          <Select
-            value={config.aiModel || (aiModels.length > 0 ? aiModels[0].id : '')}
-            onValueChange={(value) => {
-              updateConfig((current) => ({ ...current, aiModel: value }));
-              toast({ title: 'AI model updated' });
-            }}
-            disabled={aiModelsLoading || aiModels.length === 0}
-          >
-            <SelectTrigger id="ai-model">
-              <SelectValue placeholder={aiModelsLoading ? 'Loading models...' : 'Select model'} />
-            </SelectTrigger>
-            <SelectContent>
-              {aiModels.map((model) => {
-                const totalCost = parseFloat(model.pricing.prompt) + parseFloat(model.pricing.completion);
-                const isFree = totalCost === 0;
-                return (
-                  <SelectItem key={model.id} value={model.id}>
-                    <span className="flex items-center gap-1.5">
-                      {model.name}
-                      {isFree && (
-                        <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded">
-                          FREE
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="ai-base-url">Base URL</Label>
+          <Input
+            id="ai-base-url"
+            type="url"
+            value={baseUrlDraft}
+            onChange={(e) => setBaseUrlDraft(e.target.value)}
+            onBlur={commitBaseUrl}
+            placeholder={DEFAULT_AI_BASE_URL}
+            className="font-mono text-xs"
+            autoComplete="off"
+            spellCheck={false}
+          />
           <p className="text-xs text-muted-foreground">
-            Choose which AI model your buddy uses for chat responses.
+            OpenAI-compatible <code className="bg-muted px-1 rounded">/v1</code> endpoint. The default Shakespeare endpoint uses NIP-98 auth; other endpoints require an API key below.
           </p>
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Label htmlFor="ai-api-key">API key</Label>
+          <div className="flex gap-2">
+            <Input
+              id="ai-api-key"
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKeyDraft}
+              onChange={(e) => setApiKeyDraft(e.target.value)}
+              onBlur={commitApiKey}
+              placeholder="Leave empty to use NIP-98 (Shakespeare only)"
+              className="font-mono text-xs"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setShowApiKey((v) => !v)}
+              aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+            >
+              {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Optional. Provide one when using OpenAI, Anthropic, OpenRouter, or any endpoint that isn't Shakespeare.
+          </p>
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Label htmlFor="ai-model">Model</Label>
+          <Input
+            id="ai-model"
+            type="text"
+            value={modelDraft}
+            onChange={(e) => setModelDraft(e.target.value)}
+            onBlur={commitModel}
+            placeholder={DEFAULT_AI_MODEL}
+            className="font-mono text-xs"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p className="text-xs text-muted-foreground">
+            Model ID sent to the provider (e.g. <code className="bg-muted px-1 rounded">grok-4.1-fast</code>, <code className="bg-muted px-1 rounded">claude-opus-4.6</code>, <code className="bg-muted px-1 rounded">gpt-4o</code>).
+          </p>
+          {!providerIsDefault && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={resetProviderDefaults}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset provider to default
+            </Button>
+          )}
         </div>
 
         {hasBuddy && buddy && (
