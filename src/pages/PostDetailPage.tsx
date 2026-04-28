@@ -87,6 +87,8 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
+import { TileView } from "@/components/nostr-canvas/TileView";
+import { useTileRegistrations } from "@/hooks/useTileRegistrations";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
@@ -1039,6 +1041,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isBlobbiState = event.kind === 31124;
   const isBadgeAward = event.kind === BADGE_AWARD_KIND;
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
+
+  // Check installed tiles — when one matches this event's kind, it wins over the native dispatch.
+  const { findRendererForEvent } = useTileRegistrations();
+  const tileRenderer = findRendererForEvent(event);
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -2099,7 +2105,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
           <ContentWarningGuard event={event}>
-            {isPhoto ? (
+            {tileRenderer ? (
+              <TileView
+                identifier={tileRenderer.identifier}
+                placement="event"
+                props={{ event }}
+              />
+            ) : isPhoto ? (
               <PhotoDetailContent event={event} />
             ) : isVideo ? (
               <VideoDetailContent event={event} />

@@ -110,10 +110,16 @@ export function useInstalledTiles(): UseInstalledTilesResult {
         const nextOrder = navSidebarId
           ? (c.sidebarOrder ?? []).filter((id) => id !== navSidebarId)
           : c.sidebarOrder;
+        const nextWidgets = identifier
+          ? (c.sidebarWidgets ?? []).filter(
+              (w) => !(w.id === 'tile' && w.tileIdentifier === identifier),
+            )
+          : c.sidebarWidgets;
         return {
           ...c,
           installedTiles: current.filter((entry) => entry !== naddr),
           sidebarOrder: nextOrder ?? c.sidebarOrder,
+          sidebarWidgets: nextWidgets ?? c.sidebarWidgets,
         };
       });
       removeCachedTileEvent(naddr);

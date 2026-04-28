@@ -21,6 +21,7 @@ import {
   ChevronDown,
   LayoutGrid,
   Loader2,
+  RefreshCw,
   Rss,
   Trash2,
   Trash,
@@ -149,6 +150,50 @@ export function TileSettingsPage() {
         .sort((a, b) => b.created_at - a.created_at);
     },
   });
+
+  // ── Installed tiles freshness query ──────────────────────────────────────
+  // Fetch the latest relay version of every installed tile in one round-trip
+  // so we can show an "update available" indicator without a per-tile query.
+
+  const installedCoords = useMemo(
+    () => installedTiles.flatMap(({ event }) => {
+      const identifier = getDTag(event);
+      if (!identifier) return [];
+      return [{ pubkey: event.pubkey, identifier }];
+    }),
+    [installedTiles],
+  );
+
+  const { data: freshTileEvents } = useQuery<NostrEvent[]>({
+    queryKey: ['tiles-fresh', installedCoords.map((c) => `${c.pubkey}:${c.identifier}`).join(',')],
+    enabled: installedCoords.length > 0,
+    staleTime: 60_000,
+    queryFn: async ({ signal }) => {
+      if (installedCoords.length === 0) return [];
+      // Group by pubkey to minimise filter fan-out.
+      const byPubkey = new Map<string, string[]>();
+      for (const { pubkey, identifier } of installedCoords) {
+        (byPubkey.get(pubkey) ?? byPubkey.set(pubkey, []).get(pubkey)!).push(identifier);
+      }
+      const filters = Array.from(byPubkey.entries()).map(([pubkey, ids]) => ({
+        kinds: [TILE_KIND],
+        authors: [pubkey],
+        '#d': ids,
+        limit: ids.length,
+      }));
+      return nostr.query(filters, { signal });
+    },
+  });
+
+  // Map identifier → relay created_at for quick lookup.
+  const freshByIdentifier = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of freshTileEvents ?? []) {
+      const id = getDTag(e);
+      if (id) map.set(id, e.created_at);
+    }
+    return map;
+  }, [freshTileEvents]);
 
   // Track which event ids are being unpublished to show loading state.
   const [unpublishing, setUnpublishing] = useState<Set<string>>(new Set());
@@ -448,6 +493,12 @@ export function TileSettingsPage() {
                     >
                       <p className="truncate font-medium text-sm">{row.name}</p>
                       <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                      {(() => {
+                        const freshAt = freshByIdentifier.get(row.identifier);
+                        return freshAt != null && row.event != null && row.event.created_at < freshAt
+                          ? <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><RefreshCw className="size-3" />Update available</span>
+                          : null;
+                      })()}
                     </button>
                     <Button
                       variant="ghost" size="sm"
