@@ -60,6 +60,7 @@ import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
+import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PostActionBar } from "@/components/PostActionBar";
@@ -1080,6 +1081,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isProfile &&
     !isBlobbiState &&
     !isBadgeAward;
+
+  // Unknown kinds land in the `isTextNote` branch (negation of every known flag
+  // above). For anything other than real text-note kinds (1 / 11 / 1111) we
+  // render a NIP-31 fallback instead of treating arbitrary content as kind 1.
+  const isUnknownKind =
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2205,6 +2212,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isPeopleList && <PeopleListContent event={event} />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
+            ) : isUnknownKind ? (
+              <div className="mt-3">
+                <UnknownKindContent event={event} expanded />
+              </div>
             ) : (
               <div className="mt-3">
                 <NoteContent

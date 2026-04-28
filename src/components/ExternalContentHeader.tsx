@@ -1257,6 +1257,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
 
   const title = event?.tags.find(([n]) => n === 'title')?.[1]
     || event?.tags.find(([n]) => n === 'name')?.[1]
+    || event?.tags.find(([n]) => n === 'alt')?.[1]
     || event?.tags.find(([n]) => n === 'd')?.[1]
     || kindLabel;
   const thumbnail = event ? extractThumbnail(event.tags) : undefined;

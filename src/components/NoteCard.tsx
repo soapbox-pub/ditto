@@ -80,6 +80,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
@@ -468,6 +469,12 @@ export const NoteCard = memo(function NoteCard({
 
   const isComment = event.kind === 1111;
   const isReply = isTextNote && !isComment && isReplyEvent(event);
+  // Unknown kinds land in the `isTextNote` branch (it's the negation of every
+  // known-kind flag above). For anything other than real text-note kinds
+  // (1 / 11 / 1111), render a NIP-31 fallback instead of feeding arbitrary
+  // content into the kind-1 tokenizer.
+  const isUnknownKind =
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
 
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -666,6 +673,8 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <BlobbiStateCard event={event} lookMode="follow-pointer" />
           </Suspense>
+        ) : isUnknownKind ? (
+          <UnknownKindContent event={event} />
         ) : (
           <TruncatedNoteContent
             event={event}

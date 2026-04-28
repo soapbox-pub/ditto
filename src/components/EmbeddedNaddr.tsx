@@ -48,6 +48,8 @@ function extractMetadata(event: NostrEvent): {
   let title = getTag('title') || getTag('name');
   let description = getTag('summary') || getTag('description');
   let image = getTag('image') || getTag('thumb') || getTag('banner');
+  // NIP-31 fallback — the author's own "display me like this" string.
+  const alt = getTag('alt');
 
   // Try parsing JSON content for additional metadata
   if (event.content) {
@@ -66,6 +68,10 @@ function extractMetadata(event: NostrEvent): {
       }
     }
   }
+
+  // Final NIP-31 fallback — use alt for whichever field is still missing.
+  if (!title && alt) title = alt;
+  else if (!description && alt) description = alt;
 
   return { title, description, image };
 }
