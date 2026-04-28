@@ -18,7 +18,6 @@ import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import {
-  ExternalLink,
   LayoutGrid,
   Loader2,
   Rss,
@@ -423,16 +422,16 @@ export function TileSettingsPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate font-medium text-sm">{row.name}</p>
-                      <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
-                    </div>
-                    {row.naddr && (
-                      <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-                        <Link to={`/tiles/${row.naddr}`} title="View in marketplace">
-                          <ExternalLink className="size-4" />
-                        </Link>
-                      </Button>
+                    {row.naddr ? (
+                      <Link to={`/tiles/${row.naddr}`} className="flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                        <p className="truncate font-medium text-sm">{row.name}</p>
+                        <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                      </Link>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium text-sm">{row.name}</p>
+                        <p className="truncate text-xs text-muted-foreground font-mono">{row.identifier}</p>
+                      </div>
                     )}
                     {row.naddr && (
                       <Button
@@ -440,8 +439,7 @@ export function TileSettingsPage() {
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleUninstall(row.naddr!, row.identifier, row.name)}
                       >
-                        <Trash2 className="size-4 mr-1.5" />
-                        Uninstall
+                        <Trash2 className="size-4" />
                       </Button>
                     )}
                   </div>
