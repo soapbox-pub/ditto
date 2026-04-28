@@ -1,29 +1,45 @@
 /**
- * `/tiles` — marketplace + installed-tiles browser.
+ * `/tiles` — app-store style marketplace for nostr-canvas tiles.
  *
- * Three tabs:
- *  - **Featured**: tiles from `AppConfig.curatorPubkey` only. Author-filtered
- *    to protect against anyone flooding the relay with lookalike tiles.
- *  - **Browse**: every kind-30207 tile on the user's read relays, filtered
- *    down to ones whose `d`-tag NIP-05 prefix matches the author's verified
- *    NIP-05 in kind-0.
- *  - **Installed**: what the current user has installed locally. Uninstall
- *    and settings entry points live here.
+ * Layout (single page, no tabs):
+ *   ┌──────────────────────────────────┐
+ *   │  Tiles                    ⚙      │  ← PageHeader + Settings gear
+ *   │  🔍 Search…                       │  ← search bar (debounced)
+ *   │  ── Featured ──────────────────  │  ← horizontal scroll, 6–8 tiles
+ *   │  ── All tiles ─────────────────  │  ← Nx2 grid, paginated by recency
+ *   └──────────────────────────────────┘
+ *
+ * When the search bar has a query:
+ *   - Featured strip is hidden.
+ *   - The grid filters client-side by name, summary, and nip-05 prefix.
+ *
+ * The ⚙ gear navigates to `/settings/tiles` (My Tiles — published + installed).
  */
 
-import { useMemo } from 'react';
+import {
+  useDeferredValue,
+  useMemo,
+  useState,
+} from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { NSchema as n } from '@nostrify/nostrify';
-import { LayoutGrid, Star, Package, Globe, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  LayoutGrid,
+  Search,
+  Settings,
+} from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -38,333 +54,288 @@ import {
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
+// Suppress unused import warning — NSchema is consumed indirectly via nostrify
+void n;
+
 const TILE_KIND = 30207;
 const TILE_SCHEMA = '1';
+const PAGE_SIZE = 24;
 
 // ---------------------------------------------------------------------------
-// Small helpers shared across tabs
+// Tag helpers
 // ---------------------------------------------------------------------------
 
-function tagValue(event: NostrEvent, tagName: string): string | undefined {
-  return event.tags.find(([name]) => name === tagName)?.[1];
+function tagValue(event: NostrEvent, name: string): string | undefined {
+  return event.tags.find(([t]) => t === name)?.[1];
 }
-
-function tileDisplayName(event: NostrEvent): string {
-  return tagValue(event, 'name') ?? getDTag(event) ?? event.id.slice(0, 8);
-}
-
-function tileSummary(event: NostrEvent): string | undefined {
-  return tagValue(event, 'summary');
-}
-
-function tileImage(event: NostrEvent): string | undefined {
-  return sanitizeUrl(tagValue(event, 'image'));
-}
-
-function tileVersion(event: NostrEvent): string | undefined {
-  return tagValue(event, 'v');
+function tileDisplayName(e: NostrEvent) { return tagValue(e, 'name') ?? getDTag(e) ?? e.id.slice(0, 8); }
+function tileSummary(e: NostrEvent) { return tagValue(e, 'summary'); }
+function tileImage(e: NostrEvent) { return sanitizeUrl(tagValue(e, 'image')); }
+function tileVersion(e: NostrEvent) { return tagValue(e, 'v'); }
+function tileNip05(e: NostrEvent): string | null {
+  const d = getDTag(e);
+  if (!d) return null;
+  return parseTileIdentifier(d)?.nip05 ?? null;
 }
 
 // ---------------------------------------------------------------------------
-// TilesPage
+// Page
 // ---------------------------------------------------------------------------
 
 export function TilesPage() {
   const { config } = useAppContext();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { nostr } = useNostr();
 
-  // URL-bound tab selection — `?tab=browse`, `?tab=installed`, or
-  // defaulted to `featured`. Keeping the active tab in the URL means
-  // hitting the back button from a tile detail page lands on the tab
-  // the user came from, not always on Featured.
-  const rawTab = searchParams.get('tab');
-  const activeTab =
-    rawTab === 'browse' || rawTab === 'installed' ? rawTab : 'featured';
+  const [rawQuery, setRawQuery] = useState('');
+  // useDeferredValue gives us cheap debouncing without a useEffect+timer:
+  // React batches the deferred update during idle time so the input stays
+  // responsive even while the filter recomputes.
+  const query = useDeferredValue(rawQuery.trim().toLowerCase());
 
-  const setActiveTab = (value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value === 'featured') {
-      next.delete('tab');
-    } else {
-      next.set('tab', value);
-    }
-    // `replace: true` avoids creating a new history entry per tab click;
-    // the user's back button should step back past the whole Tiles page.
-    setSearchParams(next, { replace: true });
-  };
+  const [page, setPage] = useState(0);
+  // Reset to page 0 whenever the query changes.
+  const effectivePage = query ? 0 : page;
 
   useSeoMeta({
     title: `Tiles | ${config.appName}`,
-    description:
-      'Browse, install, and manage nostr-canvas tiles — programmable Lua mini-apps for your Nostr client.',
+    description: 'Browse, install, and manage nostr-canvas tiles.',
   });
+
+  // Single query for all marketplace tiles — we handle featured vs browse
+  // client-side so we don't need two relay round-trips.
+  const { data: allEvents, isLoading } = useQuery<NostrEvent[]>({
+    queryKey: ['tiles-all'],
+    staleTime: 60_000,
+    queryFn: async ({ signal }) => {
+      const results = await nostr.query(
+        [{ kinds: [TILE_KIND], '#t': ['nostr-canvas-tile'], limit: 500 }],
+        { signal },
+      );
+      return [...results]
+        .filter((e) => tagValue(e, 's') === TILE_SCHEMA)
+        .sort((a, b) => b.created_at - a.created_at);
+    },
+  });
+
+  // Featured = tiles by curatorPubkey, capped at 8.
+  const featuredEvents = useMemo(() => {
+    if (!allEvents || !config.curatorPubkey) return [];
+    return allEvents.filter((e) => e.pubkey === config.curatorPubkey).slice(0, 8);
+  }, [allEvents, config.curatorPubkey]);
+
+  // Filter for search — name, summary, and nip-05 prefix.
+  const filteredEvents = useMemo(() => {
+    if (!allEvents) return [];
+    if (!query) return allEvents;
+    return allEvents.filter((e) => {
+      const name = tileDisplayName(e).toLowerCase();
+      const summary = (tileSummary(e) ?? '').toLowerCase();
+      const nip05 = (tileNip05(e) ?? '').toLowerCase();
+      return name.includes(query) || summary.includes(query) || nip05.includes(query);
+    });
+  }, [allEvents, query]);
+
+  const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE);
+  const pageEvents = filteredEvents.slice(
+    effectivePage * PAGE_SIZE,
+    (effectivePage + 1) * PAGE_SIZE,
+  );
+
+  const { installedNaddrs } = useInstalledTiles();
+  const installedSet = useMemo(() => new Set(installedNaddrs), [installedNaddrs]);
+
+  const { requestGate } = useCanvasGate();
+  // Open the gate so feed/registration hooks are ready even on the browse page.
+  useMemo(() => { requestGate(); }, [requestGate]);
 
   return (
     <main className="pb-16 sidebar:pb-0">
-      <PageHeader title="Tiles" icon={<LayoutGrid className="size-5" />} />
+      <PageHeader
+        title="Tiles"
+        icon={<LayoutGrid className="size-5" />}
+      >
+        <Button variant="ghost" size="icon" asChild className="ml-auto" aria-label="My Tiles">
+          <Link to="/settings/tiles">
+            <Settings className="size-5" />
+          </Link>
+        </Button>
+      </PageHeader>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="sticky top-mobile-bar sidebar:top-0 z-10 bg-background/85 backdrop-blur-md border-b border-border px-4 pb-3">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="featured">
-              <Star className="size-3.5 mr-1.5" /> Featured
-            </TabsTrigger>
-            <TabsTrigger value="browse">
-              <Globe className="size-3.5 mr-1.5" /> Browse
-            </TabsTrigger>
-            <TabsTrigger value="installed">
-              <Package className="size-3.5 mr-1.5" /> Installed
-            </TabsTrigger>
-          </TabsList>
+      {/* Search */}
+      <div className="sticky top-mobile-bar sidebar:top-0 z-10 bg-background/85 backdrop-blur-md border-b border-border px-4 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <Input
+            className="pl-9"
+            placeholder="Search by name, description, or nip-05…"
+            value={rawQuery}
+            onChange={(e) => { setRawQuery(e.target.value); setPage(0); }}
+          />
         </div>
+      </div>
 
-        <TabsContent value="featured" className="px-4 pt-4">
-          <FeaturedTab curatorPubkey={config.curatorPubkey} />
-        </TabsContent>
+      <div className="px-4 pt-5 space-y-8">
 
-        <TabsContent value="browse" className="px-4 pt-4">
-          <BrowseTab />
-        </TabsContent>
+        {/* Featured strip — hidden during search */}
+        {!query && (
+          <section>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Featured
+            </h2>
+            {isLoading ? (
+              <FeaturedSkeleton />
+            ) : featuredEvents.length > 0 ? (
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory">
+                {featuredEvents.map((event) => (
+                  <FeaturedCard
+                    key={event.id}
+                    event={event}
+                    installedSet={installedSet}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {config.curatorPubkey
+                  ? 'No featured tiles yet.'
+                  : 'No curator configured for this instance.'}
+              </p>
+            )}
+          </section>
+        )}
 
-        <TabsContent value="installed" className="px-4 pt-4">
-          <InstalledTab />
-        </TabsContent>
-      </Tabs>
+        {/* All tiles grid */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {query ? `Results for "${rawQuery.trim()}"` : 'All tiles'}
+          </h2>
+
+          {isLoading ? (
+            <TileGridSkeleton />
+          ) : pageEvents.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-12 px-8 text-center">
+                <p className="text-sm font-semibold">
+                  {query ? 'No tiles match your search.' : 'No tiles found on your current relays.'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {pageEvents.map((event) => (
+                  <TileCard
+                    key={event.id}
+                    event={event}
+                    installedSet={installedSet}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-3 pt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={effectivePage === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {effectivePage + 1} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={effectivePage >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Featured tab — curator-pubkey scoped
+// Featured card — tall portrait card for the horizontal strip
 // ---------------------------------------------------------------------------
 
-function FeaturedTab({ curatorPubkey }: { curatorPubkey?: string }) {
-  const { nostr } = useNostr();
-
-  const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['tiles-featured', curatorPubkey ?? ''],
-    enabled: !!curatorPubkey,
-    staleTime: 60_000,
-    queryFn: async ({ signal }) => {
-      if (!curatorPubkey) return [];
-      // Note: we intentionally don't filter by `#s` at the relay level.
-      // Many relays don't index the single-letter `s` tag, which would
-      // cause valid tiles to silently disappear from Featured/Browse.
-      // We post-filter by schema version below.
-      const results = await nostr.query(
-        [
-          {
-            kinds: [TILE_KIND],
-            authors: [curatorPubkey],
-            '#t': ['nostr-canvas-tile'],
-            limit: 60,
-          },
-        ],
-        { signal },
-      );
-      return [...results]
-        .filter((e) => tagValue(e, 's') === TILE_SCHEMA)
-        .sort((a, b) => b.created_at - a.created_at);
-    },
-  });
-
-  if (!curatorPubkey) {
-    return (
-      <EmptyState
-        title="No curator configured"
-        body="This Ditto install has no `curatorPubkey` set. Ask your operator to configure one, or explore the Browse tab."
-      />
-    );
-  }
-
-  if (isLoading) return <TileGridSkeleton />;
-  if (!events || events.length === 0) {
-    return (
-      <EmptyState
-        title="No featured tiles yet"
-        body="The curator hasn't published any tiles. Check back soon, or browse the global list."
-      />
-    );
-  }
-
-  return <TileGrid events={events} />;
-}
-
-// ---------------------------------------------------------------------------
-// Browse tab — global discovery
-// ---------------------------------------------------------------------------
-
-function BrowseTab() {
-  const { nostr } = useNostr();
-
-  const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['tiles-browse'],
-    staleTime: 60_000,
-    queryFn: async ({ signal }) => {
-      // Don't filter by `#s` at the relay — many relays don't index
-      // single-letter tags they don't recognise, and `s` is new. Post-
-      // filter by schema version client-side instead.
-      const results = await nostr.query(
-        [
-          {
-            kinds: [TILE_KIND],
-            '#t': ['nostr-canvas-tile'],
-            limit: 200,
-          },
-        ],
-        { signal },
-      );
-      return [...results]
-        .filter((e) => tagValue(e, 's') === TILE_SCHEMA)
-        .sort((a, b) => b.created_at - a.created_at);
-    },
-  });
-
-  if (isLoading) return <TileGridSkeleton />;
-  if (!events || events.length === 0) {
-    return (
-      <EmptyState
-        title="No tiles found"
-        body="No nostr-canvas tiles are available on your current relays."
-      />
-    );
-  }
-
-  return <TileGrid events={events} verifyAuthor />;
-}
-
-// ---------------------------------------------------------------------------
-// Installed tab
-// ---------------------------------------------------------------------------
-
-function InstalledTab() {
-  const { installedTiles, installedNaddrs } = useInstalledTiles();
-
-  if (installedTiles.length === 0) {
-    return (
-      <EmptyState
-        title="You haven't installed any tiles yet"
-        body="Explore the Featured and Browse tabs to find tiles that match how you want to use Nostr."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {installedTiles.map(({ naddr, event }) => (
-        <InstalledTileRow key={naddr} naddr={naddr} event={event} />
-      ))}
-      {/* Show a minimal line for any installed naddr whose local cache entry
-          is missing, so the user can reinstall rather than seeing a ghost. */}
-      {installedNaddrs
-        .filter((naddr) => !installedTiles.some((t) => t.naddr === naddr))
-        .map((naddr) => (
-          <Card key={naddr} className="border-dashed">
-            <CardContent className="py-3 px-4 text-sm text-muted-foreground">
-              Local copy missing — reinstall{' '}
-              <Link to={`/tiles/${naddr}`} className="underline">
-                this tile
-              </Link>{' '}
-              to restore it.
-            </CardContent>
-          </Card>
-        ))}
-    </div>
-  );
-}
-
-function InstalledTileRow({
-  naddr,
+function FeaturedCard({
   event,
-}: {
-  naddr: string;
-  event: NostrEvent;
-}) {
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const image = tileImage(event);
-  const identifier = getDTag(event) ?? '';
-
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="flex items-center gap-3 p-3">
-        <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
-          {image
-            ? (
-              <img
-                src={image}
-                alt=""
-                className="size-full object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            )
-            : (
-              <div className="flex size-full items-center justify-center text-muted-foreground">
-                <LayoutGrid className="size-5" />
-              </div>
-            )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <Link
-            to={`/tiles/${naddr}`}
-            className="block truncate font-medium hover:underline"
-          >
-            {tileDisplayName(event)}
-          </Link>
-          <div className="truncate text-xs text-muted-foreground">
-            {metadata?.nip05 ?? identifier}
-          </div>
-        </div>
-
-        <Link
-          to={`/tiles/run/${encodeURIComponent(identifier)}`}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Open
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Shared grid components
-// ---------------------------------------------------------------------------
-
-function TileGrid({
-  events,
-  verifyAuthor,
-}: {
-  events: NostrEvent[];
-  verifyAuthor?: boolean;
-}) {
-  const { installedNaddrs } = useInstalledTiles();
-  const installedSet = useMemo(() => new Set(installedNaddrs), [installedNaddrs]);
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {events.map((event) => (
-        <TileCard
-          key={event.id}
-          event={event}
-          verifyAuthor={verifyAuthor}
-          installedSet={installedSet}
-        />
-      ))}
-    </div>
-  );
-}
-
-function TileCard({
-  event,
-  verifyAuthor,
   installedSet,
 }: {
   event: NostrEvent;
-  verifyAuthor?: boolean;
+  installedSet: ReadonlySet<string>;
+}) {
+  const author = useAuthor(event.pubkey);
+  const metadata: NostrMetadata | undefined = author.data?.metadata;
+  const naddr = tileEventToNaddr(event);
+  const isInstalled = installedSet.has(naddr);
+  const image = tileImage(event);
+  const name = tileDisplayName(event);
+  const summary = tileSummary(event);
+  const parts = parseTileIdentifier(getDTag(event) ?? '');
+
+  return (
+    <Link
+      to={`/tiles/${naddr}`}
+      className={cn(
+        'group relative flex-none w-40 sm:w-48 snap-start overflow-hidden rounded-xl border bg-card transition-colors',
+        isInstalled
+          ? 'border-emerald-500/40 hover:border-emerald-500/70'
+          : 'border-border hover:border-primary/40',
+      )}
+    >
+      {/* Square image */}
+      <div className="relative aspect-square bg-gradient-to-br from-primary/10 to-muted/20">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30">
+            <LayoutGrid className="size-10" />
+          </div>
+        )}
+        {isInstalled && (
+          <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-emerald-500/95 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
+            <CheckCircle2 className="size-3" strokeWidth={2.5} />
+          </span>
+        )}
+      </div>
+      {/* Meta */}
+      <div className="p-2 space-y-0.5">
+        <p className="truncate text-xs font-semibold group-hover:text-primary">{name}</p>
+        {summary && <p className="line-clamp-2 text-[11px] text-muted-foreground leading-tight">{summary}</p>}
+        <p className="truncate text-[10px] text-muted-foreground/70">
+          {metadata?.name ?? parts?.nip05 ?? ''}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Grid card — standard landscape card for the main grid
+// ---------------------------------------------------------------------------
+
+function TileCard({
+  event,
+  installedSet,
+}: {
+  event: NostrEvent;
   installedSet: ReadonlySet<string>;
 }) {
   const author = useAuthor(event.pubkey);
@@ -372,18 +343,10 @@ function TileCard({
 
   const verification = tileVerificationState(event, metadata);
 
-  // In browse mode, hide tiles whose `d` tag is structurally malformed
-  // (no `d`, missing `:`, or a syntactically invalid NIP-05 prefix) — those
-  // can't be installed correctly anyway. Well-formed-but-unverified tiles
-  // stay visible with a warning badge so discovery still works when authors
-  // haven't published kind-0 metadata.
-  if (verifyAuthor && verification === 'malformed') return null;
+  // Hide structurally malformed tiles — they can't be installed anyway.
+  if (verification === 'malformed') return null;
 
-  // Don't show an "unverified" badge while we're still waiting on the
-  // author's metadata — otherwise verified tiles flash a warning before
-  // the kind-0 arrives.
-  const showUnverifiedBadge =
-    verifyAuthor && verification === 'unverified' && !author.isLoading;
+  const showUnverifiedBadge = verification === 'unverified' && !author.isLoading;
 
   const naddr = tileEventToNaddr(event);
   const isInstalled = installedSet.has(naddr);
@@ -398,31 +361,26 @@ function TileCard({
     <Link
       to={`/tiles/${naddr}`}
       className={cn(
-        'group block overflow-hidden rounded-xl border bg-card',
-        'transition-colors',
+        'group block overflow-hidden rounded-xl border bg-card transition-colors',
         isInstalled
           ? 'border-emerald-500/40 hover:border-emerald-500/70'
           : 'border-border hover:border-primary/40',
       )}
     >
       <div className="relative aspect-[16/9] bg-gradient-to-br from-primary/10 to-muted/20">
-        {image
-          ? (
-            <img
-              src={image}
-              alt=""
-              className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          )
-          : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
-              <LayoutGrid className="size-10" />
-            </div>
-          )}
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
+            <LayoutGrid className="size-10" />
+          </div>
+        )}
         {isInstalled && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -437,8 +395,7 @@ function TileCard({
               </span>
             </TooltipTrigger>
             <TooltipContent side="right" className="max-w-xs">
-              You have this tile installed. Open it from the Installed tab or
-              your sidebar.
+              You have this tile installed.
             </TooltipContent>
           </Tooltip>
         )}
@@ -456,8 +413,7 @@ function TileCard({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="left" className="max-w-xs">
-                The author hasn't published a NIP-05 identifier that matches
-                this tile's namespace. Install only if you trust the author.
+                The author's NIP-05 doesn't match this tile's namespace. Install only if you trust the author.
               </TooltipContent>
             </Tooltip>
           )}
@@ -469,12 +425,8 @@ function TileCard({
         </div>
       </div>
       <div className="space-y-1 p-3">
-        <h3 className="truncate text-sm font-semibold group-hover:text-primary">
-          {name}
-        </h3>
-        {summary && (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{summary}</p>
-        )}
+        <h3 className="truncate text-sm font-semibold group-hover:text-primary">{name}</h3>
+        {summary && <p className="line-clamp-2 text-xs text-muted-foreground">{summary}</p>}
         <p className="truncate text-xs text-muted-foreground/80">
           by {metadata?.display_name ?? metadata?.name ?? parts?.nip05 ?? 'unknown'}
         </p>
@@ -483,14 +435,31 @@ function TileCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Skeletons
+// ---------------------------------------------------------------------------
+
+function FeaturedSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden -mx-4 px-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex-none w-40 sm:w-48 overflow-hidden rounded-xl border border-border bg-card">
+          <Skeleton className="aspect-square w-full" />
+          <div className="p-2 space-y-1">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TileGridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-xl border border-border bg-card"
-        >
+        <div key={i} className="overflow-hidden rounded-xl border border-border bg-card">
           <Skeleton className="aspect-[16/9] w-full" />
           <div className="space-y-1.5 p-3">
             <Skeleton className="h-4 w-2/3" />
@@ -500,31 +469,5 @@ function TileGridSkeleton() {
         </div>
       ))}
     </div>
-  );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  // When rendered, make sure the canvas gate is open so the user's
-  // installed tiles' runtime is ready — an empty state on /tiles still
-  // benefits from tile registrations being active.
-  const { requestGate } = useCanvasGate();
-  useMemo(() => {
-    requestGate();
-    return null;
-  }, [requestGate]);
-
-  // Touch NSchema so the module isn't considered unused (some adapters
-  // parse metadata in-place here in the future).
-  void n;
-
-  return (
-    <Card className="border-dashed">
-      <CardContent className="py-12 px-8 text-center">
-        <h2 className="mx-auto max-w-sm text-base font-semibold">{title}</h2>
-        <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-          {body}
-        </p>
-      </CardContent>
-    </Card>
   );
 }
