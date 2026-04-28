@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DorkThinking } from '@/components/DorkThinking';
-import { useShakespeare, useShakespeareCredits, sortModelsByCost, type ChatMessage } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, type ChatMessage } from '@/hooks/useShakespeare';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
@@ -19,20 +19,13 @@ const conversationCache = new Map<string, ChatMessage[]>();
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
   const { user } = useCurrentUser();
-  const { sendStreamingMessage, getAvailableModels, isLoading, isAuthenticated } = useShakespeare();
+  const { config } = useAppContext();
+  const { sendStreamingMessage, isLoading, isAuthenticated } = useShakespeare();
   const hasCredits = useShakespeareCredits();
 
-  // Fetch available models and select the cheapest as default
-  const { data: defaultModelId } = useQuery({
-    queryKey: ['shakespeare-default-model'],
-    queryFn: async () => {
-      const response = await getAvailableModels();
-      const sorted = sortModelsByCost(response.data);
-      return sorted[0]?.id ?? '';
-    },
-    staleTime: 10 * 60_000,
-    enabled: !!user,
-  });
+  // Use the configured model directly. `config.aiModel` always has a value
+  // (default: `grok-4.1-fast`, set in App.tsx).
+  const modelId = config.aiModel;
 
   const cacheKey = user?.pubkey ?? '';
   const [messages, setMessages] = useState<ChatMessage[]>(() => conversationCache.get(cacheKey) ?? []);
@@ -73,7 +66,7 @@ export function AIChatWidget() {
       let accumulated = '';
       await sendStreamingMessage(
         newMessages,
-        defaultModelId || 'shakespeare',
+        modelId,
         (chunk) => {
           accumulated += chunk;
           setStreamingContent(accumulated);
@@ -85,7 +78,7 @@ export function AIChatWidget() {
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
       setStreamingContent('');
     }
-  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId]);
+  }, [input, isLoading, messages, sendStreamingMessage, modelId]);
 
   if (!user || !isAuthenticated) {
     return (
@@ -170,7 +163,7 @@ export function AIChatWidget() {
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading || !defaultModelId}
+            disabled={!input.trim() || isLoading || !modelId}
             className="shrink-0 p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="size-4" />

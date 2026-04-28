@@ -130,7 +130,9 @@ export function TestApp({ children }: TestAppProps) {
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
     sidebarWidgets: [],
-    aiModel: '',
+    aiBaseURL: 'https://ai.shakespeare.diy/v1',
+    aiApiKey: '',
+    aiModel: 'grok-4.1-fast',
     aiSystemPrompt: '',
   };
 
