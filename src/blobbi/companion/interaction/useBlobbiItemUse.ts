@@ -380,6 +380,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
         kind: KIND_BLOBBI_STATE,
         content,
         tags: blobbiTags,
+        prev: companion.event,
       });
       
       updateCompanionInCache(blobbiEvent);
