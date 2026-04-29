@@ -197,8 +197,9 @@ export function useBlobbiMigration() {
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content ?? '',
         tags: profileTags,
+        prev: profile.event,
       });
       
       // Update query caches (optimistic — no invalidation needed since we
@@ -398,7 +399,7 @@ export function useBlobbiMigration() {
           const profileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
           const profileEvent = await publishEvent({
             kind: KIND_BLOBBONAUT_PROFILE,
-            content: '',
+            content: profile.event.content ?? '',
             tags: profileTags,
             prev: profile.event,
           });
