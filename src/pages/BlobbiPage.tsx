@@ -12,8 +12,10 @@ import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -76,6 +78,7 @@ import {
    useDailyMissions,
    useAwardDailyXp,
    usePersistEvolutionProgress,
+   usePersistDailyProgress,
    applyXPGain,
    POOP_CLEANUP_XP,
    type InventoryAction,
@@ -195,6 +198,7 @@ function LoggedOutState() {
 
 function BlobbiContent() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   
@@ -603,17 +607,26 @@ function BlobbiContent() {
       // User already has a hatched blobbi — skip ceremony entirely.
       // Auto-fix the onboardingDone flag if it was missing.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
-      if (profile && !profile.onboardingDone) {
-        const updatedTags = updateBlobbonautTags(profile.allTags, {
-          blobbi_onboarding_done: 'true',
-        });
-        publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
-          tags: updatedTags,
+      if (profile && !profile.onboardingDone && user?.pubkey) {
+        fetchFreshEvent(nostr, {
+          kinds: [KIND_BLOBBONAUT_PROFILE],
+          authors: [user.pubkey],
+        }).then(prev => {
+          if (!prev) return;
+          const updatedTags = updateBlobbonautTags(prev.tags, {
+            blobbi_onboarding_done: 'true',
+          });
+          return publishEvent({
+            kind: KIND_BLOBBONAUT_PROFILE,
+            content: prev.content,
+            tags: updatedTags,
+            prev,
+          });
         }).then(event => {
-          updateProfileEvent(event);
-          invalidateProfile();
+          if (event) {
+            updateProfileEvent(event);
+            invalidateProfile();
+          }
         }).catch(err => console.error('[BlobbiPage] Failed to auto-fix onboardingDone:', err));
       }
     } else if (eggs.length > 0) {
@@ -1197,7 +1210,7 @@ function BlobbiDashboard({
       const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: prev.content,
         tags: updatedTags,
         prev,
       });
@@ -1332,6 +1345,9 @@ function BlobbiDashboard({
   
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
   usePersistEvolutionProgress(companion.d, updateCompanionEvent);
+
+  // Persist daily mission progress (debounced) to kind 11125 so it survives page refresh
+  usePersistDailyProgress(updateProfileEvent);
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
@@ -1643,6 +1659,10 @@ function BlobbiDashboard({
           companion={companion}
           onApply={onDevEditorApply}
           isUpdating={isDevUpdating}
+          onResetDailyMissions={() => {
+            dailyMissions.forceReset();
+            window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { devReset: true } }));
+          }}
         />
       )}
       
@@ -1718,6 +1738,7 @@ function HomeBar({
   guideHighlightId,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
+  const { user } = useCurrentUser();
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:home`, null);
   const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
 
@@ -1758,7 +1779,10 @@ function HomeBar({
             label="Photo"
             color="text-pink-500"
             glowHex="#ec4899"
-            onClick={() => setShowPhotoModal(true)}
+            onClick={() => {
+              setShowPhotoModal(true);
+              trackDailyMissionProgress('take_photo', 1, user?.pubkey);
+            }}
           />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
@@ -2317,14 +2341,20 @@ function MissionsTabContent({
 
         {pane === 'bounties' && (
           <>
-            {dailyMissions.noMissionsAvailable && (
+            {dailyMissions.isLoading && (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <p className="text-xs text-muted-foreground/50">Loading daily bounties...</p>
+              </div>
+            )}
+
+            {!dailyMissions.isLoading && dailyMissions.noMissionsAvailable && (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
                 <Egg className="size-6 text-muted-foreground/30" />
                 <p className="text-xs text-muted-foreground">Hatch your Blobbi to unlock daily bounties</p>
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && missions.map(mission => (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && missions.map(mission => (
               <div
                 key={mission.id}
                 className={cn(
@@ -2347,7 +2377,7 @@ function MissionsTabContent({
             ))}
 
             {/* Bonus row */}
-            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusUnlocked && (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyMissions.bonusUnlocked && (
               <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/[0.06]">
                 <div className="size-8 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
                   <Sparkles className="size-4 text-violet-500" />
@@ -2360,7 +2390,7 @@ function MissionsTabContent({
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
                 <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
