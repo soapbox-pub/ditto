@@ -43,14 +43,22 @@ export function ItemCarousel({
   initialItemId,
   className,
 }: ItemCarouselProps) {
-  const [index, setIndex] = useState(() => {
+ const [index, setIndex] = useState(() => {
     if (initialItemId) {
-      const idx = items.findIndex(i => i.id === initialItemId);
-      return idx >= 0 ? idx : 0;
+      const i = items.findIndex(item => item.id === initialItemId);
+      if (i !== -1) return i;
     }
     return 0;
   });
   const count = items.length;
+
+  // Realign when initialItemId changes after mount (e.g. Blobbi switch causes
+  // useLocalStorage to re-read a different key).
+  useEffect(() => {
+    if (!initialItemId) return;
+    const target = items.findIndex(item => item.id === initialItemId);
+    if (target !== -1) setIndex(target);
+  }, [initialItemId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally omits items to avoid fighting user navigation
 
   // Clamp or preserve index when items change.
   // Only reset when the focused item no longer exists or the index is out of

@@ -1,6 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, UserCheck, Users } from 'lucide-react';
+import { Bird, Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -482,6 +483,31 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Birdstar (feed-only — external app, no Ditto page)
+  {
+    kind: 2473,
+    id: 'bird-detections',
+    feedKey: 'feedIncludeBirdDetections',
+    label: 'Bird Detections',
+    description: 'Species heard in the wild (Birdsong Spotter)',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Bird-by-ear detections — someone heard a species sing or call, and logged the sighting. Identified by Wikidata entity.',
+    sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
+  },
+  {
+    kind: 30621,
+    id: 'constellations',
+    feedKey: 'feedIncludeConstellations',
+    label: 'Constellations',
+    description: 'User-drawn custom star figures (Starpoint)',
+    addressable: true,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Custom constellations drawn star-by-star on an interactive sky map. Trace your own figures and share them on Nostr.',
+    sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
+  },
   // Development
   {
     kind: 30617,
@@ -577,6 +603,8 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   15128: Globe,
   35128: Globe,
   30817: CircleAlert,
+  2473: Bird,
+  30621: Stars,
 };
 
 /**
@@ -662,4 +690,20 @@ export function getAllExtraKindNumbers(): number[] {
   }
 
   return kinds;
+}
+
+/**
+ * Extract the NIP-31 `alt` tag — the author's own human-readable fallback
+ * text for clients that don't know how to render the event's kind.
+ *
+ * Only `alt` is consulted. Other tags (`title`, `name`, `summary`,
+ * `description`, `d`) are intentionally excluded: they have kind-specific
+ * semantics and are not guaranteed to be safe user-facing text. When `alt`
+ * is missing, callers should render a neutral "unsupported kind" tombstone.
+ *
+ * Returns `undefined` if the event has no `alt` tag (or it's blank).
+ */
+export function getEventFallbackText(event: NostrEvent): string | undefined {
+  const alt = event.tags.find(([n]) => n === 'alt')?.[1];
+  return alt && alt.trim().length > 0 ? alt.trim() : undefined;
 }

@@ -191,6 +191,7 @@ export function useBlobbiDirectAction({
         kind: KIND_BLOBBI_STATE,
         content,
         tags: blobbiTags,
+        prev: canonical.companion.event,
       });
 
       updateCompanionEvent(blobbiEvent);

@@ -18,8 +18,10 @@ import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -33,6 +35,7 @@ import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
+import { BlobbiEvolveCeremony } from '@/blobbi/onboarding/components/BlobbiEvolveCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
@@ -86,6 +89,7 @@ import {
    useDailyMissions,
    useAwardDailyXp,
    usePersistEvolutionProgress,
+   usePersistDailyProgress,
    applyXPGain,
    POOP_CLEANUP_XP,
    type InventoryAction,
@@ -95,7 +99,6 @@ import {
   type BlobbiReactionState,
   type StartIncubationMode,
 } from '@/blobbi/actions';
-// DailyMissionsPanel no longer used — daily missions rendered inline in MissionsTabContent
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
@@ -206,6 +209,7 @@ function LoggedOutState() {
 
 function BlobbiContent() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   
@@ -606,17 +610,26 @@ function BlobbiContent() {
       // User already has a hatched blobbi — skip ceremony entirely.
       // Auto-fix the onboardingDone flag if it was missing.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
-      if (profile && !profile.onboardingDone) {
-        const updatedTags = updateBlobbonautTags(profile.allTags, {
-          blobbi_onboarding_done: 'true',
-        });
-        publishEvent({
-          kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
-          tags: updatedTags,
+      if (profile && !profile.onboardingDone && user?.pubkey) {
+        fetchFreshEvent(nostr, {
+          kinds: [KIND_BLOBBONAUT_PROFILE],
+          authors: [user.pubkey],
+        }).then(prev => {
+          if (!prev) return;
+          const updatedTags = updateBlobbonautTags(prev.tags, {
+            blobbi_onboarding_done: 'true',
+          });
+          return publishEvent({
+            kind: KIND_BLOBBONAUT_PROFILE,
+            content: prev.content,
+            tags: updatedTags,
+            prev,
+          });
         }).then(event => {
-          updateProfileEvent(event);
-          invalidateProfile();
+          if (event) {
+            updateProfileEvent(event);
+            invalidateProfile();
+          }
         }).catch(err => console.error('[BlobbiPage] Failed to auto-fix onboardingDone:', err));
       }
     } else if (eggs.length > 0) {
@@ -903,6 +916,7 @@ function BlobbiDashboard({
   isDevUpdating,
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
+  const { user } = useCurrentUser();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -911,17 +925,13 @@ function BlobbiDashboard({
   const [activeDrawer, setActiveDrawer] = useState<DashboardDrawer>('none');
 
   // ─── Room Navigation ───
-  const [currentRoom, setCurrentRoom] = useState<BlobbiRoomId>(
-    isSleeping ? 'rest' : isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM,
-  );
+  // Persisted room: only written on user-driven room changes (sleep override is UI-only).
+  const roomStorageKey = `blobbi:room:${user?.pubkey ?? 'anon'}:${companion.d}`;
+  const roomDefault = isValidRoomId(profile?.room) ? profile.room : DEFAULT_INITIAL_ROOM;
+  const [storedRoom, setStoredRoom] = useLocalStorage<BlobbiRoomId>(roomStorageKey, roomDefault);
+  // Effective room: sleeping temporarily forces 'rest'; waking up returns to storedRoom.
+  const currentRoom: BlobbiRoomId = isSleeping ? 'rest' : isValidRoomId(storedRoom) ? storedRoom : DEFAULT_INITIAL_ROOM;
   const poopStateRef = useRef<PoopState | null>(null);
-
-  // Auto-navigate to bedroom when blobbi falls asleep
-  useEffect(() => {
-    if (isSleeping) {
-      setCurrentRoom('rest');
-    }
-  }, [isSleeping]);
 
     // ─── Interaction Activity ───
   // Disabled for eggs: they do not participate in social stat-loss/care flow.
@@ -1081,10 +1091,12 @@ function BlobbiDashboard({
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showHatchCeremony, setShowHatchCeremony] = useState(false);
+  const [showEvolveCeremony, setShowEvolveCeremony] = useState(false);
   
-  // Reset hatch ceremony when switching companions
+  // Reset hatch/evolve ceremony when switching companions
   useEffect(() => {
     setShowHatchCeremony(false);
+    setShowEvolveCeremony(false);
   }, [selectedD]);
   
   // DEV ONLY: Emotion panel state
@@ -1251,7 +1263,7 @@ function BlobbiDashboard({
       const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: prev.content,
         tags: updatedTags,
         prev,
       });
@@ -1386,6 +1398,9 @@ function BlobbiDashboard({
   
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
   usePersistEvolutionProgress(companion.d, updateCompanionEvent);
+
+  // Persist daily mission progress (debounced) to kind 11125 so it survives page refresh
+  usePersistDailyProgress(updateProfileEvent);
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
@@ -1525,8 +1540,8 @@ function BlobbiDashboard({
                   evolveTasks={evolveTasks}
                   onHatch={async () => setShowHatchCeremony(true)}
                   isHatching={isHatching || showHatchCeremony}
-                  onEvolve={onEvolve}
-                  isEvolving={isEvolving}
+                  onEvolve={async () => setShowEvolveCeremony(true)}
+                  isEvolving={isEvolving || showEvolveCeremony}
                   onStopIncubation={handleStopIncubation}
                   isStoppingIncubation={isStoppingIncubation}
                   onStopEvolution={handleStopEvolution}
@@ -1560,7 +1575,7 @@ function BlobbiDashboard({
                   onAdopt={() => setShowAdoptionFlow(true)}
                   onDevOpenEditor={() => setShowDevEditor(true)}
                   onDevOpenEmotionPanel={() => setShowEmotionPanel(true)}
-                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? onEvolve : undefined}
+                  onDevInstantTransition={isEgg ? () => setShowHatchCeremony(true) : isBaby ? () => setShowEvolveCeremony(true) : undefined}
                   isHatching={isHatching}
                   isEvolving={isEvolving}
                 />
@@ -1599,7 +1614,7 @@ function BlobbiDashboard({
             toast({ title: 'Zzz...', description: `${companion.name} is sleeping. Wake up first!` });
             return;
           }
-          setCurrentRoom(room);
+          setStoredRoom(room);
         }}
         isSleeping={isSleeping}
         hunger={currentStats.hunger}
@@ -1683,6 +1698,7 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
+            carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
           />
         )}
       </BlobbiRoomShell>
@@ -1722,6 +1738,18 @@ function BlobbiDashboard({
         document.body,
       )}
 
+      {/* Evolve Ceremony — portaled to document.body like the hatch ceremony */}
+      {showEvolveCeremony && createPortal(
+        <div className="fixed inset-0 z-[100] bg-background">
+          <BlobbiEvolveCeremony
+            companion={companion}
+            onEvolve={onEvolve}
+            onComplete={() => setShowEvolveCeremony(false)}
+          />
+        </div>,
+        document.body,
+      )}
+
       {/* Adoption Flow Modal */}
       <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
@@ -1746,6 +1774,10 @@ function BlobbiDashboard({
           companion={companion}
           onApply={onDevEditorApply}
           isUpdating={isDevUpdating}
+          onResetDailyMissions={() => {
+            dailyMissions.forceReset();
+            window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { devReset: true } }));
+          }}
         />
       )}
       
@@ -1789,6 +1821,8 @@ interface RoomBottomBarProps {
   guideHighlightId?: string | null;
   /** Action to glow (guide flow, e.g. 'sleep'). */
   guideActionGlow?: string | null;
+  /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
+  carouselKeyPrefix: string;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -1817,7 +1851,12 @@ function HomeBar({
   setShowPhotoModal,
   poopStateRef,
   guideHighlightId,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
+  const { user } = useCurrentUser();
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:home`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
+
   const carouselItems = useMemo<CarouselEntry[]>(() => {
     const toys = getLiveShopItems()
       .filter(i => i.type === 'toy')
@@ -1855,7 +1894,10 @@ function HomeBar({
             label="Photo"
             color="text-pink-500"
             glowHex="#ec4899"
-            onClick={() => setShowPhotoModal(true)}
+            onClick={() => {
+              setShowPhotoModal(true);
+              trackDailyMissionProgress('take_photo', 1, user?.pubkey);
+            }}
           />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
@@ -1864,6 +1906,8 @@ function HomeBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
+              onFocusChange={handleFocusChange}
             />
           </div>
           {canBeCompanion ? (
@@ -1907,7 +1951,10 @@ function KitchenBar({
   poopStateRef,
   guideHighlightId,
   guideActionGlow,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
+  const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
   const [showFridge, setShowFridge] = useState(false);
   const poopState = poopStateRef.current;
   const drag = useShovelDrag(poopState);
@@ -2012,6 +2059,8 @@ function KitchenBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
+              onFocusChange={handleFocusChange}
             />
           </div>
           <RoomActionButton
@@ -2038,6 +2087,7 @@ function CareBar({
   handleUseItemFromTab,
   poopStateRef,
   guideHighlightId,
+  carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const allShopItems = useMemo(() => getLiveShopItems(), []);
   const hygieneItems = useMemo(() => allShopItems.filter(i => i.type === 'hygiene'), [allShopItems]);
@@ -2053,8 +2103,26 @@ function CareBar({
     return [...hygiene, ...medicine];
   }, [hygieneItems, allShopItems]);
 
-  const [focusedMeta, setFocusedMeta] = useState(carouselEntries[0]?.meta ?? 'hygiene');
-  const handleFocusChange = useCallback((entry: CarouselEntry) => setFocusedMeta(entry.meta ?? 'hygiene'), []);
+  const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:care`, null);
+  const [focusedMeta, setFocusedMeta] = useState(() => {
+    if (storedFocusId) {
+      const stored = carouselEntries.find(e => e.id === storedFocusId);
+      if (stored) return stored.meta ?? 'hygiene';
+    }
+    return carouselEntries[0]?.meta ?? 'hygiene';
+  });
+
+  // Sync focusedMeta when storedFocusId changes after mount (e.g. Blobbi switch).
+  useEffect(() => {
+    if (!storedFocusId) return;
+    const stored = carouselEntries.find(e => e.id === storedFocusId);
+    if (stored) setFocusedMeta(stored.meta ?? 'hygiene');
+  }, [storedFocusId, carouselEntries]);
+
+  const handleFocusChange = useCallback((entry: CarouselEntry) => {
+    setFocusedMeta(entry.meta ?? 'hygiene');
+    setStoredFocusId(entry.id);
+  }, [setStoredFocusId]);
   const isHygieneFocused = focusedMeta === 'hygiene';
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
   const towelItem = hygieneItems.find(i => i.id === 'hyg_towel');
@@ -2100,6 +2168,7 @@ function CareBar({
               disabled={isDisabled}
               onFocusChange={handleFocusChange}
               highlightId={guideHighlightId}
+              initialItemId={storedFocusId ?? undefined}
             />
           </div>
           {isHygieneFocused ? (
@@ -2387,14 +2456,20 @@ function MissionsTabContent({
 
         {pane === 'bounties' && (
           <>
-            {dailyMissions.noMissionsAvailable && (
+            {dailyMissions.isLoading && (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <p className="text-xs text-muted-foreground/50">Loading daily bounties...</p>
+              </div>
+            )}
+
+            {!dailyMissions.isLoading && dailyMissions.noMissionsAvailable && (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
                 <Egg className="size-6 text-muted-foreground/30" />
                 <p className="text-xs text-muted-foreground">Hatch your Blobbi to unlock daily bounties</p>
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && missions.map(mission => (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && missions.map(mission => (
               <div
                 key={mission.id}
                 className={cn(
@@ -2417,7 +2492,7 @@ function MissionsTabContent({
             ))}
 
             {/* Bonus row */}
-            {!dailyMissions.noMissionsAvailable && dailyMissions.bonusUnlocked && (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyMissions.bonusUnlocked && (
               <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/[0.06]">
                 <div className="size-8 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
                   <Sparkles className="size-4 text-violet-500" />
@@ -2430,7 +2505,7 @@ function MissionsTabContent({
               </div>
             )}
 
-            {!dailyMissions.noMissionsAvailable && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
+            {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
                 <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>

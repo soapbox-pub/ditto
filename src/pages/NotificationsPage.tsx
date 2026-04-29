@@ -68,6 +68,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1222: 'voice message',
   1617: 'patch',
   1618: 'pull request',
+  2473: 'bird detection',
   3367: 'color moment',
   7516: 'found log',
   15128: 'nsite',
@@ -96,6 +97,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   36787: 'track',
   37381: 'Magic deck',
   37516: 'treasure',
+  30621: 'constellation',
   39089: 'follow pack',
 };
 

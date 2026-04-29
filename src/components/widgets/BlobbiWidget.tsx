@@ -189,7 +189,7 @@ export function BlobbiWidget() {
       const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: prev.content,
         tags: updatedTags,
         prev,
       });

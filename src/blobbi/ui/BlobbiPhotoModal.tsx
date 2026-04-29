@@ -15,7 +15,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 import { openUrl } from '@/lib/downloadFile';
-import { trackDailyMissionProgress } from '@/blobbi/actions';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import { Capacitor } from '@capacitor/core';
@@ -116,7 +115,6 @@ export function BlobbiPhotoModal({
       });
 
       toast({ title: 'Posted!', description: 'Your Blobbi photo has been shared.' });
-      trackDailyMissionProgress('take_photo', 1, user.pubkey);
       onOpenChange(false);
     } catch (error) {
       console.error('[BlobbiPhoto] Failed to share:', error);

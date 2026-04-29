@@ -3,10 +3,10 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
+  Award, BarChart3, BookOpen, Bird, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
-  UserCheck, Users, Vote, Zap,
+  Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -116,6 +116,7 @@ const KIND_LABELS: Record<number, string> = {
   8211: 'a letter',
   1617: 'a patch',
   1618: 'a pull request',
+  2473: 'a bird detection',
   3367: 'a color moment',
   7516: 'a found log',
   15128: 'an nsite',
@@ -146,6 +147,7 @@ const KIND_LABELS: Record<number, string> = {
   37381: 'a Magic deck',
   37516: 'a treasure',
   30000: 'a follow set',
+  30621: 'a constellation',
   39089: 'a follow pack',
   9735: 'a zap',
   31124: 'a Blobbi',
@@ -198,15 +200,19 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   3367: Palette,
   9735: Zap,
   31124: Egg,
+  2473: Bird,
+  30621: Stars,
 };
 
 /**
  * Get a singular comment-context label for a kind number.
  * Only uses KIND_LABELS (which has proper singular forms with articles).
  * Never falls through to EXTRA_KINDS labels since those are plural/categorical.
+ * Unknown kinds render as "an unsupported event" — never as "a post", which
+ * would misrepresent arbitrary event kinds as text notes.
  */
 function getKindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? 'a post';
+  return KIND_LABELS[kind] ?? 'an unsupported event';
 }
 
 /** Parse a rootKind string into a label, handling both numeric and external content kinds. */
@@ -233,6 +239,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   39089: 'follow pack',
   37381: 'deck',
   37516: 'treasure',
+  30621: 'constellation',
   34550: 'community',
   30054: 'episode',
   30055: 'trailer',
@@ -272,6 +279,7 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   const title = event.tags.find(([name]) => name === 'title')?.[1];
   const name = event.tags.find(([name]) => name === 'name')?.[1];
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+  const alt = event.tags.find(([name]) => name === 'alt')?.[1]?.trim();
   const displayTitle = title || name || dTag;
 
   // Kinds with a custom postfix (e.g. "Ditto on Zapstore")
@@ -286,10 +294,17 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     return { text: `${displayTitle} ${suffix}`, icon };
   }
 
-  // Generic: just use the title if available
-  if (displayTitle) return { text: displayTitle, icon };
+  // Known kinds: use the conventional title/name/d tag if available.
+  if (KIND_LABELS[event.kind] && displayTitle) {
+    return { text: displayTitle, icon };
+  }
 
-  // Fall back to kind label
+  // Unknown kinds: only trust the NIP-31 `alt` tag. title/name/d have
+  // kind-specific semantics we can't interpret; `d` in particular is often
+  // an opaque compound identifier.
+  if (alt) return { text: alt, icon };
+
+  // Fall back to kind label ("an unsupported event" for unknown kinds).
   return { text: getKindLabel(event.kind), icon };
 }
 

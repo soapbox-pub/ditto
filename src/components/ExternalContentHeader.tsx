@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, User, Users, Wind } from 'lucide-react';
+import { BookOpen, Bird, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, Stars, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -1223,6 +1223,8 @@ const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
   15128: 'Nsite',
   35128: 'Nsite',
   31124: 'Blobbi',
+  2473: 'Bird Detection',
+  30621: 'Constellation',
 };
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
@@ -1248,12 +1250,12 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (addr.kind === 31990 || addr.kind === 32267 || addr.kind === 30063 || addr.kind === 3063) return Package;
     if (addr.kind === 15128 || addr.kind === 35128) return Globe;
     if (addr.kind === 3 || addr.kind === 30000) return Users;
+    if (addr.kind === 2473) return Bird;
+    if (addr.kind === 30621) return Stars;
     return FileText;
   }, [kindDef, addr.kind]);
 
-  const title = event?.tags.find(([n]) => n === 'title')?.[1]
-    || event?.tags.find(([n]) => n === 'name')?.[1]
-    || event?.tags.find(([n]) => n === 'd')?.[1]
+  const title = event?.tags.find(([n]) => n === 'alt')?.[1]
     || kindLabel;
   const thumbnail = event ? extractThumbnail(event.tags) : undefined;
   const isVideo = event ? hasVideo(event.tags) : false;
