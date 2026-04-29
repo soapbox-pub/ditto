@@ -48,8 +48,7 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@/blobbi/actions/lib/daily-mission-tracker';
-import type { DailyMissionAction } from '@/blobbi/actions/lib/daily-missions';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@/blobbi/actions/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 
@@ -401,10 +400,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       });
       
       // Track daily mission progress
-      const dailyActions: DailyMissionAction[] = ['interact'];
-      if (action === 'feed') dailyActions.push('feed');
-      if (action === 'clean') dailyActions.push('clean');
-      trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
+      trackInventoryDailyActions(action, user?.pubkey);
       
       // Set success cooldown (short)
       setItemCooldown(itemId, true);

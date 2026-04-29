@@ -38,6 +38,8 @@ interface BlobbiDevEditorProps {
   onApply: (updates: BlobbiDevUpdates) => Promise<void>;
   /** Whether an update is in progress */
   isUpdating?: boolean;
+  /** DEV: Reset account-level daily missions and trigger persist */
+  onResetDailyMissions?: () => void;
 }
 
 /** Updates that can be applied to a Blobbi */
@@ -170,6 +172,7 @@ export function BlobbiDevEditor({
   companion,
   onApply,
   isUpdating = false,
+  onResetDailyMissions,
 }: BlobbiDevEditorProps) {
   // ─── Local State ───
   // Initialize from companion values
@@ -550,6 +553,27 @@ export function BlobbiDevEditor({
 
 
         </div>
+
+        {/* Daily Missions Reset */}
+        {onResetDailyMissions && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Daily Missions</Label>
+                <p className="text-xs text-muted-foreground">Reset account-level daily bounties</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onResetDailyMissions}
+              >
+                <RotateCcw className="size-3 mr-1.5" />
+                Reset Daily Missions
+              </Button>
+            </div>
+          </>
+        )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
