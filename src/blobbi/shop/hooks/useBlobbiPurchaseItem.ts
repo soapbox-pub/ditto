@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
 import type { PurchaseRequest } from '../types/shop.types';
@@ -24,6 +26,7 @@ import { getShopItemById } from '../lib/blobbi-shop-items';
  */
 export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
@@ -79,7 +82,16 @@ export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) 
       // createStorageTags returns [['storage', 'itemId:quantity'], ...], we need just the values
       const storageValues = createStorageTags(newStorage).map(tag => tag[1]);
       
-      const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
+      // Fetch fresh profile from relays to avoid stale-read overwrites
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [KIND_BLOBBONAUT_PROFILE],
+        authors: [user.pubkey],
+      });
+      if (!prev) {
+        throw new Error('Profile not found on relays');
+      }
+
+      const updatedTags = updateBlobbonautTags(prev.tags, {
         coins: newCoins.toString(),
         storage: storageValues, // Array of 'itemId:quantity' strings
       });
@@ -87,8 +99,9 @@ export function useBlobbiPurchaseItem(currentProfile: BlobbonautProfile | null) 
       // Publish updated profile event
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: prev.content,
         tags: updatedTags,
+        prev,
       });
 
       return { event, item, quantity, totalCost };

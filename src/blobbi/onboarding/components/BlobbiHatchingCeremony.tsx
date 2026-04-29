@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 
 import {
   KIND_BLOBBI_STATE,
@@ -43,6 +45,9 @@ import {
   previewToBlobbiCompanion,
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
+
+import { useTypewriter } from '../hooks/useTypewriter';
+import { buildRevealGradient } from '../lib/ceremony-colors';
 
 // ─── Dialog Lines ─────────────────────────────────────────────────────────────
 
@@ -66,49 +71,6 @@ type CeremonyPhase =
   | 'dialog'      // typewriter dialog lines
   | 'naming'
   | 'complete';
-
-// ─── Typewriter Hook ──────────────────────────────────────────────────────────
-
-function useTypewriter(fullText: string, active: boolean, speed = 35) {
-  const [displayed, setDisplayed] = useState('');
-  const [done, setDone] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const indexRef = useRef(0);
-
-  // Reset when text changes
-  useEffect(() => {
-    setDisplayed('');
-    setDone(false);
-    indexRef.current = 0;
-  }, [fullText]);
-
-  // Run typewriter
-  useEffect(() => {
-    if (!active || done) return;
-
-    intervalRef.current = setInterval(() => {
-      indexRef.current++;
-      const next = fullText.slice(0, indexRef.current);
-      setDisplayed(next);
-      if (indexRef.current >= fullText.length) {
-        setDone(true);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      }
-    }, speed);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [active, done, fullText, speed]);
-
-  const complete = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setDisplayed(fullText);
-    setDone(true);
-  }, [fullText]);
-
-  return { displayed, done, complete };
-}
 
 // Module-level guard: prevents duplicate egg creation if the component remounts
 // (e.g. React strict mode, parent re-render causing unmount/remount).
@@ -146,6 +108,7 @@ export function BlobbiHatchingCeremony({
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
 
@@ -195,6 +158,9 @@ export function BlobbiHatchingCeremony({
   }, [eggCompanion]);
 
   const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
+
+  // Derive reveal background from baby's base color
+  const revealBg = useMemo(() => buildRevealGradient(eggColor), [eggColor]);
 
   // ── Typewriter for current dialog line ──
   const currentDialogText = phase === 'dialog' ? (BIRTH_DIALOG[dialogLineIndex] ?? '') : '';
@@ -299,19 +265,38 @@ export function BlobbiHatchingCeremony({
 
         // 3. Update profile with has[] entry
         if (latestProfileTags) {
-          const existingHas = latestProfileTags
+          // If profile already existed (not just created), fetch fresh from relays
+          // to avoid overwriting content with stale cache data
+          let baseTags = latestProfileTags;
+          let baseContent = '';
+          let prevEvent: NostrEvent | undefined;
+          
+          if (currentProfile) {
+            const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+            if (freshProfile) {
+              baseTags = freshProfile.allTags;
+              baseContent = freshProfile.event.content ?? '';
+              prevEvent = freshProfile.event;
+            } else {
+              baseContent = currentProfile.event.content ?? '';
+              prevEvent = currentProfile.event;
+            }
+          }
+          
+          const existingHas = baseTags
             .filter(([k]) => k === 'has')
             .map(([, v]) => v);
           const newHas = [...existingHas, eggPreview.d];
 
-          const updatedTags = updateBlobbonautTags(latestProfileTags, {
+          const updatedTags = updateBlobbonautTags(baseTags, {
             has: newHas,
           });
 
           const updatedProfileEvent = await publishEvent({
             kind: KIND_BLOBBONAUT_PROFILE,
-            content: '',
+            content: baseContent,
             tags: updatedTags,
+            prev: prevEvent,
           });
 
           updateProfileEvent(updatedProfileEvent);
@@ -515,14 +500,18 @@ export function BlobbiHatchingCeremony({
 
       // Mark onboarding done
       const currentProfile = profileRef.current;
-      if (currentProfile) {
-        const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
+      if (currentProfile && user?.pubkey) {
+        const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+        const baseEvent = freshProfile?.event ?? currentProfile.event;
+        
+        const updatedTags = updateBlobbonautTags(baseEvent.tags, {
           blobbi_onboarding_done: 'true',
         });
         const profileEvent = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: baseEvent.content ?? '',
           tags: updatedTags,
+          prev: baseEvent,
         });
         updateProfileEvent(profileEvent);
       }
@@ -532,7 +521,7 @@ export function BlobbiHatchingCeremony({
     } catch (error) {
       console.error('[HatchingCeremony] Failed to persist completion:', error);
     }
-  }, [publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
+  }, [nostr, user?.pubkey, publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
 
   // ── Naming submit ──
   const handleNameSubmit = useCallback(async () => {
@@ -602,7 +591,7 @@ export function BlobbiHatchingCeremony({
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showBaby
-          ? 'radial-gradient(ellipse at 50% 45%, rgb(60,140,180) 0%, rgb(70,160,195) 25%, rgb(85,175,205) 50%, rgb(100,190,210) 75%, rgb(115,195,195) 100%)'
+          ? revealBg
           : 'radial-gradient(ellipse at center, #0a1a2a 0%, #081520 50%, #060f18 100%)',
         transition: 'background 2s ease-out',
       }}
@@ -616,6 +605,16 @@ export function BlobbiHatchingCeremony({
             transitionDuration: '3000ms',
             background: `radial-gradient(ellipse at 50% 50%, ${eggColor}30 0%, transparent 60%)`,
             opacity: (isEggPhase || isHatching) ? 0.07 : 0.05,
+          }}
+        />
+      )}
+
+      {/* ── Vignette shadow for reveal phase — adds depth so blobbi pops ── */}
+      {showBaby && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.25) 100%)',
           }}
         />
       )}

@@ -14,7 +14,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'food',
     price: 10,
     icon: '🍎',
-    effect: { hunger: 15, hygiene: -2, energy: 5 },
+    effect: { hunger: 25, hygiene: -2, energy: 5 },
     status: 'live',
   },
   {
@@ -23,7 +23,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'food',
     price: 25,
     icon: '🍔',
-    effect: { hunger: 40, happiness: 10, hygiene: -8, energy: 8 },
+    effect: { hunger: 45, happiness: 10, hygiene: -8, energy: 8 },
     status: 'live',
   },
   {
@@ -32,7 +32,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'food',
     price: 50,
     icon: '🎂',
-    effect: { hunger: 20, happiness: 30, hygiene: -10, energy: 10 },
+    effect: { hunger: 25, happiness: 30, hygiene: -10, energy: 10 },
     status: 'live',
   },
   {
@@ -41,7 +41,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'food',
     price: 35,
     icon: '🍕',
-    effect: { hunger: 35, happiness: 15, hygiene: -9, energy: 10 },
+    effect: { hunger: 40, happiness: 15, hygiene: -9, energy: 10 },
     status: 'live',
   },
   {
@@ -50,7 +50,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'food',
     price: 45,
     icon: '🍣',
-    effect: { hunger: 30, health: 10, hygiene: -6, energy: 7 },
+    effect: { hunger: 35, health: 10, hygiene: -5, energy: 7 },
     status: 'live',
   },
 
@@ -70,7 +70,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'toy',
     price: 60,
     icon: '🧸',
-    effect: { happiness: 40, energy: -15 },
+    effect: { happiness: 45, energy: -5 },
     status: 'live',
   },
   {
@@ -90,7 +90,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'medicine',
     price: 40,
     icon: '💊',
-    effect: { health: 20 },
+    effect: { health: 25, energy: 5 },
     status: 'live',
   },
   {
@@ -108,7 +108,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'medicine',
     price: 20,
     icon: '🩹',
-    effect: { health: 15 },
+    effect: { health: 25 },
     status: 'live',
   },
   {
@@ -117,7 +117,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'medicine',
     price: 150,
     icon: '🧪',
-    effect: { health: 80, happiness: 20, energy: 10 },
+    effect: { health: 75, happiness: 20, energy: 10 },
     status: 'live',
   },
   {
@@ -146,7 +146,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'hygiene',
     price: 15,
     icon: '🧼',
-    effect: { hygiene: 30 },
+    effect: { hygiene: 25 },
     status: 'live',
   },
   {
@@ -164,7 +164,7 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     type: 'hygiene',
     price: 40,
     icon: '🛁',
-    effect: { hygiene: 60, happiness: 20 },
+    effect: { hygiene: 70, happiness: 25 },
     status: 'live',
   },
   {

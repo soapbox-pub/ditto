@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.11.2] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds no longer leak opaque identifiers or raw post content into previews and hover cards -- when an author-written description is missing, the card shows the "not supported" tombstone instead of an internal lookup string
+
+## [2.11.1] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds now show a clean fallback card with the author's description (or a "not supported" tombstone) instead of rendering raw JSON or empty content through the text-note parser -- applies in feeds, post detail, embedded quotes, reply context, compose previews, notifications, and inline nostr: mentions
+
+## [2.11.0] - 2026-04-28
+
+### Added
+- Birdstar bird detections and hand-drawn constellations now render inline in feeds -- species cards with Wikipedia summaries, and gnomonic star maps backed by the Hipparcos catalog, with a "View on Birdstar" deep-link and a Discuss button that routes species comments to the shared Wikidata identifier
+- Magic: The Gathering cards render from Gatherer URLs -- card art with a 3D mouse tilt and specular glare, face toggle for double-faced cards, lightbox, and hover-card previews across comments, detail pages, and external content
+- Touch support for the Magic card 3D tilt -- press and drag to rock the card on mobile
+- Wikidata entity URLs on the external content page render the entity's English Wikipedia article, falling back to a generic link preview when no article exists
+- Webxdc embeds now render as a tilted Game Boy-style cartridge tinted by the app icon's dominant color, with the launch icon centered on the label
+- Segmented Blobbi stat rings -- babies show 4 bars and adults show 10, so progress is visible at a glance instead of as a continuous sweep, and the ring gaps are now symmetrical
+- Sleep is now restorative for Blobbis -- energy regenerates faster, hunger, happiness, and hygiene decay at a fraction of their awake rates, and health stops degrading entirely while asleep
+- Blobbi rooms and carousel focus are remembered per-Blobbi across refreshes and Blobbi switches
+- Action and fridge previews show segment impact alongside raw stat changes, so it's clear how much a bar will fill
+- Profile recovery now shows follow-list snapshots as avatar stacks with the newest follows first, making different historical versions distinguishable at a glance
+- Google Play and App Store listings are declared in the web manifest so browsers can surface the native apps
+
+### Changed
+- The "Follow Packs" feed toggle is now called "People Lists" and its description explains that it also covers follow lists and people sets
+- Blobbi care thresholds are aligned to the new segment model -- attention and urgent states fire on clear bar boundaries instead of arbitrary numbers, and the care badge triggers when any stat is urgent or multiple stats need attention
+- Awake decay rates rebalanced so growing up feels like increased resilience -- babies hit their first "okay" stat around 2.7 hours and adults around 5-6 hours
+- Item effects rebalanced around the segment model -- basic items restore roughly one baby bar, medium items offer meaningful upgrades, and premium items deliver strong multi-stat effects
+
+### Fixed
+- Profile feeds now filter out deprecated follow sets, unlisted decks, hidden treasures, and empty emoji packs before rendering, matching the main feed's behavior
+- Onboarding no longer clobbers a returning user's feed preferences with a hardcoded preset when their encrypted settings fetch comes back empty
+
 ## [2.10.5] - 2026-04-25
 
 ### Added

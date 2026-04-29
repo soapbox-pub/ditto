@@ -2,12 +2,9 @@ import { useMemo } from 'react';
 import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { getAvatarShape } from '@/lib/avatarShape';
+import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useAuthors } from '@/hooks/useAuthors';
-import { genUserName } from '@/lib/genUserName';
-import { parsePeopleList } from '@/lib/packUtils';
+import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
@@ -30,9 +27,7 @@ export function PeopleListContent({ event }: { event: NostrEvent }) {
     [event, authorMetadata],
   );
 
-  // Only fetch first few avatars for the preview
-  const previewPubkeys = useMemo(() => pubkeys.slice(0, 8), [pubkeys]);
-  const { data: membersMap } = useAuthors(previewPubkeys);
+  const displayPubkeys = useMemo(() => getDisplayPubkeys(event, pubkeys), [event, pubkeys]);
 
   const safeImage = useMemo(() => sanitizeUrl(image), [image]);
 
@@ -71,30 +66,7 @@ export function PeopleListContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Avatar stack */}
-      {pubkeys.length > 0 && (
-        <div className="flex items-center gap-2">
-          <div className="flex -space-x-2">
-            {previewPubkeys.map((pk) => {
-              const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || genUserName(pk);
-              const shape = getAvatarShape(member?.metadata);
-              return (
-                <Avatar key={pk} shape={shape} className="size-7">
-                  <AvatarImage src={member?.metadata?.picture} alt={name} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                    {name[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              );
-            })}
-          </div>
-          {pubkeys.length > previewPubkeys.length && (
-            <span className="text-xs text-muted-foreground">
-              +{pubkeys.length - previewPubkeys.length} more
-            </span>
-          )}
-        </div>
-      )}
+      <PeopleAvatarStack pubkeys={displayPubkeys} maxVisible={8} size="md" />
     </div>
   );
 }

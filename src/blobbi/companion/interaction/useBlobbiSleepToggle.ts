@@ -148,6 +148,7 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
         kind: KIND_BLOBBI_STATE,
         content: companion.event.content,
         tags: newTags,
+        prev: companion.event,
       });
 
       // Optimistic cache update + background invalidation

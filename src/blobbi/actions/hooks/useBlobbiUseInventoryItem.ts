@@ -24,8 +24,7 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
-import type { DailyMissionAction } from '../lib/daily-missions';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '../lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
@@ -277,6 +276,7 @@ export function useBlobbiUseInventoryItem({
         kind: KIND_BLOBBI_STATE,
         content,
         tags: blobbiTags,
+        prev: canonical.companion.event,
       });
 
       updateCompanionEvent(blobbiEvent);
@@ -303,11 +303,7 @@ export function useBlobbiUseInventoryItem({
       });
 
       // Track daily mission progress
-      // 'interact' is always tracked, plus the specific action if it maps to a daily mission
-      const dailyActions: DailyMissionAction[] = ['interact'];
-      if (action === 'feed') dailyActions.push('feed');
-      if (action === 'clean') dailyActions.push('clean');
-      trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
+      trackInventoryDailyActions(action, user?.pubkey);
     },
     onError: (error: Error) => {
       toast({

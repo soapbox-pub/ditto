@@ -132,6 +132,7 @@ export function useBlobbiCareActivity({
         kind: KIND_BLOBBI_STATE,
         content: freshCompanion.event.content,
         tags: updatedTags,
+        prev: freshCompanion.event,
       });
       
       // Update local cache (optimistic — no invalidation needed)

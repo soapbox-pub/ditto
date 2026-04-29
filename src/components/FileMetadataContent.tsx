@@ -11,6 +11,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { cn } from '@/lib/utils';
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -25,10 +26,18 @@ function formatBytes(bytes: number): string {
 }
 
 /** YouTube-style description card rendered below media. */
-function DescriptionCard({ text }: { text: string }) {
+function DescriptionCard({ title, text }: { title?: string; text?: string }) {
+  if (!title && !text) return null;
   return (
     <div className="mt-2.5 rounded-xl bg-secondary/50 px-3.5 py-2.5">
-      <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+      {title && (
+        <p className="text-base font-semibold text-foreground break-words">{title}</p>
+      )}
+      {text && (
+        <p className={cn('text-sm leading-relaxed text-muted-foreground break-words', title && 'mt-1')}>
+          {text}
+        </p>
+      )}
     </div>
   );
 }
@@ -101,10 +110,10 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
         <WebxdcEmbed
           url={url}
           uuid={webxdcId}
-          name={appName}
           icon={thumb}
+          showNameCard={false}
         />
-        {description && <DescriptionCard text={description} />}
+        <DescriptionCard title={appName} text={description} />
       </div>
     );
   }

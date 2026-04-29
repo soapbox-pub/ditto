@@ -113,13 +113,13 @@ export const DAILY_MISSION_POOL: DailyMissionDefinition[] = [
   {
     id: 'take_photo_1', title: 'Snapshot',
     description: 'Take a photo of your Blobbi',
-    action: 'take_photo', target: 1, tracking: 'event', xp: 25, weight: 4,
+    action: 'take_photo', target: 1, tracking: 'tally', xp: 25, weight: 4,
     requiredStages: ['baby', 'adult'],
   },
   {
     id: 'take_photo_2', title: 'Photo Album',
     description: 'Take 2 photos of your Blobbi',
-    action: 'take_photo', target: 2, tracking: 'event', xp: 40, weight: 2,
+    action: 'take_photo', target: 2, tracking: 'tally', xp: 40, weight: 2,
     requiredStages: ['baby', 'adult'],
   },
 
@@ -286,6 +286,10 @@ export function createDailyMissionsContent(
 /**
  * Increment tally for all daily missions matching the given action.
  * Returns a new missions content (immutable).
+ *
+ * Also handles legacy EventMission entries whose pool definition has been
+ * changed to tally tracking — converts them in-flight so previously-generated
+ * missions still receive progress.
  */
 export function trackTally(
   missions: MissionsContent,
@@ -295,9 +299,19 @@ export function trackTally(
   const updated = missions.daily.map((m) => {
     const def = POOL_BY_ID.get(m.id);
     if (!def || def.action !== action) return m;
-    if (!isTallyMission(m)) return m;
-    if (m.count >= m.target) return m; // already complete
-    return { ...m, count: Math.min(m.count + incrementBy, m.target) };
+    // Normal tally mission
+    if (isTallyMission(m)) {
+      if (m.count >= m.target) return m; // already complete
+      return { ...m, count: Math.min(m.count + incrementBy, m.target) };
+    }
+    // Legacy EventMission whose pool definition is now tally tracking —
+    // convert to TallyMission in-flight so it receives progress.
+    if (isEventMission(m) && def.tracking === 'tally') {
+      const currentCount = m.events.length;
+      if (currentCount >= m.target) return m; // already complete
+      return { id: m.id, target: m.target, count: Math.min(currentCount + incrementBy, m.target) } satisfies TallyMission;
+    }
+    return m;
   });
   return { ...missions, daily: updated };
 }

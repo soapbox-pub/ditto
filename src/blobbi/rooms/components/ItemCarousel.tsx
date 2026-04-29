@@ -35,6 +35,8 @@ interface ItemCarouselProps {
     onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => void;
   };
   className?: string;
+  /** Seed the initial focused item by id (e.g. from localStorage). Falls back to index 0. */
+  initialItemId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,9 +50,24 @@ export function ItemCarousel({
   highlightId,
   centerPointerHandlers,
   className,
+  initialItemId,
 }: ItemCarouselProps) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => {
+    if (initialItemId) {
+      const i = items.findIndex(item => item.id === initialItemId);
+      if (i !== -1) return i;
+    }
+    return 0;
+  });
   const count = items.length;
+
+  // Realign when initialItemId changes after mount (e.g. Blobbi switch causes
+  // useLocalStorage to re-read a different key).
+  useEffect(() => {
+    if (!initialItemId) return;
+    const target = items.findIndex(item => item.id === initialItemId);
+    if (target !== -1) setIndex(target);
+  }, [initialItemId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally omits items to avoid fighting user navigation
 
   // Clamp or preserve index when items change.
   // Only reset when the focused item no longer exists or the index is out of

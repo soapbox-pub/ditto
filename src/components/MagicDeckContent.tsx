@@ -5,6 +5,7 @@ import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Lightbox } from '@/components/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { scryfallImageUrl } from '@/lib/scryfall';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 function getTag(tags: string[][], name: string): string | undefined {
@@ -39,18 +40,6 @@ function parseCardTag(tag: string[]): CardEntry | null {
     lang: lang ?? '',
     foil: foil === 'foil' || foil === 'true',
   };
-}
-
-/**
- * Build a Scryfall image URL for a card.
- * Uses set/collector_number when available for exact printing,
- * otherwise falls back to exact name lookup.
- */
-function scryfallImageUrl(card: CardEntry, version: 'small' | 'normal' | 'large' = 'small'): string {
-  if (card.setId && card.artId) {
-    return `https://api.scryfall.com/cards/${encodeURIComponent(card.setId.toLowerCase())}/${encodeURIComponent(card.artId)}?format=image&version=${version}`;
-  }
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.name)}&format=image&version=${version}`;
 }
 
 /** Format labels for MTG formats. */

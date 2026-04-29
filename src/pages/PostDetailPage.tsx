@@ -5,6 +5,7 @@ import { useSeoMeta } from "@unhead/react";
 import {
   AlertCircle,
   ArrowLeft,
+  Bird,
   Check,
   ChevronRight,
   Copy,
@@ -16,6 +17,7 @@ import {
   Rocket,
   Share2,
   Star,
+  Stars,
   Zap,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
@@ -43,6 +45,8 @@ import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
+import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
@@ -56,6 +60,7 @@ import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
+import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PostActionBar } from "@/components/PostActionBar";
@@ -157,6 +162,8 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 9735) return "Zap";
   if (kind === 0) return "Profile";
   if (kind === 31124) return "Blobbi";
+  if (kind === 2473) return "Bird Detection";
+  if (kind === 30621) return "Constellation";
   return "Post Details";
 }
 
@@ -1010,6 +1017,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isBirdDetection = event.kind === 2473;
+  const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
@@ -1046,6 +1055,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isBirdDetection &&
+    !isConstellation &&
     !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
@@ -1070,6 +1081,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isProfile &&
     !isBlobbiState &&
     !isBadgeAward;
+
+  // Unknown kinds land in the `isTextNote` branch (negation of every known flag
+  // above). For anything other than real text-note kinds (1 / 11 / 1111) we
+  // render a NIP-31 fallback instead of treating arbitrary content as kind 1.
+  const isUnknownKind =
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2031,6 +2048,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {isNsite && (
             <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
           )}
+          {isBirdDetection && (
+            <EventActionHeader pubkey={event.pubkey} icon={Bird} action="heard a" noun="bird" />
+          )}
+          {isConstellation && (
+            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
+          )}
 
           {/* Author row */}
           <div className="flex items-center gap-3">
@@ -2174,6 +2197,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isGeocache ||
               isFoundLog ||
               isColor ||
+              isBirdDetection ||
+              isConstellation ||
               isPeopleList ||
               isEmojiPack ? (
               <>
@@ -2182,9 +2207,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isGeocache && <GeocacheContent event={event} />}
                 {isFoundLog && <FoundLogContent event={event} />}
                 {isColor && <ColorMomentContent event={event} />}
+                {isBirdDetection && <BirdDetectionContent event={event} />}
+                {isConstellation && <ConstellationContent event={event} />}
                 {isPeopleList && <PeopleListContent event={event} />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
+            ) : isUnknownKind ? (
+              <div className="mt-3">
+                <UnknownKindContent event={event} expanded />
+              </div>
             ) : (
               <div className="mt-3">
                 <NoteContent

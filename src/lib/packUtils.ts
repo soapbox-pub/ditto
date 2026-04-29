@@ -68,6 +68,22 @@ export function parsePeopleList(
 }
 
 /**
+ * Returns pubkeys in display order for a people-list event.
+ *
+ * Kind 3 follow lists grow by appending new `p` tags, so the natural order is
+ * oldest-first. For display, we reverse so the newest follows surface first
+ * in previews and detail views — more useful and more visually varied than
+ * always seeing the same early-follows. Other people-list kinds (30000 follow
+ * sets, 39089 follow packs) are curated, so their order is preserved.
+ *
+ * Use this helper **for rendering only**. Mutation and filter logic should
+ * keep the original `pubkeys` array so writes don't silently reorder tags.
+ */
+export function getDisplayPubkeys(event: NostrEvent, pubkeys: string[]): string[] {
+  return event.kind === 3 ? pubkeys.slice().reverse() : pubkeys;
+}
+
+/**
  * @deprecated Use {@link parsePeopleList} instead. Kept for backwards compatibility
  * with a few callers that parse kind 30000/39089 without author metadata.
  */

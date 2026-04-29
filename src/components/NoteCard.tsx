@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
+  Bird,
   Camera,
   Egg,
   FileCode,
@@ -20,6 +21,7 @@ import {
   SmilePlus,
   PartyPopper,
   Sparkles,
+  Stars,
   UserCheck,
   Users,
   Volume2,
@@ -54,6 +56,8 @@ import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
+import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -76,6 +80,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
@@ -382,6 +387,8 @@ export const NoteCard = memo(function NoteCard({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isBirdDetection = event.kind === 2473;
+  const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
@@ -430,6 +437,8 @@ export const NoteCard = memo(function NoteCard({
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isBirdDetection &&
+    !isConstellation &&
     !isPeopleList &&
     !isArticle &&
     !isMagicDeck &&
@@ -460,6 +469,12 @@ export const NoteCard = memo(function NoteCard({
 
   const isComment = event.kind === 1111;
   const isReply = isTextNote && !isComment && isReplyEvent(event);
+  // Unknown kinds land in the `isTextNote` branch (it's the negation of every
+  // known-kind flag above). For anything other than real text-note kinds
+  // (1 / 11 / 1111), render a NIP-31 fallback instead of feeding arbitrary
+  // content into the kind-1 tokenizer.
+  const isUnknownKind =
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
 
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -576,6 +591,10 @@ export const NoteCard = memo(function NoteCard({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
+        ) : isBirdDetection ? (
+          <BirdDetectionContent event={event} />
+        ) : isConstellation ? (
+          <ConstellationContent event={event} />
         ) : isPeopleList ? (
           <PeopleListContent event={event} />
         ) : isArticle ? (
@@ -654,6 +673,8 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <BlobbiStateCard event={event} lookMode="follow-pointer" />
           </Suspense>
+        ) : isUnknownKind ? (
+          <UnknownKindContent event={event} />
         ) : (
           <TruncatedNoteContent
             event={event}
@@ -1833,6 +1854,16 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
     noun: "playlist",
     nounRoute: "/music",
+  },
+  2473: {
+    icon: Bird,
+    action: "heard a",
+    noun: "bird",
+  },
+  30621: {
+    icon: Stars,
+    action: (event) => publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" }),
+    noun: "constellation",
   },
   3: {
     icon: UserCheck,

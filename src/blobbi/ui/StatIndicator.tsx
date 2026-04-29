@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { AlertTriangle, Utensils, Gamepad2, Heart, Droplets, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,10 @@ const STAT_RING_HEX: Record<string, string> = {
   violet: '#8b5cf6',
 };
 
+/** Muted colour for empty/unfilled segments. */
+const MUTED_RING_HEX = 'currentColor';
+const MUTED_RING_OPACITY = 0.12;
+
 /** Lucide icon component for each stat. */
 const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
   hunger: Utensils,
@@ -43,9 +48,11 @@ const SIZE_PRESETS = {
   sm: {
     container: 'size-9',
     icon: 'size-3.5',
-    strokeWidth: 3,
+    strokeWidth: 2.5,
     alertSize: 'size-2.5',
     alertPos: '-top-1 -right-1.5',
+    /** Degrees of empty gap between segments. */
+    gapDeg: 20,
   },
   md: {
     container: 'size-[4.5rem] sm:size-20',
@@ -53,8 +60,82 @@ const SIZE_PRESETS = {
     strokeWidth: 2.5,
     alertSize: 'size-3.5',
     alertPos: '-top-1.5 -right-2',
+    gapDeg: 16,
   },
 } as const;
+
+// ── Segmented ring ───────────────────────────────────────────────────────────
+
+/** SVG viewBox dimensions and circle radius (shared between both ring modes). */
+const VB = 36;
+const R = 15;
+const CX = VB / 2;
+const CY = VB / 2;
+const CIRCUMFERENCE = 2 * Math.PI * R;
+
+export interface SegmentedRingProps {
+  /** Number of filled (coloured) segments. */
+  filled: number;
+  /** Total number of segments. */
+  max: number;
+  /** Hex colour for filled segments. */
+  fillHex: string;
+  /** Stroke width. */
+  strokeWidth: number;
+  /** Gap between segments in degrees. */
+  gapDeg: number;
+}
+
+/**
+ * Render a ring divided into `max` equal arc segments.
+ * The first `filled` segments use `fillHex`; the rest use the muted track.
+ *
+ * Uses butt linecaps so gaps are exactly the specified width — round caps
+ * extend beyond the dash boundary and visually close small gaps.
+ *
+ * The ring is drawn at 0-deg = 12-o'clock (the parent applies -rotate-90 on
+ * the SVG to achieve this, matching the old continuous ring convention).
+ */
+export function SegmentedRing({ filled, max, fillHex, strokeWidth, gapDeg }: SegmentedRingProps) {
+  const totalGapDeg = gapDeg * max;
+  const segDeg = (360 - totalGapDeg) / max;
+  const segLen = (segDeg / 360) * CIRCUMFERENCE;
+
+  // Each segment is a <circle> with dasharray = "segLen rest-of-circumference".
+  // dashoffset rotates it to the correct angular position.
+  //
+  // Start offset: shift by half a gap so the first gap straddles the
+  // 12-o'clock position (after the parent's -rotate-90). This keeps the
+  // ring visually centred and symmetrical around all four quadrants.
+  const segments: React.ReactNode[] = [];
+  let offsetDeg = gapDeg / 2;
+
+  for (let i = 0; i < max; i++) {
+    const isFilled = i < filled;
+    const dashOffset = -(offsetDeg / 360) * CIRCUMFERENCE;
+
+    segments.push(
+      <circle
+        key={i}
+        cx={CX}
+        cy={CY}
+        r={R}
+        fill="none"
+        strokeWidth={strokeWidth}
+        strokeLinecap="butt"
+        stroke={isFilled ? fillHex : MUTED_RING_HEX}
+        opacity={isFilled ? 1 : MUTED_RING_OPACITY}
+        strokeDasharray={`${segLen} ${CIRCUMFERENCE - segLen}`}
+        strokeDashoffset={dashOffset}
+        className="transition-all duration-500"
+      />,
+    );
+
+    offsetDeg += segDeg + gapDeg;
+  }
+
+  return <>{segments}</>;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +143,10 @@ export interface StatIndicatorProps {
   stat: string;
   value: number | undefined;
   color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  status?: 'normal' | 'warning' | 'critical';
+  /** Care state from the segment display model. Drives badge and pulse. */
+  careState?: CareState;
+  /** Segment counts for visual ring. When provided, renders segmented arcs. */
+  segments?: { filled: number; max: number };
   /** Visual size preset. Default: 'md'. */
   size?: 'sm' | 'md';
   /** When provided, renders as a clickable button. */
@@ -75,35 +159,52 @@ export function StatIndicator({
   stat,
   value,
   color,
-  status = 'normal',
+  careState,
+  segments,
   size = 'md',
   onClick,
   disabled,
 }: StatIndicatorProps) {
   const displayValue = value ?? 0;
-  const isLow = status === 'warning' || status === 'critical';
+
+  const showBadge = careState === 'attention' || careState === 'urgent';
+  const showPulse = careState === 'urgent';
+  const badgeColor = careState === 'urgent' ? 'text-red-500' : 'text-amber-500';
+
   const ringHex = STAT_RING_HEX[color];
   const IconComponent = STAT_ICON_MAP[stat];
   const preset = SIZE_PRESETS[size];
 
   const inner = (
     <>
-      {/* Progress ring */}
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth={preset.strokeWidth} className="text-muted/15" />
-        <circle
-          cx="18" cy="18" r="15" fill="none" strokeWidth={preset.strokeWidth} strokeLinecap="round"
-          stroke={ringHex}
-          strokeDasharray={`${displayValue * 0.94} 100`}
-          className="transition-all duration-500"
-        />
+      {/* Ring — segmented when segment data is available, continuous fallback otherwise */}
+      <svg className="absolute inset-0 -rotate-90" viewBox={`0 0 ${VB} ${VB}`}>
+        {segments ? (
+          <SegmentedRing
+            filled={segments.filled}
+            max={segments.max}
+            fillHex={ringHex}
+            strokeWidth={preset.strokeWidth}
+            gapDeg={preset.gapDeg}
+          />
+        ) : (
+          <>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="currentColor" strokeWidth={preset.strokeWidth} className="text-muted/15" />
+            <circle
+              cx={CX} cy={CY} r={R} fill="none" strokeWidth={preset.strokeWidth} strokeLinecap="round"
+              stroke={ringHex}
+              strokeDasharray={`${displayValue * 0.94} 100`}
+              className="transition-all duration-500"
+            />
+          </>
+        )}
       </svg>
       {/* Icon with warning badge */}
       <div className="relative">
         {IconComponent && <IconComponent className={cn(preset.icon, STAT_COLORS[color])} strokeWidth={2.5} />}
-        {isLow && (
+        {showBadge && (
           <AlertTriangle
-            className={cn('absolute', preset.alertPos, preset.alertSize, status === 'critical' ? 'text-red-500' : 'text-amber-500')}
+            className={cn('absolute', preset.alertPos, preset.alertSize, badgeColor)}
             strokeWidth={3}
           />
         )}
@@ -126,7 +227,7 @@ export function StatIndicator({
     'relative rounded-full flex items-center justify-center',
     preset.container,
     STAT_BG_COLORS[color],
-    isLow && STAT_COLORS[color],
+    showPulse && 'animate-pulse',
   );
 
   if (onClick) {

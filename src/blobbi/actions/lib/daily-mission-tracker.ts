@@ -209,6 +209,30 @@ export function clearEvolutionFromStorage(pubkey?: string, d?: string): void {
   evolutionStore.delete(evoKey(pubkey, d));
 }
 
+// ─── Inventory Action → Daily Mission Mapping ────────────────────────────────
+
+/**
+ * Track daily mission actions for a successful inventory item use.
+ *
+ * Every item use tracks 'interact'. Specific actions (feed, clean, medicine)
+ * also track their corresponding daily mission. This is the single source of
+ * truth for the mapping — both useBlobbiUseInventoryItem and useBlobbiItemUse
+ * call this instead of duplicating the logic.
+ *
+ * Accepts the wider InventoryAction type (string) so callers don't need casts.
+ * Only recognized daily-mission actions are forwarded.
+ */
+export function trackInventoryDailyActions(
+  action: string,
+  pubkey?: string,
+): void {
+  const actions: DailyMissionAction[] = ['interact'];
+  if (action === 'feed') actions.push('feed');
+  if (action === 'clean') actions.push('clean');
+  if (action === 'medicine') actions.push('medicine');
+  trackMultipleDailyMissionActions(actions, pubkey);
+}
+
 // ─── Backward-compat aliases ─────────────────────────────────────────────────
 
 /**
