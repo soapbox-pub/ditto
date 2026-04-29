@@ -3,13 +3,6 @@
  * 
  * Shared component for displaying item effects consistently across all Blobbi UIs.
  * This is the single source of truth for how item effects are rendered.
- * 
- * Used by:
- * - BlobbiShopItemRow (shop listing)
- * - BlobbiPurchaseDialog (purchase confirmation)
- * - BlobbiInventoryModal (items listing)
- * 
- * All consumers should use this component to ensure consistent display of item effects.
  */
 
 import { cn } from '@/lib/utils';
