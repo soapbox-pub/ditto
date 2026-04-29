@@ -12,6 +12,7 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { toast } from '@/hooks/useToast';
 import { getDisplayName } from '@/lib/getDisplayName';
+import { getEffectiveRelays } from '@/lib/appRelays';
 import { APP_NEW_MESSAGE_SOUNDS } from '@/lib/messagingSounds';
 
 interface DMProviderWrapperProps {
@@ -62,10 +63,10 @@ export function DMProviderWrapper({ children }: DMProviderWrapperProps) {
     if (messaging.discoveryRelays?.length) {
       return messaging.discoveryRelays;
     }
-    return config.relayMetadata.relays
+    return getEffectiveRelays(config.relayMetadata, config.useAppRelays).relays
       .filter(r => r.read)
       .map(r => r.url);
-  }, [messaging.discoveryRelays, config.relayMetadata.relays]);
+  }, [messaging.discoveryRelays, config.relayMetadata, config.useAppRelays]);
 
   const relayMode = messaging.relayMode ?? 'hybrid';
   const messagingEnabled = messaging.enabled ?? false;
