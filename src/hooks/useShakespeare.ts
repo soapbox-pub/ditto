@@ -303,8 +303,8 @@ export function useShakespeare() {
     }
     if (!isShakespeareEndpoint(url)) {
       throw new Error(
-        'An API key is required when using a non-Shakespeare AI endpoint. ' +
-        'Set one in Buddy settings or switch the base URL back to Shakespeare.',
+        'An API key is required for this endpoint. ' +
+        'Set one in Buddy settings, or change the base URL to an endpoint that supports NIP-98 auth.',
       );
     }
     const token = await createNIP98Token(method, url, body, user ?? undefined);
