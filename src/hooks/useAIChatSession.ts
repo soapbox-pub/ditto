@@ -95,6 +95,14 @@ function measureStorageBytes(storageKey: string): number {
   }
 }
 
+/**
+ * Sentinel thrown from the streaming tool loop when `sendStreamingMessage`
+ * rejects. The API layer has already populated `apiError` (rendered as a
+ * banner on the page), so the outer catch uses this marker to skip adding a
+ * duplicate assistant error bubble.
+ */
+const API_ERROR_SENTINEL = Symbol('api-error');
+
 // ─── Hook ───
 
 export function useAIChatSession(options: AIChatSessionOptions = {}) {
@@ -323,16 +331,26 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
 
         // Stream the response — text chunks update streamingText in real-time
         streamAccumulator = '';
-        const response = await sendStreamingMessage(
-          apiMessages,
-          selectedModel,
-          (chunk) => {
-            streamAccumulator += chunk;
-            setStreamingText(streamAccumulator);
-          },
-          { tools: TOOLS },
-          controller.signal,
-        );
+        let response;
+        try {
+          response = await sendStreamingMessage(
+            apiMessages,
+            selectedModel,
+            (chunk) => {
+              streamAccumulator += chunk;
+              setStreamingText(streamAccumulator);
+            },
+            { tools: TOOLS },
+            controller.signal,
+          );
+        } catch (err) {
+          // User abort — propagate to the outer catch.
+          if (controller.signal.aborted) throw err;
+          // useShakespeare has already set `apiError`, which renders as a
+          // banner on the page. Throw the sentinel so the outer catch knows
+          // not to add a redundant assistant error bubble.
+          throw API_ERROR_SENTINEL;
+        }
 
         // Stream finished — clear the streaming text and update token usage
         setStreamingText('');
@@ -439,9 +457,15 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
         return;
       }
 
-      // Surface unexpected errors (e.g. buildApiMessages failure, loop bookkeeping)
-      // so the user gets feedback instead of streaming silently stopping.
-      // API-level errors are already surfaced via apiError from useShakespeare.
+      // API-layer errors were already surfaced via `apiError` (rendered as a
+      // banner by AIChatPage). Skip adding a duplicate chat-message bubble.
+      if (err === API_ERROR_SENTINEL) {
+        return;
+      }
+
+      // Surface unexpected errors (e.g. buildApiMessages failure, loop
+      // bookkeeping) so the user gets feedback instead of streaming silently
+      // stopping.
       const errorText = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(),
