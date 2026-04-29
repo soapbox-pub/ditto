@@ -100,7 +100,7 @@ function BuddySettingsSection() {
       setBaseUrlDraft(DEFAULT_AI_BASE_URL);
       if (config.aiBaseURL !== DEFAULT_AI_BASE_URL) {
         updateConfig((current) => ({ ...current, aiBaseURL: DEFAULT_AI_BASE_URL }));
-        toast({ title: 'Base URL reset to Shakespeare default' });
+        toast({ title: 'Base URL reset to default' });
       }
       return;
     }
@@ -170,7 +170,7 @@ function BuddySettingsSection() {
             spellCheck={false}
           />
           <p className="text-xs text-muted-foreground">
-            OpenAI-compatible <code className="bg-muted px-1 rounded">/v1</code> endpoint. The default Shakespeare endpoint uses NIP-98 auth; other endpoints require an API key below.
+            OpenAI-compatible <code className="bg-muted px-1 rounded">/v1</code> endpoint. An API key is required for endpoints that don't support NIP-98 auth.
           </p>
         </div>
 
@@ -183,7 +183,7 @@ function BuddySettingsSection() {
               value={apiKeyDraft}
               onChange={(e) => setApiKeyDraft(e.target.value)}
               onBlur={commitApiKey}
-              placeholder="Leave empty to use NIP-98 (Shakespeare only)"
+              placeholder="Leave empty to use NIP-98 auth"
               className="font-mono text-xs"
               autoComplete="off"
               spellCheck={false}
@@ -199,7 +199,7 @@ function BuddySettingsSection() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Optional. Provide one when using OpenAI, Anthropic, OpenRouter, or any endpoint that isn't Shakespeare.
+            Optional. Required for endpoints that use standard API-key auth (e.g. OpenAI, Anthropic, OpenRouter).
           </p>
         </div>
 
