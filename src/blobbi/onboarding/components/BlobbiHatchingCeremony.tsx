@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 
 import {
   KIND_BLOBBI_STATE,
@@ -146,6 +148,7 @@ export function BlobbiHatchingCeremony({
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
 
@@ -299,19 +302,38 @@ export function BlobbiHatchingCeremony({
 
         // 3. Update profile with has[] entry
         if (latestProfileTags) {
-          const existingHas = latestProfileTags
+          // If profile already existed (not just created), fetch fresh from relays
+          // to avoid overwriting content with stale cache data
+          let baseTags = latestProfileTags;
+          let baseContent = '';
+          let prevEvent: NostrEvent | undefined;
+          
+          if (currentProfile) {
+            const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+            if (freshProfile) {
+              baseTags = freshProfile.allTags;
+              baseContent = freshProfile.event.content ?? '';
+              prevEvent = freshProfile.event;
+            } else {
+              baseContent = currentProfile.event.content ?? '';
+              prevEvent = currentProfile.event;
+            }
+          }
+          
+          const existingHas = baseTags
             .filter(([k]) => k === 'has')
             .map(([, v]) => v);
           const newHas = [...existingHas, eggPreview.d];
 
-          const updatedTags = updateBlobbonautTags(latestProfileTags, {
+          const updatedTags = updateBlobbonautTags(baseTags, {
             has: newHas,
           });
 
           const updatedProfileEvent = await publishEvent({
             kind: KIND_BLOBBONAUT_PROFILE,
-            content: '',
+            content: baseContent,
             tags: updatedTags,
+            prev: prevEvent,
           });
 
           updateProfileEvent(updatedProfileEvent);
@@ -515,14 +537,18 @@ export function BlobbiHatchingCeremony({
 
       // Mark onboarding done
       const currentProfile = profileRef.current;
-      if (currentProfile) {
-        const updatedTags = updateBlobbonautTags(currentProfile.allTags, {
+      if (currentProfile && user?.pubkey) {
+        const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+        const baseEvent = freshProfile?.event ?? currentProfile.event;
+        
+        const updatedTags = updateBlobbonautTags(baseEvent.tags, {
           blobbi_onboarding_done: 'true',
         });
         const profileEvent = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: baseEvent.content ?? '',
           tags: updatedTags,
+          prev: baseEvent,
         });
         updateProfileEvent(profileEvent);
       }
@@ -532,7 +558,7 @@ export function BlobbiHatchingCeremony({
     } catch (error) {
       console.error('[HatchingCeremony] Failed to persist completion:', error);
     }
-  }, [publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
+  }, [nostr, user?.pubkey, publishEvent, updateCompanionEvent, updateProfileEvent, invalidateProfile, invalidateCompanion]);
 
   // ── Naming submit ──
   const handleNameSubmit = useCallback(async () => {
