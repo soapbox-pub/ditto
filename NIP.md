@@ -6,7 +6,7 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
-| 30078 | Buddy Identity       | NIP-78 app-specific data storing an encrypted AI buddy identity (`<appId>/buddy` d-tag, NIP-44 self-encrypted `{nsec, name, soul}`). See [`src/NIP.md`](src/NIP.md) for full spec. |
+| 30078 | Buddy Identity       | NIP-78 app-specific data storing an encrypted AI buddy identity (`<appId>/buddy` d-tag, NIP-44 self-encrypted `{nsec, name, soul}`) |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -290,6 +290,75 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 - To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
 - Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
 - `var` tags are shared across all `tab` tags in the same event.
+
+---
+
+## Kind 30078: Buddy Identity
+
+### Summary
+
+Stores an AI buddy's identity as a [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) application-specific data event. The event is published by the logged-in user and encrypted to self using [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md).
+
+### Event Structure
+
+```json
+{
+  "kind": 30078,
+  "content": "<NIP-44 encrypted JSON>",
+  "tags": [
+    ["d", "<appId>/buddy"],
+    ["p", "<buddy-pubkey>"],
+    ["alt", "Buddy identity for <appName>"]
+  ]
+}
+```
+
+### Encrypted Content
+
+The `content` field is NIP-44 encrypted to the author's own pubkey. When decrypted, it contains a JSON object:
+
+```json
+{
+  "nsec": "<hex-encoded secret key>",
+  "name": "<buddy display name>",
+  "soul": "<buddy personality/behavior description>"
+}
+```
+
+| Field  | Type   | Required | Description |
+|--------|--------|----------|-------------|
+| `nsec` | string | Yes      | Hex-encoded secret key for the buddy's Nostr identity |
+| `name` | string | Yes      | Display name for the buddy |
+| `soul` | string | Yes      | Personality description injected into the AI system prompt |
+
+### Tags
+
+| Tag   | Description |
+|-------|-------------|
+| `d`   | Identifier scoped to the app: `<appId>/buddy` (e.g. `ditto/buddy`) |
+| `p`   | Public key derived from the buddy's secret key, for verification |
+| `alt` | Human-readable description per [NIP-31](https://github.com/nostr-protocol/nips/blob/master/31.md) |
+
+### Buddy Profile (kind 0)
+
+When created, the buddy also gets a kind 0 profile event signed by its own keypair:
+
+```json
+{
+  "kind": 0,
+  "content": "{\"name\":\"<buddy-name>\",\"about\":\"AI buddy on <appName>\",\"bot\":true}",
+  "tags": []
+}
+```
+
+The `bot: true` field follows [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) extra metadata conventions.
+
+### Security
+
+- The buddy's secret key is cached in `localStorage` for fast access
+- The relay-stored event serves as an encrypted backup for cross-device recovery
+- Only the user who created the buddy can decrypt the content (NIP-44 self-encryption)
+- The `authors` filter is always set to `[user.pubkey]` when querying, preventing spoofing
 
 ---
 
