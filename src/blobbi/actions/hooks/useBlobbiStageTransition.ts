@@ -400,12 +400,6 @@ export function useBlobbiEvolve({
         decayedStats: decayResult.stats,
       };
     },
-    onSuccess: ({ name }) => {
-      toast({
-        title: 'Evolution complete!',
-        description: `${name} has evolved into an adult Blobbi!`,
-      });
-    },
     onError: (error: Error) => {
       toast({
         title: 'Failed to evolve',

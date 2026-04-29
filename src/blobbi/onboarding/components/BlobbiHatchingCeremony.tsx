@@ -46,6 +46,9 @@ import {
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
 
+import { useTypewriter } from '../hooks/useTypewriter';
+import { buildRevealGradient } from '../lib/ceremony-colors';
+
 // ─── Dialog Lines ─────────────────────────────────────────────────────────────
 
 const BIRTH_DIALOG: string[] = [
@@ -68,49 +71,6 @@ type CeremonyPhase =
   | 'dialog'      // typewriter dialog lines
   | 'naming'
   | 'complete';
-
-// ─── Typewriter Hook ──────────────────────────────────────────────────────────
-
-function useTypewriter(fullText: string, active: boolean, speed = 35) {
-  const [displayed, setDisplayed] = useState('');
-  const [done, setDone] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const indexRef = useRef(0);
-
-  // Reset when text changes
-  useEffect(() => {
-    setDisplayed('');
-    setDone(false);
-    indexRef.current = 0;
-  }, [fullText]);
-
-  // Run typewriter
-  useEffect(() => {
-    if (!active || done) return;
-
-    intervalRef.current = setInterval(() => {
-      indexRef.current++;
-      const next = fullText.slice(0, indexRef.current);
-      setDisplayed(next);
-      if (indexRef.current >= fullText.length) {
-        setDone(true);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      }
-    }, speed);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [active, done, fullText, speed]);
-
-  const complete = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setDisplayed(fullText);
-    setDone(true);
-  }, [fullText]);
-
-  return { displayed, done, complete };
-}
 
 // Module-level guard: prevents duplicate egg creation if the component remounts
 // (e.g. React strict mode, parent re-render causing unmount/remount).
@@ -198,6 +158,9 @@ export function BlobbiHatchingCeremony({
   }, [eggCompanion]);
 
   const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
+
+  // Derive reveal background from baby's base color
+  const revealBg = useMemo(() => buildRevealGradient(eggColor), [eggColor]);
 
   // ── Typewriter for current dialog line ──
   const currentDialogText = phase === 'dialog' ? (BIRTH_DIALOG[dialogLineIndex] ?? '') : '';
@@ -628,7 +591,7 @@ export function BlobbiHatchingCeremony({
       className="fixed inset-0 z-50 overflow-hidden select-none"
       style={{
         background: showBaby
-          ? 'radial-gradient(ellipse at 50% 45%, rgb(60,140,180) 0%, rgb(70,160,195) 25%, rgb(85,175,205) 50%, rgb(100,190,210) 75%, rgb(115,195,195) 100%)'
+          ? revealBg
           : 'radial-gradient(ellipse at center, #0a1a2a 0%, #081520 50%, #060f18 100%)',
         transition: 'background 2s ease-out',
       }}
@@ -642,6 +605,16 @@ export function BlobbiHatchingCeremony({
             transitionDuration: '3000ms',
             background: `radial-gradient(ellipse at 50% 50%, ${eggColor}30 0%, transparent 60%)`,
             opacity: (isEggPhase || isHatching) ? 0.07 : 0.05,
+          }}
+        />
+      )}
+
+      {/* ── Vignette shadow for reveal phase — adds depth so blobbi pops ── */}
+      {showBaby && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.25) 100%)',
           }}
         />
       )}
