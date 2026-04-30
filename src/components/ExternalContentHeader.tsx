@@ -11,6 +11,7 @@ import { LinkEmbed } from '@/components/LinkEmbed';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import { BitcoinTxPreview, BitcoinAddressPreview } from '@/components/BitcoinContentHeader';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlueskyPost, extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { GathererCardHeader } from '@/components/GathererCardHeader';
@@ -804,6 +805,10 @@ export function ExternalContentPreview({ identifier }: { identifier: string }) {
       return <BookPreview isbn={content.value} link={link} />;
     case 'iso3166':
       return <CountryPreview code={content.code} link={link} />;
+    case 'bitcoin-tx':
+      return <BitcoinTxPreview txid={content.txid} link={link} />;
+    case 'bitcoin-address':
+      return <BitcoinAddressPreview address={content.address} link={link} />;
     default:
       return (
         <Link to={link} className="block px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors">

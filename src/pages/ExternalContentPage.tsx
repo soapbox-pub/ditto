@@ -22,6 +22,7 @@ import {
   BookContentHeader,
   CountryContentHeader,
 } from '@/components/ExternalContentHeader';
+import { BitcoinTxHeader, BitcoinAddressHeader } from '@/components/BitcoinContentHeader';
 import { PrecipitationEffect } from '@/components/PrecipitationEffect';
 import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
 import { ratingToStars } from '@/lib/bookstr';
@@ -287,6 +288,8 @@ export function ExternalContentPage() {
         {content.type === 'url' && <UrlContentHeader url={content.value} />}
         {content.type === 'isbn' && <BookContentHeader isbn={content.value} />}
         {content.type === 'iso3166' && <CountryContentHeader code={content.code} />}
+        {content.type === 'bitcoin-tx' && <BitcoinTxHeader txid={content.txid} />}
+        {content.type === 'bitcoin-address' && <BitcoinAddressHeader address={content.address} />}
         {content.type === 'unknown' && (
           <div className="rounded-2xl border border-border p-5 text-center">
             <Globe className="size-8 mx-auto mb-2 text-muted-foreground/40" />

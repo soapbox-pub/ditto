@@ -45,7 +45,6 @@ import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
-import { canZap } from "@/lib/canZap";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
@@ -339,7 +338,7 @@ export function VineCard({
 	const displayName = getDisplayName(metadata, event.pubkey);
 	const profileUrl = useProfileUrl(event.pubkey, metadata);
 	const { data: stats } = useEventStats(event.id, event);
-	const canZapAuthor = user && canZap(metadata);
+	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
 	const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);

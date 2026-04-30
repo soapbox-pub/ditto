@@ -3,13 +3,14 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, BookOpen, Bird, Camera, Clapperboard, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { BitcoinTxPreview, BitcoinAddressPreview } from '@/components/BitcoinContentHeader';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -150,6 +151,7 @@ const KIND_LABELS: Record<number, string> = {
   30621: 'a constellation',
   39089: 'a follow pack',
   9735: 'a zap',
+  8333: 'a Bitcoin zap',
   31124: 'a Blobbi',
 };
 
@@ -199,6 +201,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
+  8333: Bitcoin,
   31124: Egg,
   2473: Bird,
   30621: Stars,
@@ -742,6 +745,16 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     return <CountryCommentContext identifier={identifier} className={className} />;
   }
 
+  // Bitcoin transaction identifiers — show icon + truncated txid with hover preview
+  if (identifier.startsWith('bitcoin:tx:')) {
+    return <BitcoinTxCommentContext identifier={identifier} className={className} />;
+  }
+
+  // Bitcoin address identifiers — show icon + truncated address with hover preview
+  if (identifier.startsWith('bitcoin:address:')) {
+    return <BitcoinAddressCommentContext identifier={identifier} className={className} />;
+  }
+
   // Generic fallback for other external identifiers
   const link = `/i/${encodeURIComponent(identifier)}`;
 
@@ -991,6 +1004,72 @@ function GathererCardCommentContext({
               )}
             </div>
           </div>
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for Bitcoin transaction identifiers — shows icon, truncated txid, and hover preview. */
+function BitcoinTxCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const txid = identifier.slice('bitcoin:tx:'.length);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+  const truncated = txid.length > 19 ? `${txid.slice(0, 8)}…${txid.slice(-8)}` : txid;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            transaction <span className="font-mono text-xs">{truncated}</span>
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BitcoinTxPreview txid={txid} link={link} />
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for Bitcoin address identifiers — shows icon, truncated address, and hover preview. */
+function BitcoinAddressCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const address = identifier.slice('bitcoin:address:'.length);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+  const truncated = address.length > 19 ? `${address.slice(0, 8)}…${address.slice(-8)}` : address;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            address <span className="font-mono text-xs">{truncated}</span>
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BitcoinAddressPreview address={address} link={link} />
         </HoverCardContent>
       </HoverCard>
     </CommentContextRow>
