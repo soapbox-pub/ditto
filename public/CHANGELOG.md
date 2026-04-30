@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.12.0] - 2026-04-30
+
+### Added
+- Bitcoin wallet -- a new Wallet tab in the sidebar shows your balance in USD with BTC underneath, a transaction history that collapses when empty, and a 3-step send flow with a two-tap confirmation for amounts over $100
+- Bitcoin zaps -- send on-chain Bitcoin directly to anyone on Nostr as a native alternative to Lightning, with an automatic QR-code fallback when your signer does not support Bitcoin
+- Detail pages for Bitcoin transactions and addresses, with the block explorer URL configurable per deployment
+- Evolve ceremony -- Blobbis now transform from baby to adult through an immersive full-screen animation with energy particles, a flash-to-reveal, and a typewriter reveal text
+- Birdex life lists -- a compact species tile strip in feeds and a full responsive grid on the post-detail page, so visitors can browse an author's whole collection
+- Bird-song recordings play inline on Wikipedia species pages, with an emerald play button next to the title and a credit link in the footer
+
+### Changed
+- Display names now use a consistent `name` then `display_name` fallback everywhere, so the same user renders the same way across the whole UI
+- Hatching ceremony reveal background is now tinted by the baby Blobbi's color instead of a hardcoded blue, with a vignette overlay so the blobbi pops against same-hue backgrounds
+- Bird Detection cards prefer the authoritative scientific name tag published by Birdstar, so cards stay labeled even when the post's alt text is generic
+
+### Fixed
+- "Discover people to follow" now lands on a populated Global tab instead of another empty Follows view
+- Blobbi daily bounty progress is no longer wiped by profile writes, and persists reliably across page refreshes and app restarts
+- Blobbi profile content (name, avatar, custom fields) is preserved across every profile update instead of being silently dropped by some write paths
+- Blobbi hatch and evolve mission progress no longer resets from concurrent writes racing against each other
+
 ## [2.11.2] - 2026-04-28
 
 ### Fixed
