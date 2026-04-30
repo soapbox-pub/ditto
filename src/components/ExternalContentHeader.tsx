@@ -1133,7 +1133,7 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {
@@ -1236,7 +1236,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
   const { data: event, isLoading } = useAddrEvent(addr);
   const author = useAuthor(addr.pubkey);
   const authorMeta = author.data?.metadata;
-  const authorName = authorMeta?.name ?? genUserName(addr.pubkey);
+  const authorName = authorMeta?.name ?? authorMeta?.display_name ?? genUserName(addr.pubkey);
 
   const kindDef = useMemo(
     () => EXTRA_KINDS.find((d) => d.kind === addr.kind || d.subKinds?.some((s) => s.kind === addr.kind)),

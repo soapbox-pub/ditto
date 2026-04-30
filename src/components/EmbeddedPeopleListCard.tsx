@@ -108,7 +108,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
           <div className="flex -space-x-1.5">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || genUserName(pk);
+              const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
               const shape = getAvatarShape(member?.metadata);
               return (
                 <Avatar

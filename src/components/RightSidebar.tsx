@@ -188,7 +188,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
 
@@ -226,14 +226,14 @@ function HotPostCard({ event }: { event: NostrEvent }) {
 }
 
 function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss: (pubkey: string) => void }) {
-  let metadata: { name?: string; nip05?: string; picture?: string } = {};
+  let metadata: { name?: string; display_name?: string; nip05?: string; picture?: string } = {};
   try {
     metadata = n.json().pipe(n.metadata()).parse(event.content);
   } catch {
     // Invalid metadata
   }
 
-  const displayName = metadata.name || genUserName(event.pubkey);
+  const displayName = metadata.name || metadata.display_name || genUserName(event.pubkey);
   const latestAvatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 

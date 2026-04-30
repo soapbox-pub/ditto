@@ -224,8 +224,8 @@ export function BlobbiHatchingCeremony({
         // 1. Create profile if needed
         if (!currentProfile) {
           const suggestedName =
-            authorData?.metadata?.display_name ||
             authorData?.metadata?.name ||
+            authorData?.metadata?.display_name ||
             'Blobbonaut';
 
           const baseTags = buildBlobbonautTags(user.pubkey);

@@ -912,7 +912,7 @@ function ProfileItem({
   onClick: (profile: SearchProfile, profileUrl: string) => void;
 }) {
   const { metadata, pubkey } = profile;
-  const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);

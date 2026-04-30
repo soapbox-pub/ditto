@@ -56,7 +56,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Query kind 8 badge award events referencing this badge definition

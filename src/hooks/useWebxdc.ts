@@ -115,7 +115,7 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const activePubkey = user ? user.pubkey : ephemeralPubkey;
 
   const selfAddr = nip19.npubEncode(activePubkey);
-  const selfName = metadata?.display_name || metadata?.name || nip19.npubEncode(activePubkey).slice(0, 12);
+  const selfName = metadata?.name || metadata?.display_name || nip19.npubEncode(activePubkey).slice(0, 12);
 
   // Publish a signed event using whichever signer is active (logged-in user or ephemeral key)
   const publishSigned = useCallback(async (template: Parameters<typeof ephemeralSigner.signEvent>[0]) => {

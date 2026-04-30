@@ -91,7 +91,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
   const { data: decrypted } = useDecryptLetter(letter);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
   const timeStr = shortTimeAgo(letter.timestamp);
 

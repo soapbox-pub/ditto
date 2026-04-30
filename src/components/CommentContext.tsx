@@ -420,7 +420,7 @@ export function CommentContext({ event, className }: CommentContextProps) {
 function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const parentLink = useMemo(() => {
     if (!eventId) return undefined;
@@ -466,7 +466,7 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
 function FollowListCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
     () => `/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`,
@@ -500,7 +500,7 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
 function ProfileCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -523,7 +523,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   // Build naddr link for the profile badges event

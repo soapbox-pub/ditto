@@ -64,7 +64,7 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 
   return (
     <span className="truncate">
-      {metadata?.display_name || metadata?.name || genUserName(pubkey)}
+      {metadata?.name || metadata?.display_name || genUserName(pubkey)}
     </span>
   );
 }

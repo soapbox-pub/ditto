@@ -316,7 +316,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const pinned = isPinned(event.id);
   const isOwnPost = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();

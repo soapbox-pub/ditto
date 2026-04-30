@@ -1888,7 +1888,7 @@ export function EventActionHeader({
   nounRoute,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
   const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (

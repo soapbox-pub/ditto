@@ -76,7 +76,7 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  const getDisplayName = (account: Account) => account.metadata.display_name || account.metadata.name || genUserName(account.pubkey);
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || genUserName(account.pubkey);
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
@@ -151,7 +151,7 @@ export function LeftSidebar() {
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
                     <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {(metadata?.display_name || metadata?.name || genUserName(user.pubkey))[0]?.toUpperCase() ?? '?'}
+                      {(metadata?.name || metadata?.display_name || genUserName(user.pubkey))[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -161,9 +161,9 @@ export function LeftSidebar() {
                   ) : (
                     <>
                       <span className="font-semibold text-sm truncate">
-                        {currentUserEvent && metadata?.name
-                          ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
-                          : (metadata?.name || genUserName(user.pubkey))}
+                        {currentUserEvent && (metadata?.name || metadata?.display_name)
+                          ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
+                          : (metadata?.name || metadata?.display_name || genUserName(user.pubkey))}
                       </span>
                       {metadata?.nip05 && (
                         <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
@@ -305,7 +305,7 @@ export function LeftSidebar() {
                 </button>
                 <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
                   <LogOut className="size-4" />
-                  <span>Log out @{metadata?.name || genUserName(user.pubkey)}</span>
+                  <span>Log out @{metadata?.name || metadata?.display_name || genUserName(user.pubkey)}</span>
                 </button>
               </div>
             </PopoverContent>

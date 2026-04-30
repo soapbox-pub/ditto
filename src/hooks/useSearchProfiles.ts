@@ -46,8 +46,8 @@ function searchCachedProfiles(
     const aFollowed = followedPubkeys.has(a.pubkey) ? 0 : 1;
     const bFollowed = followedPubkeys.has(b.pubkey) ? 0 : 1;
     if (aFollowed !== bFollowed) return aFollowed - bFollowed;
-    const aName = (a.metadata.display_name || a.metadata.name || '').toLowerCase();
-    const bName = (b.metadata.display_name || b.metadata.name || '').toLowerCase();
+    const aName = (a.metadata.name || a.metadata.display_name || '').toLowerCase();
+    const bName = (b.metadata.name || b.metadata.display_name || '').toLowerCase();
     return aName.localeCompare(bName);
   });
 

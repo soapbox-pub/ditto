@@ -168,7 +168,7 @@ export function useBlobbiOnboarding({
   // Suggested name from kind 0: display_name > name > undefined
   const suggestedName = useMemo(() => {
     if (!authorData?.metadata) return undefined;
-    return authorData.metadata.display_name || authorData.metadata.name || undefined;
+    return authorData.metadata.name || authorData.metadata.display_name || undefined;
   }, [authorData?.metadata]);
   
   // ─── State ────────────────────────────────────────────────────────────────────

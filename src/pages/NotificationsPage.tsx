@@ -367,7 +367,7 @@ function ActorAvatars({ actors }: { actors: NotificationItem[] }) {
 function ActorAvatar({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const name = metadata?.name ?? genUserName(pubkey);
+  const name = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const shape = getAvatarShape(metadata);
   const isEmojiShape = !!shape;
@@ -446,7 +446,7 @@ function GroupHeader({
 /** Helper hook to get a display name for a pubkey. */
 function useActorName(pubkey: string): string {
   const author = useAuthor(pubkey || 'dummy');
-  return author.data?.metadata?.name ?? genUserName(pubkey || 'dummy');
+  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey || 'dummy');
 }
 
 function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
@@ -913,7 +913,7 @@ function NotificationHeader({
 }) {
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(actorPubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(actorPubkey);
   const profileUrl = useProfileUrl(actorPubkey, metadata);
 
   if (author.isLoading) {

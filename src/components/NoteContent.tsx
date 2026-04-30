@@ -836,8 +836,8 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
 
 function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const hasRealName = !!author.data?.metadata?.name;
-  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
+  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
