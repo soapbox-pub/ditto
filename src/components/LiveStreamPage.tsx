@@ -22,7 +22,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { canZap } from '@/lib/canZap';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import { cn } from '@/lib/utils';
 
@@ -351,11 +350,9 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
 }
 
 function ZapButton({ event }: { event: NostrEvent }) {
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-
-  if (!canZap(metadata)) return null;
-
+  // ZapDialog handles the self-zap guard internally, so we only need to
+  // render the trigger. On-chain zaps are always available for any author;
+  // Lightning is an opt-in tab inside the dialog.
   return (
     <ZapDialog target={event}>
       <Button variant="outline" size="icon" className="shrink-0 size-9 rounded-full text-amber-500 hover:text-amber-400 hover:bg-amber-500/10">

@@ -1,4 +1,13 @@
 /**
+ * Polyfill for Buffer in browser environment.
+ *
+ * Many Node.js libraries like bitcoinjs-lib expect Buffer to be globally available.
+ * This polyfill makes the buffer package's Buffer available globally.
+ */
+import { Buffer } from 'buffer';
+globalThis.Buffer = Buffer;
+
+/**
  * Polyfill for AbortSignal.any()
  * 
  * AbortSignal.any() creates an AbortSignal that will be aborted when any of the

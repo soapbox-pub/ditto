@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
-import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X, Smile } from 'lucide-react';
+import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X, Smile, Bitcoin } from 'lucide-react';
 import { openUrl } from '@/lib/downloadFile';
 import { impactMedium } from '@/lib/haptics';
 import { HelpTip } from '@/components/HelpTip';
@@ -15,12 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
+import { OnchainZapContent } from '@/components/OnchainZapContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
@@ -28,6 +31,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInsertText } from '@/hooks/useInsertText';
+import { canZap } from '@/lib/canZap';
 import type { Event } from 'nostr-tools';
 import QRCode from 'qrcode';
 import type { WebLNProvider } from "@webbtc/webln-types";
@@ -46,7 +50,7 @@ const presetAmounts = [
   { amount: 1000, icon: Rocket },
 ];
 
-interface ZapContentProps {
+interface LightningZapContentProps {
   invoice: string | null;
   amount: number | string;
   comment: string;
@@ -67,8 +71,8 @@ interface ZapContentProps {
   zap: (amount: number, comment: string) => void;
 }
 
-// Moved ZapContent outside of ZapDialog to prevent re-renders causing focus loss
-const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
+// Forwarded ref + defined outside ZapDialog to prevent re-render focus loss.
+const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>(({
   invoice,
   amount,
   comment,
@@ -271,7 +275,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
     )}
   </div>
 ));
-ZapContent.displayName = 'ZapContent';
+LightningZapContent.displayName = 'LightningZapContent';
 
 export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const [open, setOpen] = useState(false);
@@ -291,6 +295,17 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { emojis: allCustomEmojis } = useCustomEmojis();
   const customEmojis = feedSettings.showCustomEmojis !== false ? allCustomEmojis : [];
   const { insertAtCursor, insertEmoji } = useInsertText(commentTextareaRef, comment, setComment);
+
+  // Default tab: Bitcoin. Users can switch to Lightning if available.
+  // If the user's signer can't sign PSBTs AND Lightning is available, we
+  // transparently default to Lightning instead of showing an unusable
+  // Bitcoin tab as the primary option.
+  const { capability: btcCapability } = useBitcoinSigner();
+  const hasLightning = canZap(author?.metadata);
+  const bitcoinUnsupported = btcCapability === 'unsupported';
+  const [activeTab, setActiveTab] = useState<'onchain' | 'lightning'>(
+    bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain',
+  );
 
   useEffect(() => {
     if (target) {
@@ -360,13 +375,28 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setInvoice(null);
       setCopied(false);
       setQrCodeUrl('');
+      setActiveTab(bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain');
     } else {
       setAmount(100);
       setInvoice(null);
       setCopied(false);
       setQrCodeUrl('');
     }
+    // `bitcoinUnsupported`/`hasLightning` deliberately excluded — we only
+    // want to reset the active tab on open/close, not on every capability
+    // re-render. The mid-session flip is handled by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, setInvoice]);
+
+  // If Bitcoin capability flips to `unsupported` while the dialog is open
+  // (e.g. a bunker just rejected `sign_psbt`) and Lightning is available,
+  // transparently switch to the Lightning tab. Otherwise the user would be
+  // stuck staring at the "Bitcoin zaps aren't available" panel.
+  useEffect(() => {
+    if (open && bitcoinUnsupported && hasLightning && activeTab === 'onchain') {
+      setActiveTab('lightning');
+    }
+  }, [open, bitcoinUnsupported, hasLightning, activeTab]);
 
   const handleZap = () => {
     impactMedium();
@@ -374,7 +404,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     zap(finalAmount, comment);
   };
 
-  const contentProps = {
+  const lightningContentProps = {
     invoice,
     amount,
     comment,
@@ -395,9 +425,12 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     zap,
   };
 
-  const canZap = !!user && user.pubkey !== target.pubkey && !!(author?.metadata?.lud06 || author?.metadata?.lud16);
+  // Zap button shows for any logged-in user except when targeting oneself.
+  // On-chain is always available; Lightning is offered as an in-dialog option
+  // when the author has a Lightning address.
+  const canOpenZap = !!user && user.pubkey !== target.pubkey;
 
-  if (!canZap) {
+  if (!canOpenZap) {
     return <>{children}</>;
   }
 
@@ -421,10 +454,35 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
           </button>
         </div>
         <p className="px-4 -mt-1 mb-1 text-sm text-muted-foreground">
-          {invoice ? 'Pay with Bitcoin Lightning Network' : 'Send a small Bitcoin payment to support the creator.'}
+          {invoice
+            ? 'Pay with Bitcoin Lightning Network'
+            : activeTab === 'onchain'
+              ? 'Send Bitcoin to support the creator.'
+              : 'Send a Lightning payment to support the creator.'}
         </p>
         <div className="overflow-y-auto">
-          <ZapContent {...contentProps} />
+          {hasLightning ? (
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'onchain' | 'lightning')} className="w-full">
+              <div className="px-4 pt-2">
+                <TabsList className="grid w-full grid-cols-2 h-9">
+                  <TabsTrigger value="onchain" className="gap-1.5 text-xs">
+                    <Bitcoin className="size-3.5" /> Bitcoin
+                  </TabsTrigger>
+                  <TabsTrigger value="lightning" className="gap-1.5 text-xs">
+                    <Zap className="size-3.5" /> Lightning
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="onchain" className="mt-0">
+                <OnchainZapContent target={target} onSuccess={() => setOpen(false)} />
+              </TabsContent>
+              <TabsContent value="lightning" className="mt-0">
+                <LightningZapContent {...lightningContentProps} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <OnchainZapContent target={target} onSuccess={() => setOpen(false)} />
+          )}
         </div>
       </DialogContent>
     </Dialog>

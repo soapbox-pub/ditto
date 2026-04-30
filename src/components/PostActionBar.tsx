@@ -7,12 +7,10 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ZapDialog } from '@/components/ZapDialog';
-import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
-import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
 import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
@@ -43,9 +41,9 @@ export function PostActionBar({
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const canZapAuthor = user && canZap(metadata);
+  // Zap button shows for any logged-in user except on their own posts.
+  // Both on-chain and Lightning zaps are supported inside the dialog.
+  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);

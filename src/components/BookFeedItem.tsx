@@ -24,7 +24,6 @@ import { useOpenPost } from '@/hooks/useOpenPost';
 import { useBookSummary } from '@/hooks/useBookSummary';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
-import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { BOOKSTR_KINDS, extractISBNFromEvent, parseBookReview, ratingToStars } from '@/lib/bookstr';
@@ -60,7 +59,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
-  const canZapAuthor = user && canZap(metadata);
+  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   const isbn = useMemo(() => extractISBNFromEvent(event), [event]);
   const isReview = event.kind === BOOKSTR_KINDS.BOOK_REVIEW;

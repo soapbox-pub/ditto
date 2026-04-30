@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Bird,
+  Bitcoin,
   Camera,
   Egg,
   FileCode,
@@ -107,7 +108,6 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
-import { canZap } from "@/lib/canZap";
 import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
@@ -366,8 +366,10 @@ export const NoteCard = memo(function NoteCard({
     if (mapped) triggerBlobbiReaction(mapped);
   }, [triggerBlobbiReaction]);
 
-  // Check if the current user can zap this event's author
-  const canZapAuthor = user && canZap(metadata);
+  // Zap button shows for any logged-in user except on their own posts.
+  // On-chain zaps are always available; Lightning is offered inside the dialog
+  // when the author has lud06/lud16.
+  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
@@ -1843,6 +1845,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   9735: {
     icon: Zap,
     action: "zapped",
+  },
+  8333: {
+    icon: Bitcoin,
+    action: "Bitcoin-zapped",
   },
   31124: {
     icon: Egg,
