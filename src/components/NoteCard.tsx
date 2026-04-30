@@ -58,6 +58,7 @@ import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -390,6 +391,7 @@ export const NoteCard = memo(function NoteCard({
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isBirdDetection = event.kind === 2473;
+  const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
@@ -440,6 +442,7 @@ export const NoteCard = memo(function NoteCard({
     !isFoundLog &&
     !isColor &&
     !isBirdDetection &&
+    !isBirdex &&
     !isConstellation &&
     !isPeopleList &&
     !isArticle &&
@@ -595,6 +598,8 @@ export const NoteCard = memo(function NoteCard({
           <ColorMomentContent event={event} />
         ) : isBirdDetection ? (
           <BirdDetectionContent event={event} />
+        ) : isBirdex ? (
+          <BirdexContent event={event} />
         ) : isConstellation ? (
           <ConstellationContent event={event} />
         ) : isPeopleList ? (

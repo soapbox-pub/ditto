@@ -1229,6 +1229,7 @@ const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
   35128: 'Nsite',
   31124: 'Blobbi',
   2473: 'Bird Detection',
+  12473: 'Birdex',
   30621: 'Constellation',
 };
 
@@ -1256,6 +1257,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (addr.kind === 15128 || addr.kind === 35128) return Globe;
     if (addr.kind === 3 || addr.kind === 30000) return Users;
     if (addr.kind === 2473) return Bird;
+    if (addr.kind === 12473) return Bird;
     if (addr.kind === 30621) return Stars;
     return FileText;
   }, [kindDef, addr.kind]);

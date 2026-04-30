@@ -118,6 +118,7 @@ const KIND_LABELS: Record<number, string> = {
   1617: 'a patch',
   1618: 'a pull request',
   2473: 'a bird detection',
+  12473: 'a Birdex',
   3367: 'a color moment',
   7516: 'a found log',
   15128: 'an nsite',
@@ -204,6 +205,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   8333: Bitcoin,
   31124: Egg,
   2473: Bird,
+  12473: Bird,
   30621: Stars,
 };
 

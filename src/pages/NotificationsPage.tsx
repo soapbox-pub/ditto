@@ -69,6 +69,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1617: 'patch',
   1618: 'pull request',
   2473: 'bird detection',
+  12473: 'Birdex',
   3367: 'color moment',
   7516: 'found log',
   15128: 'nsite',

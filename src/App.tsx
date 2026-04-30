@@ -114,6 +114,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBlobbi: true,
     showBirdstar: true,
     feedIncludeBirdDetections: true,
+    feedIncludeBirdex: true,
     feedIncludeConstellations: true,
     followsFeedShowReplies: true,
   },
