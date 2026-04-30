@@ -33,18 +33,20 @@ export function hasBtcSigning(signer: NostrSigner): signer is BtcSigner {
  *
  * `NSecSigner` stores the secret key in a JS `#private` field that subclasses
  * cannot access. To work around this, the constructor accepts the raw secret
- * key bytes, passes them to `super()`, and keeps its own copy for Bitcoin use.
+ * key bytes, passes them to `super()`, and keeps its own copy in a true
+ * runtime-private `#secretKeyBytes` field so the key is not reachable via
+ * property enumeration or reflection on the instance.
  */
 export class NSecSignerBtc extends NSecSigner implements BtcSigner {
-  private readonly secretKeyBytes: Uint8Array;
+  readonly #secretKeyBytes: Uint8Array;
 
   constructor(secretKey: Uint8Array) {
     super(secretKey);
-    this.secretKeyBytes = new Uint8Array(secretKey);
+    this.#secretKeyBytes = new Uint8Array(secretKey);
   }
 
   async signPsbt(psbtHex: string): Promise<string> {
-    const privateKeyHex = Buffer.from(this.secretKeyBytes).toString('hex');
+    const privateKeyHex = Buffer.from(this.#secretKeyBytes).toString('hex');
     return signPsbtLocal(psbtHex, privateKeyHex);
   }
 }
