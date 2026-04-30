@@ -17,7 +17,10 @@ export { ROOM_BOTTOM_BAR_CLASS } from './lib/room-layout';
 export {
   type PoopInstance,
   XP_PER_POOP,
+  OVERFEED_THRESHOLD,
+  OVERFEED_CHANCE,
   generateInitialPoops,
+  addPoop,
   getPoopsInRoom,
   removePoop,
   hasAnyPoop,
@@ -27,3 +30,5 @@ export { RoomActionButton } from './components/RoomActionButton';
 export { ItemCarousel, type CarouselEntry } from './components/ItemCarousel';
 export { BlobbiRoomHero, type BlobbiRoomHeroProps } from './components/BlobbiRoomHero';
 export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';
+export { useShovelDrag, type ShovelDrag } from './hooks/useShovelDrag';
+export { PoopOverlay, InteractivePoopOverlay, ShovelButton } from './components/RoomPoopLayer';

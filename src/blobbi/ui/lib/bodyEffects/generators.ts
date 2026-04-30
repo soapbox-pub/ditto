@@ -34,6 +34,25 @@ import type {
   BodyPathInfo,
 } from './types';
 
+// ─── SVG Color Sanitization ───────────────────────────────────────────────────
+
+/** Hex color: #rgb, #rrggbb, or #rrggbbaa */
+const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** Named CSS color or functional notation (rgb/rgba/hsl/hsla with digits, commas, spaces, dots, %) */
+const FUNC_RE = /^(?:rgb|rgba|hsl|hsla)\(\s*[\d.,\s%]+\)$/i;
+const NAMED_RE = /^[a-z]{3,24}$/i;
+
+/**
+ * Validate a color value before interpolating it into SVG markup.
+ * Returns the color unchanged if it looks safe, otherwise returns a
+ * harmless fallback. This prevents SVG injection if a future caller
+ * ever passes user-controlled color strings.
+ */
+function sanitizeSvgColor(color: string, fallback = '#000'): string {
+  if (HEX_RE.test(color) || FUNC_RE.test(color) || NAMED_RE.test(color)) return color;
+  return fallback;
+}
+
 // ─── Body Path Detection ──────────────────────────────────────────────────────
 
 /**
@@ -725,19 +744,51 @@ export function generateAngerRiseEffect(
   config: BodyEffectConfig,
   idSuffix?: string,
 ): { defs: string; overlay: string } {
-  const { pathD, minY, maxY } = bodyPath;
+  const { pathD, minX, maxX, minY, maxY } = bodyPath;
   const bodyHeight = maxY - minY;
+  const bodyWidth = maxX - minX;
+  const safeColor = sanitizeSvgColor(config.color);
   
   const suffix = idSuffix ?? Math.random().toString(36).slice(2, 8);
   const clipId = `blobbi-anger-clip-${suffix}`;
   const gradientId = `blobbi-anger-gradient-${suffix}`;
   
-  const defs = `
+  // When `level` is provided, render a static gradient at that offset (0–1)
+  // instead of using the SMIL rise animation. This lets external systems
+  // (e.g. overstimulation reaction, nausea) control exact fill height each frame.
+  //
+  // `level` controls only how HIGH the fill reaches. Opacity is controlled
+  // separately via bottomOpacity/edgeOpacity so different effects (anger vs
+  // nausea) can have different visual intensities through the same generator.
+  const useStaticLevel = config.level !== undefined && config.level !== null;
+  const lvl = useStaticLevel ? Math.max(0, Math.min(1, config.level!)) : 0;
+
+  // Caller-controlled opacity with moderate defaults.
+  // Nausea uses stronger values (~0.78/0.65); anger uses these defaults.
+  const bottomOpacity = config.bottomOpacity ?? 0.55;
+  const edgeOpacity = config.edgeOpacity ?? 0.45;
+
+  // Feather zone: fraction of the gradient used for the soft top edge.
+  // Slightly larger than the animated path to keep the edge soft when the
+  // fill height is re-rendered every frame.
+  const feather = 0.10;
+
+  const defs = useStaticLevel
+    ? `
     <clipPath id="${clipId}">
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}">
+      <stop offset="0%" stop-color="${safeColor}" stop-opacity="${bottomOpacity}" />
+      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${safeColor}" stop-opacity="${edgeOpacity}" />
+      <stop offset="${lvl}" stop-color="${safeColor}" stop-opacity="0" />
+    </linearGradient>`
+    : `
+    <clipPath id="${clipId}">
+      <path d="${pathD}" />
+    </clipPath>
+    <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="${safeColor}">
         <animate 
           attributeName="stop-opacity" 
           values="0;0.5;0.5" 
@@ -746,7 +797,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}">
+      <stop stop-color="${safeColor}">
         <animate 
           attributeName="offset" 
           values="0;1" 
@@ -761,7 +812,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}" stop-opacity="0">
+      <stop stop-color="${safeColor}" stop-opacity="0">
         <animate 
           attributeName="offset" 
           values="0;1" 
@@ -771,11 +822,18 @@ export function generateAngerRiseEffect(
       </stop>
     </linearGradient>`;
   
+  // Use detected body bounds with a small pad to ensure the rect fully
+  // covers the body silhouette for both baby (100x100) and adult (200x200)
+  // viewBoxes. The clip-path masks any overshoot.
+  const pad = 2;
+  const rectX = minX - pad;
+  const rectW = bodyWidth + pad * 2;
+
   const overlay = `
     <rect 
       class="blobbi-anger-rise"
-      x="0" y="${minY}" 
-      width="100" height="${bodyHeight}"
+      x="${rectX}" y="${minY}" 
+      width="${rectW}" height="${bodyHeight}"
       fill="url(#${gradientId})"
       clip-path="url(#${clipId})"
     />`;

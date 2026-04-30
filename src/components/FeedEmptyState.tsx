@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
 interface FeedEmptyStateProps {
@@ -26,6 +28,17 @@ export function FeedEmptyState({
   showDiscover,
   className,
 }: FeedEmptyStateProps) {
+  const { config } = useAppContext();
+
+  // The /packs page defaults to the Follows tab, which is also empty when the
+  // user doesn't follow anyone. Pre-seed its saved tab to Global so the link
+  // lands on a populated view.
+  const handleDiscoverClick = () => {
+    try {
+      sessionStorage.setItem(getStorageKey(config.appId, 'feed-tab:packs'), 'global');
+    } catch { /* sessionStorage unavailable */ }
+  };
+
   return (
     <div className={cn('py-20 px-8 flex flex-col items-center text-center', className)}>
       <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -38,7 +51,7 @@ export function FeedEmptyState({
         <div className="flex flex-col gap-2 mt-5 w-full max-w-xs">
           {showDiscover && (
             <Button asChild className="rounded-full">
-              <Link to="/packs">Discover people to follow</Link>
+              <Link to="/packs" onClick={handleDiscoverClick}>Discover people to follow</Link>
             </Button>
           )}
           {onSwitchToGlobal && (

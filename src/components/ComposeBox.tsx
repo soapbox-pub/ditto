@@ -272,14 +272,16 @@ export function ComposeBox({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotedEvent]); // Only run on mount / quotedEvent change, not on every content change
 
-  // Auto-resize textarea height as content grows/shrinks
+  // Auto-resize textarea height as content grows/shrinks.
+  // Also re-run when previewMode toggles off so the remounted textarea
+  // is sized to fit its content immediately.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     // Reset to auto so shrinking is detected correctly
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [content]);
+  }, [content, previewMode]);
 
   // Auto-save draft content to localStorage (debounced to avoid thrashing)
   useEffect(() => {
@@ -1149,6 +1151,7 @@ export function ComposeBox({
           <div className="relative">
             <textarea
               ref={textareaRef}
+              dir="auto"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onPointerDown={expand}
@@ -1477,7 +1480,7 @@ export function ComposeBox({
                     </TooltipTrigger>
                     {!trayOpen && <TooltipContent>More</TooltipContent>}
                   </Tooltip>
-                  <PopoverContent side="bottom" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
+                  <PopoverContent side="top" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
                     <div className="flex flex-col gap-0.5">
                       {!replyTo && (
                         <button

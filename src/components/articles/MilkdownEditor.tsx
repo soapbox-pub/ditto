@@ -335,6 +335,7 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
       />
       {sourceMode ? (
         <textarea
+          dir="auto"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
@@ -344,6 +345,7 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
         />
       ) : (
         <div
+          dir="auto"
           className="milkdown-content"
           onBlur={onBlur}
           style={placeholder ? { '--ph': `"${placeholder.replace(/"/g, '\\"')}"` } as React.CSSProperties : undefined}

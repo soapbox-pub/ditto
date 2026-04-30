@@ -257,9 +257,8 @@ function SetupQuestionnaire({
   isSignup?: boolean;
 }) {
   const { nostr } = useNostr();
-  const { config, updateConfig } = useAppContext();
+  const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { updateSettings } = useEncryptedSettings();
   const login = useLoginActions();
 
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
@@ -344,89 +343,17 @@ function SetupQuestionnaire({
     }
   }, [nsec, login, next, config.appName]);
 
-  // Save settings and transition to the follows step (or outro if they have follows)
+  // Check for existing follows and transition to the follows step (or outro if they have follows).
+  //
+  // Historically this callback also wrote a hardcoded `feedSettings` block + `contentWarningPolicy`
+  // to both local config and encrypted relay settings. That block was the save handler for a
+  // questionnaire that has since been removed, so it was overwriting settings with a stale
+  // curated preset — clobbering the app-wide defaults in `App.tsx` (especially on the
+  // `phase === 'not-found'` path, where a returning user on a new device could lose their
+  // tuned feed settings if the encrypted-settings fetch returned empty). Defaults live in
+  // `App.tsx`'s `defaultConfig` and cross-device sync handles the rest.
   const handleSaveAndContinue = useCallback(async () => {
     setIsSaving(true);
-
-    const feedSettings = {
-      showArticles: false,
-      showEvents: true,
-      feedIncludeEvents: true,
-      showVines: true,
-      showPolls: false,
-      showTreasures: true,
-      showTreasureGeocaches: true,
-      showTreasureFoundLogs: true,
-      showColors: true,
-      showPacks: false,
-      showDecks: true,
-      showWebxdc: true,
-      showProfileThemes: false,
-      showThemeDefinitions: true,
-      showProfileThemeUpdates: true,
-      showCustomProfileThemes: true,
-      feedIncludePosts: true,
-      feedIncludeComments: true,
-      feedIncludeReposts: true,
-      feedIncludeGenericReposts: true,
-      feedIncludeArticles: false,
-      feedIncludeVines: true,
-      feedIncludePolls: false,
-      feedIncludeColors: true,
-      feedIncludeDecks: true,
-      feedIncludePacks: false,
-      feedIncludeTreasureGeocaches: true,
-      feedIncludeTreasureFoundLogs: true,
-      feedIncludeWebxdc: true,
-      feedIncludeVoiceMessages: false,
-      showEmojiPacks: true,
-      feedIncludeEmojiPacks: true,
-      showCustomEmojis: true,
-      showUserStatuses: true,
-      feedIncludeProfileThemes: true,
-      feedIncludeThemeDefinitions: true,
-      feedIncludeProfileThemeUpdates: true,
-      showPhotos: true,
-      feedIncludePhotos: true,
-      showVideos: true,
-      feedIncludeNormalVideos: true,
-      feedIncludeShortVideos: true,
-      showMusic: false,
-      feedIncludeMusicTracks: false,
-      feedIncludeMusicPlaylists: false,
-      showPodcasts: false,
-      feedIncludePodcastEpisodes: false,
-      feedIncludePodcastTrailers: false,
-      showDevelopment: false,
-      feedIncludeDevelopment: false,
-      showBadges: false,
-      showBadgeDefinitions: true,
-      showProfileBadges: true,
-      showBadgeAwards: true,
-      feedIncludeBadgeDefinitions: false,
-      feedIncludeProfileBadges: false,
-      feedIncludeBadgeAwards: false,
-      feedIncludeVanish: true,
-      feedIncludeBlobbi: true,
-      followsFeedShowReplies: true,
-    };
-
-    updateConfig((current) => ({
-      ...current,
-      feedSettings,
-      contentWarningPolicy: "blur",
-    }));
-
-    if (user?.signer.nip44) {
-      try {
-        await updateSettings.mutateAsync({
-          feedSettings,
-          contentWarningPolicy: "blur",
-        });
-      } catch (error) {
-        console.warn("Failed to save initial settings to Nostr:", error);
-      }
-    }
 
     // Check if the user already has a follow list
     let userHasFollows = false;
@@ -453,7 +380,7 @@ function SetupQuestionnaire({
     } else {
       goTo("follows");
     }
-  }, [updateConfig, updateSettings, user, nostr, goTo]);
+  }, [user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">

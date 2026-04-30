@@ -14,12 +14,16 @@
  * This file should be placed at the app root level (renders a fixed overlay).
  */
 
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useRef } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
 import { useActionEmotionOverride } from '../hooks/useActionEmotionOverride';
+import { useOverstimulationReaction } from '../hooks/useOverstimulationReaction';
+import { useShakeReaction } from '../hooks/useShakeReaction';
+import { createShakeTracker, recordSample, computeShakeResult, resetTracker } from '../core/shakeDetection';
 import { BlobbiCompanion } from './BlobbiCompanion';
+import { OverstimulationBlockOverlay } from './OverstimulationBlockOverlay';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
@@ -136,6 +140,55 @@ export function BlobbiCompanionLayer() {
 
   const { actionOverride, triggerOverride } = useActionEmotionOverride();
 
+  // ── Overstimulation reaction ───────────────────────────────────────────────
+  const {
+    recipe: overstimRecipe,
+    recipeLabel: overstimLabel,
+    isBlocked: isOverstimBlocked,
+  } = useOverstimulationReaction({
+    isActive: isVisible && !isEntering,
+  });
+
+  // ── Shake reaction (dizzy / nausea) ───────────────────────────────────────
+  const shakeTrackerRef = useRef(createShakeTracker());
+
+  const companionHunger = companion?.stats.hunger ?? 100;
+
+  const {
+    recipe: shakeRecipe,
+    recipeLabel: shakeLabel,
+    onDragUpdate: shakeOnDragUpdate,
+    onDragEnd: shakeOnDragEnd,
+    onDragStart: shakeOnDragStart,
+  } = useShakeReaction({
+    isActive: isVisible && !isEntering,
+    hunger: companionHunger,
+  });
+
+  /** Feed pointer positions into the shake tracker during drag and
+   *  push live shake results into the reaction hook each sample. */
+  const handleDragSample = useCallback((position: Position) => {
+    recordSample(shakeTrackerRef.current, position);
+    // Compute live result so the hook can react during the drag
+    const liveResult = computeShakeResult(shakeTrackerRef.current);
+    shakeOnDragUpdate(liveResult);
+  }, [shakeOnDragUpdate]);
+
+  /** Wrap startDrag to also notify the shake system. */
+  const handleStartDrag = useCallback(() => {
+    resetTracker(shakeTrackerRef.current);
+    shakeOnDragStart();
+    startDrag();
+  }, [startDrag, shakeOnDragStart]);
+
+  /** Wrap endDrag to compute shake result and notify the shake system. */
+  const handleEndDrag = useCallback(() => {
+    const result = computeShakeResult(shakeTrackerRef.current);
+    shakeOnDragEnd(result);
+    resetTracker(shakeTrackerRef.current);
+    endDrag();
+  }, [endDrag, shakeOnDragEnd]);
+
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
     const action = CATEGORY_TO_ACTION[item.category];
 
@@ -237,13 +290,28 @@ export function BlobbiCompanionLayer() {
     actionOverride: isSleeping ? null : actionOverride,
   });
 
-  // When sleeping, overlay the sleeping face on top of the status recipe.
-  // This keeps body effects (dirty, stink) and food icon while overriding
-  // eyes, mouth, and eyebrows with sleeping visuals.
-  const companionRecipe = isSleeping
-    ? buildSleepingRecipe(statusRecipe)
-    : statusRecipe;
-  const companionRecipeLabel = isSleeping ? 'sleeping' : statusRecipeLabel;
+  // Recipe priority chain (highest → lowest):
+  //   1. Sleeping (always wins when companion is asleep)
+  //   2. Overstimulation reaction (user spam-clicking)
+  //   3. Shake reaction (dizzy / nausea from shaking)
+  //   4. Action override (item use: feed → happy, etc.)
+  //   5. Status recipe (stat-driven expressions)
+  let companionRecipe: typeof statusRecipe;
+  let companionRecipeLabel: string;
+
+  if (isSleeping) {
+    companionRecipe = buildSleepingRecipe(statusRecipe);
+    companionRecipeLabel = 'sleeping';
+  } else if (overstimRecipe && overstimLabel) {
+    companionRecipe = overstimRecipe;
+    companionRecipeLabel = overstimLabel;
+  } else if (shakeRecipe && shakeLabel) {
+    companionRecipe = shakeRecipe;
+    companionRecipeLabel = shakeLabel;
+  } else {
+    companionRecipe = statusRecipe;
+    companionRecipeLabel = statusRecipeLabel;
+  }
 
   // ── Early return ───────────────────────────────────────────────────────────
 
@@ -256,69 +324,78 @@ export function BlobbiCompanionLayer() {
   const debugGroundY = calculateGroundY(viewport.height, config.size, config);
 
   return (
-    <div
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 9999 }}
-      aria-hidden="true"
-    >
-      {DEBUG_GROUND_CONTACT && (
-        <DebugGroundOverlay
-          groundY={debugGroundY}
-          size={config.size}
-          viewportHeight={viewport.height}
-          paddingBottom={config.padding.bottom}
-          isEntering={isEntering}
-          entryState={entryState}
-        />
-      )}
+    <>
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 9999 }}
+        aria-hidden="true"
+      >
+        {DEBUG_GROUND_CONTACT && (
+          <DebugGroundOverlay
+            groundY={debugGroundY}
+            size={config.size}
+            viewportHeight={viewport.height}
+            paddingBottom={config.padding.bottom}
+            isEntering={isEntering}
+            entryState={entryState}
+          />
+        )}
 
-      <div className="pointer-events-auto">
-        <BlobbiCompanion
-          companion={companion}
-          state={state}
-          motion={motion}
-          eyeOffsetRef={eyeOffsetRef}
-          isEntering={isEntering}
-          entryProgress={entryProgress}
-          entryState={entryState}
-          wasResolvedFromStuck={wasResolvedFromStuck}
-          groundPosition={groundPosition}
-          viewport={viewport}
-          onStartDrag={startDrag}
-          onUpdateDrag={updateDrag}
-          onEndDrag={endDrag}
-          onClick={handleCompanionClick}
-          recipe={companionRecipe}
-          recipeLabel={companionRecipeLabel}
-          onPositionUpdate={handlePositionUpdate}
-          debugMode={DEBUG_GROUND_CONTACT}
+        <div className="pointer-events-auto">
+          <BlobbiCompanion
+            companion={companion}
+            state={state}
+            motion={motion}
+            eyeOffsetRef={eyeOffsetRef}
+            isEntering={isEntering}
+            entryProgress={entryProgress}
+            entryState={entryState}
+            wasResolvedFromStuck={wasResolvedFromStuck}
+            groundPosition={groundPosition}
+            viewport={viewport}
+            onStartDrag={handleStartDrag}
+            onUpdateDrag={updateDrag}
+            onEndDrag={handleEndDrag}
+            onClick={handleCompanionClick}
+            isClickBlocked={isOverstimBlocked}
+            recipe={companionRecipe}
+            recipeLabel={companionRecipeLabel}
+            onPositionUpdate={handlePositionUpdate}
+            onDragSample={handleDragSample}
+            debugMode={DEBUG_GROUND_CONTACT}
+          />
+        </div>
+
+        <CompanionActionMenu
+          isOpen={menuState.isOpen}
+          companionPosition={renderedPosition}
+          companionSize={config.size}
+          actions={availableActions}
+          selectedAction={menuState.selectedAction}
+          onActionClick={handleActionClick}
+          onClickOutside={handleClickOutside}
+          isSleeping={isSleeping}
+        />
+
+        <HangingItems
+          isVisible={menuState.isOpen && menuState.selectedAction !== null}
+          selectedAction={menuState.selectedAction}
+          items={menuState.items}
+          viewportHeight={viewport.height}
+          groundOffset={config.padding.bottom}
+          companionPosition={renderedPosition}
+          companionSize={config.size}
+          onItemRelease={handleItemClick}
+          onItemLanded={handleItemLanded}
+          onItemUse={handleItemUse}
+          isItemOnCooldown={isItemOnCooldown}
         />
       </div>
 
-      <CompanionActionMenu
-        isOpen={menuState.isOpen}
-        companionPosition={renderedPosition}
-        companionSize={config.size}
-        actions={availableActions}
-        selectedAction={menuState.selectedAction}
-        onActionClick={handleActionClick}
-        onClickOutside={handleClickOutside}
-        isSleeping={isSleeping}
+      {/* Overlay sits outside the zoom container so it stays at viewport scale */}
+      <OverstimulationBlockOverlay
+        isBlocked={isOverstimBlocked}
       />
-
-      <HangingItems
-        isVisible={menuState.isOpen && menuState.selectedAction !== null}
-        selectedAction={menuState.selectedAction}
-        items={menuState.items}
-        viewportHeight={viewport.height}
-        groundOffset={config.padding.bottom}
-        companionPosition={renderedPosition}
-        companionSize={config.size}
-        onItemRelease={handleItemClick}
-        onItemLanded={handleItemLanded}
-        onItemUse={handleItemUse}
-        isItemOnCooldown={isItemOnCooldown}
-      />
-    </div>
+    </>
   );
 }

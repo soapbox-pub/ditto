@@ -11,6 +11,7 @@
  */
 
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import { hexToHsl, hslToHex } from '@/blobbi/core/lib/color-guardrails';
 import { lightenColor, darkenColor, uniquifySvgIds, ensureSvgFillsContainer } from '@/blobbi/ui/lib/svg';
 import type { AdultForm, AdultSvgCustomization } from '../types/adult.types';
 
@@ -507,6 +508,70 @@ function customizeOwli(svgText: string, baseColor: string, secondaryColor?: stri
 
 type FormCustomizer = (svgText: string, baseColor: string, secondaryColor?: string) => string;
 
+/**
+ * Pandi: Light areas get a soft tinted-white from baseColor;
+ * dark areas (ears, eye patches, arms, legs) get a dark tint from secondaryColor.
+ *
+ * The tinted white preserves the hue of baseColor at very high lightness (L=95)
+ * so Pandi looks subtly colored rather than pure white, while the dark areas
+ * use secondaryColor's hue at panda-appropriate darkness (L=20/27) to maintain
+ * the characteristic light-vs-dark panda contrast.
+ */
+function customizePandi(svgText: string, baseColor: string, secondaryColor?: string): string {
+  let svg = svgText;
+
+  // ── Derive tinted-white from baseColor ──
+  const baseHsl = hexToHsl(baseColor);
+  const tintFill = hslToHex(baseHsl.h, Math.min(baseHsl.s, 30), 95);
+  const tintStroke = hslToHex(baseHsl.h, Math.min(baseHsl.s, 20), 90);
+
+  // ── Derive dark tints from secondaryColor (or baseColor if no secondary) ──
+  const darkSource = secondaryColor ?? baseColor;
+  const darkHsl = hexToHsl(darkSource);
+  const darkPrimary = hslToHex(darkHsl.h, 30, 20);   // replaces #1f2937
+  const darkLight = hslToHex(darkHsl.h, 20, 27);      // replaces #374151
+
+  // ── Light areas: body & head (flat fills + strokes) ──
+  // Original: fill="#f8fafc" stroke="#e2e8f0"
+  svg = svg.replaceAll('fill="#f8fafc"', `fill="${tintFill}"`);
+  svg = svg.replaceAll('stroke="#e2e8f0"', `stroke="${tintStroke}"`);
+
+  // ── Dark areas with data-blobbi-skip: ear patches, inner ears, eye patches ──
+  // These use data-blobbi-skip="true" to prevent eye-animation from touching them.
+  // Original dark: fill="#1f2937", lighter dark: fill="#374151"
+  svg = svg.replaceAll('fill="#1f2937" data-blobbi-skip="true"', `fill="${darkPrimary}" data-blobbi-skip="true"`);
+  svg = svg.replaceAll('fill="#374151" data-blobbi-skip="true"', `fill="${darkLight}" data-blobbi-skip="true"`);
+
+  // ── Arm & leg gradients ──
+  svg = replaceGradient(svg, 'pandiArm3D', `<radialGradient id="pandiArm3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:${darkPrimary};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${darkLight};stop-opacity:1" />
+    </radialGradient>`);
+  svg = replaceGradient(svg, 'pandiLeg3D', `<radialGradient id="pandiLeg3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:${darkPrimary};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${darkLight};stop-opacity:1" />
+    </radialGradient>`);
+
+  // ── Nose gradient ──
+  svg = replaceGradient(svg, 'pandiNose3D', `<radialGradient id="pandiNose3D" cx="0.3" cy="0.2">
+      <stop offset="0%" style="stop-color:${darkPrimary};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${darkLight};stop-opacity:1" />
+    </radialGradient>`);
+
+  // ── Mouth gradient ──
+  svg = replaceGradient(svg, 'pandiMouth3D', `<linearGradient id="pandiMouth3D" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" style="stop-color:${darkLight};stop-opacity:1" />
+      <stop offset="50%" style="stop-color:${darkPrimary};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:${darkLight};stop-opacity:1" />
+    </linearGradient>`);
+
+  // ── Sleeping variant: closed-eye strokes and mouth dot use #1e293b ──
+  svg = svg.replaceAll('stroke="#1e293b"', `stroke="${darkPrimary}"`);
+  svg = svg.replaceAll('fill="#1e293b"', `fill="${darkPrimary}"`);
+
+  return svg;
+}
+
 const FORM_CUSTOMIZERS: Partial<Record<AdultForm, FormCustomizer>> = {
   bloomi: customizeBloomi,
   breezy: customizeBreezy,
@@ -520,10 +585,10 @@ const FORM_CUSTOMIZERS: Partial<Record<AdultForm, FormCustomizer>> = {
   leafy: customizeLeafy,
   mushie: customizeMushie,
   owli: customizeOwli,
+  pandi: customizePandi,
   rocky: customizeRocky,
   rosey: customizeRosey,
   starri: customizeStarri,
-  // pandi keeps original colors - it's a panda with black/white coloring by design
 };
 
 // ─── Main Customization ───────────────────────────────────────────────────────

@@ -10,24 +10,21 @@ import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
-  BLOBBONAUT_PROFILE_KINDS,
-  getBlobbonautQueryDValues,
   buildMigrationTags,
-  generatePetId10,
+  deriveMigrationPetId,
   getCanonicalBlobbiD,
   isValidBlobbiEvent,
-  isValidBlobbonautEvent,
-  isLegacyBlobbonautKind,
   migratePetInHas,
   updateBlobbonautTags,
   parseBlobbiEvent,
-  parseBlobbonautEvent,
   parseStorageTags,
   findCanonicalEquivalent,
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
 } from '../lib/blobbi';
+
+import { fetchFreshBlobbonautProfile } from '../lib/fetchFreshBlobbonautProfile';
 
 /**
  * Result of a successful migration.
@@ -155,8 +152,10 @@ export function useBlobbiMigration() {
     console.log('[Blobbi Migration] Starting migration for:', companion.d);
     
     try {
-      // Generate new canonical d-tag
-      const newPetId = generatePetId10();
+      // Derive deterministic canonical d-tag from legacy identity.
+      // Same (pubkey, legacyD) always produces the same canonicalD, making
+      // the entire migration chain (d → seed → visuals) stable.
+      const newPetId = deriveMigrationPetId(user.pubkey, companion.d);
       const canonicalD = getCanonicalBlobbiD(user.pubkey, newPetId);
       
       // Build migration tags (preserves name, stage, stats, generates seed if missing)
@@ -195,8 +194,9 @@ export function useBlobbiMigration() {
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: profile.event.content ?? '',
         tags: profileTags,
+        prev: profile.event,
       });
       
       // Update query caches (optimistic — no invalidation needed since we
@@ -266,38 +266,6 @@ export function useBlobbiMigration() {
   }, [nostr]);
 
   /**
-   * Fetch the freshest profile event directly from relays, bypassing cache.
-   */
-  const fetchFreshProfile = useCallback(async (
-    pubkey: string,
-  ): Promise<BlobbonautProfile | null> => {
-    const dValues = getBlobbonautQueryDValues(pubkey);
-    const events = await nostr.query([{
-      kinds: [...BLOBBONAUT_PROFILE_KINDS],
-      authors: [pubkey],
-      '#d': dValues,
-    }]);
-
-    const validEvents = events.filter(isValidBlobbonautEvent);
-    if (validEvents.length === 0) return null;
-
-    // Prefer current kind over legacy
-    const currentKindEvents = validEvents.filter(e => e.kind === KIND_BLOBBONAUT_PROFILE);
-    if (currentKindEvents.length > 0) {
-      const sorted = currentKindEvents.sort((a, b) => b.created_at - a.created_at);
-      return parseBlobbonautEvent(sorted[0]) ?? null;
-    }
-
-    const legacyKindEvents = validEvents.filter(e => isLegacyBlobbonautKind(e));
-    if (legacyKindEvents.length > 0) {
-      const sorted = legacyKindEvents.sort((a, b) => b.created_at - a.created_at);
-      return parseBlobbonautEvent(sorted[0]) ?? null;
-    }
-
-    return null;
-  }, [nostr]);
-
-  /**
    * Fetch all companions for a user from relays, parse and deduplicate by d-tag.
    * Used to find existing canonical equivalents before migrating a legacy Blobbi.
    */
@@ -362,7 +330,7 @@ export function useBlobbiMigration() {
     // Fetch fresh data from relays (read step of read-modify-write)
     const [freshCompanion, freshProfile] = await Promise.all([
       fetchFreshCompanion(user.pubkey, cachedCompanion.d),
-      fetchFreshProfile(user.pubkey),
+      fetchFreshBlobbonautProfile(nostr, user.pubkey),
     ]);
 
     // Use fresh data, falling back to cached only if relay fetch returned nothing
@@ -396,7 +364,7 @@ export function useBlobbiMigration() {
           const profileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
           const profileEvent = await publishEvent({
             kind: KIND_BLOBBONAUT_PROFILE,
-            content: '',
+            content: profile.event.content ?? '',
             tags: profileTags,
             prev: profile.event,
           });
@@ -468,7 +436,7 @@ export function useBlobbiMigration() {
       profileEvent: profile.event,
       profileStorage: profile.storage,
     };
-  }, [user?.pubkey, fetchFreshCompanion, fetchFreshProfile, fetchAllCompanions, migrateLegacyBlobbi, publishEvent]);
+  }, [user?.pubkey, nostr, fetchFreshCompanion, fetchAllCompanions, migrateLegacyBlobbi, publishEvent]);
   
   return {
     /** Migrate a legacy Blobbi to canonical format */

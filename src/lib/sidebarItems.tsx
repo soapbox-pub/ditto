@@ -3,6 +3,7 @@ import {
   Award,
   BarChart3,
   Bell,
+  Bird,
   Blocks,
   BookMarked,
   Bookmark,
@@ -33,6 +34,7 @@ import {
   SmilePlus,
   Wallet,
   Sparkles,
+  Stars,
   TrendingUp,
   User,
 } from "lucide-react";
@@ -203,6 +205,8 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   voice: Mic,
   "custom-emojis": Smile,
   statuses: SmilePlus,
+  "bird-detections": Bird,
+  constellations: Stars,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),

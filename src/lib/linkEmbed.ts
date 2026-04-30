@@ -126,6 +126,29 @@ export function extractArchiveOrgId(url: string): string | null {
 }
 
 /**
+ * Extract a Wikidata entity ID (Q…, P…, or L…) from a Wikidata URL, or null if not one.
+ *
+ * Supports the "globally unique" concept URI form described at
+ * https://www.wikidata.org/wiki/Wikidata:Identifiers:
+ *   - https://www.wikidata.org/entity/Q42
+ *   - http://www.wikidata.org/entity/Q42
+ * …as well as the browser-facing page URL:
+ *   - https://www.wikidata.org/wiki/Q42
+ */
+export function extractWikidataId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'wikidata.org') return null;
+    // Match /entity/{id} or /wiki/{id} where id is Q|P|L followed by digits.
+    const match = u.pathname.match(/^\/(?:entity|wiki)\/([QPL]\d+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Extract a Wikipedia article title from a Wikipedia URL, or null if not a Wikipedia article link.
  * Supports en.wikipedia.org/wiki/{title} and other language subdomains.
  */
@@ -144,11 +167,65 @@ export function extractWikipediaTitle(url: string): string | null {
   }
 }
 
+/**
+ * Lookup keys that can identify a Magic: The Gathering card printing on Scryfall.
+ * Returned by {@link extractGathererCard}.
+ */
+export type GathererCard =
+  | { kind: 'multiverse'; multiverseId: string }
+  | { kind: 'set'; set: string; number: string; lang: string };
+
+/**
+ * Extract a Magic card reference from a gatherer.wizards.com URL.
+ *
+ * Supports two URL shapes Wizards has used over the years:
+ *
+ *   1. Modern pretty URLs:
+ *      `https://gatherer.wizards.com/{SET}/{LANG}/{COLLECTOR_NUMBER}/{slug}`
+ *      e.g. `/BNG/en-us/156/xenagos-god-of-revels`
+ *
+ *   2. Legacy ASPX query-string URLs:
+ *      `https://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid=12345`
+ *
+ * Returns `null` for any Gatherer URL that can't be mapped to a Scryfall
+ * lookup (e.g. name-only searches, card list pages, printings pages).
+ */
+export function extractGathererCard(url: string): GathererCard | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'gatherer.wizards.com') return null;
+
+    // Legacy query-string form.
+    if (/\/Pages\/Card\/[^/]+\.aspx$/i.test(u.pathname)) {
+      const multiverseId = u.searchParams.get('multiverseid');
+      if (multiverseId && /^\d+$/.test(multiverseId)) {
+        return { kind: 'multiverse', multiverseId };
+      }
+      return null;
+    }
+
+    // Modern /{SET}/{LANG}/{NUM}/{slug} form. The set code is 2-6 alphanum
+    // chars (e.g. BNG, MH2, 30A), lang is the bcp-47-ish locale tag used in
+    // Gatherer URLs (e.g. en-us, ja-jp), and the collector number can
+    // contain letters/digits/stars (e.g. 156, 42a, 1★).
+    const match = u.pathname.match(/^\/([A-Za-z0-9]{2,6})\/([a-z]{2}(?:-[a-z]{2})?)\/([^/]+)(?:\/[^/]*)?$/);
+    if (match) {
+      const [, set, lang, number] = match;
+      return { kind: 'set', set, number: decodeURIComponent(number), lang };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Returns true if the URL should be rendered as a rich embed rather than a plain link. */
 export function isEmbeddableUrl(url: string): boolean {
   return !!extractYouTubeId(url) || !!extractTweetId(url) || !!extractBlueskyPost(url)
     || !!extractMastodonPost(url) || !!extractSpotifyEmbed(url) || !!extractRedditPost(url)
-    || !!extractArchiveOrgId(url);
+    || !!extractArchiveOrgId(url) || !!extractGathererCard(url);
 }
 
 /** Get a short label for the embed type. */
@@ -160,5 +237,6 @@ export function embedLabel(url: string): string | null {
   if (extractSpotifyEmbed(url)) return 'Spotify';
   if (extractRedditPost(url)) return 'Reddit';
   if (extractArchiveOrgId(url)) return 'Internet Archive';
+  if (extractGathererCard(url)) return 'Gatherer';
   return null;
 }
