@@ -146,7 +146,7 @@ export function BlobbiRoomHero({
         <StatsCrown companion={companion} currentStats={currentStats} heroWidth={heroWidth} onGuide={onGuide} />
 
         <div
-          className="relative transition-all duration-500 pointer-events-none"
+          className={cn('relative transition-all duration-500', !isEgg && 'pointer-events-none')}
           style={!isSleeping ? {
             animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite, blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
           } : undefined}
