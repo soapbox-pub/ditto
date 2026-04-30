@@ -12,6 +12,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
 import { BitcoinTxPreview, BitcoinAddressPreview } from '@/components/BitcoinContentHeader';
+import { BirdSongPlayer } from '@/components/BirdSongPlayer';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlueskyPost, extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { GathererCardHeader } from '@/components/GathererCardHeader';
@@ -32,6 +33,7 @@ import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
+import { useBirdSong } from '@/hooks/useBirdSong';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
@@ -355,6 +357,12 @@ const WIKI_ARTICLE_MAX_HEIGHT = 160; // px — extract taller than this gets tru
 
 function WikipediaArticleHeader({ title, url }: { title: string; url: string }) {
   const { data: wiki, isLoading } = useWikipediaSummary(title);
+  // Resolve a reference recording from the article (if any). Shares a
+  // queryKey with BirdSongPlayer's internal lookup so this second
+  // subscription is cache-hit and free — we only use the result here
+  // to decide whether to render the attribution row below the
+  // article, not to trigger a second network request.
+  const { data: song } = useBirdSong(title);
 
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -421,10 +429,25 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
           <span>Wikipedia</span>
         </div>
 
-        {/* Title */}
-        <h2 className="text-2xl sm:text-3xl font-bold leading-snug mb-1">
-          {wiki.title}
-        </h2>
+        {/* Title row with inline bird-song player. The player is
+            lazily resolved against the Wikipedia article — it
+            returns `null` for pages with no field-recording audio
+            (the vast majority of non-bird pages), so non-species
+            articles just render the plain title. For bird species
+            pages the button renders as an emerald circular control
+            that toggles playback of a Wikimedia Commons recording
+            and is visually anchored inline with the title so the
+            eye takes the two as one unit. */}
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-2xl sm:text-3xl font-bold leading-snug mb-1 min-w-0 flex-1">
+            {wiki.title}
+          </h2>
+          <BirdSongPlayer
+            title={title}
+            className="mt-1"
+            ariaLabel={`recording for ${wiki.title}`}
+          />
+        </div>
 
         {/* Description */}
         {wiki.description && (
@@ -460,8 +483,15 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
         )}
       </div>
 
-      {/* Footer with Wikipedia link */}
-      <div className="border-t border-border px-5 py-2.5">
+      {/* Footer with Wikipedia link — plus a song-attribution link
+          when the article had a usable Commons recording. Commons
+          licenses require visible attribution; we surface it here as
+          a second inline link sharing the footer row with the
+          "Read on Wikipedia" link rather than inventing a new strip
+          just for the song credit. `title={song.attribution}` gives
+          hover/focus users the full attribution string when it's
+          truncated on narrow viewports. */}
+      <div className="border-t border-border px-5 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <a
           href={wiki.articleUrl}
           target="_blank"
@@ -472,6 +502,19 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
           <span>Read on Wikipedia</span>
           <ExternalLink className="size-3" />
         </a>
+        {song && (
+          <a
+            href={song.descriptionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={song.attribution}
+            className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Play className="size-3 fill-current" aria-hidden />
+            <span className="truncate">Recording: {song.attribution}</span>
+            <ExternalLink className="size-3 shrink-0" />
+          </a>
+        )}
       </div>
     </div>
   );
