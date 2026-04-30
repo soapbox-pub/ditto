@@ -83,13 +83,17 @@ export function BirdexTile({
       )}
 
       {/* Name overlay — always rendered, even during skeleton, so the
-          tile's shape is stable. */}
+          tile's shape is stable. Common name on top (from Wikipedia
+          when available, scientific fallback otherwise); scientific
+          name from the Birdex's paired `n` tag as a persistent
+          italic sub-label underneath, mirroring how kind 2473
+          detection cards stack the two labels. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent pt-6">
         <div className="px-2 pb-1.5">
           <p className="truncate text-[11px] font-semibold leading-tight text-white drop-shadow sm:text-xs">
             {isLoading && !scientificName ? '\u00A0' : commonName}
           </p>
-          {scientificName && summary?.title && summary.title !== scientificName && (
+          {scientificName && scientificName !== commonName && (
             <p className="truncate text-[10px] italic leading-tight text-white/80">
               {scientificName}
             </p>
