@@ -45,6 +45,7 @@ import { formatTime } from '@/lib/formatTime';
 import { genUserName } from '@/lib/genUserName';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { resizeImage } from '@/lib/resizeImage';
+import { extractHashtags } from '@/lib/hashtag';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const MAX_CHARS = 5000;
@@ -490,8 +491,8 @@ export function ComposeBox({
   const mockEvent = useMemo(() => {
     if (!user || !content) return null;
     
-    const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
-    const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+    const hashtags = extractHashtags(content);
+    const tags: string[][] = hashtags.map((t) => ['t', t]);
 
     // NIP-30: Add emoji tags for custom emojis referenced in content
     if (customEmojis.length > 0) {
@@ -791,8 +792,8 @@ export function ComposeBox({
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
 
     try {
-      const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
-      const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+      const hashtags = extractHashtags(content);
+      const tags: string[][] = hashtags.map((t) => ['t', t]);
 
       // NIP-27 mention p tags — extract nostr:npub1... from content
       const mentionMatches = content.matchAll(/nostr:(npub1[023456789acdefghjklmnpqrstuvwxyz]+)/g);

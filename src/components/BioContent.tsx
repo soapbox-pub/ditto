@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { buildEmojiMap } from '@/lib/customEmoji';
+import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -19,7 +20,7 @@ type BioToken =
  */
 function tokenizeBio(text: string): BioToken[] {
   // Match: URLs (http/https) | hashtags (#word)
-  const regex = /(https?:\/\/[^\s]+)|(#[\p{L}\p{N}_]+)/gu;
+  const regex = new RegExp(`(https?:\\/\\/[^\\s]+)|(${HASHTAG_PATTERN})`, 'gu');
 
   const result: BioToken[] = [];
   let lastIndex = 0;
