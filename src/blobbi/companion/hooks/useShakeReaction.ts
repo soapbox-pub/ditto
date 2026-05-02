@@ -9,9 +9,11 @@
  *   - idle:        No shake reaction active
  *   - shaking:     User is actively shaking (dizzy face + live nausea fill)
  *   - dizzy:       Post-release hold (spiral eyes, sustained nausea level)
+ *   - vomiting:    Brief vomit expression (triggers vomitEvent for visual)
  *   - recovering:  Nausea draining (rAF loop)
  *
  * Nausea (green body fill) only triggers when hunger >= 90.
+ * Vomiting escalation requires nausea AND peakIntensity >= 0.7.
  *
  * Stacking: If the user starts a new shake during an active dizzy or
  * recovering phase, the reaction continues from the current state
@@ -67,16 +69,26 @@ const DIZZY_MIN_S = 3;
 const DIZZY_MAX_S = 8;
 const DRAIN_RATE = 0.25;
 const VIS_THRESH = 0.02;
+const VOMIT_INTENSITY_THRESH = 0.7;
+const VOMIT_DURATION_MS = 1500;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ShakeReactionPhase = 'idle' | 'shaking' | 'dizzy' | 'recovering';
+export type ShakeReactionPhase = 'idle' | 'shaking' | 'dizzy' | 'vomiting' | 'recovering';
+
+/** Emitted once each time Blobbi vomits. Consumers should react to id changes. */
+export interface VomitEvent {
+  id: number;
+  intensity: number;
+}
 
 export interface UseShakeReactionResult {
   phase: ShakeReactionPhase;
   nauseaLevel: number;
   recipe: BlobbiVisualRecipe | null;
   recipeLabel: string | null;
+  /** Non-null when a vomit event fires. New object ref on each trigger. */
+  vomitEvent: VomitEvent | null;
   onDragUpdate: (result: ShakeResult) => void;
   onDragEnd: (result: ShakeResult) => void;
   /** Call this when drag starts. Does not reset active reactions. */
@@ -96,6 +108,7 @@ export function useShakeReaction({
 }): UseShakeReactionResult {
   const [visLevel, setVisLevel] = useState(0);
   const [phase, setPhase] = useState<ShakeReactionPhase>('idle');
+  const [vomitEvent, setVomitEvent] = useState<VomitEvent | null>(null);
 
   /**
    * Once nausea activates in a cycle, keep using the nauseated recipe
@@ -110,10 +123,13 @@ export function useShakeReaction({
   const raf = useRef<number | null>(null);
   const prevT = useRef(0);
   const dizzyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vomitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hungerRef = useRef(hunger);
   const toasted = useRef(false);
   const prof = useRef(profile);
   const cycleHadNauseaRef = useRef(false);
+  const peakIntensity = useRef(0);
+  const vomitIdCounter = useRef(0);
 
   hungerRef.current = hunger;
   prof.current = profile;
@@ -129,6 +145,13 @@ export function useShakeReaction({
     if (dizzyTimer.current !== null) {
       clearTimeout(dizzyTimer.current);
       dizzyTimer.current = null;
+    }
+  }, []);
+
+  const clearVomit = useCallback(() => {
+    if (vomitTimer.current !== null) {
+      clearTimeout(vomitTimer.current);
+      vomitTimer.current = null;
     }
   }, []);
 
@@ -155,7 +178,9 @@ export function useShakeReaction({
     lastVis.current = 0;
     toasted.current = false;
     cycleHadNauseaRef.current = false;
+    peakIntensity.current = 0;
     setCycleHadNausea(false);
+    setVomitEvent(null);
     push(0, 'idle');
   }, [push]);
 
@@ -198,15 +223,18 @@ export function useShakeReaction({
   const resetAll = useCallback(() => {
     stop();
     clearDizzy();
+    clearVomit();
 
     lvl.current = 0;
     lastVis.current = 0;
     toasted.current = false;
     cycleHadNauseaRef.current = false;
+    peakIntensity.current = 0;
 
     setCycleHadNausea(false);
+    setVomitEvent(null);
     push(0, 'idle');
-  }, [stop, clearDizzy, push]);
+  }, [stop, clearDizzy, clearVomit, push]);
 
   const onDragStart = useCallback(() => {
     // Starting a new drag while dizzy/recovering should not reset the cycle.
@@ -221,6 +249,9 @@ export function useShakeReaction({
 
       const sick = hungerRef.current >= HUNGER_THRESH;
       const nausea = sick ? Math.min(1, result.intensity) : 0;
+
+      // Track peak intensity for vomit escalation check
+      peakIntensity.current = Math.max(peakIntensity.current, result.intensity);
 
       if (sick && !cycleHadNauseaRef.current) {
         cycleHadNauseaRef.current = true;
@@ -264,6 +295,8 @@ export function useShakeReaction({
       if (!result.triggered && !wasShaking) return;
 
       const intensity = result.triggered ? result.intensity : 0;
+      peakIntensity.current = Math.max(peakIntensity.current, intensity);
+
       const dur = DIZZY_MIN_S + intensity * (DIZZY_MAX_S - DIZZY_MIN_S);
 
       const sick = hungerRef.current >= HUNGER_THRESH;
@@ -289,6 +322,32 @@ export function useShakeReaction({
       dizzyTimer.current = setTimeout(() => {
         dizzyTimer.current = null;
 
+        // Escalate to vomiting if nausea + high intensity
+        if (
+          cycleHadNauseaRef.current &&
+          peakIntensity.current >= VOMIT_INTENSITY_THRESH
+        ) {
+          push(lvl.current, 'vomiting');
+          stop(); // pause drain during vomit
+
+          vomitIdCounter.current += 1;
+          setVomitEvent({ id: vomitIdCounter.current, intensity: peakIntensity.current });
+
+          clearVomit();
+          vomitTimer.current = setTimeout(() => {
+            vomitTimer.current = null;
+
+            if (lvl.current > 0) {
+              push(lvl.current, 'recovering');
+              startRef.current();
+            } else {
+              finishCycle();
+            }
+          }, VOMIT_DURATION_MS);
+
+          return;
+        }
+
         if (lvl.current > 0) {
           push(lvl.current, 'recovering');
 
@@ -299,7 +358,7 @@ export function useShakeReaction({
         }
       }, dur * 1000);
     },
-    [clearDizzy, finishCycle, push, stop],
+    [clearDizzy, clearVomit, finishCycle, push, stop],
   );
 
   useEffect(() => {
@@ -310,11 +369,12 @@ export function useShakeReaction({
     return () => {
       stop();
       clearDizzy();
+      clearVomit();
     };
-  }, [stop, clearDizzy]);
+  }, [stop, clearDizzy, clearVomit]);
 
   return useMemo((): UseShakeReactionResult => {
-    const base = { onDragUpdate, onDragEnd, onDragStart };
+    const base = { onDragUpdate, onDragEnd, onDragStart, vomitEvent };
 
     if (phase === 'idle') {
       return {
@@ -370,5 +430,5 @@ export function useShakeReaction({
       recipeLabel: p.dizzy.label,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, visLevel, cycleHadNausea, profile, onDragUpdate, onDragEnd, onDragStart]);
+  }, [phase, visLevel, cycleHadNausea, vomitEvent, profile, onDragUpdate, onDragEnd, onDragStart]);
 }
