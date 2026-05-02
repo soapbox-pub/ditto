@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.12.1] - 2026-05-01
+
+### Changed
+- The right widget sidebar now appears on iPad-landscape (1024px) viewports, and both sidebars scale fluidly with the window instead of snapping at fixed widths
+- Hashtags with internal hyphens like `#bitcoin-conference` and `#70-706` now render as a single tag instead of being cut off at the dash
+
+### Fixed
+- Comments on country, book, and Bitcoin transaction/address pages now load correctly instead of showing an empty thread
+
 ## [2.12.0] - 2026-04-30
 
 ### Added
