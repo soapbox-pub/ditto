@@ -67,7 +67,7 @@ export function PeopleAvatarStack({
         {previewPubkeys.map((pk) => {
           const member = membersMap?.get(pk);
           const displayName =
-            member?.metadata?.display_name || member?.metadata?.name || genUserName(pk);
+            member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
           const shape = getAvatarShape(member?.metadata);
           return (
             <Tooltip key={pk}>

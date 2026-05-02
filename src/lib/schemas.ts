@@ -185,6 +185,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBadgeAwards: z.boolean().optional(),
   showBirdstar: z.boolean().optional(),
   feedIncludeBirdDetections: z.boolean().optional(),
+  feedIncludeBirdex: z.boolean().optional(),
   feedIncludeConstellations: z.boolean().optional(),
 });
 

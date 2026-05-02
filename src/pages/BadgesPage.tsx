@@ -1123,7 +1123,7 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
 
 function IssuerName({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name ?? genUserName(pubkey);
+  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey);
   return (
     <span className="text-xs text-muted-foreground truncate">by {name}</span>
   );

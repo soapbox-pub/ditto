@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import { resizeImage } from '@/lib/resizeImage';
+import { extractHashtags } from '@/lib/hashtag';
 import { cn } from '@/lib/utils';
 
 const MAX_CAPTION_CHARS = 2000;
@@ -226,11 +227,8 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
       // Extract hashtags from caption
       const captionText = caption.trim();
-      const hashtagMatches = captionText.match(/#[\p{L}\p{N}_]+/gu);
-      if (hashtagMatches) {
-        for (const tag of hashtagMatches) {
-          tags.push(['t', tag.slice(1).toLowerCase()]);
-        }
+      for (const tag of extractHashtags(captionText)) {
+        tags.push(['t', tag]);
       }
 
       // Content warning

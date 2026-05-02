@@ -94,6 +94,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeBlobbi: true,
       showBirdstar: false,
       feedIncludeBirdDetections: false,
+      feedIncludeBirdex: false,
       feedIncludeConstellations: false,
       followsFeedShowReplies: true,
     },

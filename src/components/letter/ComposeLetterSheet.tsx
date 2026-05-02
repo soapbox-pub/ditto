@@ -93,7 +93,7 @@ const BODY_MAX_LENGTH = 220;
 function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () => void }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
@@ -308,8 +308,8 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   };
 
   const recipientAuthor = useAuthor(resolvedRecipient);
-  const recipientName = recipientAuthor.data?.metadata?.display_name
-    || recipientAuthor.data?.metadata?.name
+  const recipientName = recipientAuthor.data?.metadata?.name
+    || recipientAuthor.data?.metadata?.display_name
     || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
 
   const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);

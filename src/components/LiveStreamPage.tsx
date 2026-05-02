@@ -121,7 +121,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   }, []);
 
   const chatSidebar = (
-    <aside className="hidden xl:flex xl:flex-col xl:w-[340px] xl:shrink-0 h-screen sticky top-0">
+    <aside className="hidden lg:flex lg:flex-col lg:w-[340px] lg:shrink-0 h-screen sticky top-0">
       <LiveStreamChat aTag={aTag} className="h-full" />
     </aside>
   );
@@ -137,7 +137,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const detailsBlock = (
     <div className="space-y-4">
       {/* Author — mobile only (desktop shows it above) */}
-      <div className="xl:hidden">
+      <div className="lg:hidden">
         <StreamAuthorRow event={event} participants={participants} />
       </div>
 
@@ -179,7 +179,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   return (
     <>
-      <main className="xl:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
+      <main className="lg:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
         {/* Header */}
         <PageHeader
           title="Live Stream"
@@ -194,7 +194,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </PageHeader>
 
         {/* Video Player */}
-        <div className="xl:px-4 shrink-0">
+        <div className="lg:px-4 shrink-0">
           {playUrl ? (
             <LiveStreamPlayer
               src={playUrl}
@@ -203,7 +203,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               title={title}
             />
           ) : (
-            <div className="aspect-video xl:rounded-2xl bg-muted flex items-center justify-center border-y xl:border border-border">
+            <div className="aspect-video lg:rounded-2xl bg-muted flex items-center justify-center border-y lg:border border-border">
               <div className="text-center space-y-2">
                 <Radio className="size-8 text-muted-foreground/40 mx-auto" />
                 <p className="text-sm text-muted-foreground">
@@ -241,7 +241,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
           </div>
 
           {/* Author / Host — desktop only (on mobile it's inside the expandable details) */}
-          <div className="hidden xl:block">
+          <div className="hidden lg:block">
             <StreamAuthorRow event={event} participants={participants} />
           </div>
 
@@ -249,7 +249,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
           {hasExpandable && (
             <button
               onClick={() => setDescExpanded((v) => !v)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors xl:hidden"
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors lg:hidden"
             >
               {descExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
               {descExpanded ? 'Hide details' : 'Show details'}
@@ -258,24 +258,24 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
           {/* Mobile: collapsible details */}
           {descExpanded && (
-            <div className="xl:hidden">
+            <div className="lg:hidden">
               {detailsBlock}
             </div>
           )}
 
           {/* Desktop: always show details */}
-          <div className="hidden xl:block">
+          <div className="hidden lg:block">
             {detailsBlock}
           </div>
         </div>
 
         {/* Mobile chat — fills remaining viewport, scrollbox sits above bottom nav */}
-        <div className="xl:hidden mt-2 border-t border-border flex-1 min-h-0 overflow-hidden">
+        <div className="lg:hidden mt-2 border-t border-border flex-1 min-h-0 overflow-hidden">
           <LiveStreamChat aTag={aTag} className="h-full" />
         </div>
 
         {/* Bottom spacer (desktop only) */}
-        <div className="hidden xl:block h-8" />
+        <div className="hidden lg:block h-8" />
       </main>
     </>
   );

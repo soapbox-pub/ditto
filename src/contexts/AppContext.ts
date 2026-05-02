@@ -158,6 +158,8 @@ export interface FeedSettings {
   showBirdstar: boolean;
   /** Include bird detections (kind 2473) in the follows/global feed */
   feedIncludeBirdDetections: boolean;
+  /** Include Birdex life lists (kind 12473) in the follows/global feed */
+  feedIncludeBirdex: boolean;
   /** Include custom constellations (kind 30621) in the follows/global feed */
   feedIncludeConstellations: boolean;
   /** Include replies in the follows feed (default: true) */

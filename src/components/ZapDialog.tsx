@@ -388,15 +388,12 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, setInvoice]);
 
-  // If Bitcoin capability flips to `unsupported` while the dialog is open
-  // (e.g. a bunker just rejected `sign_psbt`) and Lightning is available,
-  // transparently switch to the Lightning tab. Otherwise the user would be
-  // stuck staring at the "Bitcoin zaps aren't available" panel.
-  useEffect(() => {
-    if (open && bitcoinUnsupported && hasLightning && activeTab === 'onchain') {
-      setActiveTab('lightning');
-    }
-  }, [open, bitcoinUnsupported, hasLightning, activeTab]);
+  // Previously, if Bitcoin capability flipped to `unsupported` mid-session we
+  // auto-switched to Lightning because the Bitcoin tab was a dead-end. The
+  // Bitcoin tab now shows a QR fallback for unsupported signers, so users
+  // should be free to click into it. We only bias the *initial* tab choice
+  // toward Lightning (above, in the useState initializer and the open-reset
+  // effect); manual navigation into Bitcoin is respected.
 
   const handleZap = () => {
     impactMedium();

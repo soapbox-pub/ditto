@@ -25,7 +25,7 @@ function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
 
-  const displayName = metadata?.display_name || metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
