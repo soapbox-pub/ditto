@@ -688,6 +688,11 @@
   50% { transform: translateY(-8px); }
 }
 
+@keyframes blobbi-shadow-breathe {
+  0%, 100% { transform: translateX(-50%) scaleX(1); }
+  50% { transform: translateX(-50%) scaleX(0.92); }
+}
+
 @keyframes blobbi-sway {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(1.5deg); }
