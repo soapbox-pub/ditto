@@ -17,7 +17,7 @@
  *   - Companion runtime (drag, float, position)
  */
 
-import { useId, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -28,6 +28,7 @@ import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
 import { useRecipeFingerprint, useFillLevelUpdate } from './hooks/useFillLevelUpdate';
+import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 export interface BlobbiBabySvgRendererProps {
@@ -70,13 +71,7 @@ export function BlobbiBabySvgRenderer({
   const containerRef = useRef<HTMLDivElement>(null);
   const recipeFingerprint = useRecipeFingerprint(recipeProp);
 
-  // Generate a unique ID per component instance so that clip-path and gradient
-  // IDs don't collide when the same Blobbi is rendered in multiple places at
-  // once (e.g. hero + drawer grid, hero + floating companion, feed card + companion).
-  // React's useId() returns strings like ":r0:" — strip non-alphanumeric chars
-  // to produce valid SVG ID characters.
-  const reactId = useId();
-  const instanceId = `${blobbi.id}-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const instanceId = useBlobbiInstanceId(blobbi.id);
 
   useFillLevelUpdate(containerRef, instanceId, recipeProp);
 
