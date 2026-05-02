@@ -4,7 +4,8 @@
  * Uses the room's shell coordinate system directly:
  * - Ground line at `top: (1 - ROOM_FLOOR_RATIO) * 100%` of the shell.
  * - Blobbi body bottom is anchored to this ground line.
- * - Blobbi name sits below the ground line (on the floor area).
+ * - Blobbi name floats above the visual and bobs with the Blobbi.
+ * - An animated shadow ellipse sits at the ground line below the Blobbi.
  *
  * This component must be rendered inside an `absolute inset-0` wrapper that
  * shares the same positioning parent as the wall/floor background layers.
@@ -62,6 +63,9 @@ export function BlobbiRoomStage({
   // Body-bottom inset: how much of the visual box is empty below the body
   const bodyBottomInset = getBlobbiBodyBottomInset(companion.stage, companion.adultType ?? undefined);
 
+  // Bob animation duration — shared between the Blobbi bob and the shadow breathe
+  const bobDuration = `${4 - (currentStats.happiness / 100) * 1.5}s`;
+
   return (
     <div ref={stageRef} className="absolute inset-0 pointer-events-none">
       {/* Blobbi anchor: positioned so the body bottom sits at the ground line.
@@ -77,16 +81,51 @@ export function BlobbiRoomStage({
         className="absolute left-1/2"
         style={{ top: `${GROUND_LINE_PCT}%` }}
       >
+        {/* Ground shadow — radial-gradient ellipse at the ground line, behind the Blobbi.
+            Breathes in sync with the bob: contracts when Blobbi is up, expands when down.
+            Positioned with left:0 + translateX(-50%) to center on the anchor's left edge (= stage center).
+            Uses radial-gradient for a true soft ellipse with natural falloff (no blur filter needed). */}
         <div
+          className="absolute z-0 pointer-events-none"
+          aria-hidden
+          style={{
+            top: 4,
+            left: 0,
+            transformOrigin: 'center center',
+            background: 'radial-gradient(ellipse, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.13) 38%, transparent 68%)',
+            width: isEgg ? 'clamp(68px, 19dvh, 135px)' : 'clamp(66px, 18dvh, 144px)',
+            height: isEgg ? 'clamp(16px, 5dvh, 32px)' : 'clamp(16px, 4dvh, 30px)',
+            ...(!isSleeping
+              ? { animation: `blobbi-shadow-breathe ${bobDuration} ease-in-out infinite` }
+              : { transform: 'translateX(-50%)' }
+            ),
+          }}
+        />
+        <div
+          className="relative z-10"
           style={{ transform: `translate(-50%, calc(-100% + ${bodyBottomInset}%))` }}
         >
           {/* Bob wrapper (translateY animation) */}
           <div
             className="relative"
             style={!isSleeping ? {
-              animation: `blobbi-bob ${4 - (currentStats.happiness / 100) * 1.5}s ease-in-out infinite`,
+              animation: `blobbi-bob ${bobDuration} ease-in-out infinite`,
             } : undefined}
           >
+            {/* Blobbi name — floating label above the visual, bobs but does not sway */}
+            {!isEgg && (
+              <div
+                className="absolute bottom-full left-1/2 mb-1 pointer-events-none"
+                style={{ transform: 'translateX(-50%)' }}
+              >
+                <span
+                  className="whitespace-nowrap text-sm font-bold drop-shadow-sm"
+                  style={{ color: companion.visualTraits.baseColor }}
+                >
+                  {companion.name}
+                </span>
+              </div>
+            )}
             {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict */}
             <div
               className="relative transition-all duration-500 pointer-events-none"
@@ -115,21 +154,6 @@ export function BlobbiRoomStage({
           </div>
         </div>
       </div>
-
-      {/* Blobbi name — positioned below ground line */}
-      {!isEgg && (
-        <div
-          className="absolute inset-x-0 flex justify-center pt-1"
-          style={{ top: `${GROUND_LINE_PCT}%` }}
-        >
-          <h2
-            className="text-lg sm:text-xl md:text-2xl font-bold text-center"
-            style={{ color: companion.visualTraits.baseColor }}
-          >
-            {companion.name}
-          </h2>
-        </div>
-      )}
     </div>
   );
 }
