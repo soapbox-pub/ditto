@@ -28,6 +28,20 @@
     display: none;
   }
 
+  /* Visible thin scrollbar inside the room editor modal */
+  .blobbi-room-editor-scroll {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+  .blobbi-room-editor-scroll::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+  .blobbi-room-editor-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 999px;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
