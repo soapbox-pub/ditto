@@ -13,7 +13,7 @@
  *   - recovering:  Nausea draining (rAF loop)
  *
  * Nausea (green body fill) only triggers when hunger >= 90.
- * Vomiting escalation requires nausea AND peakIntensity >= 0.7.
+ * Vomiting escalation requires peakIntensity >= 0.7 (independent of hunger).
  *
  * Stacking: If the user starts a new shake during an active dizzy or
  * recovering phase, the reaction continues from the current state
@@ -321,7 +321,6 @@ export function useShakeReaction({
 
       // ── Immediate vomit on release if conditions met ───────────────────
       if (
-        cycleHadNauseaRef.current &&
         peakIntensity.current >= VOMIT_INTENSITY_THRESH &&
         !vomitedThisCycle.current
       ) {

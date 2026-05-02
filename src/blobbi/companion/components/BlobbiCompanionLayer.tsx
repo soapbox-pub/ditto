@@ -28,6 +28,7 @@ import { OverstimulationBlockOverlay } from './OverstimulationBlockOverlay';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
+import { getBlobbiMouthAnchor } from '../utils/mouthAnchor';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import type { ActionType } from '@/blobbi/ui/lib/status-reactions';
@@ -45,8 +46,6 @@ import type { Position } from '../types/companion.types';
 
 /** Set to true to show debug ground-contact lines. */
 const DEBUG_GROUND_CONTACT = false;
-
-const MAX_SPLATS = 3;
 
 interface SplatData {
   id: number;
@@ -207,12 +206,13 @@ export function BlobbiCompanionLayer() {
   const lastVomitId = useRef(0);
 
   useEffect(() => {
-    if (!vomitEvent || vomitEvent.id === lastVomitId.current) return;
+    if (!vomitEvent || vomitEvent.id === lastVomitId.current || !companion) return;
     lastVomitId.current = vomitEvent.id;
 
     // Compute spawn position (Blobbi's mouth area)
-    const spawnX = renderedPosition.x + config.size / 2;
-    const spawnY = renderedPosition.y + config.size * 0.65;
+    const mouth = getBlobbiMouthAnchor(companion.stage, companion.adultType);
+    const spawnX = renderedPosition.x + config.size * mouth.xRatio;
+    const spawnY = renderedPosition.y + config.size * mouth.yRatio;
 
     // Land about 20px below Blobbi's container bottom, clamped to viewport floor
     const floorLimit = viewport.height - config.padding.bottom;
@@ -227,15 +227,8 @@ export function BlobbiCompanionLayer() {
       landY,
     };
 
-    setSplats((prev) => {
-      const next = [...prev, newSplat];
-      // Cap at MAX_SPLATS — remove oldest
-      if (next.length > MAX_SPLATS) {
-        return next.slice(next.length - MAX_SPLATS);
-      }
-      return next;
-    });
-  }, [vomitEvent, renderedPosition, config.size, config.padding.bottom, viewport.height]);
+    setSplats((prev) => [...prev, newSplat]);
+  }, [vomitEvent, renderedPosition, config.size, config.padding.bottom, viewport.height, companion]);
 
   const removeSplat = useCallback((id: number) => {
     setSplats((prev) => prev.filter((s) => s.id !== id));
