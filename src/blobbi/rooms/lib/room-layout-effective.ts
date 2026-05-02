@@ -1,8 +1,8 @@
 /**
  * Effective Room Layout — resolves saved vs. static-default layout for a room.
  *
- * Extracted to its own file to avoid circular imports between
- * room-layout-schema.ts and room-theme-defaults.ts.
+ * Kept separate from room-layout-schema.ts so schema/parsing stays focused on
+ * validation and serialization, while effective layout resolution remains isolated.
  */
 
 import type { BlobbiRoomId } from './room-config';
