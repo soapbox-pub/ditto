@@ -139,7 +139,7 @@ export function BlobbiRoomEditor({
   const roomMeta = ROOM_META[roomId];
 
   return (
-    <div className="absolute inset-0 z-[55] flex items-center justify-center p-4">
+    <div className="absolute inset-0 z-[55] flex items-center justify-center p-4 pb-[calc(var(--bottom-nav-height)+1rem)] sm:pb-4">
       {/* Backdrop — covers only the room shell area */}
       <div
         className="absolute inset-0 bg-background/55 backdrop-blur-sm"
@@ -154,7 +154,8 @@ export function BlobbiRoomEditor({
           'bg-background/95 shadow-2xl backdrop-blur-md',
           'overflow-hidden',
           'animate-in fade-in-0 zoom-in-95 duration-200',
-          'max-h-[85dvh] flex flex-col',
+          'max-h-[calc(100%-4rem)] sm:max-h-[78dvh]',
+          'flex flex-col',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -208,8 +209,10 @@ export function BlobbiRoomEditor({
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-4 space-y-4">
+        {/* Scrollable content — visible scrollbar via .blobbi-room-editor-scroll */}
+        <div
+          className="overflow-y-auto flex-1 min-h-0 px-5 pb-4 space-y-4 blobbi-room-editor-scroll"
+        >
           {/* Room preview */}
           <div>
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
@@ -236,46 +239,53 @@ export function BlobbiRoomEditor({
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1.5 px-5 py-3.5 border-t border-border/30 bg-muted/10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            disabled={isSaving}
-            className="gap-1 text-muted-foreground hover:text-foreground px-2"
-          >
-            <RotateCcw className="size-3.5" />
-            Reset
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleUseTheme}
-            disabled={isSaving}
-            className="gap-1 text-muted-foreground hover:text-foreground px-2"
-          >
-            <Palette className="size-3.5" />
-            <span className="hidden min-[400px]:inline">Use</span> theme
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClose}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!isDirty || isSaving}
-            className="gap-1.5"
-          >
-            <Check className="size-3.5" />
-            {isSaving ? 'Saving...' : 'Apply'}
-          </Button>
+        {/* Action buttons — two rows: secondary draft actions, then primary actions */}
+        <div className="px-5 py-3 border-t border-border/30 bg-muted/10 space-y-2">
+          {/* Row 1: secondary draft actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              disabled={isSaving}
+              aria-label="Reset to default"
+              className="gap-1 text-muted-foreground hover:text-foreground h-8 text-xs justify-center"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUseTheme}
+              disabled={isSaving}
+              aria-label="Use theme colors"
+              className="gap-1 text-muted-foreground hover:text-foreground h-8 text-xs justify-center"
+            >
+              <Palette className="size-3.5" />
+              Use theme
+            </Button>
+          </div>
+          {/* Row 2: primary actions */}
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!isDirty || isSaving}
+              className="gap-1.5"
+            >
+              <Check className="size-3.5" />
+              {isSaving ? 'Saving...' : 'Apply'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
