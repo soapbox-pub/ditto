@@ -17,6 +17,7 @@ import {
   DEFAULT_ROOM_ORDER,
   getNextRoom,
   getPreviousRoom,
+  getRoomIndex,
 } from '../lib/room-config';
 import {
   generateInitialPoops,
@@ -24,6 +25,9 @@ import {
   removePoop,
   type PoopInstance,
 } from '../lib/poop-system';
+import { type RoomLayout, ROOM_FLOOR_RATIO } from '../lib/room-layout-schema';
+import { getSurfaceBackground } from '../lib/room-surface-background';
+import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE } from '../lib/room-layout';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +51,17 @@ interface BlobbiRoomShellProps {
   children: React.ReactNode;
   /** Optional content between hero and bottom bar (inline music/sing) */
   middleSlot?: React.ReactNode;
+  /**
+   * Stage overlay — absolutely positioned Blobbi visual (BlobbiRoomStage).
+   * Rendered as a direct child of the shell so it shares the same coordinate
+   * system as the wall/floor background layers.
+   */
+  stageOverlay?: React.ReactNode;
+  /**
+   * Stats HUD — rendered in the top overlay area below the room header.
+   * Absolutely positioned so it does not affect Blobbi stage layout.
+   */
+  statusHud?: React.ReactNode;
   /** Room order (defaults to DEFAULT_ROOM_ORDER) */
   roomOrder?: BlobbiRoomId[];
   /** Poop generation params */
@@ -58,6 +73,17 @@ interface BlobbiRoomShellProps {
   onPoopCleaned?: () => void;
   /** When set, the matching room-nav arrow glows to guide the user. */
   guideRoomDirection?: 'left' | 'right' | null;
+  /** Visual layout (wall/floor) for the current room. */
+  roomLayout?: RoomLayout;
+  /** Optional editor trigger rendered top-right corner of the room. */
+  editorSlot?: React.ReactNode;
+  /**
+   * Optional editor overlay — rendered as a direct child of the shell so
+   * `absolute inset-0` covers only the room area, not sidebars.
+   */
+  editorOverlay?: React.ReactNode;
+  /** Whether the top HUD (room header + stats) is visible. Hide when drawer is open. */
+  hudVisible?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -72,12 +98,18 @@ export function BlobbiRoomShell({
   hero,
   children,
   middleSlot,
+  stageOverlay,
+  statusHud,
   roomOrder = DEFAULT_ROOM_ORDER,
   hunger,
   lastFeedTimestamp,
   poopStateRef,
   onPoopCleaned,
   guideRoomDirection,
+  roomLayout,
+  editorSlot,
+  editorOverlay,
+  hudVisible = true,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -89,6 +121,8 @@ export function BlobbiRoomShell({
 
   const leftDest = ROOM_META[getPreviousRoom(roomId, roomOrder)];
   const rightDest = ROOM_META[getNextRoom(roomId, roomOrder)];
+  const roomMeta = ROOM_META[roomId];
+  const roomIndex = getRoomIndex(roomId, roomOrder);
 
   // ─── Touch swipe ───
   const touchStartX = useReactRef<number | null>(null);
@@ -135,18 +169,114 @@ export function BlobbiRoomShell({
 
   if (poopStateRef) poopStateRef.current = poopState;
 
+  // ─── Room background styles (decorative, from validated layout) ───
+  const wallBackground = useMemo((): string | undefined => {
+    if (!roomLayout) return undefined;
+    return getSurfaceBackground(roomLayout.wall);
+  }, [roomLayout]);
+
+  const floorBackground = useMemo((): string | undefined => {
+    if (!roomLayout) return undefined;
+    return getSurfaceBackground(roomLayout.floor);
+  }, [roomLayout]);
+
   return (
     <div
       className="flex flex-col flex-1 min-h-0 relative"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
+      {/* Room background layers (decorative, behind all content) */}
+      {roomLayout && (
+        <>
+          {wallBackground && (
+            <div
+              className="absolute inset-x-0 top-0 pointer-events-none"
+              style={{ background: wallBackground, bottom: `${ROOM_FLOOR_RATIO * 100}%` }}
+              aria-hidden
+            />
+          )}
+          {floorBackground && (
+            <div
+              className="absolute inset-x-0 bottom-0 pointer-events-none"
+              style={{ background: floorBackground, top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
+              aria-hidden
+            />
+          )}
+          {/* Baseboard — shadow/highlight pair at wall/floor boundary */}
+          <div
+            className="absolute inset-x-0 pointer-events-none z-[1] flex flex-col"
+            style={{ top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
+            aria-hidden
+          >
+            <div className="h-px bg-foreground/10" />
+            <div className="h-0.5 bg-background/15" />
+          </div>
+          {/* Floor depth — subtle top shadow on the floor area */}
+          <div
+            className="absolute inset-x-0 h-3 pointer-events-none z-[1]"
+            style={{
+              top: `${(1 - ROOM_FLOOR_RATIO) * 100}%`,
+              background: 'linear-gradient(to bottom, hsl(var(--foreground) / 0.06), transparent)',
+            }}
+            aria-hidden
+          />
+        </>
+      )}
+
+      {/* Stage overlay — Blobbi visual anchored to the shell's ground line */}
+      {stageOverlay && (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {stageOverlay}
+        </div>
+      )}
+
+      {/* Room header — icon + label + dot indicator, below tab bar */}
+      <div className={cn(
+        'absolute top-14 inset-x-0 z-30 flex flex-col items-center pointer-events-none gap-2 transition-opacity duration-200',
+        !hudVisible && 'opacity-0 pointer-events-none',
+      )}>
+        <div className="pointer-events-auto flex flex-col items-center gap-0.5 py-1 px-3 rounded-full bg-background/60 backdrop-blur-sm">
+          <div className="flex items-center gap-1.5">
+            <roomMeta.icon className="size-3.5 text-foreground/50" />
+            <span className="text-xs font-semibold text-foreground/60">{roomMeta.label}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {roomOrder.map((id, i) => (
+              <div
+                key={id}
+                className={cn(
+                  'rounded-full transition-all duration-300',
+                  i === roomIndex ? 'w-3 h-1 bg-primary' : 'w-1 h-1 bg-muted-foreground/20',
+                )}
+              />
+            ))}
+          </div>
+        </div>
+        {/* Stats HUD row */}
+        {statusHud && (
+          <div className="pointer-events-auto">
+            {statusHud}
+          </div>
+        )}
+      </div>
+
       {/* Room content */}
       <div className="flex-1 min-h-0 flex flex-col relative">
         {hero}
         {middleSlot}
         {children}
       </div>
+
+      {/* Room editor trigger (upper-right, below tab bar overlay) */}
+      {editorSlot && (
+        <div className={cn(
+          'absolute top-14 right-3 z-[55] transition-opacity duration-200',
+          !hudVisible && 'opacity-0 pointer-events-none',
+        )}>
+          {editorSlot}
+        </div>
+      )}
 
       {/* Sleep overlay */}
       {isSleeping && (
@@ -163,12 +293,12 @@ export function BlobbiRoomShell({
           'group absolute left-1 top-1/2 -translate-y-1/2 z-40',
           'flex items-center justify-center',
           'size-10 sm:size-12 rounded-full',
-          'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
+          ROOM_CONTROL_SURFACE_SUBTLE,
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
-          guideRoomDirection === 'left' && 'text-primary',
+          guideRoomDirection === 'left' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
         )}
-        style={guideRoomDirection === 'left' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label={`Go to ${leftDest.label}`}
       >
         <ChevronLeft
@@ -184,12 +314,12 @@ export function BlobbiRoomShell({
           'group absolute right-1 top-1/2 -translate-y-1/2 z-40',
           'flex items-center justify-center',
           'size-10 sm:size-12 rounded-full',
-          'text-muted-foreground/30 hover:text-foreground/60 hover:bg-accent/40',
+          ROOM_CONTROL_SURFACE_SUBTLE,
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
-          guideRoomDirection === 'right' && 'text-primary',
+          guideRoomDirection === 'right' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
         )}
-        style={guideRoomDirection === 'right' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label={`Go to ${rightDest.label}`}
       >
         <ChevronRight
@@ -198,6 +328,9 @@ export function BlobbiRoomShell({
           style={guideRoomDirection !== 'right' ? { animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties : undefined}
         />
       </button>
+
+      {/* Editor overlay — absolute to the shell, covers only this column */}
+      {editorOverlay}
     </div>
   );
 }

@@ -62,10 +62,11 @@ export interface MissionsContent {
 
 /**
  * The top-level content JSON for kind 11125.
- * Currently only `missions`. Future keys can be added alongside.
+ * Keys are added alongside each other; `serializeProfileContent` preserves unknown keys.
  */
 export interface ProfileContent {
   missions?: MissionsContent;
+  room_layouts?: import('@/blobbi/rooms/lib/room-layout-schema').RoomLayoutsContent;
 }
 
 // ─── Evolution Missions (kind 31124) ─────────────────────────────────────────
@@ -120,6 +121,7 @@ export function serializeEvolutionContent(
 
 /**
  * Parse the kind 11125 content field into a typed ProfileContent.
+ * Only extracts `missions`; other keys (e.g. `room_layouts`) have dedicated parsers.
  * Returns an empty object for empty/invalid content. Never throws.
  */
 export function parseProfileContent(content: string): ProfileContent {

@@ -97,6 +97,10 @@ import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import {
   BlobbiRoomShell,
   BlobbiRoomHero,
+  BlobbiRoomStage,
+  BlobbiRoomStatusHud,
+  BlobbiRoomEditor,
+  BlobbiRoomEditorTrigger,
   ItemCarousel,
   RoomActionButton,
   useShovelDrag,
@@ -106,6 +110,7 @@ import {
   type BlobbiRoomId,
   type CarouselEntry,
   type PoopState,
+  ROOM_META,
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
   DEFAULT_ROOM_ORDER,
@@ -113,6 +118,9 @@ import {
   OVERFEED_CHANCE,
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
+import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getEffectiveRoomLayout } from '@/blobbi/rooms/lib/room-layout-schema';
+import { serializeProfileContent } from '@/blobbi/core/lib/missions';
+import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
@@ -854,7 +862,7 @@ interface DashboardShellProps {
 function DashboardShell({ children }: DashboardShellProps) {
   return (
     <main className={cn(
-      'flex flex-col overflow-hidden bg-background/85',
+      'flex flex-col overflow-hidden bg-background',
       // Mobile: fixed to escape pb-overscroll on the parent
       'max-sidebar:fixed max-sidebar:inset-0 max-sidebar:top-mobile-bar max-sidebar:z-0',
       // Desktop: normal flow within the center column
@@ -946,6 +954,8 @@ function BlobbiDashboard({
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const { config } = useAppContext();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -961,6 +971,49 @@ function BlobbiDashboard({
   // Effective room: sleeping temporarily forces 'rest'; waking up returns to storedRoom.
   const currentRoom: BlobbiRoomId = isSleeping ? 'rest' : isValidRoomId(storedRoom) ? storedRoom : DEFAULT_INITIAL_ROOM;
   const poopStateRef = useRef<PoopState | null>(null);
+
+  // ─── Room Layout (read-only, decorative) ───
+  const parsedRoomLayouts = useMemo(() => parseRoomLayoutsContent(profile?.content), [profile?.content]);
+  // Theme deps are intentional invalidation triggers — when theme changes, CSS variables
+  // change, so unsaved rooms need to re-read getThemeRoomDefaults().
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const currentRoomLayout = useMemo(() => getEffectiveRoomLayout(currentRoom, parsedRoomLayouts), [currentRoom, parsedRoomLayouts, config.theme, config.customTheme]);
+
+  // ─── Room Layout Editor (save/reset) ───
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
+
+  const handleSaveRoomLayout = useCallback(async (roomId: BlobbiRoomId, layout: RoomLayout) => {
+    if (!user?.pubkey) return;
+    setIsSavingLayout(true);
+    try {
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      if (!freshProfile) {
+        toast({ title: 'Error', description: 'Could not fetch profile. Try again.' });
+        throw new Error('profile-fetch-failed');
+      }
+      const prev = freshProfile.event;
+      const existingLayouts = parseRoomLayoutsContent(prev.content);
+      const updatedRoomLayouts: RoomLayoutsContent = {
+        v: 1,
+        by_room: { ...existingLayouts?.by_room, [roomId]: layout },
+      };
+      const content = serializeProfileContent(prev.content, { room_layouts: updatedRoomLayouts });
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content,
+        tags: prev.tags,
+        prev,
+      });
+      updateProfileEvent(event);
+      toast({ title: 'Saved', description: `${ROOM_META[roomId].label} style updated.` });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to save room style.' });
+      throw err;
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }, [user?.pubkey, nostr, publishEvent, updateProfileEvent]);
 
   // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
@@ -1031,17 +1084,8 @@ function BlobbiDashboard({
     }
   }, [isSleeping, guideTarget]);
   
-  // Measure hero container width for responsive stat arc radius
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [heroWidth, setHeroWidth] = useState(375);
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
-    ro.observe(el);
-    setHeroWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
+  // Measure stage overlay for ref usage
+  const stageRef = useRef<HTMLDivElement>(null);
   
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -1432,13 +1476,13 @@ function BlobbiDashboard({
       {/* Backdrop — tapping outside the drawer collapses it */}
       {activeDrawer !== 'none' && (
         <div
-          className="fixed inset-0 z-10"
+          className="fixed inset-0 z-[60]"
           onClick={() => setActiveDrawer('none')}
         />
       )}
 
       {/* ─── Drawer + Tab Bar — overlays the room ─── */}
-      <div className="absolute top-0 left-0 right-0 z-20">
+      <div className="absolute top-0 left-0 right-0 z-[70]">
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1522,25 +1566,52 @@ function BlobbiDashboard({
         poopStateRef={poopStateRef}
         onPoopCleaned={handlePoopCleaned}
         guideRoomDirection={guideRoomDirection}
+        hudVisible={activeDrawer === 'none'}
+        roomLayout={currentRoomLayout}
+        editorSlot={
+          <BlobbiRoomEditorTrigger onClick={() => setIsRoomEditorOpen(true)} />
+        }
+        editorOverlay={isRoomEditorOpen ? (
+          <BlobbiRoomEditor
+            roomId={currentRoom}
+            currentLayout={currentRoomLayout}
+            onSave={handleSaveRoomLayout}
+            onClose={() => setIsRoomEditorOpen(false)}
+            isSaving={isSavingLayout}
+          />
+        ) : undefined}
         hero={
           <BlobbiRoomHero
             companion={companion}
-            currentStats={currentStats}
-            isSleeping={isSleeping}
-            isEgg={isEgg}
-            statusRecipe={statusRecipe}
-            statusRecipeLabel={statusRecipeLabel}
-            effectiveEmotion={effectiveEmotion}
-            hasDevOverride={hasDevOverride}
-            blobbiReaction={blobbiReaction}
             isActiveFloatingCompanion={isActiveFloatingCompanion}
             isUpdatingCompanion={isUpdatingCompanion}
             handleSetAsCompanion={handleSetAsCompanion}
-            heroRef={heroRef}
-            heroWidth={heroWidth}
-            roomId={currentRoom}
-            onGuide={handleGuide}
           />
+        }
+        stageOverlay={
+          !isActiveFloatingCompanion ? (
+            <BlobbiRoomStage
+              companion={companion}
+              currentStats={currentStats}
+              isSleeping={isSleeping}
+              isEgg={isEgg}
+              statusRecipe={statusRecipe}
+              statusRecipeLabel={statusRecipeLabel}
+              effectiveEmotion={effectiveEmotion}
+              hasDevOverride={hasDevOverride}
+              blobbiReaction={blobbiReaction}
+              stageRef={stageRef}
+            />
+          ) : undefined
+        }
+        statusHud={
+          !isActiveFloatingCompanion ? (
+            <BlobbiRoomStatusHud
+              companion={companion}
+              currentStats={currentStats}
+              onGuide={handleGuide}
+            />
+          ) : undefined
         }
         middleSlot={
           <>
@@ -1888,7 +1959,7 @@ function KitchenBar({
 
       {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
       {showFridge && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
           <button
             onClick={() => setShowFridge(false)}
             className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"

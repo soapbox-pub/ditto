@@ -5,9 +5,10 @@
  * Mobile: focused item only. Desktop: prev/next previews.
  */
 
-import { useState, useCallback, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,18 +119,18 @@ export function ItemCarousel({
   const showPreviews = count >= 3;
 
   return (
-    <div className={cn('flex items-center justify-center', className)}>
+    <div className={cn('flex items-center justify-center gap-2', className)}>
       <button
         onClick={prev}
         disabled={disabled}
         className={cn(
           'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
-          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
+          ROOM_CONTROL_SURFACE_SUBTLE,
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
-          highlightArrow === 'left' && 'text-primary',
+          highlightArrow === 'left' && ROOM_GUIDE_HIGHLIGHT,
         )}
-        style={highlightArrow === 'left' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label="Previous item"
       >
         <ChevronLeft className="size-4" />
@@ -148,17 +149,17 @@ export function ItemCarousel({
         disabled={disabled}
         className={cn(
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
-          'w-20 h-[4.5rem] sm:w-24 sm:h-[5.5rem] rounded-2xl',
-          'transition-colors duration-200',
-          'hover:bg-accent/20 active:scale-95',
-          isThisActive && 'bg-accent/40',
+          'w-18 h-16 sm:w-24 sm:h-[5.5rem] rounded-2xl',
+          ROOM_CONTROL_SURFACE_SUBTLE,
+          'transition-all duration-200',
+          'hover:bg-background/60 active:scale-95',
+          isThisActive && 'bg-background/60',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
-          isHighlightFocused && 'ring-2 ring-primary/60',
+          isHighlightFocused && ROOM_GUIDE_HIGHLIGHT,
         )}
-        style={isHighlightFocused ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
       >
-        <span className="text-4xl sm:text-5xl leading-none">{current.icon}</span>
-        <span className="text-[10px] sm:text-xs font-medium text-foreground/70 mt-0.5 w-16 sm:w-20 text-center truncate">
+        <span className="text-3xl sm:text-5xl leading-none">{current.icon}</span>
+        <span className="text-[10px] sm:text-xs font-medium text-foreground/80 mt-0.5 w-16 sm:w-20 text-center truncate">
           {current.label}
         </span>
         {isThisActive && <Loader2 className="size-3.5 animate-spin text-primary absolute bottom-0.5" />}
@@ -177,12 +178,12 @@ export function ItemCarousel({
         disabled={disabled}
         className={cn(
           'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
-          'text-muted-foreground/40 hover:text-foreground/70 hover:bg-accent/40',
+          ROOM_CONTROL_SURFACE_SUBTLE,
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
-          highlightArrow === 'right' && 'text-primary',
+          highlightArrow === 'right' && ROOM_GUIDE_HIGHLIGHT,
         )}
-        style={highlightArrow === 'right' ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
         aria-label="Next item"
       >
         <ChevronRight className="size-4" />
