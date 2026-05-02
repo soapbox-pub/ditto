@@ -63,8 +63,6 @@ export interface BlobbiRoomStatusHudProps {
   onGuide?: (stat: keyof BlobbiStats) => void;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 // ─── Arc offset helper ────────────────────────────────────────────────────────
 
 /** Compute a downward arc offset (px) for stat icons. Center = lowest, edges = highest. */
