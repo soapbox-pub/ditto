@@ -1,13 +1,14 @@
 /**
  * Room Layout Defaults — canonical static room layouts.
  *
- * These are the theme-independent, deterministic defaults used by the
- * editor's "Reset" action. Each room has a designed visual identity
- * that works well regardless of the active app theme.
+ * These are the theme-independent, deterministic defaults used for:
+ * - New/unconfigured accounts (no saved room layout)
+ * - The editor's "Reset" action
  *
- * Theme-aware defaults (which read CSS custom properties at runtime)
- * live in room-theme-defaults.ts and are used for the "Use theme"
- * action and as the unsaved-room fallback.
+ * Each room has a designed visual identity that works well regardless
+ * of the active app theme. Theme-aware defaults (which read CSS custom
+ * properties at runtime) live in room-theme-defaults.ts and are only
+ * applied when the user explicitly clicks "Use theme" in the editor.
  *
  * Extracted to its own file to avoid circular imports between
  * room-layout-schema.ts and room-theme-defaults.ts.

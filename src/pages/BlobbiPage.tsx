@@ -955,7 +955,6 @@ function BlobbiDashboard({
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const { config } = useAppContext();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -974,10 +973,7 @@ function BlobbiDashboard({
 
   // ─── Room Layout (read-only, decorative) ───
   const parsedRoomLayouts = useMemo(() => parseRoomLayoutsContent(profile?.content), [profile?.content]);
-  // Theme deps are intentional invalidation triggers — when theme changes, CSS variables
-  // change, so unsaved rooms need to re-read getThemeRoomDefaults().
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const currentRoomLayout = useMemo(() => getEffectiveRoomLayout(currentRoom, parsedRoomLayouts), [currentRoom, parsedRoomLayouts, config.theme, config.customTheme]);
+  const currentRoomLayout = useMemo(() => getEffectiveRoomLayout(currentRoom, parsedRoomLayouts), [currentRoom, parsedRoomLayouts]);
 
   // ─── Room Layout Editor (save/reset) ───
   const [isSavingLayout, setIsSavingLayout] = useState(false);
