@@ -1,6 +1,6 @@
 /**
- * VomitSplat — Renders a vomit drop that falls from a spawn point to the
- * ground, then becomes a persistent puddle until the user clicks it.
+ * VomitSplat — Renders a vomit drop that falls from a spawn point to
+ * near Blobbi, then becomes a persistent puddle until the user clicks it.
  *
  * Lifecycle:
  *   1. "falling" — CSS-animated drop from (spawnX, spawnY) to (landX, landY)
@@ -40,7 +40,7 @@ export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: Vomit
     };
   }, []);
 
-  const handleClick = useCallback((e: React.PointerEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onRemove(id);
   }, [id, onRemove]);
@@ -56,9 +56,8 @@ export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: Vomit
         style={{
           left: spawnX,
           top: spawnY,
-          transform: `translate(-50%, -50%)`,
+          transform: 'translate(-50%, -50%)',
           animation: `vomit-fall ${FALL_DURATION_MS}ms ease-in forwards`,
-          // CSS custom properties for the keyframes
           '--vomit-dx': `${fallDeltaX}px`,
           '--vomit-dy': `${fallDeltaY}px`,
         } as React.CSSProperties}
@@ -68,22 +67,24 @@ export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: Vomit
     );
   }
 
-  // Landed puddle — interactive, click to remove
+  // Landed puddle — interactive, click/tap to remove.
+  // translate(-50%, -100%) places the puddle's bottom edge at landY,
+  // so it sits like a splat on the ground rather than centering on the point.
   return (
-    <div
-      className="absolute cursor-pointer pointer-events-auto"
+    <button
+      type="button"
+      className="absolute cursor-pointer pointer-events-auto border-0 bg-transparent p-0"
       style={{
         left: landX,
         top: landY,
-        transform: 'translate(-50%, -50%)',
+        transform: 'translate(-50%, -100%)',
         zIndex: 9998, // Below companion (10000+)
       }}
-      onPointerDown={handleClick}
-      role="button"
+      onClick={handleClick}
       aria-label="Clean up puddle"
     >
       <VomitPuddle />
-    </div>
+    </button>
   );
 }
 

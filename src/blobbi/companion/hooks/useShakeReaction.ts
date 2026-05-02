@@ -130,6 +130,8 @@ export function useShakeReaction({
   const cycleHadNauseaRef = useRef(false);
   const peakIntensity = useRef(0);
   const vomitIdCounter = useRef(0);
+  /** Prevents multiple vomit emissions in the same shake cycle. */
+  const vomitedThisCycle = useRef(false);
 
   hungerRef.current = hunger;
   prof.current = profile;
@@ -179,6 +181,7 @@ export function useShakeReaction({
     toasted.current = false;
     cycleHadNauseaRef.current = false;
     peakIntensity.current = 0;
+    vomitedThisCycle.current = false;
     setCycleHadNausea(false);
     setVomitEvent(null);
     push(0, 'idle');
@@ -230,6 +233,7 @@ export function useShakeReaction({
     toasted.current = false;
     cycleHadNauseaRef.current = false;
     peakIntensity.current = 0;
+    vomitedThisCycle.current = false;
 
     setCycleHadNausea(false);
     setVomitEvent(null);
@@ -297,8 +301,6 @@ export function useShakeReaction({
       const intensity = result.triggered ? result.intensity : 0;
       peakIntensity.current = Math.max(peakIntensity.current, intensity);
 
-      const dur = DIZZY_MIN_S + intensity * (DIZZY_MAX_S - DIZZY_MIN_S);
-
       const sick = hungerRef.current >= HUNGER_THRESH;
       const nausea = sick ? Math.min(1, intensity) : 0;
 
@@ -310,6 +312,50 @@ export function useShakeReaction({
       // Keep the strongest accumulated nausea level.
       lvl.current = Math.max(lvl.current, nausea);
 
+      // ── Immediate vomit on release if conditions met ───────────────────
+      if (
+        cycleHadNauseaRef.current &&
+        peakIntensity.current >= VOMIT_INTENSITY_THRESH &&
+        !vomitedThisCycle.current
+      ) {
+        vomitedThisCycle.current = true;
+
+        push(lvl.current, 'vomiting');
+        stop(); // pause drain during vomit
+
+        vomitIdCounter.current += 1;
+        setVomitEvent({ id: vomitIdCounter.current, intensity: peakIntensity.current });
+
+        clearVomit();
+        vomitTimer.current = setTimeout(() => {
+          vomitTimer.current = null;
+
+          // After vomit expression, transition to dizzy hold then recover
+          const dur = DIZZY_MIN_S + intensity * (DIZZY_MAX_S - DIZZY_MIN_S);
+
+          push(lvl.current, 'dizzy');
+
+          if (lvl.current > 0) {
+            startRef.current();
+          }
+
+          clearDizzy();
+          dizzyTimer.current = setTimeout(() => {
+            dizzyTimer.current = null;
+
+            if (lvl.current > 0) {
+              push(lvl.current, 'recovering');
+              startRef.current();
+            } else {
+              finishCycle();
+            }
+          }, dur * 1000);
+        }, VOMIT_DURATION_MS);
+
+        return;
+      }
+
+      // ── Standard path (no vomit) ──────────────────────────────────────
       push(lvl.current, 'dizzy');
 
       if (lvl.current > 0) {
@@ -319,39 +365,13 @@ export function useShakeReaction({
 
       clearDizzy();
 
+      const dur = DIZZY_MIN_S + intensity * (DIZZY_MAX_S - DIZZY_MIN_S);
+
       dizzyTimer.current = setTimeout(() => {
         dizzyTimer.current = null;
 
-        // Escalate to vomiting if nausea + high intensity
-        if (
-          cycleHadNauseaRef.current &&
-          peakIntensity.current >= VOMIT_INTENSITY_THRESH
-        ) {
-          push(lvl.current, 'vomiting');
-          stop(); // pause drain during vomit
-
-          vomitIdCounter.current += 1;
-          setVomitEvent({ id: vomitIdCounter.current, intensity: peakIntensity.current });
-
-          clearVomit();
-          vomitTimer.current = setTimeout(() => {
-            vomitTimer.current = null;
-
-            if (lvl.current > 0) {
-              push(lvl.current, 'recovering');
-              startRef.current();
-            } else {
-              finishCycle();
-            }
-          }, VOMIT_DURATION_MS);
-
-          return;
-        }
-
         if (lvl.current > 0) {
           push(lvl.current, 'recovering');
-
-          // Usually already running, but safe if the fill was reintroduced.
           startRef.current();
         } else {
           finishCycle();

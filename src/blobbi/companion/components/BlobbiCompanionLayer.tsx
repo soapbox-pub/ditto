@@ -214,10 +214,10 @@ export function BlobbiCompanionLayer() {
     const spawnX = renderedPosition.x + config.size / 2;
     const spawnY = renderedPosition.y + config.size * 0.55;
 
-    // Compute landing position (floor line)
-    const floorY = viewport.height - config.padding.bottom;
+    // Land a short distance below Blobbi (near feet), not at viewport bottom
+    const floorLimit = viewport.height - config.padding.bottom;
     const landX = spawnX + (Math.random() * 30 - 15);
-    const landY = floorY;
+    const landY = Math.min(renderedPosition.y + config.size * 0.9, floorLimit);
 
     const newSplat: SplatData = {
       id: vomitEvent.id,
