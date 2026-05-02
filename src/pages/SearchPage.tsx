@@ -402,7 +402,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds, fetchNextPage, hasNextPage, isFetchingNextPage } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -417,6 +417,15 @@ export function SearchPage() {
     flushStreamBuffer();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [flushStreamBuffer]);
+
+  // Infinite scroll for posts tab
+  const { ref: postsScrollRef, inView: postsInView } = useInView({ threshold: 0, rootMargin: '400px' });
+
+  useEffect(() => {
+    if (postsInView && hasNextPage && !isFetchingNextPage && activeTab === 'posts') {
+      fetchNextPage();
+    }
+  }, [postsInView, hasNextPage, isFetchingNextPage, fetchNextPage, activeTab]);
 
   return (
     <main className="flex-1 min-w-0">
@@ -794,6 +803,16 @@ export function SearchPage() {
                   }
                   return <NoteCard key={event.id} event={event} highlight={isNew} />;
                 })}
+                {/* Infinite scroll sentinel */}
+                {hasNextPage && (
+                  <div ref={postsScrollRef} className="py-4">
+                    {isFetchingNextPage && (
+                      <div className="flex justify-center">
+                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : debouncedSearchQuery.trim() ? (
               <EmptyState
@@ -842,8 +861,8 @@ export function SearchPage() {
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
-  const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
-  const displayName = metadata?.name || genUserName(profile.pubkey);
+  const metadata = profile.metadata as { name?: string; display_name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
+  const displayName = metadata?.name || metadata?.display_name || genUserName(profile.pubkey);
   const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
@@ -930,7 +949,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const tags = author.data?.event?.tags ?? [];
 
   if (author.isLoading) {

@@ -289,6 +289,7 @@ export function BlobbiCompanion({
   return (
     <div
       ref={containerRef}
+      data-blobbi-companion
       className="select-none touch-none"
       style={{
         position: 'fixed',

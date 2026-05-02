@@ -16,11 +16,14 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+
+import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 
 import {
   KIND_BLOBBI_STATE,
@@ -156,6 +159,7 @@ export function useBlobbiOnboarding({
   adoptionOnly = false,
 }: UseBlobbiOnboardingOptions): UseBlobbiOnboardingResult {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   
   // Get kind 0 metadata for name suggestion
@@ -164,7 +168,7 @@ export function useBlobbiOnboarding({
   // Suggested name from kind 0: display_name > name > undefined
   const suggestedName = useMemo(() => {
     if (!authorData?.metadata) return undefined;
-    return authorData.metadata.display_name || authorData.metadata.name || undefined;
+    return authorData.metadata.name || authorData.metadata.display_name || undefined;
   }, [authorData?.metadata]);
   
   // ─── State ────────────────────────────────────────────────────────────────────
@@ -368,16 +372,21 @@ export function useBlobbiOnboarding({
     setActionInProgress('reroll');
     
     try {
+      // Fetch fresh profile from relays (read-modify-write safety)
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      const baseEvent = freshProfile?.event ?? profile.event;
+      
       // First, deduct coins from profile
       const newCoins = coins - BLOBBI_PREVIEW_REROLL_COST;
-      const updatedTags = updateBlobbonautTags(profile.allTags, {
+      const updatedTags = updateBlobbonautTags(baseEvent.tags, {
         coins: newCoins.toString(),
       });
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: baseEvent.content ?? '',
         tags: updatedTags,
+        prev: baseEvent,
       });
       
       updateProfileEvent(profileEvent);
@@ -422,7 +431,7 @@ export function useBlobbiOnboarding({
       setActionInProgress(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- preview identity (d/seed/petId) only used for debug logs
-  }, [user?.pubkey, profile, coins, preview?.name, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [user?.pubkey, nostr, profile, coins, preview?.name, publishEvent, updateProfileEvent, invalidateProfile]);
   
   /**
    * Adopt the current preview - costs coins and creates the Blobbi event
@@ -462,20 +471,24 @@ export function useBlobbiOnboarding({
       // Eggs should never be auto-assigned as the floating companion.
       // NOTE: blobbi_onboarding_done is NOT set here — adoption alone does not
       // complete onboarding. It is set when the first-hatch tour finishes.
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      const baseEvent = freshProfile?.event ?? profile.event;
+      
       const newCoins = coins - BLOBBI_ADOPTION_COST;
-      const newHas = [...profile.has, preview.d];
+      const newHas = [...(freshProfile?.has ?? profile.has), preview.d];
       
       const profileUpdates: Record<string, string | string[]> = {
         coins: newCoins.toString(),
         has: newHas,
       };
       
-      const updatedProfileTags = updateBlobbonautTags(profile.allTags, profileUpdates);
+      const updatedProfileTags = updateBlobbonautTags(baseEvent.tags, profileUpdates);
       
       const profileEvent = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: baseEvent.content ?? '',
         tags: updatedProfileTags,
+        prev: baseEvent,
       });
       
       updateProfileEvent(profileEvent);
@@ -505,7 +518,7 @@ export function useBlobbiOnboarding({
       setIsProcessing(false);
       setActionInProgress(null);
     }
-  }, [user?.pubkey, profile, preview, coins, publishEvent, updateCompanionEvent, updateProfileEvent, setStoredSelectedD, invalidateProfile, invalidateCompanion, onComplete]);
+  }, [user?.pubkey, nostr, profile, preview, coins, publishEvent, updateCompanionEvent, updateProfileEvent, setStoredSelectedD, invalidateProfile, invalidateCompanion, onComplete]);
   
   // ─── Return ─────────────────────────────────────────────────────────────────
   

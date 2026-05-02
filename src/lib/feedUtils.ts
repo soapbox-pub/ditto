@@ -95,6 +95,24 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   if (event.kind === 37516 && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) return true;
   // Emoji packs (kind 30030) without at least one valid emoji tag
   if (event.kind === 30030 && !event.tags.some(([n, sc, url]) => n === 'emoji' && sc && url)) return true;
+  // Bird detections (kind 2473) without a Wikidata entity reference — the NIP
+  // requires an `i` tag pointing at https://www.wikidata.org/entity/Q<digits>.
+  if (event.kind === 2473) {
+    const wikidataRe = /^https:\/\/www\.wikidata\.org\/entity\/Q\d+$/;
+    if (!event.tags.some(([n, v]) => n === 'i' && typeof v === 'string' && wikidataRe.test(v))) return true;
+  }
+  // Birdex life lists (kind 12473) with no valid species entries — a
+  // Birdex is an index over the author's kind 2473 detections, so one
+  // with zero parseable `i` tags has nothing to show.
+  if (event.kind === 12473) {
+    const wikidataRe = /^https:\/\/www\.wikidata\.org\/entity\/Q\d+$/;
+    if (!event.tags.some(([n, v]) => n === 'i' && typeof v === 'string' && wikidataRe.test(v))) return true;
+  }
+  // Custom constellations (kind 30621) without any valid edge tags
+  if (event.kind === 30621) {
+    const hasEdge = event.tags.some(([n, from, to]) => n === 'edge' && /^\d+$/.test(from ?? '') && /^\d+$/.test(to ?? ''));
+    if (!hasEdge) return true;
+  }
   return false;
 }
 

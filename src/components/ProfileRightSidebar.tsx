@@ -182,6 +182,7 @@ function isVideoItem(item: MediaItem): boolean {
 function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { config } = useAppContext();
   const isVideo = isVideoItem(item);
 
   useEffect(() => {
@@ -213,7 +214,7 @@ function MediaTile({ item }: { item: MediaItem }) {
           src={item.url}
           className="absolute inset-0 w-full h-full object-cover"
           muted
-          autoPlay
+          autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"
@@ -534,7 +535,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className={cn("w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
+    <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
       {/* Media Section — only shown when pubkey prop is provided */}
       {pubkey !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Media</h2>

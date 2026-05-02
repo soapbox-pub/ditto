@@ -126,7 +126,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
 
   const issuer = useAuthor(event.pubkey);
   const issuerMeta = issuer.data?.metadata;
-  const issuerName = issuerMeta?.name || genUserName(event.pubkey);
+  const issuerName = issuerMeta?.name || issuerMeta?.display_name || genUserName(event.pubkey);
   const issuerProfileUrl = useProfileUrl(event.pubkey, issuerMeta);
 
   return (
@@ -203,7 +203,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
 
   const sender = useAuthor(senderPubkey || undefined);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
+  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
 
@@ -309,6 +309,13 @@ function EmbeddedNoteCard({
 
   const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
+  // Kinds whose `content` is a human-readable body/caption and can safely
+  // be fed through the kind-1 tokenizer for preview. Everything else
+  // (articles, streams, videos, calendar events, themes, polls, voice
+  // messages, unknown custom kinds, …) should prefer a tag-based summary
+  // — otherwise we'd parse JSON or arbitrary content as text.
+  const isContentKind =
+    event.kind === 1 || event.kind === 11 || event.kind === 1111 || isPhoto;
 
   // Attachment counts for indicator chips
   const attachments = useMemo(() => {
@@ -333,16 +340,23 @@ function EmbeddedNoteCard({
     return { label, Icon: getKindIcon(event.kind) };
   }, [event.kind]);
 
-  // Tag-based fallback metadata for events with empty content (articles, custom kinds, etc.)
+  // Tag-based fallback metadata for non-content kinds (articles, custom
+  // kinds, etc.) and for text notes that happen to have empty content.
   const hasContent = event.content.trim().length > 0;
   const tagMeta = useMemo(() => {
-    if (hasContent) return undefined;
-    const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-    const title = getTag('title') || getTag('name') || getTag('d');
-    const description = getTag('summary') || getTag('description');
-    if (!title && !description) return undefined;
-    return { title, description };
-  }, [hasContent, event.tags]);
+    // Content kinds with real content always render that content below.
+    if (isContentKind && hasContent) return undefined;
+    // NIP-31 `alt` is the author's own fallback for clients that can't
+    // render the kind. Other tags (title, name, d, …) have kind-specific
+    // semantics and are not reliably safe as user-facing preview text.
+    const altTag = event.tags.find(([n]) => n === 'alt')?.[1];
+    const title = altTag && altTag.trim().length > 0 ? altTag.trim() : undefined;
+    if (!title) return undefined;
+    return { title, description: undefined as string | undefined };
+  }, [isContentKind, hasContent, event.tags]);
+
+  // Unknown/unsupported kind with no displayable tags and no content-kind body.
+  const isUnsupportedKind = !isContentKind && !isBlobbiState && !tagMeta;
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -385,6 +399,10 @@ function EmbeddedNoteCard({
             <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
           )}
         </>
+      ) : isUnsupportedKind ? (
+        <p className="text-sm italic text-muted-foreground">
+          This event kind is not supported
+        </p>
       ) : (
         <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} />
       )}

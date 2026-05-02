@@ -2,6 +2,7 @@ import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { createElement } from 'react';
 import { toast } from '@/hooks/useToast';
 import { NudgeToastContent } from '@/components/SignerToastContent';
+import { type BtcSigner, hasBtcSigning } from '@/lib/bitcoin-signers';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,6 +36,7 @@ const KIND_LABELS: Record<number, string> = {
   7: 'reaction',
   11: 'post',
   16: 'repost',
+  8333: 'Bitcoin zap',
   1111: 'comment',
   1984: 'report',
   4932: 'webxdc sync',
@@ -301,6 +303,14 @@ export function signerWithNudge(
 
   if (signer.nip44) {
     wrapped.nip44 = wrapCrypto(signer.nip44);
+  }
+
+  // Forward signPsbt if the underlying signer supports Bitcoin signing.
+  if (hasBtcSigning(signer)) {
+    const btcWrapped = wrapped as BtcSigner;
+    const btcSigner = signer;
+    btcWrapped.signPsbt = (psbtHex: string) =>
+      run(() => btcSigner.signPsbt(psbtHex), undefined, 'sign');
   }
 
   return wrapped;

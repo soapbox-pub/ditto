@@ -126,7 +126,7 @@ export function ProfileCard({
   const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
   const { badgeMap, isLoading: defsLoading } = useBadgeDefinitions(badgeRefs);
 
-  const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 

@@ -91,7 +91,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
   const { data: decrypted } = useDecryptLetter(letter);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
   const timeStr = shortTimeAgo(letter.timestamp);
 
@@ -108,7 +108,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
     <button
       onClick={onClick}
       className="envelope-card group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
-      style={{ '--entrance-delay': `${index * 60}ms` } as React.CSSProperties}
+      style={{ '--entrance-delay': `${Math.min(index * 60, 300)}ms` } as React.CSSProperties}
       title={`${mode === 'inbox' ? 'From' : 'To'} ${displayName}`}
     >
       {/* Envelope — single rounded rect, ~1.59:1 like SendAnimation body */}

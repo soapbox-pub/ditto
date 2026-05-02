@@ -188,7 +188,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
 
   if (hasError) {
     return (
-      <div className={cn('relative xl:rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center', className)}>
+      <div className={cn('relative lg:rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center', className)}>
         <div className="text-center space-y-2 px-4">
           <p className="text-white/80 text-sm font-medium">Stream unavailable</p>
           <p className="text-white/50 text-xs">The live stream could not be loaded. It may have ended or the URL is unreachable.</p>
@@ -201,7 +201,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     <div
       ref={containerRef}
       className={cn(
-        'relative xl:rounded-2xl overflow-hidden bg-black group aspect-video',
+        'relative lg:rounded-2xl overflow-hidden bg-black group aspect-video',
         className,
       )}
       onMouseMove={revealControls}

@@ -147,14 +147,14 @@ export const FeedSettingsSchema = z.looseObject({
   showTreasureGeocaches: z.boolean().optional(),
   showTreasureFoundLogs: z.boolean().optional(),
   showColors: z.boolean().optional(),
-  showPacks: z.boolean().optional(),
+  showPeopleLists: z.boolean().optional(),
   showStreams: z.boolean().optional(),
   feedIncludeVines: z.boolean().optional(),
   feedIncludePolls: z.boolean().optional(),
   feedIncludeTreasureGeocaches: z.boolean().optional(),
   feedIncludeTreasureFoundLogs: z.boolean().optional(),
   feedIncludeColors: z.boolean().optional(),
-  feedIncludePacks: z.boolean().optional(),
+  feedIncludePeopleLists: z.boolean().optional(),
   feedIncludeStreams: z.boolean().optional(),
   showDecks: z.boolean().optional(),
   feedIncludeDecks: z.boolean().optional(),
@@ -183,6 +183,10 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBlobbi: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
   feedIncludeBadgeAwards: z.boolean().optional(),
+  showBirdstar: z.boolean().optional(),
+  feedIncludeBirdDetections: z.boolean().optional(),
+  feedIncludeBirdex: z.boolean().optional(),
+  feedIncludeConstellations: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -250,6 +254,7 @@ export const AppConfigSchema = z.object({
       return result.success ? [result.data] : [];
     })
   ).optional().default([]),
+  autoplayVideos: z.boolean(),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
@@ -339,6 +344,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     userCount: z.number(),
     nip05: z.record(z.string(), z.unknown()),
   }).optional(),
+  autoplayVideos: z.boolean().optional(),
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),

@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import { resizeImage } from '@/lib/resizeImage';
+import { extractHashtags } from '@/lib/hashtag';
 import { cn } from '@/lib/utils';
 
 const MAX_CAPTION_CHARS = 2000;
@@ -226,11 +227,8 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
       // Extract hashtags from caption
       const captionText = caption.trim();
-      const hashtagMatches = captionText.match(/#[\p{L}\p{N}_]+/gu);
-      if (hashtagMatches) {
-        for (const tag of hashtagMatches) {
-          tags.push(['t', tag.slice(1).toLowerCase()]);
-        }
+      for (const tag of extractHashtags(captionText)) {
+        tags.push(['t', tag]);
       }
 
       // Content warning
@@ -342,6 +340,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
                         <input
                           type="text"
+                          dir="auto"
                           value={img.alt}
                           onChange={(e) => handleAltChange(index, e.target.value)}
                           placeholder="Alt text (accessibility)"
@@ -392,6 +391,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
               </label>
               <Input
                 id="photo-title"
+                dir="auto"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Give your photo a title"
@@ -407,6 +407,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
               </label>
               <textarea
                 id="photo-caption"
+                dir="auto"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="Write a caption... (supports #hashtags)"

@@ -127,6 +127,9 @@ function filterEvent(
   return true;
 }
 
+/** Number of events to fetch per page. */
+const PAGE_SIZE = 40;
+
 /**
  * Stream posts using a direct relay connection.
  * When mediaType is 'vines', streams kind 34236 events instead of kind 1.
@@ -150,6 +153,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // IDs of events that were just flushed from the buffer (for highlight animation)
   const [flushedIds, setFlushedIds] = useState<Set<string>>(new Set());
   const flushedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Pagination state
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+  const isFetchingRef = useRef(false);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const oldestTimestampRef = useRef<number | null>(null);
 
   /** Merge buffered events into the main list and mark them as flushed. */
   const doFlush = useCallback(() => {
@@ -218,58 +227,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // Stable key for authorPubkeys (follows list)
   const authorPubkeysKey = options.authorPubkeys ? [...options.authorPubkeys].sort().join(',') : '';
 
-  useEffect(() => {
-    const ac = new AbortController();
-    let alive = true;
-
-    setAllEvents([]);
-    setIsLoading(true);
-    initialLoadDoneRef.current = false;
-    streamBufferRef.current = [];
-    setStreamBufferCount(0);
-
-    const eventMap = new Map<string, NostrEvent>();
-    // Track IDs already in the initial batch to avoid dupes in the buffer
-    const knownIds = new Set<string>();
-
-    function addEvent(event: NostrEvent, isStreamed: boolean) {
-      if (!alive) return;
-      const now = Math.floor(Date.now() / 1000);
-      if (event.created_at > now) return;
-
-      // Dedupe key
-      let dedupeKey: string;
-      if (event.kind >= 30000 && event.kind < 40000) {
-        const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-        dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
-      } else {
-        dedupeKey = event.id;
-      }
-
-      // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
-      // If at the top, merge immediately (natural top-insertion behavior).
-      if (isStreamed && initialLoadDoneRef.current && isScrolledRef.current) {
-        if (knownIds.has(dedupeKey)) return;
-        knownIds.add(dedupeKey);
-        streamBufferRef.current = [...streamBufferRef.current, event];
-        setStreamBufferCount(streamBufferRef.current.length);
-        return;
-      }
-
-      // Addressable events (30000-39999) dedupe by pubkey+kind+d
-      if (event.kind >= 30000 && event.kind < 40000) {
-        const existing = eventMap.get(dedupeKey);
-        if (existing && existing.created_at >= event.created_at) return;
-        eventMap.set(dedupeKey, event);
-      } else {
-        if (eventMap.has(dedupeKey)) return;
-        eventMap.set(dedupeKey, event);
-      }
-      knownIds.add(dedupeKey);
-
-      setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
-    }
-
+  // Build the search filter once — reused by initial fetch and pagination.
+  const paginationFilter = useMemo(() => {
     // Build the kinds list based on mediaType (or override entirely)
     let kinds: number[];
     if (options.kindsOverride && options.kindsOverride.length > 0) {
@@ -286,19 +245,16 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // Deduplicate
     kinds = [...new Set(kinds)];
 
-    // Base filter for streaming (kinds only - no search)
+    // Base filter (kinds only - no search)
     const streamFilter: NostrFilter = { kinds };
 
-    // Search filter for initial query (includes NIP-50 extensions)
-    // protocol:nostr = native Nostr only (no bridged events).
-    // When bridged protocols are selected, omit protocol:nostr so the relay
-    // returns both native and bridged events matching the selected protocols.
+    // Search filter for queries (includes NIP-50 extensions)
     const protocols = options.protocols ?? ['nostr'];
     const bridged = protocols.filter(p => p !== 'nostr');
     const searchParts: string[] = bridged.length > 0
       ? bridged.map(p => `protocol:${p}`)
       : ['protocol:nostr'];
-    
+
     if (query.trim()) {
       searchParts.push(query.trim());
     }
@@ -319,18 +275,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       } else if (options.mediaType === 'none') {
         searchParts.push('media:false');
       }
-      // 'all' means no media filter
-    }
-
-    const initialFilter: NostrFilter = { ...streamFilter };
-    if (searchParts.length > 0) {
-      initialFilter.search = searchParts.join(' ');
-    }
-
-    // Author filter — scopes both the initial batch and streaming subscription.
-    if (resolvedAuthorPubkeys && resolvedAuthorPubkeys.length > 0) {
-      initialFilter.authors = resolvedAuthorPubkeys;
-      streamFilter.authors = resolvedAuthorPubkeys;
     }
 
     // Sort preference (NIP-50 extension)
@@ -340,15 +284,110 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       searchParts.push('sort:trending');
     }
 
+    const searchFilter: NostrFilter = { ...streamFilter };
+    if (searchParts.length > 0) {
+      searchFilter.search = searchParts.join(' ');
+    }
+
+    // Author filter
+    if (resolvedAuthorPubkeys && resolvedAuthorPubkeys.length > 0) {
+      searchFilter.authors = resolvedAuthorPubkeys;
+      streamFilter.authors = resolvedAuthorPubkeys;
+    }
+
+    return { searchFilter, streamFilter };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
+  }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
+
+  // Shared ref for the event map and known IDs — persists across initial fetch + pagination
+  const eventMapRef = useRef(new Map<string, NostrEvent>());
+  const knownIdsRef = useRef(new Set<string>());
+
+  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
+  const flushEventMap = useCallback(() => {
+    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+  }, []);
+
+  /** Ingest a single event into the event map / stream buffer. Returns true if the map was mutated. */
+  const ingestEvent = useCallback((event: NostrEvent, isStreamed: boolean): boolean => {
+    const now = Math.floor(Date.now() / 1000);
+    if (event.created_at > now) return false;
+
+    // Dedupe key
+    let dedupeKey: string;
+    if (event.kind >= 30000 && event.kind < 40000) {
+      const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+      dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
+    } else {
+      dedupeKey = event.id;
+    }
+
+    // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
+    if (isStreamed && initialLoadDoneRef.current && isScrolledRef.current) {
+      if (knownIdsRef.current.has(dedupeKey)) return false;
+      knownIdsRef.current.add(dedupeKey);
+      streamBufferRef.current = [...streamBufferRef.current, event];
+      setStreamBufferCount(streamBufferRef.current.length);
+      return false;
+    }
+
+    // Addressable events (30000-39999) dedupe by pubkey+kind+d
+    if (event.kind >= 30000 && event.kind < 40000) {
+      const existing = eventMapRef.current.get(dedupeKey);
+      if (existing && existing.created_at >= event.created_at) return false;
+      eventMapRef.current.set(dedupeKey, event);
+    } else {
+      if (eventMapRef.current.has(dedupeKey)) return false;
+      eventMapRef.current.set(dedupeKey, event);
+    }
+    knownIdsRef.current.add(dedupeKey);
+    return true;
+  }, []);
+
+  /** Add a single streamed event and flush immediately. */
+  const addStreamedEvent = useCallback((event: NostrEvent) => {
+    if (ingestEvent(event, true)) {
+      flushEventMap();
+    }
+  }, [ingestEvent, flushEventMap]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    let alive = true;
+
+    // Reset all state on filter change
+    setAllEvents([]);
+    setIsLoading(true);
+    setHasNextPage(true);
+    isFetchingRef.current = false;
+    oldestTimestampRef.current = null;
+    initialLoadDoneRef.current = false;
+    streamBufferRef.current = [];
+    setStreamBufferCount(0);
+    eventMapRef.current = new Map();
+    knownIdsRef.current = new Set();
+
+    const { searchFilter, streamFilter } = paginationFilter;
+
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
       try {
         const events = await nostr.query(
-          [{ ...initialFilter, limit: 40 }],
+          [{ ...searchFilter, limit: PAGE_SIZE }],
           { signal: ac.signal },
         );
         for (const event of events) {
-          addEvent(event, false);
+          ingestEvent(event, false);
+        }
+        flushEventMap();
+        // Track oldest timestamp for pagination
+        if (events.length > 0) {
+          const oldest = Math.min(...events.map((e) => e.created_at));
+          oldestTimestampRef.current = oldest;
+        }
+        // If we got fewer events than PAGE_SIZE, there's no more to fetch
+        if (events.length < PAGE_SIZE) {
+          setHasNextPage(false);
         }
       } catch {
         // abort expected
@@ -379,7 +418,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           if (!alive) break;
           
           if (msg[0] === 'EVENT') {
-            addEvent(msg[2], true);
+            addStreamedEvent(msg[2]);
           } else if (msg[0] === 'CLOSED') {
             break;
           }
@@ -393,8 +432,37 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols is stabilized via protocolsKey; kindsOverride is stabilized via kindsOverrideKey; authorPubkeys is stabilized via authorPubkeysKey
-  }, [nostr, query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
+  }, [nostr, paginationFilter]);
+
+  /** Fetch the next page of older results. */
+  const fetchNextPage = useCallback(async () => {
+    if (isFetchingRef.current || !hasNextPage || oldestTimestampRef.current === null) return;
+    isFetchingRef.current = true;
+    setIsFetchingNextPage(true);
+    try {
+      const { searchFilter } = paginationFilter;
+      const events = await nostr.query(
+        [{ ...searchFilter, until: oldestTimestampRef.current - 1, limit: PAGE_SIZE }],
+      );
+      for (const event of events) {
+        ingestEvent(event, false);
+      }
+      flushEventMap();
+      if (events.length > 0) {
+        const oldest = Math.min(...events.map((e) => e.created_at));
+        oldestTimestampRef.current = oldest;
+      }
+      if (events.length < PAGE_SIZE) {
+        setHasNextPage(false);
+      }
+    } catch {
+      // Transient failure — leave hasNextPage true so the user can retry
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetchingNextPage(false);
+    }
+  }, [hasNextPage, paginationFilter, nostr, ingestEvent, flushEventMap]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
@@ -424,5 +492,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamBufferCount, matchesFilters]);
 
-  return { posts, isLoading, newPostCount: filteredNewPostCount, flushStreamBuffer, flushedIds };
+  return {
+    posts,
+    isLoading,
+    newPostCount: filteredNewPostCount,
+    flushStreamBuffer,
+    flushedIds,
+    // Pagination
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  };
 }

@@ -291,6 +291,7 @@ export function LetterEditor({
                 </Select>
                 <input
                   type="text"
+                  dir="auto"
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
                   onFocus={() => setOverlay('none')}

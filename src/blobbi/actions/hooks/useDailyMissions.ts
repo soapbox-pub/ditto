@@ -1,7 +1,7 @@
 /**
  * useDailyMissions - Hook for reading daily mission state
  *
- * Provides reactive access to the current day's missions.
+ * Provides reactive access to the current day's daily missions.
  * Progress tracking is done via the tracker module (non-React).
  * Completion is implicit (derived from count/events vs target).
  * XP is awarded automatically when missions complete.
@@ -10,6 +10,9 @@
  * switch, hydrates from kind 11125 content JSON if the session store
  * is empty. Completed missions are persisted by `useAwardDailyXp`;
  * intermediate progress resets on page refresh.
+ *
+ * NOTE: Evolution missions are NOT managed here. They live on kind 31124
+ * (per-Blobbi) and are handled by the evolution session store.
  */
 
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
@@ -34,9 +37,8 @@ import {
 } from '../lib/daily-missions';
 
 import {
-  readMissionsFromStorage,
-  writeMissionsToStorage,
-  hydrateFromPersisted,
+  readDailyFromStorage,
+  writeDailyToStorage,
 } from '../lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,7 +68,7 @@ export interface UseDailyMissionsOptions {
   /**
    * Raw content string from the kind 11125 profile event.
    * Pass `profile.content` here. The hook parses it to extract
-   * persisted missions and hydrates the session store on first load.
+   * persisted daily missions and hydrates the session store on first load.
    */
   profileContent?: string;
 }
@@ -84,8 +86,14 @@ export interface UseDailyMissionsResult {
   bonusUnlocked: boolean;
   /** Bonus XP amount */
   bonusXp: number;
-  /** Whether user has no eligible missions */
+  /**
+   * Whether the account has no hatched (baby/adult) Blobbi at all.
+   * True only when availableStages contains neither 'baby' nor 'adult'.
+   * NOT a loading indicator — use `isLoading` for that.
+   */
   noMissionsAvailable: boolean;
+  /** Whether the hook is still hydrating and missions aren't ready yet */
+  isLoading: boolean;
   /** Rerolls remaining today */
   rerollsRemaining: number;
   /** Max rerolls per day */
@@ -107,38 +115,54 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   // Track whether we've hydrated for this pubkey
   const hydratedRef = useRef<string | null>(null);
 
-  // Hydrate session store from kind 11125 content on mount / account switch
+  // Hydrate session store from kind 11125 content on mount / account switch.
+  // If profileContent hasn't loaded yet, we still mark as hydrated so the hook
+  // can generate fresh missions rather than blocking. If profileContent arrives
+  // later with persisted progress for today, we merge it in.
+  const profileHydratedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!pubkey || !profileContent) return;
-    if (hydratedRef.current === pubkey) return; // already hydrated this session
+    if (!pubkey) return;
 
-    // Check if session store already has data for this pubkey
-    const existing = readMissionsFromStorage(pubkey);
-    if (existing) {
-      hydratedRef.current = pubkey;
+    if (!profileContent) {
+      // No profile loaded yet — mark hydrated so we can generate fresh missions.
+      // When profileContent arrives, this effect re-runs and can merge.
+      if (hydratedRef.current !== pubkey) {
+        hydratedRef.current = pubkey;
+        setVersion((v) => v + 1);
+      }
       return;
     }
 
-    // Parse persisted missions from profile content
+    // Only attempt profile hydration once per pubkey per session
+    if (profileHydratedRef.current === pubkey) return;
+    profileHydratedRef.current = pubkey;
+
+    // Parse persisted daily missions from profile content
     const parsed = parseProfileContent(profileContent);
     if (parsed.missions && !needsDailyReset(parsed.missions)) {
-      // Daily missions are still current — hydrate the full object
-      hydrateFromPersisted(parsed.missions, pubkey);
-    } else if (parsed.missions?.evolution?.length) {
-      // Daily missions need a reset, but evolution missions survive across days.
-      // Seed the store with fresh dailies + persisted evolution so the raw memo
-      // picks them up instead of creating missions with evolution: [].
-      const fresh = createDailyMissionsContent(
-        getTodayDateString(),
-        parsed.missions.evolution,
-        pubkey,
-        availableStages,
-      );
-      writeMissionsToStorage(fresh, pubkey);
+      // Daily missions are still current — hydrate or merge.
+      // Merge strategy: persisted missions from the relay represent accumulated
+      // progress from prior sessions. If they have ANY real progress, they are
+      // authoritative and should overwrite local (which at most has trivial
+      // progress from the brief window before profile loaded). If persisted has
+      // zero progress everywhere, local is equally valid — keep it to avoid
+      // swapping mission assignments the user has already seen.
+      const persistedHasProgress = parsed.missions.daily.some((m) => missionProgress(m) > 0);
+      if (persistedHasProgress) {
+        // Persisted carries real work — always prefer it
+        writeDailyToStorage(parsed.missions, pubkey);
+      } else {
+        // Persisted has zero progress — only hydrate if local is empty
+        const existing = readDailyFromStorage(pubkey);
+        if (!existing) {
+          writeDailyToStorage(parsed.missions, pubkey);
+        }
+      }
     }
+
     hydratedRef.current = pubkey;
     setVersion((v) => v + 1);
-  }, [pubkey, profileContent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pubkey, profileContent]);
 
   // Listen for tracker events
   useEffect(() => {
@@ -152,11 +176,9 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
 
   // Read and ensure current state.
   // CRITICAL: Don't create a fresh store entry until hydration is complete.
-  // Creating one prematurely would overwrite persisted evolution missions
-  // because `hydrateFromPersisted` no-ops when the store already has data.
   const hydrated = hydratedRef.current === pubkey;
   const raw = useMemo((): MissionsContent | undefined => {
-    const stored = readMissionsFromStorage(pubkey);
+    const stored = readDailyFromStorage(pubkey);
 
     if (!needsDailyReset(stored)) return stored;
 
@@ -164,14 +186,13 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     // hydration effect to seed persisted data before creating fresh missions.
     if (!stored && !hydrated) return undefined;
 
-    // Reset for new day, preserve evolution missions
+    // Reset for new day
     const fresh = createDailyMissionsContent(
       getTodayDateString(),
-      stored?.evolution ?? [],
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh, pubkey);
+    writeDailyToStorage(fresh, pubkey);
     return fresh;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, pubkey, stagesKey, hydrated]);
@@ -197,20 +218,25 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
   const allComplete = raw ? areAllDailyComplete(raw) : false;
   const todayXp = raw ? totalDailyXp(raw) : 0;
   const bonusUnlocked = allComplete;
-  const noMissionsAvailable = missions.length === 0;
+  // noMissionsAvailable means the account genuinely has no hatched Blobbi.
+  // It does NOT reflect loading state — use `isLoading` for that.
+  const hasHatchedStage = availableStages
+    ? availableStages.includes('baby') || availableStages.includes('adult')
+    : true; // default to true (assume hatched) when stages aren't known yet
+  const noMissionsAvailable = !hasHatchedStage;
+  const isLoading = !raw && hasHatchedStage;
   const rerollsRemaining = raw?.rerolls ?? MAX_DAILY_REROLLS;
 
   const forceReset = useCallback(() => {
     const fresh = createDailyMissionsContent(
       getTodayDateString(),
-      raw?.evolution ?? [],
       pubkey,
       availableStages,
     );
-    writeMissionsToStorage(fresh, pubkey);
+    writeDailyToStorage(fresh, pubkey);
     setVersion((v) => v + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pubkey, stagesKey, raw?.evolution]);
+  }, [pubkey, stagesKey]);
 
   return {
     missions,
@@ -220,6 +246,7 @@ export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDail
     bonusUnlocked,
     bonusXp: DAILY_BONUS_XP,
     noMissionsAvailable,
+    isLoading,
     rerollsRemaining,
     maxRerolls: MAX_DAILY_REROLLS,
     forceReset,

@@ -38,7 +38,7 @@ const BLOOMI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
   </g>
 
   <!-- Centro da flor -->
-  <circle cx="100" cy="110" r="35" fill="url(#bloomiCenter)" />
+  <circle cx="100" cy="110" r="35" fill="url(#bloomiCenter)" data-blobbi-body="true" />
   <circle cx="100" cy="110" r="28" fill="url(#bloomiCenterHighlight)" opacity="0.6" />
 
   <!-- Eyes (white/base eye shapes) -->
@@ -139,7 +139,7 @@ const BLOOMI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
   </g>
 
   <!-- Centro da flor -->
-  <circle cx="100" cy="110" r="35" fill="url(#bloomiCenter)" />
+  <circle cx="100" cy="110" r="35" fill="url(#bloomiCenter)" data-blobbi-body="true" />
   <circle cx="100" cy="110" r="28" fill="url(#bloomiCenterHighlight)" opacity="0.6" />
 
   <!-- Olhos dormindo -->
@@ -208,7 +208,7 @@ const BLOOMI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
 const BREEZY_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
   <!-- Main leaf body - classic leaf shape -->
   <path d="M 100 40 Q 70 60 60 90 Q 55 120 70 140 Q 85 155 100 160 Q 115 155 130 140 Q 145 120 140 90 Q 130 60 100 40" 
-        fill="url(#breezyBody)" />
+        fill="url(#breezyBody)" data-blobbi-body="true" />
   
   <!-- Leaf veins - central vein -->
   <path d="M 100 45 L 100 155" stroke="url(#breezyVein)" stroke-width="3" opacity="0.6" />
@@ -309,7 +309,7 @@ const BREEZY_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
 const BREEZY_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
   <!-- Main leaf body -->
   <path d="M 100 40 Q 70 60 60 90 Q 55 120 70 140 Q 85 155 100 160 Q 115 155 130 140 Q 145 120 140 90 Q 130 60 100 40" 
-        fill="url(#breezyBody)" />
+        fill="url(#breezyBody)" data-blobbi-body="true" />
   
   <!-- Leaf veins -->
   <path d="M 100 45 L 100 155" stroke="url(#breezyVein)" stroke-width="3" opacity="0.6" />
@@ -406,7 +406,7 @@ const BREEZY_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
 const CACTI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   
   <!-- Main cactus body -->
-  <rect x="85" y="80" width="30" height="80" rx="15" fill="url(#cactiBody)" />
+  <rect x="85" y="80" width="30" height="80" rx="15" fill="url(#cactiBody)" data-blobbi-body="true" />
   
   <!-- Cactus arms -->
   <rect x="60" y="100" width="20" height="40" rx="10" fill="url(#cactiArm)" />
@@ -482,7 +482,7 @@ const CACTI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg
 const CACTI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   
   <!-- Main cactus body -->
-  <rect x="85" y="80" width="30" height="80" rx="15" fill="url(#cactiBody)" />
+  <rect x="85" y="80" width="30" height="80" rx="15" fill="url(#cactiBody)" data-blobbi-body="true" />
   
   <!-- Cactus arms -->
   <rect x="60" y="100" width="20" height="40" rx="10" fill="url(#cactiArm)" />
@@ -604,7 +604,7 @@ const CATTI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Oval upright body -->
-  <ellipse cx="100" cy="120" rx="45" ry="60" fill="url(#cattiBody3D)" />
+  <ellipse cx="100" cy="120" rx="45" ry="60" fill="url(#cattiBody3D)" data-blobbi-body="true" />
   
   <!-- Triangle ears -->
   <path d="M 68 72 L 58 48 L 82 62 Z" fill="url(#cattiEar3D)" />
@@ -696,7 +696,7 @@ const CATTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Oval upright body -->
-  <ellipse cx="100" cy="120" rx="45" ry="60" fill="url(#cattiBody3D)" />
+  <ellipse cx="100" cy="120" rx="45" ry="60" fill="url(#cattiBody3D)" data-blobbi-body="true" />
   
   <!-- Triangle ears -->
   <path d="M 68 72 L 58 48 L 82 62 Z" fill="url(#cattiEar3D)" />
@@ -738,7 +738,7 @@ const CATTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
 
 const CLOUDI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
   <!-- Main cloud body - multiple overlapping circles -->
-  <circle cx="100" cy="120" r="45" fill="url(#cloudiBody)" />
+  <circle cx="100" cy="120" r="45" fill="url(#cloudiBody)" data-blobbi-body="true" />
   <circle cx="75" cy="110" r="35" fill="url(#cloudiBody)" />
   <circle cx="125" cy="110" r="35" fill="url(#cloudiBody)" />
   <circle cx="85" cy="95" r="25" fill="url(#cloudiBody)" />
@@ -788,7 +788,7 @@ const CLOUDI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
 
 const CLOUDI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">  
   <!-- Main cloud body - multiple overlapping circles -->
-  <circle cx="100" cy="120" r="45" fill="url(#cloudiBody)" />
+  <circle cx="100" cy="120" r="45" fill="url(#cloudiBody)" data-blobbi-body="true" />
   <circle cx="75" cy="110" r="35" fill="url(#cloudiBody)" />
   <circle cx="125" cy="110" r="35" fill="url(#cloudiBody)" />
   <circle cx="85" cy="95" r="25" fill="url(#cloudiBody)" />
@@ -888,15 +888,15 @@ const CRYSTI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Main crystal body - rounded hexagon shape -->
-  <path d="M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z" fill="url(#crystiBody)" />
+  <path d="M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z" fill="url(#crystiBody)" data-blobbi-body="true" />
   <path d="M 100 55 L 135 82 L 135 128 L 100 155 L 65 128 L 65 82 Z" fill="url(#crystiInner)" opacity="0.7" />
   
   <!-- Crystal segments with rounded edges -->
   <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.8" />
-  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
+  <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
   <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
   <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
   <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Eyes (white base) -->
@@ -912,15 +912,21 @@ const CRYSTI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   <!-- Mouth -->
   <path d="M 90 115 Q 100 123 110 115" stroke="url(#crystiSmile)" stroke-width="3" fill="none" stroke-linecap="round" />
   
-  <!-- Floating sparkles -->
-  <circle cx="65" cy="65" r="2" fill="#fbbf24" opacity="0.9" />
-  <circle cx="135" cy="70" r="1.5" fill="#f472b6" opacity="0.8" />
-  <circle cx="70" cy="140" r="1" fill="#06b6d4" opacity="0.7" />
-  <circle cx="130" cy="135" r="2" fill="#fbbf24" opacity="0.6" />
-  <circle cx="50" cy="105" r="1.5" fill="#f472b6" opacity="0.8" />
-  <circle cx="150" cy="110" r="1" fill="#06b6d4" opacity="0.9" />
-  <circle cx="100" cy="40" r="1.5" fill="#fbbf24" opacity="0.7" />
-  <circle cx="100" cy="170" r="1" fill="#f472b6" opacity="0.8" />
+  <!-- Floating sparkles with gentle animation -->
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="15s" repeatCount="indefinite" />
+    <circle cx="65" cy="65" r="2" fill="#fbbf24" opacity="0.9" />
+    <circle cx="135" cy="70" r="1.5" fill="#f472b6" opacity="0.8" />
+    <circle cx="70" cy="140" r="1" fill="#06b6d4" opacity="0.7" />
+    <circle cx="130" cy="135" r="2" fill="#fbbf24" opacity="0.6" />
+  </g>
+  <g>
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="-360 100 100" dur="20s" repeatCount="indefinite" />
+    <circle cx="50" cy="105" r="1.5" fill="#f472b6" opacity="0.8" />
+    <circle cx="150" cy="110" r="1" fill="#06b6d4" opacity="0.9" />
+    <circle cx="100" cy="40" r="1.5" fill="#fbbf24" opacity="0.7" />
+    <circle cx="100" cy="170" r="1" fill="#f472b6" opacity="0.8" />
+  </g>
 </svg>`;
 
 const CRYSTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
@@ -973,16 +979,16 @@ const CRYSTI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Main crystal body - rounded hexagon shape -->
-  <path d="M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z" fill="url(#crystiBody)" />
+  <path d="M 100 50 L 140 80 L 140 130 L 100 160 L 60 130 L 60 80 Z" fill="url(#crystiBody)" data-blobbi-body="true" />
   <path d="M 100 55 L 135 82 L 135 128 L 100 155 L 65 128 L 65 82 Z" fill="url(#crystiInner)" opacity="0.7" />
   
   <!-- Crystal segments with rounded edges -->
-  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.6" />
-  <path d="M 75 70 L 100 105 L 60 80 L 60 105 Z" fill="url(#crystiFacet2)" opacity="0.5" />
-  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.5" />
-  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.4" />
-  <path d="M 100 105 L 140 105 L 125 140 L 100 105 Z" fill="url(#crystiFacet5)" opacity="0.4" />
-  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.6" />
+  <path d="M 100 50 L 125 70 L 100 105 L 75 70 Z" fill="url(#crystiFacet1)" opacity="0.8" />
+  <path d="M 75 70 L 60 80 L 60 105 L 100 105 Z" fill="url(#crystiFacet2)" opacity="0.7" />
+  <path d="M 125 70 L 140 80 L 140 105 L 100 105 Z" fill="url(#crystiFacet3)" opacity="0.7" />
+  <path d="M 60 105 L 100 105 L 75 140 L 60 130 Z" fill="url(#crystiFacet4)" opacity="0.6" />
+  <path d="M 100 105 L 140 105 L 140 130 L 125 140 Z" fill="url(#crystiFacet5)" opacity="0.6" />
+  <path d="M 75 140 L 100 105 L 125 140 L 100 160 Z" fill="url(#crystiFacet6)" opacity="0.8" />
   
   <!-- Sleeping eyes -->
   <path d="M 78 95 Q 88 98 98 95" stroke="#1e1b4b" stroke-width="3" fill="none" stroke-linecap="round" />
@@ -1046,7 +1052,7 @@ const DROPPI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
   
   <!-- Main water drop body -->
   <path d="M 100 40 Q 100 30 100 40 Q 135 60 140 110 Q 140 150 100 165 Q 60 150 60 110 Q 65 60 100 40" 
-        fill="url(#droppiBody)" />
+        fill="url(#droppiBody)" data-blobbi-body="true" />
   
   <!-- Inner water reflection -->
   <ellipse cx="100" cy="100" rx="35" ry="45" fill="url(#droppiInner)" opacity="0.6" />
@@ -1136,7 +1142,7 @@ const DROPPI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
   
   <!-- Main water drop body -->
   <path d="M 100 40 Q 100 30 100 40 Q 135 60 140 110 Q 140 150 100 165 Q 60 150 60 110 Q 65 60 100 40" 
-        fill="url(#droppiBody)" />
+        fill="url(#droppiBody)" data-blobbi-body="true" />
   
   <!-- Inner water reflection -->
   <ellipse cx="100" cy="100" rx="35" ry="45" fill="url(#droppiInner)" opacity="0.6" />
@@ -1243,7 +1249,7 @@ const FLAMMI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
   </g>
 
   <!-- Flammy Body -->
-  <path d="M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z" fill="url(#flammiBody)" />
+  <path d="M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z" fill="url(#flammiBody)" data-blobbi-body="true" />
   <path d="M 100 155 Q 65 138 58 115 Q 55 90 75 70 Q 82 50 100 35 Q 118 50 125 70 Q 145 90 142 115 Q 135 138 100 155 Z" fill="url(#flammiInner)" opacity="0.8" />
   <path d="M 100 145 Q 70 130 65 110 Q 62 95 80 80 Q 85 65 100 55 Q 115 65 120 80 Q 138 95 135 110 Q 130 130 100 145 Z" fill="url(#flammiCore)" opacity="0.9" />
 
@@ -1320,7 +1326,7 @@ const FLAMMI_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
   </g>
 
   <!-- Flammy Body -->
-  <path d="M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z" fill="url(#flammiBody)" />
+  <path d="M 100 160 Q 60 140 50 110 Q 45 80 70 60 Q 80 40 100 25 Q 120 40 130 60 Q 155 80 150 110 Q 140 140 100 160 Z" fill="url(#flammiBody)" data-blobbi-body="true" />
   <path d="M 100 155 Q 65 138 58 115 Q 55 90 75 70 Q 82 50 100 35 Q 118 50 125 70 Q 145 90 142 115 Q 135 138 100 155 Z" fill="url(#flammiInner)" opacity="0.8" />
   <path d="M 100 145 Q 70 130 65 110 Q 62 95 80 80 Q 85 65 100 55 Q 115 65 120 80 Q 138 95 135 110 Q 130 130 100 145 Z" fill="url(#flammiCore)" opacity="0.9" />
 
@@ -1400,7 +1406,7 @@ const FROGGI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Flattened oval body -->
-  <ellipse cx="100" cy="120" rx="70" ry="50" fill="url(#froggiBody3D)" />
+  <ellipse cx="100" cy="120" rx="70" ry="50" fill="url(#froggiBody3D)" data-blobbi-body="true" />
   
   <!-- Big circular pop-out eyes -->
   <circle cx="70" cy="80" r="27" fill="url(#froggiEyeBase3D)" />
@@ -1502,7 +1508,7 @@ const FROGGI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Flattened oval body -->
-  <ellipse cx="100" cy="120" rx="70" ry="50" fill="url(#froggiBody3D)" />
+  <ellipse cx="100" cy="120" rx="70" ry="50" fill="url(#froggiBody3D)" data-blobbi-body="true" />
   
   <!-- Big circular pop-out eyes -->
   <circle cx="70" cy="80" r="27" fill="url(#froggiEyeBase3D)" />
@@ -1577,7 +1583,7 @@ const LEAFY_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg
   <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(337.5 100 85)" />
   
   <!-- Sunflower center - outer ring -->
-  <circle cx="100" cy="85" r="30" fill="url(#leafyCenter)" />
+  <circle cx="100" cy="85" r="30" fill="url(#leafyCenter)" data-blobbi-body="true" />
   <circle cx="100" cy="85" r="25" fill="url(#leafyCenterInner)" />
   
   <!-- Eyes (white base) -->
@@ -1694,7 +1700,7 @@ const LEAFY_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000
   <ellipse cx="100" cy="85" rx="45" ry="12" fill="url(#leafyPetal)" transform="rotate(337.5 100 85)" />
   
   <!-- Sunflower center - outer ring -->
-  <circle cx="100" cy="85" r="30" fill="url(#leafyCenter)" />
+  <circle cx="100" cy="85" r="30" fill="url(#leafyCenter)" data-blobbi-body="true" />
   <circle cx="100" cy="85" r="25" fill="url(#leafyCenterInner)" />
   
   <!-- Sleeping eyes -->
@@ -1784,7 +1790,7 @@ const MUSHIE_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/sv
   <ellipse cx="100" cy="135" rx="20" ry="35" fill="url(#mushieStemHighlight)" opacity="0.6" />
   
   <!-- Mushroom cap -->
-  <path d="M 50 110 Q 50 70 100 60 Q 150 70 150 110 Z" fill="url(#mushieCap)" />
+  <path d="M 50 110 Q 50 70 100 60 Q 150 70 150 110 Z" fill="url(#mushieCap)" data-blobbi-body="true" />
   <path d="M 55 108 Q 55 75 100 65 Q 145 75 145 108 Z" fill="url(#mushieCapHighlight)" opacity="0.7" />
   
   <!-- Cap spots -->
@@ -1857,7 +1863,7 @@ const MUSHIE_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/200
   <ellipse cx="100" cy="135" rx="20" ry="35" fill="url(#mushieStemHighlight)" opacity="0.6" />
   
   <!-- Mushroom cap -->
-  <path d="M 50 110 Q 50 70 100 60 Q 150 70 150 110 Z" fill="url(#mushieCap)" />
+  <path d="M 50 110 Q 50 70 100 60 Q 150 70 150 110 Z" fill="url(#mushieCap)" data-blobbi-body="true" />
   <path d="M 55 108 Q 55 75 100 65 Q 145 75 145 108 Z" fill="url(#mushieCapHighlight)" opacity="0.7" />
   
   <!-- Cap spots -->
@@ -1972,7 +1978,7 @@ const OWLI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Round body -->
-  <circle cx="100" cy="110" r="60" fill="url(#owliBody3D)" />
+  <circle cx="100" cy="110" r="60" fill="url(#owliBody3D)" data-blobbi-body="true" />
   
   <!-- Triangle ears -->
   <path d="M 60 70 L 70 48 L 82 70 Z" fill="url(#owliEar3D)" />
@@ -2053,7 +2059,7 @@ const OWLI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Round body -->
-  <circle cx="100" cy="110" r="60" fill="url(#owliBody3D)" />
+  <circle cx="100" cy="110" r="60" fill="url(#owliBody3D)" data-blobbi-body="true" />
   
   <!-- Triangle ears -->
   <path d="M 60 70 L 70 48 L 82 70 Z" fill="url(#owliEar3D)" />
@@ -2124,22 +2130,22 @@ const PANDI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Main body - perfect circle -->
-  <circle cx="100" cy="120" r="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
+  <circle cx="100" cy="120" r="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" data-blobbi-body="true" />
   
   <!-- Head - perfect circle -->
   <circle cx="100" cy="85" r="45" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
   
   <!-- Black ear patches -->
-  <circle cx="70" cy="45" r="18" fill="#1f2937" />
-  <circle cx="130" cy="45" r="18" fill="#1f2937" />
+  <circle cx="70" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
   
   <!-- Inner ears -->
-  <circle cx="70" cy="45" r="12" fill="#374151" />
-  <circle cx="130" cy="45" r="12" fill="#374151" />
+  <circle cx="70" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
   
   <!-- Eyes (black patches + white base) -->
-  <circle cx="85" cy="82" r="20" fill="#1f2937" />
-  <circle cx="115" cy="82" r="20" fill="#1f2937" />
+  <circle cx="85" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="115" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
   <circle cx="85" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <circle cx="115" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   
@@ -2197,22 +2203,22 @@ const PANDI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Main body - perfect circle -->
-  <circle cx="100" cy="120" r="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
+  <circle cx="100" cy="120" r="55" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" data-blobbi-body="true" />
   
   <!-- Head - perfect circle -->
   <circle cx="100" cy="85" r="45" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2" />
   
   <!-- Black ear patches -->
-  <circle cx="70" cy="45" r="18" fill="#1f2937" />
-  <circle cx="130" cy="45" r="18" fill="#1f2937" />
+  <circle cx="70" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="18" fill="#1f2937" data-blobbi-skip="true" />
   
   <!-- Inner ears -->
-  <circle cx="70" cy="45" r="12" fill="#374151" />
-  <circle cx="130" cy="45" r="12" fill="#374151" />
+  <circle cx="70" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
+  <circle cx="130" cy="45" r="12" fill="#374151" data-blobbi-skip="true" />
   
   <!-- Eyes -->
-  <circle cx="85" cy="82" r="20" fill="#1f2937" />
-  <circle cx="115" cy="82" r="20" fill="#1f2937" />
+  <circle cx="85" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
+  <circle cx="115" cy="82" r="20" fill="#1f2937" data-blobbi-skip="true" />
   <circle cx="85" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <circle cx="115" cy="82" r="12" fill="url(#pandiEyeWhite3D)" />
   <path d="M 73 85 Q 85 88 97 85" stroke="#1e293b" stroke-width="3" fill="none" stroke-linecap="round" />
@@ -2284,7 +2290,7 @@ const ROCKY_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg
   </g>
 
   <!-- Rocky's body -->
-  <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" fill="url(#rockyBody)" />
+  <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" fill="url(#rockyBody)" data-blobbi-body="true" />
   <path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" fill="url(#rockyInner)" opacity="0.8" />
 
   <!-- Texture -->
@@ -2389,7 +2395,7 @@ const ROCKY_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000
 
   <!-- Corpo do Rocky -->
   <path d="M 100 50 L 130 70 L 140 110 L 130 150 L 100 165 L 70 150 L 60 110 L 70 70 Z" 
-        fill="url(#rockyBody)" />
+        fill="url(#rockyBody)" data-blobbi-body="true" />
   <path d="M 100 55 L 125 72 L 135 108 L 125 145 L 100 158 L 75 145 L 65 108 L 75 72 Z" 
         fill="url(#rockyInner)" opacity="0.8" />
 
@@ -2457,7 +2463,7 @@ const ROSEY_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg
   <ellipse cx="110" cy="150" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(30 115 150)" />
   
   <!-- Rose petals - layered -->
-  <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" />
+  <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" data-blobbi-body="true" />
   <path d="M 100 60 Q 120 70 125 90 Q 120 110 100 120 Q 80 110 75 90 Q 80 70 100 60" fill="url(#roseyPetal2)" />
   <path d="M 100 65 Q 115 73 118 90 Q 115 107 100 115 Q 85 107 82 90 Q 85 73 100 65" fill="url(#roseyPetal3)" />
   <circle cx="100" cy="90" r="20" fill="url(#roseyCenter)" />
@@ -2552,7 +2558,7 @@ const ROSEY_SLEEPING = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000
   <ellipse cx="115" cy="150" rx="12" ry="8" fill="url(#roseyLeaf)" transform="rotate(30 115 150)" />
   
   <!-- Rose petals - layered -->
-  <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" />
+  <circle cx="100" cy="90" r="35" fill="url(#roseyPetal1)" data-blobbi-body="true" />
   <path d="M 100 60 Q 120 70 125 90 Q 120 110 100 120 Q 80 110 75 90 Q 80 70 100 60" fill="url(#roseyPetal2)" />
   <path d="M 100 65 Q 115 73 118 90 Q 115 107 100 115 Q 85 107 82 90 Q 85 73 100 65" fill="url(#roseyPetal3)" />
   <circle cx="100" cy="90" r="20" fill="url(#roseyCenter)" />
@@ -2671,7 +2677,7 @@ const STARRI_BASE = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
   
   <!-- Main star body - larger 5-pointed star shape -->
-  <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" fill="url(#starriBody)" />
+  <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" fill="url(#starriBody)" data-blobbi-body="true" />
   <path d="M 100 35 L 112 70 L 150 70 L 120 95 L 132 135 L 100 115 L 68 135 L 80 95 L 50 70 L 88 70 Z" fill="url(#starriInner)" opacity="0.8" />
   
   <!-- Eyes (white base) -->
@@ -2744,7 +2750,7 @@ const STARRI_SLEEPING = `<?xml version="1.0" encoding="UTF-8"?>
   
   <!-- Main star body - larger 5-pointed star shape -->
   <path d="M 100 25 L 115 75 L 165 75 L 125 110 L 140 160 L 100 130 L 60 160 L 75 110 L 35 75 L 85 75 Z" 
-        fill="url(#starriBody)" />
+        fill="url(#starriBody)" data-blobbi-body="true" />
   <path d="M 100 35 L 112 70 L 150 70 L 120 95 L 132 135 L 100 115 L 68 135 L 80 95 L 50 70 L 88 70 Z" 
         fill="url(#starriInner)" opacity="0.8" />
   

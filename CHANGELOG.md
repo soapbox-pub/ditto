@@ -1,5 +1,128 @@
 # Changelog
 
+## [2.12.1] - 2026-05-01
+
+### Changed
+- The right widget sidebar now appears on iPad-landscape (1024px) viewports, and both sidebars scale fluidly with the window instead of snapping at fixed widths
+- Hashtags with internal hyphens like `#bitcoin-conference` and `#70-706` now render as a single tag instead of being cut off at the dash
+
+### Fixed
+- Comments on country, book, and Bitcoin transaction/address pages now load correctly instead of showing an empty thread
+
+## [2.12.0] - 2026-04-30
+
+### Added
+- Bitcoin wallet -- a new Wallet tab in the sidebar shows your balance in USD with BTC underneath, a transaction history that collapses when empty, and a 3-step send flow with a two-tap confirmation for amounts over $100
+- Bitcoin zaps -- send on-chain Bitcoin directly to anyone on Nostr as a native alternative to Lightning, with an automatic QR-code fallback when your signer does not support Bitcoin
+- Detail pages for Bitcoin transactions and addresses, with the block explorer URL configurable per deployment
+- Evolve ceremony -- Blobbis now transform from baby to adult through an immersive full-screen animation with energy particles, a flash-to-reveal, and a typewriter reveal text
+- Birdex life lists -- a compact species tile strip in feeds and a full responsive grid on the post-detail page, so visitors can browse an author's whole collection
+- Bird-song recordings play inline on Wikipedia species pages, with an emerald play button next to the title and a credit link in the footer
+
+### Changed
+- Display names now use a consistent `name` then `display_name` fallback everywhere, so the same user renders the same way across the whole UI
+- Hatching ceremony reveal background is now tinted by the baby Blobbi's color instead of a hardcoded blue, with a vignette overlay so the blobbi pops against same-hue backgrounds
+- Bird Detection cards prefer the authoritative scientific name tag published by Birdstar, so cards stay labeled even when the post's alt text is generic
+
+### Fixed
+- "Discover people to follow" now lands on a populated Global tab instead of another empty Follows view
+- Blobbi daily bounty progress is no longer wiped by profile writes, and persists reliably across page refreshes and app restarts
+- Blobbi profile content (name, avatar, custom fields) is preserved across every profile update instead of being silently dropped by some write paths
+- Blobbi hatch and evolve mission progress no longer resets from concurrent writes racing against each other
+
+## [2.11.2] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds no longer leak opaque identifiers or raw post content into previews and hover cards -- when an author-written description is missing, the card shows the "not supported" tombstone instead of an internal lookup string
+
+## [2.11.1] - 2026-04-28
+
+### Fixed
+- Unsupported event kinds now show a clean fallback card with the author's description (or a "not supported" tombstone) instead of rendering raw JSON or empty content through the text-note parser -- applies in feeds, post detail, embedded quotes, reply context, compose previews, notifications, and inline nostr: mentions
+
+## [2.11.0] - 2026-04-28
+
+### Added
+- Birdstar bird detections and hand-drawn constellations now render inline in feeds -- species cards with Wikipedia summaries, and gnomonic star maps backed by the Hipparcos catalog, with a "View on Birdstar" deep-link and a Discuss button that routes species comments to the shared Wikidata identifier
+- Magic: The Gathering cards render from Gatherer URLs -- card art with a 3D mouse tilt and specular glare, face toggle for double-faced cards, lightbox, and hover-card previews across comments, detail pages, and external content
+- Touch support for the Magic card 3D tilt -- press and drag to rock the card on mobile
+- Wikidata entity URLs on the external content page render the entity's English Wikipedia article, falling back to a generic link preview when no article exists
+- Webxdc embeds now render as a tilted Game Boy-style cartridge tinted by the app icon's dominant color, with the launch icon centered on the label
+- Segmented Blobbi stat rings -- babies show 4 bars and adults show 10, so progress is visible at a glance instead of as a continuous sweep, and the ring gaps are now symmetrical
+- Sleep is now restorative for Blobbis -- energy regenerates faster, hunger, happiness, and hygiene decay at a fraction of their awake rates, and health stops degrading entirely while asleep
+- Blobbi rooms and carousel focus are remembered per-Blobbi across refreshes and Blobbi switches
+- Action and fridge previews show segment impact alongside raw stat changes, so it's clear how much a bar will fill
+- Profile recovery now shows follow-list snapshots as avatar stacks with the newest follows first, making different historical versions distinguishable at a glance
+- Google Play and App Store listings are declared in the web manifest so browsers can surface the native apps
+
+### Changed
+- The "Follow Packs" feed toggle is now called "People Lists" and its description explains that it also covers follow lists and people sets
+- Blobbi care thresholds are aligned to the new segment model -- attention and urgent states fire on clear bar boundaries instead of arbitrary numbers, and the care badge triggers when any stat is urgent or multiple stats need attention
+- Awake decay rates rebalanced so growing up feels like increased resilience -- babies hit their first "okay" stat around 2.7 hours and adults around 5-6 hours
+- Item effects rebalanced around the segment model -- basic items restore roughly one baby bar, medium items offer meaningful upgrades, and premium items deliver strong multi-stat effects
+
+### Fixed
+- Profile feeds now filter out deprecated follow sets, unlisted decks, hidden treasures, and empty emoji packs before rendering, matching the main feed's behavior
+- Onboarding no longer clobbers a returning user's feed preferences with a hardcoded preset when their encrypted settings fetch comes back empty
+
+## [2.10.5] - 2026-04-25
+
+### Added
+- Blobbi eye tracking -- your companion's eyes follow content on your feed and post detail pages, including touch support on mobile
+- Blobbi overstimulation reaction -- tap your Blobbi too many times and it zooms in with a shockwave, blocking interactions until it calms down
+- Shake-to-dizzy reaction -- shake your phone to make your Blobbi go woozy with a nausea fill effect
+- Blobbi route-transition reactions -- your companion glances at where you tapped before looking at new content when navigating
+- Guided care flow -- low-status indicators glow to get your attention, and tapping any stat icon walks you to the right room to help
+- Drag-to-clean shovel -- swipe poop away instead of tapping a button, with poops now visible across all rooms
+- Pandi color customizer with tinted-white body and dark-tinted patches
+- Vines now appear in feeds -- short videos render inline with volume control
+- Infinite scroll pagination on the search page
+- Right-to-left text support expanded to articles, compose box, and letters
+
+### Changed
+- Blobbi colors are now generated from the seed instead of fixed palettes, giving every Blobbi a unique look
+- Adult Blobbi type is now derived from the seed for fully deterministic visual identity
+
+### Fixed
+- Content warnings were not applied on the video and vine feed pages -- videos with sensitive tags played without blur or filtering
+- Compose textarea lost its expanded height when toggling the markdown preview on and off
+- Crysti Blobbi was missing sparkle animations, had a broken pink facet path, and mismatched sleeping opacities
+- Adopting another Blobbi could create a duplicate egg due to a race condition in the hatching ceremony
+
+## [2.10.4] - 2026-04-23
+
+### Added
+- Right-to-left text support for Arabic, Hebrew, and other RTL languages across posts, bios, and direct messages
+- Blobbis now close their eyes when falling asleep and open them when waking up with smooth one-shot animations
+
+### Changed
+- Eye color and secondary color now apply consistently across all adult Blobbi forms
+- Blobbi mission progress is now tracked per-Blobbi instead of per-account, so evolving multiple Blobbis no longer conflicts
+
+### Fixed
+- Swiping to dismiss a full-screen image could leave the controls flickering or locked in place
+- Sleeping Blobbis appeared with open eyes in the Blobbies tab grid
+- Catti reaction mouths rendered off-center instead of aligned with the face
+- Catti whiskers disappeared when showing a reaction mouth
+- Pandi eye tracking could lock onto ear patches instead of actual eyes
+- Adult Blobbi eyebrows floated away from the eyes on certain body shapes
+- Some adult Blobbi body shapes were not detected correctly for visual effects
+- Poll and spoiler menu in the compose modal was clipped off-screen on mobile
+- Duplicate Blobbis could appear when the legacy-to-new-format migration ran more than once
+
+## [2.10.3] - 2026-04-20
+
+### Added
+- Music discovery page with a curated Discover tab, artist profiles, playlist detail pages with full playback, genre browsing, and hot/top/new sorting
+- Swipe-to-dismiss gesture on full-screen image lightboxes -- flick up or down to close instead of reaching for the X button
+- Autoplay videos setting in Content preferences (off by default) that plays videos muted in feeds and profiles
+- Replies are now delivered to tagged users' inbox relays so they're more likely to see your response
+
+### Fixed
+- Status bar text could appear unreadable on light themes
+- Envelope cards in the Letters inbox were hard to tap on mobile
+- Wall compose box kept showing the previous post's text after submitting from the modal
+
 ## [2.10.2] - 2026-04-18
 
 ### Fixed

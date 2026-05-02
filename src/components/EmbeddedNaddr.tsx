@@ -25,6 +25,7 @@ import { isProfileBadgesKind } from '@/lib/badgeUtils';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
+import { UnknownKindContent } from '@/components/UnknownKindContent';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -48,6 +49,8 @@ function extractMetadata(event: NostrEvent): {
   let title = getTag('title') || getTag('name');
   let description = getTag('summary') || getTag('description');
   let image = getTag('image') || getTag('thumb') || getTag('banner');
+  // NIP-31 fallback — the author's own "display me like this" string.
+  const alt = getTag('alt');
 
   // Try parsing JSON content for additional metadata
   if (event.content) {
@@ -66,6 +69,10 @@ function extractMetadata(event: NostrEvent): {
       }
     }
   }
+
+  // Final NIP-31 fallback — use alt for whichever field is still missing.
+  if (!title && alt) title = alt;
+  else if (!description && alt) description = alt;
 
   return { title, description, image };
 }
@@ -209,7 +216,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
@@ -347,7 +354,17 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
 
-  const { title, description, image } = useMemo(() => extractMetadata(event), [event]);
+  // Known kinds (articles, streams, themes, etc.) get rich title/description/
+  // content rendering. Unknown kinds never do — we can't assume arbitrary
+  // content is safe user-facing text, so we fall back to a NIP-31 `alt`
+  // preview or a tombstone.
+  const kindLabel = getKindLabel(event.kind);
+  const isKnownKind = kindLabel !== undefined;
+
+  const { title, description, image } = useMemo(
+    () => (isKnownKind ? extractMetadata(event) : { title: undefined, description: undefined, image: undefined }),
+    [isKnownKind, event],
+  );
 
   const truncatedDesc = useMemo(() => {
     if (!description) return undefined;
@@ -357,10 +374,9 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
 
   // Kind label for context (e.g. "nsite" with icon)
   const kindMeta = useMemo(() => {
-    const label = getKindLabel(event.kind);
-    if (!label) return undefined;
-    return { label, Icon: getKindIcon(event.kind) };
-  }, [event.kind]);
+    if (!kindLabel) return undefined;
+    return { label: kindLabel, Icon: getKindIcon(event.kind) };
+  }, [kindLabel, event.kind]);
 
   return (
     <EmbeddedCardShell
@@ -370,18 +386,24 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
       className={className}
       disableHoverCards={disableHoverCards}
     >
-      {/* Title */}
-      {title && (
-        <p className="text-sm font-semibold leading-snug line-clamp-2">
-          {title}
-        </p>
-      )}
+      {isKnownKind ? (
+        <>
+          {/* Title */}
+          {title && (
+            <p className="text-sm font-semibold leading-snug line-clamp-2">
+              {title}
+            </p>
+          )}
 
-      {/* Description */}
-      {truncatedDesc && (
-        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-          {truncatedDesc}
-        </p>
+          {/* Description */}
+          {truncatedDesc && (
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+              {truncatedDesc}
+            </p>
+          )}
+        </>
+      ) : (
+        <UnknownKindContent event={event} className="mt-0" />
       )}
 
       {/* Kind label and attachment indicators */}

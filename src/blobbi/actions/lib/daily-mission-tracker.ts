@@ -1,16 +1,18 @@
 /**
  * Daily Mission Tracker - Standalone progress tracking utility
  *
- * Provides a way to record daily mission progress from anywhere
- * (hooks, event handlers, etc.) without requiring React context.
+ * Two separate in-memory stores:
+ *   - dailyStore: pubkey-scoped, for daily missions (kind 11125)
+ *   - evolutionStore: pubkey:d-scoped, for per-Blobbi evolution missions (kind 31124)
  *
- * Uses a pubkey-scoped in-memory Map. Kind 11125 content JSON is the
- * persistent source of truth. Completed missions are persisted by
- * `useAwardDailyXp`; intermediate progress resets on page refresh.
+ * Both cleared on page refresh. The persistent source of truth is:
+ *   - Daily missions → kind 11125 content JSON
+ *   - Evolution missions → kind 31124 content JSON
  *
  * Dispatches 'daily-missions-updated' CustomEvent so React hooks re-render.
  */
 
+import type { Mission } from '@/blobbi/core/lib/missions';
 import type { MissionsContent } from '@/blobbi/core/lib/missions';
 import type { DailyMissionAction } from './daily-missions';
 import {
@@ -19,31 +21,31 @@ import {
   createDailyMissionsContent,
   trackTally,
   trackEvent,
-  trackEvolutionTally,
-  trackEvolutionEvent,
+  trackEvolutionTally as trackEvoTally,
+  trackEvolutionEvent as trackEvoEvent,
 } from './daily-missions';
 
-// ─── In-Memory Session Store ──────────────────────────────────────────────────
+// ─── Daily Mission Session Store (per-user) ──────────────────────────────────
 
 /**
- * Pubkey-scoped session cache. Each logged-in user gets their own entry.
+ * Pubkey-scoped session cache for daily missions.
  * Cleared on page refresh (intentional — kind 11125 is the persistent store).
  */
-const sessionStore = new Map<string, MissionsContent>();
+const dailyStore = new Map<string, MissionsContent>();
 
-function key(pubkey: string | undefined): string {
+function dailyKey(pubkey: string | undefined): string {
   return pubkey ?? '';
 }
 
-function ensureCurrent(pubkey?: string): MissionsContent {
-  const current = sessionStore.get(key(pubkey));
+function ensureDailyCurrent(pubkey?: string, availableStages?: import('./daily-missions').BlobbiStage[]): MissionsContent {
+  const current = dailyStore.get(dailyKey(pubkey));
   if (!needsDailyReset(current)) return current!;
   const fresh = createDailyMissionsContent(
     getTodayDateString(),
-    current?.evolution ?? [],
     pubkey,
+    availableStages,
   );
-  sessionStore.set(key(pubkey), fresh);
+  dailyStore.set(dailyKey(pubkey), fresh);
   return fresh;
 }
 
@@ -51,7 +53,20 @@ function notify(detail?: Record<string, unknown>): void {
   window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail }));
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── Evolution Mission Session Store (per-Blobbi) ────────────────────────────
+
+/**
+ * Per-Blobbi session cache for evolution missions.
+ * Keyed by `pubkey:d` so each Blobbi has its own evolution progress.
+ * Cleared on page refresh — kind 31124 content is the persistent store.
+ */
+const evolutionStore = new Map<string, Mission[]>();
+
+function evoKey(pubkey: string | undefined, d: string | undefined): string {
+  return `${pubkey ?? ''}:${d ?? ''}`;
+}
+
+// ─── Public API: Daily Missions ──────────────────────────────────────────────
 
 /**
  * Record a tally-based action (feed, clean, interact, etc.).
@@ -61,9 +76,9 @@ export function trackDailyMissionProgress(
   count: number = 1,
   pubkey?: string,
 ): void {
-  const current = ensureCurrent(pubkey);
+  const current = ensureDailyCurrent(pubkey);
   const updated = trackTally(current, action, count);
-  sessionStore.set(key(pubkey), updated);
+  dailyStore.set(dailyKey(pubkey), updated);
   notify({ action, count });
 }
 
@@ -75,9 +90,9 @@ export function trackDailyMissionEvent(
   eventId: string,
   pubkey?: string,
 ): void {
-  const current = ensureCurrent(pubkey);
+  const current = ensureDailyCurrent(pubkey);
   const updated = trackEvent(current, action, eventId);
-  sessionStore.set(key(pubkey), updated);
+  dailyStore.set(dailyKey(pubkey), updated);
   notify({ action, eventId });
 }
 
@@ -88,80 +103,154 @@ export function trackMultipleDailyMissionActions(
   actions: DailyMissionAction[],
   pubkey?: string,
 ): void {
-  let current = ensureCurrent(pubkey);
+  let current = ensureDailyCurrent(pubkey);
   for (const action of actions) {
     current = trackTally(current, action, 1);
   }
-  sessionStore.set(key(pubkey), current);
+  dailyStore.set(dailyKey(pubkey), current);
   notify({ actions });
 }
 
-// ─── Evolution Mission Tracking ───────────────────────────────────────────────
+// ─── Public API: Evolution Missions (per-Blobbi) ─────────────────────────────
 
 /**
  * Increment tally for an evolution mission (e.g. interactions).
- * No-ops if pubkey missing or session store empty.
+ * No-ops if the store is empty for this Blobbi.
  */
 export function trackEvolutionMissionTally(
   missionId: string,
   count: number = 1,
   pubkey?: string,
+  d?: string,
 ): void {
-  const current = sessionStore.get(key(pubkey));
-  if (!current) return;
+  const k = evoKey(pubkey, d);
+  const current = evolutionStore.get(k);
+  if (!current || current.length === 0) return;
 
-  const updated = trackEvolutionTally(current, missionId, count);
-  sessionStore.set(key(pubkey), updated);
-  notify({ evolution: true, missionId, count });
+  const updated = trackEvoTally(current, missionId, count);
+  evolutionStore.set(k, updated);
+  notify({ evolution: true, missionId, count, d });
 }
 
 /**
  * Append a Nostr event ID to an evolution mission (e.g. create_theme).
- * Deduplicates by event ID. No-ops if pubkey missing or session store empty.
+ * Deduplicates by event ID. No-ops if the store is empty for this Blobbi.
  */
 export function trackEvolutionMissionEvent(
   missionId: string,
   eventId: string,
   pubkey?: string,
+  d?: string,
 ): void {
-  const current = sessionStore.get(key(pubkey));
-  if (!current) return;
+  const k = evoKey(pubkey, d);
+  const current = evolutionStore.get(k);
+  if (!current || current.length === 0) return;
 
-  const updated = trackEvolutionEvent(current, missionId, eventId);
-  sessionStore.set(key(pubkey), updated);
-  notify({ evolution: true, missionId, eventId });
+  const updated = trackEvoEvent(current, missionId, eventId);
+  evolutionStore.set(k, updated);
+  notify({ evolution: true, missionId, eventId, d });
 }
 
-// ─── Storage Access ──────────────────────────────────────────────────────────
+// ─── Storage Access: Daily ───────────────────────────────────────────────────
 
-/** Read current session state for a pubkey. */
-export function readMissionsFromStorage(pubkey?: string): MissionsContent | undefined {
-  return sessionStore.get(key(pubkey));
+/** Read current daily session state for a pubkey. */
+export function readDailyFromStorage(pubkey?: string): MissionsContent | undefined {
+  return dailyStore.get(dailyKey(pubkey));
 }
 
 /**
- * Ensure the session store has an entry for the given pubkey.
- * If the store is empty or needs a daily reset, a fresh entry is created.
+ * Ensure the daily store has an entry for the given pubkey.
  * Returns the current (possibly newly-created) MissionsContent.
- *
- * Use this before writing evolution missions into the store, to avoid
- * silent no-ops when the store hasn't been hydrated yet.
  */
-export function ensureSessionStore(pubkey?: string): MissionsContent {
-  return ensureCurrent(pubkey);
+export function ensureDailyStore(pubkey?: string): MissionsContent {
+  return ensureDailyCurrent(pubkey);
 }
 
-/** Write state to session store for a pubkey. */
-export function writeMissionsToStorage(missions: MissionsContent, pubkey?: string): void {
-  sessionStore.set(key(pubkey), missions);
+/** Write daily state to session store for a pubkey. */
+export function writeDailyToStorage(missions: MissionsContent, pubkey?: string): void {
+  dailyStore.set(dailyKey(pubkey), missions);
 }
 
 /**
- * Hydrate the session store from kind 11125 persisted data.
+ * Hydrate the daily session store from kind 11125 persisted data.
  * Called once on mount / account switch when the session store is empty.
  * No-op if the store already has data for this pubkey.
  */
-export function hydrateFromPersisted(missions: MissionsContent, pubkey: string): void {
-  if (sessionStore.has(pubkey)) return;
-  sessionStore.set(pubkey, missions);
+export function hydrateDailyFromPersisted(missions: MissionsContent, pubkey: string): void {
+  if (dailyStore.has(pubkey)) return;
+  dailyStore.set(pubkey, missions);
 }
+
+// ─── Storage Access: Evolution (per-Blobbi) ──────────────────────────────────
+
+/** Read current evolution session state for a specific Blobbi. */
+export function readEvolutionFromStorage(pubkey?: string, d?: string): Mission[] | undefined {
+  return evolutionStore.get(evoKey(pubkey, d));
+}
+
+/** Write evolution state for a specific Blobbi. */
+export function writeEvolutionToStorage(evolution: Mission[], pubkey?: string, d?: string): void {
+  evolutionStore.set(evoKey(pubkey, d), evolution);
+}
+
+/**
+ * Hydrate the evolution session store from kind 31124 content.
+ * Called once when a companion with active progression is loaded.
+ * No-op if the store already has data for this Blobbi.
+ */
+export function hydrateEvolutionFromPersisted(evolution: Mission[], pubkey: string, d: string): void {
+  const k = evoKey(pubkey, d);
+  if (evolutionStore.has(k)) return;
+  evolutionStore.set(k, evolution);
+}
+
+/** Clear evolution store for a specific Blobbi (on stage transition / stop). */
+export function clearEvolutionFromStorage(pubkey?: string, d?: string): void {
+  evolutionStore.delete(evoKey(pubkey, d));
+}
+
+// ─── Inventory Action → Daily Mission Mapping ────────────────────────────────
+
+/**
+ * Track daily mission actions for a successful inventory item use.
+ *
+ * Every item use tracks 'interact'. Specific actions (feed, clean, medicine)
+ * also track their corresponding daily mission. This is the single source of
+ * truth for the mapping — both useBlobbiUseInventoryItem and useBlobbiItemUse
+ * call this instead of duplicating the logic.
+ *
+ * Accepts the wider InventoryAction type (string) so callers don't need casts.
+ * Only recognized daily-mission actions are forwarded.
+ */
+export function trackInventoryDailyActions(
+  action: string,
+  pubkey?: string,
+): void {
+  const actions: DailyMissionAction[] = ['interact'];
+  if (action === 'feed') actions.push('feed');
+  if (action === 'clean') actions.push('clean');
+  if (action === 'medicine') actions.push('medicine');
+  trackMultipleDailyMissionActions(actions, pubkey);
+}
+
+// ─── Backward-compat aliases ─────────────────────────────────────────────────
+
+/**
+ * @deprecated Use readDailyFromStorage. Kept for callers that haven't migrated.
+ */
+export const readMissionsFromStorage = readDailyFromStorage;
+
+/**
+ * @deprecated Use writeDailyToStorage. Kept for callers that haven't migrated.
+ */
+export const writeMissionsToStorage = writeDailyToStorage;
+
+/**
+ * @deprecated Use ensureDailyStore. Kept for callers that haven't migrated.
+ */
+export const ensureSessionStore = ensureDailyStore;
+
+/**
+ * @deprecated Use hydrateDailyFromPersisted. Kept for callers that haven't migrated.
+ */
+export const hydrateFromPersisted = hydrateDailyFromPersisted;

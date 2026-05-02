@@ -75,7 +75,7 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
 
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {

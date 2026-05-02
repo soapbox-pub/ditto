@@ -3,13 +3,14 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
-  UserCheck, Users, Vote, Zap,
+  Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { BitcoinTxPreview, BitcoinAddressPreview } from '@/components/BitcoinContentHeader';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -26,9 +27,12 @@ import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
+import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
+import { cardPrimaryImage } from '@/lib/scryfall';
 
 
 /** Default classes shared by all comment context rows. */
@@ -113,6 +117,8 @@ const KIND_LABELS: Record<number, string> = {
   8211: 'a letter',
   1617: 'a patch',
   1618: 'a pull request',
+  2473: 'a bird detection',
+  12473: 'a Birdex',
   3367: 'a color moment',
   7516: 'a found log',
   15128: 'an nsite',
@@ -143,8 +149,10 @@ const KIND_LABELS: Record<number, string> = {
   37381: 'a Magic deck',
   37516: 'a treasure',
   30000: 'a follow set',
+  30621: 'a constellation',
   39089: 'a follow pack',
   9735: 'a zap',
+  8333: 'a Bitcoin zap',
   31124: 'a Blobbi',
 };
 
@@ -194,16 +202,22 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
+  8333: Bitcoin,
   31124: Egg,
+  2473: Bird,
+  12473: Bird,
+  30621: Stars,
 };
 
 /**
  * Get a singular comment-context label for a kind number.
  * Only uses KIND_LABELS (which has proper singular forms with articles).
  * Never falls through to EXTRA_KINDS labels since those are plural/categorical.
+ * Unknown kinds render as "an unsupported event" — never as "a post", which
+ * would misrepresent arbitrary event kinds as text notes.
  */
 function getKindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? 'a post';
+  return KIND_LABELS[kind] ?? 'an unsupported event';
 }
 
 /** Parse a rootKind string into a label, handling both numeric and external content kinds. */
@@ -230,6 +244,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   39089: 'follow pack',
   37381: 'deck',
   37516: 'treasure',
+  30621: 'constellation',
   34550: 'community',
   30054: 'episode',
   30055: 'trailer',
@@ -269,6 +284,7 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   const title = event.tags.find(([name]) => name === 'title')?.[1];
   const name = event.tags.find(([name]) => name === 'name')?.[1];
   const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+  const alt = event.tags.find(([name]) => name === 'alt')?.[1]?.trim();
   const displayTitle = title || name || dTag;
 
   // Kinds with a custom postfix (e.g. "Ditto on Zapstore")
@@ -283,10 +299,17 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     return { text: `${displayTitle} ${suffix}`, icon };
   }
 
-  // Generic: just use the title if available
-  if (displayTitle) return { text: displayTitle, icon };
+  // Known kinds: use the conventional title/name/d tag if available.
+  if (KIND_LABELS[event.kind] && displayTitle) {
+    return { text: displayTitle, icon };
+  }
 
-  // Fall back to kind label
+  // Unknown kinds: only trust the NIP-31 `alt` tag. title/name/d have
+  // kind-specific semantics we can't interpret; `d` in particular is often
+  // an opaque compound identifier.
+  if (alt) return { text: alt, icon };
+
+  // Fall back to kind label ("an unsupported event" for unknown kinds).
   return { text: getKindLabel(event.kind), icon };
 }
 
@@ -399,7 +422,7 @@ export function CommentContext({ event, className }: CommentContextProps) {
 function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const parentLink = useMemo(() => {
     if (!eventId) return undefined;
@@ -445,7 +468,7 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
 function FollowListCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
     () => `/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`,
@@ -479,7 +502,7 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
 function ProfileCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -502,7 +525,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   // Build naddr link for the profile badges event
@@ -708,14 +731,30 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     return <IsbnCommentContext identifier={identifier} className={className} />;
   }
 
-  // URL identifiers get special treatment — show page title with favicon
+  // URL identifiers get special treatment — show page title with favicon.
+  // Gatherer URLs are routed to a Scryfall-backed renderer that shows the
+  // actual card name instead of the raw URL.
   if (identifier.startsWith('http://') || identifier.startsWith('https://')) {
+    const gathererCard = extractGathererCard(identifier);
+    if (gathererCard) {
+      return <GathererCardCommentContext card={gathererCard} url={identifier} className={className} />;
+    }
     return <UrlCommentContext url={identifier} className={className} />;
   }
 
   // ISO 3166 country/subdivision identifiers get special treatment
   if (identifier.startsWith('iso3166:')) {
     return <CountryCommentContext identifier={identifier} className={className} />;
+  }
+
+  // Bitcoin transaction identifiers — show icon + truncated txid with hover preview
+  if (identifier.startsWith('bitcoin:tx:')) {
+    return <BitcoinTxCommentContext identifier={identifier} className={className} />;
+  }
+
+  // Bitcoin address identifiers — show icon + truncated address with hover preview
+  if (identifier.startsWith('bitcoin:address:')) {
+    return <BitcoinAddressCommentContext identifier={identifier} className={className} />;
   }
 
   // Generic fallback for other external identifiers
@@ -888,6 +927,151 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
               )}
             </div>
           </div>
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for gatherer.wizards.com URLs — resolves the URL to a
+ * Magic: The Gathering card via Scryfall and shows the card's real name
+ * (e.g. "Xenagos, God of Revels") instead of the raw URL.
+ */
+function GathererCardCommentContext({
+  card,
+  url,
+  className,
+}: {
+  card: GathererCard;
+  url: string;
+  className?: string;
+}) {
+  const lookup = useMemo(() => (
+    card.kind === 'multiverse'
+      ? { kind: 'multiverse' as const, multiverseId: card.multiverseId }
+      : { kind: 'set' as const, set: card.set, number: card.number, lang: card.lang }
+  ), [card]);
+  const { data: scryCard, isLoading } = useScryfallCard(lookup);
+  const link = `/i/${encodeURIComponent(url)}`;
+
+  const displayText = scryCard?.name ?? 'Magic card';
+  const coverUrl = scryCard ? cardPrimaryImage(scryCard, 'small') : undefined;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="inline-flex items-center gap-1 text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardsIcon className="size-3.5 shrink-0" />
+            {displayText}
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-72 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 px-4 py-3">
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={scryCard?.name ?? 'Magic card'}
+                className="w-9 h-12 rounded object-cover shrink-0"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
+                <CardsIcon className="size-4 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CardsIcon className="size-3 shrink-0" />
+                <span>Magic Card</span>
+              </div>
+              <p className="text-sm font-medium truncate mt-0.5">
+                {scryCard?.name ?? 'Unknown card'}
+              </p>
+              {scryCard?.set_name && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {scryCard.set_name}
+                </p>
+              )}
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for Bitcoin transaction identifiers — shows icon, truncated txid, and hover preview. */
+function BitcoinTxCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const txid = identifier.slice('bitcoin:tx:'.length);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+  const truncated = txid.length > 19 ? `${txid.slice(0, 8)}…${txid.slice(-8)}` : txid;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            transaction <span className="font-mono text-xs">{truncated}</span>
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BitcoinTxPreview txid={txid} link={link} />
+        </HoverCardContent>
+      </HoverCard>
+    </CommentContextRow>
+  );
+}
+
+/** Comment context for Bitcoin address identifiers — shows icon, truncated address, and hover preview. */
+function BitcoinAddressCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const address = identifier.slice('bitcoin:address:'.length);
+  const link = `/i/${encodeURIComponent(identifier)}`;
+  const truncated = address.length > 19 ? `${address.slice(0, 8)}…${address.slice(-8)}` : address;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
+      <HoverCard openDelay={300} closeDelay={150}>
+        <HoverCardTrigger asChild>
+          <Link
+            to={link}
+            className="text-primary hover:underline truncate cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            address <span className="font-mono text-xs">{truncated}</span>
+          </Link>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="w-80 p-0 rounded-2xl shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BitcoinAddressPreview address={address} link={link} />
         </HoverCardContent>
       </HoverCard>
     </CommentContextRow>

@@ -46,7 +46,6 @@ import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 
-import { canZap } from '@/lib/canZap';
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
@@ -185,8 +184,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
-  const author = useAuthor(pubkey);
-  const showZap = !isOwnProfile && authorEvent && canZap(author.data?.metadata);
+  // Show zap action for any non-self profile. Both on-chain and Lightning
+  // zaps are offered inside the dialog (Lightning only when the author has
+  // a lud06/lud16 configured).
+  const showZap = !isOwnProfile && !!authorEvent;
 
   const close = () => onOpenChange(false);
   const openAfterClose = (setter: (v: boolean) => void) => {
@@ -411,7 +412,7 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -812,6 +813,15 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 
 function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Vertical swipe-to-dismiss state
+  const dragY = useRef<number | null>(null);
+  const verticalOffset = useRef(0);
+  const animatingRef = useRef(false);
+  const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  const DURATION = 280;
 
   // Keyboard navigation
   useEffect(() => {
@@ -831,6 +841,65 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     };
   }, []);
 
+  // Safety: clear animating lock on unmount so stale refs can't block controls
+  useEffect(() => () => { animatingRef.current = false; }, []);
+
+  /** Backdrop fades in-place; all visible content translates together via contentRef. */
+  const applyVerticalDismiss = useCallback((offsetY: number, transition: string) => {
+    const el = containerRef.current;
+    const content = contentRef.current;
+    if (!el || !content) return;
+    const progress = Math.min(Math.abs(offsetY) / (window.innerHeight * 0.4), 1);
+    el.style.transition = transition ? `opacity ${transition.split(' ').slice(1).join(' ')}` : 'none';
+    el.style.opacity = String(1 - progress * 0.6);
+    content.style.transition = transition;
+    content.style.transform = `translateY(${offsetY}px)`;
+  }, []);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (animatingRef.current || e.touches.length >= 2) return;
+    dragY.current = e.touches[0].clientY;
+    applyVerticalDismiss(0, 'none');
+    verticalOffset.current = 0;
+  };
+
+  // Use non-passive touchmove to allow preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: TouchEvent) => {
+      if (dragY.current === null || animatingRef.current || e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - dragY.current;
+      // Only start tracking after a small threshold
+      if (Math.abs(dy) < 4) return;
+      e.preventDefault();
+      verticalOffset.current = dy;
+      applyVerticalDismiss(dy, 'none');
+    };
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, [applyVerticalDismiss]);
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (dragY.current === null || animatingRef.current) { dragY.current = null; return; }
+    const dy = e.changedTouches[0].clientY - dragY.current;
+    dragY.current = null;
+    const committed = Math.abs(dy) > window.innerHeight * 0.15;
+    if (committed) {
+      animatingRef.current = true;
+      const targetY = dy > 0 ? window.innerHeight : -window.innerHeight;
+      applyVerticalDismiss(targetY, `transform ${DURATION}ms ${EASING}`);
+      setTimeout(() => {
+        verticalOffset.current = 0;
+        onClose();
+        animatingRef.current = false;
+      }, DURATION);
+    } else {
+      applyVerticalDismiss(0, `transform ${DURATION}ms ${EASING}`);
+      verticalOffset.current = 0;
+    }
+  };
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
@@ -847,47 +916,54 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
   return createPortal(
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
       onClick={handleBackdropClick}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
+      {/* Backdrop — fades in-place, never translates */}
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
-      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleDownload}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Open original"
-          >
-            <Download className="size-5" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+      {/* All interactive content — translated together during swipe-to-dismiss */}
+      <div ref={contentRef} className="absolute inset-0">
+        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDownload}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Open original"
+            >
+              <Download className="size-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-        )}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt=""
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
+        </div>
+
+        <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+            </div>
           )}
-          onLoad={() => setIsLoaded(true)}
-          draggable={false}
-        />
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt=""
+            className={cn(
+              'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+              isLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={() => setIsLoaded(true)}
+            draggable={false}
+          />
+        </div>
       </div>
     </div>,
     document.body,
@@ -1259,7 +1335,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     }
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
-  const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
+  const displayName = metadata?.name || metadata?.display_name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
@@ -1321,6 +1397,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
   // Wall compose modal state (for FAB on wall tab)
   const [wallComposeOpen, setWallComposeOpen] = useState(false);
+  // Bumped after a successful post from the wall compose modal so the inline
+  // ComposeBox remounts with a cleared draft instead of showing stale text.
+  const [wallComposeKey, setWallComposeKey] = useState(0);
 
   // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
@@ -2212,9 +2291,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-              {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+              {/* Profile fields shown inline on mobile (sidebar is hidden below widgets) */}
               {fields.length > 0 && (
-                <div className="mt-4 space-y-3 xl:hidden">
+                <div className="mt-4 space-y-3 lg:hidden">
                   {fields.map((field, i) => (
                     <ProfileFieldInline key={i} field={field} />
                   ))}
@@ -2425,6 +2504,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             {/* Inline compose box for wall comments (only shown if the profile owner follows you) */}
             {wallReplyTarget && profileFollowsMe && (
               <ComposeBox
+                key={wallComposeKey}
                 compact
                 replyTo={wallReplyTarget}
                 placeholder={`Write on ${displayName}'s wall`}
@@ -2439,7 +2519,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
                 placeholder={`Write on ${displayName}'s wall`}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] });
+                  setWallComposeKey((k) => k + 1);
+                }}
               />
             )}
 

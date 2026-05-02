@@ -5,10 +5,12 @@ import { useSeoMeta } from "@unhead/react";
 import {
 	ArrowLeft,
 	Clapperboard,
+	Eye,
 	Heart,
 	MessageCircle,
 	MoreHorizontal,
 	Play,
+	ShieldAlert,
 	Volume2,
 	VolumeX,
 	Zap,
@@ -23,6 +25,7 @@ import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZapDialog } from "@/components/ZapDialog";
 import { useLayoutOptions, useOpenDrawer } from "@/contexts/LayoutContext";
@@ -41,13 +44,14 @@ import { type EventStats, useEventStats } from "@/hooks/useTrending";
 import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
 import { getAvatarShape } from "@/lib/avatarShape";
-import { canZap } from "@/lib/canZap";
+import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 const VINE_KIND = 34236;
 
@@ -75,11 +79,6 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 // ─── Global mute state shared across vine cards ───────────────────────────────
-/** Module-level mute state shared across all vine/short players. */
-let globalMuted = true;
-function setGlobalMuted(v: boolean) {
-	globalMuted = v;
-}
 
 // ─── Hook: stream vine events for follows or global ──────────────────────────
 
@@ -331,6 +330,7 @@ export function VineCard({
 	onCommentClick,
 	onPlayingChange,
 }: VineCardProps) {
+	const { config } = useAppContext();
 	const { user } = useCurrentUser();
 	const author = useAuthor(event.pubkey);
 	const metadata = author.data?.metadata;
@@ -338,17 +338,24 @@ export function VineCard({
 	const displayName = getDisplayName(metadata, event.pubkey);
 	const profileUrl = useProfileUrl(event.pubkey, metadata);
 	const { data: stats } = useEventStats(event.id, event);
-	const canZapAuthor = user && canZap(metadata);
+	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
 	const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [hasStarted, setHasStarted] = useState(false);
 	const [isAttemptingPlay, setIsAttemptingPlay] = useState(isActive);
-	const [isMuted, setIsMuted] = useState(globalMuted);
+	const [isMuted, setIsMuted] = useState(isVineMuted);
 	// true once the browser has decoded enough to render the first frame
 	const [isVideoReady, setIsVideoReady] = useState(false);
 	// true when the video is stalling / rebuffering mid-playback
 	const [isBuffering, setIsBuffering] = useState(false);
+
+	// Content warning state
+	const contentWarning = getContentWarning(event);
+	const hasCW = contentWarning !== undefined;
+	const cwPolicy = config.contentWarningPolicy;
+	const [cwRevealed, setCwRevealed] = useState(false);
+	const showCwOverlay = hasCW && cwPolicy === "blur" && !cwRevealed;
 
 	const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -366,14 +373,16 @@ export function VineCard({
 		setIsPlaying(false);
 	}, [src]);
 
-	// Auto-play / auto-pause based on active state
+	// Auto-play / auto-pause based on active state.
+	// Vines always autoplay when active — the autoplayVideos setting only
+	// applies to inline video players in normal feeds, not snap-scroll vines.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !imeta.url) return;
-		if (isActive) {
+		if (isActive && !showCwOverlay) {
 			video.currentTime = 0;
-			video.muted = globalMuted;
-			setIsMuted(globalMuted);
+			video.muted = isVineMuted();
+			setIsMuted(isVineMuted());
 			setIsAttemptingPlay(true);
 			video.play().catch(() => {
 				// Autoplay blocked — leave paused, user can tap
@@ -385,7 +394,7 @@ export function VineCard({
 			setIsAttemptingPlay(false);
 			setIsBuffering(false);
 		}
-	}, [isActive, imeta.url]);
+	}, [isActive, imeta.url, showCwOverlay]);
 
 	const togglePlay = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -404,9 +413,44 @@ export function VineCard({
 		if (!video) return;
 		const next = !video.muted;
 		video.muted = next;
-		setGlobalMuted(next);
+		setVineMuted(next);
 		setIsMuted(next);
 	}, []);
+
+	// Content warning: full-screen dark overlay matching vine aesthetic
+	if (showCwOverlay) {
+		return (
+			<div className="relative w-full h-full bg-neutral-900 overflow-hidden flex-shrink-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+				<div className="flex items-center justify-center size-14 rounded-full bg-white/10 backdrop-blur-sm">
+					<ShieldAlert className="size-7 text-white/70" />
+				</div>
+				<div className="space-y-1.5 max-w-xs">
+					<p className="text-base font-semibold text-white">Content Warning</p>
+					{contentWarning ? (
+						<p className="text-sm text-white/60 leading-relaxed">
+							&ldquo;{contentWarning}&rdquo;
+						</p>
+					) : (
+						<p className="text-sm text-white/60 leading-relaxed">
+							The author flagged this video as sensitive.
+						</p>
+					)}
+				</div>
+				<Button
+					variant="outline"
+					size="sm"
+					className="gap-1.5 mt-1 rounded-full px-6 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
+					onClick={(e) => {
+						e.stopPropagation();
+						setCwRevealed(true);
+					}}
+				>
+					<Eye className="size-3.5" />
+					Show Video
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="relative w-full h-full bg-neutral-900 overflow-hidden flex-shrink-0">
@@ -742,10 +786,15 @@ export function VinesFeedPage() {
 		description: "Short-form videos on Nostr",
 	});
 
-	// Filter to events that have a video URL
+	// Filter to events that have a video URL, and exclude CW events when policy is "hide"
+	const hideCW = config.contentWarningPolicy === "hide";
 	const vines = useMemo(
-		() => events.filter((e) => !!parseVineImeta(e.tags).url),
-		[events],
+		() => events.filter((e) => {
+			if (!parseVineImeta(e.tags).url) return false;
+			if (hideCW && getContentWarning(e) !== undefined) return false;
+			return true;
+		}),
+		[events, hideCW],
 	);
 
 	// Reset active index when tab changes

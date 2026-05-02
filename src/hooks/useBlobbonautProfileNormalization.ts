@@ -10,9 +10,11 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
   KIND_BLOBBONAUT_PROFILE,
@@ -38,6 +40,7 @@ export function useBlobbonautProfileNormalization({
   invalidateProfile,
 }: UseBlobbonautProfileNormalizationOptions) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   
   // Track whether we've already normalized this profile (by event id)
@@ -77,14 +80,27 @@ export function useBlobbonautProfileNormalization({
     // Perform async normalization
     const normalize = async () => {
       try {
-        // Build normalized tags (handles both tag fixes and preserves all data)
-        const normalizedTags = buildNormalizedProfileTags(profile);
+        // Fetch fresh profile from relays to avoid stale-read overwrites
+        const fresh = await fetchFreshEvent(nostr, {
+          kinds: [KIND_BLOBBONAUT_PROFILE],
+          authors: [user.pubkey],
+        });
+        // If no fresh profile found on relays, use the cached one (first publish)
+        const base = fresh ?? profile.event;
+
+        // Build normalized tags from the freshest version
+        const normalizedTags = buildNormalizedProfileTags({
+          ...profile,
+          allTags: base.tags,
+          event: base,
+        });
         
         // Always publish to the NEW kind (11125), regardless of source kind
         const event = await publishEvent({
           kind: KIND_BLOBBONAUT_PROFILE,
-          content: '',
+          content: base.content,
           tags: normalizedTags,
+          prev: base,
         });
         
         updateProfileEvent(event);
@@ -99,5 +115,5 @@ export function useBlobbonautProfileNormalization({
     };
     
     normalize();
-  }, [profile, user?.pubkey, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, user?.pubkey, nostr, publishEvent, updateProfileEvent, invalidateProfile]);
 }

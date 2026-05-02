@@ -38,6 +38,8 @@ interface BlobbiDevEditorProps {
   onApply: (updates: BlobbiDevUpdates) => Promise<void>;
   /** Whether an update is in progress */
   isUpdating?: boolean;
+  /** DEV: Reset account-level daily missions and trigger persist */
+  onResetDailyMissions?: () => void;
 }
 
 /** Updates that can be applied to a Blobbi */
@@ -170,6 +172,7 @@ export function BlobbiDevEditor({
   companion,
   onApply,
   isUpdating = false,
+  onResetDailyMissions,
 }: BlobbiDevEditorProps) {
   // ─── Local State ───
   // Initialize from companion values
@@ -332,6 +335,19 @@ export function BlobbiDevEditor({
             )}
           </div>
 
+          {/* ─── Seed (read-only) ─── */}
+          {companion.seed && (
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Seed</Label>
+              <code className="block text-[10px] font-mono text-muted-foreground bg-muted rounded px-2 py-1.5 break-all select-all">
+                {companion.seed}
+              </code>
+              <p className="text-[10px] text-muted-foreground">
+                Read-only. The seed determines colors, pattern, size, and adult form.
+              </p>
+            </div>
+          )}
+
           {/* ─── Adult Form (only shown for adults) ─── */}
           {stage === 'adult' && (
             <div className="space-y-3">
@@ -348,6 +364,11 @@ export function BlobbiDevEditor({
                   ))}
                 </SelectContent>
               </Select>
+              {companion.seed && adultType !== (companion.adultType ?? 'catti') && (
+                <p className="text-xs text-amber-500">
+                  Changing the form will adjust the seed. Colors and other visual traits will be re-derived.
+                </p>
+              )}
             </div>
           )}
 
@@ -532,6 +553,27 @@ export function BlobbiDevEditor({
 
 
         </div>
+
+        {/* Daily Missions Reset */}
+        {onResetDailyMissions && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Daily Missions</Label>
+                <p className="text-xs text-muted-foreground">Reset account-level daily bounties</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onResetDailyMissions}
+              >
+                <RotateCcw className="size-3 mr-1.5" />
+                Reset Daily Missions
+              </Button>
+            </div>
+          </>
+        )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button

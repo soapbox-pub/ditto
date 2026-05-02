@@ -15,7 +15,8 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { BlobbiCompanion, BlobbiStage } from '@/blobbi/core/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString, adjustSeedForAdultType } from '@/blobbi/core/lib/blobbi';
+import type { AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,11 +91,16 @@ export function useBlobbiDevUpdate({
         }
       }
 
-      // Adult type (only valid for adult stage)
+      // Adult type: adjust the seed so it derives the chosen form.
+      // syncMirrorTagsToSeed (called inside updateBlobbiTags) will then
+      // set the adult_type tag and all other mirror tags from the new seed.
       const effectiveStage = updates.stage ?? companion.stage;
-      if (effectiveStage === 'adult' && updates.adultType !== undefined) {
-        tagUpdates.adult_type = updates.adultType;
-        changedFields.push('adult_type');
+      if (effectiveStage === 'adult' && updates.adultType !== undefined && companion.seed) {
+        const adjusted = adjustSeedForAdultType(companion.seed, updates.adultType as AdultForm);
+        if (adjusted !== companion.seed) {
+          tagUpdates.seed = adjusted;
+          changedFields.push('seed', 'adult_type');
+        }
       }
 
       // Stats

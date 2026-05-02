@@ -68,7 +68,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
 
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const encodedId = useMemo(() => {

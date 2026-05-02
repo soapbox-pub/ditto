@@ -45,6 +45,7 @@ import { formatTime } from '@/lib/formatTime';
 import { genUserName } from '@/lib/genUserName';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { resizeImage } from '@/lib/resizeImage';
+import { extractHashtags } from '@/lib/hashtag';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const MAX_CHARS = 5000;
@@ -272,14 +273,16 @@ export function ComposeBox({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotedEvent]); // Only run on mount / quotedEvent change, not on every content change
 
-  // Auto-resize textarea height as content grows/shrinks
+  // Auto-resize textarea height as content grows/shrinks.
+  // Also re-run when previewMode toggles off so the remounted textarea
+  // is sized to fit its content immediately.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     // Reset to auto so shrinking is detected correctly
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [content]);
+  }, [content, previewMode]);
 
   // Auto-save draft content to localStorage (debounced to avoid thrashing)
   useEffect(() => {
@@ -488,8 +491,8 @@ export function ComposeBox({
   const mockEvent = useMemo(() => {
     if (!user || !content) return null;
     
-    const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
-    const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+    const hashtags = extractHashtags(content);
+    const tags: string[][] = hashtags.map((t) => ['t', t]);
 
     // NIP-30: Add emoji tags for custom emojis referenced in content
     if (customEmojis.length > 0) {
@@ -789,8 +792,8 @@ export function ComposeBox({
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
 
     try {
-      const hashtags = content.match(/#[\p{L}\p{N}_]+/gu)?.map((t) => t.slice(1)) || [];
-      const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+      const hashtags = extractHashtags(content);
+      const tags: string[][] = hashtags.map((t) => ['t', t]);
 
       // NIP-27 mention p tags — extract nostr:npub1... from content
       const mentionMatches = content.matchAll(/nostr:(npub1[023456789acdefghjklmnpqrstuvwxyz]+)/g);
@@ -1134,7 +1137,7 @@ export function ComposeBox({
               <Avatar shape={avatarShape} className="size-12 shrink-0 mt-0.5">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {(metadata?.display_name || metadata?.name || genUserName(user?.pubkey))[0]?.toUpperCase() ?? '?'}
+                  {(metadata?.name || metadata?.display_name || genUserName(user?.pubkey))[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
             </Link>
@@ -1149,6 +1152,7 @@ export function ComposeBox({
           <div className="relative">
             <textarea
               ref={textareaRef}
+              dir="auto"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onPointerDown={expand}
@@ -1477,7 +1481,7 @@ export function ComposeBox({
                     </TooltipTrigger>
                     {!trayOpen && <TooltipContent>More</TooltipContent>}
                   </Tooltip>
-                  <PopoverContent side="bottom" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
+                  <PopoverContent side="top" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
                     <div className="flex flex-col gap-0.5">
                       {!replyTo && (
                         <button

@@ -9,7 +9,7 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { genUserName } from '@/lib/genUserName';
-import { parsePeopleList } from '@/lib/packUtils';
+import { parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Max avatars shown in the embedded preview stack. */
@@ -53,7 +53,10 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
 
-  const previewPubkeys = useMemo(() => pubkeys.slice(0, EMBED_AVATAR_LIMIT), [pubkeys]);
+  const previewPubkeys = useMemo(
+    () => getDisplayPubkeys(event, pubkeys).slice(0, EMBED_AVATAR_LIMIT),
+    [event, pubkeys],
+  );
   const { data: membersMap } = useAuthors(previewPubkeys);
 
   const safeImage = useMemo(() => sanitizeUrl(image), [image]);
@@ -105,7 +108,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
           <div className="flex -space-x-1.5">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || genUserName(pk);
+              const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
               const shape = getAvatarShape(member?.metadata);
               return (
                 <Avatar

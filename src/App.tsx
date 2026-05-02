@@ -1,14 +1,11 @@
 // NOTE: This file should normally not be modified unless you are adding a new provider.
 // To add new routes, edit the AppRouter.tsx file.
 
-import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
-import { useEffect } from "react";
 import { AppProvider } from "@/components/AppProvider";
-import { DMProvider, type DMConfig } from "@/components/DMProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -21,16 +18,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
-import { PROTOCOL_MODE } from "@/lib/dmConstants";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
-
-const dmConfig: DMConfig = {
-  enabled: false,
-  protocolMode: PROTOCOL_MODE.NIP04_OR_NIP17,
-};
 
 const head = createHead({
   plugins: [InferSeoMetaPlugin()],
@@ -76,13 +67,13 @@ const hardcodedConfig: AppConfig = {
     showTreasureGeocaches: true,
     showTreasureFoundLogs: true,
     showColors: true,
-    showPacks: true,
+    showPeopleLists: true,
     feedIncludeVines: true,
     feedIncludePolls: true,
     feedIncludeTreasureGeocaches: true,
     feedIncludeTreasureFoundLogs: true,
     feedIncludeColors: true,
-    feedIncludePacks: true,
+    feedIncludePeopleLists: true,
     showDecks: true,
     feedIncludeDecks: true,
     showWebxdc: true,
@@ -121,6 +112,10 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
     feedIncludeBlobbi: true,
+    showBirdstar: true,
+    feedIncludeBirdDetections: true,
+    feedIncludeBirdex: true,
+    feedIncludeConstellations: true,
     followsFeedShowReplies: true,
   },
   sidebarOrder: [
@@ -151,6 +146,7 @@ const hardcodedConfig: AppConfig = {
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
+  autoplayVideos: false,
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
@@ -190,17 +186,6 @@ const defaultConfig: AppConfig = {
 export function App() {
   useNsecPasteGuard();
 
-  useEffect(() => {
-    // Initialize system bars for mobile apps.
-    // On Android 16+ (API 36), edge-to-edge is enforced by the OS so
-    // setOverlaysWebView / setBackgroundColor no longer work. The new
-    // SystemBars API (bundled with @capacitor/core 8+) is the replacement.
-    if (Capacitor.isNativePlatform()) {
-      SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {
-        // SystemBars may not be available on all platforms
-      });
-    }
-  }, []);
 
   return (
     <UnheadProvider head={head}>
@@ -214,7 +199,6 @@ export function App() {
                   <NativeNotifications />
 
                     <NWCProvider>
-                    <DMProvider config={dmConfig}>
                       <EmotionDevProvider>
                         <TooltipProvider>
                           <InitialSyncGate>
@@ -222,8 +206,7 @@ export function App() {
                           </InitialSyncGate>
                         </TooltipProvider>
                       </EmotionDevProvider>
-                    </DMProvider>
-                  </NWCProvider>
+                    </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>

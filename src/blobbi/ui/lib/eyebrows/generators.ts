@@ -32,13 +32,11 @@ export const EYEBROW_CLASSES = {
 } as const;
 
 /**
- * Form-specific vertical offset adjustments for adult Blobbi forms.
- * Forms with larger eyes need eyebrows positioned higher.
+ * Standard eye white radius that recipe offsetY values were originally tuned for.
+ * Used to rebase adult eyebrow offsets from eye-center-relative to eye-top-relative,
+ * so that eyebrow placement adapts correctly to any eye white size.
  */
-export const FORM_EYEBROW_OFFSETS: Record<string, number> = {
-  owli: -12,
-  froggi: -10,
-};
+const BASE_EYE_WHITE_RADIUS = 8;
 
 // ─── Eyebrow Generation ───────────────────────────────────────────────────────
 
@@ -59,16 +57,8 @@ export function generateEyebrows(
   eyes: EyePosition[],
   config: EyebrowConfig,
   variant: BlobbiVariant = 'adult',
-  form?: string,
+  _form?: string,
 ): string {
-  // Baby-specific adjustment
-  let variantOffsetAdjustment = variant === 'baby' ? -2 : 0;
-  
-  // Form-specific adjustments for adult forms with larger eyes
-  if (variant === 'adult' && form && form in FORM_EYEBROW_OFFSETS) {
-    variantOffsetAdjustment = FORM_EYEBROW_OFFSETS[form];
-  }
-  
   return eyes.map(eye => {
     const eyeOverride = eye.side === 'left' ? config.leftEyeOverride : config.rightEyeOverride;
     const effectiveAngle = eyeOverride?.angle ?? config.angle;
@@ -78,7 +68,20 @@ export function generateEyebrows(
     const effectiveColor = eyeOverride?.color ?? config.color;
     
     const browLength = eye.radius * 2;
-    const browY = eye.cy + effectiveOffsetY + variantOffsetAdjustment;
+
+    let browY: number;
+    if (variant === 'baby') {
+      // Baby: original center-relative formula with -2 adjustment (unchanged)
+      browY = eye.cy + effectiveOffsetY - 2;
+    } else {
+      // Adult: anchor to eye top, then apply the offset portion beyond the base radius.
+      // Recipe offsetY values were tuned for BASE_EYE_WHITE_RADIUS (8px) eyes.
+      // Rebasing from center-relative to top-relative makes eyebrows sit at a
+      // consistent distance above the eye top regardless of actual eye white size.
+      // When eyeWhiteRy is unavailable the formula degrades to the old: cy + offsetY.
+      const eyeWhiteRy = eye.eyeWhiteRy ?? BASE_EYE_WHITE_RADIUS;
+      browY = (eye.cy - eyeWhiteRy) + (effectiveOffsetY + BASE_EYE_WHITE_RADIUS);
+    }
     
     // For left eye, rotate one way; for right, mirror
     const angle = eye.side === 'left' ? effectiveAngle : -effectiveAngle;

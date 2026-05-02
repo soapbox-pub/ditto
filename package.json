@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.10.2",
+  "version": "2.12.1",
   "type": "module",
   "scripts": {
     "dev": "npm i --silent && vite",
@@ -15,6 +15,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@bitcoinerlab/secp256k1": "^1.2.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/filesystem": "^8.1.2",
@@ -102,14 +103,17 @@
     "@tanstack/react-query": "^5.56.2",
     "@unhead/addons": "^2.1.13",
     "@unhead/react": "^2.1.13",
+    "bitcoinjs-lib": "^7.0.1",
     "blurhash": "^2.0.5",
     "buffer": "^6.0.3",
     "capacitor-secure-storage-plugin": "^0.13.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "d3-celestial": "^0.7.35",
     "date-fns": "^3.6.0",
     "dompurify": "^3.3.3",
+    "ecpair": "^3.0.1",
     "embla-carousel-react": "^8.3.0",
     "emoji-mart": "^5.6.0",
     "fflate": "^0.8.2",
@@ -136,6 +140,7 @@
     "smol-toml": "^1.6.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "tiny-secp256k1": "^2.2.4",
     "uri-templates": "^0.2.0",
     "vaul": "^1.1.2",
     "zod": "^4.3.6"

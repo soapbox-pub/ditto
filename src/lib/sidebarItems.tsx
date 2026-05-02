@@ -3,6 +3,7 @@ import {
   Award,
   BarChart3,
   Bell,
+  Bird,
   Blocks,
   BookMarked,
   Bookmark,
@@ -31,7 +32,9 @@ import {
   Settings,
   Smile,
   SmilePlus,
+  Wallet,
   Sparkles,
+  Stars,
   TrendingUp,
   User,
 } from "lucide-react";
@@ -134,6 +137,13 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     requiresAuth: true,
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  {
+    id: "wallet",
+    label: "Wallet",
+    path: "/wallet",
+    icon: Wallet,
+    requiresAuth: true,
+  },
   { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText },
   {
     id: "letters",
@@ -195,6 +205,8 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   voice: Mic,
   "custom-emojis": Smile,
   statuses: SmilePlus,
+  "bird-detections": Bird,
+  constellations: Stars,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),

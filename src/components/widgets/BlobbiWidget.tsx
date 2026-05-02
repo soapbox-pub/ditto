@@ -12,8 +12,9 @@ import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompan
 import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getVisibleStats, getStatStatus } from '@/blobbi/core/lib/blobbi-decay';
-import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
+import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, filterMigratedLegacyCompanions } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -61,25 +62,39 @@ function getSelectedBlobbiKey(pubkey: string): string {
 /** Mini Blobbi widget with live stats and quick actions. */
 export function BlobbiWidget() {
   const { user } = useCurrentUser();
-  const { companions, companionsByD, isLoading, updateCompanionEvent } = useBlobbisCollection();
+  const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection();
   const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
   const { mutateAsync: publishEvent } = useNostrPublish();
+
+  // Filter out legacy companions that have been migrated to canonical format
+  const filteredCompanions = useMemo(() => {
+    if (!profile) return companions;
+    return filterMigratedLegacyCompanions(companions, profile.has);
+  }, [companions, profile]);
+
+  const filteredCompanionsByD = useMemo(() => {
+    const record: Record<string, BlobbiCompanion> = {};
+    for (const c of filteredCompanions) {
+      record[c.d] = c;
+    }
+    return record;
+  }, [filteredCompanions]);
 
   // Match BlobbiPage's selection logic: localStorage > profile.has > first companion
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
 
   const companion = useMemo<BlobbiCompanion | null>(() => {
-    if (!companions || companions.length === 0) return null;
-    if (storedSelectedD && companionsByD[storedSelectedD]) return companionsByD[storedSelectedD];
+    if (!filteredCompanions || filteredCompanions.length === 0) return null;
+    if (storedSelectedD && filteredCompanionsByD[storedSelectedD]) return filteredCompanionsByD[storedSelectedD];
     if (profile) {
       for (const d of profile.has) {
-        if (companionsByD[d]) return companionsByD[d];
+        if (filteredCompanionsByD[d]) return filteredCompanionsByD[d];
       }
     }
-    return companions[0];
-  }, [companions, companionsByD, storedSelectedD, profile]);
+    return filteredCompanions[0];
+  }, [filteredCompanions, filteredCompanionsByD, storedSelectedD, profile]);
 
   // Zero-arg wrapper for ensureCanonical (same pattern as BlobbiPage)
   const ensureCanonicalBeforeAction = useCallback(async () => {
@@ -174,7 +189,7 @@ export function BlobbiWidget() {
       const prev = canonical.profileEvent;
       const event = await publishEvent({
         kind: KIND_BLOBBONAUT_PROFILE,
-        content: '',
+        content: prev.content,
         tags: updatedTags,
         prev,
       });
@@ -344,18 +359,22 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
 
       {/* Unified stat wheels — each is both a status indicator and an action button */}
       <div className="flex items-center justify-center gap-1.5 px-2">
-        {visibleStats.map((stat) => (
-          <StatIndicator
-            key={stat}
-            stat={stat}
-            value={stats[stat]}
-            color={STAT_COLOR_MAP[stat]}
-            status={getStatStatus(stage, stat, stats[stat] ?? 100)}
-            size="sm"
-            onClick={() => handleStatClick(stat)}
-            disabled={isActionPending}
-          />
-        ))}
+        {visibleStats.map((stat) => {
+          const display = getBlobbiStatDisplayState({ stage, stat, value: stats[stat] ?? 100 });
+          return (
+            <StatIndicator
+              key={stat}
+              stat={stat}
+              value={stats[stat]}
+              color={STAT_COLOR_MAP[stat]}
+              careState={display.careState}
+              segments={{ filled: display.filled, max: display.max }}
+              size="sm"
+              onClick={() => handleStatClick(stat)}
+              disabled={isActionPending}
+            />
+          );
+        })}
       </div>
     </div>
   );

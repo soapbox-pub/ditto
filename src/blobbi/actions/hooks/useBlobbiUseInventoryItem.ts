@@ -24,8 +24,8 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally } from '../lib/daily-mission-tracker';
-import type { DailyMissionAction } from '../lib/daily-missions';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '../lib/daily-mission-tracker';
+import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
 
@@ -244,9 +244,18 @@ export function useBlobbiUseInventoryItem({
       const progressionState = canonical.companion.progressionState;
       const updatedTags = canonical.allTags;
       if (progressionState === 'incubating' || progressionState === 'evolving') {
-        trackEvolutionMissionTally('interactions', 1, user?.pubkey);
+        trackEvolutionMissionTally('interactions', 1, user?.pubkey, canonical.companion.d);
       }
       
+      // ─── Build content with latest evolution state ───
+      let content = canonical.content;
+      if (progressionState === 'incubating' || progressionState === 'evolving') {
+        const evo = readEvolutionFromStorage(user?.pubkey, canonical.companion.d);
+        if (evo && evo.length > 0) {
+          content = serializeEvolutionContent(canonical.content, evo);
+        }
+      }
+
       // Get streak updates (will only update if needed based on day)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
       
@@ -265,8 +274,9 @@ export function useBlobbiUseInventoryItem({
 
       const blobbiEvent = await publishEvent({
         kind: KIND_BLOBBI_STATE,
-        content: canonical.content,
+        content,
         tags: blobbiTags,
+        prev: canonical.companion.event,
       });
 
       updateCompanionEvent(blobbiEvent);
@@ -293,11 +303,7 @@ export function useBlobbiUseInventoryItem({
       });
 
       // Track daily mission progress
-      // 'interact' is always tracked, plus the specific action if it maps to a daily mission
-      const dailyActions: DailyMissionAction[] = ['interact'];
-      if (action === 'feed') dailyActions.push('feed');
-      if (action === 'clean') dailyActions.push('clean');
-      trackMultipleDailyMissionActions(dailyActions, user?.pubkey);
+      trackInventoryDailyActions(action, user?.pubkey);
     },
     onError: (error: Error) => {
       toast({

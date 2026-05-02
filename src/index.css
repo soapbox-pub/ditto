@@ -287,16 +287,17 @@
 
 /* ── Wii Mail envelope grid ─────────────────────────────────────────────────── */
 
-/* Staggered entrance: envelopes pop in one by one */
+/* Staggered entrance: envelopes pop in one by one.
+   Keep the animation short and avoid large rotations so the tap target
+   doesn't shift while the user is already trying to interact. */
 @keyframes envelope-entrance {
-  0%   { opacity: 0; transform: scale(0.6) translateY(20px) rotate(-4deg); }
-  60%  { opacity: 1; transform: scale(1.05) translateY(-2px) rotate(1deg); }
-  80%  { transform: scale(0.97) translateY(1px) rotate(-0.5deg); }
-  100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+  0%   { opacity: 0; transform: scale(0.85) translateY(12px); }
+  70%  { opacity: 1; transform: scale(1.02) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .envelope-card {
-  animation: envelope-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: envelope-entrance 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
   transform-origin: center bottom;
   cursor: pointer;
@@ -317,13 +318,17 @@
   transition: transform 0.15s ease;
 }
 
-.envelope-card:hover .envelope-body,
-.envelope-card:focus-visible .envelope-body {
-  animation: envelope-wobble 0.5s ease-in-out;
+/* Wobble only on true pointer hover — skip on touch where :hover sticks
+   and the rotation shifts the tap target, making repeated taps miss. */
+@media (hover: hover) and (pointer: fine) {
+  .envelope-card:hover .envelope-body,
+  .envelope-card:focus-visible .envelope-body {
+    animation: envelope-wobble 0.5s ease-in-out;
+  }
 }
 
 .envelope-card:active .envelope-body {
-  transform: scale(0.92);
+  transform: scale(0.95);
   animation: none;
 }
 
@@ -710,6 +715,49 @@
   100% { opacity: 1; }
 }
 
+/* ── Shared glow clock for synchronised low-status icons ────────────────
+   A single animation on the StatsCrown parent drives --stat-glow-intensity
+   (0→1→0).  Children inherit its animated value and compute their own
+   box-shadow via calc(), giving perfect phase-lock regardless of when
+   individual icons mount or re-enter a low-status state. */
+@property --stat-glow-intensity {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+
+@keyframes stat-glow-clock {
+  0%, 8% { --stat-glow-intensity: 0; }
+  50% { --stat-glow-intensity: 1; }
+  92%, 100% { --stat-glow-intensity: 0; }
+}
+
+/* Legacy per-element keyframes — still used by the reusable StatIndicator
+   component (src/blobbi/ui/StatIndicator.tsx) outside the crown context. */
+@keyframes stat-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 6px 2px currentColor; }
+}
+
+@keyframes stat-glow-critical {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 10px 3px currentColor; }
+}
+
+/* Guide-target glow — quick blink + pause for nav arrows & carousel.
+   Applied at 1.1s linear: rise (0→8%), brief peak (8→18%), fall (18→28%),
+   idle (28→100% ≈ 0.8 s pause). */
+@keyframes guide-glow-slow {
+  0%, 28%, 100% { box-shadow: 0 0 0 0 transparent; }
+  8%, 18% { box-shadow: 0 0 4px 1.5px currentColor; }
+}
+
+/* Guide-target glow — action-button rhythm, kept punchier (4 s cycle) */
+@keyframes guide-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 8px 3px currentColor; }
+}
+
 /* Room navigation arrow nudge — subtle horizontal pulse */
 @keyframes room-arrow-nudge-left {
   0%, 100% { transform: translateX(0); }
@@ -719,5 +767,23 @@
 @keyframes room-arrow-nudge-right {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(3px); }
+}
+
+/* ── Overstimulation block overlay ─────────────────────────────────────────── */
+
+@keyframes overstim-vignette-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overstim-vignette-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes overstim-shockwave {
+  0%   { transform: scale(0.1); opacity: 1; }
+  60%  { opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 

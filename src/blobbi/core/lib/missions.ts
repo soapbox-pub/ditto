@@ -1,10 +1,9 @@
 /**
  * Missions Content Model
  *
- * Defines the JSON shape stored in the kind 11125 content field.
- * Two mission categories:
- *   - daily: reset each day, tally-based or event-based
- *   - evolution: persist across sessions until stage transition completes
+ * Two separate persistence locations:
+ *   - Daily missions → kind 11125 content JSON (per-user)
+ *   - Evolution missions → kind 31124 content JSON (per-Blobbi)
  *
  * Tally missions track a `count` (no event IDs).
  * Event missions track an `events` array of Nostr event IDs.
@@ -52,13 +51,12 @@ export function missionProgress(m: Mission): number {
   return m.count;
 }
 
-// ─── Content Shape ───────────────────────────────────────────────────────────
+// ─── Daily Missions (kind 11125) ─────────────────────────────────────────────
 
-/** The full missions object stored in kind 11125 content JSON */
+/** Daily missions object stored in kind 11125 content JSON */
 export interface MissionsContent {
   date: string;                  // YYYY-MM-DD for daily reset detection
   daily: Mission[];              // 3 daily missions, reset each day
-  evolution: Mission[];          // active evolution missions, cleared on stage transition
   rerolls: number;               // daily rerolls remaining (resets with date)
 }
 
@@ -70,7 +68,55 @@ export interface ProfileContent {
   missions?: MissionsContent;
 }
 
-// ─── Parse / Serialize ───────────────────────────────────────────────────────
+// ─── Evolution Missions (kind 31124) ─────────────────────────────────────────
+
+/**
+ * Evolution mission state stored in kind 31124 content JSON.
+ * Per-Blobbi progression that survives reloads.
+ */
+export interface EvolutionContent {
+  evolution: Mission[];
+}
+
+/**
+ * Parse evolution missions from a kind 31124 content field.
+ * Returns empty array for empty/invalid/non-JSON content. Never throws.
+ */
+export function parseEvolutionContent(content: string): Mission[] {
+  if (!content || !content.trim()) return [];
+  try {
+    const raw = JSON.parse(content);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return [];
+    return parseMissionArray(raw.evolution);
+  } catch {
+    // Old-format content is plain text (e.g. "Luna is an egg...") — not JSON
+    return [];
+  }
+}
+
+/**
+ * Serialize evolution missions into kind 31124 content JSON.
+ * Preserves any unknown top-level keys from the existing content.
+ */
+export function serializeEvolutionContent(
+  existingContent: string,
+  evolution: Mission[],
+): string {
+  let base: Record<string, unknown> = {};
+  if (existingContent && existingContent.trim()) {
+    try {
+      const parsed = JSON.parse(existingContent);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        base = parsed;
+      }
+    } catch {
+      // Old-format text content — start fresh
+    }
+  }
+  return JSON.stringify({ ...base, evolution });
+}
+
+// ─── Profile Content (kind 11125) ────────────────────────────────────────────
 
 /**
  * Parse the kind 11125 content field into a typed ProfileContent.
@@ -94,6 +140,9 @@ export function parseProfileContent(content: string): ProfileContent {
 /**
  * Serialize ProfileContent back to a JSON string for publishing.
  * Preserves any unknown top-level keys from the existing content.
+ *
+ * NOTE: Strips any legacy `evolution` key from the missions object
+ * so old 11125 events don't carry stale per-Blobbi data.
  */
 export function serializeProfileContent(
   existingContent: string,
@@ -110,7 +159,17 @@ export function serializeProfileContent(
       // corrupt content -- start fresh but don't lose updates
     }
   }
-  return JSON.stringify({ ...base, ...updates });
+  const merged = { ...base, ...updates };
+
+  // Strip legacy evolution from missions if present
+  if (merged.missions && typeof merged.missions === 'object' && !Array.isArray(merged.missions)) {
+    const m = merged.missions as unknown as Record<string, unknown>;
+    if ('evolution' in m) {
+      delete m.evolution;
+    }
+  }
+
+  return JSON.stringify(merged);
 }
 
 // ─── Internal Helpers ────────────────────────────────────────────────────────
@@ -120,11 +179,11 @@ function parseMissionsContent(raw: Record<string, unknown>): MissionsContent | u
   return {
     date: raw.date,
     daily: parseMissionArray(raw.daily),
-    evolution: parseMissionArray(raw.evolution),
     rerolls: typeof raw.rerolls === 'number' ? Math.max(0, Math.floor(raw.rerolls)) : 0,
   };
 }
 
+/** @internal Exported for use by parseEvolutionContent */
 function parseMissionArray(raw: unknown): Mission[] {
   if (!Array.isArray(raw)) return [];
   const result: Mission[] = [];

@@ -183,6 +183,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     
     // Required but not used for preview rendering
     isLegacy: false,
+    needsSeedIdentitySync: false,
     lastInteraction: preview.createdAt,
     lastDecayAt: preview.createdAt,
     generation: 1,
@@ -201,6 +202,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     progressionStartedAt: preview.createdAt,
     tasks: [],
     tasksCompleted: [],
+    evolution: [],
     
     // We need allTags for the adapter, but preview has no extra tags
     allTags: previewToEventTags(preview),

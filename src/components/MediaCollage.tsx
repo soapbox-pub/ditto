@@ -107,7 +107,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name ?? genUserName(pubkey);
+  const name = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
 
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background/40 to-primary/5">
@@ -161,7 +161,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           src={item.url}
           className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
           muted
-          autoPlay
+          autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"

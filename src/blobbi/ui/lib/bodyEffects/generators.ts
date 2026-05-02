@@ -34,22 +34,56 @@ import type {
   BodyPathInfo,
 } from './types';
 
+// ─── SVG Color Sanitization ───────────────────────────────────────────────────
+
+/** Hex color: #rgb, #rrggbb, or #rrggbbaa */
+const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** Named CSS color or functional notation (rgb/rgba/hsl/hsla with digits, commas, spaces, dots, %) */
+const FUNC_RE = /^(?:rgb|rgba|hsl|hsla)\(\s*[\d.,\s%]+\)$/i;
+const NAMED_RE = /^[a-z]{3,24}$/i;
+
+/**
+ * Validate a color value before interpolating it into SVG markup.
+ * Returns the color unchanged if it looks safe, otherwise returns a
+ * harmless fallback. This prevents SVG injection if a future caller
+ * ever passes user-controlled color strings.
+ */
+function sanitizeSvgColor(color: string, fallback = '#000'): string {
+  if (HEX_RE.test(color) || FUNC_RE.test(color) || NAMED_RE.test(color)) return color;
+  return fallback;
+}
+
 // ─── Body Path Detection ──────────────────────────────────────────────────────
 
 /**
- * Detect the body path from the SVG and extract full bounding box.
- * Looks for the main body path (body gradient fill or "Body" comment).
- * Returns both X and Y bounds for shape-aware placement.
+ * Detect the body element from the SVG and extract full bounding box.
+ *
+ * Strategy order:
+ *   0. Explicit `data-blobbi-body="true"` marker (any element type)
+ *   1. `<path>` with body gradient fill (legacy fallback)
+ *   2. `<path>` after a "Body" comment (legacy fallback)
+ *
+ * For non-path elements (`<circle>`, `<ellipse>`, `<rect>`) detected via
+ * Strategy 0, a geometrically equivalent path `d` string is synthesised
+ * so that downstream consumers (anger-rise clipPath, bounds) work unchanged.
  */
 export function detectBodyPath(svgText: string): BodyPathInfo | null {
-  // Strategy 1: path with body gradient fill
+  // Strategy 0: explicit marker on any element type
+  const markerMatch = svgText.match(/<(path|circle|ellipse|rect)\s([^>]*data-blobbi-body="true"[^>]*)\/>/);
+  if (markerMatch) {
+    const tag = markerMatch[1];
+    const attrs = markerMatch[2];
+    return bodyInfoFromElement(tag, attrs);
+  }
+
+  // Strategy 1 (legacy fallback): path with body gradient fill
   const bodyGradientMatch = svgText.match(/<path[^>]*d="([^"]+)"[^>]*fill="url\(#[^"]*[Bb]ody[^"]*\)"[^>]*\/>/);
   if (bodyGradientMatch) {
     const pathD = bodyGradientMatch[1];
     return { pathD, ...estimatePathBounds(pathD) };
   }
   
-  // Strategy 2: path after "Body" comment
+  // Strategy 2 (legacy fallback): path after "Body" comment
   const commentMatch = svgText.match(/<!--[^>]*[Bb]ody[^>]*-->\s*<path[^>]*d="([^"]+)"/);
   if (commentMatch) {
     const pathD = commentMatch[1];
@@ -57,6 +91,91 @@ export function detectBodyPath(svgText: string): BodyPathInfo | null {
   }
   
   return null;
+}
+
+// ─── Shape-to-Path Synthesis ──────────────────────────────────────────────────
+
+/**
+ * Extract BodyPathInfo from a matched SVG element (any supported shape type).
+ * For `<path>` elements the `d` attribute is used directly.
+ * For primitives (`<circle>`, `<ellipse>`, `<rect>`) an equivalent path is synthesised.
+ */
+function bodyInfoFromElement(tag: string, attrs: string): BodyPathInfo | null {
+  if (tag === 'path') {
+    const d = attr(attrs, 'd');
+    if (!d) return null;
+    return { pathD: d, ...estimatePathBounds(d) };
+  }
+
+  if (tag === 'circle') {
+    const cx = num(attrs, 'cx'), cy = num(attrs, 'cy'), r = num(attrs, 'r');
+    if (cx === null || cy === null || r === null) return null;
+    return circleToPathInfo(cx, cy, r, r);
+  }
+
+  if (tag === 'ellipse') {
+    const cx = num(attrs, 'cx'), cy = num(attrs, 'cy');
+    const rx = num(attrs, 'rx'), ry = num(attrs, 'ry');
+    if (cx === null || cy === null || rx === null || ry === null) return null;
+    return circleToPathInfo(cx, cy, rx, ry);
+  }
+
+  if (tag === 'rect') {
+    const x = num(attrs, 'x') ?? 0, y = num(attrs, 'y') ?? 0;
+    const w = num(attrs, 'width'), h = num(attrs, 'height');
+    const rx = num(attrs, 'rx') ?? 0;
+    if (w === null || h === null) return null;
+    return rectToPathInfo(x, y, w, h, rx);
+  }
+
+  return null;
+}
+
+/** Parse a single numeric attribute from an attribute string. */
+function num(attrs: string, name: string): number | null {
+  const m = attrs.match(new RegExp(`${name}="([^"]+)"`));
+  if (!m) return null;
+  const v = parseFloat(m[1]);
+  return isNaN(v) ? null : v;
+}
+
+/** Parse a string attribute value from an attribute string. */
+function attr(attrs: string, name: string): string | null {
+  const m = attrs.match(new RegExp(`${name}="([^"]+)"`));
+  return m ? m[1] : null;
+}
+
+/** Synthesise a path `d` and BodyPathInfo for a circle or ellipse. */
+function circleToPathInfo(cx: number, cy: number, rx: number, ry: number): BodyPathInfo {
+  // Two-arc closed path tracing the full ellipse
+  const pathD = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+  return {
+    pathD,
+    minX: cx - rx, maxX: cx + rx,
+    minY: cy - ry, maxY: cy + ry,
+    centerX: cx,
+    width: rx * 2,
+    height: ry * 2,
+  };
+}
+
+/** Synthesise a path `d` and BodyPathInfo for a rect (with optional rx rounding). */
+function rectToPathInfo(x: number, y: number, w: number, h: number, rx: number): BodyPathInfo {
+  const r = Math.min(rx, w / 2, h / 2);
+  let pathD: string;
+  if (r > 0) {
+    pathD = `M ${x + r} ${y} L ${x + w - r} ${y} A ${r} ${r} 0 0 1 ${x + w} ${y + r} L ${x + w} ${y + h - r} A ${r} ${r} 0 0 1 ${x + w - r} ${y + h} L ${x + r} ${y + h} A ${r} ${r} 0 0 1 ${x} ${y + h - r} L ${x} ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`;
+  } else {
+    pathD = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+  }
+  return {
+    pathD,
+    minX: x, maxX: x + w,
+    minY: y, maxY: y + h,
+    centerX: x + w / 2,
+    width: w,
+    height: h,
+  };
 }
 
 /**
@@ -628,6 +747,7 @@ export function generateAngerRiseEffect(
   const { pathD, minX, maxX, minY, maxY } = bodyPath;
   const bodyHeight = maxY - minY;
   const bodyWidth = maxX - minX;
+  const safeColor = sanitizeSvgColor(config.color);
   
   const suffix = idSuffix ?? Math.random().toString(36).slice(2, 8);
   const clipId = `blobbi-anger-clip-${suffix}`;
@@ -659,16 +779,16 @@ export function generateAngerRiseEffect(
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}" stop-opacity="${bottomOpacity}" />
-      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${config.color}" stop-opacity="${edgeOpacity}" />
-      <stop offset="${lvl}" stop-color="${config.color}" stop-opacity="0" />
+      <stop offset="0%" stop-color="${safeColor}" stop-opacity="${bottomOpacity}" />
+      <stop offset="${Math.max(0, lvl - feather)}" stop-color="${safeColor}" stop-opacity="${edgeOpacity}" />
+      <stop offset="${lvl}" stop-color="${safeColor}" stop-opacity="0" />
     </linearGradient>`
     : `
     <clipPath id="${clipId}">
       <path d="${pathD}" />
     </clipPath>
     <linearGradient id="${gradientId}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="${config.color}">
+      <stop offset="0%" stop-color="${safeColor}">
         <animate 
           attributeName="stop-opacity" 
           values="0;0.5;0.5" 
@@ -677,7 +797,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}">
+      <stop stop-color="${safeColor}">
         <animate 
           attributeName="offset" 
           values="0;1" 
@@ -692,7 +812,7 @@ export function generateAngerRiseEffect(
           fill="freeze"
         />
       </stop>
-      <stop stop-color="${config.color}" stop-opacity="0">
+      <stop stop-color="${safeColor}" stop-opacity="0">
         <animate 
           attributeName="offset" 
           values="0;1" 

@@ -113,7 +113,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           <div className="px-4 pb-2">
             <div className="flex flex-wrap gap-1.5">
               {selected.map((profile) => {
-                const name = profile.metadata.display_name || profile.metadata.name || genUserName(profile.pubkey);
+                const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
                 return (
                   <button
                     key={profile.pubkey}
@@ -191,7 +191,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
 }
 
 function SearchResultItem({ profile, onSelect }: { profile: SearchProfile; onSelect: (p: SearchProfile) => void }) {
-  const name = profile.metadata.display_name || profile.metadata.name || genUserName(profile.pubkey);
+  const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
   const about = profile.metadata.about;
 
   return (

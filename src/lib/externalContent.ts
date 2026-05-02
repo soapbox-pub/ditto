@@ -10,6 +10,8 @@ export type ExternalContent =
   | { type: 'url'; value: string }
   | { type: 'isbn'; value: string }
   | { type: 'iso3166'; value: string; code: string }
+  | { type: 'bitcoin-tx'; value: string; txid: string }
+  | { type: 'bitcoin-address'; value: string; address: string }
   | { type: 'unknown'; value: string };
 
 /** Parse a URI string into a typed external content object. */
@@ -20,6 +22,16 @@ export function parseExternalUri(uri: string): ExternalContent {
   if (uri.startsWith('iso3166:')) {
     const code = uri.slice('iso3166:'.length);
     return { type: 'iso3166', value: uri, code };
+  }
+  // NIP-73 Bitcoin transaction: bitcoin:tx:<txid>
+  const btcTxMatch = uri.match(/^bitcoin:tx:([0-9a-f]{64})$/i);
+  if (btcTxMatch) {
+    return { type: 'bitcoin-tx', value: uri, txid: btcTxMatch[1].toLowerCase() };
+  }
+  // NIP-73 Bitcoin address: bitcoin:address:<address>
+  const btcAddrMatch = uri.match(/^bitcoin:address:(.+)$/);
+  if (btcAddrMatch) {
+    return { type: 'bitcoin-address', value: uri, address: btcAddrMatch[1] };
   }
   if (uri.startsWith('http://') || uri.startsWith('https://')) {
     return { type: 'url', value: uri };
@@ -89,6 +101,10 @@ export function headerLabel(content: ExternalContent): string {
       const info = getCountryInfo(content.code);
       return info?.subdivisionName ?? info?.name ?? 'Country';
     }
+    case 'bitcoin-tx':
+      return 'Bitcoin Transaction';
+    case 'bitcoin-address':
+      return 'Bitcoin Address';
     default:
       return 'External Content';
   }
@@ -111,6 +127,14 @@ export function seoTitle(content: ExternalContent, appName: string): string {
       const seoInfo = getCountryInfo(content.code);
       const seoName = seoInfo?.subdivisionName ?? seoInfo?.name;
       return seoName ? `${seoName} | ${appName}` : `Country | ${appName}`;
+    }
+    case 'bitcoin-tx': {
+      const shortTxid = `${content.txid.slice(0, 8)}...${content.txid.slice(-8)}`;
+      return `Bitcoin TX ${shortTxid} | ${appName}`;
+    }
+    case 'bitcoin-address': {
+      const shortAddr = `${content.address.slice(0, 8)}...${content.address.slice(-6)}`;
+      return `Bitcoin Address ${shortAddr} | ${appName}`;
     }
     default:
       return `External Content | ${appName}`;

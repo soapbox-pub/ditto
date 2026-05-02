@@ -24,6 +24,7 @@ import { Blurhash } from "react-blurhash";
 import { Link } from "react-router-dom";
 import { isValidBlurhash } from "@/lib/blurhash";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
+import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
@@ -46,6 +47,7 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
 import { getAvatarShape } from "@/lib/avatarShape";
+import { getContentWarning } from "@/lib/contentWarning";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -246,77 +248,79 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
-      {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
-        {isValidBlurhash(blurhash) && (
-          <Blurhash
-            hash={blurhash}
-            width="100%"
-            height="100%"
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            className="absolute inset-0"
-            style={{ width: "100%", height: "100%" }}
-          />
-        )}
-        {thumbnail ? (
-          <img
-            src={thumbnail}
-            alt={title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Play className="size-8 text-muted-foreground/20" />
-          </div>
-        )}
-        {dur && (
-          <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
-            {dur}
-          </div>
-        )}
-      </div>
-
-      {/* Info row: avatar | title + channel + time */}
-      <div className="mt-2.5 flex gap-2.5">
-        <Link
-          to={profileUrl}
-          className="shrink-0 mt-0.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {author.isLoading ? (
-            <Skeleton className="size-8 rounded-full" />
-          ) : (
-            <Avatar shape={avatarShape} className="size-8">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+      <ContentWarningGuard event={event}>
+        {/* Thumbnail */}
+        <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
+          {isValidBlurhash(blurhash) && (
+            <Blurhash
+              hash={blurhash}
+              width="100%"
+              height="100%"
+              resolutionX={32}
+              resolutionY={32}
+              punch={1}
+              className="absolute inset-0"
+              style={{ width: "100%", height: "100%" }}
+            />
           )}
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xs font-medium leading-snug line-clamp-2 mb-1">
-            {title}
-          </h3>
-          {author.isLoading ? (
-            <Skeleton className="h-2.5 w-20 mb-1" />
+          {thumbnail ? (
+            <img
+              src={thumbnail}
+              alt={title}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
           ) : (
-            <Link
-              to={profileUrl}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Play className="size-8 text-muted-foreground/20" />
+            </div>
           )}
-          <p className="text-[11px] text-muted-foreground">
-            {timeAgo(event.created_at)}
-          </p>
+          {dur && (
+            <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
+              {dur}
+            </div>
+          )}
         </div>
-      </div>
+
+        {/* Info row: avatar | title + channel + time */}
+        <div className="mt-2.5 flex gap-2.5">
+          <Link
+            to={profileUrl}
+            className="shrink-0 mt-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.isLoading ? (
+              <Skeleton className="size-8 rounded-full" />
+            ) : (
+              <Avatar shape={avatarShape} className="size-8">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-medium leading-snug line-clamp-2 mb-1">
+              {title}
+            </h3>
+            {author.isLoading ? (
+              <Skeleton className="h-2.5 w-20 mb-1" />
+            ) : (
+              <Link
+                to={profileUrl}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {displayName}
+              </Link>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {timeAgo(event.created_at)}
+            </p>
+          </div>
+        </div>
+      </ContentWarningGuard>
     </div>
   );
 }
@@ -644,40 +648,42 @@ function ShortThumb({
       onClick={onClick}
       aria-label={title}
     >
-      <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
-        {isValidBlurhash(blurhash) && !thumbnail && (
-          <Blurhash
-            hash={blurhash}
-            width="100%"
-            height="100%"
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            className="absolute inset-0"
-            style={{ width: "100%", height: "100%" }}
-          />
-        )}
-        {thumbnail ? (
-          <img
-            src={thumbnail}
-            alt={title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            loading="lazy"
-          />
-        ) : !blurhash ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Play className="size-8 text-muted-foreground/30" />
-          </div>
-        ) : null}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
-          <div className="size-12 rounded-full bg-black/60 flex items-center justify-center">
-            <Play className="size-6 text-white fill-white ml-0.5" />
+      <ContentWarningGuard event={event}>
+        <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
+          {isValidBlurhash(blurhash) && !thumbnail && (
+            <Blurhash
+              hash={blurhash}
+              width="100%"
+              height="100%"
+              resolutionX={32}
+              resolutionY={32}
+              punch={1}
+              className="absolute inset-0"
+              style={{ width: "100%", height: "100%" }}
+            />
+          )}
+          {thumbnail ? (
+            <img
+              src={thumbnail}
+              alt={title}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
+          ) : !blurhash ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Play className="size-8 text-muted-foreground/30" />
+            </div>
+          ) : null}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
+            <div className="size-12 rounded-full bg-black/60 flex items-center justify-center">
+              <Play className="size-6 text-white fill-white ml-0.5" />
+            </div>
           </div>
         </div>
-      </div>
-      <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors w-full overflow-hidden">
-        {title}
-      </p>
+        <p className="mt-1.5 text-xs font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors w-full overflow-hidden">
+          {title}
+        </p>
+      </ContentWarningGuard>
     </button>
   );
 }
@@ -887,14 +893,17 @@ export function VideosFeedPage() {
             .map((item) => item.event)
         : (rawData.pages as unknown as NostrEvent[][]).flat();
 
+    const hideCW = config.contentWarningPolicy === "hide";
+
     return events.filter((event) => {
       if (seen.has(event.id)) return false;
       seen.add(event.id);
       if (![21, 22].includes(event.kind)) return false;
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      if (hideCW && getContentWarning(event) !== undefined) return false;
       return !!parseVideoImeta(event.tags).url;
     });
-  }, [rawData?.pages, muteItems, feedTab]);
+  }, [rawData?.pages, muteItems, feedTab, config.contentWarningPolicy]);
 
   const normalVideos = useMemo(
     () => videoEvents.filter((e) => e.kind === 21),

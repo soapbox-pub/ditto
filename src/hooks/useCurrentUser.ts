@@ -1,10 +1,12 @@
 import { useNostr } from '@nostrify/react';
 import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
-import { NRelay1 } from '@nostrify/nostrify';
+import { NRelay1, NSecSigner } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 
 import { useAuthor } from './useAuthor.ts';
 import { signerWithNudge } from '@/lib/signerWithNudge';
+import { NSecSignerBtc, NBrowserSignerBtc, NConnectSignerBtc } from '@/lib/bitcoin-signers';
 
 export function useCurrentUser() {
   const { nostr } = useNostr();
@@ -15,23 +17,38 @@ export function useCurrentUser() {
     let isBunkerConnected: (() => boolean) | undefined;
 
     switch (login.type) {
-      case 'nsec': // Nostr login with secret key
-        user = NUser.fromNsecLogin(login);
+      case 'nsec': { // Nostr login with secret key — use BTC-extended signer
+        const sk = nip19.decode(login.data.nsec) as { type: 'nsec'; data: Uint8Array };
+        user = new NUser(login.type, login.pubkey, new NSecSignerBtc(sk.data));
         break;
-      case 'bunker': { // Nostr login with NIP-46 "bunker://" URI
-        user = NUser.fromBunkerLogin(login, nostr);
+      }
+      case 'bunker': { // Nostr login with NIP-46 "bunker://" URI — use BTC-extended signer
+        const clientSk = nip19.decode(login.data.clientNsec) as { type: 'nsec'; data: Uint8Array };
+        const clientSigner = new NSecSigner(clientSk.data);
+        const bunkerRelays = login.data.relays;
+
+        user = new NUser(
+          login.type,
+          login.pubkey,
+          new NConnectSignerBtc({
+            relay: nostr.group(bunkerRelays),
+            pubkey: login.data.bunkerPubkey,
+            signer: clientSigner,
+            timeout: 60_000,
+          }),
+        );
+
         // Called at nudge time to check whether any of the bunker's relay
         // WebSockets are OPEN. Relay instances are shared with the main pool
         // so pool.relays will contain them once they have been opened.
-        const bunkerRelays = (login as Extract<NLoginType, { type: 'bunker' }>).data.relays;
         isBunkerConnected = () => bunkerRelays.some((url) => {
           const relay = nostr.relay(url);
           return relay instanceof NRelay1 && relay.socket.readyState === WebSocket.OPEN;
         });
         break;
       }
-      case 'extension': // Nostr login with NIP-07 browser extension
-        user = NUser.fromExtensionLogin(login);
+      case 'extension': // Nostr login with NIP-07 browser extension — use BTC-extended signer
+        user = new NUser(login.type, login.pubkey, new NBrowserSignerBtc());
         break;
       // Other login types can be defined here
       default:

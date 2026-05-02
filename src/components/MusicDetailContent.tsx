@@ -19,7 +19,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
-import { canZap } from '@/lib/canZap';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -188,7 +187,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
               )}
             </RepostMenu>
 
-            {user && canZap(metadata) && (
+            {user && user.pubkey !== event.pubkey && (
               <ZapDialog target={event}>
                 <button
                   className="size-11 rounded-full bg-secondary/50 text-muted-foreground hover:bg-secondary flex items-center justify-center transition-colors"
