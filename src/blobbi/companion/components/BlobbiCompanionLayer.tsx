@@ -212,12 +212,12 @@ export function BlobbiCompanionLayer() {
 
     // Compute spawn position (Blobbi's mouth area)
     const spawnX = renderedPosition.x + config.size / 2;
-    const spawnY = renderedPosition.y + config.size * 0.55;
+    const spawnY = renderedPosition.y + config.size * 0.65;
 
-    // Land a short distance below Blobbi (near feet), not at viewport bottom
+    // Land about 20px below Blobbi's container bottom, clamped to viewport floor
     const floorLimit = viewport.height - config.padding.bottom;
     const landX = spawnX + (Math.random() * 30 - 15);
-    const landY = Math.min(renderedPosition.y + config.size * 0.9, floorLimit);
+    const landY = Math.min(renderedPosition.y + config.size + 20, floorLimit);
 
     const newSplat: SplatData = {
       id: vomitEvent.id,

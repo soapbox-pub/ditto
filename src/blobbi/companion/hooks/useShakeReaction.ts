@@ -245,6 +245,13 @@ export function useShakeReaction({
     if (ph.current === 'idle') {
       toasted.current = false;
     }
+
+    // Allow one vomit per drag: reset the per-drag guard when a new drag begins
+    // during an active cycle so the next release can qualify independently.
+    if (ph.current === 'dizzy' || ph.current === 'recovering' || ph.current === 'vomiting') {
+      vomitedThisCycle.current = false;
+      peakIntensity.current = 0;
+    }
   }, []);
 
   const onDragUpdate = useCallback(

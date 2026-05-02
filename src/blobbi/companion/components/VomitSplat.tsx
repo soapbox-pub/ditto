@@ -50,13 +50,15 @@ export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: Vomit
 
   if (!landed) {
     // Falling drop — animated from spawn to land position
+    // zIndex 10002 renders above companion (10000/10001) while falling
     return (
       <div
         className="absolute pointer-events-none"
         style={{
           left: spawnX,
           top: spawnY,
-          transform: 'translate(-50%, -50%)',
+          transform: 'translate(-50%, -100%)',
+          zIndex: 10002,
           animation: `vomit-fall ${FALL_DURATION_MS}ms ease-in forwards`,
           '--vomit-dx': `${fallDeltaX}px`,
           '--vomit-dy': `${fallDeltaY}px`,
