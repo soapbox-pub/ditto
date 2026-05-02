@@ -1,9 +1,13 @@
 /**
- * Room Layout Defaults — static fallback room layouts.
+ * Room Layout Defaults — canonical static room layouts.
  *
- * Used when CSS theme variables are unavailable (SSR, tests, etc.).
- * Each room has a distinct visual identity matching the theme-aware
- * defaults in room-theme-defaults.ts.
+ * These are the theme-independent, deterministic defaults used by the
+ * editor's "Reset" action. Each room has a designed visual identity
+ * that works well regardless of the active app theme.
+ *
+ * Theme-aware defaults (which read CSS custom properties at runtime)
+ * live in room-theme-defaults.ts and are used for the "Use theme"
+ * action and as the unsaved-room fallback.
  *
  * Extracted to its own file to avoid circular imports between
  * room-layout-schema.ts and room-theme-defaults.ts.
@@ -34,8 +38,8 @@ export const DEFAULT_ROOM_LAYOUTS: Record<BlobbiRoomId, RoomLayout> = {
     floor: { style: 'carpet', palette: ['#a78bfa', '#8b5cf6'], variant: 'soft' },
   },
   closet: {
-    // Wardrobe: neutral wall, dark walnut wood floor
-    wall: { style: 'solid', palette: ['#fafaf9', '#f0f0ee'] },
-    floor: { style: 'wood', palette: ['#92400e', '#78350f'], variant: 'medium' },
+    // Wardrobe: warm taupe wall, dark walnut narrow wood floor
+    wall: { style: 'solid', palette: ['#faf5f0', '#f0e8df'] },
+    floor: { style: 'wood', palette: ['#78350f', '#451a03'], variant: 'narrow' },
   },
 };

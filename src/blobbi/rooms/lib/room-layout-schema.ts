@@ -1,5 +1,5 @@
 /**
- * Room Layout Schema — types, parser, defaults, presets, and helpers for per-room visuals.
+ * Room Layout Schema — types, parser, defaults, and helpers for per-room visuals.
  *
  * Stored in kind 11125 content JSON under the `room_layouts` top-level key.
  * This module handles parsing and validation; writes use serializeProfileContent.
@@ -122,41 +122,6 @@ export function getBlobbiBodyBottomInset(stage: string, adultForm?: string): num
 // Re-export from dedicated file to maintain backward compatibility
 export { DEFAULT_ROOM_LAYOUTS } from './room-layout-defaults';
 
-// ─── Presets ──────────────────────────────────────────────────────────────────
-
-/** A named preset for a surface (wall or floor) */
-export interface SurfacePreset {
-  id: string;
-  label: string;
-  surface: RoomSurfaceLayout;
-}
-
-export const WALL_PRESETS: SurfacePreset[] = [
-  { id: 'warm-solid', label: 'Warm', surface: { style: 'solid', palette: ['#fef3c7', '#fde68a'] } },
-  { id: 'warm-gradient', label: 'Sunset', surface: { style: 'gradient', palette: ['#fef3c7', '#fde68a'] } },
-  { id: 'cool-solid', label: 'Sky', surface: { style: 'solid', palette: ['#e0f2fe', '#bae6fd'] } },
-  { id: 'cool-gradient', label: 'Ocean', surface: { style: 'gradient', palette: ['#e0f2fe', '#7dd3fc'] } },
-  { id: 'green-solid', label: 'Meadow', surface: { style: 'solid', palette: ['#ecfccb', '#d9f99d'] } },
-  { id: 'purple-gradient', label: 'Dusk', surface: { style: 'gradient', palette: ['#ede9fe', '#c4b5fd'] } },
-  { id: 'pink-solid', label: 'Blush', surface: { style: 'solid', palette: ['#fce7f3', '#fbcfe8'] } },
-  { id: 'neutral-solid', label: 'Cloud', surface: { style: 'solid', palette: ['#f8fafc', '#e2e8f0'] } },
-  { id: 'warm-stripes', label: 'Candy', surface: { style: 'stripes', palette: ['#fef3c7', '#fbbf24'], variant: 'soft' } },
-  { id: 'cool-dots', label: 'Bubbles', surface: { style: 'dots', palette: ['#e0f2fe', '#38bdf8'] } },
-];
-
-export const FLOOR_PRESETS: SurfacePreset[] = [
-  { id: 'wood-wide', label: 'Oak', surface: { style: 'wood', palette: ['#d97706', '#92400e'], variant: 'wide' } },
-  { id: 'wood-narrow', label: 'Walnut', surface: { style: 'wood', palette: ['#78350f', '#451a03'], variant: 'narrow' } },
-  { id: 'wood-light', label: 'Birch', surface: { style: 'wood', palette: ['#fbbf24', '#d97706'], variant: 'medium' } },
-  { id: 'tile-light', label: 'Marble', surface: { style: 'tile', palette: ['#f5f5f4', '#e7e5e4'] } },
-  { id: 'tile-blue', label: 'Ceramic', surface: { style: 'tile', palette: ['#f0f9ff', '#dbeafe'] } },
-  { id: 'tile-warm', label: 'Terra', surface: { style: 'tile', palette: ['#fef3c7', '#fde68a'] } },
-  { id: 'carpet-purple', label: 'Royal', surface: { style: 'carpet', palette: ['#7c3aed', '#6d28d9'], variant: 'soft' } },
-  { id: 'carpet-green', label: 'Moss', surface: { style: 'carpet', palette: ['#166534', '#14532d'], variant: 'soft' } },
-  { id: 'carpet-pink', label: 'Rose', surface: { style: 'carpet', palette: ['#ec4899', '#be185d'], variant: 'soft' } },
-  { id: 'solid-dark', label: 'Slate', surface: { style: 'solid', palette: ['#334155', '#1e293b'] } },
-];
-
 // ─── Validation Helpers ───────────────────────────────────────────────────────
 
 /** Strict hex color regex: #RGB, #RRGGBB, or #RRGGBBAA */
@@ -264,18 +229,3 @@ function parseSurface(
 
 // Re-export from dedicated file to maintain backward compatibility
 export { getEffectiveRoomLayout } from './room-layout-effective';
-
-/**
- * Find which preset ID matches a given surface layout, or undefined if custom/none.
- */
-export function findMatchingPresetId(
-  surface: RoomSurfaceLayout,
-  presets: SurfacePreset[],
-): string | undefined {
-  return presets.find(p =>
-    p.surface.style === surface.style &&
-    p.surface.palette.length === surface.palette.length &&
-    p.surface.palette.every((c, i) => c === surface.palette[i]) &&
-    (p.surface.variant ?? undefined) === (surface.variant ?? undefined)
-  )?.id;
-}

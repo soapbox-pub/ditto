@@ -1036,7 +1036,7 @@ function BlobbiDashboard({
       const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
       if (!freshProfile) {
         toast({ title: 'Error', description: 'Could not fetch profile. Try again.' });
-        throw new Error('profile-fetch-failed');
+        return;
       }
       const prev = freshProfile.event;
       const existingLayouts = parseRoomLayoutsContent(prev.content);
@@ -1053,9 +1053,8 @@ function BlobbiDashboard({
       });
       updateProfileEvent(event);
       toast({ title: 'Saved', description: `${ROOM_META[roomId].label} style updated.` });
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to save room style.' });
-      throw err;
     } finally {
       setIsSavingLayout(false);
     }
