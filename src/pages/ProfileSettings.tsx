@@ -839,8 +839,8 @@ export function ProfileSettings() {
             </div>
           </div>
 
-          {/* Mobile sidebar preview — visible only below xl where the real sidebar is hidden */}
-          <div className="xl:hidden">
+          {/* Mobile sidebar preview — visible only below widgets where the real sidebar is hidden */}
+          <div className="lg:hidden">
             <Collapsible open={showMobilePreview} onOpenChange={setShowMobilePreview}>
               <CollapsibleTrigger asChild>
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
