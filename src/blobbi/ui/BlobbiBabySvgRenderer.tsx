@@ -17,7 +17,7 @@
  *   - Companion runtime (drag, float, position)
  */
 
-import { useMemo, useRef } from 'react';
+import { useId, useMemo, useRef } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -69,7 +69,16 @@ export function BlobbiBabySvgRenderer({
 }: BlobbiBabySvgRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const recipeFingerprint = useRecipeFingerprint(recipeProp);
-  useFillLevelUpdate(containerRef, blobbi.id, recipeProp);
+
+  // Generate a unique ID per component instance so that clip-path and gradient
+  // IDs don't collide when the same Blobbi is rendered in multiple places at
+  // once (e.g. hero + drawer grid, hero + floating companion, feed card + companion).
+  // React's useId() returns strings like ":r0:" — strip non-alphanumeric chars
+  // to produce valid SVG ID characters.
+  const reactId = useId();
+  const instanceId = `${blobbi.id}-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  useFillLevelUpdate(containerRef, instanceId, recipeProp);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
@@ -78,22 +87,22 @@ export function BlobbiBabySvgRenderer({
     const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
     const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
 
-    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
+    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
 
     if (recipeProp) {
-      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, blobbi.id);
+      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, instanceId);
     } else if (emotion !== 'neutral') {
       const resolved = resolveVisualRecipe(emotion);
-      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, blobbi.id);
+      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, instanceId);
     }
 
     if (bodyEffects && !recipeProp) {
-      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
+      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? instanceId });
     }
 
     return animatedSvg;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
+  }, [blobbi, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 
