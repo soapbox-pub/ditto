@@ -25,6 +25,28 @@ export {
   getBlobbiBodyBottomInset,
 } from './lib/room-layout-schema';
 
+export {
+  type FurnitureLayer,
+  type FurnitureContent,
+  type FurniturePlacement,
+  type RoomFurnitureContent,
+  FURNITURE_LAYERS,
+  MAX_FURNITURE_PER_ROOM,
+  parseRoomFurnitureContent,
+} from './lib/room-furniture-schema';
+
+export {
+  type FurnitureDefinition,
+  OFFICIAL_FURNITURE,
+  resolveFurniture,
+  getFurnitureAsset,
+  canPlaceInRoom,
+  getAvailableFurnitureForRoom,
+} from './lib/furniture-registry';
+
+export { DEFAULT_ROOM_FURNITURE } from './lib/room-furniture-defaults';
+export { getEffectiveRoomFurniture } from './lib/room-furniture-effective';
+
 export { getSurfaceBackground } from './lib/room-surface-background';
 
 export { BlobbiRoomEditor, BlobbiRoomEditorTrigger } from './components/BlobbiRoomEditor';
