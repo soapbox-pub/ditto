@@ -48,6 +48,7 @@ const hardcodedConfig: AppConfig = {
   theme: "system",
   autoShareTheme: true,
   useAppRelays: true,
+  useUserRelays: false,
   relayMetadata: {
     relays: [],
     updatedAt: 0,
