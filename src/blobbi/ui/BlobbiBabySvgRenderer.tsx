@@ -90,8 +90,12 @@ export function BlobbiBabySvgRenderer({
     }
 
     return animatedSvg;
+  // Deps use stable primitives from blobbi (not the object reference) and
+  // recipeFingerprint (not recipeProp) so that level-only changes and
+  // upstream reference churn do NOT trigger full SVG rebuilds. The closure
+  // captures the current blobbi/recipeProp for the rare structural rebuilds.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
+  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 

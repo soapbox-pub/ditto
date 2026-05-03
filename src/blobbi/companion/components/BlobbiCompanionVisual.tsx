@@ -123,7 +123,16 @@ const MemoizedBlobbiVisual = memo(function MemoizedBlobbiVisual({
 }, (prev, next) => {
   return (
     prev.stage === next.stage &&
-    prev.blobbi === next.blobbi &&
+    // Compare blobbi by visual-identity primitives, NOT by reference.
+    // This prevents SVG rebuilds (and SMIL animation restarts) when the
+    // upstream companion object gets a new reference with identical content
+    // — e.g. during nausea recovery where only angerRise.level changes.
+    prev.blobbi.id === next.blobbi.id &&
+    prev.blobbi.baseColor === next.blobbi.baseColor &&
+    prev.blobbi.secondaryColor === next.blobbi.secondaryColor &&
+    prev.blobbi.eyeColor === next.blobbi.eyeColor &&
+    prev.blobbi.adult?.evolutionForm === next.blobbi.adult?.evolutionForm &&
+    prev.blobbi.seed === next.blobbi.seed &&
     prev.recipeFingerprint === next.recipeFingerprint &&
     prev.recipeLabel === next.recipeLabel &&
     prev.emotion === next.emotion &&
