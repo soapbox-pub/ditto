@@ -21,7 +21,7 @@
  * inside the SVG continue running across parent rerenders.
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -31,7 +31,7 @@ import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from 
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
-import { useRecipeFingerprint, useFillLevelUpdate } from './hooks/useFillLevelUpdate';
+import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 export interface BlobbiAdultSvgRendererProps {
@@ -71,9 +71,7 @@ export function BlobbiAdultSvgRenderer({
   bodyEffects,
   className,
 }: BlobbiAdultSvgRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const recipeFingerprint = useRecipeFingerprint(recipeProp);
-  useFillLevelUpdate(containerRef, blobbi.id, recipeProp);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'adult customizedSvg rebuild');
@@ -106,7 +104,6 @@ export function BlobbiAdultSvgRenderer({
 
   return (
     <div
-      ref={containerRef}
       className={className}
       dangerouslySetInnerHTML={{ __html: safeSvg }}
     />

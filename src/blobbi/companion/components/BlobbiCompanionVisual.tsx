@@ -13,13 +13,14 @@
  * - Eye gaze is driven imperatively via ref (no React rerenders for gaze)
  */
 
-import { useMemo, memo, type RefObject } from 'react';
+import { useMemo, useRef, memo, type RefObject } from 'react';
 
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/useEmotionDev';
+import { useRecipeFingerprint, useFillLevelUpdate } from '@/blobbi/ui/hooks/useFillLevelUpdate';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
@@ -55,8 +56,12 @@ interface BlobbiCompanionVisualProps {
 // companion rerender storm (~60 renders/s from motion/float RAF loops).
 // It renders BlobbiAdultVisual / BlobbiBabyVisual with renderMode="companion".
 //
-// It MUST only rerender when actual visual content changes:
-//   blobbi, recipe, recipeLabel, emotion, bodyEffects, stage
+// It MUST only rerender when actual visual STRUCTURE changes:
+//   blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects, stage
+//
+// It uses recipeFingerprint (not recipe reference) so that level-only
+// changes (e.g. nausea drain) do NOT trigger rerenders. The fill level
+// is updated imperatively from BlobbiCompanionVisual via useFillLevelUpdate.
 //
 // It MUST NOT receive or depend on per-frame values:
 //   eyeOffset value, floatOffset, isDragging, isWalking, position, animationTime
@@ -69,6 +74,8 @@ interface MemoizedBlobbiVisualProps {
   blobbi: Blobbi;
   eyeOffsetRef: RefObject<EyeOffset>;
   recipe?: BlobbiVisualRecipe;
+  /** Pre-computed structural fingerprint (excludes angerRise.level). */
+  recipeFingerprint: string;
   recipeLabel?: string;
   emotion: BlobbiEmotion;
   bodyEffects?: BodyEffectsSpec;
@@ -79,6 +86,7 @@ const MemoizedBlobbiVisual = memo(function MemoizedBlobbiVisual({
   blobbi,
   eyeOffsetRef,
   recipe,
+  recipeFingerprint: _recipeFingerprint,
   recipeLabel,
   emotion,
   bodyEffects,
@@ -116,7 +124,7 @@ const MemoizedBlobbiVisual = memo(function MemoizedBlobbiVisual({
   return (
     prev.stage === next.stage &&
     prev.blobbi === next.blobbi &&
-    prev.recipe === next.recipe &&
+    prev.recipeFingerprint === next.recipeFingerprint &&
     prev.recipeLabel === next.recipeLabel &&
     prev.emotion === next.emotion &&
     prev.bodyEffects === next.bodyEffects
@@ -142,6 +150,7 @@ export function BlobbiCompanionVisual({
   className,
   debugMode = false,
 }: BlobbiCompanionVisualProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
 
   // DEV ONLY: Get effective emotion from dev context (overrides production emotions)
@@ -152,6 +161,14 @@ export function BlobbiCompanionVisual({
   const effectiveRecipeLabel = hasDevOverride ? undefined : recipeLabelProp;
   const effectiveEmotion = hasDevOverride ? devEmotion : (emotionProp ?? 'neutral');
   const effectiveBodyEffects = hasDevOverride ? undefined : bodyEffectsProp;
+
+  // ── Fill level update (above memo boundary) ────────────────────────────────
+  // Compute structural fingerprint (excludes angerRise.level) and run the
+  // imperative gradient-stop update from here. This allows MemoizedBlobbiVisual
+  // to block re-renders during level-only changes (e.g. nausea drain), keeping
+  // SMIL spiral-eye animations running uninterrupted.
+  const recipeFingerprint = useRecipeFingerprint(effectiveRecipe);
+  useFillLevelUpdate(rootRef, blobbi.id, effectiveRecipe);
 
   // Float transform
   const blobbiTransform = useMemo(() => {
@@ -187,6 +204,7 @@ export function BlobbiCompanionVisual({
 
   return (
     <div
+      ref={rootRef}
       className={cn('relative', className)}
       style={{ width: size, height: size }}
     >
@@ -263,6 +281,7 @@ export function BlobbiCompanionVisual({
               blobbi={blobbi}
               eyeOffsetRef={eyeOffsetRef}
               recipe={effectiveRecipe}
+              recipeFingerprint={recipeFingerprint}
               recipeLabel={effectiveRecipeLabel}
               emotion={effectiveEmotion}
               bodyEffects={effectiveBodyEffects}
