@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 100" fill="none">
+  <!-- Pot -->
+  <path d="M20 100 L22 75 H48 L50 100 Z" fill="#c2703a"/>
+  <ellipse cx="35" cy="75" rx="14" ry="4" fill="#4a7c3f"/>
+  <!-- Leaves -->
+  <ellipse cx="30" cy="55" rx="8" ry="14" fill="#5a9e4b" transform="rotate(-15 30 55)"/>
+  <ellipse cx="42" cy="50" rx="7" ry="13" fill="#4a8c3f" transform="rotate(10 42 50)"/>
+  <ellipse cx="35" cy="45" rx="6" ry="12" fill="#6ab55a" transform="rotate(-5 35 45)"/>
+</svg>

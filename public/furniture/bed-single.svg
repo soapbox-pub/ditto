@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" fill="none">
+  <!-- Bed frame -->
+  <rect x="5" y="35" width="130" height="60" rx="4" fill="#a07040"/>
+  <!-- Mattress -->
+  <rect x="10" y="30" width="120" height="40" rx="6" fill="#f0ebe4"/>
+  <!-- Pillow -->
+  <ellipse cx="35" cy="40" rx="18" ry="10" fill="#fff" stroke="#ddd" stroke-width="1"/>
+  <!-- Blanket -->
+  <rect x="10" y="50" width="120" height="22" rx="4" fill="#7ab0d4"/>
+  <!-- Headboard -->
+  <rect x="5" y="15" width="10" height="80" rx="3" fill="#8c5e30"/>
+  <!-- Footboard -->
+  <rect x="125" y="30" width="10" height="65" rx="3" fill="#8c5e30"/>
+</svg>

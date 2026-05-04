@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 100" fill="none">
+  <!-- Base -->
+  <ellipse cx="15" cy="98" rx="10" ry="2" fill="#8c8c8c"/>
+  <!-- Pole -->
+  <rect x="13" y="15" width="4" height="83" fill="#a0a0a0"/>
+  <!-- Shade -->
+  <path d="M3 15 Q15 0 27 15 L24 20 H6 Z" fill="#f5e6b8"/>
+  <rect x="6" y="20" width="18" height="2" fill="#d4c494"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" fill="none">
+  <!-- Outer frame -->
+  <rect x="2" y="2" width="76" height="96" rx="2" fill="#a07040" stroke="#8c5e30" stroke-width="2"/>
+  <!-- Inner mat -->
+  <rect x="10" y="10" width="60" height="80" fill="#f0ebe4"/>
+  <!-- Image area -->
+  <rect x="15" y="15" width="50" height="70" fill="#e0dcd5"/>
+  <!-- Simple mountain/landscape placeholder -->
+  <path d="M15 85 L30 55 L45 70 L55 45 L65 85 Z" fill="#a0c4a0" opacity="0.6"/>
+  <circle cx="55" cy="30" r="6" fill="#f5d678" opacity="0.7"/>
+</svg>

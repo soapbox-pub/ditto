@@ -64,6 +64,7 @@ export {
 } from './lib/poop-system';
 
 export { RoomActionButton } from './components/RoomActionButton';
+export { RoomFurnitureLayer } from './components/RoomFurnitureLayer';
 export { ItemCarousel, type CarouselEntry } from './components/ItemCarousel';
 export { BlobbiRoomHero, type BlobbiRoomHeroProps } from './components/BlobbiRoomHero';
 export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';

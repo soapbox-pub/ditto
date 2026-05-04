@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 100" fill="none">
+  <!-- Shelf plank -->
+  <rect x="5" y="40" width="240" height="10" rx="2" fill="#a07040"/>
+  <!-- Brackets -->
+  <path d="M40 50 L40 70 L55 70" fill="none" stroke="#706050" stroke-width="3" stroke-linecap="round"/>
+  <path d="M210 50 L210 70 L195 70" fill="none" stroke="#706050" stroke-width="3" stroke-linecap="round"/>
+  <!-- Items on shelf -->
+  <rect x="80" y="22" width="14" height="18" rx="1" fill="#5a8abf"/>
+  <rect x="98" y="26" width="12" height="14" rx="1" fill="#bf5a5a"/>
+  <circle cx="150" cy="32" r="8" fill="#7ab55a"/>
+</svg>

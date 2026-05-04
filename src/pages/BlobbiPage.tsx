@@ -119,6 +119,8 @@ import {
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getEffectiveRoomLayout } from '@/blobbi/rooms/lib/room-layout-schema';
+import { parseRoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
+import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
 import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
@@ -975,6 +977,10 @@ function BlobbiDashboard({
   const parsedRoomLayouts = useMemo(() => parseRoomLayoutsContent(profile?.content), [profile?.content]);
   const currentRoomLayout = useMemo(() => getEffectiveRoomLayout(currentRoom, parsedRoomLayouts), [currentRoom, parsedRoomLayouts]);
 
+  // ─── Room Furniture (read-only, decorative) ───
+  const parsedRoomFurniture = useMemo(() => parseRoomFurnitureContent(profile?.content), [profile?.content]);
+  const currentFurniturePlacements = useMemo(() => getEffectiveRoomFurniture(currentRoom, parsedRoomFurniture), [currentRoom, parsedRoomFurniture]);
+
   // ─── Room Layout Editor (save/reset) ───
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
@@ -1563,6 +1569,7 @@ function BlobbiDashboard({
         guideRoomDirection={guideRoomDirection}
         hudVisible={activeDrawer === 'none'}
         roomLayout={currentRoomLayout}
+        furniturePlacements={currentFurniturePlacements}
         editorSlot={
           <BlobbiRoomEditorTrigger onClick={() => setIsRoomEditorOpen(true)} />
         }

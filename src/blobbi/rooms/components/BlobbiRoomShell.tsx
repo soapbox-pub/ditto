@@ -19,6 +19,8 @@ import {
   getPreviousRoom,
   getRoomIndex,
 } from '../lib/room-config';
+import type { FurniturePlacement } from '../lib/room-furniture-schema';
+import { RoomFurnitureLayer } from './RoomFurnitureLayer';
 import {
   generateInitialPoops,
   addPoop as addPoopInstance,
@@ -84,6 +86,8 @@ interface BlobbiRoomShellProps {
   editorOverlay?: React.ReactNode;
   /** Whether the top HUD (room header + stats) is visible. Hide when drawer is open. */
   hudVisible?: boolean;
+  /** Effective furniture placements for the current room (decorative, render-only). */
+  furniturePlacements?: FurniturePlacement[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,6 +114,7 @@ export function BlobbiRoomShell({
   editorSlot,
   editorOverlay,
   hudVisible = true,
+  furniturePlacements,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -223,6 +228,9 @@ export function BlobbiRoomShell({
           />
         </>
       )}
+
+      {/* Furniture layer — three z-stacked sublayers (back/floor/front) */}
+      <RoomFurnitureLayer placements={furniturePlacements} />
 
       {/* Stage overlay — Blobbi visual anchored to the shell's ground line */}
       {stageOverlay && (
