@@ -1396,6 +1396,7 @@ function VineMedia({
   imeta?: { url?: string; thumbnail?: string };
   hashtags: string[];
 }) {
+  const { config } = useAppContext();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1425,13 +1426,26 @@ function VineMedia({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      // Start muted (required by browsers), then sync to shared state once playing
-      video.muted = true;
+      // If the autoplay-videos setting is off, a click-to-play is an explicit
+      // user gesture and should play with sound — consistent with the regular
+      // VideoPlayer. When autoplay is on, browsers require the initial play()
+      // to be muted, so defer to the shared vine mute state.
+      const startMuted = config.autoplayVideos ? isVineMuted() : false;
+      video.muted = startMuted;
       video.play().then(() => {
-        video.muted = isVineMuted();
-        setIsMuted(isVineMuted());
+        // Persist the choice so other vine players (and this one on next play)
+        // follow suit until the user toggles mute again.
+        setVineMuted(startMuted);
+        setIsMuted(startMuted);
       }).catch(() => {
-        // play blocked — leave paused
+        // play blocked — retry muted as a fallback
+        video.muted = true;
+        video.play().then(() => {
+          setVineMuted(true);
+          setIsMuted(true);
+        }).catch(() => {
+          // still blocked — leave paused
+        });
       });
     } else {
       video.pause();
@@ -1464,7 +1478,7 @@ function VineMedia({
             className="w-full max-h-[70vh] object-cover"
             loop
             playsInline
-            muted
+            muted={isMuted}
             preload="none"
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
