@@ -77,7 +77,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   const photo = useMemo(() => parseFirstPhoto(event.tags), [event.tags]);

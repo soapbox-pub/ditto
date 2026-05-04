@@ -216,6 +216,9 @@ export function useInitialSync() {
               if (parsed.useAppRelays !== undefined) {
                 updates.useAppRelays = parsed.useAppRelays;
               }
+              if (parsed.useUserRelays !== undefined) {
+                updates.useUserRelays = parsed.useUserRelays;
+              }
               if (parsed.feedSettings) {
                 updates.feedSettings = {
                   ...current.feedSettings,

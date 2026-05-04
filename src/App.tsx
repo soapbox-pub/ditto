@@ -48,6 +48,7 @@ const hardcodedConfig: AppConfig = {
   theme: "system",
   autoShareTheme: true,
   useAppRelays: true,
+  useUserRelays: false,
   relayMetadata: {
     relays: [],
     updatedAt: 0,
@@ -114,6 +115,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBlobbi: true,
     showBirdstar: true,
     feedIncludeBirdDetections: true,
+    feedIncludeBirdex: true,
     feedIncludeConstellations: true,
     followsFeedShowReplies: true,
   },

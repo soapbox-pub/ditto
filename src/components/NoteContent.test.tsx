@@ -102,6 +102,32 @@ describe('NoteContent', () => {
     expect(bitcoinHashtag).toHaveAttribute('href', '/t/bitcoin');
   });
 
+  it('renders hashtags containing internal hyphens as a single link', async () => {
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      // `#70-706` is a full hashtag; `#nostr-` has a trailing hyphen that should be excluded.
+      content: 'Reporte #70-706 from #nostr- community.',
+      sig: 'test-sig',
+    };
+
+    render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    const codeHashtag = await screen.findByRole('link', { name: '#70-706' });
+    expect(codeHashtag).toHaveAttribute('href', '/t/70-706');
+
+    // Trailing hyphen must not be captured into the hashtag.
+    const nostrHashtag = screen.getByRole('link', { name: '#nostr' });
+    expect(nostrHashtag).toHaveAttribute('href', '/t/nostr');
+  });
+
   it('generates deterministic names for users without metadata and styles them differently', async () => {
     // Use a valid npub for testing
     const event: NostrEvent = {

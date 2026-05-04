@@ -158,6 +158,8 @@ export interface FeedSettings {
   showBirdstar: boolean;
   /** Include bird detections (kind 2473) in the follows/global feed */
   feedIncludeBirdDetections: boolean;
+  /** Include Birdex life lists (kind 12473) in the follows/global feed */
+  feedIncludeBirdex: boolean;
   /** Include custom constellations (kind 30621) in the follows/global feed */
   feedIncludeConstellations: boolean;
   /** Include replies in the follows feed (default: true) */
@@ -222,6 +224,13 @@ export interface AppConfig {
   relayMetadata: RelayMetadata;
   /** Whether to use app default relays in addition to user relays */
   useAppRelays: boolean;
+  /**
+   * Whether to include the user's personal NIP-65 relay list in the effective relay set.
+   * Defaults to `false` — users must opt-in via Settings → Network to actually connect
+   * to their own relays. Until enabled, only the app-default relays are used (assuming
+   * `useAppRelays` is true).
+   */
+  useUserRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
   /** Ordered list of sidebar item IDs (built-in + extra-kind). */

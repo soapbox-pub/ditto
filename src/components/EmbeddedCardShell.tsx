@@ -44,7 +44,7 @@ export function EmbeddedCardShell({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (

@@ -25,7 +25,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   const [copied, setCopied] = useState(false);
 
   const metadata = author.data?.metadata;
-  const displayName = user ? metadata?.name || genUserName(user.pubkey) : '';
+  const displayName = user ? metadata?.name || metadata?.display_name || genUserName(user.pubkey) : '';
 
   const npub = user ? nip19.npubEncode(user.pubkey) : '';
   const followUrl = npub ? `${shareOrigin}/follow/${npub}` : '';

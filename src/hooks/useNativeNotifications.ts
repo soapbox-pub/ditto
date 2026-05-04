@@ -77,7 +77,7 @@ export function useNativeNotifications(): void {
       return;
     }
 
-    const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
+    const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays);
     const relayUrls = effectiveRelays.relays
       .filter((r) => r.read)
       .map((r) => r.url);
@@ -91,5 +91,5 @@ export function useNativeNotifications(): void {
       notificationStyle,
       ...(authorsFilter ? { authors: authorsFilter } : {}),
     });
-  }, [user, config.relayMetadata, config.useAppRelays, notificationsEnabled, notificationStyle, enabledKinds, authorsFilter]);
+  }, [user, config.relayMetadata, config.useAppRelays, config.useUserRelays, notificationsEnabled, notificationStyle, enabledKinds, authorsFilter]);
 }

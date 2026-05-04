@@ -44,7 +44,7 @@ function PageSkeleton() {
         </div>
       </main>
       {/* Right sidebar placeholder — preserves layout width */}
-      <div className="w-[300px] shrink-0 hidden xl:block" />
+      <div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />
     </>
   );
 }
@@ -74,9 +74,7 @@ function MainLayoutInner() {
       {/* Main layout - three column on desktop */}
       <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
-        <div className="hidden sidebar:block">
-          <LeftSidebar />
-        </div>
+        <LeftSidebar />
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
@@ -107,7 +105,7 @@ function MainLayoutInner() {
             )}
           </div>
           {/* Right sidebar — render page-provided sidebar, or the widget sidebar */}
-          {rightSidebar ?? <Suspense fallback={<div className="w-[300px] shrink-0 hidden xl:block" />}><WidgetSidebar /></Suspense>}
+          {rightSidebar ?? <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}><WidgetSidebar /></Suspense>}
         </Suspense>
       </div>
 

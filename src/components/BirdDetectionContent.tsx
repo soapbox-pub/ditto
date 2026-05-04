@@ -51,9 +51,26 @@ function extractAltSpecies(tags: string[][]): { common?: string; scientific?: st
   return { common: m[1]?.trim(), scientific: m[2]?.trim() };
 }
 
+/** Extract the scientific name from the `n` tag (Birdstar NIP §"Kind 2473" — the
+ * authoritative scientific-name field, added so clients can label a detection
+ * without round-tripping Wikidata). Falls through to parsing the `alt` tag for
+ * older events authored before `n` was part of the NIP. */
+function extractScientificName(
+  tags: string[][],
+  altScientific: string | undefined,
+): string | undefined {
+  const n = tags.find(([name]) => name === 'n')?.[1];
+  if (typeof n === 'string' && n.trim()) return n.trim();
+  return altScientific;
+}
+
 export function BirdDetectionContent({ event, className }: BirdDetectionContentProps) {
   const wikidata = useMemo(() => extractWikidata(event.tags), [event.tags]);
   const altSpecies = useMemo(() => extractAltSpecies(event.tags), [event.tags]);
+  const scientificName = useMemo(
+    () => extractScientificName(event.tags, altSpecies?.scientific),
+    [event.tags, altSpecies?.scientific],
+  );
   const note = event.content.trim();
 
   // Resolve Wikidata → English Wikipedia title, then fetch the Wikipedia
@@ -68,7 +85,6 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
   // but fall back to the species parsed from the `alt` tag so the card is
   // still meaningful while the Wikipedia fetch is in flight (or has failed).
   const commonName = summary?.title ?? altSpecies?.common ?? 'Unknown species';
-  const scientificName = altSpecies?.scientific;
   const extract = summary?.extract;
   const thumbnail = sanitizeUrl(summary?.thumbnail?.source);
   const articleUrl = sanitizeUrl(summary?.articleUrl);

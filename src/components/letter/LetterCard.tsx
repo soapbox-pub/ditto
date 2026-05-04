@@ -54,7 +54,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
 
-  const displayName = author.data?.metadata?.name || genUserName(otherPubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(otherPubkey);
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 

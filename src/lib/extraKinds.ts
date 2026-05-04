@@ -497,6 +497,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
   },
   {
+    kind: 12473,
+    id: 'birdex',
+    feedKey: 'feedIncludeBirdex',
+    label: 'Birdex',
+    description: 'Cumulative life list of every species a user has ever identified',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Birdex — an author\'s cumulative life list of every species they have ever identified, in chronological order of first detection.',
+    sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
+  },
+  {
     kind: 30621,
     id: 'constellations',
     feedKey: 'feedIncludeConstellations',
@@ -604,6 +616,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   35128: Globe,
   30817: CircleAlert,
   2473: Bird,
+  12473: Bird,
   30621: Stars,
 };
 

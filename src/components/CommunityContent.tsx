@@ -50,7 +50,7 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.display_name || metadata?.name || genUserName(pubkey);
+  const name = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
@@ -89,7 +89,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   const ownerAuthor = useAuthor(event.pubkey);
   const ownerMetadata = ownerAuthor.data?.metadata;
   const ownerAvatarShape = getAvatarShape(ownerMetadata);
-  const ownerName = ownerMetadata?.display_name || ownerMetadata?.name || genUserName(event.pubkey);
+  const ownerName = ownerMetadata?.name || ownerMetadata?.display_name || genUserName(event.pubkey);
   const ownerProfileUrl = useProfileUrl(event.pubkey, ownerMetadata);
 
   // Extract website URL from description if present

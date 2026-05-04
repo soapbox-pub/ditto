@@ -22,6 +22,7 @@ import {
   BookContentHeader,
   CountryContentHeader,
 } from '@/components/ExternalContentHeader';
+import { BitcoinTxHeader, BitcoinAddressHeader } from '@/components/BitcoinContentHeader';
 import { PrecipitationEffect } from '@/components/PrecipitationEffect';
 import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
 import { ratingToStars } from '@/lib/bookstr';
@@ -199,8 +200,11 @@ export function ExternalContentPage() {
   useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
-  // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) a #-prefixed string
-  // is passed to useComments for querying but cannot be used with ComposeBox/ReplyComposeModal.
+  // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) the raw identifier
+  // is passed to useComments for querying. The `#${string}` type is a marker for "non-URL
+  // external identifier" — the runtime value is the plain identifier (e.g. `iso3166:VE`),
+  // matching the format used in NIP-73 `I`/`i` tag values and consistent with PostDetailPage
+  // and ComposeBox. ComposeBox/ReplyComposeModal do not accept this type.
   const commentRootUrl = useMemo((): URL | undefined => {
     if (!content || content.type !== 'url') return undefined;
     try { return new URL(content.value); } catch { return undefined; }
@@ -208,7 +212,7 @@ export function ExternalContentPage() {
 
   const commentRootId = useMemo((): `#${string}` | undefined => {
     if (!content || content.type === 'url') return undefined;
-    return `#${content.value}` as `#${string}`;
+    return content.value as `#${string}`;
   }, [content]);
 
   const commentRoot: URL | `#${string}` | undefined = commentRootUrl ?? commentRootId;
@@ -287,6 +291,8 @@ export function ExternalContentPage() {
         {content.type === 'url' && <UrlContentHeader url={content.value} />}
         {content.type === 'isbn' && <BookContentHeader isbn={content.value} />}
         {content.type === 'iso3166' && <CountryContentHeader code={content.code} />}
+        {content.type === 'bitcoin-tx' && <BitcoinTxHeader txid={content.txid} />}
+        {content.type === 'bitcoin-address' && <BitcoinAddressHeader address={content.address} />}
         {content.type === 'unknown' && (
           <div className="rounded-2xl border border-border p-5 text-center">
             <Globe className="size-8 mx-auto mb-2 text-muted-foreground/40" />

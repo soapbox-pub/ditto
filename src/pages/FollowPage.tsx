@@ -182,7 +182,7 @@ function FollowView({ pubkey }: { pubkey: string }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
   const bannerUrl = metadata?.banner;
   const { startSignup } = useOnboarding();
@@ -371,7 +371,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
 
   const author = useAuthor(addr.pubkey);
   const authorMeta = author.data?.metadata;
-  const authorName = authorMeta?.name || genUserName(addr.pubkey);
+  const authorName = authorMeta?.name || authorMeta?.display_name || genUserName(addr.pubkey);
 
   const { title, description, image, pubkeys } = useMemo(
     () => (event ? parsePackEvent(event) : { title: 'Loading...', description: '', image: undefined, pubkeys: [] }),
@@ -490,7 +490,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
             <div className="flex -space-x-3 mb-3">
               {pubkeys.slice(0, 5).map((pk) => {
                 const member = membersMap?.get(pk);
-                const name = member?.metadata?.name || genUserName(pk);
+                const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
                 const shape = getAvatarShape(member?.metadata);
                 return (
                   <Avatar key={pk} shape={shape} className="size-12 border-2 border-background shadow-md">

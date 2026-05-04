@@ -20,7 +20,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const pool = useRef<NPool | undefined>(undefined);
 
   // Use refs so the pool always has the latest data
-  const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays));
+  const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
 
   // Stable ref to the current user's signer for NIP-42 AUTH.
   // The `open()` callback reads from this ref when a relay sends an AUTH
@@ -64,8 +64,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // the next natural refetch. Blanket invalidation caused a disruptive
   // full-feed rerender ~3s after page load when NostrSync synced relays.
   useEffect(() => {
-    effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-  }, [config.relayMetadata, config.useAppRelays]);
+    effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays);
+  }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
   // Initialize NPool only once
   if (!pool.current) {

@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Bird,
+  Bitcoin,
   Camera,
   Egg,
   FileCode,
@@ -57,6 +58,7 @@ import { PeopleListContent } from "@/components/PeopleListContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -103,7 +105,6 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
-import { canZap } from "@/lib/canZap";
 import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
@@ -340,8 +341,10 @@ export const NoteCard = memo(function NoteCard({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
-  // Check if the current user can zap this event's author
-  const canZapAuthor = user && canZap(metadata);
+  // Zap button shows for any logged-in user except on their own posts.
+  // On-chain zaps are always available; Lightning is offered inside the dialog
+  // when the author has lud06/lud16.
+  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
@@ -388,6 +391,7 @@ export const NoteCard = memo(function NoteCard({
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isBirdDetection = event.kind === 2473;
+  const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
@@ -438,6 +442,7 @@ export const NoteCard = memo(function NoteCard({
     !isFoundLog &&
     !isColor &&
     !isBirdDetection &&
+    !isBirdex &&
     !isConstellation &&
     !isPeopleList &&
     !isArticle &&
@@ -593,6 +598,8 @@ export const NoteCard = memo(function NoteCard({
           <ColorMomentContent event={event} />
         ) : isBirdDetection ? (
           <BirdDetectionContent event={event} />
+        ) : isBirdex ? (
+          <BirdexContent event={event} />
         ) : isConstellation ? (
           <ConstellationContent event={event} />
         ) : isPeopleList ? (
@@ -1825,6 +1832,10 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Zap,
     action: "zapped",
   },
+  8333: {
+    icon: Bitcoin,
+    action: "Bitcoin-zapped",
+  },
   31124: {
     icon: Egg,
     action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
@@ -1882,7 +1893,7 @@ export function EventActionHeader({
   nounRoute,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
   const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (

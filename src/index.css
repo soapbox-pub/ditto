@@ -838,3 +838,8 @@
   100% { transform: scale(2.2); opacity: 0; }
 }
 
+@keyframes vomit-fall {
+  0%   { transform: translate(-50%, -100%) translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -100%) translate(var(--vomit-dx), var(--vomit-dy)) scale(1); opacity: 1; }
+}
+
