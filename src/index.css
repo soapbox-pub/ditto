@@ -505,13 +505,6 @@
   animation: social-heart-float 3.5s ease-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-social-heart-float {
-    animation: none !important;
-    opacity: 0 !important;
-  }
-}
-
 /* ─── Interaction Reaction Animations ────────────────────────────────────────── */
 
 /* Happy wiggle — gentle sway triggered by feeding */
@@ -581,14 +574,55 @@
   animation: reaction-bubble-backdrop 1.1s ease-out forwards;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-reaction-wiggle,
-  .animate-reaction-bounce {
-    animation: none !important;
+/* ─── Crumb Burst (food-drag chewing feedback) ───────────────────────────────── */
+
+@keyframes crumb-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
   }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.3);
+  }
+}
+
+.animate-crumb-fall {
+  animation: crumb-fall 1100ms ease-out forwards;
+}
+
+/* Floating reward word that drifts upward and fades out */
+@keyframes reward-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scale(0.9);
+  }
+}
+
+.animate-reward-pop {
+  animation: reward-pop 1100ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-social-heart-float,
+  .animate-reaction-wiggle,
+  .animate-reaction-bounce,
   .animate-reaction-sparkle,
   .animate-reaction-bubble,
-  .animate-reaction-bubble-backdrop {
+  .animate-reaction-bubble-backdrop,
+  .animate-crumb-fall,
+  .animate-reward-pop {
     animation: none !important;
     opacity: 0 !important;
   }

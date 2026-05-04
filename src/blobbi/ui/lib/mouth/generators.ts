@@ -411,6 +411,117 @@ export function generateSleepyMouth(centerX: number, centerY: number): string {
   </ellipse>`;
 }
 
+// ─── Action-Mouth Geometry (shared by eating + chewing) ───────────────────────
+
+/**
+ * Geometry returned by {@link computeActionMouthGeometry}.
+ */
+export interface ActionMouthGeometry {
+  cx: number;
+  cy: number;
+  rx: number;
+  ryEating: number;
+  ryChewOpen: number;
+  ryChewClosed: number;
+}
+
+/**
+ * Compute a variant-aware action-mouth geometry from the detected neutral
+ * mouth.  Both the eating and chewing generators use this so they share
+ * the same anchor and compatible sizes.
+ *
+ * **cy** is placed at 55 % of the way from the baseline (lip endpoints)
+ * to the Bézier control point.  For a quadratic curve this lands very
+ * close to the visual midpoint of the arc — much more accurate than
+ * using `controlY` directly, which overshoots downward on deep smiles.
+ *
+ * **rx** scales modestly from the detected mouth width (×0.18, clamped
+ * 4–9) so wide mouths (Froggi) get a proportional but not oversized
+ * ellipse, and narrow mouths stay at 4 px (same as babies).
+ */
+export function computeActionMouthGeometry(mouth: MouthPosition): ActionMouthGeometry {
+  const cx = (mouth.startX + mouth.endX) / 2;
+  const baselineY = (mouth.startY + mouth.endY) / 2;
+  const curveDepth = mouth.controlY - baselineY;
+  const cy = baselineY + curveDepth * 0.55;
+
+  const halfWidth = Math.abs(mouth.endX - mouth.startX) / 2;
+  const rx = Math.min(9, Math.max(4, halfWidth * 0.18));
+
+  return {
+    cx,
+    cy,
+    rx,
+    ryEating: rx * 1.2,
+    ryChewOpen: rx * 1.0,
+    ryChewClosed: Math.max(1, rx * 0.2),
+  };
+}
+
+// ─── Eating Mouth ─────────────────────────────────────────────────────────────
+
+/**
+ * Generate a static "open mouth" ellipse for the eating state (food near
+ * Blobbi's mouth during drag).  Uses the shared action-mouth geometry so
+ * size and position are consistent with the chewing mouth that follows.
+ *
+ * Emits `data-blobbi-mouth="1"` for DOM-based crumb positioning.
+ */
+export function generateEatingMouth(mouth: MouthPosition): string {
+  const g = computeActionMouthGeometry(mouth);
+
+  return `<ellipse
+    class="blobbi-mouth blobbi-mouth-eating"
+    data-blobbi-mouth="1"
+    cx="${g.cx}" cy="${g.cy}"
+    rx="${g.rx}" ry="${g.ryEating}"
+    fill="#1f2937"
+  />`;
+}
+
+// ─── Chewing Mouth ────────────────────────────────────────────────────────────
+
+/**
+ * Duration of one chewing chomp cycle in seconds.
+ * Used by both the SMIL mouth animation and the synchronized feeding sound.
+ * ~300ms per cycle → fast enough to look like chewing.
+ */
+export const CHEW_CYCLE_SEC = 0.3;
+
+/**
+ * Generate a chewing/chomping mouth SVG.
+ *
+ * Uses SMIL animation on the vertical radius (`ry`) to cycle between
+ * an open mouth and a nearly-closed mouth, producing a rhythmic chomping
+ * effect.  The animation runs indefinitely (capped by the emotion timeout
+ * in the React layer).
+ *
+ * Shares anchor and sizing with {@link generateEatingMouth} via
+ * {@link computeActionMouthGeometry} so the eating → chewing transition
+ * feels natural (same position, slightly smaller vertical radius).
+ *
+ * Emits `data-blobbi-mouth="1"` for DOM-based crumb positioning.
+ *
+ * @param mouth - Detected mouth position from the neutral SVG
+ */
+export function generateChewingMouth(mouth: MouthPosition): string {
+  const g = computeActionMouthGeometry(mouth);
+
+  const dur = CHEW_CYCLE_SEC;
+
+  return `<ellipse
+    class="blobbi-mouth blobbi-mouth-chewing"
+    data-blobbi-mouth="1"
+    cx="${g.cx}" cy="${g.cy}"
+    rx="${g.rx}" ry="${g.ryChewOpen}"
+    fill="#1f2937"
+  >
+    <animate attributeName="ry" values="${g.ryChewOpen};${g.ryChewClosed};${g.ryChewOpen}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+  </ellipse>`;
+}
+
+// ─── Sleepy Mouth ─────────────────────────────────────────────────────────────
+
 /**
  * Apply the canonical sleepy mouth to a Blobbi SVG.
  * 

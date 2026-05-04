@@ -28,6 +28,14 @@ interface ItemCarouselProps {
   highlightId?: string | null;
   /** When set, seeds the initial index to this item's position. */
   initialItemId?: string | null;
+  /** Optional pointer-down handler forwarded to the center (focused) item.
+   *  Used by KitchenBar for food drag-to-feed. Receives the currently focused
+   *  entry so the caller doesn't need to track index state.  After pointerdown,
+   *  the drag hook owns the lifecycle via global window listeners — the button
+   *  does not need onPointerMove / onPointerUp / onPointerCancel. */
+  centerPointerHandlers?: {
+    onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => void;
+  };
   className?: string;
 }
 
@@ -40,10 +48,11 @@ export function ItemCarousel({
   disabled,
   onFocusChange,
   highlightId,
+  centerPointerHandlers,
   initialItemId,
   className,
 }: ItemCarouselProps) {
- const [index, setIndex] = useState(() => {
+  const [index, setIndex] = useState(() => {
     if (initialItemId) {
       const i = items.findIndex(item => item.id === initialItemId);
       if (i !== -1) return i;
@@ -102,14 +111,14 @@ export function ItemCarousel({
   const highlightArrow = useMemo<'left' | 'right' | null>(() => {
     if (!highlightId || count < 2) return null;
     const targetIdx = items.findIndex(i => i.id === highlightId);
-    if (targetIdx === -1 || targetIdx === index) return null;
+    if (targetIdx === -1 || targetIdx === safeIndex) return null;
 
-    const rightDist = (targetIdx - index + count) % count;
-    const leftDist = (index - targetIdx + count) % count;
+    const rightDist = (targetIdx - safeIndex + count) % count;
+    const leftDist = (safeIndex - targetIdx + count) % count;
     return rightDist <= leftDist ? 'right' : 'left';
-  }, [highlightId, items, index, count]);
+  }, [highlightId, items, safeIndex, count]);
 
-  const isHighlightFocused = !!highlightId && items[index]?.id === highlightId;
+  const isHighlightFocused = !!highlightId && items[safeIndex]?.id === highlightId;
 
   if (count === 0) {
     return (
@@ -152,8 +161,10 @@ export function ItemCarousel({
       )}
 
       <button
-        onClick={() => onUse(current.id)}
+        onClick={centerPointerHandlers ? undefined : () => onUse(current.id)}
+        onPointerDown={centerPointerHandlers ? (e: React.PointerEvent<HTMLButtonElement>) => centerPointerHandlers.onPointerDown(e, current) : undefined}
         disabled={disabled}
+        data-food-drag={centerPointerHandlers ? '' : undefined}
         className={cn(
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
           'w-20 h-[4.5rem] sm:w-24 sm:h-[5.5rem] rounded-2xl',
@@ -162,6 +173,7 @@ export function ItemCarousel({
           isThisActive && 'bg-accent/40',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
           isHighlightFocused && 'ring-2 ring-primary/60',
+          centerPointerHandlers && 'touch-none',
         )}
         style={isHighlightFocused ? { animation: 'guide-glow-slow 1.1s linear infinite' } as CSSProperties : undefined}
       >

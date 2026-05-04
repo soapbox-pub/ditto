@@ -104,6 +104,7 @@ import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/com
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import { playMunchSound } from '@/blobbi/ui/lib/munchSound';
 import {
   BlobbiRoomShell,
   BlobbiRoomHero,
@@ -126,6 +127,7 @@ import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
+import { useFoodDrag, type UseFoodDragReturn } from '@/blobbi/rooms/hooks/useFoodDrag';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
@@ -1105,6 +1107,9 @@ function BlobbiDashboard({
   // DEV ONLY: Get effective emotion (dev override or base)
   const devEmotionOverride = useEffectiveEmotion();
   
+  // Temporary action override used by drag-to-feed / chewing flow.
+  const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
+
   // Music/sing override — persistent while the activity is active (not auto-clearing).
   // Separate from interactionReaction because music is a duration-based activity,
   // not a short reward reaction.
@@ -1115,7 +1120,7 @@ function BlobbiDashboard({
   // Body effects (dirt, stink) are folded into the recipe by the resolver —
   // no separate bodyEffects prop needed.
   //
-  // Override priority: interaction reaction > music override > status reactions.
+  // Override priority: action override > interaction reaction > music override > status reactions.
   const currentStats = useMemo(() => ({
     hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
     happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
@@ -1125,7 +1130,10 @@ function BlobbiDashboard({
   }), [projectedState, companion.stats]);
   
   // Combined emotion override: interaction reaction wins over music.
-  const combinedEmotionOverride = interactionReaction.emotionOverride ?? musicOverrideEmotion;
+  const combinedEmotionOverride =
+  actionOverrideEmotion ??
+  interactionReaction.emotionOverride ??
+  musicOverrideEmotion;
 
   const { recipe: rawStatusRecipe, recipeLabel: rawStatusRecipeLabel } = useStatusReaction({
     stats: currentStats,
@@ -1454,13 +1462,20 @@ function BlobbiDashboard({
     }, 1500);
   }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
-  // Handle using an item from the items tab.
+  // Shared timer ref for temporary action-emotion cleanup.
+  // Used across the current feeding/item interaction paths so older timers
+  // do not clear a newer visual state.
+  const actionCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Handle tap-based item use.
+  // Non-food actions use this path from room bars, and the fridge still uses it for food for now.
   // Triggers a temporary interaction reaction based on the action type.
   // For 'clean' actions, detects whether the Blobbi was visibly dirty before
   // the action and uses 'clean_complete' if the dirt was fully removed.
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
+    clearTimeout(actionCleanupRef.current);
     setUsingItemId(itemId);
 
     // Snapshot hygiene before the action for clean_complete detection.
@@ -1500,8 +1515,214 @@ function BlobbiDashboard({
       }
     }).finally(() => {
       setUsingItemId(null);
+      actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
   };
+
+  // ─── Food drag-to-feed ───────────────────────────────────────────────────
+  //
+  // Timing constants — tweak these to tune how the feed reward feels.
+  const CHEW_DURATION_MS = 1200;   // chewing animation before → happy
+  const CRUMB_DURATION_MS = 1200;  // how long crumb particles stay visible
+  const HAPPY_DURATION_MS = 1500;  // happy face after chewing
+  const CRUMB_Y_OFFSET = 4;      // px below the mouth center where crumbs spawn
+  const REWARD_Y_RATIO = 0.08;    // fraction of visual height from top for reward text
+  //
+  // Visual sequence:
+  //   eating (open mouth) → chewing + crumbs (CHEW_DURATION_MS) → happy (HAPPY_DURATION_MS) → null
+  // Mutation timing:  starts immediately on drop — no delay.
+  //
+  // The chewing phase is purely visual. The mutation fires right away so
+  // Nostr publishing and stat changes are not blocked by the animation.
+  // If the mutation fails, we skip the happy phase and clear the override.
+  //
+  // Race-condition strategy:
+  //   feedSeqRef  — monotonically increasing counter. Every timer and promise
+  //                 continuation captures the value at invocation and bails
+  //                 out if a newer sequence has started.
+  //   mountedRef  — set to false on unmount. All continuations check this
+  //                 before calling setState.
+
+  const [crumbBurst, setCrumbBurst] = useState<{
+    crumbX: number; crumbY: number;   // crumb particle origin (just below the mouth)
+    rewardX: number; rewardY: number; // reward text anchor (above the head)
+  } | null>(null);
+
+  const feedSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  // Timer refs for chew→happy transition, happy→null cleanup, crumb cleanup,
+  // and a hard safety timeout that prevents chewing from getting stuck.
+  const chewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const happyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const crumbTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearFeedTimers = useCallback(() => {
+    clearTimeout(actionCleanupRef.current);
+    actionCleanupRef.current = undefined;
+    clearTimeout(chewTimerRef.current);
+    chewTimerRef.current = undefined;
+    clearTimeout(happyTimerRef.current);
+    happyTimerRef.current = undefined;
+    clearTimeout(crumbTimerRef.current);
+    crumbTimerRef.current = undefined;
+    clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = undefined;
+  }, []);
+
+  // Clean up all feed timers and mark unmounted.
+  useEffect(() => () => {
+    mountedRef.current = false;
+    clearFeedTimers();
+  }, [clearFeedTimers]);
+
+  const handleNearMouthChange = useCallback((near: boolean) => {
+    setActionOverrideEmotion(near ? 'eating' : null);
+  }, []);
+
+  /** Drag-to-feed handler: fires mutation immediately, overlays chewing
+   *  animation for CHEW_DURATION_MS, then transitions to happy if the
+   *  mutation succeeded, or clears the override on failure.
+   *
+   *  Every async continuation (timer callbacks, .then, .finally) captures
+   *  the current `seq` value and checks `seq === feedSeqRef.current` before
+   *  writing state. If a newer sequence has started (or the component
+   *  unmounted), the continuation is a no-op. */
+  const handleFeedFromDrag = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    if (!action || isUsingItem) return;
+
+    // Cancel any in-flight feed animation timers from a prior sequence.
+    clearFeedTimers();
+
+    // Stamp this sequence so all continuations can verify ownership.
+    const seq = ++feedSeqRef.current;
+
+    /** Guard: returns true only when this sequence is still active and
+     *  the component is mounted. Every continuation calls this before
+     *  touching React state. */
+    const isActive = () => mountedRef.current && seq === feedSeqRef.current;
+
+    // ── Overfeed check (must run before the mutation fires) ──
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
+
+    // ── Lock + visual + audio ──
+    setUsingItemId(itemId);
+    setActionOverrideEmotion('chewing');
+    playMunchSound();
+
+    // Spawn crumb particles just below the mouth, and anchor the reward
+    // text above the head.
+    //
+    // The crumb origin is read from the actual chewing-mouth element
+    // (marked with data-blobbi-mouth) so crumbs align with the real
+    // mouth regardless of adult variant.  Falls back to the visual
+    // bounding box ratio when the marker is absent (e.g. Owli/beak).
+    //
+    // Wrapped in requestAnimationFrame so the DOM query runs *after*
+    // React has committed the chewing mouth from the state update above.
+    // Without this, the query would see the previous eating/neutral
+    // mouth (or no marker at all) because React 18 batches setState.
+    //
+    // Reward text: always anchored above the head via the visual rect.
+    const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
+    if (el) {
+      requestAnimationFrame(() => {
+        if (!isActive()) return;
+
+        const r = el.getBoundingClientRect();
+        const mouthEl = el.querySelector<SVGElement>('[data-blobbi-mouth]');
+        let crumbOriginX: number;
+        let crumbOriginY: number;
+        if (mouthEl) {
+          const mr = mouthEl.getBoundingClientRect();
+          crumbOriginX = mr.left + mr.width / 2;
+          crumbOriginY = mr.top + mr.height / 2 + CRUMB_Y_OFFSET;
+        } else {
+          crumbOriginX = r.left + r.width * 0.5;
+          crumbOriginY = r.top + r.height * 0.67 + CRUMB_Y_OFFSET;
+        }
+
+        setCrumbBurst({
+          crumbX: crumbOriginX,
+          crumbY: crumbOriginY,
+          rewardX: r.left + r.width * 0.5,
+          rewardY: r.top + r.height * REWARD_Y_RATIO,
+        });
+        crumbTimerRef.current = setTimeout(() => {
+          if (isActive()) setCrumbBurst(null);
+        }, CRUMB_DURATION_MS);
+      });
+    }
+
+    // ── Mutation starts NOW — no delay ──
+    //
+    // Two async boundaries must both complete before the post-chew
+    // transition fires:
+    //   1. The CHEW_DURATION_MS chewing timer  (visual minimum)
+    //   2. The onUseItem promise               (mutation)
+    //
+    // `mutationResult` is 'pending' until the promise settles, then
+    // 'ok' or 'failed'. `chewDone` flips to true when the timer fires.
+    // Whichever boundary fires second sees both flags set and calls
+    // `tryTransition()`, which applies the correct emotion once.
+
+    let mutationResult: 'pending' | 'ok' | 'failed' = 'pending';
+    let chewDone = false;
+
+    /** Apply the post-chew emotion. Only called when BOTH the chew timer
+     *  has elapsed AND the mutation has settled. Guarded by isActive(). */
+    const tryTransition = () => {
+      if (!chewDone || mutationResult === 'pending') return;
+      if (!isActive()) return;
+      // Normal flow completed — cancel the safety timeout.
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = undefined;
+      if (mutationResult === 'ok') {
+        setActionOverrideEmotion('happy');
+        happyTimerRef.current = setTimeout(() => {
+          if (isActive()) setActionOverrideEmotion(null);
+        }, HAPPY_DURATION_MS);
+      } else {
+        setActionOverrideEmotion(null);
+      }
+    };
+
+    onUseItem(itemId, action).then(
+      () => {
+        mutationResult = 'ok';
+        if (isActive() && guideTarget?.targetItemId === itemId) {
+          setGuideTarget(null);
+        }
+      },
+      () => { mutationResult = 'failed'; },
+    ).finally(() => {
+      if (isActive()) setUsingItemId(null);
+      tryTransition();
+    });
+
+    // ── After chewing phase, check if mutation also settled ──
+    chewTimerRef.current = setTimeout(() => {
+      chewDone = true;
+      tryTransition();
+    }, CHEW_DURATION_MS);
+
+    // ── Hard safety timeout ──
+    // If the mutation promise never settles (network hang, relay timeout,
+    // TanStack Query edge case), chewing would stay on forever.  This
+    // forces a clear after 5 seconds regardless.  Cleared by tryTransition
+    // when the normal flow completes, and by clearFeedTimers on new
+    // sequence / unmount.
+    safetyTimerRef.current = setTimeout(() => {
+      if (isActive()) {
+        setActionOverrideEmotion(null);
+        setUsingItemId(null);
+      }
+    }, 5000);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
+
+  const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
   
   return (
     <DashboardShell>
@@ -1698,10 +1919,39 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
+            foodDragHook={foodDragHook}
             carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
           />
         )}
       </BlobbiRoomShell>
+
+      {/* ─── Food drag ghost overlay ─── */}
+      {foodDragHook.drag && (
+        <div
+          ref={foodDragHook.ghostRef}
+          className="fixed pointer-events-none z-[60]"
+          style={{
+            left: foodDragHook.drag.startX,
+            top: foodDragHook.drag.startY,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <span className="text-4xl sm:text-5xl drop-shadow-lg transition-transform duration-150">
+            {foodDragHook.drag.emoji}
+          </span>
+        </div>
+      )}
+
+      {/* ─── Crumb burst overlay (chewing feedback) ─── */}
+      {crumbBurst && (
+        <CrumbBurst
+          key={feedSeqRef.current}
+          crumbX={crumbBurst.crumbX}
+          crumbY={crumbBurst.crumbY}
+          rewardX={crumbBurst.rewardX}
+          rewardY={crumbBurst.rewardY}
+        />
+      )}
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -1821,6 +2071,8 @@ interface RoomBottomBarProps {
   guideHighlightId?: string | null;
   /** Action to glow (guide flow, e.g. 'sleep'). */
   guideActionGlow?: string | null;
+  /** Food drag hook for drag-to-feed in the kitchen. */
+  foodDragHook?: UseFoodDragReturn;
   /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
   carouselKeyPrefix: string;
 }
@@ -1940,6 +2192,28 @@ const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   energy: Zap,
 };
 
+/**
+ * Shared overfeed check.  Call synchronously at the moment of feeding,
+ * before the mutation fires, so `hungerBefore` captures the pre-feed value.
+ *
+ * Both the tap-to-feed (`handleFeedItem`) and drag-to-feed
+ * (`handleFeedFromDrag`) paths must call this to keep poop behaviour
+ * consistent.
+ */
+function maybeOverfeedPoop(
+  action: string | null | undefined,
+  hungerBefore: number,
+  poopState: PoopState | null,
+): void {
+  if (
+    action === 'feed' &&
+    hungerBefore >= OVERFEED_THRESHOLD &&
+    Math.random() < OVERFEED_CHANCE
+  ) {
+    poopState?.addPoop('overfeed');
+  }
+}
+
 function KitchenBar({
   companion,
   currentStats,
@@ -1951,6 +2225,7 @@ function KitchenBar({
   poopStateRef,
   guideHighlightId,
   guideActionGlow,
+  foodDragHook,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
@@ -1973,16 +2248,27 @@ function KitchenBar({
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
-  // Feed-with-overfeed: wrap handleUseItemFromTab to trigger poop on overfeed
+  // Current tap-based feed path.
+  // Reuses handleUseItemFromTab and injects the overfeed check first.
   const handleFeedItem = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
-    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
     handleUseItemFromTab(itemId);
-    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
-      poopState?.addPoop('overfeed');
-    }
   }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
 
+  // Build pointer-down handler for food drag-to-feed.
+  // After pointerdown, the drag hook owns the lifecycle via global window
+  // listeners — the carousel button plays no further role.
+  const centerPointerHandlers = useMemo(() => {
+    if (!foodDragHook || foodEntries.length === 0 || isDisabled) return undefined;
+    const { onDragStart: start } = foodDragHook;
+    return {
+      onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => {
+        const rawItem = foodItems.find(i => i.id === entry.id);
+        start(e, entry.id, rawItem?.icon ?? '🍽');
+      },
+    };
+  }, [foodDragHook, foodEntries.length, foodItems, isDisabled]);
   return (
     <>
       <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
@@ -2059,6 +2345,7 @@ function KitchenBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              centerPointerHandlers={centerPointerHandlers}
               initialItemId={storedFocusId ?? undefined}
               onFocusChange={handleFocusChange}
             />
@@ -2917,6 +3204,101 @@ function DashboardLoadingState() {
         </div>
       </div>
     </DashboardShell>
+  );
+}
+
+// ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
+
+/** Reward words — one is picked at random on each feed. */
+const REWARD_WORDS = [
+  'nhom!', 'nom nom!', 'yum!', 'yum yum!', 'mmm~',
+  'munch!', 'cronch!', 'tasty!', 'hehe!', '\u2661',
+] as const;
+
+/**
+ * Crumb particle configs — 12 small dots that spawn from a compact
+ * mouth-shaped strip and tumble mostly downward.
+ *
+ * `sx`/`sy` — spawn offset from the mouth center (mouth ~16 px wide).
+ * `dx`/`dy` — drift from the spawn point during the fall animation.
+ * `delay`   — staggered start for a natural feel.
+ * `size`    — 2–4 px (small crumbs with a few medium ones).
+ * `color`   — warm food-like Tailwind colour class.
+ */
+const CRUMB_PARTICLES: ReadonlyArray<{
+  sx: number; sy: number; dx: number; dy: number;
+  delay: number; size: number; color: string;
+}> = [
+  // left side of mouth
+  { sx: -7, sy:  0, dx: -4, dy: 14, delay:   0, size: 2, color: 'bg-amber-600/90' },
+  { sx: -5, sy:  1, dx: -2, dy: 18, delay:  50, size: 3, color: 'bg-orange-500/85' },
+  { sx: -8, sy: -1, dx: -5, dy: 12, delay: 100, size: 2, color: 'bg-yellow-600/80' },
+  // center of mouth
+  { sx: -2, sy:  2, dx:  1, dy: 20, delay:  30, size: 3, color: 'bg-amber-700/90' },
+  { sx:  1, sy:  3, dx: -1, dy: 24, delay:  80, size: 4, color: 'bg-orange-600/85' },
+  { sx:  0, sy:  2, dx:  2, dy: 16, delay: 120, size: 2, color: 'bg-amber-500/90' },
+  // right side of mouth
+  { sx:  5, sy:  1, dx:  3, dy: 18, delay:  40, size: 3, color: 'bg-amber-600/80' },
+  { sx:  7, sy:  0, dx:  5, dy: 14, delay:  90, size: 2, color: 'bg-yellow-700/80' },
+  { sx:  8, sy: -1, dx:  4, dy: 12, delay: 130, size: 2, color: 'bg-orange-500/75' },
+  // a few extra that fall a bit further for depth
+  { sx: -3, sy:  2, dx: -3, dy: 26, delay:  60, size: 4, color: 'bg-amber-700/80' },
+  { sx:  3, sy:  2, dx:  2, dy: 28, delay: 110, size: 3, color: 'bg-yellow-600/75' },
+  { sx:  0, sy:  3, dx:  0, dy: 22, delay: 140, size: 2, color: 'bg-orange-600/80' },
+];
+
+/**
+ * Burst of crumb particles + a tiny floating reward word.
+ *
+ * Crumbs are anchored at (crumbX, crumbY) — just below the mouth — and
+ * fall outward via the `crumb-fall` CSS animation.
+ *
+ * The reward word is anchored at (rewardX, rewardY) — above the head —
+ * and floats upward via `reward-pop`.
+ *
+ * Both layers are pointer-events-none and aria-hidden; purely decorative.
+ */
+function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
+  crumbX: number; crumbY: number;
+  rewardX: number; rewardY: number;
+}) {
+  // Pick a stable random word for this burst instance.
+  const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
+
+  return (
+    <>
+      {/* Crumb particles — anchored just below the mouth */}
+      <div
+        className="fixed pointer-events-none z-[60]"
+        style={{ left: crumbX, top: crumbY }}
+        aria-hidden="true"
+      >
+        {CRUMB_PARTICLES.map((p, i) => (
+          <span
+            key={i}
+            className={`absolute rounded-full ${p.color} animate-crumb-fall`}
+            style={{
+              left: p.sx,
+              top: p.sy,
+              width: p.size,
+              height: p.size,
+              animationDelay: `${p.delay}ms`,
+              '--crumb-dx': `${p.dx}px`,
+              '--crumb-dy': `${p.dy}px`,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+
+      {/* Floating reward word — anchored above the head */}
+      <span
+        className="fixed pointer-events-none z-[60] text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none"
+        style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
+        aria-hidden="true"
+      >
+        {word}
+      </span>
+    </>
   );
 }
 
