@@ -126,7 +126,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
 
   const issuer = useAuthor(event.pubkey);
   const issuerMeta = issuer.data?.metadata;
-  const issuerName = issuerMeta?.name || genUserName(event.pubkey);
+  const issuerName = issuerMeta?.name || issuerMeta?.display_name || genUserName(event.pubkey);
   const issuerProfileUrl = useProfileUrl(event.pubkey, issuerMeta);
 
   return (
@@ -203,7 +203,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
 
   const sender = useAuthor(senderPubkey || undefined);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
+  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
 

@@ -31,7 +31,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const authorEvent = author.data?.event;
-  const displayName = metadata?.name ?? genUserName(event.pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const theme = useMemo(() => parseThemeDefinition(event), [event]);

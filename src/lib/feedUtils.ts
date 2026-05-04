@@ -101,6 +101,13 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const wikidataRe = /^https:\/\/www\.wikidata\.org\/entity\/Q\d+$/;
     if (!event.tags.some(([n, v]) => n === 'i' && typeof v === 'string' && wikidataRe.test(v))) return true;
   }
+  // Birdex life lists (kind 12473) with no valid species entries — a
+  // Birdex is an index over the author's kind 2473 detections, so one
+  // with zero parseable `i` tags has nothing to show.
+  if (event.kind === 12473) {
+    const wikidataRe = /^https:\/\/www\.wikidata\.org\/entity\/Q\d+$/;
+    if (!event.tags.some(([n, v]) => n === 'i' && typeof v === 'string' && wikidataRe.test(v))) return true;
+  }
   // Custom constellations (kind 30621) without any valid edge tags
   if (event.kind === 30621) {
     const hasEdge = event.tags.some(([n, from, to]) => n === 'edge' && /^\d+$/.test(from ?? '') && /^\d+$/.test(to ?? ''));

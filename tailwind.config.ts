@@ -119,6 +119,14 @@ export default {
 			'collapsible-up': {
 				from: { height: 'var(--radix-collapsible-content-height)' },
 				to: { height: '0' }
+			},
+			'equaliser-bar': {
+				// Vertical bounce for the bird-song play button's
+				// inline equaliser. Bars share this keyframe and
+				// stagger via animationDelay so the group reads as
+				// an organic audio indicator.
+				'0%, 100%': { transform: 'scaleY(0.35)' },
+				'50%': { transform: 'scaleY(1)' }
 			}
 			},
 			animation: {
@@ -128,7 +136,8 @@ export default {
 				'badge-spotlight': 'badge-spotlight 8s linear infinite',
 				'highlight-fade': 'highlight-fade 1.5s ease-out forwards',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
-				'collapsible-up': 'collapsible-up 0.2s ease-out'
+				'collapsible-up': 'collapsible-up 0.2s ease-out',
+				'equaliser-bar': 'equaliser-bar 0.9s ease-in-out infinite'
 			}
 		}
 	},

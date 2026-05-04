@@ -216,7 +216,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);

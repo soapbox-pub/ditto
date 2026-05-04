@@ -237,7 +237,7 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(entry.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
   return (
@@ -275,7 +275,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(entry.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(entry.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
   const customName = isCustomEmoji(entry.emoji) ? entry.emoji.slice(1, -1) : undefined;
 
@@ -324,7 +324,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(zap.senderPubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(zap.senderPubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: zap.eventId, author: zap.senderPubkey }), [zap.eventId, zap.senderPubkey]);
 
   return (
@@ -370,7 +370,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(quote.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(quote.pubkey);
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
   return (

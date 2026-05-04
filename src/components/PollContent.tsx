@@ -110,7 +110,7 @@ function VoterAvatarsButton({
           const authorData = authorsMap?.get(vote.pubkey);
           const metadata = authorData?.metadata;
           const avatarShape = getAvatarShape(metadata);
-          const name = metadata?.name || genUserName(vote.pubkey);
+          const name = metadata?.name || metadata?.display_name || genUserName(vote.pubkey);
           return (
             <Avatar key={vote.pubkey} shape={avatarShape} className="size-5 ring-1 ring-background">
               <AvatarImage src={metadata?.picture} alt={name} />
@@ -485,7 +485,7 @@ function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps)
   const authorData = authorsMap?.get(vote.pubkey) ?? individualAuthor.data;
   const metadata = authorData?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(vote.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(vote.pubkey);
 
   const nevent = useMemo(
     () => nip19.neventEncode({ id: vote.id, author: vote.pubkey }),

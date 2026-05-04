@@ -24,6 +24,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -41,6 +42,9 @@ interface NoteContentProps {
    *  whitespace) while link preview cards and other non-media embeds are preserved.
    *  Used inside embedded quote cards to keep them lightweight. */
   disableMediaEmbeds?: boolean;
+  /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
+   *  inside an already-block container (e.g. inside a markdown `<p>`). */
+  as?: 'div' | 'span';
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -250,13 +254,21 @@ export function NoteContent({
   hideEmbedImages = false,
   disableNoteEmbeds = false,
   disableMediaEmbeds = false,
+  as: Wrapper = 'div',
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // BOLT11: optional "lightning:" prefix + lnbc/lntb/lnbcrt/lntbs + bech32 data (case-insensitive)
     // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
-    const regex = /(?:lightning:)?(ln(?:bc|tb|bcrt|tbs)\d*[munp]?1[023456789acdefghjklmnpqrstuvwxyz]+)|((?:https?|wss?):\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#[\p{L}\p{N}_]+)/giu;
+    const regex = new RegExp(
+      '(?:lightning:)?(ln(?:bc|tb|bcrt|tbs)\\d*[munp]?1[023456789acdefghjklmnpqrstuvwxyz]+)'
+      + '|((?:https?|wss?):\\/\\/[^\\s]+)'
+      + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
+      + '|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
+      + `|(${HASHTAG_PATTERN})`,
+      'giu',
+    );
 
     const result: ContentToken[] = [];
     let lastIndex = 0;
@@ -593,7 +605,7 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <div dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <Wrapper dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
@@ -804,7 +816,7 @@ export function NoteContent({
           onPrev={goPrev}
         />
       )}
-    </div>
+    </Wrapper>
   );
 }
 
@@ -836,8 +848,8 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
 
 function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const hasRealName = !!author.data?.metadata?.name;
-  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
+  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (

@@ -153,7 +153,8 @@ export function BlobbiRoomHero({
 
         <div
           className={cn(
-            'relative transition-all duration-500 pointer-events-none',
+            'relative transition-all duration-500',
+            !isEgg && 'pointer-events-none',
             interactionReaction?.bodyAnimation,
           )}
           style={!isSleeping ? {

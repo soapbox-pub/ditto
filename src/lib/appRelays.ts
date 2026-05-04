@@ -37,22 +37,26 @@ export const APP_RELAYS: RelayMetadata = {
 
 /**
  * Get the effective relay list based on user settings.
- * Combines app relays with user relays if useAppRelays is true,
- * otherwise returns only user relays.
+ *
+ * - `useAppRelays`: when true, the app-default relays are included (first).
+ * - `useUserRelays`: when true, the user's personal NIP-65 list is included.
+ *
+ * When both flags are off the result is empty. When both are on the two lists
+ * are merged with app relays first, deduplicated by normalized URL.
  */
 export function getEffectiveRelays(
   userRelays: RelayMetadata,
-  useAppRelays: boolean
+  useAppRelays: boolean,
+  useUserRelays: boolean,
 ): RelayMetadata {
-  if (!useAppRelays) {
-    return deduplicateRelays(userRelays);
-  }
-
-  // Merge app relays with user relays, avoiding duplicates by normalized URL
   const seen = new Set<string>();
   const mergedRelays: RelayMetadata['relays'][number][] = [];
 
-  for (const relay of [...APP_RELAYS.relays, ...userRelays.relays]) {
+  const sources: RelayMetadata['relays'] = [];
+  if (useAppRelays) sources.push(...APP_RELAYS.relays);
+  if (useUserRelays) sources.push(...userRelays.relays);
+
+  for (const relay of sources) {
     const normalized = normalizeUrl(relay.url);
     if (!seen.has(normalized)) {
       seen.add(normalized);
@@ -64,20 +68,4 @@ export function getEffectiveRelays(
     relays: mergedRelays,
     updatedAt: userRelays.updatedAt,
   };
-}
-
-/** Deduplicate relays within a single list by normalized URL. */
-function deduplicateRelays(metadata: RelayMetadata): RelayMetadata {
-  const seen = new Set<string>();
-  const relays: RelayMetadata['relays'][number][] = [];
-
-  for (const relay of metadata.relays) {
-    const normalized = normalizeUrl(relay.url);
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      relays.push(relay);
-    }
-  }
-
-  return { relays, updatedAt: metadata.updatedAt };
 }

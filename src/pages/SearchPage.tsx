@@ -861,8 +861,8 @@ export function SearchPage() {
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
-  const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
-  const displayName = metadata?.name || genUserName(profile.pubkey);
+  const metadata = profile.metadata as { name?: string; display_name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
+  const displayName = metadata?.name || metadata?.display_name || genUserName(profile.pubkey);
   const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
@@ -949,7 +949,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const tags = author.data?.event?.tags ?? [];
 
   if (author.isLoading) {

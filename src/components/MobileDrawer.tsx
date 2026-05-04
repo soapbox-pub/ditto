@@ -100,8 +100,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
-  const getDisplayName = (account: Account) => account.metadata.name ?? genUserName(account.pubkey);
-  const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || genUserName(account.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || (user ? genUserName(user.pubkey) : 'Anonymous');
 
   return (
     <>
@@ -150,8 +150,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </Avatar>
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className="font-semibold text-sm truncate">
-                    {currentUserEvent && metadata?.name
-                      ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
+                    {currentUserEvent && (metadata?.name || metadata?.display_name)
+                      ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
                       : displayName}
                   </span>
                   {metadata?.nip05 && (
@@ -290,7 +290,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
-                    <span>Log out @{metadata?.name || genUserName(user.pubkey)}</span>
+                    <span>Log out @{metadata?.name || metadata?.display_name || genUserName(user.pubkey)}</span>
                   </button>
                 </div>
               )}

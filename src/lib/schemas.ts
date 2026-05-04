@@ -185,6 +185,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBadgeAwards: z.boolean().optional(),
   showBirdstar: z.boolean().optional(),
   feedIncludeBirdDetections: z.boolean().optional(),
+  feedIncludeBirdex: z.boolean().optional(),
   feedIncludeConstellations: z.boolean().optional(),
 });
 
@@ -229,6 +230,7 @@ export const AppConfigSchema = z.object({
   themes: ThemesConfigSchema.optional(),
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
+  useUserRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
   sidebarOrder: z.array(z.string()),
   nip85StatsPubkey: z.string().refine(
@@ -312,6 +314,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean().optional(),
   useAppRelays: z.boolean().optional(),
+  useUserRelays: z.boolean().optional(),
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),

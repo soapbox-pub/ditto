@@ -333,6 +333,14 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (
+        encryptedSettings.useUserRelays !== undefined &&
+        encryptedSettings.useUserRelays !== current.useUserRelays
+      ) {
+        updates.useUserRelays = encryptedSettings.useUserRelays;
+        changed = true;
+      }
+
       if (encryptedSettings.feedSettings) {
         const currentFeed = current.feedSettings;
         const remoteFeed = encryptedSettings.feedSettings;

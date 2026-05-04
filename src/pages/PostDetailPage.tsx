@@ -50,6 +50,7 @@ import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { BirdDetectionContent } from "@/components/BirdDetectionContent";
+import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -168,6 +169,7 @@ function shellTitleForKind(kind?: number): string {
   if (kind === 0) return "Profile";
   if (kind === 31124) return "Blobbi";
   if (kind === 2473) return "Bird Detection";
+  if (kind === 12473) return "Birdex";
   if (kind === 30621) return "Constellation";
   return "Post Details";
 }
@@ -1024,6 +1026,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isBirdDetection = event.kind === 2473;
+  const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
@@ -2218,6 +2221,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isFoundLog ||
               isColor ||
               isBirdDetection ||
+              isBirdex ||
               isConstellation ||
               isPeopleList ||
               isEmojiPack ? (
@@ -2228,6 +2232,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isFoundLog && <FoundLogContent event={event} />}
                 {isColor && <ColorMomentContent event={event} />}
                 {isBirdDetection && <BirdDetectionContent event={event} />}
+                {isBirdex && <BirdexContent event={event} expanded />}
                 {isConstellation && <ConstellationContent event={event} />}
                 {isPeopleList && <PeopleListContent event={event} />}
                 {isEmojiPack && <EmojiPackContent event={event} />}

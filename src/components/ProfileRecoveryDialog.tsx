@@ -92,7 +92,7 @@ function ProfileSnapshotCard({
   isRestoring: boolean;
 }) {
   const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
-  const displayName = metadata?.display_name || metadata?.name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const avatarShape = getAvatarShape(metadata);
 
   return (

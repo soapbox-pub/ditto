@@ -412,7 +412,7 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -1335,7 +1335,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     }
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
-  const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
+  const displayName = metadata?.name || metadata?.display_name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
@@ -2291,9 +2291,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-              {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+              {/* Profile fields shown inline on mobile (sidebar is hidden below widgets) */}
               {fields.length > 0 && (
-                <div className="mt-4 space-y-3 xl:hidden">
+                <div className="mt-4 space-y-3 lg:hidden">
                   {fields.map((field, i) => (
                     <ProfileFieldInline key={i} field={field} />
                   ))}

@@ -200,8 +200,11 @@ export function ExternalContentPage() {
   useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
 
   // Build the NIP-73 identifier for comments.
-  // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) a #-prefixed string
-  // is passed to useComments for querying but cannot be used with ComposeBox/ReplyComposeModal.
+  // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) the raw identifier
+  // is passed to useComments for querying. The `#${string}` type is a marker for "non-URL
+  // external identifier" — the runtime value is the plain identifier (e.g. `iso3166:VE`),
+  // matching the format used in NIP-73 `I`/`i` tag values and consistent with PostDetailPage
+  // and ComposeBox. ComposeBox/ReplyComposeModal do not accept this type.
   const commentRootUrl = useMemo((): URL | undefined => {
     if (!content || content.type !== 'url') return undefined;
     try { return new URL(content.value); } catch { return undefined; }
@@ -209,7 +212,7 @@ export function ExternalContentPage() {
 
   const commentRootId = useMemo((): `#${string}` | undefined => {
     if (!content || content.type === 'url') return undefined;
-    return `#${content.value}` as `#${string}`;
+    return content.value as `#${string}`;
   }, [content]);
 
   const commentRoot: URL | `#${string}` | undefined = commentRootUrl ?? commentRootId;

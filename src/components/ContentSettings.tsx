@@ -1148,7 +1148,7 @@ function MutedUserProfile({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
 
   if (author.isLoading) {
     return (

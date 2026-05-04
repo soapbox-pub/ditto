@@ -52,6 +52,8 @@ export interface EncryptedSettings {
   autoShareTheme?: boolean;
   /** Whether to use app default relays in addition to user relays */
   useAppRelays?: boolean;
+  /** Whether to include the user's personal NIP-65 relay list in the effective relay set. */
+  useUserRelays?: boolean;
   /** Feed and sidebar content settings */
   feedSettings?: FeedSettings;
   /** Advanced content filters */
