@@ -14,7 +14,7 @@
  * This file should be placed at the app root level (renders a fixed overlay).
  */
 
-import { useCallback, useState, useMemo, useRef } from 'react';
+import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 
 import { useBlobbiCompanion } from '../hooks/useBlobbiCompanion';
 import { useCompanionItemReaction } from '../hooks/useCompanionItemReaction';
@@ -23,10 +23,12 @@ import { useOverstimulationReaction } from '../hooks/useOverstimulationReaction'
 import { useShakeReaction } from '../hooks/useShakeReaction';
 import { createShakeTracker, recordSample, computeShakeResult, resetTracker } from '../core/shakeDetection';
 import { BlobbiCompanion } from './BlobbiCompanion';
+import { VomitSplat } from './VomitSplat';
 import { OverstimulationBlockOverlay } from './OverstimulationBlockOverlay';
 import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
+import { getBlobbiMouthAnchor } from '../utils/mouthAnchor';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import type { ActionType } from '@/blobbi/ui/lib/status-reactions';
@@ -44,6 +46,14 @@ import type { Position } from '../types/companion.types';
 
 /** Set to true to show debug ground-contact lines. */
 const DEBUG_GROUND_CONTACT = false;
+
+interface SplatData {
+  id: number;
+  spawnX: number;
+  spawnY: number;
+  landX: number;
+  landY: number;
+}
 
 export function BlobbiCompanionLayer() {
   const {
@@ -157,6 +167,7 @@ export function BlobbiCompanionLayer() {
   const {
     recipe: shakeRecipe,
     recipeLabel: shakeLabel,
+    vomitEvent,
     onDragUpdate: shakeOnDragUpdate,
     onDragEnd: shakeOnDragEnd,
     onDragStart: shakeOnDragStart,
@@ -188,6 +199,40 @@ export function BlobbiCompanionLayer() {
     resetTracker(shakeTrackerRef.current);
     endDrag();
   }, [endDrag, shakeOnDragEnd]);
+
+  // ── Vomit splat management ─────────────────────────────────────────────────
+
+  const [splats, setSplats] = useState<SplatData[]>([]);
+  const lastVomitId = useRef(0);
+
+  useEffect(() => {
+    if (!vomitEvent || vomitEvent.id === lastVomitId.current || !companion) return;
+    lastVomitId.current = vomitEvent.id;
+
+    // Compute spawn position (Blobbi's mouth area)
+    const mouth = getBlobbiMouthAnchor(companion.stage, companion.adultType);
+    const spawnX = renderedPosition.x + config.size * mouth.xRatio;
+    const spawnY = renderedPosition.y + config.size * mouth.yRatio;
+
+    // Land about 20px below Blobbi's container bottom, clamped to viewport floor
+    const floorLimit = viewport.height - config.padding.bottom;
+    const landX = spawnX + (Math.random() * 30 - 15);
+    const landY = Math.min(renderedPosition.y + config.size + 20, floorLimit);
+
+    const newSplat: SplatData = {
+      id: vomitEvent.id,
+      spawnX,
+      spawnY,
+      landX,
+      landY,
+    };
+
+    setSplats((prev) => [...prev, newSplat]);
+  }, [vomitEvent, renderedPosition, config.size, config.padding.bottom, viewport.height, companion]);
+
+  const removeSplat = useCallback((id: number) => {
+    setSplats((prev) => prev.filter((s) => s.id !== id));
+  }, []);
 
   const handleItemUse = useCallback(async (item: CompanionItem): Promise<{ success: boolean; error?: string }> => {
     const action = CATEGORY_TO_ACTION[item.category];
@@ -340,6 +385,19 @@ export function BlobbiCompanionLayer() {
             entryState={entryState}
           />
         )}
+
+        {/* Vomit splats — rendered below companion z-index */}
+        {splats.map((s) => (
+          <VomitSplat
+            key={s.id}
+            id={s.id}
+            spawnX={s.spawnX}
+            spawnY={s.spawnY}
+            landX={s.landX}
+            landY={s.landY}
+            onRemove={removeSplat}
+          />
+        ))}
 
         <div className="pointer-events-auto">
           <BlobbiCompanion
