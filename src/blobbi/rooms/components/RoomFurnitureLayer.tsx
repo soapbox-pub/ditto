@@ -10,11 +10,17 @@
  * - y: bottom edge of the item (0 = top, 1 = bottom)
  *
  * Unknown/unresolvable furniture IDs are silently skipped.
- * All layers are pointer-events-none so they never block interaction.
+ *
+ * When `isEditing` is false (default), all layers are pointer-events-none.
+ * When `isEditing` is true, items become tappable/draggable and a selection
+ * ring is shown on the selected item.
  */
+
+import { cn } from '@/lib/utils';
 
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
 import { resolveFurniture, getFurnitureAsset } from '../lib/furniture-registry';
+import { useFurnitureDrag } from '../hooks/useFurnitureDrag';
 
 // ─── Layer z-index mapping ────────────────────────────────────────────────────
 
@@ -28,20 +34,42 @@ const LAYER_Z: Record<FurnitureLayer, string> = {
 
 interface RoomFurnitureLayerProps {
   placements: FurniturePlacement[] | undefined;
+  /** When true, items become interactive (tappable/draggable). */
+  isEditing?: boolean;
+  /** Index of the currently selected item in the placements array. */
+  selectedIndex?: number | null;
+  /** Called when an item is tapped in editing mode. */
+  onSelectItem?: (index: number) => void;
+  /** Called when a selected item is dragged to a new position. */
+  onMoveItem?: (index: number, x: number, y: number) => void;
+  /** Ref to the room shell container — needed for drag coordinate normalization. */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function RoomFurnitureLayer({ placements }: RoomFurnitureLayerProps) {
+export function RoomFurnitureLayer({
+  placements,
+  isEditing = false,
+  selectedIndex,
+  onSelectItem,
+  onMoveItem,
+  containerRef,
+}: RoomFurnitureLayerProps) {
   if (!placements || placements.length === 0) return null;
 
+  // Build a flat index so grouped rendering preserves the original array index
+  const indexed: { placement: FurniturePlacement; originalIndex: number }[] = placements.map(
+    (placement, i) => ({ placement, originalIndex: i }),
+  );
+
   // Group by layer
-  const grouped: Record<FurnitureLayer, FurniturePlacement[]> = {
+  const grouped: Record<FurnitureLayer, typeof indexed> = {
     back: [],
     floor: [],
     front: [],
   };
 
-  for (const p of placements) {
-    grouped[p.layer].push(p);
+  for (const item of indexed) {
+    grouped[item.placement.layer].push(item);
   }
 
   return (
@@ -52,11 +80,24 @@ export function RoomFurnitureLayer({ placements }: RoomFurnitureLayerProps) {
         return (
           <div
             key={layer}
-            className={`absolute inset-0 ${LAYER_Z[layer]} pointer-events-none`}
-            aria-hidden
+            className={cn(
+              'absolute inset-0',
+              LAYER_Z[layer],
+              isEditing ? 'pointer-events-auto' : 'pointer-events-none',
+            )}
+            aria-hidden={!isEditing}
           >
-            {items.map((placement, idx) => (
-              <FurnitureItem key={`${placement.id}-${idx}`} placement={placement} />
+            {items.map(({ placement, originalIndex }) => (
+              <FurnitureItem
+                key={`${placement.id}-${originalIndex}`}
+                placement={placement}
+                index={originalIndex}
+                isEditing={isEditing}
+                isSelected={selectedIndex === originalIndex}
+                onSelect={onSelectItem}
+                onMove={onMoveItem}
+                containerRef={containerRef}
+              />
             ))}
           </div>
         );
@@ -67,7 +108,30 @@ export function RoomFurnitureLayer({ placements }: RoomFurnitureLayerProps) {
 
 // ─── Single Item ──────────────────────────────────────────────────────────────
 
-function FurnitureItem({ placement }: { placement: FurniturePlacement }) {
+interface FurnitureItemProps {
+  placement: FurniturePlacement;
+  index: number;
+  isEditing: boolean;
+  isSelected: boolean;
+  onSelect?: (index: number) => void;
+  onMove?: (index: number, x: number, y: number) => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+}
+
+function FurnitureItem({
+  placement,
+  index,
+  isEditing,
+  isSelected,
+  onSelect,
+  onMove,
+  containerRef,
+}: FurnitureItemProps) {
+  const { isDragging, onPointerDown, onTouchMove, onTouchEnd } = useFurnitureDrag({
+    containerRef: containerRef ?? { current: null },
+    onMove: (x, y) => onMove?.(index, x, y),
+  });
+
   const def = resolveFurniture(placement.id);
   if (!def) return null;
 
@@ -76,12 +140,31 @@ function FurnitureItem({ placement }: { placement: FurniturePlacement }) {
   const widthPct = def.baseWidth * scale * 100;
   const flip = placement.flip ? ' scaleX(-1)' : '';
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!isEditing) return;
+    onSelect?.(index);
+    if (isSelected) {
+      onPointerDown(e, placement.x, placement.y);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isEditing) return;
+    e.stopPropagation();
+    onSelect?.(index);
+  };
+
   return (
     <img
       src={asset}
       alt=""
       draggable={false}
-      className="absolute select-none"
+      className={cn(
+        'absolute select-none',
+        isEditing && 'cursor-pointer touch-none',
+        isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
+        isDragging && 'opacity-80',
+      )}
       style={{
         left: `${placement.x * 100}%`,
         top: `${placement.y * 100}%`,
@@ -89,6 +172,10 @@ function FurnitureItem({ placement }: { placement: FurniturePlacement }) {
         aspectRatio: `${def.aspectRatio}`,
         transform: `translateX(-50%) translateY(-100%)${flip}`,
       }}
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onTouchMove={isEditing && isSelected ? onTouchMove : undefined}
+      onTouchEnd={isEditing && isSelected ? onTouchEnd : undefined}
     />
   );
 }

@@ -88,6 +88,16 @@ interface BlobbiRoomShellProps {
   hudVisible?: boolean;
   /** Effective furniture placements for the current room (decorative, render-only). */
   furniturePlacements?: FurniturePlacement[];
+  /** Ref to the shell root element — used by furniture drag to measure room bounds. */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Whether the furniture editor is active (makes items interactive). */
+  isFurnitureEditing?: boolean;
+  /** Index of the selected furniture item (editing mode). */
+  furnitureSelectedIndex?: number | null;
+  /** Called when a furniture item is tapped in editing mode. */
+  onFurnitureSelect?: (index: number | null) => void;
+  /** Called when a furniture item is dragged to a new position. */
+  onFurnitureMove?: (index: number, x: number, y: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -115,6 +125,11 @@ export function BlobbiRoomShell({
   editorOverlay,
   hudVisible = true,
   furniturePlacements,
+  containerRef,
+  isFurnitureEditing,
+  furnitureSelectedIndex,
+  onFurnitureSelect,
+  onFurnitureMove,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -187,6 +202,7 @@ export function BlobbiRoomShell({
 
   return (
     <div
+      ref={containerRef}
       className="flex flex-col flex-1 min-h-0 relative"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -230,7 +246,14 @@ export function BlobbiRoomShell({
       )}
 
       {/* Furniture layer — three z-stacked sublayers (back/floor/front) */}
-      <RoomFurnitureLayer placements={furniturePlacements} />
+      <RoomFurnitureLayer
+        placements={furniturePlacements}
+        isEditing={isFurnitureEditing}
+        selectedIndex={furnitureSelectedIndex}
+        onSelectItem={onFurnitureSelect}
+        onMoveItem={onFurnitureMove}
+        containerRef={containerRef}
+      />
 
       {/* Stage overlay — Blobbi visual anchored to the shell's ground line */}
       {stageOverlay && (

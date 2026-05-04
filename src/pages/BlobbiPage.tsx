@@ -119,8 +119,9 @@ import {
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getEffectiveRoomLayout } from '@/blobbi/rooms/lib/room-layout-schema';
-import { parseRoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
+import { parseRoomFurnitureContent, type FurniturePlacement } from '@/blobbi/rooms/lib/room-furniture-schema';
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
+import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
 import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
@@ -981,6 +982,31 @@ function BlobbiDashboard({
   const parsedRoomFurniture = useMemo(() => parseRoomFurnitureContent(profile?.content), [profile?.content]);
   const currentFurniturePlacements = useMemo(() => getEffectiveRoomFurniture(currentRoom, parsedRoomFurniture), [currentRoom, parsedRoomFurniture]);
 
+  // ─── Room Furniture Editor (local draft, no persistence) ───
+  const [isFurnitureEditorOpen, setIsFurnitureEditorOpen] = useState(false);
+  const [furnitureDraft, setFurnitureDraft] = useState<FurniturePlacement[] | null>(null);
+  const [furnitureSelectedIndex, setFurnitureSelectedIndex] = useState<number | null>(null);
+  const roomContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenFurnitureEditor = useCallback(() => {
+    setFurnitureDraft([...currentFurniturePlacements]);
+    setFurnitureSelectedIndex(null);
+    setIsFurnitureEditorOpen(true);
+  }, [currentFurniturePlacements]);
+
+  const handleCloseFurnitureEditor = useCallback(() => {
+    setIsFurnitureEditorOpen(false);
+    setFurnitureDraft(null);
+    setFurnitureSelectedIndex(null);
+  }, []);
+
+  const handleFurnitureMove = useCallback((index: number, x: number, y: number) => {
+    setFurnitureDraft((prev) => {
+      if (!prev) return prev;
+      return prev.map((item, i) => (i === index ? { ...item, x, y } : item));
+    });
+  }, []);
+
   // ─── Room Layout Editor (save/reset) ───
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
@@ -1569,9 +1595,17 @@ function BlobbiDashboard({
         guideRoomDirection={guideRoomDirection}
         hudVisible={activeDrawer === 'none'}
         roomLayout={currentRoomLayout}
-        furniturePlacements={currentFurniturePlacements}
+        furniturePlacements={furnitureDraft ?? currentFurniturePlacements}
+        containerRef={roomContainerRef}
+        isFurnitureEditing={isFurnitureEditorOpen}
+        furnitureSelectedIndex={furnitureSelectedIndex}
+        onFurnitureSelect={setFurnitureSelectedIndex}
+        onFurnitureMove={handleFurnitureMove}
         editorSlot={
-          <BlobbiRoomEditorTrigger onClick={() => setIsRoomEditorOpen(true)} />
+          <div className="flex items-center gap-1.5">
+            <BlobbiRoomEditorTrigger onClick={() => setIsRoomEditorOpen(true)} />
+            <RoomFurnitureEditorTrigger onClick={handleOpenFurnitureEditor} />
+          </div>
         }
         editorOverlay={isRoomEditorOpen ? (
           <BlobbiRoomEditor
@@ -1580,6 +1614,15 @@ function BlobbiDashboard({
             onSave={handleSaveRoomLayout}
             onClose={() => setIsRoomEditorOpen(false)}
             isSaving={isSavingLayout}
+          />
+        ) : isFurnitureEditorOpen ? (
+          <RoomFurnitureEditor
+            roomId={currentRoom}
+            draft={furnitureDraft ?? []}
+            onDraftChange={setFurnitureDraft}
+            selectedIndex={furnitureSelectedIndex}
+            onSelectItem={setFurnitureSelectedIndex}
+            onClose={handleCloseFurnitureEditor}
           />
         ) : undefined}
         hero={
