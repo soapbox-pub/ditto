@@ -85,7 +85,7 @@ export function LeftSidebar() {
   };
 
   return (
-    <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
+    <aside className="hidden sidebar:flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] lg:w-1/4 lg:max-w-[300px] shrink-0">
       {/* Logo */}
       <div className="flex items-center px-3 mb-1">
         <Link to="/" onClick={scrollToTopIfCurrent('/')}>

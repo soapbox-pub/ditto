@@ -28,6 +28,7 @@ export function TestApp({ children }: TestAppProps) {
     theme: "light",
     autoShareTheme: true,
     useAppRelays: true,
+    useUserRelays: false,
     relayMetadata: {
       relays: [{ url: "wss://relay.primal.net", read: true, write: true }],
       updatedAt: 0,

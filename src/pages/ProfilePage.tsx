@@ -2291,9 +2291,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-              {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+              {/* Profile fields shown inline on mobile (sidebar is hidden below widgets) */}
               {fields.length > 0 && (
-                <div className="mt-4 space-y-3 xl:hidden">
+                <div className="mt-4 space-y-3 lg:hidden">
                   {fields.map((field, i) => (
                     <ProfileFieldInline key={i} field={field} />
                   ))}
