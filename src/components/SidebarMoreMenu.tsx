@@ -7,6 +7,7 @@ import {
 import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
+import { parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
 
 interface SidebarMoreMenuProps {
   editing: boolean;
@@ -152,6 +153,21 @@ export function SidebarMoreMenu({
       return;
     }
 
+    // Nsite URI: nsite://<subdomain>
+    if (raw.startsWith('nsite://')) {
+      const subdomain = raw.slice('nsite://'.length);
+      const parsed = parseNsiteSubdomain(subdomain);
+      if (!parsed || parsed.kind !== 35128) {
+        setLinkError('Invalid nsite identifier (only named sites are supported)');
+        return;
+      }
+      onAdd(raw);
+      setLinkInput(false);
+      setLinkValue('');
+      setLinkError('');
+      return;
+    }
+
     // Nostr: strip "nostr:" prefix if present for validation
     const bech32 = raw.startsWith('nostr:') ? raw.slice(6) : raw;
 
@@ -224,7 +240,7 @@ export function SidebarMoreMenu({
                     setLinkError('');
                   }
                 }}
-                placeholder="URL, npub1..., iso3166:US, ..."
+                placeholder="URL, npub1..., nsite://..., ..."
                 className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoFocus
               />

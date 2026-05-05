@@ -51,6 +51,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
+import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -323,7 +324,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
 
   const nip19Id = encodeEventNip19(event);
   const nostrUri = `nostr:${nip19Id}`;
-  const isInSidebar = orderedItems.includes(nostrUri);
+
+  // Named nsite events (35128) use the nsite:// scheme in the sidebar for auto-play behavior.
+  // Root sites (15128) can't be rendered as sidebar items (no naddr), so they use the normal nostr: URI.
+  const isNamedNsite = event.kind === 35128;
+  const nsiteUri = isNamedNsite ? `nsite://${getNsiteSubdomain(event)}` : undefined;
+  const sidebarUri = nsiteUri ?? nostrUri;
+  const isInSidebar = orderedItems.includes(sidebarUri);
 
   const close = () => onOpenChange(false);
 
@@ -347,10 +354,10 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
 
   const handleToggleSidebar = () => {
     if (isInSidebar) {
-      removeFromSidebar(nostrUri);
+      removeFromSidebar(sidebarUri);
       toast({ title: 'Removed from sidebar' });
     } else {
-      addToSidebar(nostrUri);
+      addToSidebar(sidebarUri);
       toast({ title: 'Added to sidebar' });
     }
     close();

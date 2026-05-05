@@ -1,27 +1,31 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { ExternalLink, FileText, Globe, Play, Server } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, FileText, Globe, Pin, PinOff, Play, Server } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ExternalFavicon } from "@/components/ExternalFavicon";
 import { NsitePreviewDialog } from "@/components/NsitePreviewDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNsitePlayer } from "@/contexts/NsitePlayerContext";
+import { useFeedSettings } from "@/hooks/useFeedSettings";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
+import { toast } from "@/hooks/useToast";
 import { getNsiteSubdomain } from "@/lib/nsiteSubdomain";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { cn } from "@/lib/utils";
 
 interface NsiteCardProps {
 	event: NostrEvent;
-}
-
-/** Build the nsite.lol gateway URL for an nsite event. */
-function getNsiteUrl(event: NostrEvent): string {
-	return `https://${getNsiteSubdomain(event)}.nsite.lol`;
+	/**
+	 * When set, automatically open the nsite preview. Change the value
+	 * (e.g. increment a counter) to re-trigger even if the component is
+	 * already mounted. `undefined` / `0` = don't auto-play.
+	 */
+	autoPlayKey?: number;
 }
 
 /** Renders an nsite deployment card with a rich link preview. */
-export function NsiteCard({ event }: NsiteCardProps) {
+export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	const title = event.tags.find(([n]) => n === "title")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
 	const dTag = event.tags.find(([n]) => n === "d")?.[1];
@@ -30,14 +34,62 @@ export function NsiteCard({ event }: NsiteCardProps) {
 	const serverTags = event.tags.filter(([n]) => n === "server");
 
 	const isNamed = event.kind === 35128 && !!dTag;
-	const siteUrl = getNsiteUrl(event);
+	const nsiteSubdomain = getNsiteSubdomain(event);
+	const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
 	const displayName = title || (isNamed ? dTag : "Root Site");
+
+	const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+	const sidebarUri = isNamed ? `nsite://${nsiteSubdomain}` : undefined;
+	const isPinned = sidebarUri ? orderedItems.includes(sidebarUri) : false;
 
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
 
-	const [previewOpen, setPreviewOpen] = useState(false);
+	const { activeSubdomain, setActiveSubdomain } = useNsitePlayer();
+	const [previewOpen, setPreviewOpen] = useState(!!autoPlayKey);
+
+	// Ref tracks the latest activeSubdomain so the unmount cleanup can
+	// guard against clearing a *different* nsite's active state.
+	const activeRef = useRef(activeSubdomain);
+	activeRef.current = activeSubdomain;
+
+	const handleTogglePin = useCallback(() => {
+		if (!sidebarUri) return;
+		if (isPinned) {
+			removeFromSidebar(sidebarUri);
+			toast({ title: 'Removed from sidebar' });
+		} else {
+			addToSidebar(sidebarUri);
+			toast({ title: 'Added to sidebar' });
+		}
+	}, [sidebarUri, isPinned, addToSidebar, removeFromSidebar]);
+
+	// Sync open/close state with the global NsitePlayerContext.
+	const handlePreviewOpenChange = useCallback((open: boolean) => {
+		setPreviewOpen(open);
+		setActiveSubdomain(open ? nsiteSubdomain : null);
+	}, [nsiteSubdomain, setActiveSubdomain]);
+
+	// Open the player when autoPlayKey changes (e.g. sidebar clicked again).
+	useEffect(() => {
+		if (autoPlayKey) {
+			handlePreviewOpenChange(true);
+		}
+	}, [autoPlayKey, handlePreviewOpenChange]);
+
+	// Register on mount if auto-playing, and clean up on unmount.
+	useEffect(() => {
+		if (previewOpen) {
+			setActiveSubdomain(nsiteSubdomain);
+		}
+		return () => {
+			// Only clear if we are still the active subdomain.
+			if (activeRef.current === nsiteSubdomain) {
+				setActiveSubdomain(null);
+			}
+		};
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (isLoading) {
 		return <NsiteCardSkeleton />;
@@ -115,7 +167,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 				<Button
 					size="sm"
 					className="h-7 text-xs"
-					onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
+					onClick={(e) => { e.stopPropagation(); handlePreviewOpenChange(true); }}
 				>
 					<Play className="size-3 mr-1" />
 					Run
@@ -145,6 +197,17 @@ export function NsiteCard({ event }: NsiteCardProps) {
 						</a>
 					</Button>
 				)}
+				{sidebarUri && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="h-7 text-xs ml-auto text-muted-foreground"
+						onClick={(e) => { e.stopPropagation(); handleTogglePin(); }}
+					>
+						{isPinned ? <PinOff className="size-3 mr-1" /> : <Pin className="size-3 mr-1" />}
+						{isPinned ? 'Unpin' : 'Pin'}
+					</Button>
+				)}
 			</div>
 		</div>
 
@@ -153,7 +216,7 @@ export function NsiteCard({ event }: NsiteCardProps) {
 		appName={previewTitle || displayName || "nsite"}
 		appPicture={undefined}
 		open={previewOpen}
-		onOpenChange={setPreviewOpen}
+		onOpenChange={handlePreviewOpenChange}
 	/>
 		</>
 	);
