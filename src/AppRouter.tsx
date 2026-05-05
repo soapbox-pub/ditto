@@ -88,6 +88,7 @@ const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const emojisDef = getExtraKindDef("emojis")!;
 const developmentDef = getExtraKindDef("development")!;
+const highlightsDef = getExtraKindDef("highlights")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
 function PollsFeedPage() {
@@ -227,6 +228,17 @@ export function AppRouter() {
                   title={articlesDef.label}
                   icon={sidebarItemIcon("articles", "size-5")}
                   fabHref="/articles/new"
+                />
+              }
+            />
+            <Route
+              path="/highlights"
+              element={
+                <KindFeedPage
+                  kind={highlightsDef.kind}
+                  title={highlightsDef.label}
+                  icon={sidebarItemIcon("highlights", "size-5")}
+                  showFAB={false}
                 />
               }
             />

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, MessageCircle, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageSquare, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -68,6 +68,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1222: 'voice message',
   1617: 'patch',
   1618: 'pull request',
+  9802: 'highlight',
   2473: 'bird detection',
   12473: 'Birdex',
   3367: 'color moment',
@@ -300,6 +301,10 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
         : <BadgeAwardNotificationGroup group={group} />;
     case LETTER_KIND:
       return <LetterNotification item={group.actors[0]} isNew={group.isNew} />;
+    case 9802:
+      return solo
+        ? <HighlightNotification item={group.actors[0]} isNew={group.isNew} />
+        : <HighlightNotificationGroup group={group} />;
     default:
       return null;
   }
@@ -782,6 +787,79 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
         />
       </NotificationWrapper>
     </>
+  );
+}
+
+// ──────────────────────────────────────
+// Highlight Notification (kind 9802)
+// ──────────────────────────────────────
+
+/** Compact rendering of a single highlight excerpt (shared between single/grouped views). */
+function HighlightExcerpt({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const nevent = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+  const excerpt = event.content.trim();
+  if (!excerpt) return null;
+  return (
+    <blockquote
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${nevent}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${nevent}`);
+        }
+      }}
+      className="mx-4 mb-3 mt-1 rounded-r-lg border-l-[3px] border-primary/70 bg-primary/5 pl-3 pr-3 py-2 cursor-pointer hover:bg-primary/10 transition-colors"
+    >
+      <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+        {excerpt}
+      </p>
+    </blockquote>
+  );
+}
+
+function HighlightNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const noun = getNotificationKindNoun(item.referencedEvent?.kind);
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<Highlighter className="size-4 text-primary" />}
+          action={`highlighted your ${noun}`}
+        />
+      </div>
+      <HighlightExcerpt event={item.event} />
+      <ReferencedNoteCard item={item} />
+    </NotificationWrapper>
+  );
+}
+
+function HighlightNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  // Grouping is keyed by (highlight event id), so in practice every group
+  // here contains one actor — keep the group fallback just in case the
+  // grouping policy changes.
+  const noun = getNotificationKindNoun(group.referencedEvent?.kind);
+  const first = group.actors[0];
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={<Highlighter className="size-4 text-primary" />}
+        action={`highlighted your ${noun}`}
+      />
+      {first && <HighlightExcerpt event={first.event} />}
+      {first && <ReferencedNoteCard item={first} />}
+    </NotificationWrapper>
   );
 }
 

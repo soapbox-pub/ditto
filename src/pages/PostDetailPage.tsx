@@ -45,6 +45,7 @@ import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
+import { HighlightContent } from "@/components/HighlightContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
@@ -1051,6 +1052,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isHighlight = event.kind === 9802;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -1085,6 +1087,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isHighlight &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -2209,6 +2212,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedMessageContent event={event} />
             ) : isLetter ? (
               <EncryptedLetterContent event={event} />
+            ) : isHighlight ? (
+              <HighlightContent event={event} expanded />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />

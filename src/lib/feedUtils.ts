@@ -113,6 +113,13 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasEdge = event.tags.some(([n, from, to]) => n === 'edge' && /^\d+$/.test(from ?? '') && /^\d+$/.test(to ?? ''));
     if (!hasEdge) return true;
   }
+  // NIP-84 highlights (kind 9802) with no excerpt AND no source reference.
+  // Either is required to have anything meaningful to render.
+  if (event.kind === 9802) {
+    const hasContent = event.content.trim().length > 0;
+    const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
+    if (!hasContent && !hasSource) return true;
+  }
   return false;
 }
 

@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
+import { Award, Highlighter, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
@@ -93,6 +93,15 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EmbeddedBadgeAwardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 9802 NIP-84 highlights get a compact quote card that shows the
+  // highlighted excerpt rather than falling through the generic-embed path
+  // (which would feed the quoted prose through the kind-1 tokenizer and
+  // auto-linkify URLs/hashtags that were in the original source, not in the
+  // highlight author's post).
+  if (event.kind === 9802) {
+    return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // People-list events (kind 3 follow lists) get a dedicated card showing
   // title + avatar stack + member count. The generic fallback renders empty
   // because all the data lives in `p` tags, not content or title tags.
@@ -101,6 +110,49 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+}
+
+/** Compact inline card for kind 9802 NIP-84 highlight events. */
+function EmbeddedHighlightCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const excerpt = event.content.trim();
+  const hasText = excerpt.length > 0;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Highlighter className="size-3" />
+        Highlight
+      </div>
+      {hasText ? (
+        <blockquote className="relative rounded-r-lg border-l-[3px] border-primary/70 bg-primary/5 pl-3 pr-2 py-2">
+          <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+            {excerpt}
+          </p>
+        </blockquote>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+      )}
+    </EmbeddedCardShell>
+  );
 }
 
 /** Compact inline card for kind 8 NIP-58 badge award events. */

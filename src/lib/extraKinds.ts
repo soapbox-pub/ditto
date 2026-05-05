@@ -483,6 +483,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // NIP-84 Highlights — kind 9802 (regular)
+  {
+    kind: 9802,
+    id: 'highlights',
+    showKey: 'showHighlights',
+    feedKey: 'feedIncludeHighlights',
+    label: 'Highlights',
+    description: 'Noteworthy excerpts from articles, posts, and the web (NIP-84)',
+    route: 'highlights',
+    addressable: false,
+    section: 'social',
+    blurb: "Highlights are excerpts people find valuable — a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
+  },
   // Birdstar (feed-only — external app, no Ditto page)
   {
     kind: 2473,

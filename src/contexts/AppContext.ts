@@ -48,6 +48,10 @@ export interface FeedSettings {
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
+  /** Show Highlights (kind 9802) link in sidebar */
+  showHighlights: boolean;
+  /** Include NIP-84 Highlights (kind 9802) in the follows/global feed */
+  feedIncludeHighlights: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */

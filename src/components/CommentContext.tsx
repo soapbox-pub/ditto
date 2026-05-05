@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
+  GitBranch, GitPullRequest, Highlighter, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
@@ -152,6 +152,7 @@ const KIND_LABELS: Record<number, string> = {
   30621: 'a constellation',
   39089: 'a follow pack',
   9735: 'a zap',
+  9802: 'a highlight',
   8333: 'a Bitcoin zap',
   31124: 'a Blobbi',
 };
@@ -202,6 +203,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
+  9802: Highlighter,
   8333: Bitcoin,
   31124: Egg,
   2473: Bird,

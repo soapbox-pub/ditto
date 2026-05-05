@@ -40,6 +40,8 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeGenericReposts: true,
       feedIncludeArticles: false,
       showArticles: false,
+      showHighlights: false,
+      feedIncludeHighlights: false,
       showEvents: false,
       feedIncludeEvents: false,
       showVines: true,

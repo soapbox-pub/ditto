@@ -9,6 +9,7 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  Highlighter,
   ListMusic,
   Mail,
   MessageCircle,
@@ -18,7 +19,6 @@ import {
   Package,
   Play,
   Radio,
-  Share2,
   SmilePlus,
   PartyPopper,
   Sparkles,
@@ -65,6 +65,7 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { HighlightContent } from "@/components/HighlightContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -106,8 +107,6 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
-import { useShareOrigin } from "@/hooks/useShareOrigin";
-import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
 import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
@@ -116,8 +115,6 @@ import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { isSingleImagePost } from "@/lib/noteContent";
-import { shareOrCopy } from "@/lib/share";
-import { impactLight } from "@/lib/haptics";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
@@ -355,7 +352,6 @@ export const NoteCard = memo(function NoteCard({
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
-  const shareOrigin = useShareOrigin();
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -432,6 +428,7 @@ export const NoteCard = memo(function NoteCard({
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isHighlight = event.kind === 9802;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
@@ -475,6 +472,7 @@ export const NoteCard = memo(function NoteCard({
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isHighlight &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -682,6 +680,8 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
           <EncryptedLetterContent event={event} compact />
+        ) : isHighlight ? (
+          <HighlightContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
@@ -833,21 +833,6 @@ export const NoteCard = memo(function NoteCard({
           </button>
         </ZapDialog>
       )}
-
-      <button
-        type="button"
-        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-        title="Share"
-        onClick={async (e) => {
-          e.stopPropagation();
-          impactLight();
-          const url = `${shareOrigin}/${encodedId}`;
-          const result = await shareOrCopy(url);
-          if (result === "copied") toast({ title: "Link copied to clipboard" });
-        }}
-      >
-        <Share2 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-      </button>
 
       <button
         type="button"
@@ -1864,6 +1849,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   9735: {
     icon: Zap,
     action: "zapped",
+  },
+  9802: {
+    icon: Highlighter,
+    action: "shared a",
+    noun: "highlight",
+    nounRoute: "/highlights",
   },
   8333: {
     icon: Bitcoin,

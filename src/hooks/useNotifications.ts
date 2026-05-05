@@ -13,9 +13,9 @@ import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notif
 const PAGE_SIZE = 20;
 
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 1111, 1222, 1244, or 8211). */
+  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 9802, 1111, 1222, 1244, or 8211). */
   event: NostrEvent;
-  /** The referenced event (the post that was liked/reposted/zapped), if available. */
+  /** The referenced event (the post that was liked/reposted/zapped/highlighted), if available. */
   referencedEvent?: NostrEvent;
 }
 
@@ -34,7 +34,7 @@ export interface GroupedNotificationItem {
   key: string;
   /**
    * The kind that describes this group.
-   * 7 = reaction, 6/16 = repost, 9735 = zap, 1 = mention, 1111 = comment.
+   * 7 = reaction, 6/16 = repost, 9735 = zap, 9802 = highlight, 1 = mention, 1111 = comment.
    */
   kind: number;
   /** All notification events that belong to this group, newest-first. */
@@ -92,14 +92,14 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
  * Returns a stable "group key" for a notification item.
  * Events that share the same group key will be condensed into one row.
  *
- * Reactions, reposts, and zaps group by (kind-bucket, referencedEventId).
+ * Reactions, reposts, zaps, and highlights group by (kind-bucket, referencedEventId).
  * Mentions and comments each stand alone (group key == event id).
  */
 function groupKey(item: NotificationItem): string {
   const { event } = item;
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
-  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735) && refId) {
+  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 9802) && refId) {
     // Profile reactions (kind 7 on kind 0) are standalone — users can react
     // to a profile multiple times, so each reaction gets its own notification.
     const isProfileReaction = event.kind === 7 && (
@@ -108,6 +108,13 @@ function groupKey(item: NotificationItem): string {
     );
     if (isProfileReaction) {
       return event.id;
+    }
+    // Highlights with different excerpts of the same post are conceptually
+    // distinct events (different quotes). Include the highlight event id in
+    // the key so multiple excerpts from the same source don't collapse into
+    // a misleading "X people highlighted this" row.
+    if (event.kind === 9802) {
+      return `highlight:${refId}:${event.id}`;
     }
     // Use a canonical kind bucket so kind-6 and kind-16 reposts merge together
     const bucket = event.kind === 6 || event.kind === 16 ? 'repost' : String(event.kind);
@@ -236,7 +243,7 @@ export function useNotifications(): NotificationData {
       const referencedIds: string[] = [];
       for (const ev of filtered) {
         // kind 1 (mention), voice messages (1222/1244), and letters (8211) ARE the notification content;
-        // kind 1111 (comment) IS the content but we also fetch its parent for context.
+        // highlights (9802) and kind 1111 (comment) ARE the content but we also fetch the parent for context.
         if (ev.kind !== 1 && ev.kind !== 1222 && ev.kind !== 1244 && ev.kind !== LETTER_KIND) {
           const refId = getReferencedEventId(ev);
           if (refId) referencedIds.push(refId);
@@ -287,7 +294,10 @@ export function useNotifications(): NotificationData {
         // referenced event couldn't be fetched (timeout / missing from relay),
         // keep the notification — it's better to show a notification with
         // missing context than to silently drop it.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16) {
+        //
+        // Highlights (9802) follow the same rule: only notify when the
+        // highlighted source was authored by the current user.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802) {
           if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
 

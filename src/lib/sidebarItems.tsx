@@ -16,6 +16,7 @@ import {
   Earth,
   Film,
   HelpCircle,
+  Highlighter,
 
   MessageSquare,
   MessageSquareMore,
@@ -176,6 +177,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "photos", label: "Photos", path: "/photos", icon: Camera },
   { id: "videos", label: "Videos", path: "/videos", icon: Film },
   { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
+  { id: "highlights", label: "Highlights", path: "/highlights", icon: Highlighter },
   { id: "books", label: "Books", path: "/books", icon: BookMarked },
   { id: "vines", label: "Divines", path: "/vines", icon: Clapperboard },
   { id: "music", label: "Music", path: "/music", icon: Music },
