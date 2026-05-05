@@ -154,16 +154,6 @@ export function NsitePermissionPrompt({
             </div>
           )}
 
-          {/* Target pubkey (encrypt/decrypt) */}
-          {prompt.targetPubkey && (
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground mb-1">Target pubkey</p>
-              <p className="text-xs font-mono break-all">
-                {truncate(prompt.targetPubkey, 64)}
-              </p>
-            </div>
-          )}
-
           {/* Raw event details (collapsible) */}
           {eventJson && (
             <Collapsible open={showDetails} onOpenChange={setShowDetails}>

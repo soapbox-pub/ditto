@@ -27,8 +27,6 @@ export interface NsitePromptState {
   kind: number | null;
   /** For signEvent: the unsigned event template. */
   event?: Record<string, unknown>;
-  /** For encrypt/decrypt: the target pubkey. */
-  targetPubkey?: string;
 }
 
 /** The user's response to a permission prompt. */
@@ -203,7 +201,6 @@ export function useNsiteSignerRpc({
           await checkPermission('nip04.encrypt', null, {
             type: 'nip04.encrypt',
             kind: null,
-            targetPubkey: pubkey,
           });
 
           return await signer.nip04.encrypt(pubkey, plaintext);
@@ -221,7 +218,6 @@ export function useNsiteSignerRpc({
           await checkPermission('nip04.decrypt', null, {
             type: 'nip04.decrypt',
             kind: null,
-            targetPubkey: pubkey,
           });
 
           return await signer.nip04.decrypt(pubkey, ciphertext);
@@ -242,7 +238,6 @@ export function useNsiteSignerRpc({
           await checkPermission('nip44.encrypt', null, {
             type: 'nip44.encrypt',
             kind: null,
-            targetPubkey: pubkey,
           });
 
           return await signer.nip44.encrypt(pubkey, plaintext);
@@ -260,7 +255,6 @@ export function useNsiteSignerRpc({
           await checkPermission('nip44.decrypt', null, {
             type: 'nip44.decrypt',
             kind: null,
-            targetPubkey: pubkey,
           });
 
           return await signer.nip44.decrypt(pubkey, ciphertext);
