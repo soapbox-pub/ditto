@@ -34,21 +34,17 @@ interface UseFurnitureDragOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
   /** Called on every pointer move with updated normalized coords. */
   onMove: (x: number, y: number) => void;
-  /** Called when drag finishes. */
-  onEnd?: () => void;
 }
 
 interface DragSession {
   pointerId: number;
   startX: number;
   startY: number;
-  itemX: number;
-  itemY: number;
   offsetDx: number;
   offsetDy: number;
 }
 
-export function useFurnitureDrag({ containerRef, onMove, onEnd }: UseFurnitureDragOptions) {
+export function useFurnitureDrag({ containerRef, onMove }: UseFurnitureDragOptions) {
   const [isDragging, setIsDragging] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
 
@@ -59,11 +55,9 @@ export function useFurnitureDrag({ containerRef, onMove, onEnd }: UseFurnitureDr
   const isHoldingRef = useRef(false);
   const suppressClickRef = useRef(false);
   const onMoveRef = useRef(onMove);
-  const onEndRef = useRef(onEnd);
 
   // Keep callback refs current
   onMoveRef.current = onMove;
-  onEndRef.current = onEnd;
 
   // ─── Cleanup helper ───
   const cleanup = useCallback(() => {
@@ -75,7 +69,6 @@ export function useFurnitureDrag({ containerRef, onMove, onEnd }: UseFurnitureDr
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       setIsDragging(false);
-      onEndRef.current?.();
     }
     if (isHoldingRef.current) {
       isHoldingRef.current = false;
@@ -176,8 +169,6 @@ export function useFurnitureDrag({ containerRef, onMove, onEnd }: UseFurnitureDr
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      itemX: currentX,
-      itemY: currentY,
       offsetDx: currentX - pointerNormX,
       offsetDy: currentY - pointerNormY,
     };

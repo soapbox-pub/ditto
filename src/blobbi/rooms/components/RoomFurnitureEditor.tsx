@@ -162,7 +162,10 @@ export function RoomFurnitureEditor({
           'absolute inset-x-0 px-3 pointer-events-auto',
           placement === 'top' ? 'top-full mt-2' : 'bottom-full mb-2',
         )}>
-          <div className="rounded-2xl border border-border/60 bg-background/95 backdrop-blur-md shadow-xl p-3 max-h-48 overflow-y-auto animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
+          <div className={cn(
+            'rounded-2xl border border-border/60 bg-background/95 backdrop-blur-md shadow-xl p-3 max-h-48 overflow-y-auto animate-in fade-in-0 duration-150',
+            placement === 'top' ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2',
+          )}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground">Add furniture</span>
               <button

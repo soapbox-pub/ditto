@@ -72,5 +72,4 @@ export { BlobbiRoomShell, type PoopState } from './components/BlobbiRoomShell';
 export { BlobbiRoomStage, type BlobbiRoomStageProps } from './components/BlobbiRoomStage';
 export { BlobbiRoomStatusHud, type BlobbiRoomStatusHudProps } from './components/BlobbiRoomStatusHud';
 export { useShovelDrag, type ShovelDrag } from './hooks/useShovelDrag';
-export { useFurnitureDrag } from './hooks/useFurnitureDrag';
 export { PoopOverlay, InteractivePoopOverlay, ShovelButton } from './components/RoomPoopLayer';

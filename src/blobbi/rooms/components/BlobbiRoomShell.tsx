@@ -162,13 +162,14 @@ export function BlobbiRoomShell({
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
+    if (isFurnitureEditing) { touchStartX.current = null; return; }
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
     impactLight();
     if (dx > 0) goLeft();
     else goRight();
-  }, [touchStartX, goLeft, goRight]);
+  }, [touchStartX, goLeft, goRight, isFurnitureEditing]);
 
   // ─── Poop system (ephemeral) ───
   const [poops, setPoops] = useState<PoopInstance[]>([]);
