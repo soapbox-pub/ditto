@@ -163,7 +163,7 @@ export function BlobbiRoomStage({
               />
               {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
               <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
-              <ReactionBubbles active={interactionReaction?.bubbles ?? false} />
+              <ReactionBubbles active={interactionReaction?.bubbles ?? false} showBackdrop={false} />
               <FloatingSocialHearts active={interactionReaction?.hearts ?? false} />
             </div>
           </div>

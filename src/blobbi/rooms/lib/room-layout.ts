@@ -5,15 +5,11 @@
 /**
  * CSS class for the bottom action bar in every room.
  *
- * Provides a subtle translucent surface so controls remain readable over
- * custom/colorful room backgrounds.  Rounded top corners + soft border-top
- * give the bar an intentional "floating tray" feel without a heavy strip.
- *
  * On mobile (max-sidebar), adds extra bottom padding to clear the
  * fixed bottom navigation bar. On desktop (sidebar:), uses normal padding.
  */
 export const ROOM_BOTTOM_BAR_CLASS =
-  'relative z-10 px-3 sm:px-6 pt-2 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)] bg-background/60 backdrop-blur-sm rounded-t-2xl border-t border-border/15';
+  'relative z-10 px-3 sm:px-6 pt-1 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)]';
 
 /**
  * Floating control surface — provides readable contrast over custom room backgrounds.
