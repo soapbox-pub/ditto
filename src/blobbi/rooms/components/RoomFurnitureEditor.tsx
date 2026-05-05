@@ -26,7 +26,7 @@ import type { BlobbiRoomId } from '../lib/room-config';
 import { ROOM_META } from '../lib/room-config';
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
 import { FURNITURE_LAYERS, MAX_FURNITURE_PER_ROOM } from '../lib/room-furniture-schema';
-import { getAvailableFurnitureForRoom, resolveFurniture, type FurnitureDefinition } from '../lib/furniture-registry';
+import { getAvailableFurnitureForRoom, getFurnitureAsset, resolveFurniture, type FurnitureDefinition } from '../lib/furniture-registry';
 import { DEFAULT_ROOM_FURNITURE } from '../lib/room-furniture-defaults';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -234,6 +234,41 @@ export function RoomFurnitureEditor({
               </Button>
             </div>
           </div>
+
+          {/* Placed items strip */}
+          {draft.length > 0 && (
+            <div className="px-3 pt-1 overflow-x-auto">
+              <div className="flex gap-1.5 w-max">
+                {draft.map((item, index) => {
+                  const def = resolveFurniture(item.id);
+                  const asset = def ? getFurnitureAsset(def, item.variant) : undefined;
+                  const label = def?.label ?? 'Unknown';
+                  const isSelected = index === selectedIndex;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => onSelectItem(index)}
+                      aria-label={`Select ${label} (item ${index + 1})`}
+                      title={`${label} (${index + 1})`}
+                      className={cn(
+                        'size-9 shrink-0 rounded-lg flex items-center justify-center border transition-all duration-100',
+                        isSelected
+                          ? 'ring-2 ring-primary border-primary/60 bg-primary/10'
+                          : 'border-border/40 bg-muted/30 hover:bg-accent/50',
+                      )}
+                    >
+                      {asset ? (
+                        <img src={asset} alt={label} className="size-6 object-contain" draggable={false} />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">?</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Item controls (visible when item selected) */}
           {selectedItem && (
