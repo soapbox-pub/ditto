@@ -92,7 +92,7 @@ export function applyEmotion(
  */
 export function emotionAffectsEyes(emotion: BlobbiEmotion): boolean {
   const recipe = resolveVisualRecipe(emotion);
-  return !!(recipe.eyes?.wateryEyes || recipe.eyes?.starEyes || recipe.eyes?.dizzySpirals);
+  return !!(recipe.eyes?.wateryEyes || recipe.eyes?.starEyes || recipe.eyes?.dizzySpirals || recipe.eyes?.happyArc);
 }
 
 // ─── Legacy Re-exports ────────────────────────────────────────────────────────

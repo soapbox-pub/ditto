@@ -273,6 +273,8 @@ export interface BlobbiCompanion {
   generation: number | undefined;
   /** Breeding eligibility */
   breedingReady: boolean;
+  /** Whether external users can interact with this Blobbi (social tag = "open") */
+  socialOpen: boolean;
   /** Total XP */
   experience: number | undefined;
   /** Consecutive care days */
@@ -1248,6 +1250,7 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     },
     generation: parseNumericTag(tags, 'generation'),
     breedingReady: parseBooleanTag(tags, 'breeding_ready', false),
+    socialOpen: getTagValue(tags, 'social') === 'open',
     experience: parseNumericTag(tags, 'experience'),
     careStreak: parseNumericTag(tags, 'care_streak'),
     careStreakLastAt: parseNumericTag(tags, 'care_streak_last_at'),
@@ -1394,7 +1397,7 @@ export const MANAGED_BLOBBI_STATE_TAG_NAMES = new Set([
   // Progression tags
   'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
   // Social/flag tags
-  'breeding_ready',
+  'social', 'breeding_ready',
   // Progression tags (orthogonal to activity state)
   'progression_state', 'progression_started_at',
   // Task system tags (removed after stage transitions)
@@ -1555,6 +1558,23 @@ function syncMirrorTagsToSeed(tags: string[][]): string[][] {
   }
 
   return filtered;
+}
+
+/**
+ * Build the stat + timestamp tag updates for a Blobbi state publish.
+ * Serializes all 5 stats to strings and sets both decay/interaction timestamps.
+ */
+export function statsToTagUpdates(stats: BlobbiStats, now: number): Record<string, string> {
+  const nowStr = now.toString();
+  return {
+    hunger: stats.hunger.toString(),
+    happiness: stats.happiness.toString(),
+    health: stats.health.toString(),
+    hygiene: stats.hygiene.toString(),
+    energy: stats.energy.toString(),
+    last_decay_at: nowStr,
+    last_interaction: nowStr,
+  };
 }
 
 /**
@@ -1867,7 +1887,7 @@ export function buildMigrationTags(
     // Legacy progression timing (also preserve for fallback)
     'state_started_at',
     // Social/flag tags
-    'generation', 'breeding_ready',
+    'social', 'generation', 'breeding_ready',
     // Personality tags (preserve if they exist, do NOT generate)
     'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
     // Evolution tags

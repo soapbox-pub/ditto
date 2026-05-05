@@ -39,6 +39,10 @@ import {
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
+import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
+import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
+import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
@@ -168,6 +172,7 @@ import { Nip05Badge } from "@/components/Nip05Badge";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -1311,6 +1316,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] =
     useState<InteractionTab>("reposts");
+  const { user } = useCurrentUser();
+  const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
+  const showBlobbiInteract = isBlobbiState
+    && !!user
+    && user.pubkey !== event.pubkey
+    && !!blobbiCompanion?.socialOpen
+    && blobbiCompanion?.stage !== 'egg';
+
+  // Blobbi interaction reaction — triggers visual feedback on the card when social action succeeds
+  const { state: blobbiReactionState, trigger: triggerBlobbiReaction } = useInteractionReaction();
+  const handleBlobbiInteractionSuccess = useCallback((action: InventoryAction) => {
+    const mapped = INVENTORY_TO_REACTION[action];
+    if (mapped) triggerBlobbiReaction(mapped);
+  }, [triggerBlobbiReaction]);
 
   const parentHints = useMemo(
     () => (isTextNote || isReaction || isRepost || isZap || isPollVote ? getParentEventHints(event) : undefined),
@@ -2192,7 +2211,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedLetterContent event={event} />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-                <BlobbiStateCard event={event} lookMode="follow-pointer" />
+                <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />
               </Suspense>
             ) : isBadgeAward ? (
               <BadgeAwardCard event={event} />
@@ -2240,6 +2259,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
             className="-mx-4 px-4"
+            compact={showBlobbiInteract}
+            extraButtons={showBlobbiInteract ? (
+              <Suspense fallback={null}>
+                <BlobbiSocialActions event={event} companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+              </Suspense>
+            ) : undefined}
           />
 
           <NoteMoreMenu

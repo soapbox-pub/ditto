@@ -43,6 +43,8 @@ export {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateEatingMouth,
+  generateChewingMouth,
   generateDrool,
   generateFoodIcon,
   generateSleepyMouth,
@@ -51,4 +53,9 @@ export {
   computeDroolAnchor,
   generateDroolAtAnchor,
   type DroolAnchor,
+  // Action-mouth geometry (shared by eating + chewing)
+  computeActionMouthGeometry,
+  type ActionMouthGeometry,
+  // Chewing timing (shared with feeding sound)
+  CHEW_CYCLE_SEC,
 } from './generators';

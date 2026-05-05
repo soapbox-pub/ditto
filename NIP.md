@@ -23,6 +23,7 @@ These event kinds were created by community contributors and are supported by Di
 | 4223  | Weather Reading        | Sensor readings from a weather station                           | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
 | 7516  | Found Log              | Log entry recording a user finding a geocache                    | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
+| 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
 | 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -491,6 +492,66 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
 ```
 
 Each `Mission` is either a **TallyMission** (`{ id, target, count }`) or an **EventMission** (`{ id, target, events: string[] }`) where `events` contains Nostr event IDs that satisfy the mission. Evolution missions are populated when incubation or evolution begins and cleared when the stage transition completes or is cancelled.
+
+#### Kind 1124: Blobbi Social Interaction
+
+Immutable, regular (non-replaceable) event that logs a single interaction with a Blobbi. These events form an append-only interaction log. They do **not** directly mutate the canonical kind 31124 state — the owner's client consolidates pending interactions into canonical stats via a checkpoint-based system.
+
+**Event structure:**
+
+```json
+{
+  "kind": 1124,
+  "content": "",
+  "tags": [
+    ["a", "31124:<owner-pubkey>:<blobbi-d-tag>"],
+    ["p", "<owner-pubkey>"],
+    ["action", "feed"],
+    ["source", "blobbi-page"],
+    ["blobbi", "<short-id>"],
+    ["item", "<item-id>"],
+    ["alt", "Blobbi interaction: feed"]
+  ]
+}
+```
+
+**Content:** Empty string (`""`).
+
+**Required tags:**
+
+| Tag      | Description                                                                     |
+|----------|---------------------------------------------------------------------------------|
+| `a`      | Coordinate of the target Blobbi: `31124:<owner-pubkey>:<blobbi-d-tag>`          |
+| `p`      | Owner pubkey of the target Blobbi                                               |
+| `action` | Interaction action. V1 values: `feed`, `play`, `clean`, `medicate`              |
+| `source` | UI surface that originated the interaction (e.g. `blobbi-page`, `companion`)    |
+
+**Optional tags:**
+
+| Tag      | Description                                                        |
+|----------|--------------------------------------------------------------------|
+| `blobbi` | Short Blobbi identifier (10-hex petId extracted from canonical d-tag) |
+| `item`   | Shop item ID used in the interaction, when applicable              |
+| `client` | Client identifier (added automatically by the publishing hook)     |
+
+**V1 action values:**
+
+| Action     | Description                              |
+|------------|------------------------------------------|
+| `feed`     | Feeding the Blobbi                       |
+| `play`     | Playing with the Blobbi (includes music and singing) |
+| `clean`    | Cleaning the Blobbi                      |
+| `medicate` | Administering medicine to the Blobbi     |
+
+The `pet` action is reserved for a future version.
+
+**Processing model:**
+
+- Events are processed in ascending `created_at` order with event `id` (hex string comparison) as tie-breaker
+- Cooldown, dedup, and clamping logic live in the projection layer, not at publish time
+- If no social checkpoint exists in the Blobbi's kind 31124 content, clients MUST assume no prior consolidation and fetch all 1124 events without a `since` filter
+- Owner consolidation writes processed stats back to kind 31124 and advances the checkpoint (stored in the event's `content` JSON). This happens automatically when the owner opens the dashboard.
+- After consolidation, kind 1124 events remain available as history but MUST NOT be re-applied to canonical stats. The checkpoint's `last_event_id` and `processed_until` fields delineate the boundary.
 
 ---
 

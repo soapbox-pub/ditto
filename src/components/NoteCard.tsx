@@ -35,6 +35,10 @@ import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
+import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
+import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
+import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import {
   MusicPlaylistContent,
   MusicTrackContent,
@@ -288,6 +292,21 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
+/** Returns true if the click target is inside an interactive overlay/element. */
+function isInteractiveTarget(e: React.MouseEvent): boolean {
+  const target = e.target as HTMLElement;
+  return !!(
+    target.closest('[role="dialog"]') ||
+    target.closest("[data-radix-dialog-overlay]") ||
+    target.closest("[data-radix-dialog-content]") ||
+    target.closest("[data-vaul-drawer]") ||
+    target.closest("[data-vaul-drawer-overlay]") ||
+    target.closest('[data-testid="zap-modal"]') ||
+    target.closest("button") ||
+    target.closest("a")
+  );
+}
+
 /** d-tags reserved by NIP-51 for other purposes — hide these kind 30000 events. */
 const DEPRECATED_DTAGS = new Set(["mute", "pin", "bookmark", "communities"]);
 
@@ -341,6 +360,13 @@ export const NoteCard = memo(function NoteCard({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
+  // Blobbi interaction reaction — triggers visual feedback on the card when social action succeeds
+  const { state: blobbiReactionState, trigger: triggerBlobbiReaction } = useInteractionReaction();
+  const handleBlobbiInteractionSuccess = useCallback((action: InventoryAction) => {
+    const mapped = INVENTORY_TO_REACTION[action];
+    if (mapped) triggerBlobbiReaction(mapped);
+  }, [triggerBlobbiReaction]);
+
   // Zap button shows for any logged-in user except on their own posts.
   // On-chain zaps are always available; Lightning is offered inside the dialog
   // when the author has lud06/lud16.
@@ -352,36 +378,12 @@ export const NoteCard = memo(function NoteCard({
 
   // Handler to navigate to post detail, but only if click didn't originate from a modal
   const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (
-      target.closest('[role="dialog"]') ||
-      target.closest("[data-radix-dialog-overlay]") ||
-      target.closest("[data-radix-dialog-content]") ||
-      target.closest("[data-vaul-drawer]") ||
-      target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]') ||
-      target.closest("button") ||
-      target.closest("a")
-    ) {
-      return;
-    }
+    if (isInteractiveTarget(e)) return;
     openPost();
   };
 
   const handleAuxClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (
-      target.closest('[role="dialog"]') ||
-      target.closest("[data-radix-dialog-overlay]") ||
-      target.closest("[data-radix-dialog-content]") ||
-      target.closest("[data-vaul-drawer]") ||
-      target.closest("[data-vaul-drawer-overlay]") ||
-      target.closest('[data-testid="zap-modal"]') ||
-      target.closest("button") ||
-      target.closest("a")
-    ) {
-      return;
-    }
+    if (isInteractiveTarget(e)) return;
     auxOpenPost(e);
   };
 
@@ -434,6 +436,12 @@ export const NoteCard = memo(function NoteCard({
   const isZap = event.kind === 9735;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
+  const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
+  const showBlobbiInteract = isBlobbiState
+    && !!user
+    && user.pubkey !== event.pubkey
+    && !!blobbiCompanion?.socialOpen
+    && blobbiCompanion?.stage !== 'egg';
   const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -678,7 +686,7 @@ export const NoteCard = memo(function NoteCard({
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <BlobbiStateCard event={event} lookMode="follow-pointer" />
+            <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />
           </Suspense>
         ) : isUnknownKind ? (
           <UnknownKindContent event={event} />
@@ -763,16 +771,17 @@ export const NoteCard = memo(function NoteCard({
 
   // ── Shared action buttons (used in all layouts) ──
   const actionButtons = (
-    <div className="flex items-center gap-5 mt-3 -ml-2">
+    <div className={cn("flex items-center mt-3 -ml-2", showBlobbiInteract ? "gap-4 sm:gap-5" : "gap-5")}>
       <button
-        className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        type="button"
+        className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
         title="Reply"
         onClick={(e) => {
           e.stopPropagation();
           setReplyOpen(true);
         }}
       >
-        <MessageCircle className="size-5" />
+        <MessageCircle className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
             {stats?.replies ? (
               <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
             ) : null}
@@ -781,10 +790,11 @@ export const NoteCard = memo(function NoteCard({
           <RepostMenu event={event}>
             {(isReposted: boolean) => (
               <button
-                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                type="button"
+                className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
                 title={isReposted ? "Undo repost" : "Repost"}
               >
-                <RepostIcon className="size-5" />
+                <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
                 {stats?.reposts || stats?.quotes ? (
                   <span className="text-sm tabular-nums">
                     {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
@@ -801,13 +811,20 @@ export const NoteCard = memo(function NoteCard({
         reactionCount={stats?.reactions}
       />
 
+      {showBlobbiInteract && (
+        <Suspense fallback={null}>
+          <BlobbiSocialActions event={event} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+        </Suspense>
+      )}
+
       {canZapAuthor && (
         <ZapDialog target={event}>
           <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+            type="button"
+            className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
             title="Zap"
           >
-            <Zap className="size-5" />
+            <Zap className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">
                 {formatNumber(stats.zapAmount)}
@@ -818,7 +835,8 @@ export const NoteCard = memo(function NoteCard({
       )}
 
       <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+        type="button"
+        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
         title="Share"
         onClick={async (e) => {
           e.stopPropagation();
@@ -828,18 +846,19 @@ export const NoteCard = memo(function NoteCard({
           if (result === "copied") toast({ title: "Link copied to clipboard" });
         }}
       >
-        <Share2 className="size-5" />
+        <Share2 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
       </button>
 
       <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        type="button"
+        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
         title="More"
         onClick={(e) => {
           e.stopPropagation();
           setMoreMenuOpen(true);
         }}
       >
-        <MoreHorizontal className="size-5" />
+        <MoreHorizontal className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
       </button>
     </div>
   );
