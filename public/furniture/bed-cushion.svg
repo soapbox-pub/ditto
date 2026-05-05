@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120">
+  <!-- 1. Sombra suave no chão -->
+  <ellipse cx="90" cy="105" rx="80" ry="10" fill="#000" opacity="0.1" />
+
+  <!-- 2. Base do Colchonete -->
+  <rect x="10" y="55" width="160" height="45" rx="20" fill="#7eb5d6" stroke="#5a9abe" stroke-width="2"/>
+
+  <!-- 3. Gomos de estofado (curvas suaves) -->
+  <g stroke="#5a9abe" stroke-width="1.5" opacity="0.4" fill="none">
+    <path d="M100 55 Q105 75 100 98" />
+    <path d="M135 55 Q140 75 135 98" />
+  </g>
+
+  <!-- 4. Travesseiro Corrigido (Forma de "feijão" mais macia) -->
+  <!-- O segredo foi usar uma curva fechada que se sobrepõe suavemente à base -->
+  <path d="M12 70 
+           C 12 35, 75 35, 75 70 
+           C 75 80, 12 80, 12 70 Z" 
+        fill="#9ecae8" stroke="#5a9abe" stroke-width="2" />
+  
+  <!-- 5. Brilho de volume no travesseiro (Eclipse centralizado) -->
+  <ellipse cx="43" cy="58" rx="18" ry="8" fill="#ffffff" opacity="0.4" />
+
+  <!-- 6. Elipse Branca de volume na parte plana -->
+  <ellipse cx="115" cy="75" rx="35" ry="12" fill="#ffffff" opacity="0.5" />
+
+  <!-- 7. Patinhas Decorativas (Bem nos cantos e na parte azul escuro) -->
+  <g fill="#ffffff" opacity="0.6">
+    <!-- Patinha Esquerda (Abaixo do travesseiro) -->
+    <circle cx="25" cy="90" r="4" /> 
+    <circle cx="20" cy="84" r="2" /> <circle cx="25" cy="81" r="2" /> <circle cx="30" cy="84" r="2" />
+    
+    <!-- Patinha Direita (Canto oposto) -->
+    <circle cx="155" cy="90" r="4" /> 
+    <circle cx="150" cy="84" r="2" /> <circle cx="155" cy="81" r="2" /> <circle cx="160" cy="84" r="2" />
+  </g>
+</svg>

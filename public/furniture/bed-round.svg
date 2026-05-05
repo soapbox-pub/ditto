@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" fill="none">
+  <!-- Round pet bed base -->
+  <ellipse cx="80" cy="70" rx="75" ry="28" fill="#8b6f4e"/>
+  <!-- Inner cushion -->
+  <ellipse cx="80" cy="65" rx="60" ry="22" fill="#d4a87a"/>
+  <!-- Cushion highlight -->
+  <ellipse cx="80" cy="60" rx="40" ry="14" fill="#e8c9a0"/>
+</svg>

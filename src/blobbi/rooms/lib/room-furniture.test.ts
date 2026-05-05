@@ -478,6 +478,14 @@ describe('OFFICIAL_FURNITURE integrity', () => {
       expect(isWallOnly || isFlat).toBe(true);
     }
   });
+
+  it('shadowOffsetY is only set on items with visible shadows', () => {
+    const withOffset = OFFICIAL_FURNITURE.filter((def) => def.shadowOffsetY);
+    expect(withOffset.length).toBeGreaterThan(0);
+    for (const def of withOffset) {
+      expect(def.shadow).not.toBe('none');
+    }
+  });
 });
 
 // ─── Effective Furniture Resolver ─────────────────────────────────────────────

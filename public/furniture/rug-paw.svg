@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Round rug base -->
+  <circle cx="50" cy="50" r="45" fill="#e8d4c0"/>
+  <circle cx="50" cy="50" r="40" fill="#f0e0cc"/>
+  <!-- Paw pad (center) -->
+  <ellipse cx="50" cy="58" rx="14" ry="12" fill="#c4956a"/>
+  <!-- Toe beans -->
+  <ellipse cx="36" cy="42" rx="7" ry="8" fill="#c4956a"/>
+  <ellipse cx="50" cy="36" rx="7" ry="8" fill="#c4956a"/>
+  <ellipse cx="64" cy="42" rx="7" ry="8" fill="#c4956a"/>
+</svg>

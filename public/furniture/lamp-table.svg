@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 100" fill="none">
+  <!-- Base -->
+  <ellipse cx="30" cy="95" rx="15" ry="4" fill="#8b7355"/>
+  <!-- Stem -->
+  <rect x="28" y="50" width="4" height="45" fill="#a08060"/>
+  <!-- Shade -->
+  <path d="M10 50 L15 20 H45 L50 50 Z" fill="#f5e6c8"/>
+  <path d="M10 50 L15 20 H45 L50 50 Z" fill="none" stroke="#d4b896" stroke-width="1.5"/>
+  <!-- Light glow hint -->
+  <ellipse cx="30" cy="35" rx="10" ry="12" fill="#fff8e0" opacity="0.4"/>
+</svg>

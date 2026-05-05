@@ -252,7 +252,7 @@ function FurnitureItem({
             bottom: 0,
             width: isDragging ? `calc(${shadowCfg.widthPct} + 10%)` : shadowCfg.widthPct,
             height: shadowCfg.heightPct,
-            transform: 'translateX(-50%) translateY(45%)',
+            transform: `translateX(-50%) translateY(${def.shadowOffsetY ?? '45%'})`,
             borderRadius: '50%',
             background: `radial-gradient(ellipse at center, rgba(0,0,0,${isDragging ? shadowCfg.alpha + DRAG_ALPHA_BOOST : shadowCfg.alpha}) 0%, rgba(0,0,0,${(isDragging ? shadowCfg.alpha + DRAG_ALPHA_BOOST : shadowCfg.alpha) * 0.5}) 40%, transparent 70%)`,
             transition: 'width 150ms ease, background 150ms ease',

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 100" fill="none">
+  <!-- Pot -->
+  <path d="M12 100 L15 72 H35 L38 100 Z" fill="#c2703a"/>
+  <rect x="10" y="70" width="30" height="5" rx="2" fill="#a05828"/>
+  <!-- Main cactus body -->
+  <rect x="18" y="25" width="14" height="47" rx="7" fill="#5a9e4b"/>
+  <!-- Left arm -->
+  <path d="M18 45 H12 V35 Q12 28 18 28" fill="#4a8c3f"/>
+  <rect x="10" y="28" width="8" height="17" rx="4" fill="#4a8c3f"/>
+  <!-- Right arm -->
+  <rect x="32" y="35" width="8" height="14" rx="4" fill="#4a8c3f"/>
+  <!-- Spines (subtle dots) -->
+  <g fill="#2d6b28" opacity="0.5">
+    <circle cx="25" cy="32" r="1"/>
+    <circle cx="25" cy="40" r="1"/>
+    <circle cx="25" cy="48" r="1"/>
+    <circle cx="25" cy="56" r="1"/>
+    <circle cx="25" cy="64" r="1"/>
+  </g>
+  <!-- Flower on top -->
+  <circle cx="25" cy="23" r="4" fill="#f0a0c0"/>
+  <circle cx="25" cy="23" r="2" fill="#ffcc00"/>
+</svg>

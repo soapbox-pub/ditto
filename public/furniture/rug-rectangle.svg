@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" fill="none">
+  <!-- Rug body -->
+  <rect x="5" y="15" width="150" height="70" rx="4" fill="#c45a4a"/>
+  <!-- Border pattern -->
+  <rect x="12" y="22" width="136" height="56" rx="2" fill="none" stroke="#e8a060" stroke-width="3"/>
+  <!-- Inner detail -->
+  <rect x="22" y="32" width="116" height="36" rx="2" fill="#d46a5a"/>
+  <!-- Center diamond -->
+  <polygon points="80,38 100,50 80,62 60,50" fill="#e8a060" opacity="0.7"/>
+</svg>
