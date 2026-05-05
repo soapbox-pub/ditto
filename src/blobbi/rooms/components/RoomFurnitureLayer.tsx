@@ -222,7 +222,7 @@ function FurnitureItem({
     onSelect?.(index);
   };
 
-    const shadowCfg = getFurnitureShadowConfig(def);
+  const shadowCfg = getFurnitureShadowConfig(def);
 
   return (
     <div
