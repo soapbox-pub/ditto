@@ -14,12 +14,16 @@
  */
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { ReactionSparkles, ReactionBubbles } from '@/blobbi/ui/ReactionOverlays';
+import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
 import { ROOM_FLOOR_RATIO, getBlobbiBodyBottomInset } from '../lib/room-layout-schema';
+import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
+import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +43,8 @@ export interface BlobbiRoomStageProps {
   effectiveEmotion: BlobbiEmotion;
   hasDevOverride: boolean;
   blobbiReaction: BlobbiReactionState;
+  /** Temporary interaction reaction (sparkles, bubbles, hearts, body animation). */
+  interactionReaction?: InteractionReactionState;
   stageRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -58,6 +64,7 @@ export function BlobbiRoomStage({
   effectiveEmotion,
   hasDevOverride,
   blobbiReaction,
+  interactionReaction,
   stageRef,
 }: BlobbiRoomStageProps) {
   // Body-bottom inset: how much of the visual box is empty below the body
@@ -129,7 +136,10 @@ export function BlobbiRoomStage({
             {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict */}
             <div
               data-blobbi-visual
-              className="relative transition-all duration-500 pointer-events-none"
+              className={cn(
+                'relative transition-all duration-500 pointer-events-none',
+                interactionReaction?.bodyAnimation,
+              )}
               style={{
                 ...(isEgg
                   ? { width: 'clamp(90px, 25dvh, 180px)', height: 'clamp(90px, 25dvh, 180px)' }
@@ -151,6 +161,10 @@ export function BlobbiRoomStage({
                 emotion={effectiveEmotion}
                 className="!size-full"
               />
+              {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
+              <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
+              <ReactionBubbles active={interactionReaction?.bubbles ?? false} />
+              <FloatingSocialHearts active={interactionReaction?.hearts ?? false} />
             </div>
           </div>
         </div>
