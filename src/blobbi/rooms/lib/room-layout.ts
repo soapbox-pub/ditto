@@ -21,7 +21,7 @@ export const ROOM_CONTROL_SURFACE = 'bg-background/60 backdrop-blur-sm border bo
  * Minimal backing for small inline elements (arrows, labels).
  * Nearly invisible on neutral backgrounds, provides contrast on clashing ones.
  */
-export const ROOM_CONTROL_SURFACE_SUBTLE = 'bg-background/50 backdrop-blur-[2px]';
+export const ROOM_CONTROL_SURFACE_SUBTLE = 'bg-background/70 backdrop-blur-sm';
 
 /**
  * Guide highlight — applied to controls during the stat-guide flow.
