@@ -6,7 +6,6 @@ import { MobileDrawer } from '@/components/MobileDrawer';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
-import { Skeleton } from '@/components/ui/skeleton';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
@@ -14,33 +13,15 @@ import { cn } from '@/lib/utils';
 
 const WidgetSidebar = lazy(() => import('@/components/WidgetSidebar').then((m) => ({ default: m.WidgetSidebar })));
 
-/** Skeleton shown in the content area while a lazy page chunk is loading. */
+/** Neutral fallback shown in the content area while a lazy page chunk is loading. */
 function PageSkeleton() {
   return (
     <>
-      {/* Main column skeleton — mirrors the Outlet wrapper's border + bg classes */}
-      <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px]">
-        {/* Header skeleton */}
-        <div className="flex items-center gap-4 px-4 pt-4 pb-5">
-          <Skeleton className="h-6 w-32" />
-        </div>
-        {/* Content skeletons */}
-        <div className="space-y-4 px-4 min-h-dvh">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="space-y-3 py-4 border-b border-border">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="space-y-1.5">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-4/5" />
-              </div>
-            </div>
-          ))}
+      {/* Main column placeholder — mirrors the Outlet wrapper's border + bg classes */}
+      <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
+          <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
         </div>
       </main>
       {/* Right sidebar placeholder — preserves layout width */}
