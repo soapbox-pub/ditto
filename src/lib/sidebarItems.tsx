@@ -13,6 +13,7 @@ import {
   Camera,
   Clapperboard,
   Code,
+  Compass,
   Earth,
   Film,
   HelpCircle,
@@ -185,6 +186,9 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "archive", label: "Archive", path: "/archive", icon: Archive },
   { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
   { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon },
+  // Welcome tour launcher — `/tour` is a synthetic route that fires the tour
+  // overlay and bounces back. Default-hidden so it surfaces in the More menu.
+  { id: "tour", label: "Tour", path: "/tour", icon: Compass },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */

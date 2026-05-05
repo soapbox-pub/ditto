@@ -21,6 +21,12 @@ import NotFound from "./pages/NotFound";
 // Lazy-loaded companion layer (~450K code-split)
 const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => ({ default: m.BlobbiCompanionLayer })));
 
+// Lazy-loaded welcome tour overlay (renders nothing until triggered)
+const WelcomeTourFlow = lazy(() => import("@/components/onboarding/WelcomeTourFlow").then(m => ({ default: m.WelcomeTourFlow })));
+
+// Synthetic route /tour that fires the welcome tour and redirects to /
+const TourLauncherRoute = lazy(() => import("@/components/onboarding/TourLauncherRoute").then(m => ({ default: m.TourLauncherRoute })));
+
 // Lazy-loaded compose modal (pulls in emoji-mart ~620K)
 const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
 
@@ -152,6 +158,9 @@ export function AppRouter() {
             <BlobbiCompanionLayer />
           </Suspense>
         </BlobbiActionsProvider>
+        <Suspense fallback={null}>
+          <WelcomeTourFlow />
+        </Suspense>
         <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
@@ -270,6 +279,7 @@ export function AppRouter() {
             <Route path="/letters/compose" element={<LetterComposePage />} />
             <Route path="/settings/letters" element={<LetterPreferencesPage />} />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/tour" element={<TourLauncherRoute />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/safety" element={<CSAEPolicyPage />} />
             <Route path="/changelog" element={<ChangelogPage />} />

@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { ChevronRight, Settings } from 'lucide-react';
+import { ChevronRight, Settings, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -8,6 +8,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
+import { useWelcomeTour } from '@/hooks/useWelcomeTour';
 
 const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
@@ -79,6 +80,7 @@ export function SettingsPage() {
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
+  const { start: startWelcomeTour } = useWelcomeTour();
   const [sigilFlash, setSigilFlash] = useState(false);
   const [sigilVisible, setSigilVisible] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -139,6 +141,28 @@ export function SettingsPage() {
 
       {/* Settings menu */}
       <div className="px-4">
+        {/* Take the tour — replay-able onboarding showcase */}
+        <div>
+          <div
+            className="flex items-center gap-4 px-3 py-2 my-1 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
+            onClick={startWelcomeTour}
+          >
+            <div className="flex items-center justify-center size-20 shrink-0">
+              <div className="size-16 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                <Sparkles className="size-8 text-primary" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Take the tour</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Let your Blobbi show you around the app
+              </p>
+            </div>
+            <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
+          </div>
+          <div className="mx-6 h-px bg-primary/10" />
+        </div>
+
         {visibleSections.map((section, i) => {
           return (
             <div key={section.id}>

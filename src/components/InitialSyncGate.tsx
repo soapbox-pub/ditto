@@ -43,6 +43,7 @@ import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
+import { useWelcomeTour } from "@/hooks/useWelcomeTour";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { genUserName } from "@/lib/genUserName";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
@@ -1155,6 +1156,24 @@ function PackCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 function OutroStep({ onComplete }: { onComplete: () => void }) {
+  const { start: startWelcomeTour, markSeen: markWelcomeTourSeen } = useWelcomeTour();
+
+  // "Show me around" — open the tour overlay, then dismiss the gate so it
+  // renders above the live app. The tour itself manages step state and uses
+  // the user's own Blobbi (or an egg fallback) on each card.
+  const handleShowMeAround = () => {
+    startWelcomeTour();
+    onComplete();
+  };
+
+  // "Let's go" — explicit opt-out. Mark the tour seen for this pubkey so it
+  // doesn't auto-fire later (e.g. after first Blobbi hatch). User can still
+  // replay it from Settings or the More sidebar.
+  const handleSkipTour = () => {
+    markWelcomeTourSeen();
+    onComplete();
+  };
+
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative">
@@ -1167,19 +1186,28 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-bold tracking-tight">You're all set</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          That's it! Go find something wonderful, share something fun, and make
-          yourself at home.
+          Want a quick tour of what's inside? Your Blobbi can show you around — Letters, Badges, Themes, Emoji packs and more.
         </p>
       </div>
 
-      <Button
-        size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
-        onClick={onComplete}
-      >
-        Let's go
-        <ChevronRight className="w-4 h-4" />
-      </Button>
+      <div className="w-full max-w-xs space-y-2">
+        <Button
+          size="lg"
+          className="w-full gap-2 rounded-full h-12"
+          onClick={handleShowMeAround}
+        >
+          Show me around
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="lg"
+          className="w-full gap-2 rounded-full h-12"
+          onClick={handleSkipTour}
+        >
+          Let's go
+        </Button>
+      </div>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useWelcomeTour } from '@/hooks/useWelcomeTour';
 
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
@@ -201,6 +202,7 @@ function BlobbiContent() {
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
+  const { maybeAutoStart: maybeAutoStartWelcomeTour } = useWelcomeTour();
   
   const {
     profile,
@@ -673,7 +675,10 @@ function BlobbiContent() {
           invalidateCompanion={invalidateCompanion}
           setStoredSelectedD={setStoredSelectedD}
           existingCompanion={ceremonyEggRef.current}
-          onComplete={() => setCeremonyInProgress(false)}
+          onComplete={() => {
+            setCeremonyInProgress(false);
+            maybeAutoStartWelcomeTour();
+          }}
         />
       </div>,
       document.body,
@@ -946,7 +951,8 @@ function BlobbiDashboard({
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
   const { user } = useCurrentUser();
-  
+  const { maybeAutoStart: maybeAutoStartWelcomeTour } = useWelcomeTour();
+
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
   
@@ -1631,7 +1637,10 @@ function BlobbiDashboard({
             invalidateCompanion={invalidateCompanion}
             setStoredSelectedD={setStoredSelectedD}
             existingCompanion={companion}
-            onComplete={() => setShowHatchCeremony(false)}
+            onComplete={() => {
+              setShowHatchCeremony(false);
+              maybeAutoStartWelcomeTour();
+            }}
           />
         </div>,
         document.body,
