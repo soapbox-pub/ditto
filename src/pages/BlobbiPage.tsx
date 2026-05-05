@@ -1918,6 +1918,7 @@ function BlobbiDashboard({
               effectiveEmotion={effectiveEmotion}
               hasDevOverride={hasDevOverride}
               blobbiReaction={blobbiReaction}
+              interactionReaction={isEgg ? undefined : interactionReaction}
               stageRef={stageRef}
             />
           ) : undefined
