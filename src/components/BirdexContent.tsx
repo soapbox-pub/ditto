@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Bird } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { BirdexChorusButton } from '@/components/BirdexChorusButton';
 import { BirdexTile } from '@/components/BirdexTile';
 import { parseBirdexEvent } from '@/lib/parseBirdex';
 import { cn } from '@/lib/utils';
@@ -57,14 +58,24 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
   if (expanded) {
     return (
       <div className={cn('mt-2', className)}>
-        <div className="mb-3 flex items-center gap-2">
-          <Bird className="size-4 text-emerald-600 dark:text-amber-300" aria-hidden />
-          <h3 className="text-[15px] font-semibold leading-tight">
-            Birdex
-            <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-              {entries.length} species
-            </span>
-          </h3>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Bird className="size-4 shrink-0 text-emerald-600 dark:text-amber-300" aria-hidden />
+            <h3 className="truncate text-[15px] font-semibold leading-tight">
+              Birdex
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                {entries.length} species
+              </span>
+            </h3>
+          </div>
+
+          {/* Single control that plays every species' Wikipedia
+           *  recording simultaneously — a dawn chorus for the whole
+           *  life list. Hides itself when no species has usable audio. */}
+          <BirdexChorusButton
+            species={entries.map(({ entityId }) => ({ entityId }))}
+            className="shrink-0"
+          />
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
@@ -95,14 +106,33 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="mb-2 flex items-center gap-2">
-        <Bird className="size-4 text-emerald-600 dark:text-amber-300" aria-hidden />
-        <span className="text-[15px] font-semibold leading-tight">
-          Birdex
-        </span>
-        <span className="text-sm text-muted-foreground">
-          · {entries.length} species
-        </span>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Bird className="size-4 shrink-0 text-emerald-600 dark:text-amber-300" aria-hidden />
+          <span className="text-[15px] font-semibold leading-tight">
+            Birdex
+          </span>
+          <span className="text-sm text-muted-foreground">
+            · {entries.length} species
+          </span>
+        </div>
+
+        {/* Same chorus button as the expanded view — plays the
+         *  entire life list, not just the preview slice, because the
+         *  button represents the whole event. Wrapped in a click
+         *  swallower: the feed variant sits inside a clickable
+         *  NoteCard, and toggling playback must not navigate away. */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="shrink-0"
+        >
+          <BirdexChorusButton
+            species={entries.map(({ entityId }) => ({ entityId }))}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8">

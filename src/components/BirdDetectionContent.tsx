@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { Bird, ExternalLink, MessageCircle } from 'lucide-react';
+import { Bird } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { BirdSongPlayer } from '@/components/BirdSongPlayer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
@@ -87,12 +88,11 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
   const commonName = summary?.title ?? altSpecies?.common ?? 'Unknown species';
   const extract = summary?.extract;
   const thumbnail = sanitizeUrl(summary?.thumbnail?.source);
-  const articleUrl = sanitizeUrl(summary?.articleUrl);
 
-  // "Discuss" routes the user to Ditto's external-content page for this
-  // species' Wikidata URL. Other users' kind 2473 detections and NIP-22
-  // comments both attach to the same `i`-tag identifier, so the discussion
-  // thread aggregates naturally across clients.
+  // The whole card routes to Ditto's external-content page for this
+  // species' Wikidata URL. Other users' kind 2473 detections and
+  // NIP-22 comments both attach to the same `i`-tag identifier, so
+  // the discussion thread aggregates naturally across clients.
   const discussPath = wikidata ? `/i/${encodeURIComponent(wikidata.url)}` : undefined;
 
   // When the user's own freeform note exists we show it above the
@@ -114,93 +114,89 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="flex overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
-        {/* Thumbnail panel */}
-        <div className="relative w-32 shrink-0 bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 sm:w-40 dark:from-indigo-950 dark:via-indigo-900 dark:to-amber-900/40">
-          {isLoading ? (
-            <Skeleton className="h-full w-full" />
-          ) : thumbnail ? (
-            <img
-              src={thumbnail}
-              alt={commonName}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Bird
-                aria-hidden
-                strokeWidth={1.5}
-                className="size-10 text-emerald-700/60 dark:text-amber-300/60"
+      <Link
+        to={discussPath ?? '#'}
+        onClick={(e) => e.stopPropagation()}
+        className="block overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="flex">
+          {/* Thumbnail panel */}
+          <div className="relative w-32 shrink-0 bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 sm:w-40 dark:from-indigo-950 dark:via-indigo-900 dark:to-amber-900/40">
+            {isLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : thumbnail ? (
+              <img
+                src={thumbnail}
+                alt={commonName}
+                className="h-full w-full object-cover"
+                loading="lazy"
               />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Bird
+                  aria-hidden
+                  strokeWidth={1.5}
+                  className="size-10 text-emerald-700/60 dark:text-amber-300/60"
+                />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent" />
+            <div className="absolute bottom-1.5 left-2 font-mono text-[10px] uppercase tracking-wider text-white/85">
+              {timeStr}
             </div>
-          )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent" />
-          <div className="absolute bottom-1.5 left-2 font-mono text-[10px] uppercase tracking-wider text-white/85">
-            {timeStr}
           </div>
-        </div>
 
-        {/* Text panel */}
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3.5">
-          <div className="min-w-0">
-            <div className="flex items-start gap-1.5">
-              <Bird aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-amber-300" />
-              <h3 className="truncate text-[15px] font-semibold leading-tight">
-                {commonName}
-              </h3>
+          {/* Text panel */}
+          <div className="flex min-w-0 flex-1 items-start gap-3 p-3.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="min-w-0">
+                <h3 className="truncate text-[15px] font-semibold leading-tight">
+                  {commonName}
+                </h3>
+                {scientificName && (
+                  <p className="mt-0.5 truncate text-xs italic text-muted-foreground">
+                    {scientificName}
+                  </p>
+                )}
+              </div>
+
+              {isLoading ? (
+                <div className="space-y-1.5 pt-0.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-5/6" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              ) : extract ? (
+                <p className="line-clamp-3 text-[13px] leading-relaxed text-muted-foreground">
+                  {extract}
+                </p>
+              ) : (
+                <p className="text-xs italic text-muted-foreground/70">
+                  Heard at {new Date(event.created_at * 1000).toLocaleString()}.
+                </p>
+              )}
             </div>
-            {scientificName && (
-              <p className="mt-0.5 truncate pl-5 text-xs italic text-muted-foreground">
-                {scientificName}
-              </p>
+
+            {/* Reference recording from Wikipedia/Commons, when available.
+             *  `BirdSongPlayer` returns null when the article has no
+             *  usable audio, so the right-hand column collapses
+             *  cleanly and the text reflows across the full card.
+             *  The click handler stops propagation so toggling
+             *  playback doesn't also navigate to `/i/...`. */}
+            {wikipediaTitle && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                className="shrink-0"
+              >
+                <BirdSongPlayer title={wikipediaTitle} ariaLabel={`${commonName} recording`} />
+              </div>
             )}
           </div>
-
-          {isLoading ? (
-            <div className="space-y-1.5 pt-0.5">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-5/6" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          ) : extract ? (
-            <p className="line-clamp-3 text-[13px] leading-relaxed text-muted-foreground">
-              {extract}
-            </p>
-          ) : (
-            <p className="text-xs italic text-muted-foreground/70">
-              Heard at {new Date(event.created_at * 1000).toLocaleString()}.
-            </p>
-          )}
-
-          {(articleUrl || discussPath) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
-              {discussPath && (
-                <Link
-                  to={discussPath}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                >
-                  <MessageCircle className="size-3" />
-                  Discuss
-                </Link>
-              )}
-              {articleUrl && (
-                <a
-                  href={articleUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                >
-                  <ExternalLink className="size-3" />
-                  Wikipedia
-                </a>
-              )}
-            </div>
-          )}
         </div>
-      </div>
+      </Link>
 
       {note && (
         <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
