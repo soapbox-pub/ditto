@@ -267,7 +267,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
           {/* Permissions manager (only when logged in) */}
           {user && (
-            <NsitePermissionManager siteId={nsiteSubdomain} siteName={appName} />
+            <NsitePermissionManager siteId={nsiteSubdomain} />
           )}
 
           {/* Close */}

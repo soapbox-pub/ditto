@@ -1,16 +1,14 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { Check, Shield, Trash2, X } from 'lucide-react';
+import { Shield, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   clearNsitePermissions,
   getNsiteAllowance,
   getPermissionLabel,
   removeNsitePermission,
-  setNsitePermission,
   type NsiteAllowance,
   type NsitePermission,
 } from '@/lib/nsitePermissions';
@@ -58,15 +56,13 @@ function getSnapshot(): string | null {
 interface NsitePermissionManagerProps {
   /** Canonical nsite subdomain identifier. */
   siteId: string;
-  /** Human-readable site name. */
-  siteName: string;
 }
 
 /**
  * Popover triggered from the nsite preview nav bar that shows and manages
  * stored permissions for the current site.
  */
-export function NsitePermissionManager({ siteId, siteName }: NsitePermissionManagerProps) {
+export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) {
   const { user } = useCurrentUser();
 
   // Subscribe to permission changes so the list stays in sync.
@@ -75,21 +71,6 @@ export function NsitePermissionManager({ siteId, siteName }: NsitePermissionMana
     ? getNsiteAllowance(siteId, user.pubkey)
     : undefined;
   const permissions = allowance?.permissions ?? [];
-
-  const handleToggle = useCallback(
-    (perm: NsitePermission) => {
-      if (!user) return;
-      setNsitePermission(
-        siteId,
-        user.pubkey,
-        siteName,
-        perm.type,
-        perm.kind,
-        !perm.allowed,
-      );
-    },
-    [siteId, siteName, user],
-  );
 
   const handleRemove = useCallback(
     (perm: NsitePermission) => {
@@ -124,18 +105,14 @@ export function NsitePermissionManager({ siteId, siteName }: NsitePermissionMana
       <PopoverContent align="end" className="w-80 p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">Permissions</p>
-            <p className="text-xs text-muted-foreground truncate">{siteName}</p>
-          </div>
+          <p className="text-sm font-medium truncate">Permissions</p>
           {hasPermissions && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-destructive hover:text-destructive gap-1"
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
               onClick={handleClearAll}
             >
-              <Trash2 className="size-3" />
               Revoke all
             </Button>
           )}
@@ -158,37 +135,21 @@ export function NsitePermissionManager({ siteId, siteName }: NsitePermissionMana
               {permissions.map((perm) => (
                 <div
                   key={`${perm.type}-${perm.kind}`}
-                  className="flex items-center gap-3 px-4 py-2.5 group"
+                  className="flex items-center gap-3 px-4 py-2.5"
                 >
-                  {/* Status icon */}
-                  <div className="shrink-0">
-                    {perm.allowed ? (
-                      <Check className="size-3.5 text-green-500" />
-                    ) : (
-                      <X className="size-3.5 text-destructive" />
-                    )}
-                  </div>
-
                   {/* Label */}
                   <span className="text-sm flex-1 min-w-0 truncate">
                     {getPermissionLabel(perm.type, perm.kind)}
                   </span>
 
-                  {/* Toggle */}
-                  <Switch
-                    checked={perm.allowed}
-                    onCheckedChange={() => handleToggle(perm)}
-                    className="shrink-0 scale-75 origin-right"
-                  />
-
                   {/* Remove */}
                   <button
                     type="button"
-                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                     onClick={() => handleRemove(perm)}
                     title="Remove"
                   >
-                    <Trash2 className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 </div>
               ))}
