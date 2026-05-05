@@ -9,13 +9,13 @@ import {
 } from '@/components/ui/dialog';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
-import { ComposeBox } from '@/components/ComposeBox';
+import { ComposeBox, type ExternalReplyRoot } from '@/components/ComposeBox';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
-  /** The event being replied to, or a URL for commenting on external content. When `null`, the modal acts as a "New post" composer. */
-  event?: NostrEvent | URL | null;
+  /** The event being replied to, a URL for commenting on web content, or a NIP-73 identifier (e.g. `bitcoin:tx:...`, `isbn:...`). When `null`, the modal acts as a "New post" composer. */
+  event?: NostrEvent | ExternalReplyRoot | null;
   /** The event being quoted (for quote posts). */
   quotedEvent?: NostrEvent | null;
   open: boolean;
@@ -34,15 +34,17 @@ interface ReplyComposeModalProps {
 
 export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
+  const isExternalId = typeof event === 'string';
+  const isExternal = isUrl || isExternalId;
   const isReply = !!event;
   const isQuote = !!quotedEvent;
   const [previewMode, setPreviewMode] = useState(false);
   const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
-  const isProfileRoot = !isUrl && event instanceof Object && 'kind' in event && event.kind === 0;
-  const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isUrl ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
-  const placeholder = placeholderOverride ?? (isUrl ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
+  const isProfileRoot = !isExternal && event instanceof Object && 'kind' in event && event.kind === 0;
+  const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isExternal ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
+  const placeholder = placeholderOverride ?? (isExternal ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
 
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
     setPortalContainer(node ?? undefined);
@@ -126,6 +128,9 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
                 <div className="mx-4 mb-2">
                   <LinkEmbed url={event.href} showActions={false} hideImage />
                 </div>
+              ) : isExternalId ? (
+                /* NIP-73 identifier root — no rich preview; the page context already shows it. */
+                null
               ) : (
                 <EmbeddedPost event={event} className="mx-4 mb-2" disableHoverCards />
               )}

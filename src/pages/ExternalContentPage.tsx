@@ -305,20 +305,20 @@ export function ExternalContentPage() {
       <ExternalActionBar content={content} />
 
       {/* Comment compose dialog (opened via FAB) */}
-      {commentRootUrl && <ReplyComposeModal event={commentRootUrl} open={composeOpen} onOpenChange={setComposeOpen} />}
+      {commentRoot && <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />}
 
       {/* ISBN pages get a tabbed interface with Comments + Reviews */}
       {content.type === 'isbn' ? (
         <BookContentTabs
           isbn={content.value.replace('isbn:', '')}
-          commentRoot={commentRootUrl}
+          commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
         />
       ) : (
         <>
           {/* Inline compose box */}
-          {commentRootUrl && <ComposeBox compact replyTo={commentRootUrl} />}
+          {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
 
           {/* Threaded comments list */}
           <div>
@@ -380,7 +380,7 @@ function CommentsEmptyState() {
 
 interface BookContentTabsProps {
   isbn: string;
-  commentRoot: URL | undefined;
+  commentRoot: URL | `#${string}` | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
 }

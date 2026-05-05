@@ -105,12 +105,20 @@ async function getImageMeta(file: File): Promise<{ dim?: string; blurhash?: stri
   }
 }
 
+/** Root target for a compose action that isn't a Nostr event — a URL or a NIP-73 hashtag-style identifier (e.g. `bitcoin:tx:...`, `isbn:...`, `iso3166:...`). */
+export type ExternalReplyRoot = URL | `#${string}`;
+
+/** True if `replyTo` is an external (non-Nostr-event) root. */
+function isExternalRoot(replyTo: NostrEvent | ExternalReplyRoot | undefined): replyTo is ExternalReplyRoot {
+  return replyTo instanceof URL || typeof replyTo === 'string';
+}
+
 interface ComposeBoxProps {
   onSuccess?: () => void;
   placeholder?: string;
   compact?: boolean;
-  /** Event being replied to – adds NIP-10 reply tags when set. A URL triggers NIP-22 comment mode. */
-  replyTo?: NostrEvent | URL;
+  /** Event being replied to – adds NIP-10 reply tags when set. A URL or NIP-73 identifier triggers NIP-22 comment mode. */
+  replyTo?: NostrEvent | ExternalReplyRoot;
   /** Event being quoted – shows embedded preview and adds quote tags. */
   quotedEvent?: NostrEvent;
   /** If true, the compose area is always expanded (e.g. inside a modal). */
@@ -198,6 +206,7 @@ export function ComposeBox({
   // Different contexts (new post, reply, quote) each get their own draft slot.
   const draftKey = useMemo(() => {
     if (replyTo instanceof URL) return `compose-draft:url:${replyTo.href}`;
+    if (typeof replyTo === 'string') return `compose-draft:ext:${replyTo}`;
     if (replyTo) return `compose-draft:reply:${replyTo.id}`;
     if (quotedEvent) return `compose-draft:quote:${quotedEvent.id}`;
     return 'compose-draft:new';
@@ -710,8 +719,8 @@ export function ComposeBox({
       const imetaTag = ['imeta', ...imetaFields];
 
       // Determine kind: 1244 for NIP-22 replies, 1222 for root messages
-      const isNip22Reply = replyTo && (replyTo instanceof URL || replyTo.kind !== 1);
-      const isKind1Reply = replyTo && !(replyTo instanceof URL) && replyTo.kind === 1;
+      const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
+      const isKind1Reply = replyTo && !isExternalRoot(replyTo) && replyTo.kind === 1;
 
       if (isNip22Reply) {
         // NIP-22 voice reply (kind 1244) — use postComment infrastructure
@@ -720,11 +729,18 @@ export function ComposeBox({
         const voiceTags: string[][] = [imetaTag];
 
         if (replyTo instanceof URL) {
+          const kLabel = replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '');
           voiceTags.push(['I', replyTo.toString()]);
-          voiceTags.push(['K', replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '')]);
+          voiceTags.push(['K', kLabel]);
           // lowercase reply tags pointing to same root
           voiceTags.push(['i', replyTo.toString()]);
-          voiceTags.push(['k', replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '')]);
+          voiceTags.push(['k', kLabel]);
+        } else if (typeof replyTo === 'string') {
+          // NIP-73 hashtag-style identifier (e.g. `bitcoin:tx:...`, `isbn:...`, `iso3166:...`)
+          voiceTags.push(['I', replyTo]);
+          voiceTags.push(['K', '#']);
+          voiceTags.push(['i', replyTo]);
+          voiceTags.push(['k', '#']);
         } else {
           voiceTags.push(['E', replyTo.id]);
           voiceTags.push(['K', replyTo.kind.toString()]);
@@ -740,7 +756,7 @@ export function ComposeBox({
           content: audioUrl,
           tags: voiceTags,
         });
-      } else if (isKind1Reply && !(replyTo instanceof URL)) {
+      } else if (isKind1Reply && !isExternalRoot(replyTo)) {
         // NIP-10 voice reply to a kind 1 note — still publish as kind 1222 with reply tags
         const voiceTags: string[][] = [imetaTag];
         const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
@@ -769,7 +785,7 @@ export function ComposeBox({
       // Reset state
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
-        if (replyTo instanceof URL) {
+        if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
         } else {
           queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
@@ -814,10 +830,10 @@ export function ComposeBox({
         tags.push(['p', pk]);
       }
 
-      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets and URLs
-      const isNip22Reply = replyTo && (replyTo instanceof URL || replyTo.kind !== 1);
+      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets and external roots (URL or NIP-73 id)
+      const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
 
-      if (replyTo && !isNip22Reply && !(replyTo instanceof URL)) {
+      if (replyTo && !isNip22Reply && !isExternalRoot(replyTo)) {
         // NIP-10 reply tags (kind 1 targets only)
         const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
         if (rootTag) {
@@ -945,6 +961,9 @@ export function ComposeBox({
         if (replyTo instanceof URL) {
           // External content root — the URL is the root directly
           root = replyTo;
+        } else if (typeof replyTo === 'string') {
+          // NIP-73 hashtag-style identifier root (e.g. `bitcoin:tx:...`, `isbn:...`)
+          root = replyTo;
         } else if (replyTo.kind === 1111) {
           // Replying to a comment: replyTo is the parent, root is derived from its uppercase tags
           reply = replyTo;
@@ -1013,14 +1032,14 @@ export function ComposeBox({
 
       resetComposeState();
       // Optimistically bump the reply count on the parent event
-      if (replyTo && !(replyTo instanceof URL)) {
+      if (replyTo && !isExternalRoot(replyTo)) {
         queryClient.setQueryData<EventStats>(['event-stats', replyTo.id], (prev) =>
           prev ? { ...prev, replies: prev.replies + 1 } : prev,
         );
       }
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
-        if (replyTo instanceof URL) {
+        if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
         } else {
           queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
