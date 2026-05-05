@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" fill="none">
+  <!-- Flip wall clock - split panel style -->
+  <rect x="4" y="4" width="112" height="52" rx="3" fill="#1a1a1a" stroke="#444444" stroke-width="2"/>
+  <rect x="10" y="10" width="100" height="40" rx="2" fill="#0d0d0d"/>
+  <!-- Split panels -->
+  <rect x="14" y="14" width="40" height="32" rx="2" fill="#1a1a1a"/>
+  <rect x="66" y="14" width="40" height="32" rx="2" fill="#1a1a1a"/>
+  <!-- Flip divider -->
+  <line x1="10" y1="30" x2="110" y2="30" stroke="#333" stroke-width="1.5"/>
+  <!-- Digits -->
+  <text x="34" y="35" text-anchor="middle" dominant-baseline="middle" fill="#f0f0f0" font-size="22" font-family="monospace" font-weight="bold">10</text>
+  <text x="86" y="35" text-anchor="middle" dominant-baseline="middle" fill="#f0f0f0" font-size="22" font-family="monospace" font-weight="bold">10</text>
+  <!-- Colon dots -->
+  <circle cx="60" cy="24" r="2.5" fill="#f0f0f0"/>
+  <circle cx="60" cy="36" r="2.5" fill="#f0f0f0"/>
+</svg>

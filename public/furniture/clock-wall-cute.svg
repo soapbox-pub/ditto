@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Cute wall clock - pastel pink with cat ears -->
+  <!-- Cat ears -->
+  <polygon points="22,12 30,2 38,12" fill="#f0a0c0"/>
+  <polygon points="62,12 70,2 78,12" fill="#f0a0c0"/>
+  <!-- Face -->
+  <circle cx="50" cy="50" r="45" fill="#fff0f5" stroke="#f0a0c0" stroke-width="4"/>
+  <!-- Cute dot markers -->
+  <circle cx="50" cy="14" r="3" fill="#f0a0c0"/>
+  <circle cx="50" cy="86" r="3" fill="#f0a0c0"/>
+  <circle cx="86" cy="50" r="3" fill="#f0a0c0"/>
+  <circle cx="14" cy="50" r="3" fill="#f0a0c0"/>
+  <!-- Hour hand pointing ~10 -->
+  <line x1="50" y1="50" x2="38" y2="34" stroke="#d06090" stroke-width="4" stroke-linecap="round"/>
+  <!-- Minute hand pointing ~2 (10:10) -->
+  <line x1="50" y1="50" x2="64" y2="30" stroke="#d06090" stroke-width="3" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="4" fill="#d06090"/>
+</svg>

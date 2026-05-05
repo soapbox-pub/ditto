@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
 import { resolveFurniture, getFurnitureAsset } from '../lib/furniture-registry';
 import { useFurnitureDrag } from '../hooks/useFurnitureDrag';
+import { ClockFurniture } from './ClockFurniture';
 
 // ─── Layer z-index mapping ────────────────────────────────────────────────────
 
@@ -48,6 +49,10 @@ const NO_SHADOW_IDS = new Set([
   'official:picture-frame-oval',
   'official:shelf-wall',
   'official:clock-wall',
+  'official:clock-wall-modern',
+  'official:clock-wall-cute',
+  'official:clock-wall-digital',
+  'official:clock-wall-flip',
   'official:rug-round',
 ]);
 
@@ -274,7 +279,15 @@ function FurnitureItem({
           }}
         />
       )}
-      {def.isFrame && placement.content?.imageUrl ? (
+      {def.isClock ? (
+        <ClockFurniture
+          clockKind={def.clockKind ?? 'analog'}
+          clockStyle={def.clockStyle ?? 'classic'}
+          isSelected={isSelected}
+          isDragging={isDragging}
+          isHolding={isHolding}
+        />
+      ) : def.isFrame && placement.content?.imageUrl ? (
         <FrameWithImage
           key={placement.content.imageUrl}
           imageUrl={placement.content.imageUrl}

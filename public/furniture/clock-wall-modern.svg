@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Modern wall clock - minimal, thin -->
+  <circle cx="50" cy="50" r="45" fill="#ffffff" stroke="#b0b0b0" stroke-width="2"/>
+  <!-- Minimal tick marks -->
+  <rect x="49" y="8" width="2" height="6" fill="#999"/>
+  <rect x="49" y="86" width="2" height="6" fill="#999"/>
+  <rect x="86" y="49" width="6" height="2" fill="#999"/>
+  <rect x="8" y="49" width="6" height="2" fill="#999"/>
+  <!-- Hour hand pointing ~10 -->
+  <line x1="50" y1="50" x2="40" y2="33" stroke="#222" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Minute hand pointing ~2 (10:10) -->
+  <line x1="50" y1="50" x2="65" y2="28" stroke="#222" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="2.5" fill="#222"/>
+</svg>

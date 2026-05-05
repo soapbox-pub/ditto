@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110" fill="none">
+  <!-- Table clock - brown with stand/legs -->
+  <!-- Legs / stand -->
+  <rect x="30" y="95" width="6" height="15" rx="2" fill="#8b7355"/>
+  <rect x="64" y="95" width="6" height="15" rx="2" fill="#8b7355"/>
+  <rect x="25" y="108" width="50" height="4" rx="2" fill="#6b5335"/>
+  <!-- Face -->
+  <circle cx="50" cy="50" r="45" fill="#f5f0e8" stroke="#8b7355" stroke-width="3"/>
+  <!-- Hour markers -->
+  <rect x="49" y="14" width="2" height="5" fill="#8b7355"/>
+  <rect x="49" y="81" width="2" height="5" fill="#8b7355"/>
+  <rect x="81" y="49" width="5" height="2" fill="#8b7355"/>
+  <rect x="14" y="49" width="5" height="2" fill="#8b7355"/>
+  <!-- Hour hand pointing ~10 -->
+  <line x1="50" y1="50" x2="40" y2="35" stroke="#4a3728" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Minute hand pointing ~2 (10:10) -->
+  <line x1="50" y1="50" x2="63" y2="30" stroke="#4a3728" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="2.5" fill="#4a3728"/>
+</svg>

@@ -18,6 +18,9 @@ import type { FurnitureLayer } from './room-furniture-schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** Visual style for clock furniture items */
+export type ClockStyle = 'classic' | 'modern' | 'cute' | 'digital-bedside' | 'analog-table' | 'cute-alarm' | 'digital-wall' | 'flip-wall' | 'digital-table';
+
 /** Definition of a furniture item in the registry */
 export interface FurnitureDefinition {
   /** Namespaced ID, e.g. "official:plant-small" */
@@ -46,6 +49,12 @@ export interface FurnitureDefinition {
   frameImageRadius?: string;
   /** Available named variants (e.g. frame color options) */
   variants?: string[];
+  /** Whether this item renders a dynamic real-time clock */
+  isClock?: boolean;
+  /** Analog (rotating hands) or digital (HH:mm text) */
+  clockKind?: 'analog' | 'digital';
+  /** Visual style — selects the clock face renderer */
+  clockStyle?: ClockStyle;
 }
 
 // ─── Official Furniture Catalog ───────────────────────────────────────────────
@@ -113,6 +122,116 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    isClock: true,
+    clockKind: 'analog',
+    clockStyle: 'classic',
+  },
+  {
+    id: 'official:clock-wall-modern',
+    label: 'Modern Clock',
+    asset: '/furniture/clock-wall-modern.svg',
+    aspectRatio: 1,
+    baseWidth: 0.07,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isClock: true,
+    clockKind: 'analog',
+    clockStyle: 'modern',
+  },
+  {
+    id: 'official:clock-wall-cute',
+    label: 'Cute Clock',
+    asset: '/furniture/clock-wall-cute.svg',
+    aspectRatio: 1,
+    baseWidth: 0.08,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isClock: true,
+    clockKind: 'analog',
+    clockStyle: 'cute',
+  },
+  {
+    id: 'official:clock-table',
+    label: 'Table Clock',
+    asset: '/furniture/clock-table.svg',
+    aspectRatio: 0.9,
+    baseWidth: 0.06,
+    allowedLayers: ['floor', 'front'],
+    defaultLayer: 'front',
+    flippable: false,
+    isClock: true,
+    clockKind: 'analog',
+    clockStyle: 'analog-table',
+  },
+  {
+    id: 'official:clock-bedside',
+    label: 'Bedside Clock',
+    asset: '/furniture/clock-bedside.svg',
+    aspectRatio: 2,
+    baseWidth: 0.09,
+    allowedLayers: ['floor', 'front'],
+    defaultLayer: 'front',
+    allowedRooms: ['rest', 'home'],
+    flippable: false,
+    isClock: true,
+    clockKind: 'digital',
+    clockStyle: 'digital-bedside',
+  },
+  {
+    id: 'official:clock-alarm',
+    label: 'Alarm Clock',
+    asset: '/furniture/clock-alarm.svg',
+    aspectRatio: 0.85,
+    baseWidth: 0.07,
+    allowedLayers: ['floor', 'front'],
+    defaultLayer: 'front',
+    allowedRooms: ['rest', 'home'],
+    flippable: false,
+    isClock: true,
+    clockKind: 'analog',
+    clockStyle: 'cute-alarm',
+  },
+  {
+    id: 'official:clock-wall-digital',
+    label: 'Digital Wall Clock',
+    asset: '/furniture/clock-wall-digital.svg',
+    aspectRatio: 2.2,
+    baseWidth: 0.12,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isClock: true,
+    clockKind: 'digital',
+    clockStyle: 'digital-wall',
+  },
+  {
+    id: 'official:clock-wall-flip',
+    label: 'Flip Wall Clock',
+    asset: '/furniture/clock-wall-flip.svg',
+    aspectRatio: 2,
+    baseWidth: 0.12,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isClock: true,
+    clockKind: 'digital',
+    clockStyle: 'flip-wall',
+  },
+  {
+    id: 'official:clock-table-digital',
+    label: 'Table Digital Clock',
+    asset: '/furniture/clock-table-digital.svg',
+    aspectRatio: 2,
+    baseWidth: 0.08,
+    allowedLayers: ['floor', 'front'],
+    defaultLayer: 'front',
+    allowedRooms: ['rest', 'home'],
+    flippable: false,
+    isClock: true,
+    clockKind: 'digital',
+    clockStyle: 'digital-table',
   },
   {
     id: 'official:bed-single',
