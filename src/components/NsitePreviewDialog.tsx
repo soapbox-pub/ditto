@@ -243,42 +243,44 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       }}
     >
       {/* Nav bar */}
-      <div className="min-h-11 flex items-center gap-2 px-3 border-b bg-muted/30 shrink-0 safe-area-top">
-        {/* App icon + name */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {appPicture ? (
-            <img
-              src={appPicture}
-              alt={appName}
-              className="size-6 rounded-md object-cover shrink-0"
-            />
-          ) : (
-            <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <ExternalFavicon
-                url={siteUrl}
-                size={18}
-                fallback={<Package className="size-3.5 text-primary/50" />}
+      <div className="min-h-11 border-b bg-muted/30 shrink-0 safe-area-top">
+        <div className="px-3 py-2 flex items-center gap-2 w-full">
+          {/* App icon + name */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {appPicture ? (
+              <img
+                src={appPicture}
+                alt={appName}
+                className="size-6 rounded-md object-cover shrink-0"
               />
-            </div>
+            ) : (
+              <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <ExternalFavicon
+                  url={siteUrl}
+                  size={18}
+                  fallback={<Package className="size-3.5 text-primary/50" />}
+                />
+              </div>
+            )}
+            <span className="text-sm font-medium truncate">{appName}</span>
+          </div>
+
+          {/* Permissions manager (only when logged in) */}
+          {user && (
+            <NsitePermissionManager siteId={nsiteSubdomain} siteName={appName} />
           )}
-          <span className="text-sm font-medium truncate">{appName}</span>
+
+          {/* Close */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 shrink-0"
+            onClick={() => onOpenChange(false)}
+            title="Close"
+          >
+            <X className="size-3.5" />
+          </Button>
         </div>
-
-        {/* Permissions manager (only when logged in) */}
-        {user && (
-          <NsitePermissionManager siteId={nsiteSubdomain} siteName={appName} />
-        )}
-
-        {/* Close */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 shrink-0"
-          onClick={() => onOpenChange(false)}
-          title="Close"
-        >
-          <X className="size-3.5" />
-        </Button>
       </div>
 
       {/* Sandboxed iframe */}
