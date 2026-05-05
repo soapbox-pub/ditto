@@ -15,6 +15,7 @@ import { SegmentedRing } from '@/blobbi/ui/StatIndicator';
 import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
 import { cn } from '@/lib/utils';
+import { ROOM_CONTROL_SURFACE_SUBTLE } from '../lib/room-layout';
 
 import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
 import type { BlobbiCompanion, BlobbiStats } from '@/blobbi/core/lib/blobbi';
@@ -166,7 +167,7 @@ function StatIndicator({
     <div
       className={cn(
         'relative size-10 sm:size-12 rounded-full flex items-center justify-center',
-        'bg-background/50 backdrop-blur-[2px] border border-border/20 shadow-sm',
+        ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
         STAT_BG_COLORS[color],
         isLow && STAT_COLORS[color],
         showPulse && 'animate-pulse',

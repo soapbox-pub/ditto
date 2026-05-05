@@ -143,7 +143,7 @@ export function ItemCarousel({
         className={cn(
           'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
           ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/85',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
           highlightArrow === 'left' && ROOM_GUIDE_HIGHLIGHT,
@@ -171,8 +171,8 @@ export function ItemCarousel({
           'w-18 h-16 sm:w-24 sm:h-[5.5rem] rounded-2xl',
           ROOM_CONTROL_SURFACE_SUBTLE,
           'transition-all duration-200',
-          'hover:bg-background/60 active:scale-95',
-          isThisActive && 'bg-background/60',
+          'hover:bg-background/85 active:scale-95',
+          isThisActive && 'bg-background/85',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
           isHighlightFocused && ROOM_GUIDE_HIGHLIGHT,
           centerPointerHandlers && 'touch-none',
@@ -199,7 +199,7 @@ export function ItemCarousel({
         className={cn(
           'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
           ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
+          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/85',
           'transition-all duration-200 active:scale-90',
           disabled && 'opacity-30 pointer-events-none',
           highlightArrow === 'right' && ROOM_GUIDE_HIGHLIGHT,

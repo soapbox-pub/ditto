@@ -7,7 +7,7 @@
 import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
+import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
 
 interface RoomActionButtonProps {
   icon: React.ReactNode;
@@ -64,7 +64,7 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
         <div
           className={cn(
             'size-14 sm:size-20 rounded-full flex items-center justify-center',
-            'bg-background/50 backdrop-blur-[2px] border border-border/20 shadow-sm',
+            ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
             color,
             glow && ROOM_GUIDE_HIGHLIGHT,
           )}
@@ -76,7 +76,7 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
         </div>
         {badge && <div className="absolute -top-0.5 -right-0.5">{badge}</div>}
       </div>
-      <span className="text-[10px] sm:text-xs font-medium text-muted-foreground bg-background/50 backdrop-blur-[2px] rounded-full px-1.5 py-px">{label}</span>
+      <span className={cn('text-[10px] sm:text-xs font-medium text-muted-foreground rounded-full px-1.5 py-px', ROOM_CONTROL_SURFACE_SUBTLE)}>{label}</span>
     </button>
   );
 });
