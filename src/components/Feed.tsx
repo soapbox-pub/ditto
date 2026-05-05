@@ -241,7 +241,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         />
       )}
 
-      {!hideCompose && <ComposeBox compact />}
+      {!hideCompose && <ComposeBox compact hideBorder />}
 
       {header}
 

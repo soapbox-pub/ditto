@@ -125,6 +125,8 @@ interface ComposeBoxProps {
   forceExpanded?: boolean;
   /** If true, hides the avatar (useful inside modals with their own layout). */
   hideAvatar?: boolean;
+  /** If true, suppresses the bottom border. Use when the composer sits directly above a visually distinct section (e.g. tabs with an arc background) that already provides separation. */
+  hideBorder?: boolean;
   /** Controlled preview mode (for modal usage). */
   previewMode?: boolean;
   /** Callback to notify parent of previewable content changes. */
@@ -181,6 +183,7 @@ export function ComposeBox({
   quotedEvent, 
   forceExpanded = false, 
   hideAvatar = false,
+  hideBorder = false,
   previewMode: controlledPreviewMode,
   onHasPreviewableContentChange,
   initialContent = '',
@@ -1116,7 +1119,12 @@ export function ComposeBox({
   if (!user && compact) return null;
 
   return (
-    <div className={cn("px-4 pt-3 bg-background/85 flex flex-col", forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "", pickerOpen ? "pb-0" : "pb-3")}>
+    <div className={cn(
+      "px-4 pt-3 bg-background/85 flex flex-col",
+      forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "",
+      pickerOpen ? "pb-0" : "pb-3",
+      !forceExpanded && !hideBorder && "border-b border-border",
+    )}>
       {/* Preview toggle at top when not controlled and has previewable content */}
       {hasPreviewableContent && controlledPreviewMode === undefined && (
         <div className="flex items-center justify-end mb-3">
