@@ -96,10 +96,10 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0 shrink-0"
+          className={`h-7 w-7 p-0 shrink-0 ${hasPermissions ? 'text-primary' : ''}`}
           title="Site permissions"
         >
-          <Shield className={`size-3.5 ${hasPermissions ? 'text-primary' : ''}`} />
+          <Shield className="size-3.5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
