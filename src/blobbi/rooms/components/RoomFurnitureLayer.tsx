@@ -35,6 +35,34 @@ const LAYER_Z: Record<FurnitureLayer, string> = {
   front: 'z-[12]',
 };
 
+// ─── Ground shadow config per item ───────────────────────────────────────────
+// Explicit ID-based rules. Can later move to FurnitureDefinition metadata.
+
+interface ShadowConfig { widthPct: string; heightPct: string; alpha: number }
+
+/** IDs that should never cast a ground shadow (wall-mounted, flat/rug). */
+const NO_SHADOW_IDS = new Set([
+  'official:picture-frame',
+  'official:shelf-wall',
+  'official:clock-wall',
+  'official:rug-round',
+]);
+
+/** IDs with wide ground shadows (tables, beds, sofas). */
+const WIDE_SHADOW_IDS = new Set([
+  'official:table-side',
+  'official:bed-single',
+]);
+
+function getFurnitureShadowConfig(id: string): ShadowConfig | null {
+  if (NO_SHADOW_IDS.has(id)) return null;
+  if (WIDE_SHADOW_IDS.has(id)) return { widthPct: '105%', heightPct: '13%', alpha: 0.30 };
+  // Narrow floor items (plants, lamps, chairs)
+  return { widthPct: '95%', heightPct: '14%', alpha: 0.26 };
+}
+
+const DRAG_ALPHA_BOOST = 0.10;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface RoomFurnitureLayerProps {
@@ -199,6 +227,8 @@ function FurnitureItem({
     onSelect?.(index);
   };
 
+  const shadowCfg = getFurnitureShadowConfig(placement.id);
+
   return (
     <div
       className={cn(
@@ -217,6 +247,23 @@ function FurnitureItem({
       onClick={handleClick}
       onPointerDown={handlePointerDown}
     >
+      {/* Ground shadow — radial-gradient ellipse anchored at item base */}
+      {shadowCfg && (
+        <div
+          className="absolute pointer-events-none"
+          aria-hidden
+          style={{
+            left: '50%',
+            bottom: 0,
+            width: isDragging ? `calc(${shadowCfg.widthPct} + 10%)` : shadowCfg.widthPct,
+            height: shadowCfg.heightPct,
+            transform: 'translateX(-50%) translateY(45%)',
+            borderRadius: '50%',
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,${isDragging ? shadowCfg.alpha + DRAG_ALPHA_BOOST : shadowCfg.alpha}) 0%, rgba(0,0,0,${(isDragging ? shadowCfg.alpha + DRAG_ALPHA_BOOST : shadowCfg.alpha) * 0.5}) 40%, transparent 70%)`,
+            transition: 'width 150ms ease, background 150ms ease',
+          }}
+        />
+      )}
       <img
         src={asset}
         alt=""
