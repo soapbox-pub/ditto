@@ -1,14 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" fill="none">
-  <!-- Bed frame -->
-  <rect x="5" y="35" width="130" height="60" rx="4" fill="#a07040"/>
-  <!-- Mattress -->
-  <rect x="10" y="30" width="120" height="40" rx="6" fill="#f0ebe4"/>
-  <!-- Pillow -->
-  <ellipse cx="35" cy="40" rx="18" ry="10" fill="#fff" stroke="#ddd" stroke-width="1"/>
-  <!-- Blanket -->
-  <rect x="10" y="50" width="120" height="22" rx="4" fill="#7ab0d4"/>
-  <!-- Headboard -->
-  <rect x="5" y="15" width="10" height="80" rx="3" fill="#8c5e30"/>
-  <!-- Footboard -->
-  <rect x="125" y="30" width="10" height="65" rx="3" fill="#8c5e30"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <!-- 1. Almofada de fundo -->
+  <ellipse cx="150" cy="120" rx="110" ry="35" fill="#E6513D" />
+
+  <!-- 2. Patinhas internas (no fundo vermelho) -->
+  <g fill="#A5382B" opacity="0.5">
+    <circle cx="90" cy="75" r="5" /> <circle cx="82" cy="68" r="3" /> <circle cx="90" cy="65" r="3" /> <circle cx="98" cy="68" r="3" />
+    <circle cx="150" cy="70" r="5" /> <circle cx="142" cy="63" r="3" /> <circle cx="150" cy="60" r="3" /> <circle cx="158" cy="63" r="3" />
+    <circle cx="210" cy="75" r="5" /> <circle cx="202" cy="68" r="3" /> <circle cx="210" cy="65" r="3" /> <circle cx="218" cy="68" r="3" />
+  </g>
+
+  <!-- 3. O corpo verde principal -->
+  <path d="M 30 90 
+           Q 30 60 45 60 
+           L 255 60 
+           Q 270 60 270 90 
+           L 270 140 
+           Q 270 170 150 170 
+           Q 30 170 30 140 Z" 
+        fill="#27AE60" stroke="#1E8449" stroke-width="2" />
+
+  <!-- 4. O traço de volume (atrás da parte vermelha) -->
+  <path d="M 30 140 Q 150 170 270 140" fill="none" stroke="#1E8449" stroke-width="2" opacity="0.3" />
+
+  <!-- 5. A parte vermelha frontal (Sobrepõe o traço) -->
+  <path d="M 45 90 
+           C 45 90 60 150 150 150 
+           C 240 150 255 90 255 90 
+           L 255 60 
+           L 45 60 Z" 
+        fill="#E6513D" stroke="#1E8449" stroke-width="2" />
+
+  <!-- 6. Patinhas externas (AJUSTADAS: mais para as bordas para não tocar no vermelho) -->
+  <g fill="#1E8449" opacity="0.6">
+    <!-- Patinha Esquerda (puxada mais para a esquerda: cx 45) -->
+    <circle cx="45" cy="125" r="6" /> <circle cx="38" cy="117" r="3" /> <circle cx="45" cy="113" r="3" /> <circle cx="52" cy="117" r="3" />
+    
+    <!-- Patinha Direita (puxada mais para a direita: cx 255) -->
+    <circle cx="255" cy="125" r="6" /> <circle cx="248" cy="117" r="3" /> <circle cx="255" cy="113" r="3" /> <circle cx="262" cy="117" r="3" />
+  </g>
 </svg>
