@@ -25,7 +25,7 @@ Ditto is a Nostr client built with React 19.x, TailwindCSS 3.x, Vite, shadcn/ui,
 - `/public/` — static assets.
 - `App.tsx` — **already configured** with `QueryClientProvider`, `NostrProvider`, `UnheadProvider`, `AppProvider`, `NostrLoginProvider`, `NWCContext`. Read before editing; changes are rarely needed.
 - `AppRouter.tsx` — React Router configuration.
-- `NIP.md` — custom kinds documented by this project (see the `nostr-kinds` skill).
+- `NIP.md` — custom kinds documented by this project (see the `nostr-kind-design` skill).
 
 **Always read an existing file before modifying it.** Never overwrite `App.tsx`, `AppRouter.tsx`, or `NostrProvider` without first reading their contents.
 
@@ -54,7 +54,10 @@ By default `nostr` uses the app's connection pool (reads from one relay, publish
 
 ### Kinds, Tags, and NIP.md
 
-When introducing a new kind, extending an existing NIP with new tags, or registering a kind in the UI (feed cards, detail pages, embedded previews, kind-label maps), load the **`nostr-kinds`** skill. It covers the NIP-vs-custom-kind decision framework, kind ranges, tag design (single-letter indexed tags, content vs. tags), the `NIP.md` documentation requirement, and Ditto's multi-location UI registration checklist.
+Two skills split the work of working with kinds:
+
+- **`nostr-kind-design`** — load when minting a new kind, extending an existing NIP with new tags, or deciding whether an existing NIP covers a use case. Covers the NIP-vs-custom decision framework, kind ranges, tag design (single-letter indexed tags, content vs. tags), and the `NIP.md` documentation requirement.
+- **`nostr-kind-rendering`** — load when adding UI for an event kind Ditto doesn't yet display, when asked to "support" / "display" / "render" a specific NIP or kind number, or when a kind renders blank / as "Kind 12345" / as "This event kind is not supported". Covers Ditto's multi-location UI registration checklist — feed cards, detail pages, embedded previews, kind-label maps (`KIND_LABELS`, `KIND_HEADER_MAP`, `NOTIFICATION_KIND_NOUNS`, `CommentContext`), notifications, routes, and the `AppConfig` triple that must stay in sync.
 
 Summary rules:
 
