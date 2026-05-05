@@ -535,6 +535,19 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
   // SOCIAL / FLAG TAGS
   // ═══════════════════════════════════════════════════════════════════════════
   {
+    tag: 'social',
+    description: 'Whether external users can interact with this Blobbi via kind 1124 events',
+    category: 'social',
+    required: false,
+    stages: ['egg', 'baby', 'adult'],
+    persistent: true,
+    source: 'user',
+    regenerable: false,
+    format: 'open | closed',
+    defaultValue: 'closed',
+    notes: 'Controls the external social interaction gate. Absent or "closed" = denied. Owner interactions bypass this check.',
+  },
+  {
     tag: 'breeding_ready',
     description: 'Whether the Blobbi is eligible for breeding',
     category: 'social',

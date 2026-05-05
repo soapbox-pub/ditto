@@ -1,6 +1,6 @@
 // src/blobbi/actions/hooks/useBlobbiDirectAction.ts
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -23,6 +23,7 @@ import type { DailyMissionAction } from '../lib/daily-missions';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -67,6 +68,8 @@ export interface UseBlobbiDirectActionParams {
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
+  /** UI surface originating the interaction (used for kind 1124 source tag). Defaults to 'blobbi-page'. */
+  interactionSource?: string;
 }
 
 /**
@@ -86,9 +89,11 @@ export function useBlobbiDirectAction({
   companion,
   ensureCanonicalBeforeAction,
   updateCompanionEvent,
+  interactionSource = 'blobbi-page',
 }: UseBlobbiDirectActionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ action }: DirectActionRequest): Promise<DirectActionResult> => {
@@ -190,6 +195,29 @@ export function useBlobbiDirectAction({
       });
 
       updateCompanionEvent(blobbiEvent);
+
+      // ─── Emit kind 1124 interaction event (best-effort, fire-and-forget) ───
+      // ownerPubkey comes from the target Blobbi event, not the logged-in user,
+      // so the tags remain correct if this path is later reused for non-owner interactions.
+      const interactionAction = INTERNAL_TO_INTERACTION_ACTION[action];
+      if (interactionAction) {
+        emitInteractionEvent(publishEvent, {
+          ownerPubkey: canonical.companion.event.pubkey,
+          blobbiDTag: canonical.companion.d,
+          action: interactionAction,
+          source: interactionSource,
+        });
+
+        // Invalidate interactions query so the social projection picks up
+        // the new 1124 event. The 1124 publish is fire-and-forget, so the
+        // relay may not have it yet — but the 31124 was already updated
+        // above, so the owner's UI is already correct via canonical state.
+        // This invalidation ensures eventual consistency for the projection.
+        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        queryClient.invalidateQueries({
+          queryKey: ['blobbi-interactions', coordinate],
+        });
+      }
 
       return {
         action,

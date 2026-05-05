@@ -39,10 +39,16 @@ interface InlineSingCardProps {
 
 // ─── MIME Type Selection ──────────────────────────────────────────────────────
 
+// Prefer mp4/aac first so the recorded Blob can be decoded by <audio> on
+// iOS WKWebView (which does not support WebM/Opus playback). Android WebView
+// and desktop Chromium still support mp4/aac, so putting it first is safe
+// cross-platform. See also useVoiceRecorder.ts which follows the same order.
 const AUDIO_MIME_CANDIDATES = [
+  'audio/mp4',
+  'audio/mp4;codecs=aac',
+  'audio/aac',
   'audio/webm;codecs=opus',
   'audio/webm',
-  'audio/mp4',
   'audio/ogg;codecs=opus',
   'audio/ogg',
 ] as const;

@@ -42,6 +42,9 @@ interface NoteContentProps {
    *  whitespace) while link preview cards and other non-media embeds are preserved.
    *  Used inside embedded quote cards to keep them lightweight. */
   disableMediaEmbeds?: boolean;
+  /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
+   *  inside an already-block container (e.g. inside a markdown `<p>`). */
+  as?: 'div' | 'span';
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -251,6 +254,7 @@ export function NoteContent({
   hideEmbedImages = false,
   disableNoteEmbeds = false,
   disableMediaEmbeds = false,
+  as: Wrapper = 'div',
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -601,7 +605,7 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <div dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <Wrapper dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
@@ -812,7 +816,7 @@ export function NoteContent({
           onPrev={goPrev}
         />
       )}
-    </div>
+    </Wrapper>
   );
 }
 

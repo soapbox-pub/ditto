@@ -167,6 +167,26 @@ export function RelayListManager() {
     });
   };
 
+  const handleToggleUserRelays = async (enabled: boolean) => {
+    // Update local settings immediately
+    updateConfig((current) => ({
+      ...current,
+      useUserRelays: enabled,
+    }));
+
+    // Sync to encrypted storage if logged in (non-blocking)
+    if (user) {
+      updateSettings.mutate({ useUserRelays: enabled });
+    }
+
+    toast({
+      title: enabled ? 'Your relays enabled' : 'Your relays disabled',
+      description: enabled
+        ? 'Your personal relays will be used alongside app relays when enabled.'
+        : 'Your personal relays will not be used. Only app relays will be queried.',
+    });
+  };
+
   const handleAddRelay = () => {
     if (!isValidRelayUrl(newRelayUrl)) {
       toast({
@@ -325,17 +345,33 @@ export function RelayListManager() {
       {/* User Relays Section */}
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
-          <h3 className="text-sm font-medium flex items-center gap-1.5">Your Relays <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium flex items-center gap-1.5">Your Relays <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="use-user-relays" className="text-xs text-muted-foreground cursor-pointer">
+                {config.useUserRelays ? 'Enabled' : 'Disabled'}
+              </Label>
+              <Switch
+                id="use-user-relays"
+                checked={config.useUserRelays}
+                onCheckedChange={handleToggleUserRelays}
+                className="scale-90"
+              />
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Your personal relay list. These are synced to Nostr when logged in.
+            Your personal relay list. Disabled by default — enable to include your relays in queries and publishes. {user ? 'Your list is still synced to Nostr when logged in.' : 'Log in to sync your list to Nostr.'}
           </p>
         </div>
 
         {/* Relay List */}
-        <div className="mt-3">
+        <div className={cn(
+          "mt-3 transition-opacity",
+          !config.useUserRelays && "opacity-40"
+        )}>
           {relays.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              No personal relays configured. Add relays below or enable App Relays above.
+              No personal relays configured. Add relays below{config.useAppRelays ? ' or keep App Relays enabled above' : ''}.
             </div>
           ) : (
             <div className="space-y-1">

@@ -128,6 +128,7 @@ export function BlobbiRoomStage({
             )}
             {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict */}
             <div
+              data-blobbi-visual
               className="relative transition-all duration-500 pointer-events-none"
               style={{
                 ...(isEgg

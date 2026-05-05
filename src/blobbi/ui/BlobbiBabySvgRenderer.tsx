@@ -17,7 +17,7 @@
  *   - Companion runtime (drag, float, position)
  */
 
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
@@ -27,7 +27,8 @@ import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from 
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
-import { useRecipeFingerprint, useFillLevelUpdate } from './hooks/useFillLevelUpdate';
+import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
+import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
 
 export interface BlobbiBabySvgRendererProps {
@@ -67,9 +68,9 @@ export function BlobbiBabySvgRenderer({
   bodyEffects,
   className,
 }: BlobbiBabySvgRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const recipeFingerprint = useRecipeFingerprint(recipeProp);
-  useFillLevelUpdate(containerRef, blobbi.id, recipeProp);
+
+  const instanceId = useBlobbiInstanceId(blobbi.id);
 
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
@@ -78,28 +79,31 @@ export function BlobbiBabySvgRenderer({
     const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
     const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
 
-    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId: blobbi.id });
+    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
 
     if (recipeProp) {
-      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, blobbi.id);
+      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, instanceId);
     } else if (emotion !== 'neutral') {
       const resolved = resolveVisualRecipe(emotion);
-      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, blobbi.id);
+      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, instanceId);
     }
 
     if (bodyEffects && !recipeProp) {
-      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? blobbi.id });
+      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? instanceId });
     }
 
     return animatedSvg;
+  // Deps use stable primitives from blobbi (not the object reference) and
+  // recipeFingerprint (not recipeProp) so that level-only changes and
+  // upstream reference churn do NOT trigger full SVG rebuilds. The closure
+  // captures the current blobbi/recipeProp for the rare structural rebuilds.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
+  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 
   return (
     <div
-      ref={containerRef}
       className={className}
       dangerouslySetInnerHTML={{ __html: safeSvg }}
     />

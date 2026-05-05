@@ -27,9 +27,17 @@ interface ItemCarouselProps {
   onFocusChange?: (entry: CarouselEntry) => void;
   /** When set, the carousel visually guides the user toward this item. */
   highlightId?: string | null;
+  /** When set, seeds the initial index to this item's position. */
+  initialItemId?: string | null;
+  /** Optional pointer-down handler forwarded to the center (focused) item.
+   *  Used by KitchenBar for food drag-to-feed. Receives the currently focused
+   *  entry so the caller doesn't need to track index state.  After pointerdown,
+   *  the drag hook owns the lifecycle via global window listeners — the button
+   *  does not need onPointerMove / onPointerUp / onPointerCancel. */
+  centerPointerHandlers?: {
+    onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => void;
+  };
   className?: string;
-  /** Seed the initial focused item by id (e.g. from localStorage). Falls back to index 0. */
-  initialItemId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -41,8 +49,9 @@ export function ItemCarousel({
   disabled,
   onFocusChange,
   highlightId,
-  className,
+  centerPointerHandlers,
   initialItemId,
+  className,
 }: ItemCarouselProps) {
   const [index, setIndex] = useState(() => {
     if (initialItemId) {
@@ -73,9 +82,16 @@ export function ItemCarousel({
     });
   }, [items, count]);
 
+  // Clamp synchronously: the effect above resets state *after* render, so on
+  // the first render with a shorter items array the stale index can exceed
+  // the new length. Using the clamped value for all reads below prevents the
+  // out-of-bounds access that would otherwise crash.
+  const safeIndex = count === 0 ? 0 : Math.min(index, count - 1);
+
   const prev = useCallback(() => {
     setIndex(i => {
-      const n = (i - 1 + count) % count;
+      const clamped = Math.min(i, count - 1);
+      const n = (clamped - 1 + count) % count;
       onFocusChange?.(items[n]);
       return n;
     });
@@ -83,7 +99,8 @@ export function ItemCarousel({
 
   const next = useCallback(() => {
     setIndex(i => {
-      const n = (i + 1) % count;
+      const clamped = Math.min(i, count - 1);
+      const n = (clamped + 1) % count;
       onFocusChange?.(items[n]);
       return n;
     });
@@ -95,14 +112,14 @@ export function ItemCarousel({
   const highlightArrow = useMemo<'left' | 'right' | null>(() => {
     if (!highlightId || count < 2) return null;
     const targetIdx = items.findIndex(i => i.id === highlightId);
-    if (targetIdx === -1 || targetIdx === index) return null;
+    if (targetIdx === -1 || targetIdx === safeIndex) return null;
 
-    const rightDist = (targetIdx - index + count) % count;
-    const leftDist = (index - targetIdx + count) % count;
+    const rightDist = (targetIdx - safeIndex + count) % count;
+    const leftDist = (safeIndex - targetIdx + count) % count;
     return rightDist <= leftDist ? 'right' : 'left';
-  }, [highlightId, items, index, count]);
+  }, [highlightId, items, safeIndex, count]);
 
-  const isHighlightFocused = !!highlightId && items[index]?.id === highlightId;
+  const isHighlightFocused = !!highlightId && items[safeIndex]?.id === highlightId;
 
   if (count === 0) {
     return (
@@ -112,9 +129,9 @@ export function ItemCarousel({
     );
   }
 
-  const current = items[index];
-  const prevItem = items[(index - 1 + count) % count];
-  const nextItem = items[(index + 1) % count];
+  const current = items[safeIndex];
+  const prevItem = items[(safeIndex - 1 + count) % count];
+  const nextItem = items[(safeIndex + 1) % count];
   const isThisActive = activeItemId === current.id;
   const showPreviews = count >= 3;
 
@@ -145,8 +162,10 @@ export function ItemCarousel({
       )}
 
       <button
-        onClick={() => onUse(current.id)}
+        onClick={centerPointerHandlers ? undefined : () => onUse(current.id)}
+        onPointerDown={centerPointerHandlers ? (e: React.PointerEvent<HTMLButtonElement>) => centerPointerHandlers.onPointerDown(e, current) : undefined}
         disabled={disabled}
+        data-food-drag={centerPointerHandlers ? '' : undefined}
         className={cn(
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
           'w-18 h-16 sm:w-24 sm:h-[5.5rem] rounded-2xl',
@@ -156,6 +175,7 @@ export function ItemCarousel({
           isThisActive && 'bg-background/60',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
           isHighlightFocused && ROOM_GUIDE_HIGHLIGHT,
+          centerPointerHandlers && 'touch-none',
         )}
       >
         <span className="text-3xl sm:text-5xl leading-none">{current.icon}</span>

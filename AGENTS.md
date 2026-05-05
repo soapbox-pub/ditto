@@ -352,6 +352,6 @@ Ditto uses GitLab CI (`.gitlab-ci.yml`) with five stages:
 4. **release** — creates a GitLab Release with the APK artifact (tags only).
 5. **publish** — `publish-zapstore` (APK → Zapstore) and `publish-google-play` (AAB → Google Play production track), tags only.
 
-Cut a release with `npm run release` — this creates a `v2026.MM.DD+shortsha` tag and pushes it. For the full release workflow (versioning, changelog, native builds, tagging) load the **`release`** skill.
+To cut a release, load the **`release`** skill — it walks through version bumping (`X.Y.Z`), changelog generation, native build-file updates, and tagging/pushing (`vX.Y.Z`) to trigger the CI pipeline.
 
 For CI credential setup and rotation (Zapstore NIP-46 bunker, nsyte `nbunksec`, Google Play service-account JSON, Android keystore), load the **`ci-cd-publishing`** skill.

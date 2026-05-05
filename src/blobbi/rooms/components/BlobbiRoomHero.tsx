@@ -10,6 +10,7 @@
  * the shell's room header overlay.
  */
 
+import { memo } from 'react';
 import { Footprints, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -27,7 +28,13 @@ export interface BlobbiRoomHeroProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BlobbiRoomHero({
+/**
+ * Memoized so that high-frequency drag-state updates in the parent
+ * (BlobbiDashboard) do not propagate into the Blobbi visual subtree.
+ * All props from the parent are stable references during food drag,
+ * so memo effectively short-circuits the entire subtree.
+ */
+export const BlobbiRoomHero = memo(function BlobbiRoomHero({
   companion,
   isActiveFloatingCompanion,
   isUpdatingCompanion,
@@ -62,4 +69,4 @@ export function BlobbiRoomHero({
   // stays at the bottom. The actual Blobbi rendering happens in BlobbiRoomStage
   // which is absolutely positioned against the shell.
   return <div className={cn('flex-1 min-h-0', className)} />;
-}
+});

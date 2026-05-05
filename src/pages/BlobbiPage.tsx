@@ -3,10 +3,16 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X } from 'lucide-react';
+import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X, Activity, Users } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
+import { useBlobbiActivityHistory } from '@/blobbi/core/hooks/useBlobbiActivityHistory';
+import { useCanonicalSync } from '@/blobbi/core/hooks/useCanonicalSync';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
@@ -22,6 +28,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
@@ -36,12 +43,15 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
+import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbiTags,
   updateBlobbonautTags,
+  statsToTagUpdates,
   filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbiStats,
@@ -94,6 +104,7 @@ import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/com
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
+import { playMunchSound } from '@/blobbi/ui/lib/munchSound';
 import {
   BlobbiRoomShell,
   BlobbiRoomHero,
@@ -122,7 +133,9 @@ import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getE
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
 import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
-import { getActionEmotion, type ActionType } from '@/blobbi/ui/lib/status-reactions';
+import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
+import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
+import { useFoodDrag, type UseFoodDragReturn } from '@/blobbi/rooms/hooks/useFoodDrag';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
@@ -393,21 +406,13 @@ function BlobbiContent() {
       });
 
       // Build the new tags with decayed stats + new state
-      const nowStr = now.toString();
-
       // Get streak updates (putting to sleep/waking counts as care activity)
       const streakUpdates = getStreakTagUpdates(canonical.companion) ?? {};
 
       const newTags = updateBlobbiTags(canonical.allTags, {
         state: newState,
-        hunger: decayResult.stats.hunger.toString(),
-        happiness: decayResult.stats.happiness.toString(),
-        health: decayResult.stats.health.toString(),
-        hygiene: decayResult.stats.hygiene.toString(),
-        energy: decayResult.stats.energy.toString(),
+        ...statsToTagUpdates(decayResult.stats, now),
         ...streakUpdates,
-        last_interaction: nowStr,
-        last_decay_at: nowStr,
       });
 
       const prev = canonical.companion.event;
@@ -751,42 +756,10 @@ function BlobbiContent() {
     );
   }
   
-  // ─── CASE G: Companions loaded, but no valid selection ───
+  // ─── CASE G/H: No valid selection or companion not resolved ───
   // Show selector to pick which pet to display
-  if (!selectedD && filteredCompanions.length > 0) {
+  if (!selectedD || !companion) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: pet selector');
-    return (
-      <>
-        <BlobbiSelectorPage
-          companions={filteredCompanions}
-          onSelect={handleSelectBlobbi}
-          isLoading={companionFetching}
-          onAdopt={() => setShowAdoptionFlow(true)}
-          currentCompanion={profile?.currentCompanion}
-        />
-        
-        {/* Adoption Flow Modal */}
-        <Dialog open={showAdoptionFlow} onOpenChange={setShowAdoptionFlow}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-            <BlobbiOnboardingFlow
-              profile={profile}
-              updateProfileEvent={updateProfileEvent}
-              updateCompanionEvent={updateCompanionEvent}
-              invalidateProfile={invalidateProfile}
-              invalidateCompanion={invalidateCompanion}
-              setStoredSelectedD={setStoredSelectedD}
-              adoptionOnly={true}
-              onComplete={() => setShowAdoptionFlow(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
-  
-  // ─── CASE H: Selection exists but companion not resolved (edge case) ───
-  if (!companion || !selectedD) {
-    if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: selector (companion not resolved)');
     return (
       <>
         <BlobbiSelectorPage
@@ -878,7 +851,7 @@ function DashboardShell({ children }: DashboardShellProps) {
 // ─── Dashboard Drawer Type ────────────────────────────────────────────────────
 
 /** Which drawer is open; 'none' = room view visible */
-type DashboardDrawer = 'none' | 'missions' | 'more';
+type DashboardDrawer = 'none' | 'missions' | 'activity' | 'more';
 
 // ─── Main Blobbi Dashboard ────────────────────────────────────────────────────
 
@@ -1010,6 +983,78 @@ function BlobbiDashboard({
     }
   }, [user?.pubkey, nostr, publishEvent, updateProfileEvent]);
 
+  // ─── Interaction Activity ───
+  // Disabled for eggs: they do not participate in social stat-loss/care flow.
+  const { interactions, isLoading: interactionsLoading } = useBlobbiInteractions(isEgg ? null : companion);
+
+  // Interaction reaction layer — temporary visual rewards for care actions.
+  // Produces emotion overrides, body animations, and particle overlays.
+  // Placed before useCanonicalSync so the trigger can be passed directly.
+  const { state: interactionReaction, trigger: triggerInteractionReaction } = useInteractionReaction();
+
+  // ─── Automatic Canonical Sync ───
+  // On mount (or companion switch), persist accumulated decay and consolidate
+  // pending social interactions in a single publish. Replaces the old manual
+  // "Apply pending care" button. Runs at most once per companion d-tag.
+  const handleSocialConsolidated = useCallback(() => {
+    triggerInteractionReaction('social_hearts');
+  }, [triggerInteractionReaction]);
+
+  useCanonicalSync({
+    companion,
+    interactions,
+    interactionsLoading,
+    updateCompanionEvent,
+    ensureCanonicalBeforeAction,
+    onSocialConsolidated: handleSocialConsolidated,
+  });
+
+  // ─── Social Permission Toggle ───
+  const [isSocialToggling, setIsSocialToggling] = useState(false);
+
+  const handleToggleSocial = useCallback(async (open: boolean) => {
+    if (!companion) return;
+
+    setIsSocialToggling(true);
+    try {
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        setIsSocialToggling(false);
+        return;
+      }
+
+      const newTags = updateBlobbiTags(canonical.allTags, {
+        social: open ? 'open' : 'closed',
+      });
+
+      const prev = canonical.companion.event;
+      const event = await publishEvent({
+        kind: KIND_BLOBBI_STATE,
+        content: canonical.content,
+        tags: newTags,
+        prev,
+      });
+
+      updateCompanionEvent(event);
+
+      toast({
+        title: open ? 'Social interactions enabled' : 'Social interactions disabled',
+        description: open
+          ? 'Other people can now care for this Blobbi.'
+          : 'Only you can interact with this Blobbi.',
+      });
+    } catch (error) {
+      console.error('Failed to toggle social permission:', error);
+      toast({
+        title: 'Failed to update',
+        description: 'Could not change the social interaction setting. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSocialToggling(false);
+    }
+  }, [companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+
   // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
 
@@ -1069,7 +1114,9 @@ function BlobbiDashboard({
   const { companion: activeCompanion } = useBlobbiCompanionData();
   const isActiveFloatingCompanion = activeCompanion?.d === companion.d;
   
-  // Projected state with decay applied (UI-only, recalculates every 60s)
+  // Projected state with decay applied (UI-only, recalculates every 60s).
+  // Owner surfaces use decay-only — social effects are incorporated via
+  // explicit consolidation, not pre-applied projection.
   const projectedState = useProjectedBlobbiState(companion);
 
   // Clear sleep guide after companion actually enters sleeping state
@@ -1099,14 +1146,20 @@ function BlobbiDashboard({
   // DEV ONLY: Get effective emotion (dev override or base)
   const devEmotionOverride = useEffectiveEmotion();
   
-  // Action override emotion - set when Blobbi is doing an action (eating, cleaning, etc.)
-  // This takes priority over status reactions but not dev override
+  // Temporary action override used by drag-to-feed / chewing flow.
   const [actionOverrideEmotion, setActionOverrideEmotion] = useState<BlobbiEmotion | null>(null);
+
+  // Music/sing override — persistent while the activity is active (not auto-clearing).
+  // Separate from interactionReaction because music is a duration-based activity,
+  // not a short reward reaction.
+  const [musicOverrideEmotion, setMusicOverrideEmotion] = useState<BlobbiEmotion | null>(null);
   
   // Status-based automatic reactions (recipe-first pipeline).
   // Uses projected stats (with decay applied) for accurate reactions.
   // Body effects (dirt, stink) are folded into the recipe by the resolver —
   // no separate bodyEffects prop needed.
+  //
+  // Override priority: action override > interaction reaction > music override > status reactions.
   const currentStats = useMemo(() => ({
     hunger: projectedState?.stats.hunger ?? companion.stats.hunger ?? 100,
     happiness: projectedState?.stats.happiness ?? companion.stats.happiness ?? 100,
@@ -1115,10 +1168,16 @@ function BlobbiDashboard({
     energy: projectedState?.stats.energy ?? companion.stats.energy ?? 100,
   }), [projectedState, companion.stats]);
   
+  // Combined emotion override: interaction reaction wins over music.
+  const combinedEmotionOverride =
+  actionOverrideEmotion ??
+  interactionReaction.emotionOverride ??
+  musicOverrideEmotion;
+
   const { recipe: rawStatusRecipe, recipeLabel: rawStatusRecipeLabel } = useStatusReaction({
     stats: currentStats,
     enabled: !isEgg, // Keep enabled during sleep so body effects still resolve
-    actionOverride: isSleeping ? null : actionOverrideEmotion,
+    actionOverride: isSleeping ? null : combinedEmotionOverride,
   });
 
   // When sleeping, overlay the sleeping face on top of the status recipe.
@@ -1354,29 +1413,29 @@ function BlobbiDashboard({
   const handleCloseInlineActivity = () => {
     setInlineActivity(createNoActivity());
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle music playback state changes (for Blobbi reaction)
   const handleMusicPlaybackStart = () => {
     setBlobbiReaction('listening');
-    setActionOverrideEmotion(getActionEmotion('music'));
+    setMusicOverrideEmotion(getActionEmotion('music'));
   };
   
   const handleMusicPlaybackStop = () => {
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle sing recording state changes (for Blobbi reaction)
   const handleSingRecordingStart = () => {
     setBlobbiReaction('singing');
-    setActionOverrideEmotion(getActionEmotion('sing'));
+    setMusicOverrideEmotion(getActionEmotion('sing'));
   };
   
   const handleSingRecordingStop = () => {
     setBlobbiReaction('idle');
-    setActionOverrideEmotion(null);
+    setMusicOverrideEmotion(null);
   };
   
   // Handle opening track picker to change track (from inline player)
@@ -1442,20 +1501,267 @@ function BlobbiDashboard({
     }, 1500);
   }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
-  // Handle using an item from the items tab
+  // Shared timer ref for temporary action-emotion cleanup.
+  // Used across the current feeding/item interaction paths so older timers
+  // do not clear a newer visual state.
+  const actionCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Handle tap-based item use.
+  // Non-food actions use this path from room bars, and the fridge still uses it for food for now.
+  // Triggers a temporary interaction reaction based on the action type.
+  // For 'clean' actions, detects whether the Blobbi was visibly dirty before
+  // the action and uses 'clean_complete' if the dirt was fully removed.
   const handleUseItemFromTab = (itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
+    clearTimeout(actionCleanupRef.current);
     setUsingItemId(itemId);
-    setActionOverrideEmotion(getActionEmotion(action as ActionType));
+
+    // Snapshot hygiene before the action for clean_complete detection.
+    // "Visibly dirty" = hygiene below the warning threshold (< 70).
+    const wasDirtyBefore = action === 'clean'
+      && currentStats.hygiene < SEVERITY_THRESHOLDS.warning;
+
+    // Map inventory action to reaction type (feed/play/clean/medicine → reaction).
+    const reactionType = INVENTORY_TO_REACTION[action] ?? 'feed';
+
+    // For non-clean actions, trigger immediately (facial expression before action completes).
+    if (action !== 'clean') {
+      triggerInteractionReaction(reactionType);
+    }
+
     onUseItem(itemId, action).then(() => {
-      // Clear guide only after the action succeeds
       if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
+
+      // For clean actions, trigger after the action succeeds so we can
+      // detect clean_complete from the updated projected stats.
+      if (action === 'clean') {
+        // After the action, the companion cache is already updated.
+        // The projected state will recalculate on next render, but we can
+        // check whether the item's hygiene effect crossed the threshold.
+        // The action result doesn't return the new hygiene value directly,
+        // so we use the item's known effect + snapshot.
+        const shopItem = getShopItemById(itemId);
+        const hygieneGain = shopItem?.effect?.hygiene ?? 0;
+        const projectedHygiene = currentStats.hygiene + hygieneGain;
+        const isNowClean = projectedHygiene >= SEVERITY_THRESHOLDS.warning;
+
+        if (wasDirtyBefore && isNowClean) {
+          triggerInteractionReaction('clean_complete');
+        } else {
+          triggerInteractionReaction('clean');
+        }
+      }
     }).finally(() => {
       setUsingItemId(null);
-      setTimeout(() => setActionOverrideEmotion(null), 1500);
+      actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
   };
+
+  // ─── Food drag-to-feed ───────────────────────────────────────────────────
+  //
+  // Timing constants — tweak these to tune how the feed reward feels.
+  const CHEW_DURATION_MS = 1200;   // chewing animation before → happy
+  const CRUMB_DURATION_MS = 1200;  // how long crumb particles stay visible
+  const HAPPY_DURATION_MS = 1500;  // happy face after chewing
+  const CRUMB_Y_OFFSET = 4;      // px below the mouth center where crumbs spawn
+  const REWARD_Y_RATIO = 0.08;    // fraction of visual height from top for reward text
+  //
+  // Visual sequence:
+  //   eating (open mouth) → chewing + crumbs (CHEW_DURATION_MS) → happy (HAPPY_DURATION_MS) → null
+  // Mutation timing:  starts immediately on drop — no delay.
+  //
+  // The chewing phase is purely visual. The mutation fires right away so
+  // Nostr publishing and stat changes are not blocked by the animation.
+  // If the mutation fails, we skip the happy phase and clear the override.
+  //
+  // Race-condition strategy:
+  //   feedSeqRef  — monotonically increasing counter. Every timer and promise
+  //                 continuation captures the value at invocation and bails
+  //                 out if a newer sequence has started.
+  //   mountedRef  — set to false on unmount. All continuations check this
+  //                 before calling setState.
+
+  const [crumbBurst, setCrumbBurst] = useState<{
+    crumbX: number; crumbY: number;   // crumb particle origin (just below the mouth)
+    rewardX: number; rewardY: number; // reward text anchor (above the head)
+  } | null>(null);
+
+  const feedSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  // Timer refs for chew→happy transition, happy→null cleanup, crumb cleanup,
+  // and a hard safety timeout that prevents chewing from getting stuck.
+  const chewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const happyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const crumbTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearFeedTimers = useCallback(() => {
+    clearTimeout(actionCleanupRef.current);
+    actionCleanupRef.current = undefined;
+    clearTimeout(chewTimerRef.current);
+    chewTimerRef.current = undefined;
+    clearTimeout(happyTimerRef.current);
+    happyTimerRef.current = undefined;
+    clearTimeout(crumbTimerRef.current);
+    crumbTimerRef.current = undefined;
+    clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = undefined;
+  }, []);
+
+  // Clean up all feed timers and mark unmounted.
+  useEffect(() => () => {
+    mountedRef.current = false;
+    clearFeedTimers();
+  }, [clearFeedTimers]);
+
+  const handleNearMouthChange = useCallback((near: boolean) => {
+    setActionOverrideEmotion(near ? 'eating' : null);
+  }, []);
+
+  /** Drag-to-feed handler: fires mutation immediately, overlays chewing
+   *  animation for CHEW_DURATION_MS, then transitions to happy if the
+   *  mutation succeeded, or clears the override on failure.
+   *
+   *  Every async continuation (timer callbacks, .then, .finally) captures
+   *  the current `seq` value and checks `seq === feedSeqRef.current` before
+   *  writing state. If a newer sequence has started (or the component
+   *  unmounted), the continuation is a no-op. */
+  const handleFeedFromDrag = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    if (!action || isUsingItem) return;
+
+    // Cancel any in-flight feed animation timers from a prior sequence.
+    clearFeedTimers();
+
+    // Stamp this sequence so all continuations can verify ownership.
+    const seq = ++feedSeqRef.current;
+
+    /** Guard: returns true only when this sequence is still active and
+     *  the component is mounted. Every continuation calls this before
+     *  touching React state. */
+    const isActive = () => mountedRef.current && seq === feedSeqRef.current;
+
+    // ── Overfeed check (must run before the mutation fires) ──
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
+
+    // ── Lock + visual + audio ──
+    setUsingItemId(itemId);
+    setActionOverrideEmotion('chewing');
+    playMunchSound();
+
+    // Spawn crumb particles just below the mouth, and anchor the reward
+    // text above the head.
+    //
+    // The crumb origin is read from the actual chewing-mouth element
+    // (marked with data-blobbi-mouth) so crumbs align with the real
+    // mouth regardless of adult variant.  Falls back to the visual
+    // bounding box ratio when the marker is absent (e.g. Owli/beak).
+    //
+    // Wrapped in requestAnimationFrame so the DOM query runs *after*
+    // React has committed the chewing mouth from the state update above.
+    // Without this, the query would see the previous eating/neutral
+    // mouth (or no marker at all) because React 18 batches setState.
+    //
+    // Reward text: always anchored above the head via the visual rect.
+    const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
+    if (el) {
+      requestAnimationFrame(() => {
+        if (!isActive()) return;
+
+        const r = el.getBoundingClientRect();
+        const mouthEl = el.querySelector<SVGElement>('[data-blobbi-mouth]');
+        let crumbOriginX: number;
+        let crumbOriginY: number;
+        if (mouthEl) {
+          const mr = mouthEl.getBoundingClientRect();
+          crumbOriginX = mr.left + mr.width / 2;
+          crumbOriginY = mr.top + mr.height / 2 + CRUMB_Y_OFFSET;
+        } else {
+          crumbOriginX = r.left + r.width * 0.5;
+          crumbOriginY = r.top + r.height * 0.67 + CRUMB_Y_OFFSET;
+        }
+
+        setCrumbBurst({
+          crumbX: crumbOriginX,
+          crumbY: crumbOriginY,
+          rewardX: r.left + r.width * 0.5,
+          rewardY: r.top + r.height * REWARD_Y_RATIO,
+        });
+        crumbTimerRef.current = setTimeout(() => {
+          if (isActive()) setCrumbBurst(null);
+        }, CRUMB_DURATION_MS);
+      });
+    }
+
+    // ── Mutation starts NOW — no delay ──
+    //
+    // Two async boundaries must both complete before the post-chew
+    // transition fires:
+    //   1. The CHEW_DURATION_MS chewing timer  (visual minimum)
+    //   2. The onUseItem promise               (mutation)
+    //
+    // `mutationResult` is 'pending' until the promise settles, then
+    // 'ok' or 'failed'. `chewDone` flips to true when the timer fires.
+    // Whichever boundary fires second sees both flags set and calls
+    // `tryTransition()`, which applies the correct emotion once.
+
+    let mutationResult: 'pending' | 'ok' | 'failed' = 'pending';
+    let chewDone = false;
+
+    /** Apply the post-chew emotion. Only called when BOTH the chew timer
+     *  has elapsed AND the mutation has settled. Guarded by isActive(). */
+    const tryTransition = () => {
+      if (!chewDone || mutationResult === 'pending') return;
+      if (!isActive()) return;
+      // Normal flow completed — cancel the safety timeout.
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = undefined;
+      if (mutationResult === 'ok') {
+        setActionOverrideEmotion('happy');
+        happyTimerRef.current = setTimeout(() => {
+          if (isActive()) setActionOverrideEmotion(null);
+        }, HAPPY_DURATION_MS);
+      } else {
+        setActionOverrideEmotion(null);
+      }
+    };
+
+    onUseItem(itemId, action).then(
+      () => {
+        mutationResult = 'ok';
+        if (isActive() && guideTarget?.targetItemId === itemId) {
+          setGuideTarget(null);
+        }
+      },
+      () => { mutationResult = 'failed'; },
+    ).finally(() => {
+      if (isActive()) setUsingItemId(null);
+      tryTransition();
+    });
+
+    // ── After chewing phase, check if mutation also settled ──
+    chewTimerRef.current = setTimeout(() => {
+      chewDone = true;
+      tryTransition();
+    }, CHEW_DURATION_MS);
+
+    // ── Hard safety timeout ──
+    // If the mutation promise never settles (network hang, relay timeout,
+    // TanStack Query edge case), chewing would stay on forever.  This
+    // forces a clear after 5 seconds regardless.  Cleared by tryTransition
+    // when the normal flow completes, and by clearFeedTimers on new
+    // sequence / unmount.
+    safetyTimerRef.current = setTimeout(() => {
+      if (isActive()) {
+        setActionOverrideEmotion(null);
+        setUsingItemId(null);
+      }
+    }, 5000);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
+
+  const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
   
   return (
     <DashboardShell>
@@ -1509,6 +1815,15 @@ function BlobbiDashboard({
                   onStartEvolution={handleStartEvolution}
                 />
               )}
+              {activeDrawer === 'activity' && (
+                <ActivityTabContent
+                  companion={companion}
+                  socialOpen={companion.socialOpen}
+                  onToggleSocial={handleToggleSocial}
+                  isSocialToggling={isSocialToggling}
+                  isEgg={isEgg}
+                />
+              )}
               {activeDrawer === 'more' && (
                 <MoreTabContent
                   companion={companion}
@@ -1534,6 +1849,12 @@ function BlobbiDashboard({
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
+            </span>
+          </TabButton>
+          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')}>
+            <span className="flex items-center gap-1.5">
+              <Activity className="size-4" />
+              <span className="text-sm">Activity</span>
             </span>
           </TabButton>
           <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
@@ -1663,10 +1984,39 @@ function BlobbiDashboard({
             poopStateRef={poopStateRef}
             guideHighlightId={guideHighlightId}
             guideActionGlow={guideActionGlow}
+            foodDragHook={foodDragHook}
             carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
           />
         )}
       </BlobbiRoomShell>
+
+      {/* ─── Food drag ghost overlay ─── */}
+      {foodDragHook.drag && (
+        <div
+          ref={foodDragHook.ghostRef}
+          className="fixed pointer-events-none z-[60]"
+          style={{
+            left: foodDragHook.drag.startX,
+            top: foodDragHook.drag.startY,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <span className="text-4xl sm:text-5xl drop-shadow-lg transition-transform duration-150">
+            {foodDragHook.drag.emoji}
+          </span>
+        </div>
+      )}
+
+      {/* ─── Crumb burst overlay (chewing feedback) ─── */}
+      {crumbBurst && (
+        <CrumbBurst
+          key={feedSeqRef.current}
+          crumbX={crumbBurst.crumbX}
+          crumbY={crumbBurst.crumbY}
+          rewardX={crumbBurst.rewardX}
+          rewardY={crumbBurst.rewardY}
+        />
+      )}
       
       {/* ─── Dialogs (only for things that genuinely need modals) ─── */}
 
@@ -1786,6 +2136,8 @@ interface RoomBottomBarProps {
   guideHighlightId?: string | null;
   /** Action to glow (guide flow, e.g. 'sleep'). */
   guideActionGlow?: string | null;
+  /** Food drag hook for drag-to-feed in the kitchen. */
+  foodDragHook?: UseFoodDragReturn;
   /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
   carouselKeyPrefix: string;
 }
@@ -1905,6 +2257,28 @@ const STAT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   energy: Zap,
 };
 
+/**
+ * Shared overfeed check.  Call synchronously at the moment of feeding,
+ * before the mutation fires, so `hungerBefore` captures the pre-feed value.
+ *
+ * Both the tap-to-feed (`handleFeedItem`) and drag-to-feed
+ * (`handleFeedFromDrag`) paths must call this to keep poop behaviour
+ * consistent.
+ */
+function maybeOverfeedPoop(
+  action: string | null | undefined,
+  hungerBefore: number,
+  poopState: PoopState | null,
+): void {
+  if (
+    action === 'feed' &&
+    hungerBefore >= OVERFEED_THRESHOLD &&
+    Math.random() < OVERFEED_CHANCE
+  ) {
+    poopState?.addPoop('overfeed');
+  }
+}
+
 function KitchenBar({
   companion,
   currentStats,
@@ -1916,6 +2290,7 @@ function KitchenBar({
   poopStateRef,
   guideHighlightId,
   guideActionGlow,
+  foodDragHook,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
@@ -1938,16 +2313,27 @@ function KitchenBar({
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
-  // Feed-with-overfeed: wrap handleUseItemFromTab to trigger poop on overfeed
+  // Current tap-based feed path.
+  // Reuses handleUseItemFromTab and injects the overfeed check first.
   const handleFeedItem = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
-    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
     handleUseItemFromTab(itemId);
-    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
-      poopState?.addPoop('overfeed');
-    }
   }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
 
+  // Build pointer-down handler for food drag-to-feed.
+  // After pointerdown, the drag hook owns the lifecycle via global window
+  // listeners — the carousel button plays no further role.
+  const centerPointerHandlers = useMemo(() => {
+    if (!foodDragHook || foodEntries.length === 0 || isDisabled) return undefined;
+    const { onDragStart: start } = foodDragHook;
+    return {
+      onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => {
+        const rawItem = foodItems.find(i => i.id === entry.id);
+        start(e, entry.id, rawItem?.icon ?? '🍽');
+      },
+    };
+  }, [foodDragHook, foodEntries.length, foodItems, isDisabled]);
   return (
     <>
       <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
@@ -2024,6 +2410,7 @@ function KitchenBar({
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
+              centerPointerHandlers={centerPointerHandlers}
               initialItemId={storedFocusId ?? undefined}
               onFocusChange={handleFocusChange}
             />
@@ -2664,6 +3051,138 @@ function MoreTabContent({
 }
 
 
+// ─── Activity Tab Content ─────────────────────────────────────────────────────
+
+/** Action label + emoji for display in the activity list */
+const INTERACTION_ACTION_DISPLAY: Record<string, { label: string; icon: string }> = {
+  feed: { label: 'Feed', icon: '🍎' },
+  play: { label: 'Play', icon: '⚽' },
+  clean: { label: 'Clean', icon: '🧼' },
+  medicate: { label: 'Medicine', icon: '💊' },
+};
+
+interface ActivityTabContentProps {
+  companion: BlobbiCompanion;
+  socialOpen: boolean;
+  onToggleSocial: (open: boolean) => Promise<void>;
+  isSocialToggling: boolean;
+  isEgg: boolean;
+}
+
+function ActivityTabContent({ companion, socialOpen, onToggleSocial, isSocialToggling, isEgg }: ActivityTabContentProps) {
+  // Use the history hook: fetches recent interactions WITHOUT checkpoint filtering,
+  // so consumed interactions remain visible in the activity history.
+  const { interactions: allInteractions, isLoading } = useBlobbiActivityHistory(isEgg ? null : companion);
+
+  // Recency rule: if more than 20 interactions available, apply 24h filter.
+  // Otherwise show the most recent ones regardless of age.
+  const displayInteractions = useMemo(() => {
+    if (allInteractions.length <= 20) {
+      return allInteractions;
+    }
+    const cutoff = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+    return allInteractions.filter((ix) => ix.createdAt >= cutoff).slice(0, 20);
+  }, [allInteractions]);
+
+  const socialToggleId = 'blobbi-social-toggle';
+
+  return (
+    <div className="px-4 sm:px-6 space-y-4">
+      {/* ─── Social Permission Toggle (hidden for eggs) ─── */}
+      {isEgg ? (
+        <div className="flex items-center gap-2.5 rounded-lg border border-dashed p-3">
+          <Egg className="size-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Social care settings will unlock after your Blobbi hatches.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+          <label htmlFor={socialToggleId} className="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+            <Users className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">Allow others to care for this Blobbi</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {socialOpen ? 'Anyone can feed, play, and clean.' : 'Only you can interact.'}
+              </p>
+            </div>
+          </label>
+          <Switch
+            id={socialToggleId}
+            checked={socialOpen}
+            onCheckedChange={onToggleSocial}
+            disabled={isSocialToggling}
+            aria-label="Allow other people to care for this Blobbi"
+          />
+        </div>
+      )}
+
+      {/* ─── Recent Caretakers List ─── */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayInteractions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <Activity className="size-6 mb-2 opacity-40" />
+          <p className="text-sm">No recent activity</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {allInteractions.length > 20 ? 'Recent caretakers (last 24h)' : 'Recent caretakers'}
+          </p>
+          <div className="space-y-1">
+            {displayInteractions.map((ix) => {
+              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action] ?? { label: ix.action, icon: '❓' };
+              const item = ix.itemId ? getShopItemById(ix.itemId) : undefined;
+
+              return (
+                <div
+                  key={ix.event.id}
+                  className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/40 text-sm"
+                >
+                  <span className="text-base leading-none">{actionInfo.icon}</span>
+                  <span className="font-medium">{actionInfo.label}</span>
+                  {item && (
+                    <span className="text-muted-foreground truncate max-w-[7rem]">
+                      {item.icon} {item.name}
+                    </span>
+                  )}
+                  <span className="ml-auto flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
+                    <CaretakerLink pubkey={ix.authorPubkey} />
+                    <span>{timeAgo(ix.createdAt)}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Small inline component to resolve + link a caretaker's display name. */
+function CaretakerLink({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const profilePath = getProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <Link
+      to={profilePath}
+      className="font-medium text-foreground hover:underline truncate max-w-[6rem]"
+      title={displayName}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {displayName}
+    </Link>
+  );
+}
+
 // ─── Blobbi Selector Page ─────────────────────────────────────────────────────
 
 interface BlobbiSelectorPageProps {
@@ -2750,6 +3269,101 @@ function DashboardLoadingState() {
         </div>
       </div>
     </DashboardShell>
+  );
+}
+
+// ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
+
+/** Reward words — one is picked at random on each feed. */
+const REWARD_WORDS = [
+  'nhom!', 'nom nom!', 'yum!', 'yum yum!', 'mmm~',
+  'munch!', 'cronch!', 'tasty!', 'hehe!', '\u2661',
+] as const;
+
+/**
+ * Crumb particle configs — 12 small dots that spawn from a compact
+ * mouth-shaped strip and tumble mostly downward.
+ *
+ * `sx`/`sy` — spawn offset from the mouth center (mouth ~16 px wide).
+ * `dx`/`dy` — drift from the spawn point during the fall animation.
+ * `delay`   — staggered start for a natural feel.
+ * `size`    — 2–4 px (small crumbs with a few medium ones).
+ * `color`   — warm food-like Tailwind colour class.
+ */
+const CRUMB_PARTICLES: ReadonlyArray<{
+  sx: number; sy: number; dx: number; dy: number;
+  delay: number; size: number; color: string;
+}> = [
+  // left side of mouth
+  { sx: -7, sy:  0, dx: -4, dy: 14, delay:   0, size: 2, color: 'bg-amber-600/90' },
+  { sx: -5, sy:  1, dx: -2, dy: 18, delay:  50, size: 3, color: 'bg-orange-500/85' },
+  { sx: -8, sy: -1, dx: -5, dy: 12, delay: 100, size: 2, color: 'bg-yellow-600/80' },
+  // center of mouth
+  { sx: -2, sy:  2, dx:  1, dy: 20, delay:  30, size: 3, color: 'bg-amber-700/90' },
+  { sx:  1, sy:  3, dx: -1, dy: 24, delay:  80, size: 4, color: 'bg-orange-600/85' },
+  { sx:  0, sy:  2, dx:  2, dy: 16, delay: 120, size: 2, color: 'bg-amber-500/90' },
+  // right side of mouth
+  { sx:  5, sy:  1, dx:  3, dy: 18, delay:  40, size: 3, color: 'bg-amber-600/80' },
+  { sx:  7, sy:  0, dx:  5, dy: 14, delay:  90, size: 2, color: 'bg-yellow-700/80' },
+  { sx:  8, sy: -1, dx:  4, dy: 12, delay: 130, size: 2, color: 'bg-orange-500/75' },
+  // a few extra that fall a bit further for depth
+  { sx: -3, sy:  2, dx: -3, dy: 26, delay:  60, size: 4, color: 'bg-amber-700/80' },
+  { sx:  3, sy:  2, dx:  2, dy: 28, delay: 110, size: 3, color: 'bg-yellow-600/75' },
+  { sx:  0, sy:  3, dx:  0, dy: 22, delay: 140, size: 2, color: 'bg-orange-600/80' },
+];
+
+/**
+ * Burst of crumb particles + a tiny floating reward word.
+ *
+ * Crumbs are anchored at (crumbX, crumbY) — just below the mouth — and
+ * fall outward via the `crumb-fall` CSS animation.
+ *
+ * The reward word is anchored at (rewardX, rewardY) — above the head —
+ * and floats upward via `reward-pop`.
+ *
+ * Both layers are pointer-events-none and aria-hidden; purely decorative.
+ */
+function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
+  crumbX: number; crumbY: number;
+  rewardX: number; rewardY: number;
+}) {
+  // Pick a stable random word for this burst instance.
+  const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
+
+  return (
+    <>
+      {/* Crumb particles — anchored just below the mouth */}
+      <div
+        className="fixed pointer-events-none z-[60]"
+        style={{ left: crumbX, top: crumbY }}
+        aria-hidden="true"
+      >
+        {CRUMB_PARTICLES.map((p, i) => (
+          <span
+            key={i}
+            className={`absolute rounded-full ${p.color} animate-crumb-fall`}
+            style={{
+              left: p.sx,
+              top: p.sy,
+              width: p.size,
+              height: p.size,
+              animationDelay: `${p.delay}ms`,
+              '--crumb-dx': `${p.dx}px`,
+              '--crumb-dy': `${p.dy}px`,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+
+      {/* Floating reward word — anchored above the head */}
+      <span
+        className="fixed pointer-events-none z-[60] text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none"
+        style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
+        aria-hidden="true"
+      >
+        {word}
+      </span>
+    </>
   );
 }
 

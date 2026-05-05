@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.12.2] - 2026-05-04
+
+### Added
+- Blobbi vomit escalation -- shake your Blobbi past the dizzy threshold and it'll throw up, with puddles that linger in the room until you clean them up
+- Articles now render Nostr mentions, quoted notes, links, hashtags, and custom emoji inline instead of showing them as raw text, matching how regular notes already behave
+- Remote signer login now shows live handshake progress so you can see when your signer has connected instead of staring at a blank dialog
+
+### Changed
+- Personal relay list is now off by default -- fresh installs and new accounts use the app's default relays until you opt in via Settings > Network
+- Page-load screens show a neutral spinner instead of a feed-shaped skeleton, so non-feed pages no longer flash the wrong layout
+
+### Fixed
+- Short-form videos now play with sound when autoplay is turned off and you tap to play, instead of staying silent
+- Egg tap-to-wiggle works again on the Blobbi page
+- Blobbi evolution progress no longer resets when activity state changes mid-flight
+- Shake reaction is more stable -- dizzy eyes stay animated, stacked shakes register correctly, and the debug bypass is gone
+
 ## [2.12.1] - 2026-05-01
 
 ### Changed
