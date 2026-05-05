@@ -28,6 +28,8 @@ import {
   insertOverlay,
   animateClipPathBlink,
 } from './injection';
+import { detectBodyPath } from '../bodyEffects/generators';
+import type { BodyPathInfo } from '../bodyEffects/types';
 
 // ─── Sad Eyes Effect ──────────────────────────────────────────────────────────
 
@@ -168,8 +170,14 @@ export function applyStarEyes(
     svgText = injectIntoEyeTrackLayer(svgText, eye.side, starElement);
   }
 
-  // Add sparkles around the Blobbi
-  const sparkles = generateSparkles(config.color);
+  // Detect body geometry for precise sparkle placement.
+  // Uses the same detectBodyPath system as body effects (dirt, stink),
+  // which reads actual body bounds from data-blobbi-body markers or
+  // gradient/comment fallback — no hardcoded viewBox assumptions.
+  const bodyPath = detectBodyPath(svgText);
+
+  // Add sparkles distributed around the detected body bounds
+  const sparkles = generateSparkles(config.color, bodyPath);
   svgText = insertOverlay(svgText, `
   <!-- Excited sparkles around Blobbi -->
   <g class="blobbi-sparkles-group">
@@ -231,25 +239,45 @@ function generateStarElement(eye: EyePosition, config: StarEyeConfig): string {
 }
 
 /**
- * Generate sparkle elements around the Blobbi.
+ * Generate sparkle elements distributed around the Blobbi body.
+ *
+ * Uses detected body bounds (from detectBodyPath) to place sparkles in an
+ * elliptical ring around the actual body silhouette with a small margin.
+ * This works correctly for any viewBox dimension (baby 100x100, adult 200x200,
+ * or any other) without hardcoded scale assumptions.
+ *
+ * Falls back to a centered distribution if body detection fails.
  */
-function generateSparkles(color: string): string {
-  const sparklePositions = [
-    { x: 30, y: 8, size: 2.5, delay: 0 },
-    { x: 50, y: 5, size: 3, delay: 0.8 },
-    { x: 70, y: 8, size: 2, delay: 1.6 },
-    { x: 15, y: 25, size: 2.5, delay: 0.4 },
-    { x: 85, y: 25, size: 2.5, delay: 1.2 },
-    { x: 10, y: 50, size: 2, delay: 0.6 },
-    { x: 90, y: 50, size: 2.5, delay: 1.4 },
-    { x: 15, y: 75, size: 2, delay: 1.0 },
-    { x: 85, y: 75, size: 2, delay: 0.2 },
-    { x: 25, y: 90, size: 2.5, delay: 1.8 },
-    { x: 75, y: 90, size: 2, delay: 0.5 },
+function generateSparkles(color: string, bodyPath: BodyPathInfo | null): string {
+  // If body detection succeeded, distribute sparkles around the body bounds.
+  // Otherwise fall back to generic center-based placement.
+  const cx = bodyPath?.centerX ?? 50;
+  const cy = bodyPath ? (bodyPath.minY + bodyPath.height / 2) : 50;
+  const radiusX = bodyPath ? (bodyPath.width / 2) * 1.6 : 40;
+  const radiusY = bodyPath ? (bodyPath.height / 2) * 1.5 : 42;
+  const sparkleSize = bodyPath ? Math.max(2, bodyPath.width * 0.04) : 2.5;
+
+  // Distribute sparkles at fixed angles around an ellipse surrounding the body
+  const sparkleAngles = [
+    { angle: -90,  sizeMul: 1.0, delay: 0 },      // top center
+    { angle: -45,  sizeMul: 0.8, delay: 0.2 },    // top-right
+    { angle: -135, sizeMul: 0.85, delay: 0.4 },   // top-left
+    { angle: 0,    sizeMul: 0.9, delay: 0.15 },   // right
+    { angle: 180,  sizeMul: 0.75, delay: 0.5 },   // left
+    { angle: 30,   sizeMul: 0.7, delay: 0.35 },   // lower-right
+    { angle: 150,  sizeMul: 0.65, delay: 0.45 },  // lower-left
+    { angle: 60,   sizeMul: 0.6, delay: 0.1 },    // mid-right
+    { angle: 120,  sizeMul: 0.7, delay: 0.25 },   // mid-left
+    { angle: -60,  sizeMul: 0.9, delay: 0.8 },    // upper-right
+    { angle: -120, sizeMul: 0.8, delay: 0.6 },    // upper-left
   ];
 
-  return sparklePositions
-    .map(({ x, y, size, delay }) => {
+  return sparkleAngles
+    .map(({ angle, sizeMul, delay }) => {
+      const rad = (angle * Math.PI) / 180;
+      const x = cx + Math.cos(rad) * radiusX;
+      const y = cy + Math.sin(rad) * radiusY;
+      const size = sparkleSize * sizeMul;
       const duration = 2 + delay * 0.3;
       return createSparkleElement(x, y, size, color, delay, duration);
     })
@@ -528,6 +556,6 @@ function generateSleepyZzz(): string {
  * Check if an emotion type affects eyes.
  */
 export function emotionAffectsEyes(emotion: string): boolean {
-  const eyeAffectingEmotions = ['sad', 'excited', 'excitedB', 'dizzy', 'adoring', 'hungry'];
+  const eyeAffectingEmotions = ['sad', 'excited', 'excitedB', 'dizzy', 'adoring', 'hungry', 'blissful'];
   return eyeAffectingEmotions.includes(emotion);
 }

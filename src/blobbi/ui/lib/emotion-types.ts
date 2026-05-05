@@ -25,7 +25,10 @@ export type BlobbiEmotion =
   | 'excitedB'
   | 'mischievous'
   | 'adoring'
-  | 'hungry';
+  | 'hungry'
+  | 'blissful'
+  | 'eating'
+  | 'chewing';
 
 /**
  * Blobbi variant for variant-specific adjustments.

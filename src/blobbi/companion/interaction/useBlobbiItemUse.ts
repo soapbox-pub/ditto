@@ -51,6 +51,7 @@ import {
 import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@/blobbi/actions/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
 
 import type { UseItemFunction } from './BlobbiActionsContextDef';
 
@@ -384,10 +385,32 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       });
       
       updateCompanionInCache(blobbiEvent);
+
+      // ─── Emit kind 1124 interaction event (best-effort, fire-and-forget) ───
+      // ownerPubkey comes from the target Blobbi event, not the logged-in user,
+      // so the tags remain correct if this path is later reused for non-owner interactions.
+      const interactionAction = INTERNAL_TO_INTERACTION_ACTION[action];
+      if (interactionAction && companion) {
+        emitInteractionEvent(publishEvent, {
+          ownerPubkey: companion.event.pubkey,
+          blobbiDTag: companion.d,
+          action: interactionAction,
+          source: 'companion',
+          itemId,
+        });
+      }
       
       // ─── Invalidate Queries ───
       // Items are free to use — no storage decrement needed.
       queryClient.invalidateQueries({ queryKey: ['blobbi-collection', user.pubkey] });
+
+      // Invalidate interactions query so social projection reflects the new 1124.
+      {
+        const coordinate = `31124:${companion.event.pubkey}:${companion.d}`;
+        queryClient.invalidateQueries({
+          queryKey: ['blobbi-interactions', coordinate],
+        });
+      }
       
       return { statsChanged };
     },

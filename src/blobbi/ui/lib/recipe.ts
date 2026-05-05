@@ -56,6 +56,8 @@ import {
   generateSmallSmile,
   generateDroopyMouth,
   generateBigSmile,
+  generateEatingMouth,
+  generateChewingMouth,
   generateFoodIcon,
   applySleepyMouth,
   computeDroolAnchor,
@@ -104,6 +106,8 @@ export interface EyeRecipe {
   sleepyBlink?: { cycleDuration: number };
   /** Sleeping state: eyes permanently closed, no blink cycle */
   sleepingClosed?: true;
+  /** Happy closed eyes: upward-curving arcs (^_^ squint). No Zzz or mouth change. */
+  happyArc?: true;
 }
 
 /**
@@ -121,6 +125,10 @@ export interface MouthRecipe {
   bigSmile?: BigSmileConfig;
   /** Droopy/weak mouth */
   droopyMouth?: DroopyMouthConfig;
+  /** Eating open mouth (variant-aware via computeActionMouthGeometry) */
+  eatingMouth?: true;
+  /** Chewing/chomping animated mouth */
+  chewingMouth?: true;
   /** Sleepy breathing mouth (canonical replacement) */
   sleepyMouth?: true;
 }
@@ -271,6 +279,14 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // Used as override during positive actions.
   happy: {},
 
+  // ── Blissful ────────────────────────────────────────────────────────────────
+  // Happy closed eyes (^_^ squint) + big smile. Used during feed interaction
+  // reaction for a visibly content/satisfied look.
+  blissful: {
+    eyes: { happyArc: true },
+    mouth: { bigSmile: { widthScale: 1.1, curveScale: 1.2 } },
+  },
+
   // ── Angry ───────────────────────────────────────────────────────────────────
   // Frustrated, upset. Intense frown, sharp angled brows, flushed body.
   angry: {
@@ -333,7 +349,7 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   // Used during play and joyful activities.
   excited: {
     eyes: { starEyes: { points: 5, color: '#fbbf24', scale: 0.9 } },
-    mouth: { bigSmile: { widthScale: 1.3, curveScale: 1.4 } },
+    mouth: { bigSmile: { widthScale: 1.15, curveScale: 1.2 } },
   },
 
   // ── ExcitedB ────────────────────────────────────────────────────────────────
@@ -358,6 +374,22 @@ export const EMOTION_RECIPES: Record<BlobbiEmotion, BlobbiVisualRecipe> = {
   adoring: {
     eyes: { wateryEyes: { includeWaterFill: false } },
     mouth: { roundMouth: { rx: 2.5, ry: 3, filled: true } },
+  },
+
+  // ── Eating ──────────────────────────────────────────────────────────────────
+  // Mouth wide open, ready to receive food. Used during food-drag when the
+  // dragged item is near Blobbi's mouth. Simple filled round mouth — no
+  // extra eye or brow effects so it layers cleanly over the current status.
+  eating: {
+    mouth: { eatingMouth: true },
+  },
+
+  // ── Chewing ─────────────────────────────────────────────────────────────────
+  // Animated chomping mouth shown briefly after food is successfully fed.
+  // Uses SMIL animation to oscillate the mouth open/closed. No extra eye
+  // or brow effects so it layers over the current status like eating does.
+  chewing: {
+    mouth: { chewingMouth: true },
   },
 
   // ── Hungry ──────────────────────────────────────────────────────────────────
@@ -665,6 +697,52 @@ function generateSleepingZzz(): string {
 }
 
 /**
+ * Apply happy arc eyes (^_^ squint): upward-curving arcs over closed eyes.
+ *
+ * Similar to sleeping closed eyes but with **upward**-curving arcs (happy
+ * squint shape) and no Zzz, no mouth replacement, no sleeping class.
+ * Used during the feed interaction reaction for a content/blissful look.
+ */
+function applyHappyArcEyes(svgText: string, eyes: EyePosition[]): string {
+  // Close eyes permanently by moving clip-path rects to fully closed position
+  const clipRectRegex = new RegExp(
+    `<rect\\s+class="${EYE_CLASSES.clipRect}"\\s+x="([^"]+)"\\s+y="([^"]+)"\\s+width="([^"]+)"\\s+height="([^"]+)"\\s*/>`,
+    'g'
+  );
+  svgText = svgText.replace(clipRectRegex, (_match, x, y, width, height) => {
+    const baseY = parseFloat(y);
+    const fullHeight = parseFloat(height);
+    const closedOffset = fullHeight * 0.95;
+    const closedY = baseY + closedOffset;
+    const closedHeight = fullHeight - closedOffset;
+    // Include a dummy SMIL <animate> element so the JS blink loop in
+    // useBlobbiEyes detects it and skips overriding the closed position.
+    // Without this, the rAF blink loop resets clip-rects to the open state.
+    return `<rect class="${EYE_CLASSES.clipRect}" x="${x}" y="${closedY}" width="${width}" height="${closedHeight}"><animate attributeName="y" values="${closedY}" dur="0.001s" fill="freeze" /></rect>`;
+  });
+
+  // Draw UPWARD-curving arcs (^_^ shape)
+  // Control point is ABOVE baseline (lineY - curveDepth) to curve upward
+  const arcLines = eyes.map(eye => {
+    const lineWidth = eye.radius * 1.6;
+    const startX = eye.cx - lineWidth / 2;
+    const endX = eye.cx + lineWidth / 2;
+    const curveDepth = eye.radius * 0.5;
+    const yOffset = eye.radius * 0.75;
+    const lineY = eye.cy + yOffset;
+    return `<path class="blobbi-happy-eye blobbi-happy-eye-${eye.side}" d="M ${startX} ${lineY} Q ${eye.cx} ${lineY - curveDepth} ${endX} ${lineY}" stroke="#111827" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="1" />`;
+  }).join('\n');
+
+  const overlays = `
+  <g class="blobbi-happy-arc-overlays">
+    ${arcLines}
+  </g>`;
+  svgText = svgText.replace('</svg>', overlays + '\n</svg>');
+
+  return svgText;
+}
+
+/**
  * Apply sleeping state visuals: permanently closed eyes + Zzz.
  *
  * Unlike `applySleepyAnimation` (which cycles between open/closed for the
@@ -846,6 +924,10 @@ export function applyVisualRecipe(
       svgText = replaceMouthSection(svgText, generateBigSmile(mouth.position, recipe.mouth.bigSmile));
     } else if (recipe.mouth.droopyMouth) {
       svgText = replaceMouthSection(svgText, generateDroopyMouth(mouth.position, recipe.mouth.droopyMouth));
+    } else if (recipe.mouth.eatingMouth) {
+      svgText = replaceMouthSection(svgText, generateEatingMouth(mouth.position));
+    } else if (recipe.mouth.chewingMouth) {
+      svgText = replaceMouthSection(svgText, generateChewingMouth(mouth.position));
     }
     // Note: sleepyMouth is handled in the sleepy animation section below
   }
@@ -893,6 +975,12 @@ export function applyVisualRecipe(
   // Mutually exclusive with sleepyBlink — sleepingClosed takes precedence
   if (recipe.eyes?.sleepingClosed && !recipe.eyes?.sleepyBlink) {
     svgText = applySleepingClosedEyes(svgText, eyes, mouthAnchor);
+  }
+
+  // ── Happy arc eyes (^_^ squint) ──
+  // Mutually exclusive with sleeping/sleepy — only fires when those are absent.
+  if (recipe.eyes?.happyArc && !recipe.eyes?.sleepyBlink && !recipe.eyes?.sleepingClosed) {
+    svgText = applyHappyArcEyes(svgText, eyes);
   }
 
   // ── Animated eyebrows ──

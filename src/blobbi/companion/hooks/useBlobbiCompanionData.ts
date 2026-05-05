@@ -63,8 +63,10 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
   // Get the BlobbiCompanion from the collection
   const blobbi = currentCompanionD ? companionsByD[currentCompanionD] ?? null : null;
   
-  // Apply projected decay for accurate visual reactions
-  // This recalculates every 60 seconds while mounted
+  // Apply projected decay for accurate visual reactions.
+  // Owner surfaces use decay-only — social effects are incorporated via
+  // explicit consolidation, not pre-applied projection.
+  // This recalculates every 60 seconds while mounted.
   const projectedState = useProjectedBlobbiState(blobbi);
   
   // Transform to CompanionData with projected stats

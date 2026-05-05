@@ -480,6 +480,154 @@
   }
 }
 
+/* ─── Floating Social Hearts ─────────────────────────────────────────────────── */
+
+@keyframes social-heart-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  20% {
+    opacity: 0.85;
+    transform: translateY(-8px) scale(1);
+  }
+  80% {
+    opacity: 0.6;
+    transform: translateY(-50px) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-65px) scale(0.5);
+  }
+}
+
+.animate-social-heart-float {
+  animation: social-heart-float 3.5s ease-out infinite;
+}
+
+/* ─── Interaction Reaction Animations ────────────────────────────────────────── */
+
+/* Happy wiggle — gentle sway triggered by feeding */
+@keyframes reaction-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-4deg); }
+  30% { transform: rotate(4deg); }
+  45% { transform: rotate(-3deg); }
+  60% { transform: rotate(3deg); }
+  75% { transform: rotate(-1.5deg); }
+  90% { transform: rotate(1.5deg); }
+}
+
+.animate-reaction-wiggle {
+  animation: reaction-wiggle 0.8s ease-in-out;
+}
+
+/* Happy bounces — mini jumps triggered by playing */
+@keyframes reaction-bounce {
+  0%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-8px); }
+  40% { transform: translateY(0); }
+  55% { transform: translateY(-5px); }
+  70% { transform: translateY(0); }
+  82% { transform: translateY(-2px); }
+  92% { transform: translateY(0); }
+}
+
+.animate-reaction-bounce {
+  animation: reaction-bounce 0.9s ease-in-out;
+}
+
+/* Sparkle pop — appears, scales, fades */
+@keyframes reaction-sparkle {
+  0% { opacity: 0; transform: scale(0.3); }
+  25% { opacity: 1; transform: scale(1.2); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.5); }
+}
+
+.animate-reaction-sparkle {
+  animation: reaction-sparkle 1.2s ease-out forwards;
+}
+
+/* Bubble rise — rises slightly, wobbles, stays visible (covering effect) */
+@keyframes reaction-bubble {
+  0% { opacity: 0; transform: translateY(0) scale(0.4); }
+  20% { opacity: 0.95; transform: translateY(-5px) scale(1); }
+  50% { opacity: 0.9; transform: translateY(-8px) scale(1.05); }
+  80% { opacity: 0.85; transform: translateY(-6px) scale(1); }
+  100% { opacity: 0.7; transform: translateY(-4px) scale(0.95); }
+}
+
+.animate-reaction-bubble {
+  animation: reaction-bubble 1.1s ease-out forwards;
+}
+
+/* Backdrop fade for bubble coverage */
+@keyframes reaction-bubble-backdrop {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.animate-reaction-bubble-backdrop {
+  animation: reaction-bubble-backdrop 1.1s ease-out forwards;
+}
+
+/* ─── Crumb Burst (food-drag chewing feedback) ───────────────────────────────── */
+
+@keyframes crumb-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(0.3);
+  }
+}
+
+.animate-crumb-fall {
+  animation: crumb-fall 1100ms ease-out forwards;
+}
+
+/* Floating reward word that drifts upward and fades out */
+@keyframes reward-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scale(0.9);
+  }
+}
+
+.animate-reward-pop {
+  animation: reward-pop 1100ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-social-heart-float,
+  .animate-reaction-wiggle,
+  .animate-reaction-bounce,
+  .animate-reaction-sparkle,
+  .animate-reaction-bubble,
+  .animate-reaction-bubble-backdrop,
+  .animate-crumb-fall,
+  .animate-reward-pop {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 /* ─── Blobbi Eye Animation ───────────────────────────────────────────────────── */
 
 /**

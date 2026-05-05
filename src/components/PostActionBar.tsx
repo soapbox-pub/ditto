@@ -13,6 +13,7 @@ import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
 import { formatNumber } from '@/lib/formatNumber';
 import { shareOrCopy } from '@/lib/share';
+import { cn } from '@/lib/utils';
 
 interface PostActionBarProps {
   event: NostrEvent;
@@ -22,6 +23,10 @@ interface PostActionBarProps {
   onMore: () => void;
   /** Extra classes on the outer wrapper div. */
   className?: string;
+  /** Optional extra buttons rendered after the Reaction button. */
+  extraButtons?: React.ReactNode;
+  /** Use compact sizing (smaller icons/padding on mobile). */
+  compact?: boolean;
 }
 
 export function PostActionBar({
@@ -30,6 +35,8 @@ export function PostActionBar({
   onReply,
   onMore,
   className,
+  extraButtons,
+  compact,
 }: PostActionBarProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
@@ -60,11 +67,12 @@ export function PostActionBar({
     <div className={`flex items-center justify-between py-1 border-t border-b border-border${className ? ` ${className}` : ''}`}>
       {/* Reply / Comments */}
       <button
-        className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        type="button"
+        className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
         title={replyLabel}
         onClick={onReply}
       >
-        <MessageCircle className="size-5" />
+        <MessageCircle className={compact ? "size-[18px] sm:size-5" : "size-5"} />
         {stats?.replies ? (
           <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
         ) : null}
@@ -74,10 +82,11 @@ export function PostActionBar({
       <RepostMenu event={event}>
         {(isReposted: boolean) => (
           <button
-            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+            type="button"
+            className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`, compact ? "p-1.5 sm:p-2" : "p-2")}
             title={isReposted ? 'Undo repost' : 'Repost'}
           >
-            <RepostIcon className="size-5" />
+            <RepostIcon className={compact ? "size-[18px] sm:size-5" : "size-5"} />
             {repostTotal > 0 ? (
               <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
             ) : null}
@@ -93,14 +102,17 @@ export function PostActionBar({
         reactionCount={stats?.reactions}
       />
 
+      {extraButtons}
+
       {/* Zap */}
       {canZapAuthor && (
         <ZapDialog target={event}>
           <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+            type="button"
+            className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
             title="Zap"
           >
-            <Zap className="size-5" />
+            <Zap className={compact ? "size-[18px] sm:size-5" : "size-5"} />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span>
             ) : null}
@@ -110,20 +122,22 @@ export function PostActionBar({
 
       {/* Share */}
       <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+        type="button"
+        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden", compact ? "p-1.5 sm:p-2" : "p-2")}
         title="Share"
         onClick={handleShare}
       >
-        <Share2 className="size-5" />
+        <Share2 className={compact ? "size-[18px] sm:size-5" : "size-5"} />
       </button>
 
       {/* More */}
       <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        type="button"
+        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
         title="More"
         onClick={onMore}
       >
-        <MoreHorizontal className="size-5" />
+        <MoreHorizontal className={compact ? "size-[18px] sm:size-5" : "size-5"} />
       </button>
     </div>
   );
