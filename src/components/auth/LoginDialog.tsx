@@ -46,7 +46,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const [bunkerUri, setBunkerUri] = useState('');
   const [nostrConnectParams, setNostrConnectParams] = useState<NostrConnectParams | null>(null);
   const [nostrConnectUri, setNostrConnectUri] = useState<string>('');
-  const [isWaitingForConnect, setIsWaitingForConnect] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showBunkerInput, setShowBunkerInput] = useState(false);
@@ -59,6 +58,17 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const login = useLoginActions();
+
+  // Keep stable refs to props/actions so the listening effect below doesn't
+  // re-run on every parent render (parents typically pass inline arrow
+  // functions for onLogin/onClose, and useLoginActions returns a fresh object
+  // each render).
+  const onLoginRef = useRef(onLogin);
+  const onCloseRef = useRef(onClose);
+  const loginRef = useRef(login);
+  useEffect(() => { onLoginRef.current = onLogin; }, [onLogin]);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { loginRef.current = login; }, [login]);
 
   // Check if on mobile device
   const isMobile = useIsMobile();
@@ -79,45 +89,50 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     setConnectError(null);
   }, [login, config.appName, shareOrigin]);
 
-  // Start listening for connection (async) - runs after params are set.
+  // Start listening for connection (async) - runs once after params are set.
+  //
+  // Deps are intentionally limited to `nostrConnectParams` so that parent
+  // re-renders (which produce fresh onLogin/onClose closures and a fresh
+  // `login` object from useLoginActions) do NOT tear down an in-flight
+  // subscription. Previously this effect re-ran on every render, repeatedly
+  // flipping a local `cancelled` flag to true and causing a successful
+  // nostrconnect response to be silently swallowed after the signer approved.
   useEffect(() => {
-    if (!nostrConnectParams || isWaitingForConnect) return;
-
-    let cancelled = false;
+    if (!nostrConnectParams) return;
 
     const startListening = async () => {
-      setIsWaitingForConnect(true);
-      abortControllerRef.current = new AbortController();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       try {
-        await login.nostrconnect(nostrConnectParams, abortControllerRef.current.signal);
-        if (!cancelled) {
-          onLogin();
-          onClose();
-        }
+        await loginRef.current.nostrconnect(nostrConnectParams, controller.signal);
+        // If the dialog was explicitly closed (handled by the isOpen effect,
+        // which aborts the controller), don't try to re-close it. Otherwise,
+        // the user is logged in — close the dialog and notify the parent.
+        if (controller.signal.aborted) return;
+        onLoginRef.current();
+        onCloseRef.current();
       } catch (error) {
-        if (cancelled) return;
         // AbortError means we intentionally aborted (dialog closed or retry)
         if (error instanceof Error && error.name === 'AbortError') return;
+        if (controller.signal.aborted) return;
         console.error('Nostrconnect failed:', error);
         setConnectError(error instanceof Error ? error.message : String(error));
-        setIsWaitingForConnect(false);
       }
     };
 
     startListening();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [nostrConnectParams, login, onLogin, onClose, isWaitingForConnect]);
+    // No cleanup here: we do NOT want a re-render-triggered effect teardown
+    // to cancel the in-flight subscription. Cancellation is handled
+    // explicitly by the `isOpen` effect and by handleRetry().
+  }, [nostrConnectParams]);
 
   // Clean up on close
   useEffect(() => {
     if (!isOpen) {
       setNostrConnectParams(null);
       setNostrConnectUri('');
-      setIsWaitingForConnect(false);
       setConnectError(null);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -127,9 +142,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
   // Retry connection with new params
   const handleRetry = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     setNostrConnectParams(null);
     setNostrConnectUri('');
-    setIsWaitingForConnect(false);
     setConnectError(null);
     // Generate new session after state clears
     setTimeout(() => generateConnectSession(), 0);
