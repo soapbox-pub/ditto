@@ -824,3 +824,10 @@
   100% { transform: scale(2.2); opacity: 0; }
 }
 
+/* ── Furniture editor hold progress ───────────────────────────────────────── */
+
+@keyframes furniture-hold-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+

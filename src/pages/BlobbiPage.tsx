@@ -119,7 +119,7 @@ import {
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
 import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getEffectiveRoomLayout } from '@/blobbi/rooms/lib/room-layout-schema';
-import { parseRoomFurnitureContent, type FurniturePlacement } from '@/blobbi/rooms/lib/room-furniture-schema';
+import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
@@ -982,13 +982,34 @@ function BlobbiDashboard({
   const parsedRoomFurniture = useMemo(() => parseRoomFurnitureContent(profile?.content), [profile?.content]);
   const currentFurniturePlacements = useMemo(() => getEffectiveRoomFurniture(currentRoom, parsedRoomFurniture), [currentRoom, parsedRoomFurniture]);
 
-  // ─── Room Furniture Editor (local draft, no persistence) ───
+  // ─── Room Layout Editor (state) ───
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
+
+  // ─── Room Furniture Editor (draft with persistence) ───
   const [isFurnitureEditorOpen, setIsFurnitureEditorOpen] = useState(false);
   const [furnitureDraft, setFurnitureDraft] = useState<FurniturePlacement[] | null>(null);
   const [furnitureSelectedIndex, setFurnitureSelectedIndex] = useState<number | null>(null);
+  const [isSavingFurniture, setIsSavingFurniture] = useState(false);
   const roomContainerRef = useRef<HTMLDivElement>(null);
 
+  // Derived: active layer = selected item's layer (for visual emphasis)
+  const furnitureActiveLayer = furnitureSelectedIndex !== null && furnitureDraft
+    ? furnitureDraft[furnitureSelectedIndex]?.layer
+    : undefined;
+
+  // Derived: toolbar placement — opposite side of selected item to avoid covering it
+  const furnitureToolbarPlacement: 'top' | 'bottom' = useMemo(() => {
+    if (furnitureSelectedIndex === null || !furnitureDraft) return 'bottom';
+    const item = furnitureDraft[furnitureSelectedIndex];
+    if (!item) return 'bottom';
+    // Item in bottom half → toolbar at top; item in top half → toolbar at bottom
+    return item.y >= 0.5 ? 'top' : 'bottom';
+  }, [furnitureSelectedIndex, furnitureDraft]);
+
   const handleOpenFurnitureEditor = useCallback(() => {
+    setIsRoomEditorOpen(false); // close style editor if open
+    setActiveDrawer('none'); // collapse any open drawer
     setFurnitureDraft([...currentFurniturePlacements]);
     setFurnitureSelectedIndex(null);
     setIsFurnitureEditorOpen(true);
@@ -1000,6 +1021,44 @@ function BlobbiDashboard({
     setFurnitureSelectedIndex(null);
   }, []);
 
+  const handleFurnitureBackgroundClick = useCallback(() => {
+    setFurnitureSelectedIndex(null);
+  }, []);
+
+  const handleSaveFurniture = useCallback(async () => {
+    if (!user?.pubkey || !furnitureDraft) return;
+    setIsSavingFurniture(true);
+    try {
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      if (!freshProfile) {
+        toast({ title: 'Error', description: 'Could not fetch profile. Try again.' });
+        return;
+      }
+      const prev = freshProfile.event;
+      const existingFurniture = parseRoomFurnitureContent(prev.content);
+      const updatedFurniture: RoomFurnitureContent = {
+        v: 1,
+        by_room: { ...existingFurniture?.by_room, [currentRoom]: furnitureDraft },
+      };
+      const content = serializeProfileContent(prev.content, { room_furniture: updatedFurniture });
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content,
+        tags: prev.tags,
+        prev,
+      });
+      updateProfileEvent(event);
+      toast({ title: 'Saved', description: `${ROOM_META[currentRoom].label} furniture updated.` });
+      setIsFurnitureEditorOpen(false);
+      setFurnitureDraft(null);
+      setFurnitureSelectedIndex(null);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save furniture.' });
+    } finally {
+      setIsSavingFurniture(false);
+    }
+  }, [user?.pubkey, nostr, furnitureDraft, currentRoom, publishEvent, updateProfileEvent]);
+
   const handleFurnitureMove = useCallback((index: number, x: number, y: number) => {
     setFurnitureDraft((prev) => {
       if (!prev) return prev;
@@ -1007,9 +1066,12 @@ function BlobbiDashboard({
     });
   }, []);
 
-  // ─── Room Layout Editor (save/reset) ───
-  const [isSavingLayout, setIsSavingLayout] = useState(false);
-  const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
+  // ─── Room Layout Editor (handlers) ───
+
+  const handleOpenRoomEditor = useCallback(() => {
+    handleCloseFurnitureEditor(); // close furniture editor if open
+    setIsRoomEditorOpen(true);
+  }, [handleCloseFurnitureEditor]);
 
   const handleSaveRoomLayout = useCallback(async (roomId: BlobbiRoomId, layout: RoomLayout) => {
     if (!user?.pubkey) return;
@@ -1509,7 +1571,10 @@ function BlobbiDashboard({
       )}
 
       {/* ─── Drawer + Tab Bar — overlays the room ─── */}
-      <div className="absolute top-0 left-0 right-0 z-[70]">
+      <div className={cn(
+        'absolute top-0 left-0 right-0 z-[70] transition-opacity duration-200',
+        isFurnitureEditorOpen && 'opacity-40 pointer-events-none',
+      )}>
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1601,11 +1666,13 @@ function BlobbiDashboard({
         furnitureSelectedIndex={furnitureSelectedIndex}
         onFurnitureSelect={setFurnitureSelectedIndex}
         onFurnitureMove={handleFurnitureMove}
+        furnitureActiveLayer={furnitureActiveLayer}
+        onFurnitureBackgroundClick={handleFurnitureBackgroundClick}
         editorSlot={
-          <div className="flex items-center gap-1.5">
-            <BlobbiRoomEditorTrigger onClick={() => setIsRoomEditorOpen(true)} />
-            <RoomFurnitureEditorTrigger onClick={handleOpenFurnitureEditor} />
-          </div>
+          <BlobbiRoomEditorTrigger onClick={handleOpenRoomEditor} />
+        }
+        editorSlotLeft={
+          <RoomFurnitureEditorTrigger onClick={handleOpenFurnitureEditor} />
         }
         editorOverlay={isRoomEditorOpen ? (
           <BlobbiRoomEditor
@@ -1623,6 +1690,9 @@ function BlobbiDashboard({
             selectedIndex={furnitureSelectedIndex}
             onSelectItem={setFurnitureSelectedIndex}
             onClose={handleCloseFurnitureEditor}
+            onSave={handleSaveFurniture}
+            isSaving={isSavingFurniture}
+            placement={furnitureToolbarPlacement}
           />
         ) : undefined}
         hero={

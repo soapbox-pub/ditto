@@ -12,10 +12,15 @@
  * Unknown/unresolvable furniture IDs are silently skipped.
  *
  * When `isEditing` is false (default), all layers are pointer-events-none.
- * When `isEditing` is true, items become tappable/draggable and a selection
- * ring is shown on the selected item.
+ * When `isEditing` is true, individual items become tappable/draggable (the
+ * layer containers remain pointer-events-none so higher-z layers don't block
+ * clicks on items in lower layers). A background click div handles deselect.
+ *
+ * The `activeLayer` prop controls visual emphasis: items not in the active layer
+ * render at reduced opacity but remain fully clickable.
  */
 
+import { useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
@@ -44,6 +49,10 @@ interface RoomFurnitureLayerProps {
   onMoveItem?: (index: number, x: number, y: number) => void;
   /** Ref to the room shell container — needed for drag coordinate normalization. */
   containerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Active layer for visual emphasis. Items not in this layer are dimmed. */
+  activeLayer?: FurnitureLayer;
+  /** Called when empty room space is clicked in editing mode (deselect). */
+  onBackgroundClick?: () => void;
 }
 
 export function RoomFurnitureLayer({
@@ -53,8 +62,29 @@ export function RoomFurnitureLayer({
   onSelectItem,
   onMoveItem,
   containerRef,
+  activeLayer,
+  onBackgroundClick,
 }: RoomFurnitureLayerProps) {
-  if (!placements || placements.length === 0) return null;
+  const handleBgClick = useCallback((e: React.MouseEvent) => {
+    // Only deselect on direct click, not when a drag cycle ended
+    if (e.target === e.currentTarget) {
+      onBackgroundClick?.();
+    }
+  }, [onBackgroundClick]);
+
+  if (!placements || placements.length === 0) {
+    // Still render the background click target when editing (room may be empty)
+    if (isEditing && onBackgroundClick) {
+      return (
+        <div
+          className="absolute inset-0 z-[2] pointer-events-auto"
+          onClick={handleBgClick}
+          aria-hidden
+        />
+      );
+    }
+    return null;
+  }
 
   // Build a flat index so grouped rendering preserves the original array index
   const indexed: { placement: FurniturePlacement; originalIndex: number }[] = placements.map(
@@ -74,6 +104,14 @@ export function RoomFurnitureLayer({
 
   return (
     <>
+      {/* Background click target — behind all items, captures empty-space clicks */}
+      {isEditing && onBackgroundClick && (
+        <div
+          className="absolute inset-0 z-[2] pointer-events-auto"
+          onClick={handleBgClick}
+          aria-hidden
+        />
+      )}
       {(['back', 'floor', 'front'] as const).map((layer) => {
         const items = grouped[layer];
         if (items.length === 0) return null;
@@ -81,9 +119,8 @@ export function RoomFurnitureLayer({
           <div
             key={layer}
             className={cn(
-              'absolute inset-0',
+              'absolute inset-0 pointer-events-none',
               LAYER_Z[layer],
-              isEditing ? 'pointer-events-auto' : 'pointer-events-none',
             )}
             aria-hidden={!isEditing}
           >
@@ -94,6 +131,7 @@ export function RoomFurnitureLayer({
                 index={originalIndex}
                 isEditing={isEditing}
                 isSelected={selectedIndex === originalIndex}
+                isDimmed={!!activeLayer && placement.layer !== activeLayer}
                 onSelect={onSelectItem}
                 onMove={onMoveItem}
                 containerRef={containerRef}
@@ -113,6 +151,8 @@ interface FurnitureItemProps {
   index: number;
   isEditing: boolean;
   isSelected: boolean;
+  /** Whether this item should appear visually dimmed (not in the active layer). */
+  isDimmed: boolean;
   onSelect?: (index: number) => void;
   onMove?: (index: number, x: number, y: number) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
@@ -123,11 +163,12 @@ function FurnitureItem({
   index,
   isEditing,
   isSelected,
+  isDimmed,
   onSelect,
   onMove,
   containerRef,
 }: FurnitureItemProps) {
-  const { isDragging, onPointerDown, onTouchMove, onTouchEnd } = useFurnitureDrag({
+  const { isDragging, isHolding, startHold, shouldSuppressClick } = useFurnitureDrag({
     containerRef: containerRef ?? { current: null },
     onMove: (x, y) => onMove?.(index, x, y),
   });
@@ -142,28 +183,28 @@ function FurnitureItem({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isEditing) return;
-    onSelect?.(index);
+    e.stopPropagation();
     if (isSelected) {
-      onPointerDown(e, placement.x, placement.y);
+      // Start hold-to-drag on already-selected item
+      startHold(e, placement.x, placement.y);
     }
   };
 
   const handleClick = (e: React.MouseEvent) => {
     if (!isEditing) return;
     e.stopPropagation();
+    // Suppress click after a hold/drag cycle
+    if (shouldSuppressClick()) return;
+    // Select on tap
     onSelect?.(index);
   };
 
   return (
-    <img
-      src={asset}
-      alt=""
-      draggable={false}
+    <div
       className={cn(
         'absolute select-none',
-        isEditing && 'cursor-pointer touch-none',
-        isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
-        isDragging && 'opacity-80',
+        isEditing && 'cursor-pointer touch-none pointer-events-auto',
+        isDimmed && !isSelected && 'opacity-40',
       )}
       style={{
         left: `${placement.x * 100}%`,
@@ -171,11 +212,31 @@ function FurnitureItem({
         width: `${widthPct}%`,
         aspectRatio: `${def.aspectRatio}`,
         transform: `translateX(-50%) translateY(-100%)${flip}`,
+        transition: 'opacity 150ms ease',
       }}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
-      onTouchMove={isEditing && isSelected ? onTouchMove : undefined}
-      onTouchEnd={isEditing && isSelected ? onTouchEnd : undefined}
-    />
+    >
+      <img
+        src={asset}
+        alt=""
+        draggable={false}
+        className={cn(
+          'w-full h-full object-contain',
+          isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
+          isDragging && 'opacity-80 scale-105 transition-transform duration-100',
+          isHolding && 'scale-[1.02] transition-transform duration-100',
+        )}
+      />
+      {/* Hold progress bar — shown during long-press */}
+      {isHolding && (
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-muted/60 overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full"
+            style={{ animation: 'furniture-hold-fill 500ms linear forwards' }}
+          />
+        </div>
+      )}
+    </div>
   );
 }

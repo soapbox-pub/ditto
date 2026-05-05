@@ -19,7 +19,7 @@ import {
   getPreviousRoom,
   getRoomIndex,
 } from '../lib/room-config';
-import type { FurniturePlacement } from '../lib/room-furniture-schema';
+import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
 import { RoomFurnitureLayer } from './RoomFurnitureLayer';
 import {
   generateInitialPoops,
@@ -79,6 +79,8 @@ interface BlobbiRoomShellProps {
   roomLayout?: RoomLayout;
   /** Optional editor trigger rendered top-right corner of the room. */
   editorSlot?: React.ReactNode;
+  /** Optional editor trigger rendered top-left corner of the room. */
+  editorSlotLeft?: React.ReactNode;
   /**
    * Optional editor overlay — rendered as a direct child of the shell so
    * `absolute inset-0` covers only the room area, not sidebars.
@@ -98,6 +100,10 @@ interface BlobbiRoomShellProps {
   onFurnitureSelect?: (index: number | null) => void;
   /** Called when a furniture item is dragged to a new position. */
   onFurnitureMove?: (index: number, x: number, y: number) => void;
+  /** Active layer for furniture visual emphasis (editing mode only). */
+  furnitureActiveLayer?: FurnitureLayer;
+  /** Called when empty room space is clicked in furniture editing mode. */
+  onFurnitureBackgroundClick?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -122,6 +128,7 @@ export function BlobbiRoomShell({
   guideRoomDirection,
   roomLayout,
   editorSlot,
+  editorSlotLeft,
   editorOverlay,
   hudVisible = true,
   furniturePlacements,
@@ -130,6 +137,8 @@ export function BlobbiRoomShell({
   furnitureSelectedIndex,
   onFurnitureSelect,
   onFurnitureMove,
+  furnitureActiveLayer,
+  onFurnitureBackgroundClick,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -253,11 +262,16 @@ export function BlobbiRoomShell({
         onSelectItem={onFurnitureSelect}
         onMoveItem={onFurnitureMove}
         containerRef={containerRef}
+        activeLayer={furnitureActiveLayer}
+        onBackgroundClick={onFurnitureBackgroundClick}
       />
 
       {/* Stage overlay — Blobbi visual anchored to the shell's ground line */}
       {stageOverlay && (
-        <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className={cn(
+          'absolute inset-0 z-10 pointer-events-none transition-opacity duration-300',
+          isFurnitureEditing && 'opacity-30',
+        )}>
           {stageOverlay}
         </div>
       )}
@@ -266,6 +280,7 @@ export function BlobbiRoomShell({
       <div className={cn(
         'absolute top-14 inset-x-0 z-30 flex flex-col items-center pointer-events-none gap-2 transition-opacity duration-200',
         !hudVisible && 'opacity-0 pointer-events-none',
+        isFurnitureEditing && 'opacity-30 pointer-events-none',
       )}>
         <div className="pointer-events-auto flex flex-col items-center gap-0.5 py-1 px-3 rounded-full bg-background/60 backdrop-blur-sm">
           <div className="flex items-center gap-1.5">
@@ -293,7 +308,10 @@ export function BlobbiRoomShell({
       </div>
 
       {/* Room content */}
-      <div className="flex-1 min-h-0 flex flex-col relative">
+      <div className={cn(
+        'flex-1 min-h-0 flex flex-col relative transition-opacity duration-200',
+        isFurnitureEditing && 'opacity-30 pointer-events-none',
+      )}>
         {hero}
         {middleSlot}
         {children}
@@ -304,8 +322,20 @@ export function BlobbiRoomShell({
         <div className={cn(
           'absolute top-14 right-3 z-[55] transition-opacity duration-200',
           !hudVisible && 'opacity-0 pointer-events-none',
+          isFurnitureEditing && 'opacity-0 pointer-events-none',
         )}>
           {editorSlot}
+        </div>
+      )}
+
+      {/* Left editor trigger (upper-left, below tab bar overlay) */}
+      {editorSlotLeft && (
+        <div className={cn(
+          'absolute top-14 left-3 z-[55] transition-opacity duration-200',
+          !hudVisible && 'opacity-0 pointer-events-none',
+          isFurnitureEditing && 'opacity-0 pointer-events-none',
+        )}>
+          {editorSlotLeft}
         </div>
       )}
 
@@ -320,6 +350,7 @@ export function BlobbiRoomShell({
       {/* Navigation arrows */}
       <button
         onClick={goLeft}
+        disabled={isFurnitureEditing}
         className={cn(
           'group absolute left-1 top-1/2 -translate-y-1/2 z-40',
           'flex items-center justify-center',
@@ -329,6 +360,7 @@ export function BlobbiRoomShell({
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
           guideRoomDirection === 'left' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
+          isFurnitureEditing && 'opacity-20 pointer-events-none',
         )}
         aria-label={`Go to ${leftDest.label}`}
       >
@@ -341,6 +373,7 @@ export function BlobbiRoomShell({
 
       <button
         onClick={goRight}
+        disabled={isFurnitureEditing}
         className={cn(
           'group absolute right-1 top-1/2 -translate-y-1/2 z-40',
           'flex items-center justify-center',
@@ -350,6 +383,7 @@ export function BlobbiRoomShell({
           'transition-all duration-200 active:scale-90',
           'cursor-pointer select-none',
           guideRoomDirection === 'right' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
+          isFurnitureEditing && 'opacity-20 pointer-events-none',
         )}
         aria-label={`Go to ${rightDest.label}`}
       >

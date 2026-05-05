@@ -1,14 +1,13 @@
 /**
  * RoomFurnitureEditor — Bottom toolbar overlay for editing room furniture.
  *
- * Renders as an absolute overlay within the BlobbiRoomShell. Does NOT persist
- * changes — this commit is local-only draft editing with live preview.
+ * Renders as an absolute overlay within the BlobbiRoomShell.
  *
  * Features: select/move/resize/flip/delete items, change layer, add from
- * catalog, reset to defaults.
+ * catalog, reset to defaults. Save persists to Nostr profile; Cancel discards.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -17,6 +16,7 @@ import {
   RotateCcw,
   Minus,
   Armchair,
+  Check,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,18 @@ interface RoomFurnitureEditorProps {
   onDraftChange: (draft: FurniturePlacement[]) => void;
   selectedIndex: number | null;
   onSelectItem: (index: number | null) => void;
+  /** Cancel — discard draft and close. */
   onClose: () => void;
+  /** Save — persist the current draft. */
+  onSave: () => void;
+  /** Whether persistence is in flight. */
+  isSaving?: boolean;
+  /**
+   * Placement hint: 'top' renders toolbar near the top (below the sub-header),
+   * 'bottom' renders near the bottom (above footer/nav). Derived from the
+   * selected item's y position by the parent.
+   */
+  placement?: 'top' | 'bottom';
 }
 
 // ─── Trigger Button ───────────────────────────────────────────────────────────
@@ -65,8 +76,16 @@ export function RoomFurnitureEditor({
   selectedIndex,
   onSelectItem,
   onClose,
+  onSave,
+  isSaving = false,
+  placement = 'bottom',
 }: RoomFurnitureEditorProps) {
   const [showCatalog, setShowCatalog] = useState(false);
+
+  // Close catalog when placement flips to avoid it jumping across the screen
+  useEffect(() => {
+    setShowCatalog(false);
+  }, [placement]);
 
   const selectedItem = selectedIndex !== null ? draft[selectedIndex] : null;
   const selectedDef = selectedItem ? resolveFurniture(selectedItem.id) : null;
@@ -132,21 +151,17 @@ export function RoomFurnitureEditor({
     onSelectItem(null);
   }, [roomId, onDraftChange, onSelectItem]);
 
-  const handleDeselect = useCallback(() => {
-    onSelectItem(null);
-  }, [onSelectItem]);
-
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[55] pointer-events-none">
-      {/* Tap backdrop to deselect (covers room area above toolbar) */}
-      <div
-        className="absolute inset-0 pointer-events-auto"
-        onClick={handleDeselect}
-      />
-
+    <div className={cn(
+      'absolute inset-x-0 z-[55] pointer-events-none',
+      placement === 'top' ? 'top-0' : 'bottom-0',
+    )}>
       {/* Catalog overlay */}
       {showCatalog && (
-        <div className="absolute inset-x-0 bottom-full mb-2 px-3 pointer-events-auto">
+        <div className={cn(
+          'absolute inset-x-0 px-3 pointer-events-auto',
+          placement === 'top' ? 'top-full mt-2' : 'bottom-full mb-2',
+        )}>
           <div className="rounded-2xl border border-border/60 bg-background/95 backdrop-blur-md shadow-xl p-3 max-h-48 overflow-y-auto animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground">Add furniture</span>
@@ -193,7 +208,12 @@ export function RoomFurnitureEditor({
       )}
 
       {/* Toolbar */}
-      <div className="relative pointer-events-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+      <div className={cn(
+        'relative pointer-events-auto px-3',
+        placement === 'top'
+          ? 'pt-14 pb-2'
+          : 'pt-2 pb-4 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.75rem)]',
+      )}>
         <div className="rounded-2xl border border-border/60 bg-background/95 backdrop-blur-md shadow-xl">
           {/* Header row */}
           <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
@@ -211,15 +231,6 @@ export function RoomFurnitureEditor({
                 aria-label="Reset to defaults"
               >
                 <RotateCcw className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="size-7 rounded-full text-muted-foreground hover:text-foreground"
-                aria-label="Close furniture editor"
-              >
-                <X className="size-3.5" />
               </Button>
             </div>
           </div>
@@ -300,7 +311,7 @@ export function RoomFurnitureEditor({
           )}
 
           {/* Add button (always visible) */}
-          <div className="px-3 pb-2.5 pt-1">
+          <div className="px-3 pb-2 pt-1">
             <Button
               variant="outline"
               size="sm"
@@ -310,6 +321,33 @@ export function RoomFurnitureEditor({
             >
               <Plus className="size-3.5" />
               Add furniture
+            </Button>
+          </div>
+
+          {/* Save / Cancel row */}
+          <div className="flex items-center gap-2 px-3 pb-2.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 h-8 text-xs"
+            >
+              <X className="size-3.5 mr-1" />
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={onSave}
+              disabled={isSaving}
+              className="flex-1 h-8 text-xs"
+            >
+              {isSaving ? (
+                <span className="size-3.5 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Check className="size-3.5 mr-1" />
+              )}
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </div>
