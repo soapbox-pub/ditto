@@ -451,6 +451,33 @@ describe('OFFICIAL_FURNITURE integrity', () => {
       expect(def.allowedLayers).toContain(def.defaultLayer);
     }
   });
+
+  it('wall-only items have shadow: none', () => {
+    const wallOnly = OFFICIAL_FURNITURE.filter(
+      (def) => def.allowedLayers.length === 1 && def.allowedLayers[0] === 'back',
+    );
+    expect(wallOnly.length).toBeGreaterThan(0);
+    for (const def of wallOnly) {
+      expect(def.shadow).toBe('none');
+    }
+  });
+
+  it('items with shadow: wide are not wall-only', () => {
+    const wideShadow = OFFICIAL_FURNITURE.filter((def) => def.shadow === 'wide');
+    expect(wideShadow.length).toBeGreaterThan(0);
+    for (const def of wideShadow) {
+      expect(def.allowedLayers).not.toEqual(['back']);
+    }
+  });
+
+  it('items with shadow: none are wall-mounted or flat (rug)', () => {
+    const noShadow = OFFICIAL_FURNITURE.filter((def) => def.shadow === 'none');
+    for (const def of noShadow) {
+      const isWallOnly = def.allowedLayers.length === 1 && def.allowedLayers[0] === 'back';
+      const isFlat = def.id.includes('rug');
+      expect(isWallOnly || isFlat).toBe(true);
+    }
+  });
 });
 
 // ─── Effective Furniture Resolver ─────────────────────────────────────────────

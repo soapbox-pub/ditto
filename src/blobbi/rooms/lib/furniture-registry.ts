@@ -24,6 +24,9 @@ export type ClockStyle = 'classic' | 'modern' | 'cute' | 'digital-bedside' | 'an
 /** Catalog category for grouping furniture items in the editor */
 export type FurnitureCategory = 'furniture' | 'decor' | 'plants' | 'clocks' | 'frames';
 
+/** Ground shadow style for rendered furniture items */
+export type FurnitureShadow = 'none' | 'narrow' | 'wide';
+
 /** Definition of a furniture item in the registry */
 export interface FurnitureDefinition {
   /** Namespaced ID, e.g. "official:plant-small" */
@@ -46,6 +49,8 @@ export interface FurnitureDefinition {
   allowedRooms?: BlobbiRoomId[];
   /** Whether horizontal flip is supported */
   flippable: boolean;
+  /** Ground shadow style: 'none' for wall-mounted/flat items, 'wide' for beds/tables, 'narrow' (default) for normal floor items */
+  shadow?: FurnitureShadow;
   /** Whether this item is a picture frame that accepts uploaded image content */
   isFrame?: boolean;
   /** CSS inset (top right bottom left) for positioning the custom image inside the frame */
@@ -76,6 +81,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor', 'front'],
     defaultLayer: 'front',
     flippable: true,
+    shadow: 'narrow',
   },
   {
     id: 'official:plant-tall',
@@ -87,6 +93,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor', 'front'],
     defaultLayer: 'front',
     flippable: true,
+    shadow: 'narrow',
   },
 
   // ─── Furniture ──────────────────────────────────────────────────────────
@@ -100,6 +107,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor', 'front'],
     defaultLayer: 'front',
     flippable: false,
+    shadow: 'narrow',
   },
   {
     id: 'official:rug-round',
@@ -111,6 +119,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor'],
     defaultLayer: 'floor',
     flippable: false,
+    shadow: 'none',
   },
   {
     id: 'official:shelf-wall',
@@ -122,6 +131,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
   },
   {
     id: 'official:clock-wall',
@@ -133,6 +143,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isClock: true,
     clockKind: 'analog',
     clockStyle: 'classic',
@@ -147,6 +158,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isClock: true,
     clockKind: 'analog',
     clockStyle: 'modern',
@@ -161,6 +173,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isClock: true,
     clockKind: 'analog',
     clockStyle: 'cute',
@@ -175,6 +188,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor', 'front'],
     defaultLayer: 'front',
     flippable: false,
+    shadow: 'narrow',
     isClock: true,
     clockKind: 'analog',
     clockStyle: 'analog-table',
@@ -190,6 +204,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     defaultLayer: 'front',
     allowedRooms: ['rest', 'home'],
     flippable: false,
+    shadow: 'narrow',
     isClock: true,
     clockKind: 'digital',
     clockStyle: 'digital-bedside',
@@ -205,6 +220,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     defaultLayer: 'front',
     allowedRooms: ['rest', 'home'],
     flippable: false,
+    shadow: 'narrow',
     isClock: true,
     clockKind: 'analog',
     clockStyle: 'cute-alarm',
@@ -219,6 +235,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isClock: true,
     clockKind: 'digital',
     clockStyle: 'digital-wall',
@@ -233,6 +250,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isClock: true,
     clockKind: 'digital',
     clockStyle: 'flip-wall',
@@ -248,6 +266,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     defaultLayer: 'front',
     allowedRooms: ['rest', 'home'],
     flippable: false,
+    shadow: 'narrow',
     isClock: true,
     clockKind: 'digital',
     clockStyle: 'digital-table',
@@ -263,6 +282,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     defaultLayer: 'floor',
     allowedRooms: ['rest', 'home'],
     flippable: true,
+    shadow: 'wide',
   },
   {
     id: 'official:table-side',
@@ -274,6 +294,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['floor', 'front'],
     defaultLayer: 'floor',
     flippable: true,
+    shadow: 'wide',
   },
 
   // ─── Picture Frames ─────────────────────────────────────────────────────
@@ -287,6 +308,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isFrame: true,
     frameImageInset: '12% 15% 12% 15%',
   },
@@ -300,6 +322,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isFrame: true,
     frameImageInset: '12% 15% 12% 15%',
   },
@@ -313,6 +336,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isFrame: true,
     frameImageInset: '12.5% 12.5% 12.5% 12.5%',
   },
@@ -326,6 +350,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     allowedLayers: ['back'],
     defaultLayer: 'back',
     flippable: false,
+    shadow: 'none',
     isFrame: true,
     frameImageInset: '8.9% 11.4% 8.9% 11.4%',
     frameImageRadius: '50%',

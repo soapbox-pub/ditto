@@ -24,7 +24,7 @@ import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
-import { resolveFurniture, getFurnitureAsset } from '../lib/furniture-registry';
+import { resolveFurniture, getFurnitureAsset, type FurnitureDefinition } from '../lib/furniture-registry';
 import { useFurnitureDrag } from '../hooks/useFurnitureDrag';
 import { ClockFurniture } from './ClockFurniture';
 
@@ -36,37 +36,17 @@ const LAYER_Z: Record<FurnitureLayer, string> = {
   front: 'z-[12]',
 };
 
-// ─── Ground shadow config per item ───────────────────────────────────────────
-// Explicit ID-based rules. Can later move to FurnitureDefinition metadata.
+// ─── Ground shadow config from definition metadata ──────────────────────────
 
 interface ShadowConfig { widthPct: string; heightPct: string; alpha: number }
 
-/** IDs that should never cast a ground shadow (wall-mounted, flat/rug). */
-const NO_SHADOW_IDS = new Set([
-  'official:picture-frame',
-  'official:picture-frame-gold',
-  'official:picture-frame-square',
-  'official:picture-frame-oval',
-  'official:shelf-wall',
-  'official:clock-wall',
-  'official:clock-wall-modern',
-  'official:clock-wall-cute',
-  'official:clock-wall-digital',
-  'official:clock-wall-flip',
-  'official:rug-round',
-]);
-
-/** IDs with wide ground shadows (tables, beds, sofas). */
-const WIDE_SHADOW_IDS = new Set([
-  'official:table-side',
-  'official:bed-single',
-]);
-
-function getFurnitureShadowConfig(id: string): ShadowConfig | null {
-  if (NO_SHADOW_IDS.has(id)) return null;
-  if (WIDE_SHADOW_IDS.has(id)) return { widthPct: '105%', heightPct: '13%', alpha: 0.30 };
-  // Narrow floor items (plants, lamps, chairs)
-  return { widthPct: '95%', heightPct: '14%', alpha: 0.26 };
+function getFurnitureShadowConfig(def: FurnitureDefinition): ShadowConfig | null {
+  const shadow = def.shadow ?? 'narrow';
+  switch (shadow) {
+    case 'none': return null;
+    case 'wide': return { widthPct: '105%', heightPct: '13%', alpha: 0.30 };
+    case 'narrow': return { widthPct: '95%', heightPct: '14%', alpha: 0.26 };
+  }
 }
 
 const DRAG_ALPHA_BOOST = 0.10;
@@ -242,7 +222,7 @@ function FurnitureItem({
     onSelect?.(index);
   };
 
-  const shadowCfg = getFurnitureShadowConfig(placement.id);
+    const shadowCfg = getFurnitureShadowConfig(def);
 
   return (
     <div
