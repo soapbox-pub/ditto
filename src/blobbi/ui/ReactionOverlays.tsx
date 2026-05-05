@@ -88,6 +88,8 @@ export function ReactionSparkles({ active, className }: ReactionSparklesProps) {
 
 export interface ReactionBubblesProps {
   active: boolean;
+  /** Whether to show the semi-opaque backdrop behind bubbles. Default: true. */
+  showBackdrop?: boolean;
   className?: string;
 }
 
@@ -125,7 +127,7 @@ const BUBBLE_CONFIGS = [
  * Bubble wash overlay that covers the Blobbi during clean_complete phase 1.
  * Uses CSS circles with gradients instead of emoji for a sudsy, covering effect.
  */
-export function ReactionBubbles({ active, className }: ReactionBubblesProps) {
+export function ReactionBubbles({ active, showBackdrop = true, className }: ReactionBubblesProps) {
   if (!active) return null;
 
   return (
@@ -134,7 +136,9 @@ export function ReactionBubbles({ active, className }: ReactionBubblesProps) {
       aria-hidden="true"
     >
       {/* Semi-opaque backdrop to partially obscure Blobbi */}
-      <div className="absolute inset-0 bg-sky-100/40 dark:bg-sky-900/30 animate-reaction-bubble-backdrop rounded-full" />
+      {showBackdrop && (
+        <div className="absolute inset-0 bg-sky-100/40 dark:bg-sky-900/30 animate-reaction-bubble-backdrop rounded-full" />
+      )}
       {BUBBLE_CONFIGS.map((config, i) => (
         <span
           key={i}
