@@ -7,7 +7,7 @@
  * catalog, reset to defaults. Save persists to Nostr profile; Cancel discards.
  */
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, Fragment } from 'react';
 import {
   X,
   Plus,
@@ -32,7 +32,7 @@ import type { BlobbiRoomId } from '../lib/room-config';
 import { ROOM_META } from '../lib/room-config';
 import type { FurniturePlacement, FurnitureLayer, FurnitureContent } from '../lib/room-furniture-schema';
 import { FURNITURE_LAYERS, MAX_FURNITURE_PER_ROOM } from '../lib/room-furniture-schema';
-import { getAvailableFurnitureForRoom, getFurnitureAsset, resolveFurniture, type FurnitureDefinition } from '../lib/furniture-registry';
+import { getAvailableFurnitureByCategory, getFurnitureAsset, resolveFurniture, type FurnitureDefinition } from '../lib/furniture-registry';
 import { DEFAULT_ROOM_FURNITURE } from '../lib/room-furniture-defaults';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ export function RoomFurnitureEditor({
   const roomMeta = ROOM_META[roomId];
   const atLimit = draft.length >= MAX_FURNITURE_PER_ROOM;
 
-  const catalog = useMemo(() => getAvailableFurnitureForRoom(roomId), [roomId]);
+  const catalog = useMemo(() => getAvailableFurnitureByCategory(roomId), [roomId]);
 
   // ─── Actions ───
 
@@ -195,29 +195,36 @@ export function RoomFurnitureEditor({
               </button>
             </div>
             <div className="grid grid-cols-4 gap-2">
-              {catalog.map((def) => (
-                <button
-                  key={def.id}
-                  onClick={() => handleAddItem(def)}
-                  disabled={atLimit}
-                  className={cn(
-                    'flex flex-col items-center gap-1 p-2 rounded-xl',
-                    'border border-border/40 bg-muted/30',
-                    'hover:bg-accent/50 hover:border-primary/30',
-                    'transition-colors duration-100',
-                    'disabled:opacity-40 disabled:pointer-events-none',
-                  )}
-                >
-                  <img
-                    src={def.asset}
-                    alt={def.label}
-                    className="size-8 object-contain"
-                    draggable={false}
-                  />
-                  <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">
-                    {def.label}
+              {catalog.map((group) => (
+                <Fragment key={group.category}>
+                  <span className="col-span-4 text-[9px] font-semibold text-muted-foreground mt-1 first:mt-0">
+                    {group.label}
                   </span>
-                </button>
+                  {group.items.map((def) => (
+                    <button
+                      key={def.id}
+                      onClick={() => handleAddItem(def)}
+                      disabled={atLimit}
+                      className={cn(
+                        'flex flex-col items-center gap-1 p-2 rounded-xl',
+                        'border border-border/40 bg-muted/30',
+                        'hover:bg-accent/50 hover:border-primary/30',
+                        'transition-colors duration-100',
+                        'disabled:opacity-40 disabled:pointer-events-none',
+                      )}
+                    >
+                      <img
+                        src={def.asset}
+                        alt={def.label}
+                        className="size-8 object-contain"
+                        draggable={false}
+                      />
+                      <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">
+                        {def.label}
+                      </span>
+                    </button>
+                  ))}
+                </Fragment>
               ))}
             </div>
             {atLimit && (

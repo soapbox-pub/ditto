@@ -10,6 +10,7 @@ import {
   getFurnitureAsset,
   canPlaceInRoom,
   getAvailableFurnitureForRoom,
+  getAvailableFurnitureByCategory,
   OFFICIAL_FURNITURE,
 } from './furniture-registry';
 import { getEffectiveRoomFurniture } from './room-furniture-effective';
@@ -353,6 +354,7 @@ describe('getFurnitureAsset', () => {
     // Test with a synthetic definition since no official items currently use variants
     const def: Parameters<typeof getFurnitureAsset>[0] = {
       id: 'test:frame',
+      category: 'frames',
       label: 'Test',
       asset: '/furniture/frame-wood.svg',
       aspectRatio: 0.8,
@@ -369,6 +371,7 @@ describe('getFurnitureAsset', () => {
   it('falls back to default asset for invalid variant', () => {
     const def: Parameters<typeof getFurnitureAsset>[0] = {
       id: 'test:frame',
+      category: 'frames',
       label: 'Test',
       asset: '/furniture/frame-wood.svg',
       aspectRatio: 0.8,
@@ -489,5 +492,36 @@ describe('getEffectiveRoomFurniture', () => {
     // Let's verify: `const saved = parsedFurniture?.by_room[roomId]` → [] is truthy
     const result = getEffectiveRoomFurniture('home', saved);
     expect(result).toEqual([]);
+  });
+});
+
+// ─── getAvailableFurnitureByCategory ──────────────────────────────────────────
+
+describe('getAvailableFurnitureByCategory', () => {
+  it('returns categories in display order with expected labels', () => {
+    const groups = getAvailableFurnitureByCategory('home');
+    const labels = groups.map((g) => g.label);
+    // Home has all categories available
+    expect(labels).toEqual(['Furniture', 'Decor', 'Plants', 'Clocks', 'Frames']);
+  });
+
+  it('filters room-restricted furniture from ineligible rooms', () => {
+    // Kitchen has no room-restricted furniture items (bed is rest/home only)
+    // but it does have unrestricted items in all other categories
+    const groups = getAvailableFurnitureByCategory('kitchen');
+    // Verify furniture category items don't include room-restricted bed
+    const furnitureGroup = groups.find((g) => g.category === 'furniture');
+    const furnitureIds = furnitureGroup?.items.map((i) => i.id) ?? [];
+    expect(furnitureIds).not.toContain('official:bed-single');
+  });
+
+  it('excludes room-restricted clocks from ineligible rooms', () => {
+    const groups = getAvailableFurnitureByCategory('kitchen');
+    const clockGroup = groups.find((g) => g.category === 'clocks');
+    const clockIds = clockGroup?.items.map((i) => i.id) ?? [];
+    // These clocks are restricted to rest/home
+    expect(clockIds).not.toContain('official:clock-bedside');
+    expect(clockIds).not.toContain('official:clock-alarm');
+    expect(clockIds).not.toContain('official:clock-table-digital');
   });
 });

@@ -21,10 +21,15 @@ import type { FurnitureLayer } from './room-furniture-schema';
 /** Visual style for clock furniture items */
 export type ClockStyle = 'classic' | 'modern' | 'cute' | 'digital-bedside' | 'analog-table' | 'cute-alarm' | 'digital-wall' | 'flip-wall' | 'digital-table';
 
+/** Catalog category for grouping furniture items in the editor */
+export type FurnitureCategory = 'furniture' | 'decor' | 'plants' | 'clocks' | 'frames';
+
 /** Definition of a furniture item in the registry */
 export interface FurnitureDefinition {
   /** Namespaced ID, e.g. "official:plant-small" */
   id: string;
+  /** Catalog category for grouping in the editor */
+  category: FurnitureCategory;
   /** Human-readable label for the editor catalog */
   label: string;
   /** Asset path relative to public/ (served by Vite static) */
@@ -63,6 +68,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   // ─── Plants ─────────────────────────────────────────────────────────────
   {
     id: 'official:plant-small',
+    category: 'plants',
     label: 'Small Plant',
     asset: '/furniture/plant-small.svg',
     aspectRatio: 0.7,
@@ -73,6 +79,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:plant-tall',
+    category: 'plants',
     label: 'Tall Plant',
     asset: '/furniture/plant-tall.svg',
     aspectRatio: 0.5,
@@ -85,6 +92,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   // ─── Furniture ──────────────────────────────────────────────────────────
   {
     id: 'official:lamp-floor',
+    category: 'decor',
     label: 'Floor Lamp',
     asset: '/furniture/lamp-floor.svg',
     aspectRatio: 0.3,
@@ -95,6 +103,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:rug-round',
+    category: 'decor',
     label: 'Round Rug',
     asset: '/furniture/rug-round.svg',
     aspectRatio: 1.8,
@@ -105,6 +114,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:shelf-wall',
+    category: 'furniture',
     label: 'Wall Shelf',
     asset: '/furniture/shelf-wall.svg',
     aspectRatio: 2.5,
@@ -115,6 +125,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-wall',
+    category: 'clocks',
     label: 'Wall Clock',
     asset: '/furniture/clock-wall.svg',
     aspectRatio: 1,
@@ -128,6 +139,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-wall-modern',
+    category: 'clocks',
     label: 'Modern Clock',
     asset: '/furniture/clock-wall-modern.svg',
     aspectRatio: 1,
@@ -141,6 +153,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-wall-cute',
+    category: 'clocks',
     label: 'Cute Clock',
     asset: '/furniture/clock-wall-cute.svg',
     aspectRatio: 1,
@@ -154,6 +167,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-table',
+    category: 'clocks',
     label: 'Table Clock',
     asset: '/furniture/clock-table.svg',
     aspectRatio: 0.9,
@@ -167,6 +181,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-bedside',
+    category: 'clocks',
     label: 'Bedside Clock',
     asset: '/furniture/clock-bedside.svg',
     aspectRatio: 2,
@@ -181,6 +196,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-alarm',
+    category: 'clocks',
     label: 'Alarm Clock',
     asset: '/furniture/clock-alarm.svg',
     aspectRatio: 0.85,
@@ -195,6 +211,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-wall-digital',
+    category: 'clocks',
     label: 'Digital Wall Clock',
     asset: '/furniture/clock-wall-digital.svg',
     aspectRatio: 2.2,
@@ -208,6 +225,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-wall-flip',
+    category: 'clocks',
     label: 'Flip Wall Clock',
     asset: '/furniture/clock-wall-flip.svg',
     aspectRatio: 2,
@@ -221,6 +239,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:clock-table-digital',
+    category: 'clocks',
     label: 'Table Digital Clock',
     asset: '/furniture/clock-table-digital.svg',
     aspectRatio: 2,
@@ -235,6 +254,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:bed-single',
+    category: 'furniture',
     label: 'Bed',
     asset: '/furniture/bed-single.svg',
     aspectRatio: 1.4,
@@ -246,6 +266,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:table-side',
+    category: 'furniture',
     label: 'Side Table',
     asset: '/furniture/table-side.svg',
     aspectRatio: 0.9,
@@ -258,6 +279,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   // ─── Picture Frames ─────────────────────────────────────────────────────
   {
     id: 'official:picture-frame',
+    category: 'frames',
     label: 'Picture Frame',
     asset: '/furniture/frame-wood.svg',
     aspectRatio: 0.8,
@@ -270,6 +292,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:picture-frame-gold',
+    category: 'frames',
     label: 'Gold Frame',
     asset: '/furniture/frame-gold.svg',
     aspectRatio: 0.8,
@@ -282,6 +305,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:picture-frame-square',
+    category: 'frames',
     label: 'Square Frame',
     asset: '/furniture/frame-square.svg',
     aspectRatio: 1,
@@ -294,6 +318,7 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
   },
   {
     id: 'official:picture-frame-oval',
+    category: 'frames',
     label: 'Oval Frame',
     asset: '/furniture/frame-oval.svg',
     aspectRatio: 70 / 90,
@@ -371,4 +396,43 @@ export function canPlaceInRoom(def: FurnitureDefinition, roomId: BlobbiRoomId): 
  */
 export function getAvailableFurnitureForRoom(roomId: BlobbiRoomId): FurnitureDefinition[] {
   return OFFICIAL_FURNITURE.filter((def) => canPlaceInRoom(def, roomId));
+}
+
+// ─── Category Helpers ─────────────────────────────────────────────────────────
+
+/** Display labels for each category */
+const CATEGORY_LABELS: Record<FurnitureCategory, string> = {
+  furniture: 'Furniture',
+  decor: 'Decor',
+  plants: 'Plants',
+  clocks: 'Clocks',
+  frames: 'Frames',
+};
+
+/** Display order for categories in the catalog */
+const CATEGORY_ORDER: readonly FurnitureCategory[] = ['furniture', 'decor', 'plants', 'clocks', 'frames'];
+
+/** A category group with its display label and available items */
+export interface FurnitureCategoryGroup {
+  category: FurnitureCategory;
+  label: string;
+  items: FurnitureDefinition[];
+}
+
+/**
+ * Get available furniture for a room, grouped by category.
+ * Omits categories with no available items. Preserves item order within each category.
+ */
+export function getAvailableFurnitureByCategory(roomId: BlobbiRoomId): FurnitureCategoryGroup[] {
+  const available = getAvailableFurnitureForRoom(roomId);
+  const groups: FurnitureCategoryGroup[] = [];
+
+  for (const cat of CATEGORY_ORDER) {
+    const items = available.filter((def) => def.category === cat);
+    if (items.length > 0) {
+      groups.push({ category: cat, label: CATEGORY_LABELS[cat], items });
+    }
+  }
+
+  return groups;
 }
