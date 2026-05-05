@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 90" fill="none">
+  <!-- Oval portrait frame -->
+  <ellipse cx="35" cy="45" rx="33" ry="43" fill="#7a5c3a" stroke="#5e4428" stroke-width="2"/>
+  <!-- Inner bevel -->
+  <ellipse cx="35" cy="45" rx="29" ry="39" fill="none" stroke="#a07850" stroke-width="1"/>
+  <!-- Image area (no mat) -->
+  <ellipse cx="35" cy="45" rx="27" ry="37" fill="#e4ded6"/>
+  <!-- Placeholder -->
+  <circle cx="35" cy="38" r="9" fill="#c8b8a0" opacity="0.5"/>
+  <path d="M18 68 Q27 52 35 52 Q43 52 52 68 Z" fill="#c8b8a0" opacity="0.4"/>
+</svg>

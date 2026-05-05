@@ -40,6 +40,10 @@ export interface FurnitureDefinition {
   flippable: boolean;
   /** Whether this item is a picture frame that accepts uploaded image content */
   isFrame?: boolean;
+  /** CSS inset (top right bottom left) for positioning the custom image inside the frame */
+  frameImageInset?: string;
+  /** CSS border-radius for the image window (e.g. "50%" for oval frames) */
+  frameImageRadius?: string;
   /** Available named variants (e.g. frame color options) */
   variants?: string[];
 }
@@ -143,7 +147,44 @@ export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
     defaultLayer: 'back',
     flippable: false,
     isFrame: true,
-    variants: ['wood', 'gold', 'black', 'white'],
+    frameImageInset: '12% 15% 12% 15%',
+  },
+  {
+    id: 'official:picture-frame-gold',
+    label: 'Gold Frame',
+    asset: '/furniture/frame-gold.svg',
+    aspectRatio: 0.8,
+    baseWidth: 0.11,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isFrame: true,
+    frameImageInset: '12% 15% 12% 15%',
+  },
+  {
+    id: 'official:picture-frame-square',
+    label: 'Square Frame',
+    asset: '/furniture/frame-square.svg',
+    aspectRatio: 1,
+    baseWidth: 0.1,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isFrame: true,
+    frameImageInset: '12.5% 12.5% 12.5% 12.5%',
+  },
+  {
+    id: 'official:picture-frame-oval',
+    label: 'Oval Frame',
+    asset: '/furniture/frame-oval.svg',
+    aspectRatio: 70 / 90,
+    baseWidth: 0.09,
+    allowedLayers: ['back'],
+    defaultLayer: 'back',
+    flippable: false,
+    isFrame: true,
+    frameImageInset: '8.9% 11.4% 8.9% 11.4%',
+    frameImageRadius: '50%',
   },
 ] as const satisfies readonly FurnitureDefinition[];
 

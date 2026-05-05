@@ -350,13 +350,34 @@ describe('getFurnitureAsset', () => {
   });
 
   it('returns variant-specific asset', () => {
-    const def = resolveFurniture('official:picture-frame')!;
+    // Test with a synthetic definition since no official items currently use variants
+    const def: Parameters<typeof getFurnitureAsset>[0] = {
+      id: 'test:frame',
+      label: 'Test',
+      asset: '/furniture/frame-wood.svg',
+      aspectRatio: 0.8,
+      baseWidth: 0.1,
+      allowedLayers: ['back'],
+      defaultLayer: 'back',
+      flippable: false,
+      variants: ['wood', 'gold', 'black'],
+    };
     expect(getFurnitureAsset(def, 'gold')).toBe('/furniture/frame-gold.svg');
     expect(getFurnitureAsset(def, 'black')).toBe('/furniture/frame-black.svg');
   });
 
   it('falls back to default asset for invalid variant', () => {
-    const def = resolveFurniture('official:picture-frame')!;
+    const def: Parameters<typeof getFurnitureAsset>[0] = {
+      id: 'test:frame',
+      label: 'Test',
+      asset: '/furniture/frame-wood.svg',
+      aspectRatio: 0.8,
+      baseWidth: 0.1,
+      allowedLayers: ['back'],
+      defaultLayer: 'back',
+      flippable: false,
+      variants: ['wood', 'gold'],
+    };
     expect(getFurnitureAsset(def, 'chrome')).toBe('/furniture/frame-wood.svg');
   });
 

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- Simple black square frame -->
+  <rect x="2" y="2" width="76" height="76" rx="1" fill="#2a2a2a" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Thin inner border -->
+  <rect x="7" y="7" width="66" height="66" fill="none" stroke="#444" stroke-width="0.5"/>
+  <!-- Image area -->
+  <rect x="10" y="10" width="60" height="60" fill="#e8e4e0"/>
+  <!-- Placeholder -->
+  <path d="M10 70 L28 40 L42 55 L55 30 L70 70 Z" fill="#a0c4a0" opacity="0.5"/>
+  <circle cx="55" cy="25" r="5" fill="#f5d678" opacity="0.6"/>
+</svg>

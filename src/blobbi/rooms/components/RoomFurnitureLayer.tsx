@@ -20,7 +20,7 @@
  * render at reduced opacity but remain fully clickable.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
@@ -43,6 +43,9 @@ interface ShadowConfig { widthPct: string; heightPct: string; alpha: number }
 /** IDs that should never cast a ground shadow (wall-mounted, flat/rug). */
 const NO_SHADOW_IDS = new Set([
   'official:picture-frame',
+  'official:picture-frame-gold',
+  'official:picture-frame-square',
+  'official:picture-frame-oval',
   'official:shelf-wall',
   'official:clock-wall',
   'official:rug-round',
@@ -62,6 +65,13 @@ function getFurnitureShadowConfig(id: string): ShadowConfig | null {
 }
 
 const DRAG_ALPHA_BOOST = 0.10;
+
+// ─── Frame overlay helper ─────────────────────────────────────────────────────
+
+/** Derive the transparent-center overlay asset path from a frame's base asset. */
+function getFrameOverlayAsset(baseAsset: string): string {
+  return baseAsset.replace('.svg', '-overlay.svg');
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -264,17 +274,31 @@ function FurnitureItem({
           }}
         />
       )}
-      <img
-        src={asset}
-        alt=""
-        draggable={false}
-        className={cn(
-          'w-full h-full object-contain',
-          isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
-          isDragging && 'opacity-80 scale-105 transition-transform duration-100',
-          isHolding && 'scale-[1.02] transition-transform duration-100',
-        )}
-      />
+      {def.isFrame && placement.content?.imageUrl ? (
+        <FrameWithImage
+          key={placement.content.imageUrl}
+          imageUrl={placement.content.imageUrl}
+          overlayAsset={getFrameOverlayAsset(asset)}
+          fallbackAsset={asset}
+          imageInset={def.frameImageInset}
+          imageRadius={def.frameImageRadius}
+          isSelected={isSelected}
+          isDragging={isDragging}
+          isHolding={isHolding}
+        />
+      ) : (
+        <img
+          src={asset}
+          alt=""
+          draggable={false}
+          className={cn(
+            'w-full h-full object-contain',
+            isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
+            isDragging && 'opacity-80 scale-105 transition-transform duration-100',
+            isHolding && 'scale-[1.02] transition-transform duration-100',
+          )}
+        />
+      )}
       {/* Hold progress bar — shown during long-press */}
       {isHolding && (
         <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-muted/60 overflow-hidden">
@@ -284,6 +308,84 @@ function FurnitureItem({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Frame with Custom Image ──────────────────────────────────────────────────
+
+interface FrameWithImageProps {
+  imageUrl: string;
+  overlayAsset: string;
+  fallbackAsset: string;
+  imageInset?: string;
+  imageRadius?: string;
+  isSelected: boolean;
+  isDragging: boolean;
+  isHolding: boolean;
+}
+
+function FrameWithImage({
+  imageUrl,
+  overlayAsset,
+  fallbackAsset,
+  imageInset,
+  imageRadius,
+  isSelected,
+  isDragging,
+  isHolding,
+}: FrameWithImageProps) {
+  const [imgError, setImgError] = useState(false);
+
+  const imageClassName = cn(
+    'relative w-full h-full',
+    isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
+    isDragging && 'opacity-80 scale-105 transition-transform duration-100',
+    isHolding && 'scale-[1.02] transition-transform duration-100',
+  );
+
+  // On broken image, fall back to the normal full-frame SVG
+  if (imgError) {
+    return (
+      <img
+        src={fallbackAsset}
+        alt=""
+        draggable={false}
+        className={cn(
+          'w-full h-full object-contain',
+          isSelected && 'ring-2 ring-primary ring-offset-1 rounded-sm',
+          isDragging && 'opacity-80 scale-105 transition-transform duration-100',
+          isHolding && 'scale-[1.02] transition-transform duration-100',
+        )}
+      />
+    );
+  }
+
+  return (
+    <div className={imageClassName}>
+      {/* Custom image — wrapper positioned to fill the frame's inner opening */}
+      <div
+        className="absolute overflow-hidden"
+        style={{
+          inset: imageInset ?? '12% 15% 12% 15%',
+          borderRadius: imageRadius,
+        }}
+      >
+        <img
+          src={imageUrl}
+          alt=""
+          draggable={false}
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      </div>
+      {/* Frame overlay on top */}
+      <img
+        src={overlayAsset}
+        alt=""
+        draggable={false}
+        className="absolute inset-0 w-full h-full object-contain"
+      />
     </div>
   );
 }

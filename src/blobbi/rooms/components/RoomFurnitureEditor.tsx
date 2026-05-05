@@ -7,7 +7,7 @@
  * catalog, reset to defaults. Save persists to Nostr profile; Cancel discards.
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   X,
   Plus,
@@ -17,14 +17,20 @@ import {
   Minus,
   Armchair,
   Check,
+  Upload,
+  Link,
+  Loader2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useUploadFile } from '@/hooks/useUploadFile';
+import { useToast } from '@/hooks/useToast';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { BlobbiRoomId } from '../lib/room-config';
 import { ROOM_META } from '../lib/room-config';
-import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
+import type { FurniturePlacement, FurnitureLayer, FurnitureContent } from '../lib/room-furniture-schema';
 import { FURNITURE_LAYERS, MAX_FURNITURE_PER_ROOM } from '../lib/room-furniture-schema';
 import { getAvailableFurnitureForRoom, getFurnitureAsset, resolveFurniture, type FurnitureDefinition } from '../lib/furniture-registry';
 import { DEFAULT_ROOM_FURNITURE } from '../lib/room-furniture-defaults';
@@ -150,6 +156,19 @@ export function RoomFurnitureEditor({
     onDraftChange([...defaults]);
     onSelectItem(null);
   }, [roomId, onDraftChange, onSelectItem]);
+
+  const handleContentChange = useCallback((content: FurnitureContent | undefined) => {
+    if (selectedIndex === null) return;
+    const newDraft = draft.map((item, i) => {
+      if (i !== selectedIndex) return item;
+      if (!content) {
+        const { content: _removed, ...rest } = item;
+        return rest;
+      }
+      return { ...item, content };
+    });
+    onDraftChange(newDraft);
+  }, [draft, selectedIndex, onDraftChange]);
 
   return (
     <div className={cn(
@@ -298,6 +317,27 @@ export function RoomFurnitureEditor({
                 </div>
               </div>
 
+              {/* Frame image controls — only shown for picture frames */}
+              {selectedDef?.isFrame && (
+                <FrameImageControls
+                  key={selectedIndex}
+                  imageUrl={selectedItem.content?.imageUrl}
+                  onImageChange={(url) => {
+                    if (url) {
+                      const existingContent = selectedItem.content;
+                      handleContentChange({ ...existingContent, imageUrl: url });
+                    } else {
+                      const existing = selectedItem.content;
+                      if (existing) {
+                        const { imageUrl: _removed, ...rest } = existing;
+                        const hasFields = Object.keys(rest).length > 0;
+                        handleContentChange(hasFields ? rest : undefined);
+                      }
+                    }
+                  }}
+                />
+              )}
+
               {/* Scale + flip + delete row */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground w-10 shrink-0">Size</span>
@@ -388,6 +428,125 @@ export function RoomFurnitureEditor({
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Frame Image Controls ─────────────────────────────────────────────────────
+
+interface FrameImageControlsProps {
+  imageUrl: string | undefined;
+  onImageChange: (url: string | undefined) => void;
+}
+
+function FrameImageControls({ imageUrl, onImageChange }: FrameImageControlsProps) {
+  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pasteValue, setPasteValue] = useState('');
+  const [pasteError, setPasteError] = useState(false);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+    try {
+      const [[, url]] = await uploadFile(file);
+      onImageChange(url);
+    } catch {
+      toast({ title: 'Upload failed', description: 'Could not upload image.', variant: 'destructive' });
+    }
+  }, [uploadFile, onImageChange, toast]);
+
+  const handlePasteCommit = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setPasteError(false);
+      return;
+    }
+    const sanitized = sanitizeUrl(trimmed);
+    if (sanitized) {
+      onImageChange(sanitized);
+      setPasteValue('');
+      setPasteError(false);
+    } else {
+      setPasteError(true);
+    }
+  }, [onImageChange]);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground w-10 shrink-0">Image</span>
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {/* Upload button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="h-6 px-2 text-[10px] gap-1"
+          >
+            {isUploading ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <Upload className="size-3" />
+            )}
+            {isUploading ? 'Uploading…' : 'Upload'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {/* Thumbnail preview + clear */}
+          {imageUrl && (
+            <div className="flex items-center gap-1 min-w-0">
+              <img
+                src={imageUrl}
+                alt=""
+                className="size-6 rounded-sm object-cover border border-border/60"
+              />
+              <button
+                type="button"
+                onClick={() => onImageChange(undefined)}
+                className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                aria-label="Remove image"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Paste URL input */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground w-10 shrink-0">
+          <Link className="size-3 mx-auto" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <input
+            type="url"
+            value={pasteValue}
+            onChange={(e) => { setPasteValue(e.target.value); setPasteError(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handlePasteCommit(pasteValue); }}
+            onBlur={() => handlePasteCommit(pasteValue)}
+            placeholder="Paste image URL…"
+            className={cn(
+              'w-full h-6 px-2 text-[10px] rounded-md border bg-muted/30 outline-none',
+              'focus:ring-1 focus:ring-primary/50 focus:border-primary/40',
+              'placeholder:text-muted-foreground/60',
+              pasteError && 'border-destructive/60 focus:ring-destructive/50',
+            )}
+          />
+          {pasteError && (
+            <p className="text-[9px] text-destructive mt-0.5">Must be an https:// URL</p>
+          )}
         </div>
       </div>
     </div>
