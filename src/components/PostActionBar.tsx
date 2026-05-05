@@ -1,7 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { MessageCircle, MoreHorizontal, Share2, Zap } from 'lucide-react';
-import { nip19 } from 'nostr-tools';
-import { useCallback } from 'react';
+import { MessageCircle, MoreHorizontal, Zap } from 'lucide-react';
 
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -9,10 +7,7 @@ import { RepostMenu } from '@/components/RepostMenu';
 import { ZapDialog } from '@/components/ZapDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
-import { useShareOrigin } from '@/hooks/useShareOrigin';
-import { useToast } from '@/hooks/useToast';
 import { formatNumber } from '@/lib/formatNumber';
-import { shareOrCopy } from '@/lib/share';
 import { cn } from '@/lib/utils';
 
 interface PostActionBarProps {
@@ -38,30 +33,13 @@ export function PostActionBar({
   extraButtons,
   compact,
 }: PostActionBarProps) {
-  const { toast } = useToast();
   const { user } = useCurrentUser();
-  const shareOrigin = useShareOrigin();
   // Zap button shows for any logged-in user except on their own posts.
   // Both on-chain and Lightning zaps are supported inside the dialog.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
-
-  const handleShare = useCallback(async () => {
-    let encoded: string;
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
-      encoded = nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
-    } else if (event.kind >= 10000 && event.kind < 20000) {
-      encoded = nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: '' });
-    } else {
-      encoded = nip19.neventEncode({ id: event.id, author: event.pubkey });
-    }
-    const url = `${shareOrigin}/${encoded}`;
-    const result = await shareOrCopy(url);
-    if (result === 'copied') toast({ title: 'Link copied to clipboard' });
-  }, [event, toast, shareOrigin]);
 
   return (
     <div className={`flex items-center justify-between py-1 border-t border-b border-border${className ? ` ${className}` : ''}`}>
@@ -119,16 +97,6 @@ export function PostActionBar({
           </button>
         </ZapDialog>
       )}
-
-      {/* Share */}
-      <button
-        type="button"
-        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden", compact ? "p-1.5 sm:p-2" : "p-2")}
-        title="Share"
-        onClick={handleShare}
-      >
-        <Share2 className={compact ? "size-[18px] sm:size-5" : "size-5"} />
-      </button>
 
       {/* More */}
       <button
