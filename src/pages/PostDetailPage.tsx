@@ -97,6 +97,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
+import { KIND_LABELS } from "@/lib/kindLabels";
 
 /** Kinds that get the full people-list detail view (follow list / set / pack). */
 const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089]);
@@ -129,44 +130,27 @@ const BOOK_REVIEW_KIND = 31985;
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
 
-/** Map a kind number to a human-readable shell title for the loading state. */
+/**
+ * Map a kind number to a human-readable shell title for the loading state.
+ *
+ * Group-based overrides and composite labels (e.g. "Badge Details",
+ * "Badge Collection") are kept here. Everything else falls through to the
+ * central kind label registry.
+ */
 function shellTitleForKind(kind?: number): string {
   if (!kind) return "Loading...";
+  // Group-based overrides
   if (kind === 34139) return "Playlist Details";
   if (MUSIC_KINDS.has(kind)) return "Track Details";
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
-  if (kind === 3) return "Follow List";
-  if (kind === 30000) return "Follow Set";
-  if (kind === 39089) return "Follow Pack";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
-  if (kind === 30617) return "Repository";
-  if (kind === 1617) return "Patch";
-  if (kind === 1618) return "Pull Request";
-  if (kind === 30817) return "Custom NIP";
+  // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
-  if (kind === BADGE_AWARD_KIND) return "Badge Award";
-  if (kind === BOOK_REVIEW_KIND) return "Book Review";
-  if (kind === 32267) return "Zapstore App";
-  if (kind === 30063) return "Zapstore Release";
-  if (kind === 3063) return "Zapstore Asset";
-  if (kind === 31990) return "App";
-  if (kind === 15128 || kind === 35128) return "Nsite";
-  if (kind === VANISH_KIND) return "Request to Vanish";
-  if (kind === 20) return "Photo";
-  if (kind === 4) return "Encrypted Message";
-  if (kind === 8211) return "Letter";
-  if (kind === 6 || kind === 16) return "Repost";
-  if (kind === 7) return "Reaction";
-  if (kind === 1018) return "Poll Vote";
-  if (kind === 9735) return "Zap";
-  if (kind === 8333) return "Bitcoin Zap";
-  if (kind === 0) return "Profile";
-  if (kind === 31124) return "Blobbi";
-  if (kind === 2473) return "Bird Detection";
-  if (kind === 12473) return "Birdex";
-  if (kind === 30621) return "Constellation";
+  // Fall back to the central registry
+  const label = KIND_LABELS[kind];
+  if (label) return label;
   return "Post Details";
 }
 

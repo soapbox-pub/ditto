@@ -93,16 +93,20 @@ When adding support for a new kind, the kind must be registered in **multiple lo
 3. **Detail page** (`src/pages/PostDetailPage.tsx`):
    - Mirror the `isMyKind` detection and group/exclusion flags from `NoteCard`.
    - Add the content dispatch for the detail view.
-   - Add an entry in `shellTitleForKind()` for the loading-state title.
+   - `shellTitleForKind()` falls through to the central `KIND_LABELS` registry, so adding a label there is sufficient for the loading-state title. Only add a manual override in `shellTitleForKind()` if the kind belongs to a group (e.g. music kinds → "Track Details") or needs a composite label (e.g. "Badge Collection").
    - Import the new component.
 
 4. **Feed registration** (`src/lib/extraKinds.ts`):
    - Add the kind number to an existing feed definition's `extraFeedKinds` array, or create a new `ExtraKindDef` entry.
 
-5. **Kind-label registries** — independent maps that resolve kind → human-readable string/icon. All must be updated:
-   - `KIND_LABELS` and `KIND_ICONS` in `src/components/CommentContext.tsx` — used for "Commenting on an nsite" text and inline icons.
-   - `WELL_KNOWN_KIND_LABELS` in `src/components/ExternalContentHeader.tsx` — used in addressable event preview headers.
-   - The icon fallback in `AddressableEventPreview` in the same file.
+5. **Central kind label registry** (`src/lib/kindLabels.ts`):
+   - Add an entry to the `KIND_LABELS` map with a short, user-facing label (capitalized noun phrase, no articles).
+   - This registry is the single source of truth for kind→label mappings and is consumed by the nsite permission prompt, signer nudge toasts, detail page loading titles, and addressable event preview headers.
+   - Some UI contexts maintain **context-specific** label maps that cannot use the central registry directly (they need different grammar):
+     - `KIND_LABELS` and `KIND_ICONS` in `src/components/CommentContext.tsx` — uses articles ("a post", "an article") for "Commenting on {label}" text.
+     - `NOTIFICATION_KIND_NOUNS` in `src/pages/NotificationsPage.tsx` — uses bare lowercase nouns for notification action text.
+     - `KIND_HEADER_MAP` in `src/components/NoteCard.tsx` — uses action verbs + nouns for feed headers.
+   - These context-specific maps must also be updated when adding a new kind.
 
 6. **Embedded note cards** (`src/components/EmbeddedNote.tsx`, `src/components/EmbeddedNaddr.tsx`) — small preview cards shown inside quote posts, reply-context indicators, and CommentContext hover cards. They are **separate components** from `NoteCard` and render a minimal preview (author + title/content + attachment indicators). Basic rendering works for all kinds automatically, but kinds whose media lives in tags (e.g. kind 20 photos via `imeta` tags) may need attachment-indicator logic added to `EmbeddedNoteCard`.
 
@@ -112,4 +116,4 @@ When adding support for a new kind, the kind must be registered in **multiple lo
 
 ### Why so many places?
 
-These are genuinely different UI contexts (feed cards, detail pages, embedded previews, reply previews, comment-context labels) with different rendering requirements. Several of them maintain independent kind-to-label maps that could theoretically be unified. **When in doubt, grep the codebase for an existing kind number like `30617`** — you'll find every registration point you need to mirror.
+These are genuinely different UI contexts (feed cards, detail pages, embedded previews, reply previews, comment-context labels) with different rendering requirements. The central `KIND_LABELS` in `src/lib/kindLabels.ts` handles the common case, but several contexts need grammar-specific maps (articles, verbs, lowercase nouns) that can't be derived mechanically. **When in doubt, grep the codebase for an existing kind number like `30617`** — you'll find every registration point you need to mirror.

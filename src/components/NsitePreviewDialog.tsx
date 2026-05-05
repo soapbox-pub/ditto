@@ -2,14 +2,19 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, X } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 
 import { Button } from '@/components/ui/button';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { NsitePermissionManager } from '@/components/NsitePermissionManager';
+import { NsitePermissionPrompt } from '@/components/NsitePermissionPrompt';
 import { SandboxFrame } from '@/components/SandboxFrame';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNsiteSignerRpc } from '@/hooks/useNsiteSignerRpc';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
+import { getNsiteNostrProviderScript } from '@/lib/nsiteNostrProvider';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { getPreviewInjectedScript } from '@/lib/previewInjectedScript';
 import { getMimeType } from '@/lib/sandbox';
@@ -118,59 +123,6 @@ async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Resp
   throw lastError ?? new Error(`Failed to fetch blob ${sha256} from all servers`);
 }
 
-/** Max concurrent Blossom fetches during pre-fetch. */
-const PREFETCH_CONCURRENCY = 12;
-
-/**
- * Pre-fetch all unique blobs from the manifest into an in-memory cache.
- *
- * **Android only.** Android's WebView uses `shouldInterceptRequest` which
- * blocks a pool of ~6 IO threads via `CountDownLatch` until JS responds.
- * If each response requires a network round-trip to Blossom, the 6-at-a-time
- * serialisation makes loading 200+ files extremely slow. By downloading
- * every blob *before* the WebView starts loading, each bridge round-trip
- * drops from seconds (network) to ~1-5ms (memory).
- *
- * iOS does NOT need this — `WKURLSchemeHandler` is fully async and can
- * handle many concurrent requests without any thread pool bottleneck.
- *
- * Uses bounded concurrency to saturate the network without overwhelming it.
- */
-async function prefetchAllBlobs(
-  manifest: Map<string, string>,
-  servers: string[],
-  cache: Map<string, Uint8Array>,
-): Promise<void> {
-  // Deduplicate — many paths may share the same hash (e.g. SPA fallbacks).
-  const uniqueHashes = [...new Set(manifest.values())];
-  // Skip hashes already in the cache (e.g. from a previous open).
-  const toFetch = uniqueHashes.filter((h) => !cache.has(h));
-  if (toFetch.length === 0) return;
-
-  let cursor = 0;
-  const total = toFetch.length;
-
-  async function worker(): Promise<void> {
-    while (cursor < total) {
-      const idx = cursor++;
-      const sha256 = toFetch[idx];
-      try {
-        const res = await fetchFromBlossom(sha256, servers);
-        const buffer = await res.arrayBuffer();
-        cache.set(sha256, new Uint8Array(buffer));
-      } catch {
-        // Non-fatal — resolveFile will fetch on demand for cache misses.
-      }
-    }
-  }
-
-  const workers = Array.from(
-    { length: Math.min(PREFETCH_CONCURRENCY, total) },
-    () => worker(),
-  );
-  await Promise.all(workers);
-}
-
 interface NsitePreviewDialogProps {
   /** The nsite event (kind 15128 or 35128) containing path and server tags. */
   event: NostrEvent;
@@ -197,23 +149,24 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
 
   // Use the NIP-5A canonical subdomain as the stable identifier, then derive
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
   // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
   const nsiteSubdomain = getNsiteSubdomain(event);
+  const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
   const previewSubdomain = useMemo(() => deriveIframeSubdomain(config.appId, 'nsite', nsiteSubdomain), [config.appId, nsiteSubdomain]);
+
+  // NIP-07 signer proxy — only active when a user is logged in.
+  const signerRpc = useNsiteSignerRpc({
+    siteId: nsiteSubdomain,
+    siteName: appName,
+  });
 
   // Build the manifest and server list from the event (memoised per event identity)
   const manifest = useRef<Map<string, string>>(new Map());
   const servers = useRef<string[]>([]);
-
-  /**
-   * In-memory blob cache: sha256 → raw bytes.
-   * On Android, populated by a blocking pre-fetch in `onReady` so every
-   * `resolveFile` call is an instant cache hit with no network wait.
-   */
-  const blobCache = useRef<Map<string, Uint8Array>>(new Map());
 
   useEffect(() => {
     manifest.current = buildManifest(event);
@@ -224,31 +177,24 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
     servers.current = resolveServers(event, appServers.length > 0 ? appServers : APP_BLOSSOM_SERVERS.servers);
   }, [event, config.blossomServerMetadata, config.useAppBlossomServers]);
 
-  /** Injected scripts: just the path normalisation snippet for SPA support. */
-  const injectedScripts = useMemo<InjectedScript[]>(() => [{
-    path: '__injected__/preview.js',
-    content: getPreviewInjectedScript(),
-  }], []);
+  /** Injected scripts: SPA path normalisation + NIP-07 provider (when logged in). */
+  const injectedScripts = useMemo<InjectedScript[]>(() => {
+    const scripts: InjectedScript[] = [{
+      path: '__injected__/preview.js',
+      content: getPreviewInjectedScript(),
+    }];
 
-  /**
-   * Called by SandboxFrame before the native WebView is created.
-   *
-   * On Android: blocks until all blobs are pre-fetched. Android's WebView
-   * uses `shouldInterceptRequest` which blocks ~6 IO threads — if each
-   * response requires a network fetch the whole thing is painfully slow.
-   * The native ProgressBar spinner (render thread) stays visible and
-   * animating during the download. Once the WebView starts, every
-   * resolveFile call is an instant cache hit.
-   *
-   * On iOS: no-op. WKURLSchemeHandler is async and handles concurrent
-   * requests without a thread pool bottleneck.
-   *
-   * On web: no-op. iframe.diy's service worker handles fetches efficiently.
-   */
-  const onReady = useCallback(async () => {
-    if (Capacitor.getPlatform() !== 'android') return;
-    await prefetchAllBlobs(manifest.current, servers.current, blobCache.current);
-  }, []);
+    // When a user is logged in, inject a NIP-07 provider so the nsite can
+    // use window.nostr to interact with the user's signer.
+    if (user) {
+      scripts.push({
+        path: '__injected__/nostr-provider.js',
+        content: getNsiteNostrProviderScript(user.pubkey),
+      });
+    }
+
+    return scripts;
+  }, [user]);
 
   /** Resolve a pathname to file content from the Blossom manifest. */
   const resolveFile = useCallback(async (pathname: string): Promise<FileResponse | null> => {
@@ -264,20 +210,10 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
     if (!sha256) return null;
 
-    // Serve from cache if available (pre-fetched on Android).
-    const cached = blobCache.current.get(sha256);
-    if (cached) {
-      const contentType = getMimeType(servingPath);
-      return { status: 200, contentType, body: cached };
-    }
-
-    // Cache miss — fetch from Blossom (normal path on iOS/web).
+    // Fetch from Blossom.
     const res = await fetchFromBlossom(sha256, servers.current);
     const buffer = await res.arrayBuffer();
     const body = new Uint8Array(buffer);
-
-    // Store in cache for future requests (e.g. SPA navigations).
-    blobCache.current.set(sha256, body);
 
     // Always determine content type from the file extension.
     // Blossom servers commonly return incorrect types (e.g. text/plain for .js
@@ -318,11 +254,20 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
             />
           ) : (
             <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <Package className="size-3.5 text-primary/50" />
+              <ExternalFavicon
+                url={siteUrl}
+                size={18}
+                fallback={<Package className="size-3.5 text-primary/50" />}
+              />
             </div>
           )}
           <span className="text-sm font-medium truncate">{appName}</span>
         </div>
+
+        {/* Permissions manager (only when logged in) */}
+        {user && (
+          <NsitePermissionManager siteId={nsiteSubdomain} siteName={appName} />
+        )}
 
         {/* Close */}
         <Button
@@ -337,16 +282,27 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
       </div>
 
       {/* Sandboxed iframe */}
-      <div className="flex-1 min-h-0 bg-background">
+      <div className="flex-1 min-h-0 bg-background relative">
         <SandboxFrame
           key={`${previewSubdomain}-${open}`}
           id={previewSubdomain}
           resolveFile={resolveFile}
-          onReady={onReady}
+          onRpc={user ? signerRpc.onRpc : undefined}
           injectedScripts={injectedScripts}
           className="w-full h-full border-0"
           title={`${appName} preview`}
         />
+
+        {/* Permission prompt overlay */}
+        {signerRpc.pendingPrompt && (
+          <NsitePermissionPrompt
+            appPicture={appPicture}
+            appName={appName}
+            siteUrl={siteUrl}
+            prompt={signerRpc.pendingPrompt}
+            onResolve={signerRpc.resolvePrompt}
+          />
+        )}
       </div>
     </div>,
     document.body,

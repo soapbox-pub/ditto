@@ -35,6 +35,7 @@ import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
 import { useBirdSong } from '@/hooks/useBirdSong';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { getKindLabel } from '@/lib/kindLabels';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
@@ -1261,20 +1262,6 @@ function hasVideo(tags: string[][]): boolean {
 }
 
 /** Fallback labels for well-known kinds not in EXTRA_KINDS. */
-const WELL_KNOWN_KIND_LABELS: Record<number, string> = {
-  3: 'Follow List',
-  30000: 'Follow Set',
-  31990: 'App',
-  32267: 'Zapstore App',
-  30063: 'Zapstore Release',
-  3063: 'Zapstore Asset',
-  15128: 'Nsite',
-  35128: 'Nsite',
-  31124: 'Blobbi',
-  2473: 'Bird Detection',
-  12473: 'Birdex',
-  30621: 'Constellation',
-};
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
   const { data: event, isLoading } = useAddrEvent(addr);
@@ -1290,7 +1277,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     if (kindDef) return kindDef.label;
     const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
     if (sub) return sub.label;
-    return WELL_KNOWN_KIND_LABELS[addr.kind] ?? `Kind ${addr.kind}`;
+    return getKindLabel(addr.kind);
   }, [kindDef, addr.kind]);
 
   const KindIcon = useMemo(() => {
