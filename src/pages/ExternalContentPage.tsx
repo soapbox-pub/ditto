@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Globe, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Globe, MessageCircle, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import {
@@ -17,6 +16,9 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ExternalReactionButton } from '@/components/ExternalReactionButton';
 import { BookReviewFormDialog } from '@/components/BookReviewForm';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import {
   UrlContentHeader,
   BookContentHeader,
@@ -26,6 +28,7 @@ import { BitcoinTxHeader, BitcoinAddressHeader } from '@/components/BitcoinConte
 import { PrecipitationEffect } from '@/components/PrecipitationEffect';
 import { parseExternalUri, headerLabel, seoTitle, type ExternalContent } from '@/lib/externalContent';
 import { ratingToStars } from '@/lib/bookstr';
+import { formatNumber } from '@/lib/formatNumber';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useWeather, getPrecipitation } from '@/hooks/useWeather';
 import { useComments } from '@/hooks/useComments';
@@ -51,10 +54,18 @@ import type { BookReview } from '@/lib/bookstr';
 import NotFound from './NotFound';
 
 // ---------------------------------------------------------------------------
-// Action bar component for external content (react + share)
+// Action bar component for external content (comment + react + share)
 // ---------------------------------------------------------------------------
 
-function ExternalActionBar({ content }: { content: ExternalContent }) {
+interface ExternalActionBarProps {
+  content: ExternalContent;
+  /** Opens the comment composer. */
+  onComment: () => void;
+  /** Number of top-level comments on this content, for the comment button badge. */
+  commentCount: number;
+}
+
+function ExternalActionBar({ content, onComment, commentCount }: ExternalActionBarProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const identifier = content.value;
@@ -77,6 +88,16 @@ function ExternalActionBar({ content }: { content: ExternalContent }) {
 
   return (
     <div className="flex items-center gap-1 px-4 py-2 border-b border-border">
+      {/* Comment button — opens the compose modal, same as the FAB */}
+      <button
+        className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10"
+        title="Comment"
+        onClick={onComment}
+      >
+        <MessageCircle className="size-5" />
+        {commentCount > 0 && <span className="text-sm tabular-nums">{formatNumber(commentCount)}</span>}
+      </button>
+
       {/* Reaction button */}
       <ExternalReactionButton content={content} />
 
@@ -302,9 +323,13 @@ export function ExternalContentPage() {
       </div>
 
       {/* React / share action bar */}
-      <ExternalActionBar content={content} />
+      <ExternalActionBar
+        content={content}
+        onComment={openCompose}
+        commentCount={orderedReplies.length}
+      />
 
-      {/* Comment compose dialog (opened via FAB) */}
+      {/* Comment compose dialog (opened via FAB or the Comment button) */}
       {commentRoot && <ReplyComposeModal event={commentRoot} open={composeOpen} onOpenChange={setComposeOpen} />}
 
       {/* ISBN pages get a tabbed interface with Comments + Reviews */}
@@ -316,21 +341,11 @@ export function ExternalContentPage() {
           commentsLoading={commentsLoading}
         />
       ) : (
-        <>
-          {/* Inline compose box */}
-          {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
-
-          {/* Threaded comments list */}
-          <div>
-            {commentsLoading ? (
-              <CommentsSkeleton />
-            ) : orderedReplies.length > 0 ? (
-              <FlatThreadedReplyList replies={orderedReplies} />
-            ) : (
-              <CommentsEmptyState />
-            )}
-          </div>
-         </>
+        <ExternalCommentsSection
+          commentRoot={commentRoot}
+          orderedReplies={orderedReplies}
+          commentsLoading={commentsLoading}
+        />
       )}
     </main>
   );
@@ -339,6 +354,31 @@ export function ExternalContentPage() {
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+/** Props shared by the comments section (both standalone and inside a tab). */
+interface ExternalCommentsSectionProps {
+  commentRoot: URL | `#${string}` | undefined;
+  orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
+  commentsLoading: boolean;
+}
+
+/** Inline compose box + threaded replies list (or loading/empty state). */
+function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading }: ExternalCommentsSectionProps) {
+  return (
+    <>
+      {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
+      <div>
+        {commentsLoading ? (
+          <CommentsSkeleton />
+        ) : orderedReplies.length > 0 ? (
+          <FlatThreadedReplyList replies={orderedReplies} />
+        ) : (
+          <CommentsEmptyState />
+        )}
+      </div>
+    </>
+  );
+}
 
 function CommentsSkeleton() {
   return (
@@ -385,76 +425,71 @@ interface BookContentTabsProps {
   commentsLoading: boolean;
 }
 
+type BookTab = 'comments' | 'reviews';
+
 function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }: BookContentTabsProps) {
   const { user } = useCurrentUser();
   const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
+  const [activeTab, setActiveTab] = useState<BookTab>('comments');
+
+  const commentCount = orderedReplies.length;
+  const reviewCount = reviews.length;
 
   return (
-    <Tabs defaultValue="comments" className="w-full">
-      <TabsList className="w-full rounded-none border-b border-border bg-transparent h-auto p-0">
-        <TabsTrigger
-          value="comments"
-          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 text-sm font-medium"
-        >
-          <MessageSquare className="size-4 mr-2" />
-          Comments{orderedReplies.length > 0 ? ` (${orderedReplies.length})` : ''}
-        </TabsTrigger>
-        <TabsTrigger
-          value="reviews"
-          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 text-sm font-medium"
-        >
-          <Star className="size-4 mr-2" />
-          Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
-        </TabsTrigger>
-      </TabsList>
+    <>
+      <SubHeaderBar>
+        <TabButton
+          label={`Comments${commentCount > 0 ? ` (${commentCount})` : ''}`}
+          active={activeTab === 'comments'}
+          onClick={() => setActiveTab('comments')}
+        />
+        <TabButton
+          label={`Reviews${reviewCount > 0 ? ` (${reviewCount})` : ''}`}
+          active={activeTab === 'reviews'}
+          onClick={() => setActiveTab('reviews')}
+        />
+      </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
-      <TabsContent value="comments" className="mt-0">
-        {/* Inline compose box */}
-        {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
-
-        {/* Threaded comments list */}
-        <div>
-          {commentsLoading ? (
-            <CommentsSkeleton />
-          ) : orderedReplies.length > 0 ? (
-            <FlatThreadedReplyList replies={orderedReplies} />
-          ) : (
-            <CommentsEmptyState />
+      {activeTab === 'comments' ? (
+        <ExternalCommentsSection
+          commentRoot={commentRoot}
+          orderedReplies={orderedReplies}
+          commentsLoading={commentsLoading}
+        />
+      ) : (
+        <>
+          {/* Write review CTA */}
+          {user && (
+            <div className="px-4 py-3 border-b border-border">
+              <BookReviewFormDialog isbn={isbn}>
+                <Button variant="outline" className="w-full">
+                  <Star className="size-4 mr-2" />
+                  Write a Review
+                </Button>
+              </BookReviewFormDialog>
+            </div>
           )}
-        </div>
-      </TabsContent>
 
-      <TabsContent value="reviews" className="mt-0">
-        {/* Write review CTA */}
-        {user && (
-          <div className="px-4 py-3 border-b border-border">
-            <BookReviewFormDialog isbn={isbn}>
-              <Button variant="outline" className="w-full">
-                <Star className="size-4 mr-2" />
-                Write a Review
-              </Button>
-            </BookReviewFormDialog>
-          </div>
-        )}
-
-        {/* Reviews list */}
-        {reviewsLoading ? (
-          <CommentsSkeleton />
-        ) : reviews.length > 0 ? (
-          <div className="divide-y divide-border">
-            {reviews.map(({ event, review }) => (
-              <BookReviewCard key={event.id} event={event} review={review} />
-            ))}
-          </div>
-        ) : (
-          <div className="py-12 text-center text-muted-foreground text-sm">
-            <Star className="size-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg font-medium mb-2">No reviews yet</p>
-            <p>Be the first to review this book!</p>
-          </div>
-        )}
-      </TabsContent>
-    </Tabs>
+          {/* Reviews list */}
+          {reviewsLoading ? (
+            <CommentsSkeleton />
+          ) : reviews.length > 0 ? (
+            <div className="divide-y divide-border">
+              {reviews.map(({ event, review }) => (
+                <BookReviewCard key={event.id} event={event} review={review} />
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              <Star className="size-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium mb-2">No reviews yet</p>
+              <p>Be the first to review this book!</p>
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }
 
