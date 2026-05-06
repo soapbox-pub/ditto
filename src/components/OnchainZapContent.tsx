@@ -347,7 +347,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       </ToggleGroup>
 
       {/* Comment — hidden behind a text-only accordion chevron. */}
-      <div>
+      <div className="flex flex-col items-center">
         <button
           type="button"
           onClick={() => setCommentOpen((v) => !v)}
@@ -365,14 +365,37 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={2}
-            className="resize-none mt-2"
+            className="resize-none mt-2 w-full"
           />
         )}
       </div>
 
+      {/* Error */}
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+
+      <Button
+        onClick={handleZap}
+        disabled={!btcPrice || amountSats <= 0 || isZapping}
+        variant={isLarge && !isZapping ? 'destructive' : 'default'}
+        className="w-full"
+      >
+        {isZapping ? (
+          <>
+            <Loader2 className="size-4 mr-1.5 animate-spin" />
+            {progressLabel(progress)}
+          </>
+        ) : isLarge && confirmArmed ? (
+          <>Tap again to send {totalUsdString}</>
+        ) : (
+          <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+        )}
+      </Button>
+
       {/* Fee line — click to open speed picker */}
       {amountSats > 0 && (
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center justify-center gap-3 -mt-1 text-xs">
           <Popover open={feePopoverOpen} onOpenChange={setFeePopoverOpen}>
             <PopoverTrigger asChild>
               <button
@@ -389,7 +412,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
                 </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-56 p-1">
+            <PopoverContent align="center" sideOffset={6} className="w-56 p-1">
               <div className="flex flex-col">
                 {uniqueFeeSpeeds.map((speed) => {
                   const rate = feeRates ? getRateForSpeed(feeRates, speed) : 0;
@@ -417,29 +440,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
           )}
         </div>
       )}
-
-      {/* Error */}
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
-
-      <Button
-        onClick={handleZap}
-        disabled={!btcPrice || amountSats <= 0 || isZapping}
-        variant={isLarge && !isZapping ? 'destructive' : 'default'}
-        className="w-full"
-      >
-        {isZapping ? (
-          <>
-            <Loader2 className="size-4 mr-1.5 animate-spin" />
-            {progressLabel(progress)}
-          </>
-        ) : isLarge && confirmArmed ? (
-          <>Tap again to send {totalUsdString}</>
-        ) : (
-          <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
-        )}
-      </Button>
     </div>
   );
 }

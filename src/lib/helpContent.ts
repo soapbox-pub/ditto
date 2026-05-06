@@ -160,9 +160,9 @@ const FAQ_TEMPLATE: FAQCategory[] = [
         id: 'send-bitcoin-onchain',
         question: 'How does sending Bitcoin work?',
         answer: [
-          'You\'re sending Bitcoin directly on the Bitcoin blockchain. The funds come from your {appName} Bitcoin balance and land in the recipient\'s wallet after a miner confirms the transaction.',
-          'You choose a network fee based on how soon you want the transaction confirmed \u2014 faster means a higher fee. {appName} picks a sensible default for you, but you can change it.',
-          'Once sent, the transaction is public and irreversible. The post is tagged so the creator knows you sent the Bitcoin as a tip.',
+          'This sends real Bitcoin on-chain, using your Nostr key as your wallet \u2014 no separate account, no top-up.',
+          'Your send pays a small network fee to miners so the transaction gets confirmed. Faster confirmation costs a bit more; {appName} picks a sensible default.',
+          'Once broadcast, it\'s public and irreversible. The creator\'s post gets tagged so they know the Bitcoin came from you.',
         ],
       },
       {
