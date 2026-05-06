@@ -27,7 +27,6 @@ import {
   fetchBtcPrice,
   isLargeAmount,
   satsToUSD,
-  formatSats,
 } from '@/lib/bitcoin';
 import type { Event } from 'nostr-tools';
 import type { WebLNProvider } from '@webbtc/webln-types';
@@ -38,9 +37,15 @@ interface ZapDialogProps {
   className?: string;
 }
 
-// USD presets — identical set to the onchain tab so the two flows feel like
-// the same dialog in two flavors rather than two different products.
-const USD_PRESETS = [1, 5, 10, 25, 100];
+// USD presets for the Lightning tab. Lightning zaps are expected to be
+// much smaller than on-chain sends (which have a fixed per-tx fee floor),
+// so the presets stay in tip-jar territory.
+const LIGHTNING_USD_PRESETS = [0.1, 0.5, 1, 2, 5];
+
+/** Format a preset button label without trailing zeros ($0.10 → $0.10, $1 → $1). */
+function formatPresetLabel(usd: number): string {
+  return usd < 1 ? `$${usd.toFixed(2)}` : `$${usd}`;
+}
 
 interface LightningZapContentProps {
   invoice: string | null;
@@ -100,21 +105,21 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
   const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
   const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
   const usdString = btcPrice && amountSats > 0 ? satsToUSD(amountSats, btcPrice) : '';
-  const usdDisplay = usdString || (hasValidAmount ? `$${currentUsd}` : '');
+  // When btcPrice hasn't loaded yet, fall back to formatting the raw USD
+  // input so small values like 0.1 still render as "$0.10".
+  const fallbackUsd = hasValidAmount
+    ? (currentUsd < 1 ? `$${currentUsd.toFixed(2)}` : `$${currentUsd}`)
+    : '';
+  const usdDisplay = usdString || fallbackUsd;
 
   if (invoice) {
     return (
       <div ref={ref} className="grid gap-3 px-4 py-4 w-full overflow-hidden">
-        {/* Amount header — USD primary, sats secondary (matches onchain). */}
+        {/* Amount header — USD only; sats are an implementation detail. */}
         <div className="flex flex-col items-center pt-1">
           <div className="text-3xl font-semibold tabular-nums">
-            {usdDisplay || `${formatSats(amountSats)} sats`}
+            {usdDisplay}
           </div>
-          {usdDisplay && (
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {formatSats(amountSats)} sats
-            </div>
-          )}
         </div>
 
         {/* QR code */}
@@ -165,10 +170,7 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
                   Processing…
                 </>
               ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Pay with WebLN
-                </>
+                'Pay with WebLN'
               )}
             </Button>
           )}
@@ -226,31 +228,27 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
           >
             <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
             <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
-              {hasValidAmount ? currentUsd : 0}
+              {hasValidAmount ? (currentUsd < 1 ? currentUsd.toFixed(2) : currentUsd) : 0}
             </span>
           </button>
         )}
-        {btcPrice && amountSats > 0 && (
-          <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-            {formatSats(amountSats)} sats
-          </div>
-        )}
       </div>
 
-      {/* Presets — compact. */}
+      {/* Presets — compact. Lightning zaps lean small, so the defaults stay
+          in tip-jar territory. */}
       <ToggleGroup
         type="single"
-        value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
+        value={LIGHTNING_USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
         onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
         className="grid grid-cols-5 gap-1 w-full"
       >
-        {USD_PRESETS.map((v) => (
+        {LIGHTNING_USD_PRESETS.map((v) => (
           <ToggleGroupItem
             key={v}
             value={String(v)}
             className="h-8 min-w-0 text-xs font-semibold px-1"
           >
-            ${v}
+            {formatPresetLabel(v)}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
@@ -274,10 +272,7 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
         ) : isLarge && confirmArmed ? (
           <>Tap again to send {usdDisplay}</>
         ) : (
-          <>
-            <Zap className="h-4 w-4 mr-2" />
-            Send {usdDisplay}
-          </>
+          <>Send {usdDisplay}</>
         )}
       </Button>
     </div>
@@ -295,7 +290,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
 
   // USD-denominated state (matches OnchainZapContent). The sats amount is
   // derived just before we hit the LNURL endpoint.
-  const [usdAmount, setUsdAmount] = useState<number | string>(5);
+  const [usdAmount, setUsdAmount] = useState<number | string>(0.5);
   const [copied, setCopied] = useState(false);
   const [editingAmount, setEditingAmount] = useState(false);
   const [error, setError] = useState('');
@@ -374,7 +369,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
 
   useEffect(() => {
     if (open) {
-      setUsdAmount(5);
+      setUsdAmount(0.5);
       setInvoice(null);
       setCopied(false);
       setEditingAmount(false);
@@ -382,7 +377,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setConfirmArmed(false);
       setActiveTab(bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain');
     } else {
-      setUsdAmount(5);
+      setUsdAmount(0.5);
       setInvoice(null);
       setCopied(false);
       setEditingAmount(false);
