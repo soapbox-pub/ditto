@@ -331,9 +331,9 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="flex flex-col h-auto min-w-0 text-xs px-1 py-2"
+            className="h-8 min-w-0 text-xs font-semibold px-1"
           >
-            <span className="font-semibold">${v}</span>
+            ${v}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
@@ -507,9 +507,9 @@ function UnsupportedSignerQR({
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="flex flex-col h-auto min-w-0 text-xs px-1 py-2"
+            className="h-8 min-w-0 text-xs font-semibold px-1"
           >
-            <span className="font-semibold">${v}</span>
+            ${v}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
