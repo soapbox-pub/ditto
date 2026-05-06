@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AlertTriangle, Gauge, Loader2, Bitcoin, Copy, Check, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Loader2, Bitcoin, Copy, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Textarea } from '@/components/ui/textarea';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -94,12 +93,10 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
-  const [comment, setComment] = useState('');
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
   const [editingAmount, setEditingAmount] = useState(false);
-  const [commentOpen, setCommentOpen] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Tracks whether the user has manually picked a fee speed. Once true, we
@@ -226,7 +223,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     }
 
     try {
-      await zapAsync({ amountSats, comment, feeSpeed });
+      await zapAsync({ amountSats, comment: '', feeSpeed });
       // onSuccess (passed to useOnchainZap) closes the dialog; toast is shown by the hook.
     } catch (err) {
       // Capability errors flip the UI via `reportSignerUnsupported` in the
@@ -235,7 +232,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed]);
+  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, feeSpeed, isLarge, confirmArmed]);
 
   // ── Signer not supported ──────────────────────────────────────
   // The user's signer can't sign PSBTs locally (extension without signPsbt,
@@ -321,11 +318,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             </span>
           </button>
         )}
-        {amountSats > 0 && (
-          <span className="mt-1 text-xs text-muted-foreground tabular-nums">
-            {formatSats(amountSats)} sats
-          </span>
-        )}
       </div>
 
       {/* Preset buttons sit under the big number. */}
@@ -345,30 +337,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-
-      {/* Comment — hidden behind a text-only accordion chevron. */}
-      <div className="flex flex-col items-center">
-        <button
-          type="button"
-          onClick={() => setCommentOpen((v) => !v)}
-          aria-expanded={commentOpen}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-        >
-          <ChevronDown
-            className={`size-3.5 transition-transform ${commentOpen ? 'rotate-0' : '-rotate-90'}`}
-          />
-          <span>{comment ? 'Comment' : 'Add a comment'}</span>
-        </button>
-        {commentOpen && (
-          <Textarea
-            placeholder="Say something (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={2}
-            className="resize-none mt-2 w-full"
-          />
-        )}
-      </div>
 
       {/* Error */}
       {error && (
@@ -402,7 +370,6 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
                 type="button"
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Gauge className="size-3.5" />
                 <span>
                   Fee{' '}
                   {estimatedFeeSats > 0 && btcPrice
