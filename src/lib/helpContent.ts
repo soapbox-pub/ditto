@@ -157,6 +157,24 @@ const FAQ_TEMPLATE: FAQCategory[] = [
         ],
       },
       {
+        id: 'send-bitcoin-onchain',
+        question: 'How does sending Bitcoin work?',
+        answer: [
+          'You\'re sending Bitcoin directly on the Bitcoin blockchain. The funds come from your {appName} Bitcoin balance and land in the recipient\'s wallet after a miner confirms the transaction.',
+          'You choose a network fee based on how soon you want the transaction confirmed \u2014 faster means a higher fee. {appName} picks a sensible default for you, but you can change it.',
+          'Once sent, the transaction is public and irreversible. The post is tagged so the creator knows you sent the Bitcoin as a tip.',
+        ],
+      },
+      {
+        id: 'send-bitcoin-lightning',
+        question: 'How does sending Bitcoin over Lightning work?',
+        answer: [
+          'Lightning is a faster, cheaper layer built on top of Bitcoin. Payments settle in seconds and fees are usually fractions of a cent.',
+          'You\'ll pay from your connected Lightning wallet. The creator receives the Bitcoin right away, and the payment is attached to their post as a zap so everyone can see the support.',
+          'To learn more, check out [Understanding Zaps](https://nostr.how/en/zaps).',
+        ],
+      },
+      {
         id: 'connect-wallet',
         question: 'How do I connect a wallet?',
         answer: [

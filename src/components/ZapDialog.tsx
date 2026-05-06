@@ -441,7 +441,16 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
-            {invoice ? 'Lightning Payment' : 'Send a Zap'} <HelpTip faqId="what-are-zaps" />
+            {invoice
+              ? 'Lightning Payment'
+              : 'Send Bitcoin'}{' '}
+            <HelpTip
+              faqId={
+                invoice || activeTab === 'lightning'
+                  ? 'send-bitcoin-lightning'
+                  : 'send-bitcoin-onchain'
+              }
+            />
           </DialogTitle>
           <button
             onClick={() => setOpen(false)}
@@ -450,13 +459,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
             <X className="size-5" />
           </button>
         </div>
-        <p className="px-4 -mt-1 mb-1 text-sm text-muted-foreground">
-          {invoice
-            ? 'Pay with Bitcoin Lightning Network'
-            : activeTab === 'onchain'
-              ? 'Send Bitcoin to support the creator.'
-              : 'Send a Lightning payment to support the creator.'}
-        </p>
         <div className="overflow-y-auto">
           {hasLightning ? (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'onchain' | 'lightning')} className="w-full">

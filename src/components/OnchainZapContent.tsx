@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AlertTriangle, Zap, Gauge, Loader2, Bitcoin, Copy, Check } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { AlertTriangle, Gauge, Loader2, Bitcoin, Copy, Check, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,40 @@ const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   economy: '~1 day',
 };
 
+const FEE_SPEED_ORDER: OnchainFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
+
+/**
+ * Given the raw mempool fee rates (sat/vB), return a deduplicated list of
+ * speed tiers. When multiple tiers share the same rate (common when the
+ * mempool is empty and everything collapses to 1 sat/vB), we keep only the
+ * fastest-labeled tier for that rate. This prevents rows like "~10 min 2
+ * sat/vB / ~30 min 2 sat/vB / ~1 hour 2 sat/vB" in the UI.
+ */
+function getRateForSpeed(rates: { fastestFee: number; halfHourFee: number; hourFee: number; economyFee: number }, speed: OnchainFeeSpeed): number {
+  switch (speed) {
+    case 'fastest': return rates.fastestFee;
+    case 'halfHour': return rates.halfHourFee;
+    case 'hour': return rates.hourFee;
+    case 'economy': return rates.economyFee;
+  }
+}
+
+function getUniqueFeeSpeeds(
+  rates: { fastestFee: number; halfHourFee: number; hourFee: number; economyFee: number } | undefined,
+): OnchainFeeSpeed[] {
+  if (!rates) return FEE_SPEED_ORDER;
+  const seen = new Set<number>();
+  const result: OnchainFeeSpeed[] = [];
+  for (const speed of FEE_SPEED_ORDER) {
+    const rate = getRateForSpeed(rates, speed);
+    if (!seen.has(rate)) {
+      seen.add(rate);
+      result.push(speed);
+    }
+  }
+  return result;
+}
+
 interface OnchainZapContentProps {
   target: NostrEvent;
   onSuccess?: () => void;
@@ -64,6 +98,13 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+
+  // Tracks whether the user has manually picked a fee speed. Once true, we
+  // stop auto-adjusting the fee in response to amount changes.
+  const feeSpeedUserChanged = useRef(false);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
   const recipientAddress = useMemo(() => nostrPubkeyToBitcoinAddress(target.pubkey), [target.pubkey]);
@@ -95,12 +136,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
 
   const currentFeeRate = useMemo(() => {
     if (!feeRates) return 0;
-    switch (feeSpeed) {
-      case 'fastest': return feeRates.fastestFee;
-      case 'halfHour': return feeRates.halfHourFee;
-      case 'hour': return feeRates.hourFee;
-      case 'economy': return feeRates.economyFee;
-    }
+    return getRateForSpeed(feeRates, feeSpeed);
   }, [feeRates, feeSpeed]);
 
   // Convert the USD amount to sats
@@ -123,6 +159,40 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   const totalSats = amountSats + estimatedFeeSats;
   const insufficient = totalBalance > 0 && totalSats > totalBalance;
   const showBalance = insufficient || (amountSats > 0 && totalBalance === 0);
+
+  // Auto-adjust fee speed when the amount changes, unless the user has
+  // already picked a speed manually. Aim for a fee below 40% of the amount
+  // by stepping down through the unique speed tiers. If every tier still
+  // blows past 40% (tiny amount), fall back to the cheapest tier so we at
+  // least minimize the hit.
+  useEffect(() => {
+    if (feeSpeedUserChanged.current) return;
+    if (!utxos?.length || !feeRates || amountSats <= 0) return;
+
+    const uniqueSpeeds = getUniqueFeeSpeeds(feeRates);
+    const threshold = amountSats * 0.4;
+
+    let target: OnchainFeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
+    for (const speed of uniqueSpeeds) {
+      const rate = getRateForSpeed(feeRates, speed);
+      const fee2 = estimateFee(utxos.length, 2, rate);
+      const change = totalBalance - amountSats - fee2;
+      const outputs = change > 546 ? 2 : 1;
+      const fee = estimateFee(utxos.length, outputs, rate);
+      if (fee <= threshold) {
+        target = speed;
+        break;
+      }
+    }
+
+    setFeeSpeed((prev) => (prev === target ? prev : target));
+  }, [amountSats, feeRates, utxos, totalBalance]);
+
+  const handleFeeSpeedChange = useCallback((speed: OnchainFeeSpeed) => {
+    feeSpeedUserChanged.current = true;
+    setFeeSpeed(speed);
+    setFeePopoverOpen(false);
+  }, []);
 
   // For large amounts, require a two-tap confirmation on the primary button.
   // This catches fat-finger sends without nagging on normal amounts.
@@ -174,6 +244,28 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
   // resulting txid, so we don't publish a kind 8333 — the user is warned
   // that the zap won't be attributed to them on Nostr.
 
+  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
+  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
+  const totalUsdString = btcPrice ? satsToUSD(totalSats, btcPrice) : '';
+  const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
+
+  // Clicking the big amount flips it into edit mode. Auto-focus and
+  // select-all so typing overwrites the current value.
+  useEffect(() => {
+    if (editingAmount) {
+      amountInputRef.current?.focus();
+      amountInputRef.current?.select();
+    }
+  }, [editingAmount]);
+
+  const commitAmountEdit = useCallback(() => {
+    setEditingAmount(false);
+    // Normalize empty string to 0 so the display doesn't show "$" alone.
+    if (typeof usdAmount === 'string' && usdAmount.trim() === '') {
+      setUsdAmount(0);
+    }
+  }, [usdAmount]);
+
   if (user && capability === 'unsupported') {
     return (
       <UnsupportedSignerQR
@@ -189,15 +281,58 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     );
   }
 
-  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-
   return (
-    <div className="grid gap-3 px-4 py-4 w-full overflow-hidden">
-      {/* Amount presets (USD) */}
+    <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
+      {/* Amount — big number on top, editable by clicking. */}
+      <div className="flex flex-col items-center pt-2">
+        {editingAmount ? (
+          <div className="flex items-baseline justify-center">
+            <span className="text-4xl font-semibold text-muted-foreground">$</span>
+            <input
+              ref={amountInputRef}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={usdAmount}
+              onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
+              onBlur={commitAmountEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitAmountEdit();
+                }
+              }}
+              aria-label="Amount in USD"
+              className="bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingAmount(true)}
+            aria-label="Edit amount"
+            className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          >
+            <span className="text-4xl font-semibold text-muted-foreground">$</span>
+            <span className="text-4xl font-semibold tabular-nums">
+              {hasValidAmount ? currentUsd : 0}
+            </span>
+          </button>
+        )}
+        {amountSats > 0 && (
+          <span className="mt-1 text-xs text-muted-foreground tabular-nums">
+            {formatSats(amountSats)} sats
+          </span>
+        )}
+      </div>
+
+      {/* Preset buttons sit under the big number. */}
       <ToggleGroup
         type="single"
         value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
-        onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); } }}
+        onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
         className="grid grid-cols-5 gap-1 w-full"
       >
         {USD_PRESETS.map((v) => (
@@ -211,46 +346,29 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
         ))}
       </ToggleGroup>
 
-      <div className="flex items-center gap-2">
-        <div className="h-px flex-1 bg-muted" />
-        <span className="text-xs text-muted-foreground">OR</span>
-        <div className="h-px flex-1 bg-muted" />
+      {/* Comment — hidden behind a text-only accordion chevron. */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setCommentOpen((v) => !v)}
+          aria-expanded={commentOpen}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+        >
+          <ChevronDown
+            className={`size-3.5 transition-transform ${commentOpen ? 'rotate-0' : '-rotate-90'}`}
+          />
+          <span>{comment ? 'Comment' : 'Add a comment'}</span>
+        </button>
+        {commentOpen && (
+          <Textarea
+            placeholder="Say something (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            className="resize-none mt-2"
+          />
+        )}
       </div>
-
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
-          placeholder="Custom amount (USD)"
-          value={usdAmount}
-          onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
-          className="pl-6"
-        />
-      </div>
-
-      {/* Comment */}
-      <Textarea
-        placeholder="Add a comment (optional)"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        rows={2}
-        className="resize-none"
-      />
-
-      {/* Recipient Bitcoin address — always shown so users can verify the
-          derived destination before signing. */}
-      {recipientAddress && (
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Bitcoin className="size-3.5 text-orange-500 shrink-0" />
-            <span className="shrink-0">To:</span>
-            <span className="font-mono truncate" title={recipientAddress}>{truncatedRecipient}</span>
-          </div>
-        </div>
-      )}
 
       {/* Fee line — click to open speed picker */}
       {amountSats > 0 && (
@@ -273,19 +391,14 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={6} className="w-56 p-1">
               <div className="flex flex-col">
-                {(Object.keys(FEE_SPEED_LABELS) as OnchainFeeSpeed[]).map((speed) => {
-                  const rate = feeRates
-                    ? speed === 'fastest' ? feeRates.fastestFee
-                    : speed === 'halfHour' ? feeRates.halfHourFee
-                    : speed === 'hour' ? feeRates.hourFee
-                    : feeRates.economyFee
-                    : 0;
+                {uniqueFeeSpeeds.map((speed) => {
+                  const rate = feeRates ? getRateForSpeed(feeRates, speed) : 0;
                   const selected = speed === feeSpeed;
                   return (
                     <button
                       key={speed}
                       type="button"
-                      onClick={() => { setFeeSpeed(speed); setFeePopoverOpen(false); }}
+                      onClick={() => handleFeeSpeedChange(speed)}
                       className={`flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors ${selected ? 'bg-muted font-medium' : ''}`}
                     >
                       <span>{FEE_SPEED_LABELS[speed]}</span>
@@ -322,16 +435,9 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             {progressLabel(progress)}
           </>
         ) : isLarge && confirmArmed ? (
-          <>
-            <Zap className="size-4 mr-1.5" />
-            Tap again to send {currentUsd > 0 ? `$${currentUsd}` : ''}
-          </>
+          <>Tap again to send {totalUsdString}</>
         ) : (
-          <>
-            <Zap className="size-4 mr-1.5" />
-            Zap {currentUsd > 0 ? `$${currentUsd}` : ''}
-            {amountSats > 0 && ` · ${formatSats(amountSats)} sats`}
-          </>
+          <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
         )}
       </Button>
     </div>
