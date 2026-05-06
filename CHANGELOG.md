@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.13.0] - 2026-05-05
+
+### Added
+- Drag-to-feed Kitchen -- drag a food item straight to your Blobbi's mouth to feed it, with a chewing animation, crumb particles, a happy reaction, and a soft feeding sound
+- Blobbi social interactions -- feed, play, clean, and medicate other people's Blobbis, with facial reactions, sparkles, floating hearts, and an Activity tab showing who cared for your Blobbi. Owners can toggle whether their Blobbi is open to visitors
+- Highlight events -- pull-quote excerpts from articles and notes now render as attributed blockquotes in feeds, post details, quote embeds, and notifications, with their own toggleable feed and notification category
+- Commenting on any identifier -- every `/i/` page (books, Bitcoin transactions, geohashes, ISBNs, and more) now has a full comment thread with a compose box, and books get the same curved-tab styling as the rest of the app
+- nsite sidebar pinning -- pin nsite preview links from a post's "More" menu; clicking the sidebar item auto-launches the preview, complete with the site's favicon and title
+- Run nsites as logged in -- nsite previews now inject a Nostr signer into the sandboxed site, with a shield-icon permission manager that remembers per-site choices for sign, encrypt, and decrypt requests
+- Birdex chorus button -- play every recorded song for a species in sequence, straight from the species page
+
+### Changed
+- Zap dialog redesigned -- both on-chain and Lightning tabs lead with a big editable dollar amount, a shared preset row, and a single `Send $X` button. Lightning presets now start at $0.10 for tip-sized sends, the $100 two-tap confirmation applies to both flows, and insufficient-balance shows directly on the amount and button
+- Share button removed from the post action bar -- share lives in the post "More" menu instead, leaving reply, repost, react, and zap front and center
+
+### Fixed
+- Sing-to-Blobbi mic access works on Android and preview playback works on iOS
+- Blobbi sleepy-eye animation no longer breaks when the same Blobbi appears in multiple places on screen
+- Search dropdown highlight icons now have enough contrast to read against the selected row
+
 ## [2.12.2] - 2026-05-04
 
 ### Added
