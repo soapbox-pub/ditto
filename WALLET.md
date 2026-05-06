@@ -69,8 +69,8 @@ function nostrPubkeyToBitcoinAddress(pubkeyHex: string): string {
 ### Example
 
 ```
-Nostr pubkey (hex):  82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2
-Bitcoin address:     bc1pw0qkazw9twl4snwxal6v90djv3c8cph4s0w7rvtyp3k95rll3cqqhv4cn8
+Nostr pubkey (hex):  0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd
+Bitcoin address:     bc1pvdaezs0mdhxgrfhw2zjsw4r02wlzrafd7stxcvpzzscsh8hv6vhqdc9ets
 ```
 
 ## Dependencies
