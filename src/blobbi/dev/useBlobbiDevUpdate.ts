@@ -33,17 +33,6 @@ interface DevUpdateResult {
   changedFields: string[];
 }
 
-// ─── Content Helper ───────────────────────────────────────────────────────────
-
-/**
- * Generate the content string for a Blobbi at a given stage.
- * Format: "{name} is a {stage} Blobbi."
- */
-function generateBlobbiContent(name: string, stage: BlobbiStage): string {
-  const article = stage === 'egg' ? 'an' : 'a';
-  return `${name} is ${article} ${stage} Blobbi.`;
-}
-
 // ─── Hook Implementation ──────────────────────────────────────────────────────
 
 export function useBlobbiDevUpdate({
@@ -155,9 +144,11 @@ export function useBlobbiDevUpdate({
       // ─── Merge Tags ───
       const newTags = updateBlobbiTags(companion.allTags, tagUpdates);
 
-      // ─── Generate Content ───
+      // ─── Preserve Content ───
+      // Content is structured JSON (social_checkpoint, evolution, etc.)
+      // The dev editor only modifies tags — content must pass through unchanged.
       const newStage = updates.stage ?? companion.stage;
-      const content = generateBlobbiContent(companion.name, newStage);
+      const content = companion.event.content;
 
       // ─── Publish Event ───
       if (import.meta.env.DEV) {

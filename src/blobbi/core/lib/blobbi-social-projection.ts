@@ -36,12 +36,17 @@ const FALLBACK_EFFECTS: Record<InteractionAction, ItemEffect> = {
   play:     { happiness: 10, energy: -5 },
   clean:    { hygiene: 15 },
   medicate: { health: 10 },
+  boost:    { energy: 15 },
 };
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
 
 /**
  * Apply a list of kind 1124 interactions to already-decayed stats.
+ *
+ * This is the **read-only projection** path. It always processes all
+ * interactions unconditionally (no need-driven filtering) so the UI
+ * reflects the full social contribution.
  *
  * @param baseStats    - Full stats after decay projection (all 5 fields required).
  * @param interactions - Parsed interactions, **must be sorted ascending** by

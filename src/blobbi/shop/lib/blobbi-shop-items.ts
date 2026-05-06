@@ -177,6 +177,17 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
     status: 'live',
   },
 
+  // ─── Energy Items ───────────────────────────────────────────────────────────
+  {
+    id: 'nrg_drink',
+    name: 'Energy Drink',
+    type: 'energy',
+    price: 30,
+    icon: '🧃',
+    effect: { energy: 35, happiness: 5 },
+    status: 'live',
+  },
+
 ];
 
 /**
@@ -204,7 +215,7 @@ export function getLiveShopItems(): ShopItem[] {
  * Get all shop item categories with their counts
  */
 export function getShopCategories(): Array<{ type: ShopItemCategory; count: number; label: string }> {
-  const categories: ShopItemCategory[] = ['food', 'toy', 'medicine', 'hygiene'];
+  const categories: ShopItemCategory[] = ['food', 'toy', 'medicine', 'hygiene', 'energy'];
   
   return categories.map(type => ({
     type,

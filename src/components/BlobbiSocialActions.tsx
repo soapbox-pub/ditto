@@ -33,6 +33,8 @@ import {
   type InteractionAction,
 } from '@/blobbi/core/lib/blobbi-interaction';
 import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
+import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import {
   ACTION_METADATA,
   ACTION_TO_ITEM_TYPE,
@@ -44,6 +46,7 @@ import {
 } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
+import type { BlobbiStats } from '@/blobbi/core/lib/blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -59,7 +62,21 @@ const SOCIAL_ACTIONS: { inventory: InventoryAction; interaction: InteractionActi
   { inventory: 'play', interaction: 'play' },
   { inventory: 'clean', interaction: 'clean' },
   { inventory: 'medicine', interaction: 'medicate' },
+  { inventory: 'boost', interaction: 'boost' },
 ];
+
+/**
+ * Maps each social action to the primary stat it helps.
+ * Used to gate actions by current need — only show actions for stats that
+ * are visually in distress (below the status-reaction warning threshold).
+ */
+const ACTION_PRIMARY_STAT: Record<InventoryAction, keyof BlobbiStats> = {
+  feed: 'hunger',
+  play: 'happiness',
+  clean: 'hygiene',
+  medicine: 'health',
+  boost: 'energy',
+};
 
 /** Delay (ms) the "Sent!" state is visible before returning to the carousel. */
 const SUCCESS_DISPLAY_DELAY = 1200;
@@ -112,8 +129,48 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
   const { interactions, isLoading: interactionsLoading, isError: interactionsError } = useBlobbiInteractions(companion ?? null);
   const pendingCount = (!interactionsLoading && !interactionsError) ? interactions.length : 0;
 
+  // Project decay + pending social interactions onto canonical stats.
+  // This matches BlobbiStateCard's projection so action availability reflects
+  // the same effective state visitors see visually. If interactions are still
+  // loading, falls back to decay-only (slightly more permissive until loaded).
+  const projectedStats = useMemo(() => {
+    if (!companion) return undefined;
+    const pending = interactions.length > 0 ? interactions : undefined;
+    return calculateProjectedDecay(companion, undefined, pending).stats;
+  }, [companion, interactions]);
+
+  // Filter social actions to only those the Blobbi currently needs.
+  // An action is "needed" when the stat it helps is below the visual distress
+  // threshold (SEVERITY_THRESHOLDS.warning = 70). This ensures the social
+  // popover aligns with what the Blobbi is visually expressing — if it looks
+  // tired, hungry, sad, etc., visitors can help.
+  const availableActions = useMemo(() => {
+    if (!companion || !projectedStats) return [];
+    return SOCIAL_ACTIONS.filter(({ inventory }) => {
+      // Eggs: only show medicine and clean (existing gate)
+      if (companion.stage === 'egg' && inventory === 'boost') return false;
+      if (companion.stage === 'egg' && inventory === 'feed') return false;
+      if (companion.stage === 'egg' && inventory === 'play') return false;
+
+      const stat = ACTION_PRIMARY_STAT[inventory];
+      const value = projectedStats[stat] ?? 100;
+      return value < SEVERITY_THRESHOLDS.warning;
+    });
+  }, [companion, projectedStats]);
+
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<PanelStep>(INITIAL_STEP);
+
+  // Auto-exit carousel when the current action is no longer needed.
+  // After an interaction refetch updates projectedStats/availableActions,
+  // this prevents visitors from creating excess donations for a recovered stat.
+  useEffect(() => {
+    if (panel.step !== 'carousel') return;
+    const stillNeeded = availableActions.some(a => a.inventory === panel.action);
+    if (!stillNeeded) {
+      setPanel(INITIAL_STEP);
+    }
+  }, [panel, availableActions]);
 
   // Track the last item used so we can restore carousel position after success.
   const lastUsedItemRef = useRef<string | null>(null);
@@ -262,26 +319,32 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
       >
         {/* ── Action pills ── */}
         {panel.step === 'actions' && (
-          <div className="grid grid-cols-2 gap-1.5">
-            {SOCIAL_ACTIONS.map(({ inventory }) => {
-              const meta = ACTION_METADATA[inventory];
-              return (
-                <button
-                  type="button"
-                  key={inventory}
-                  onClick={() => handleSelectAction(inventory)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-lg',
-                    'text-sm font-medium transition-all duration-150',
-                    'bg-muted/50 hover:bg-muted active:scale-95',
-                  )}
-                >
-                  <span className="text-base leading-none">{meta.icon}</span>
-                  <span>{meta.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          availableActions.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              All good! No needs right now.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5">
+              {availableActions.map(({ inventory }) => {
+                const meta = ACTION_METADATA[inventory];
+                return (
+                  <button
+                    type="button"
+                    key={inventory}
+                    onClick={() => handleSelectAction(inventory)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 rounded-lg',
+                      'text-sm font-medium transition-all duration-150',
+                      'bg-muted/50 hover:bg-muted active:scale-95',
+                    )}
+                  >
+                    <span className="text-base leading-none">{meta.icon}</span>
+                    <span>{meta.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )
         )}
 
         {/* ── Item carousel ── */}

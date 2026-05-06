@@ -81,6 +81,7 @@ export const CATEGORY_TO_ACTION: Record<ShopItemCategory, InventoryAction | null
   toy: 'play',
   medicine: 'medicine',
   hygiene: 'clean',
+  energy: 'boost',
 };
 
 /**

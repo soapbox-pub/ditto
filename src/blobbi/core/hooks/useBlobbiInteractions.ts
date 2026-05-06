@@ -37,11 +37,22 @@ import {
 /**
  * Maximum number of interaction events to fetch per query.
  *
- * This limit applies in BOTH the checkpoint and no-checkpoint cases.
- * In the no-checkpoint fallback (V1), this means the projection sees
- * at most the 50 most-recent events — not the full history.
+ * Hard relay-side cap regardless of checkpoint state. Combined with the
+ * recency window, this ensures O(30) processing even for high-volume pets.
  */
-const BLOBBI_INTERACTIONS_LIMIT = 50;
+const BLOBBI_INTERACTIONS_LIMIT = 30;
+
+/**
+ * Maximum recency window (in seconds) for social interaction queries.
+ *
+ * Even if the checkpoint is older, we never look back further than this.
+ * Interactions older than 6 hours are considered stale — the Blobbi's stats
+ * will have decayed further since then, making old care less meaningful.
+ *
+ * This is intentional product behavior: social care addresses *current* needs,
+ * not historical backlog.
+ */
+const MAX_SOCIAL_WINDOW_SECONDS = 6 * 60 * 60; // 6 hours
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -80,6 +91,18 @@ export function useBlobbiInteractions(
     [companion],
   );
 
+  // ── Compute the effective `since` bound ──
+  // Always apply the recency window. If a valid checkpoint exists and is more
+  // recent than the window floor, use the checkpoint instead (narrower scope).
+  const effectiveSince = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const windowFloor = now - MAX_SOCIAL_WINDOW_SECONDS;
+    if (resolved.valid) {
+      return Math.max(resolved.checkpoint.processed_until, windowFloor);
+    }
+    return windowFloor;
+  }, [resolved]);
+
   const query = useQuery({
     queryKey: [
       'blobbi-interactions',
@@ -94,7 +117,7 @@ export function useBlobbiInteractions(
         kinds: [KIND_BLOBBI_INTERACTION],
         '#a': [coordinate],
         limit: BLOBBI_INTERACTIONS_LIMIT,
-        ...(resolved.valid ? { since: resolved.checkpoint.processed_until } : {}),
+        since: effectiveSince,
       };
 
       const events = await nostr.query([filter], { signal });
