@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.13.1] - 2026-05-05
+
+### Fixed
+- Remote signer login now falls back to the full default relay list when you don't have any write relays configured, giving your signer more chances to connect during the handshake
+
 ## [2.13.0] - 2026-05-05
 
 ### Added
