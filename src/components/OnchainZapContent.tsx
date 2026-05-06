@@ -284,7 +284,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
       <div className="flex flex-col items-center pt-2">
         {editingAmount ? (
           <div className="flex items-baseline justify-center">
-            <span className="text-4xl font-semibold text-muted-foreground">$</span>
+            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
             <input
               ref={amountInputRef}
               type="number"
@@ -301,7 +301,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
                 }
               }}
               aria-label="Amount in USD"
-              className="bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient ? 'text-destructive' : ''}`}
               style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
             />
           </div>
@@ -312,8 +312,8 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             aria-label="Edit amount"
             className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           >
-            <span className="text-4xl font-semibold text-muted-foreground">$</span>
-            <span className="text-4xl font-semibold tabular-nums">
+            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
+            <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
               {hasValidAmount ? currentUsd : 0}
             </span>
           </button>
@@ -345,8 +345,8 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
 
       <Button
         onClick={handleZap}
-        disabled={!btcPrice || amountSats <= 0 || isZapping}
-        variant={isLarge && !isZapping ? 'destructive' : 'default'}
+        disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
+        variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
         className="w-full"
       >
         {isZapping ? (
@@ -354,6 +354,8 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             <Loader2 className="size-4 mr-1.5 animate-spin" />
             {progressLabel(progress)}
           </>
+        ) : insufficient ? (
+          <>Not enough Bitcoin</>
         ) : isLarge && confirmArmed ? (
           <>Tap again to send {totalUsdString}</>
         ) : (
@@ -400,7 +402,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
             </PopoverContent>
           </Popover>
 
-          {showBalance && btcPrice && (
+          {showBalance && !insufficient && btcPrice && (
             <span className="text-muted-foreground">
               Balance: {satsToUSD(totalBalance, btcPrice)}
             </span>
