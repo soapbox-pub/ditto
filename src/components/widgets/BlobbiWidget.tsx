@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Egg, Footprints, Loader2 } from 'lucide-react';
+import { ArrowLeftRight, Egg, Footprints, Loader2 } from 'lucide-react';
 
 import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from '@/hooks/useToast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -249,6 +250,8 @@ export function BlobbiWidget() {
   return (
     <BlobbiWidgetContent
       companion={companion}
+      allCompanions={filteredCompanions}
+      onSelectCompanion={setStoredSelectedD}
       onUseItem={executeUseItem}
       onRest={handleRest}
       isActionPending={isActionPending}
@@ -256,12 +259,15 @@ export function BlobbiWidget() {
       isActiveFloatingCompanion={isActiveFloatingCompanion}
       isUpdatingCompanion={isUpdatingCompanion}
       onToggleCompanion={handleSetAsCompanion}
+      currentCompanionD={profile?.currentCompanion}
     />
   );
 }
 
 interface BlobbiWidgetContentProps {
   companion: BlobbiCompanion;
+  allCompanions: BlobbiCompanion[];
+  onSelectCompanion: (d: string) => void;
   onUseItem: (req: { itemId: string; action: InventoryAction }) => Promise<unknown>;
   onRest: () => Promise<void>;
   isActionPending: boolean;
@@ -269,9 +275,10 @@ interface BlobbiWidgetContentProps {
   isActiveFloatingCompanion: boolean;
   isUpdatingCompanion: boolean;
   onToggleCompanion: () => Promise<void>;
+  currentCompanionD?: string;
 }
 
-function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, isCurrentCompanion, isActiveFloatingCompanion, isUpdatingCompanion, onToggleCompanion }: BlobbiWidgetContentProps) {
+function BlobbiWidgetContent({ companion, allCompanions, onSelectCompanion, onUseItem, onRest, isActionPending, isCurrentCompanion, isActiveFloatingCompanion, isUpdatingCompanion, onToggleCompanion, currentCompanionD }: BlobbiWidgetContentProps) {
   // Projected state with decay only — owner surfaces do not pre-project social
   // effects. Social effects are incorporated via explicit consolidation.
   const projected = useProjectedBlobbiState(companion);
@@ -310,6 +317,9 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
     }
   }, [onUseItem, onRest]);
 
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const hasMultipleCompanions = allCompanions.length > 1;
+
   // When this Blobbi is the active floating companion, show "out exploring" state
   if (isActiveFloatingCompanion) {
     return (
@@ -324,23 +334,75 @@ function BlobbiWidgetContent({ companion, onUseItem, onRest, isActionPending, is
 
   return (
     <div className="relative flex flex-col items-center gap-3 py-3">
-      {/* Take along button — top right */}
-      <button
-        onClick={onToggleCompanion}
-        disabled={isUpdatingCompanion || isActionPending}
-        className={cn(
-          'absolute top-2 right-1 size-7 rounded-full flex items-center justify-center transition-colors',
-          isCurrentCompanion
-            ? 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20'
-            : 'text-violet-500 bg-violet-500/10 hover:bg-violet-500/20',
-          (isUpdatingCompanion || isActionPending) && 'opacity-40 pointer-events-none',
+      {/* Action buttons — top right */}
+      <div className="absolute top-2 right-1 flex flex-col items-center gap-1">
+        {/* Take along button */}
+        <button
+          onClick={onToggleCompanion}
+          disabled={isUpdatingCompanion || isActionPending}
+          className={cn(
+            'size-7 rounded-full flex items-center justify-center transition-colors',
+            isCurrentCompanion
+              ? 'text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20'
+              : 'text-violet-500 bg-violet-500/10 hover:bg-violet-500/20',
+            (isUpdatingCompanion || isActionPending) && 'opacity-40 pointer-events-none',
+          )}
+          title={isCurrentCompanion ? 'With you' : 'Take along'}
+        >
+          {isUpdatingCompanion
+            ? <Loader2 className="size-3.5 animate-spin" />
+            : <Footprints className="size-3.5" />}
+        </button>
+
+        {/* Switch blobbi button */}
+        {hasMultipleCompanions && (
+          <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="size-7 rounded-full flex items-center justify-center transition-colors text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground"
+                title="Switch Blobbi"
+              >
+                <ArrowLeftRight className="size-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="left" align="start" className="w-auto p-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Switch Blobbi</p>
+              <div className="flex flex-wrap items-center gap-3">
+                {allCompanions.map((c) => {
+                  const isSelected = c.d === companion.d;
+                  const isFloatingCompanion = c.d === currentCompanionD;
+                  return (
+                    <button
+                      key={c.d}
+                      onClick={() => {
+                        onSelectCompanion(c.d);
+                        setSwitcherOpen(false);
+                      }}
+                      className={cn(
+                        'flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
+                        isSelected && 'opacity-50 pointer-events-none',
+                      )}
+                      disabled={isSelected}
+                    >
+                      <div className="relative">
+                        <BlobbiStageVisual companion={c} size="sm" />
+                        {isFloatingCompanion && (
+                          <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-background ring-1 ring-background flex items-center justify-center">
+                            <Footprints className="size-2.5 text-emerald-500" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-medium text-muted-foreground max-w-[4rem] truncate">
+                        {c.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
-        title={isCurrentCompanion ? 'With you' : 'Take along'}
-      >
-        {isUpdatingCompanion
-          ? <Loader2 className="size-3.5 animate-spin" />
-          : <Footprints className="size-3.5" />}
-      </button>
+      </div>
 
       {/* Pet visual — links to full page */}
       <Link to="/blobbi" className="relative hover:scale-105 transition-transform">
