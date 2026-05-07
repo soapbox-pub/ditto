@@ -22,6 +22,7 @@ import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isProfileBadgesKind, parseBadg
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
+import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
@@ -86,6 +87,13 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
   // Kind 9735 zap receipts get a compact zap card instead of rendering raw JSON
   if (event.kind === 9735) {
     return <EmbeddedZapCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 8333 on-chain zaps (see NIP.md) get the same compact treatment as
+  // Lightning receipts — the two rails look intentionally identical to
+  // readers, mirroring the Zaps tab in InteractionsModal.
+  if (event.kind === 8333) {
+    return <EmbeddedOnchainZapCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 8 badge award events get a compact badge card
@@ -324,6 +332,124 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
                 {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
               </span>
             )}
+            <span className="text-xs text-muted-foreground shrink-0">
+              · {timeAgo(event.created_at)}
+            </span>
+          </div>
+          {message && (
+            <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-2">
+              &ldquo;{message}&rdquo;
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Compact inline card for kind 8333 on-chain zap events (see NIP.md).
+ *
+ * Visually mirrors `EmbeddedZapCard` so a reader scrolling a feed doesn't
+ * have to mentally reconcile two different-looking "someone paid the
+ * author" rows. Differences are intentionally minimal: identical amber
+ * bolt bubble, avatar, name + "zapped" + amount + timestamp line, and
+ * italic message below.
+ *
+ * The amount shown is the sender's self-reported `amount` tag until the
+ * blockchain verification resolves, at which point we swap in the verified
+ * amount. If verification fails (bogus tx, self-zap, wrong recipient) we
+ * render a muted "unverified" tag so the card doesn't silently lie.
+ */
+function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+  const navigate = useNavigate();
+
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  // Sender authors the 8333 event themselves (unlike 9735 where the LNURL
+  // server is the author and the sender lives in a P tag).
+  const senderPubkey = event.pubkey;
+  const claimed = useMemo(() => extractOnchainZapClaimedAmount(event), [event]);
+  const verified = useVerifiedOnchainZap(event);
+  const amountSats = verified?.amountSats ?? claimed;
+  const isVerifying = verified === undefined;
+  const failedVerification = verified === null;
+  const message = event.content;
+
+  const sender = useAuthor(senderPubkey);
+  const senderMeta = sender.data?.metadata;
+  const senderName = senderMeta?.name || senderMeta?.display_name || genUserName(senderPubkey);
+  const senderShape = getAvatarShape(senderMeta);
+  const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
+
+  return (
+    <div
+      className={cn(
+        'group block rounded-2xl border border-border overflow-hidden',
+        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        className,
+      )}
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${neventId}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${neventId}`);
+        }
+      }}
+    >
+      <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
+        {/* Zap icon — same amber bubble as Lightning. */}
+        <div className="flex items-center justify-center size-9 rounded-full bg-amber-500/10 shrink-0">
+          <Zap className="size-4 text-amber-500 fill-amber-500" />
+        </div>
+
+        {/* Sender avatar */}
+        <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+          <Link to={senderProfileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Avatar shape={senderShape} className="size-5">
+              <AvatarImage src={senderMeta?.picture} alt={senderName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                {senderName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </MaybeHoverCard>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+              <Link
+                to={senderProfileUrl}
+                className="text-sm font-semibold truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {sender.data?.event ? (
+                  <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
+                ) : senderName}
+              </Link>
+            </MaybeHoverCard>
+            <span className="text-sm text-muted-foreground">zapped</span>
+            {amountSats > 0 && (
+              <span className="text-sm font-semibold text-amber-500 shrink-0">
+                {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+              </span>
+            )}
+            {/* Muted hint that this is an on-chain rather than Lightning zap,
+                and that the amount is either verifying or couldn't be verified. */}
+            {failedVerification ? (
+              <span className="text-[11px] text-muted-foreground shrink-0">· unverified</span>
+            ) : isVerifying ? (
+              <span className="text-[11px] text-muted-foreground shrink-0">· verifying…</span>
+            ) : null}
             <span className="text-xs text-muted-foreground shrink-0">
               · {timeAgo(event.created_at)}
             </span>

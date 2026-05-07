@@ -3,7 +3,6 @@ import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { fetchTxDetail, nostrPubkeyToBitcoinAddress } from '@/lib/bitcoin';
-
 /** A single verified on-chain zap, with the amount that actually paid the recipient on-chain. */
 export interface OnchainZapEntry {
   /** The kind 8333 event. */
@@ -178,4 +177,28 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
     count: verified.length,
     isLoading,
   };
+}
+
+/**
+ * Verify a single kind 8333 event against the Bitcoin blockchain and return
+ * the resulting `OnchainZapEntry`. Used by standalone surfaces (embedded
+ * cards, detail page) that need to display a verified amount without doing
+ * a full `#e`/`#a` fan-out.
+ *
+ * Returns `undefined` while loading, `null` if the event fails verification
+ * (invalid tx, wrong recipient, self-zap, etc.), or the entry.
+ */
+export function useVerifiedOnchainZap(event: NostrEvent | undefined): OnchainZapEntry | null | undefined {
+  const txid = event ? extractOnchainZapTxid(event) : null;
+  const recipient = event ? extractOnchainZapRecipient(event) : '';
+
+  const { data } = useQuery({
+    queryKey: ['onchain-zaps', 'verify', txid, recipient],
+    queryFn: () => verifyOnchainZap(event!),
+    enabled: !!event && !!txid && !!recipient,
+    staleTime: 60_000,
+  });
+
+  if (!event) return null;
+  return data;
 }

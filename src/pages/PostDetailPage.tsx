@@ -175,6 +175,7 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
+import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
@@ -990,6 +991,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const zapSenderDisplayName = getDisplayName(zapSenderMeta, zapSenderPubkeyRaw);
   const zapSenderProfileUrl = useProfileUrl(zapSenderPubkeyRaw, zapSenderMeta);
 
+  // For kind 8333 on-chain zaps, verify the tx against mempool.space so we
+  // can display the real paid amount instead of the self-reported tag.
+  // `useVerifiedOnchainZap` is a no-op when the kind isn't 8333.
+  const verifiedOnchainZap = useVerifiedOnchainZap(event.kind === 8333 ? event : undefined);
+
   const pollVoteLabel = usePollVoteLabel(event);
 
   // NIP-19 encoded event identifier for share URLs
@@ -1055,6 +1061,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isHighlight = event.kind === 9802;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
+  const isOnchainZap = event.kind === 8333;
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
   const isBadgeAward = event.kind === BADGE_AWARD_KIND;
@@ -1090,6 +1097,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isHighlight &&
     !isVanish &&
     !isZap &&
+    !isOnchainZap &&
     !isProfile &&
     !isBlobbiState &&
     !isBadgeAward;
@@ -1335,8 +1343,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [triggerBlobbiReaction]);
 
   const parentHints = useMemo(
-    () => (isTextNote || isReaction || isRepost || isZap || isPollVote ? getParentEventHints(event) : undefined),
-    [event, isTextNote, isReaction, isRepost, isZap, isPollVote],
+    () => (isTextNote || isReaction || isRepost || isZap || isOnchainZap || isPollVote ? getParentEventHints(event) : undefined),
+    [event, isTextNote, isReaction, isRepost, isZap, isOnchainZap, isPollVote],
   );
   const parentEventId = parentHints?.id;
 
@@ -1607,7 +1615,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             eventId={parentEventId}
             relays={parentHints?.relayHint ? [parentHints.relayHint] : undefined}
             authorHint={parentHints?.authorHint}
-            collapseAfter={isReaction || isRepost || isZap || isPollVote ? 0 : undefined}
+            collapseAfter={isReaction || isRepost || isZap || isOnchainZap || isPollVote ? 0 : undefined}
           />
         </div>
       )}
@@ -1850,6 +1858,77 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         );
       })()}
 
+      {/* Kind 8333 — On-chain zap: render the same shape as the 9735 zap
+          card above. The two rails look intentionally identical so readers
+          don't have to reason about Lightning vs. on-chain; a small
+          "verifying…" / "unverified" hint is the only tell. */}
+      {isOnchainZap && (() => {
+        const claimed = extractOnchainZapClaimedAmount(event);
+        const amountSats = verifiedOnchainZap?.amountSats ?? claimed;
+        const isVerifying = verifiedOnchainZap === undefined;
+        const failedVerification = verifiedOnchainZap === null;
+        const zapMsg = event.content;
+        // Sender is the author (self-signed, unlike 9735 where the LNURL server signs).
+        return (
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+            <div className="flex items-center gap-3">
+              {/* Amber bolt bubble — identical to the Lightning card. */}
+              <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+                <Zap className="size-5 text-amber-500 fill-amber-500" />
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="shrink-0">
+                    <Avatar shape={avatarShape} className="size-6">
+                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                        {displayName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </ProfileHoverCard>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="font-bold text-sm hover:underline truncate">
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
+                  </Link>
+                </ProfileHoverCard>
+                <span className="text-sm text-muted-foreground">zapped</span>
+                {amountSats > 0 && (
+                  <span className="text-sm font-semibold text-amber-500 shrink-0">
+                    {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                  </span>
+                )}
+                {failedVerification ? (
+                  <span className="text-[11px] text-muted-foreground shrink-0">· unverified</span>
+                ) : isVerifying ? (
+                  <span className="text-[11px] text-muted-foreground shrink-0">· verifying…</span>
+                ) : null}
+              </div>
+            </div>
+
+            {zapMsg && (
+              <p className="text-sm text-muted-foreground italic pl-[52px]">&ldquo;{zapMsg}&rdquo;</p>
+            )}
+
+            {statsAndDateRow}
+
+            <PostActionBar
+              event={event}
+              onReply={() => setReplyOpen(true)}
+              onMore={() => setMoreMenuOpen(true)}
+              className="-mx-4 px-4"
+            />
+
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+            <InteractionsModal target={event} open={interactionsOpen} onOpenChange={setInteractionsOpen} initialTab={interactionsTab} />
+          </article>
+        );
+      })()}
+
       {/* Kind 0 — Profile: show the ProfileCard directly, no action header */}
       {isProfile && (() => {
         let parsedMeta: Record<string, unknown> = {};
@@ -2056,7 +2135,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Main post — expanded Ditto-style view */}
-      {!isReaction && !isRepost && !isVanish && !isZap && !isProfile && !isPollVote && (
+      {!isReaction && !isRepost && !isVanish && !isZap && !isOnchainZap && !isProfile && !isPollVote && (
         <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           {/* Kind action header for app handlers */}
           {isAppHandler && (
