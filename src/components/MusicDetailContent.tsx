@@ -270,7 +270,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
       <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
       {interactionsTab && (
         <InteractionsModal
-          eventId={event.id}
+          target={event}
           initialTab={interactionsTab}
           open={!!interactionsTab}
           onOpenChange={(open) => { if (!open) setInteractionsTab(null); }}

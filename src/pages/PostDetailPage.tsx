@@ -1688,7 +1688,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onOpenChange={setReplyOpen}
           />
           <InteractionsModal
-            eventId={event.id}
+            target={event}
             open={interactionsOpen}
             onOpenChange={setInteractionsOpen}
             initialTab={interactionsTab}
@@ -1768,7 +1768,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onOpenChange={setReplyOpen}
           />
           <InteractionsModal
-            eventId={event.id}
+            target={event}
             open={interactionsOpen}
             onOpenChange={setInteractionsOpen}
             initialTab={interactionsTab}
@@ -1845,7 +1845,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
             <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-            <InteractionsModal eventId={event.id} open={interactionsOpen} onOpenChange={setInteractionsOpen} initialTab={interactionsTab} />
+            <InteractionsModal target={event} open={interactionsOpen} onOpenChange={setInteractionsOpen} initialTab={interactionsTab} />
           </article>
         );
       })()}
@@ -1917,7 +1917,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
             <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
             <InteractionsModal
-              eventId={event.id}
+              target={event}
               open={interactionsOpen}
               onOpenChange={setInteractionsOpen}
               initialTab={interactionsTab}
@@ -1998,7 +1998,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onOpenChange={setReplyOpen}
           />
           <InteractionsModal
-            eventId={event.id}
+            target={event}
             open={interactionsOpen}
             onOpenChange={setInteractionsOpen}
             initialTab={interactionsTab}
@@ -2047,7 +2047,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
           <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
           <InteractionsModal
-            eventId={event.id}
+            target={event}
             open={interactionsOpen}
             onOpenChange={setInteractionsOpen}
             initialTab={interactionsTab}
@@ -2283,7 +2283,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onOpenChange={setReplyOpen}
           />
           <InteractionsModal
-            eventId={event.id}
+            target={event}
             open={interactionsOpen}
             onOpenChange={setInteractionsOpen}
             initialTab={interactionsTab}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Quote, Heart, Zap, X, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
   Dialog,
@@ -16,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
+import { useOnchainZaps, type OnchainZapEntry } from '@/hooks/useOnchainZaps';
 import { useAuthor } from '@/hooks/useAuthor';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
@@ -25,17 +27,45 @@ import { cn } from '@/lib/utils';
 
 export type InteractionTab = 'reposts' | 'quotes' | 'reactions' | 'zaps';
 
+/**
+ * Unified zap row view-model. Kind 9735 (Lightning receipts) and kind 8333
+ * (on-chain) both feed into this single shape so the Zaps tab can render
+ * them in a single sorted list with identical UI. Callers should never
+ * branch on rail when rendering — the whole point is visual parity.
+ */
+interface UnifiedZap {
+  /** Unique key for React list diffing. */
+  key: string;
+  /** Pubkey of the zapper (sender). */
+  senderPubkey: string;
+  /** Amount in satoshis, already converted from millisats for 9735. */
+  amountSats: number;
+  /** Optional message (9735 zap-request content or 8333 event content). */
+  message: string;
+  /** Unix timestamp of the attestation event. */
+  createdAt: number;
+  /** Pubkey + event id used for the source-event nevent link. */
+  linkPubkey: string;
+  linkEventId: string;
+}
+
 interface InteractionsModalProps {
-  eventId: string;
+  /** The target event. Required so we can fetch on-chain zaps (kind 8333),
+   * which need the full event to compute the `a` coordinate for
+   * addressable kinds. */
+  target: NostrEvent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Which tab to show initially. */
   initialTab?: InteractionTab;
 }
 
-export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
+export function InteractionsModal({ target, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
   const [activeTab, setActiveTab] = useState<InteractionTab>(initialTab);
-  const { data, isLoading } = useEventInteractions(open ? eventId : undefined);
+  const { data, isLoading } = useEventInteractions(open ? target.id : undefined);
+  const { zaps: onchainZaps, isLoading: isLoadingOnchain } = useOnchainZaps(
+    open ? target : undefined,
+  );
 
   // Sync active tab whenever initialTab changes (e.g. clicking a different stat while modal is already open)
   useEffect(() => {
@@ -46,10 +76,17 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
     onOpenChange(value);
   };
 
+  // Merge the two zap streams into a single chronologically-sorted list of
+  // UnifiedZap view-models so ZapsTab doesn't have to branch on rail.
+  const unifiedZaps = useMemo(
+    () => mergeZaps(data?.zaps ?? [], onchainZaps),
+    [data?.zaps, onchainZaps],
+  );
+
   const repostCount = data?.reposts.length ?? 0;
   const quoteCount = data?.quotes.length ?? 0;
   const reactionCount = data?.reactions.length ?? 0;
-  const zapCount = data?.zaps.length ?? 0;
+  const zapCount = unifiedZaps.length;
 
   const tabConfig: { key: InteractionTab; label: string; count: number; icon: React.ReactNode }[] = [
     { key: 'reposts', label: 'Reposts', count: repostCount, icon: <RepostIcon className="size-4" /> },
@@ -102,7 +139,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
 
         {/* Content */}
         <ScrollArea className="max-h-[60vh]">
-          {isLoading ? (
+          {isLoading || (activeTab === 'zaps' && isLoadingOnchain && unifiedZaps.length === 0) ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 4 }).map((_, i) => (
                 <InteractionRowSkeleton key={i} />
@@ -115,7 +152,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
           ) : activeTab === 'reactions' ? (
             <ReactionsTab reactions={data?.reactions ?? []} />
           ) : (
-            <ZapsTab zaps={data?.zaps ?? []} />
+            <ZapsTab zaps={unifiedZaps} />
           )}
         </ScrollArea>
       </DialogContent>
@@ -205,8 +242,15 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
   );
 }
 
-/* ──── Zaps Tab ──── */
-function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
+/* ──── Zaps Tab ────
+ *
+ * Renders both NIP-57 Lightning receipts (kind 9735) and Ditto's on-chain
+ * zap attestations (kind 8333) in a single list. The two rails intentionally
+ * look identical — same avatar, same name, same amber amount badge — because
+ * the social meaning is the same: someone paid the author. Users can still
+ * click through to the source event if they care about the mechanics.
+ */
+function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
   if (zaps.length === 0) {
     return <EmptyState message="No zaps yet" />;
   }
@@ -223,8 +267,8 @@ function ZapsTab({ zaps }: { zaps: ZapEntry[] }) {
       </div>
 
       <div className="divide-y divide-border">
-        {zaps.map((zap, i) => (
-          <ZapRow key={`${zap.senderPubkey}-${i}`} zap={zap} />
+        {zaps.map((zap) => (
+          <ZapRow key={zap.key} zap={zap} />
         ))}
       </div>
     </div>
@@ -320,12 +364,15 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
 }
 
 
-function ZapRow({ zap }: { zap: ZapEntry }) {
+function ZapRow({ zap }: { zap: UnifiedZap }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || metadata?.display_name || genUserName(zap.senderPubkey);
-  const nevent = useMemo(() => nip19.neventEncode({ id: zap.eventId, author: zap.senderPubkey }), [zap.eventId, zap.senderPubkey]);
+  const nevent = useMemo(
+    () => nip19.neventEncode({ id: zap.linkEventId, author: zap.linkPubkey }),
+    [zap.linkEventId, zap.linkPubkey],
+  );
 
   return (
     <Link
@@ -355,7 +402,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
         )}
       </div>
 
-      {/* Zap amount badge */}
+      {/* Zap amount badge — identical for Lightning + on-chain zaps by design. */}
       <div className="flex items-center gap-1 shrink-0 bg-amber-500/10 text-amber-500 rounded-full px-2.5 py-1">
         <Zap className="size-3.5 fill-amber-500" />
         <span className="text-xs font-bold tabular-nums">{formatNumber(zap.amountSats)}</span>
@@ -364,6 +411,35 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </Link>
   );
+}
+
+/**
+ * Merge kind 9735 and kind 8333 zap entries into a single chronologically
+ * sorted list (newest first). Dedup is handled upstream by the two query
+ * hooks — this function trusts its inputs.
+ */
+function mergeZaps(lightning: ZapEntry[], onchain: OnchainZapEntry[]): UnifiedZap[] {
+  const lnRows: UnifiedZap[] = lightning.map((z) => ({
+    key: `ln:${z.eventId}`,
+    senderPubkey: z.senderPubkey,
+    amountSats: z.amountSats,
+    message: z.message,
+    createdAt: z.createdAt,
+    linkPubkey: z.senderPubkey,
+    linkEventId: z.eventId,
+  }));
+
+  const btcRows: UnifiedZap[] = onchain.map((z) => ({
+    key: `btc:${z.event.id}`,
+    senderPubkey: z.senderPubkey,
+    amountSats: z.amountSats,
+    message: z.comment,
+    createdAt: z.createdAt,
+    linkPubkey: z.senderPubkey,
+    linkEventId: z.event.id,
+  }));
+
+  return [...lnRows, ...btcRows].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 function QuoteRow({ quote }: { quote: QuoteEntry }) {
