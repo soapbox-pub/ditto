@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeftRight, Egg, Footprints, Loader2 } from 'lucide-react';
+import { ArrowLeftRight, Egg, Footprints, Loader2, X } from 'lucide-react';
 
 import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
@@ -366,7 +366,15 @@ function BlobbiWidgetContent({ companion, allCompanions, onSelectCompanion, onUs
               </button>
             </PopoverTrigger>
             <PopoverContent side="left" align="start" className="w-auto p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Switch Blobbi</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">Switch Blobbi</p>
+                <button
+                  onClick={() => setSwitcherOpen(false)}
+                  className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 {allCompanions.map((c) => {
                   const isSelected = c.d === companion.d;
