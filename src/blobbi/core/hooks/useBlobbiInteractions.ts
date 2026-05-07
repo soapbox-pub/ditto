@@ -6,16 +6,13 @@
  * deterministically (ascending created_at, id tie-break) for the
  * selected Blobbi.
  *
- * Checkpoint-aware via `resolveSocialCheckpoint()`: if a valid social
- * checkpoint exists in the 31124 content, only events after that
- * timestamp are fetched. When no valid checkpoint exists (absent,
- * malformed, or incomplete), all available events are fetched without
- * a `since` filter — up to `BLOBBI_INTERACTIONS_LIMIT` (currently 50).
+ * Checkpoint-aware via `resolveSocialCheckpoint()`: clients always apply
+ * a bounded recency window (currently 6 hours). If a valid social checkpoint
+ * exists in the 31124 content and is more recent than the window floor,
+ * that checkpoint is used as the `since` bound instead.
  *
- * V1 limitation: the no-checkpoint fallback still applies a finite
- * relay-side limit of 50 events. This means only the 50 most-recent
- * interactions are fetched, NOT the full history. This is acceptable
- * for V1 read-only projection.
+ * Relay-side fetching is capped by `BLOBBI_INTERACTIONS_LIMIT` (currently 30)
+ * to keep projection and consolidation bounded even for high-volume pets.
  */
 
 import { useMemo } from 'react';
@@ -91,18 +88,6 @@ export function useBlobbiInteractions(
     [companion],
   );
 
-  // ── Compute the effective `since` bound ──
-  // Always apply the recency window. If a valid checkpoint exists and is more
-  // recent than the window floor, use the checkpoint instead (narrower scope).
-  const effectiveSince = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    const windowFloor = now - MAX_SOCIAL_WINDOW_SECONDS;
-    if (resolved.valid) {
-      return Math.max(resolved.checkpoint.processed_until, windowFloor);
-    }
-    return windowFloor;
-  }, [resolved]);
-
   const query = useQuery({
     queryKey: [
       'blobbi-interactions',
@@ -113,11 +98,18 @@ export function useBlobbiInteractions(
     queryFn: async ({ signal }) => {
       if (!coordinate) return [];
 
+      // Compute fresh window floor each refetch so long-lived pages don't stale.
+      const now = Math.floor(Date.now() / 1000);
+      const windowFloor = now - MAX_SOCIAL_WINDOW_SECONDS;
+      const since = resolved.valid
+        ? Math.max(resolved.checkpoint.processed_until, windowFloor)
+        : windowFloor;
+
       const filter: NostrFilter = {
         kinds: [KIND_BLOBBI_INTERACTION],
         '#a': [coordinate],
         limit: BLOBBI_INTERACTIONS_LIMIT,
-        since: effectiveSince,
+        since,
       };
 
       const events = await nostr.query([filter], { signal });

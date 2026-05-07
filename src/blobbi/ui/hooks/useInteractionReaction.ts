@@ -87,6 +87,7 @@ export const INVENTORY_TO_REACTION: Record<string, InteractionReactionType> = {
   play: 'play',
   clean: 'clean',
   medicine: 'medicate',
+  // Intentionally reuses 'feed' animation — no dedicated boost visual exists yet.
   boost: 'feed',
 };
 
