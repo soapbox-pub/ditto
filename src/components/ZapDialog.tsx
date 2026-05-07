@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { OnchainZapContent } from '@/components/OnchainZapContent';
+import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
@@ -286,7 +287,28 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { data: author } = useAuthor(target.pubkey);
   const { toast } = useToast();
   const { webln, activeNWC } = useWallet();
-  const { zap, isZapping, invoice, setInvoice } = useZaps(target, webln, activeNWC, () => setOpen(false));
+
+  // Success state: populated by either zap rail's onSuccess callback.
+  // When set, we replace the tab UI with <ZapSuccessScreen />.
+  const [success, setSuccess] = useState<
+    | { kind: 'onchain'; amountSats: number; txid: string }
+    | { kind: 'lightning'; amountSats: number }
+    | null
+  >(null);
+
+  const handleLightningSuccess = useCallback(
+    ({ amountSats }: { amountSats: number }) => {
+      setSuccess({ kind: 'lightning', amountSats });
+    },
+    [],
+  );
+
+  const { zap, isZapping, invoice, setInvoice } = useZaps(
+    target,
+    webln,
+    activeNWC,
+    handleLightningSuccess,
+  );
 
   // USD-denominated state (matches OnchainZapContent). The sats amount is
   // derived just before we hit the LNURL endpoint.
@@ -375,6 +397,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setEditingAmount(false);
       setError('');
       setConfirmArmed(false);
+      setSuccess(null);
       setActiveTab(bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain');
     } else {
       setUsdAmount(0.5);
@@ -383,6 +406,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setEditingAmount(false);
       setError('');
       setConfirmArmed(false);
+      setSuccess(null);
     }
     // `bitcoinUnsupported`/`hasLightning` deliberately excluded — we only
     // want to reset the active tab on open/close, not on every capability
@@ -461,16 +485,20 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
-            {invoice
-              ? 'Lightning Payment'
-              : 'Send Bitcoin'}{' '}
-            <HelpTip
-              faqId={
-                invoice || activeTab === 'lightning'
-                  ? 'send-bitcoin-lightning'
-                  : 'send-bitcoin-onchain'
-              }
-            />
+            {success
+              ? 'Success'
+              : invoice
+                ? 'Lightning Payment'
+                : 'Send Bitcoin'}{' '}
+            {!success && (
+              <HelpTip
+                faqId={
+                  invoice || activeTab === 'lightning'
+                    ? 'send-bitcoin-lightning'
+                    : 'send-bitcoin-onchain'
+                }
+              />
+            )}
           </DialogTitle>
           <button
             onClick={() => setOpen(false)}
@@ -480,7 +508,16 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
           </button>
         </div>
         <div className="overflow-y-auto">
-          {hasLightning ? (
+          {success ? (
+            <ZapSuccessScreen
+              recipientPubkey={target.pubkey}
+              amountSats={success.amountSats}
+              btcPrice={btcPrice}
+              kind={success.kind}
+              txid={success.kind === 'onchain' ? success.txid : undefined}
+              onClose={() => setOpen(false)}
+            />
+          ) : hasLightning ? (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'onchain' | 'lightning')} className="w-full">
               <div className="px-4 pt-2">
                 <TabsList className="grid w-full grid-cols-2 h-9">
@@ -493,14 +530,26 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
                 </TabsList>
               </div>
               <TabsContent value="onchain" className="mt-0">
-                <OnchainZapContent target={target} onSuccess={() => setOpen(false)} />
+                <OnchainZapContent
+                  target={target}
+                  onSuccess={({ txid, amountSats }) =>
+                    setSuccess({ kind: 'onchain', amountSats, txid })
+                  }
+                  onClose={() => setOpen(false)}
+                />
               </TabsContent>
               <TabsContent value="lightning" className="mt-0">
                 <LightningZapContent {...lightningContentProps} />
               </TabsContent>
             </Tabs>
           ) : (
-            <OnchainZapContent target={target} onSuccess={() => setOpen(false)} />
+            <OnchainZapContent
+              target={target}
+              onSuccess={({ txid, amountSats }) =>
+                setSuccess({ kind: 'onchain', amountSats, txid })
+              }
+              onClose={() => setOpen(false)}
+            />
           )}
         </div>
       </DialogContent>

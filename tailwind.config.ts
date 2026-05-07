@@ -127,6 +127,28 @@ export default {
 				// an organic audio indicator.
 				'0%, 100%': { transform: 'scaleY(0.35)' },
 				'50%': { transform: 'scaleY(1)' }
+			},
+			'success-pop': {
+				// Celebratory pop-in for the zap success checkmark.
+				'0%': { transform: 'scale(0.3)', opacity: '0' },
+				'60%': { transform: 'scale(1.15)', opacity: '1' },
+				'100%': { transform: 'scale(1)', opacity: '1' }
+			},
+			'success-halo': {
+				// Expanding ring behind the checkmark.
+				'0%': { transform: 'scale(0.6)', opacity: '0.7' },
+				'100%': { transform: 'scale(2.2)', opacity: '0' }
+			},
+			'success-fade-up': {
+				// Staggered fade-in from below for the body text + actions.
+				'0%': { transform: 'translateY(8px)', opacity: '0' },
+				'100%': { transform: 'translateY(0)', opacity: '1' }
+			},
+			'success-spark': {
+				// Individual sparkle: scale + drift outward then fade.
+				'0%': { transform: 'translate(0, 0) scale(0.4)', opacity: '0' },
+				'20%': { opacity: '1' },
+				'100%': { transform: 'translate(var(--spark-x, 0), var(--spark-y, 0)) scale(1)', opacity: '0' }
 			}
 			},
 			animation: {
@@ -137,7 +159,11 @@ export default {
 				'highlight-fade': 'highlight-fade 1.5s ease-out forwards',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
 				'collapsible-up': 'collapsible-up 0.2s ease-out',
-				'equaliser-bar': 'equaliser-bar 0.9s ease-in-out infinite'
+				'equaliser-bar': 'equaliser-bar 0.9s ease-in-out infinite',
+				'success-pop': 'success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'success-halo': 'success-halo 0.9s ease-out both',
+				'success-fade-up': 'success-fade-up 0.45s ease-out both',
+				'success-spark': 'success-spark 1.1s ease-out both'
 			}
 		}
 	},

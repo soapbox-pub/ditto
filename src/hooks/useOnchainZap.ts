@@ -44,6 +44,8 @@ interface OnchainZapArgs {
 interface OnchainZapResult {
   /** The broadcast Bitcoin transaction ID. */
   txid: string;
+  /** Amount sent in satoshis. */
+  amountSats: number;
   /** Fee paid in satoshis. */
   fee: number;
   /** The published kind 8333 event. */
@@ -64,7 +66,7 @@ interface OnchainZapResult {
  */
 export function useOnchainZap(
   target: NostrEvent,
-  onSuccess?: () => void,
+  onSuccess?: (result: OnchainZapResult) => void,
 ) {
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
@@ -160,21 +162,27 @@ export function useOnchainZap(
         tags,
       });
 
-      return { txid, fee, event };
+      return { txid, amountSats, fee, event };
     },
-    onSuccess: ({ txid, fee }) => {
+    onSuccess: (result) => {
       notificationSuccess();
-      toast({
-        title: 'Bitcoin zap sent!',
-        description: `Broadcast txid ${txid.slice(0, 12)}… (fee ${fee.toLocaleString()} sats)`,
-      });
       // Invalidate caches that track zaps / balances
       queryClient.invalidateQueries({ queryKey: ['onchain-zaps'] });
       queryClient.invalidateQueries({ queryKey: ['event-interactions'] });
       queryClient.invalidateQueries({ queryKey: ['bitcoin-utxos'] });
       queryClient.invalidateQueries({ queryKey: ['bitcoin-balance'] });
       queryClient.invalidateQueries({ queryKey: ['bitcoin-txs'] });
-      onSuccess?.();
+      // If the caller opted into handling success themselves (e.g. the
+      // ZapDialog shows a grand confirmation screen and owns the dismiss),
+      // skip the built-in toast — the screen is the feedback.
+      if (onSuccess) {
+        onSuccess(result);
+      } else {
+        toast({
+          title: 'Bitcoin zap sent!',
+          description: `Broadcast txid ${result.txid.slice(0, 12)}… (fee ${result.fee.toLocaleString()} sats)`,
+        });
+      }
     },
     onError: (err) => {
       // If the signer turned out to not support PSBT signing (common for

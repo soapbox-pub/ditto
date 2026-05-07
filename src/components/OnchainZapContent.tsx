@@ -75,7 +75,11 @@ function getUniqueFeeSpeeds(
 
 interface OnchainZapContentProps {
   target: NostrEvent;
-  onSuccess?: () => void;
+  /** Called with the tx result when a zap successfully broadcasts. */
+  onSuccess?: (result: { txid: string; amountSats: number }) => void;
+  /** Called when the user dismisses without a send (e.g. "Done" in the
+   * unsupported-signer QR fallback). */
+  onClose?: () => void;
 }
 
 /**
@@ -86,7 +90,7 @@ interface OnchainZapContentProps {
  * UX mirrors the Lightning zap flow: one screen, one button, no review step.
  * Balance, fee breakdown, and confirmation are all hidden unless needed.
  */
-export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps) {
+export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapContentProps) {
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
@@ -202,7 +206,10 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
     setConfirmArmed(false);
   }, [amountSats, currentFeeRate, btcPrice]);
 
-  const { zapAsync, isZapping, progress } = useOnchainZap(target, onSuccess);
+  const { zapAsync, isZapping, progress } = useOnchainZap(target, (result) => {
+    // Forward the txid + amount so the dialog can render its success screen.
+    onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
+  });
 
   const handleZap = useCallback(async () => {
     setError('');
@@ -273,7 +280,7 @@ export function OnchainZapContent({ target, onSuccess }: OnchainZapContentProps)
         usdAmount={usdAmount}
         setUsdAmount={setUsdAmount}
         loginType={loginType}
-        onClose={onSuccess}
+        onClose={onClose}
       />
     );
   }
