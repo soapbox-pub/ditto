@@ -513,7 +513,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
               recipientPubkey={target.pubkey}
               amountSats={success.amountSats}
               btcPrice={btcPrice}
-              kind={success.kind}
               txid={success.kind === 'onchain' ? success.txid : undefined}
               onClose={() => setOpen(false)}
             />

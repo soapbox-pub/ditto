@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Check, ExternalLink, Zap, Bitcoin } from 'lucide-react';
+import { useMemo } from 'react';
+import { Check, ExternalLink } from 'lucide-react';
 import { openUrl } from '@/lib/downloadFile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
-import { formatSats, satsToUSD } from '@/lib/bitcoin';
+import { satsToUSD } from '@/lib/bitcoin';
 import { genUserName } from '@/lib/genUserName';
 
 interface ZapSuccessScreenProps {
@@ -15,14 +15,10 @@ interface ZapSuccessScreenProps {
   amountSats: number;
   /** Current BTC/USD price for display; optional, falls back to sats only. */
   btcPrice: number | undefined;
-  /** Payment rail used. Drives iconography + label. */
-  kind: 'onchain' | 'lightning';
-  /** Bitcoin txid (onchain only). Used for the mempool.space link. */
+  /** Bitcoin txid (onchain only). Enables the mempool.space link. */
   txid?: string;
-  /** Close handler (the "Done" button and auto-dismiss timer both call this). */
+  /** Close handler invoked by the "Done" button. */
   onClose: () => void;
-  /** Auto-dismiss delay in ms. Set to 0 to disable. Defaults to 6 seconds. */
-  autoCloseMs?: number;
 }
 
 /**
@@ -39,10 +35,8 @@ export function ZapSuccessScreen({
   recipientPubkey,
   amountSats,
   btcPrice,
-  kind,
   txid,
   onClose,
-  autoCloseMs = 6000,
 }: ZapSuccessScreenProps) {
   const { data: author } = useAuthor(recipientPubkey);
   const metadata = author?.metadata;
@@ -53,24 +47,6 @@ export function ZapSuccessScreen({
     () => (btcPrice ? satsToUSD(amountSats, btcPrice) : ''),
     [amountSats, btcPrice],
   );
-
-  // Auto-dismiss fallback. Pause + show a subtle progress bar so the user
-  // knows the dialog will close on its own if they walk away.
-  const [remainingMs, setRemainingMs] = useState(autoCloseMs);
-  useEffect(() => {
-    if (!autoCloseMs) return;
-    const started = performance.now();
-    const id = window.setInterval(() => {
-      const elapsed = performance.now() - started;
-      const left = Math.max(0, autoCloseMs - elapsed);
-      setRemainingMs(left);
-      if (left <= 0) {
-        window.clearInterval(id);
-        onClose();
-      }
-    }, 100);
-    return () => window.clearInterval(id);
-  }, [autoCloseMs, onClose]);
 
   // Sparkle burst positions: 8 particles radiating outward from the
   // checkmark, each with a slightly offset delay so the burst reads organic
@@ -91,18 +67,9 @@ export function ZapSuccessScreen({
     [],
   );
 
-  const railIcon = kind === 'lightning' ? (
-    <Zap className="size-3.5" />
-  ) : (
-    <Bitcoin className="size-3.5" />
-  );
-  const railLabel = kind === 'lightning' ? 'Sent via Lightning' : 'Sent via Bitcoin';
-
   const viewOnMempool = () => {
     if (txid) openUrl(`https://mempool.space/tx/${txid}`);
   };
-
-  const progressRatio = autoCloseMs ? remainingMs / autoCloseMs : 0;
 
   return (
     <div
@@ -161,13 +128,8 @@ export function ZapSuccessScreen({
           Bitcoin sent
         </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
-          {usdDisplay || `${formatSats(amountSats)} sats`}
+          {usdDisplay || `${amountSats.toLocaleString()} sats`}
         </div>
-        {usdDisplay && (
-          <div className="text-xs text-muted-foreground tabular-nums">
-            {formatSats(amountSats)} sats
-          </div>
-        )}
       </div>
 
       {/* Recipient card */}
@@ -184,15 +146,9 @@ export function ZapSuccessScreen({
         </div>
       </div>
 
-      {/* Rail indicator */}
-      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-        <span className="text-orange-500">{railIcon}</span>
-        <span>{railLabel}</span>
-      </div>
-
       {/* Actions */}
       <div className="grid gap-2">
-        {kind === 'onchain' && txid && (
+        {txid && (
           <Button
             type="button"
             variant="outline"
@@ -207,15 +163,6 @@ export function ZapSuccessScreen({
           Done
         </Button>
       </div>
-
-      {/* Auto-close progress hairline. Hidden when autoCloseMs is 0. */}
-      {autoCloseMs > 0 && (
-        <div
-          aria-hidden
-          className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-amber-400 to-orange-500 transition-[width] duration-100 ease-linear"
-          style={{ width: `${progressRatio * 100}%` }}
-        />
-      )}
     </div>
   );
 }
