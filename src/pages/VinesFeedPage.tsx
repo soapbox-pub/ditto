@@ -41,6 +41,7 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
 import { useStreamKind } from "@/hooks/useStreamKind";
 import { type EventStats, useEventStats } from "@/hooks/useTrending";
+import { useUserZap } from "@/hooks/useUserZap";
 import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -339,6 +340,7 @@ export function VineCard({
 	const profileUrl = useProfileUrl(event.pubkey, metadata);
 	const { data: stats } = useEventStats(event.id, event);
 	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
+	const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
 	const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -643,11 +645,20 @@ export function VineCard({
 					{canZapAuthor && (
 						<ZapDialog target={event}>
 							<VineActionButton
-								icon={<Zap className="size-6" />}
+								icon={
+									<Zap
+										className="size-6"
+										fill={isZapped ? "currentColor" : "none"}
+									/>
+								}
 								label={
 									stats?.zapAmount ? formatNumber(stats.zapAmount) : undefined
 								}
-								className="text-white hover:text-amber-400"
+								className={
+									isZapped
+										? "text-amber-400 hover:text-amber-300"
+										: "text-white hover:text-amber-400"
+								}
 							/>
 						</ZapDialog>
 					)}

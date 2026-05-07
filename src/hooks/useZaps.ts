@@ -163,6 +163,10 @@ export function useZaps(
             setInvoice(null);
             notificationSuccess();
 
+            // Optimistically mark this event as zapped-by-me so the bolt
+            // icon fills instantly — relay echo of the 9735 receipt may lag.
+            queryClient.setQueryData(['user-zap', target.id], true);
+
             // Invalidate zap queries to refresh counts
             queryClient.invalidateQueries({ queryKey: ['zaps'] });
 
@@ -210,6 +214,10 @@ export function useZaps(
             setIsZapping(false);
             setInvoice(null);
             notificationSuccess();
+
+            // Optimistically mark this event as zapped-by-me so the bolt
+            // icon fills instantly — relay echo of the 9735 receipt may lag.
+            queryClient.setQueryData(['user-zap', target.id], true);
 
             // Invalidate zap queries to refresh counts
             queryClient.invalidateQueries({ queryKey: ['zaps'] });

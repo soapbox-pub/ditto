@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useEventStats } from '@/hooks/useTrending';
+import { useUserZap } from '@/hooks/useUserZap';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
@@ -40,6 +41,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
+  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   return (
     <>
@@ -98,8 +100,13 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
 
             {canZapAuthor && (
               <ZapDialog target={event}>
-                <button className="flex items-center gap-1 p-2.5 text-white hover:text-amber-400 transition-colors">
-                  <Zap className="size-5" />
+                <button
+                  className={`flex items-center gap-1 p-2.5 transition-colors ${
+                    isZapped ? 'text-amber-400 hover:text-amber-300' : 'text-white hover:text-amber-400'
+                  }`}
+                  title={isZapped ? 'Zapped' : 'Zap'}
+                >
+                  <Zap className="size-5" fill={isZapped ? 'currentColor' : 'none'} />
                   {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.zapAmount)}</span>}
                 </button>
               </ZapDialog>

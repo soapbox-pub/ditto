@@ -7,6 +7,7 @@ import { RepostMenu } from '@/components/RepostMenu';
 import { ZapDialog } from '@/components/ZapDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
+import { useUserZap } from '@/hooks/useUserZap';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,8 @@ export function PostActionBar({
   // Zap button shows for any logged-in user except on their own posts.
   // Both on-chain and Lightning zaps are supported inside the dialog.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
+  // Fills the bolt icon after the user has zapped this event on either rail.
+  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
@@ -87,10 +90,19 @@ export function PostActionBar({
         <ZapDialog target={event}>
           <button
             type="button"
-            className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
-            title="Zap"
+            className={cn(
+              'flex items-center gap-1.5 rounded-full transition-colors',
+              isZapped
+                ? 'text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10'
+                : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
+              compact ? "p-1.5 sm:p-2" : "p-2",
+            )}
+            title={isZapped ? 'Zapped' : 'Zap'}
           >
-            <Zap className={compact ? "size-[18px] sm:size-5" : "size-5"} />
+            <Zap
+              className={compact ? "size-[18px] sm:size-5" : "size-5"}
+              fill={isZapped ? 'currentColor' : 'none'}
+            />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span>
             ) : null}

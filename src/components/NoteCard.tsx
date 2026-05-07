@@ -108,6 +108,7 @@ import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
+import { useUserZap } from "@/hooks/useUserZap";
 import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
@@ -367,6 +368,10 @@ export const NoteCard = memo(function NoteCard({
   // On-chain zaps are always available; Lightning is offered inside the dialog
   // when the author has lud06/lud16.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
+  // Fills the bolt icon once the user has zapped this event on either rail.
+  // Optimistic cache is set by the send hooks, so the icon fills instantly
+  // on success without waiting for the relay echo.
+  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
@@ -821,10 +826,19 @@ export const NoteCard = memo(function NoteCard({
         <ZapDialog target={event}>
           <button
             type="button"
-            className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-            title="Zap"
+            className={cn(
+              "flex items-center gap-1.5 rounded-full transition-colors",
+              isZapped
+                ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
+                : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+              showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
+            )}
+            title={isZapped ? "Zapped" : "Zap"}
           >
-            <Zap className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
+            <Zap
+              className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
+              fill={isZapped ? "currentColor" : "none"}
+            />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">
                 {formatNumber(stats.zapAmount)}
