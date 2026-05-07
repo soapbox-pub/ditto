@@ -197,6 +197,25 @@ The send dialog has three steps:
 
 These are in addition to the base dependencies listed above.
 
+## On-chain Zaps (kind 8333)
+
+Sending Bitcoin through the in-app zap dialog is more than a plain transfer -- it publishes a matching Nostr event so the payment is attributed to the sender on Nostr, just like a NIP-57 Lightning zap.
+
+Whenever the Bitcoin tab of the zap dialog succeeds, the client:
+
+1. Broadcasts the Taproot-funded Bitcoin transaction to the recipient's derived address.
+2. Publishes a **kind 8333 "Onchain Zap"** event containing:
+   - `i` tag referencing the Bitcoin transaction (`bitcoin:tx:<txid>`, per NIP-73)
+   - `p` tag for the recipient's Nostr pubkey
+   - `e` tag (and `a` tag for addressable events) pointing at the zapped post
+   - `amount` tag with the amount in satoshis
+
+Clients treat kind 8333 the same way they treat NIP-57 kind 9735 receipts -- as an attestation that a payment happened. The kind number mirrors the semantic pairing of 9735 (Lightning's P2P port) and 8333 (Bitcoin's mainnet P2P port).
+
+Unlike NIP-57, no LNURL or Lightning address is required. Because every Nostr keypair deterministically maps to a Taproot address (see above), on-chain zaps work for **any** Nostr user.
+
+The full specification -- including verification rules, spoofing defenses, and the kind-9735 vs kind-8333 comparison table -- lives in [`NIP.md`](./NIP.md).
+
 ## Security Considerations
 
 - The same private key (nsec in Nostr) controls both the Nostr identity and the Bitcoin funds at the derived address.
