@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeftRight, Egg, Footprints, Loader2, X } from 'lucide-react';
 
@@ -278,7 +278,19 @@ interface BlobbiWidgetContentProps {
   currentCompanionD?: string;
 }
 
-function BlobbiWidgetContent({ companion, allCompanions, onSelectCompanion, onUseItem, onRest, isActionPending, isCurrentCompanion, isActiveFloatingCompanion, isUpdatingCompanion, onToggleCompanion, currentCompanionD }: BlobbiWidgetContentProps) {
+function BlobbiWidgetContent({
+  companion,
+  allCompanions,
+  onSelectCompanion,
+  onUseItem,
+  onRest,
+  isActionPending,
+  isCurrentCompanion,
+  isActiveFloatingCompanion,
+  isUpdatingCompanion,
+  onToggleCompanion,
+  currentCompanionD,
+}: BlobbiWidgetContentProps) {
   // Projected state with decay only — owner surfaces do not pre-project social
   // effects. Social effects are incorporated via explicit consolidation.
   const projected = useProjectedBlobbiState(companion);
@@ -319,6 +331,27 @@ function BlobbiWidgetContent({ companion, allCompanions, onSelectCompanion, onUs
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const hasMultipleCompanions = allCompanions.length > 1;
+  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
+
+  /** Callback ref: attaches a non-passive wheel listener when the element mounts. */
+  const scrollRef = useCallback((el: HTMLDivElement | null) => {
+    // Clean up previous listener
+    if (wheelHandlerRef.current && el) {
+      el.removeEventListener('wheel', wheelHandlerRef.current);
+    }
+    if (!el) {
+      wheelHandlerRef.current = null;
+      return;
+    }
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.scrollBy({ left: e.deltaY });
+    };
+    wheelHandlerRef.current = onWheel;
+    el.addEventListener('wheel', onWheel, { passive: false });
+  }, []);
 
   // When this Blobbi is the active floating companion, show "out exploring" state
   if (isActiveFloatingCompanion) {
@@ -370,42 +403,51 @@ function BlobbiWidgetContent({ companion, allCompanions, onSelectCompanion, onUs
                 <p className="text-xs font-medium text-muted-foreground">Switch Blobbi</p>
                 <button
                   onClick={() => setSwitcherOpen(false)}
+                  aria-label="Close"
                   className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   <X className="size-3" />
                 </button>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {allCompanions.map((c) => {
-                  const isSelected = c.d === companion.d;
-                  const isFloatingCompanion = c.d === currentCompanionD;
-                  return (
-                    <button
-                      key={c.d}
-                      onClick={() => {
-                        onSelectCompanion(c.d);
-                        setSwitcherOpen(false);
-                      }}
-                      className={cn(
-                        'flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
-                        isSelected && 'opacity-50 pointer-events-none',
-                      )}
-                      disabled={isSelected}
-                    >
-                      <div className="relative">
-                        <BlobbiStageVisual companion={c} size="sm" />
-                        {isFloatingCompanion && (
-                          <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-background ring-1 ring-background flex items-center justify-center">
-                            <Footprints className="size-2.5 text-emerald-500" />
-                          </div>
+              <div className="relative max-w-[18rem]">
+                <div
+                  ref={scrollRef}
+                  className="flex items-center gap-3 overflow-x-auto py-1 px-2 scrollbar-thin"
+                >
+                  {allCompanions.map((c) => {
+                    const isSelected = c.d === companion.d;
+                    const isFloatingCompanion = c.d === currentCompanionD;
+                    return (
+                      <button
+                        key={c.d}
+                        onClick={() => {
+                          onSelectCompanion(c.d);
+                          setSwitcherOpen(false);
+                        }}
+                        aria-label={`Switch to ${c.name}`}
+                        className={cn(
+                          'flex-shrink-0 flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
+                          isSelected && 'opacity-50 pointer-events-none',
                         )}
-                      </div>
-                      <span className="text-[10px] font-medium text-muted-foreground max-w-[4rem] truncate">
-                        {c.name}
-                      </span>
-                    </button>
-                  );
-                })}
+                        disabled={isSelected}
+                      >
+                        <div className="relative">
+                          <BlobbiStageVisual companion={c} size="sm" />
+                          {isFloatingCompanion && (
+                            <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-background ring-1 ring-background flex items-center justify-center">
+                              <Footprints className="size-2.5 text-emerald-500" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-medium text-muted-foreground max-w-[4rem] truncate">
+                          {c.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Right fade gradient to hint at more content */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-popover to-transparent" />
               </div>
             </PopoverContent>
           </Popover>
