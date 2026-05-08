@@ -124,10 +124,20 @@ export function useDrafts() {
     mutationFn: async (slug: string) => {
       if (!user) throw new Error('User is not logged in');
 
+      // Look up the draft's event ID so the deletion can target the specific
+      // wrap event via an `e` tag, in addition to the addressable `a` tag.
+      const cachedDrafts = queryClient.getQueryData<Draft[]>(['drafts', user.pubkey]);
+      const eventId = cachedDrafts?.find(d => d.slug === slug)?.eventId;
+
+      const tags: string[][] = [
+        ['a', `${DRAFT_WRAP_KIND}:${user.pubkey}:${slug}`],
+      ];
+      if (eventId) tags.push(['e', eventId]);
+
       const event = await publishEvent({
         kind: 5,
         content: '',
-        tags: [['a', `${DRAFT_WRAP_KIND}:${user.pubkey}:${slug}`]],
+        tags,
       });
       return { event, slug };
     },
