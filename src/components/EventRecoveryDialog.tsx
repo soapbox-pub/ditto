@@ -202,31 +202,39 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
         const isRestoring = restoringId === snapshot.id;
 
         return (
-          <div key={snapshot.id} className="space-y-1.5">
+          <div key={snapshot.id} className="relative">
             <EmbeddedPost
               event={snapshot}
               disableHoverCards
               className={cn(isCurrent && 'ring-1 ring-primary/40')}
             />
 
-            <div className="flex justify-end px-1">
+            {/* Overlay the Restore button / Current badge in the top-right
+                corner of the embedded card. The card itself is a clickable
+                link, so the button stops propagation to keep navigation and
+                restore distinct interactions. */}
+            <div
+              className="absolute top-2 right-2 z-10"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
               {isCurrent ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                  <Check className="size-3.5" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <Check className="size-3" />
                   Current
                 </span>
               ) : (
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => handleRestore(snapshot)}
                   disabled={restoringId !== null}
-                  className="gap-1.5"
+                  className="h-7 gap-1.5 px-2.5 text-xs shadow-sm"
                 >
                   {isRestoring ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <Loader2 className="size-3 animate-spin" />
                   ) : (
-                    <RotateCcw className="size-3.5" />
+                    <RotateCcw className="size-3" />
                   )}
                   Restore
                 </Button>
