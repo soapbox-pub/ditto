@@ -18,6 +18,7 @@ import {
   Copy,
   Check,
   Radio,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -38,6 +39,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
+import { EventRecoveryDialog } from '@/components/EventRecoveryDialog';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
@@ -51,6 +53,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
+import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
@@ -198,6 +201,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [eventJsonOpen, setEventJsonOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
 
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
 
@@ -247,6 +251,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setDeleteConfirmOpen(true), 150);
           }}
+          onRestore={() => {
+            onOpenChange(false);
+            setTimeout(() => setRecoveryOpen(true), 150);
+          }}
         />
       )}
 
@@ -270,6 +278,12 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         nip19Id={nip19Id}
         open={eventJsonOpen}
         onOpenChange={setEventJsonOpen}
+      />
+
+      <EventRecoveryDialog
+        event={event}
+        open={recoveryOpen}
+        onOpenChange={setRecoveryOpen}
       />
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
@@ -305,9 +319,10 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onAddToList: () => void;
   onViewEventJson: () => void;
   onDelete: () => void;
+  onRestore: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
@@ -316,6 +331,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
   const pinned = isPinned(event.id);
   const isOwnPost = user?.pubkey === event.pubkey;
+  const isRestorable = isOwnPost && isReplaceableLikeKind(event.kind);
   const author = useAuthor(event.pubkey);
   const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
@@ -471,6 +487,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
               icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
               label={pinned ? 'Unpin from profile' : 'Pin on profile'}
               onClick={handleTogglePin}
+            />
+          )}
+          {isRestorable && (
+            <MenuItem
+              icon={<RotateCcw className="size-5" />}
+              label="Restore previous version"
+              onClick={onRestore}
             />
           )}
           {isOwnPost && (

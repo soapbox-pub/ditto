@@ -2,11 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-
-/** Check whether a kind falls in an addressable or replaceable range. */
-function isAddressableKind(kind: number): boolean {
-  return kind >= 30000 && kind < 40000;
-}
+import { isAddressableKind } from '@/lib/eventKinds';
 
 interface DeleteEventParams {
   eventId: string;
