@@ -202,20 +202,14 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
         const isRestoring = restoringId === snapshot.id;
 
         return (
-          <div
-            key={snapshot.id}
-            className={cn(
-              'rounded-xl border p-3 space-y-3 transition-colors',
-              isCurrent && 'border-primary/40 bg-primary/[0.03]',
-            )}
-          >
-            <EmbeddedPost event={snapshot} disableHoverCards />
+          <div key={snapshot.id} className="space-y-1.5">
+            <EmbeddedPost
+              event={snapshot}
+              disableHoverCards
+              className={cn(isCurrent && 'ring-1 ring-primary/40')}
+            />
 
-            <div className="flex items-center justify-between gap-3 px-1">
-              <span className="text-xs text-muted-foreground">
-                {formatDate(snapshot.created_at)}
-              </span>
-
+            <div className="flex justify-end px-1">
               {isCurrent ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
                   <Check className="size-3.5" />
