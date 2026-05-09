@@ -12,7 +12,7 @@ import { LETTER_KIND } from '@/lib/letterTypes';
 type NotificationPreferences = NonNullable<EncryptedSettings['notificationPreferences']>;
 
 /** All kinds that can appear as notifications. */
-export const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 8, 9735, 9802, 1111, 1222, 1244, LETTER_KIND] as const;
+export const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 8, 9735, 8333, 9802, 1111, 1222, 1244, LETTER_KIND] as const;
 
 /**
  * Derives the set of Nostr kinds to request based on per-type preferences.
@@ -26,7 +26,7 @@ export function getEnabledNotificationKinds(
 
   if (p.reactions !== false) kinds.push(7);
   if (p.reposts !== false) kinds.push(6, 16);
-  if (p.zaps !== false) kinds.push(9735);
+  if (p.zaps !== false) kinds.push(9735, 8333);
   if (p.mentions !== false) kinds.push(1);
   if (p.comments !== false) kinds.push(1111, 1222, 1244);
   if (p.badges !== false) kinds.push(8);

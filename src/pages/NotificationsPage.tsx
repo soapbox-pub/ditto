@@ -288,6 +288,7 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
         ? <RepostNotification item={group.actors[0]} isNew={group.isNew} />
         : <RepostNotificationGroup group={group} />;
     case 9735:
+    case 8333:
       return solo
         ? <ZapNotification item={group.actors[0]} isNew={group.isNew} />
         : <ZapNotificationGroup group={group} />;
@@ -518,41 +519,74 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
 // ──────────────────────────────────────
 // Zap Notification (single actor)
 // ──────────────────────────────────────
+
+/**
+ * Extracts the zap amount in sats from either a kind 9735 lightning zap
+ * receipt or a kind 8333 on-chain Bitcoin zap event.
+ *
+ * Kind 9735 (NIP-57): the `amount` tag carries millisats — check the receipt
+ * first, then fall back to the embedded zap-request JSON in `description`.
+ * Kind 8333: the `amount` tag carries sats directly (see NIP.md).
+ */
+function getZapAmountSats(event: NostrEvent): number {
+  if (event.kind === 8333) {
+    const amountTag = event.tags.find(([name]) => name === 'amount');
+    if (amountTag?.[1]) {
+      const sats = parseInt(amountTag[1], 10);
+      if (!isNaN(sats) && sats > 0) return sats;
+    }
+    return 0;
+  }
+
+  // Kind 9735: amount is in millisats
+  const amountTag = event.tags.find(([name]) => name === 'amount');
+  if (amountTag?.[1]) {
+    const msats = parseInt(amountTag[1], 10);
+    if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
+  }
+  const descTag = event.tags.find(([name]) => name === 'description');
+  if (descTag?.[1]) {
+    try {
+      const zapRequest = JSON.parse(descTag[1]);
+      const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
+      if (reqAmountTag?.[1]) {
+        const msats = parseInt(reqAmountTag[1], 10);
+        if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
+      }
+    } catch { /* ignore */ }
+  }
+  return 0;
+}
+
+/**
+ * Extracts the sender pubkey from a zap event.
+ *
+ * Kind 9735: the receipt is signed by the LNURL provider, so the sender lives
+ * in the uppercase `P` tag (preferred) or in the `description` JSON's pubkey
+ * (the original zap request).
+ * Kind 8333: the sender authors the event themselves, so `event.pubkey` IS
+ * the sender (see NIP.md).
+ */
+function getZapSenderPubkey(event: NostrEvent): string {
+  if (event.kind === 8333) return event.pubkey;
+
+  const pTag = event.tags.find(([name]) => name === 'P');
+  if (pTag?.[1]) return pTag[1];
+  const descTag = event.tags.find(([name]) => name === 'description');
+  if (descTag?.[1]) {
+    try {
+      const zapRequest = JSON.parse(descTag[1]);
+      if (zapRequest.pubkey) return zapRequest.pubkey;
+    } catch { /* ignore */ }
+  }
+  return event.pubkey;
+}
+
 function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const { event } = item;
 
-  const zapAmount = useMemo(() => {
-    const amountTag = event.tags.find(([name]) => name === 'amount');
-    if (amountTag?.[1]) {
-      const msats = parseInt(amountTag[1], 10);
-      if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
-    }
-    const descTag = event.tags.find(([name]) => name === 'description');
-    if (descTag?.[1]) {
-      try {
-        const zapRequest = JSON.parse(descTag[1]);
-        const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
-        if (reqAmountTag?.[1]) {
-          const msats = parseInt(reqAmountTag[1], 10);
-          if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
-        }
-      } catch { /* ignore */ }
-    }
-    return 0;
-  }, [event]);
-
-  const senderPubkey = useMemo(() => {
-    const pTag = event.tags.find(([name]) => name === 'P');
-    if (pTag?.[1]) return pTag[1];
-    const descTag = event.tags.find(([name]) => name === 'description');
-    if (descTag?.[1]) {
-      try {
-        const zapRequest = JSON.parse(descTag[1]);
-        if (zapRequest.pubkey) return zapRequest.pubkey;
-      } catch { /* ignore */ }
-    }
-    return event.pubkey;
-  }, [event]);
+  const zapAmount = useMemo(() => getZapAmountSats(event), [event]);
+  const senderPubkey = useMemo(() => getZapSenderPubkey(event), [event]);
 
   const amountLabel = zapAmount > 0 ? ` ${formatNumber(zapAmount)} sats` : '';
 
@@ -616,48 +650,24 @@ function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) 
 // Zap Notification (grouped)
 // ──────────────────────────────────────
 function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
-  // Sum zap amounts across all actors in the group
+  // Sum zap amounts across all actors in the group. Mixes lightning (9735)
+  // and on-chain (8333) zaps — both contribute their sat value to the total.
   const totalSats = useMemo(() => {
     let total = 0;
     for (const item of group.actors) {
-      const event = item.event;
-      const amountTag = event.tags.find(([name]) => name === 'amount');
-      if (amountTag?.[1]) {
-        const msats = parseInt(amountTag[1], 10);
-        if (!isNaN(msats) && msats > 0) { total += Math.floor(msats / 1000); continue; }
-      }
-      const descTag = event.tags.find(([name]) => name === 'description');
-      if (descTag?.[1]) {
-        try {
-          const zapRequest = JSON.parse(descTag[1]);
-          const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
-          if (reqAmountTag?.[1]) {
-            const msats = parseInt(reqAmountTag[1], 10);
-            if (!isNaN(msats) && msats > 0) { total += Math.floor(msats / 1000); continue; }
-          }
-        } catch { /* ignore */ }
-      }
+      total += getZapAmountSats(item.event);
     }
     return total;
   }, [group.actors]);
 
-  // Extract sender pubkeys from zap receipts to use as the actor pubkeys
+  // Extract sender pubkeys from zap events to use as the actor pubkeys
+  // (for 9735 the receipt is signed by the LNURL provider; for 8333 the
+  // sender already authors the event).
   const zapActors = useMemo<NotificationItem[]>(() => {
     return group.actors.map((item) => {
-      const event = item.event;
-      let senderPubkey = event.pubkey;
-      const pTag = event.tags.find(([name]) => name === 'P');
-      if (pTag?.[1]) { senderPubkey = pTag[1]; }
-      else {
-        const descTag = event.tags.find(([name]) => name === 'description');
-        if (descTag?.[1]) {
-          try {
-            const zapRequest = JSON.parse(descTag[1]);
-            if (zapRequest.pubkey) senderPubkey = zapRequest.pubkey;
-          } catch { /* ignore */ }
-        }
-      }
-      return { ...item, event: { ...event, pubkey: senderPubkey } };
+      const senderPubkey = getZapSenderPubkey(item.event);
+      if (senderPubkey === item.event.pubkey) return item;
+      return { ...item, event: { ...item.event, pubkey: senderPubkey } };
     });
   }, [group.actors]);
 

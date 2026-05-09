@@ -13,7 +13,7 @@ import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notif
 const PAGE_SIZE = 20;
 
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 9802, 1111, 1222, 1244, or 8211). */
+  /** The notification event (kind 1, 6, 16, 7, 8, 9735, 8333, 9802, 1111, 1222, 1244, or 8211). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped/highlighted), if available. */
   referencedEvent?: NostrEvent;
@@ -34,7 +34,7 @@ export interface GroupedNotificationItem {
   key: string;
   /**
    * The kind that describes this group.
-   * 7 = reaction, 6/16 = repost, 9735 = zap, 9802 = highlight, 1 = mention, 1111 = comment.
+   * 7 = reaction, 6/16 = repost, 9735/8333 = zap, 9802 = highlight, 1 = mention, 1111 = comment.
    */
   kind: number;
   /** All notification events that belong to this group, newest-first. */
@@ -93,13 +93,14 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
  * Events that share the same group key will be condensed into one row.
  *
  * Reactions, reposts, zaps, and highlights group by (kind-bucket, referencedEventId).
+ * Lightning (9735) and on-chain (8333) zaps share a single "zap" bucket.
  * Mentions and comments each stand alone (group key == event id).
  */
 function groupKey(item: NotificationItem): string {
   const { event } = item;
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
-  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 9802) && refId) {
+  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802) && refId) {
     // Profile reactions (kind 7 on kind 0) are standalone — users can react
     // to a profile multiple times, so each reaction gets its own notification.
     const isProfileReaction = event.kind === 7 && (
@@ -116,8 +117,13 @@ function groupKey(item: NotificationItem): string {
     if (event.kind === 9802) {
       return `highlight:${refId}:${event.id}`;
     }
-    // Use a canonical kind bucket so kind-6 and kind-16 reposts merge together
-    const bucket = event.kind === 6 || event.kind === 16 ? 'repost' : String(event.kind);
+    // Use a canonical kind bucket so kind-6/16 reposts merge together, and
+    // lightning (9735) and on-chain (8333) zaps share a single "zap" group.
+    const bucket = event.kind === 6 || event.kind === 16
+      ? 'repost'
+      : event.kind === 9735 || event.kind === 8333
+      ? 'zap'
+      : String(event.kind);
     return `${bucket}:${refId}`;
   }
 
@@ -301,9 +307,9 @@ export function useNotifications(): NotificationData {
           if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
 
-        // Zaps (9735) don't need the author-ownership check at all: the query
-        // already filters by `#p: [user.pubkey]`, which means the zap receipt
-        // explicitly names the current user as the recipient.
+        // Zaps (9735 lightning, 8333 on-chain) don't need the author-ownership
+        // check at all: the query already filters by `#p: [user.pubkey]`, which
+        // means the zap event explicitly names the current user as the recipient.
         // Profile-level zaps (no `e` tag) are also valid notifications.
 
         return [{ event: ev, referencedEvent }];
