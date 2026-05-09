@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.14.0] - 2026-05-09
+
+### Added
+- Restore previous versions -- the post 3-dots menu now has a "Restore previous version" option for replaceable content you own, opening a dialog that lets you browse every past snapshot of a profile, list, article, or any other replaceable event and republish the one you want
+- On-chain zaps now render as zaps everywhere -- detail pages, quote embeds, the reply composer's parent preview, and the Zaps tab of the interactions modal -- with the same amber bolt, sender, amount, and comment as Lightning zaps, plus a "verifying..." hint while the transaction is checked against the blockchain
+- A grand success screen after a zap with an animated check, the amount, and the recipient -- and for on-chain zaps a "View transaction" link to the block explorer
+
+### Changed
+- The bolt button on the post action bar now fills in after you zap a post (matching how the repost and reaction buttons already work), and reflects both Lightning and on-chain zaps
+
+### Fixed
+- Deleting a draft article now reliably removes it from relays that key off event-id rather than the addressable coordinate
+
 ## [2.13.1] - 2026-05-05
 
 ### Fixed
