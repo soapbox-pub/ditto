@@ -121,6 +121,7 @@ import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 
@@ -266,30 +267,6 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Encodes the NIP-19 identifier for navigating to an event. */
-function encodeEventId(event: NostrEvent): string {
-  // Addressable events (30000-39999) use naddr with their d-tag
-  if (event.kind >= 30000 && event.kind < 40000) {
-    const dTag = getTag(event.tags, "d");
-    if (dTag) {
-      return nip19.naddrEncode({
-        kind: event.kind,
-        pubkey: event.pubkey,
-        identifier: dTag,
-      });
-    }
-  }
-  // Replaceable events (10000-19999) use naddr with an empty identifier
-  if (event.kind >= 10000 && event.kind < 20000) {
-    return nip19.naddrEncode({
-      kind: event.kind,
-      pubkey: event.pubkey,
-      identifier: "",
-    });
-  }
-  return nip19.neventEncode({ id: event.id, author: event.pubkey });
-}
-
 /** Returns true if the click target is inside an interactive overlay/element. */
 function isInteractiveTarget(e: React.MouseEvent): boolean {
   const target = e.target as HTMLElement;
@@ -352,7 +329,7 @@ export const NoteCard = memo(function NoteCard({
     event.pubkey,
   );
   const profileUrl = useProfileUrl(event.pubkey, metadata);
-  const encodedId = useMemo(() => encodeEventId(event), [event]);
+  const encodedId = useMemo(() => encodeEventAddress(event), [event]);
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);

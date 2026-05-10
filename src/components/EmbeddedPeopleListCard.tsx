@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { nip19 } from 'nostr-tools';
 import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -8,6 +7,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
+import { encodeEventAddress } from '@/lib/encodeEvent';
 import { genUserName } from '@/lib/genUserName';
 import { parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -45,13 +45,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
     [event, authorMetadata],
   );
 
-  const nip19Id = useMemo(() => {
-    if (event.kind === 3) {
-      return nip19.neventEncode({ id: event.id, author: event.pubkey });
-    }
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
-    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
-  }, [event]);
+  const nip19Id = useMemo(() => encodeEventAddress(event), [event]);
 
   const previewPubkeys = useMemo(
     () => getDisplayPubkeys(event, pubkeys).slice(0, EMBED_AVATAR_LIMIT),

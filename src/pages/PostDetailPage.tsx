@@ -185,6 +185,7 @@ import { useEventStats } from "@/hooks/useTrending";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
+import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
@@ -999,25 +1000,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const pollVoteLabel = usePollVoteLabel(event);
 
   // NIP-19 encoded event identifier for share URLs
-  const encodedEventId = useMemo(() => {
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const dTag = event.tags.find(([n]) => n === "d")?.[1];
-      if (dTag)
-        return nip19.naddrEncode({
-          kind: event.kind,
-          pubkey: event.pubkey,
-          identifier: dTag,
-        });
-    }
-    if (event.kind >= 10000 && event.kind < 20000) {
-      return nip19.naddrEncode({
-        kind: event.kind,
-        pubkey: event.pubkey,
-        identifier: "",
-      });
-    }
-    return nip19.neventEncode({ id: event.id, author: event.pubkey });
-  }, [event]);
+  const encodedEventId = useMemo(() => encodeEventAddress(event), [event]);
 
   const handleShare = useCallback(async () => {
     const url = `${shareOrigin}/${encodedEventId}`;

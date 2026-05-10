@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -72,20 +74,26 @@ export function PeopleAvatarStack({
           return (
             <Tooltip key={pk}>
               <TooltipTrigger asChild>
-                <Avatar
-                  shape={shape}
+                <Link
+                  to={`/${nip19.npubEncode(pk)}`}
+                  aria-label={displayName}
+                  onClick={(e) => e.stopPropagation()}
                   className={cn(
-                    sizeClasses[size],
-                    'ring-2 ring-background relative transition-transform duration-150 ease-out',
+                    'rounded-full relative transition-transform duration-150 ease-out',
                     'hover:z-10 motion-safe:hover:scale-110 focus-visible:z-10 motion-safe:focus-visible:scale-110',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   )}
-                  tabIndex={0}
                 >
-                  <AvatarImage src={member?.metadata?.picture} alt={displayName} />
-                  <AvatarFallback className={cn('bg-primary/20 text-primary', fallbackTextClasses[size])}>
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                  <Avatar
+                    shape={shape}
+                    className={cn(sizeClasses[size], 'ring-2 ring-background')}
+                  >
+                    <AvatarImage src={member?.metadata?.picture} alt={displayName} />
+                    <AvatarFallback className={cn('bg-primary/20 text-primary', fallbackTextClasses[size])}>
+                      {displayName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 {displayName}

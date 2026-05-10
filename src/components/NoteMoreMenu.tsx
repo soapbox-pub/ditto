@@ -53,6 +53,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { genUserName } from '@/lib/genUserName';
+import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
@@ -91,15 +92,9 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
   );
 }
 
-/** Encode the NIP-19 identifier for an event — naddr for addressable events, nevent otherwise. */
+/** Encode the NIP-19 identifier for an event — naddr for replaceable/addressable, nevent otherwise. */
 function encodeEventNip19(event: NostrEvent): string {
-  if (event.kind >= 30000 && event.kind < 40000) {
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-    if (dTag) {
-      return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
-    }
-  }
-  return nip19.neventEncode({ id: event.id, author: event.pubkey });
+  return encodeEventAddress(event);
 }
 
 interface EventJsonDialogProps {
