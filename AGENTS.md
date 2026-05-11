@@ -351,10 +351,10 @@ Ditto uses GitLab CI (`.gitlab-ci.yml`) with five stages:
 
 1. **test** — `npm run test` on every commit (skipped for tags).
 2. **deploy** — `deploy-nsite` builds and uploads `dist/` to nsite via nsyte (default branch only).
-3. **build** — `build-apk` produces a signed release APK and AAB (tags only).
-4. **release** — creates a GitLab Release with the APK artifact (tags only).
-5. **publish** — `publish-zapstore` (APK → Zapstore) and `publish-google-play` (AAB → Google Play production track), tags only.
+3. **build** — `build-apk` produces a signed APK and AAB (Linux); `build-ipa` produces a signed IPA on the self-hosted Mac runner. Both run on tags only.
+4. **release** — creates a GitLab Release with the APK, AAB, and IPA artifacts (tags only).
+5. **publish** — `publish-zapstore` (APK → Zapstore), `publish-google-play` (AAB → Google Play), and `publish-app-store` (IPA → App Store Connect, runs on a shared Linux runner since the IPA is already signed in `build-ipa`), tags only.
 
 To cut a release, load the **`release`** skill — it walks through version bumping (`X.Y.Z`), changelog generation, native build-file updates, and tagging/pushing (`vX.Y.Z`) to trigger the CI pipeline.
 
-For CI credential setup and rotation (Zapstore NIP-46 bunker, nsyte `nbunksec`, Google Play service-account JSON, Android keystore), load the **`ci-cd-publishing`** skill.
+For CI credential setup and rotation (Zapstore NIP-46 bunker, nsyte `nbunksec`, Google Play service-account JSON, Android keystore, App Store Connect API key, fastlane match), load the **`ci-cd-publishing`** skill. For Mac runner operations (SSH access, restarting, debugging fastlane locally, yearly cert rotation), load the **`mac-runner`** skill.

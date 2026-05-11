@@ -179,11 +179,83 @@ build-apk:
       - android/.gradle/
       - .gradle/
 
+build-ipa:
+  stage: build
+  tags:
+    - macos
+  timeout: 20 minutes
+  needs: []
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  variables:
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    FASTLANE_HIDE_CHANGELOG: "1"
+    FASTLANE_SKIP_UPDATE_CHECK: "1"
+  before_script:
+    # PATH is set up via ~/.bash_profile on the runner host (brew + Ruby 3.3 + user gems)
+    - node --version
+    - ruby --version
+    - fastlane --version | head -3
+
+    # Decode the App Store Connect API key (.p8) into a private location.
+    # The Fastfile reads this directly via File.binread. We pass the API
+    # key into match so it contacts Apple's portal to verify the cert is
+    # still valid for the team — fails fast on a revoked / expired cert.
+    - mkdir -p "$HOME/.private_keys"
+    - chmod 700 "$HOME/.private_keys"
+    - export ASC_KEY_PATH="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+    - echo "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 -d > "$ASC_KEY_PATH"
+    - chmod 600 "$ASC_KEY_PATH"
+    # Avoid env-var collision: match's APP_STORE_CONNECT_API_KEY_PATH expects
+    # a JSON descriptor; we pass the API key inline via the Fastfile.
+    - unset APP_STORE_CONNECT_API_KEY_PATH || true
+
+    # Build web assets and sync to Capacitor iOS project
+    - npm ci
+    - npx vite build -l error
+    - cp dist/index.html dist/404.html
+    - npx cap sync ios
+    - node scripts/patch-cap-config.mjs
+  script:
+    # Stamp marketing version from the git tag (e.g. v2.1.0 -> 2.1.0)
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - echo "Building iOS version $VERSION (build ${CI_PIPELINE_IID}) from tag $CI_COMMIT_TAG"
+    - >-
+      /usr/bin/sed -i ''
+      "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = ${VERSION};/g"
+      ios/App/App.xcodeproj/project.pbxproj
+
+    # Run match (cert verify + decrypt) and build_app to produce the IPA.
+    # build_app writes ./artifacts/Ditto.ipa relative to the project root.
+    - cd ios
+    - fastlane build_ipa
+    - cd ..
+
+    # Move the IPA to a stable name in the artifact directory.
+    - ls -lh artifacts/
+    - test -f artifacts/Ditto.ipa
+
+    # Upload to the Generic Packages registry for a stable public download URL,
+    # mirroring how build-apk publishes the APK and AAB.
+    - |
+      curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --upload-file "artifacts/Ditto.ipa" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.ipa"
+  after_script:
+    # Wipe the API key so nothing sensitive sticks around between jobs.
+    - rm -f "$HOME/.private_keys"/AuthKey_*.p8 || true
+  artifacts:
+    paths:
+      - artifacts/Ditto.ipa
+    expire_in: 90 days
+
 release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   needs:
     - build-apk
+    - build-ipa
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   script:
@@ -208,6 +280,9 @@ release:
           link_type: package
         - name: Ditto-${CI_COMMIT_TAG}.aab
           url: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.aab
+          link_type: package
+        - name: Ditto-${CI_COMMIT_TAG}.ipa
+          url: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ditto/${CI_COMMIT_TAG}/Ditto-${CI_COMMIT_TAG}.ipa
           link_type: package
 
 publish-zapstore:
@@ -264,3 +339,51 @@ publish-google-play:
 
     # Clean up
     - rm -f /tmp/play-service-account.json
+
+publish-app-store:
+  stage: publish
+  image: ruby:3.3
+  needs:
+    - build-ipa
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  variables:
+    LANG: en_US.UTF-8
+    LC_ALL: en_US.UTF-8
+    FASTLANE_HIDE_CHANGELOG: "1"
+    FASTLANE_SKIP_UPDATE_CHECK: "1"
+  before_script:
+    - gem install fastlane --no-document
+    - fastlane --version | head -3
+
+    # Decode the App Store Connect API key (.p8) into a private location.
+    # The Fastfile reads this directly via File.binread.
+    - mkdir -p "$HOME/.private_keys"
+    - chmod 700 "$HOME/.private_keys"
+    - export ASC_KEY_PATH="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+    - echo "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 -d > "$ASC_KEY_PATH"
+    - chmod 600 "$ASC_KEY_PATH"
+  script:
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - test -f artifacts/Ditto.ipa
+
+    # Extract the changelog section for this version into release_notes.txt.
+    # Mirrors the awk extraction used by the GitLab `release` job for Android.
+    - mkdir -p ios/fastlane/metadata/en-US
+    - >-
+      awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md
+      | awk 'NF {p=1} p' > ios/fastlane/metadata/en-US/release_notes.txt
+    - |
+      if [ ! -s ios/fastlane/metadata/en-US/release_notes.txt ]; then
+        echo "Ditto ${CI_COMMIT_TAG}" > ios/fastlane/metadata/en-US/release_notes.txt
+      fi
+    - echo "--- release_notes.txt ---"
+    - cat ios/fastlane/metadata/en-US/release_notes.txt
+    - echo "-------------------------"
+
+    # Submit the prebuilt IPA from build-ipa to App Store Connect for review.
+    - export IPA_PATH="$CI_PROJECT_DIR/artifacts/Ditto.ipa"
+    - cd ios
+    - fastlane submit_release
+  after_script:
+    - rm -f "$HOME/.private_keys"/AuthKey_*.p8 || true

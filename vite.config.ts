@@ -13,10 +13,14 @@ import { DittoConfigSchema } from "./src/lib/schemas";
 /**
  * Load and validate the build-time ditto.json configuration file.
  * Returns the parsed config object, or `undefined` if the file doesn't exist.
- * Set the CONFIG_FILE env var to override the default path ("./ditto.json").
+ * Set the DITTO_CONFIG_FILE env var to override the default path ("./ditto.json").
+ *
+ * Why DITTO_CONFIG_FILE and not CONFIG_FILE: GitLab Runner sets CONFIG_FILE in
+ * its job environment to point at its own TOML config (~/.gitlab-runner/config.toml),
+ * so a generic name silently breaks every CI build that runs on a self-hosted runner.
  */
 function loadDittoConfig(): object | undefined {
-  const configPath = path.resolve(process.env.CONFIG_FILE ?? "./ditto.json");
+  const configPath = path.resolve(process.env.DITTO_CONFIG_FILE ?? "./ditto.json");
 
   let raw: string;
   try {

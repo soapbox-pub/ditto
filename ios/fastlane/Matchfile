@@ -1,0 +1,5 @@
+git_url("https://gitlab.com/soapbox-pub/certificates.git")
+storage_mode("git")
+type("appstore")
+app_identifier(["pub.ditto.app"])
+team_id("GZLTTH5DLM")

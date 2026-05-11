@@ -1,0 +1,146 @@
+default_platform(:ios)
+
+platform :ios do
+  # ─── Lanes ────────────────────────────────────────────────────────────
+
+  desc "Build and sign the App Store IPA. Output at ../artifacts/Ditto.ipa."
+  lane :build_ipa do
+    setup_lane_signing!
+    build_release_ipa!
+  end
+
+  desc "Submit an already-built IPA to App Store Connect for review. " \
+       "Set IPA_PATH to the IPA's location."
+  lane :submit_release do
+    ipa_path = ENV.fetch("IPA_PATH") do
+      UI.user_error!("submit_release requires the IPA_PATH env var")
+    end
+    UI.user_error!("IPA not found at #{ipa_path}") unless File.exist?(ipa_path)
+    submit_release_for_review!(ipa_path)
+  end
+
+  desc "Build, sign, and submit Ditto to the App Store for review (single-step convenience)."
+  lane :release do
+    setup_lane_signing!
+    build_release_ipa!
+    # Use the IPA path set by build_app rather than recomputing it from
+    # __dir__, which gets fragile across fastlane-relative paths.
+    ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH]
+    UI.user_error!("build_app did not set IPA_OUTPUT_PATH") unless ipa_path
+    submit_release_for_review!(ipa_path)
+  end
+
+  desc "Submit an already-uploaded build for review (skip build/upload). " \
+       "Use BUILD_NUMBER and VERSION env vars."
+  lane :submit_only do
+    submit_release_for_review!(nil)
+  end
+
+  # ─── Helpers ──────────────────────────────────────────────────────────
+
+  def setup_lane_signing!
+    # Create an ephemeral keychain so we never touch the login keychain.
+    setup_ci
+
+    api_key = build_api_key!
+
+    # Fetch encrypted distribution cert + provisioning profile from the
+    # shared certificates repo. --readonly: never mutate from CI.
+    # Passing api_key makes match contact Apple's portal to verify the
+    # cert is still valid for the team — fails fast on revoked/expired
+    # certs instead of letting xcodebuild stumble later.
+    match(type: "appstore", readonly: true, api_key: api_key)
+
+    api_key
+  end
+
+  def build_api_key!
+    # Build the API key hash inline. We avoid the app_store_connect_api_key
+    # action because it sets APP_STORE_CONNECT_API_KEY_PATH (path to the .p8)
+    # which collides with match's APP_STORE_CONNECT_API_KEY_PATH (path to a
+    # JSON descriptor). Same env name, different formats.
+    @api_key ||= {
+      key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+      key: File.binread(ENV.fetch("ASC_KEY_PATH")),
+      duration: 1200,
+      in_house: false,
+    }
+  end
+
+  def build_release_ipa!
+    # Stamp build number from CI pipeline ID so every release is monotonically increasing.
+    increment_build_number(
+      xcodeproj: "App/App.xcodeproj",
+      build_number: ENV.fetch("CI_PIPELINE_IID"),
+    )
+
+    # Marketing version is set externally (sed in CI) before this lane runs.
+
+    build_app(
+      project: "App/App.xcodeproj",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "../artifacts",
+      output_name: "Ditto.ipa",
+      clean: true,
+      # Override the Xcode project's Automatic signing for this build only.
+      # Match has already installed the AppStore cert + profile into the
+      # ephemeral keychain; tell xcodebuild to use them explicitly so it
+      # doesn't also try to find an iOS Development cert (which we never
+      # provision in CI).
+      xcargs: [
+        "CODE_SIGN_STYLE=Manual",
+        "CODE_SIGN_IDENTITY='Apple Distribution'",
+        "PROVISIONING_PROFILE_SPECIFIER='match AppStore pub.ditto.app'",
+        "DEVELOPMENT_TEAM=GZLTTH5DLM",
+      ].join(" "),
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: "GZLTTH5DLM",
+        provisioningProfiles: {
+          "pub.ditto.app" => "match AppStore pub.ditto.app",
+        },
+      },
+    )
+  end
+
+  # If ipa_path is nil, deliver picks up the latest processed build for the
+  # configured app version (used by the submit_only lane).
+  def submit_release_for_review!(ipa_path)
+    api_key = build_api_key!
+
+    options = {
+      api_key: api_key,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      # Don't try to PATCH content rights on every submit — Apple's API
+      # rejects updates to contentRightsDeclaration once the listing has
+      # an established state. The values stay as set in the App Store
+      # Connect UI / from a prior submission.
+      submission_information: {
+        export_compliance_uses_encryption: false,
+      },
+      skip_screenshots: true,
+      # Keep skip_app_version_update=false: deliver needs to PATCH the
+      # version's whatsNew (release notes) and platform-version metadata
+      # before submit_for_review will accept the version.
+      skip_app_version_update: false,
+      skip_metadata: false,
+      metadata_path: "./fastlane/metadata",
+      run_precheck_before_submit: false,
+    }
+    options[:ipa] = ipa_path if ipa_path
+    if ENV["BUILD_NUMBER"]
+      options[:build_number] = ENV["BUILD_NUMBER"]
+      options[:skip_binary_upload] = true
+    end
+    options[:app_version] = ENV["VERSION"] if ENV["VERSION"]
+
+    deliver(**options)
+  end
+end

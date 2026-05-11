@@ -81,7 +81,7 @@ Configuration is resolved in three layers (highest priority first):
 2. **Build config** from `ditto.json`
 3. **Hardcoded defaults**
 
-Use an alternate config file path with: `CONFIG_FILE=./my-config.json npm run build`
+Use an alternate config file path with: `DITTO_CONFIG_FILE=./my-config.json npm run build`
 
 ### Custom Branding
 

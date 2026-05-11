@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.14.3] - 2026-05-11
+
+### Changed
+- Behind-the-scenes maintenance release. No user-facing changes.
+
 ## [2.14.2] - 2026-05-11
 
 ### Added

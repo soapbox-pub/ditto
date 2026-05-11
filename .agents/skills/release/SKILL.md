@@ -265,8 +265,11 @@ git push origin main vX.Y.Z
 
 This triggers the GitLab CI pipeline which will:
 1. Build a signed Android APK and AAB
-2. Create a GitLab Release with download links
-3. Publish the APK to Zapstore
+2. Build a signed iOS IPA on the self-hosted Mac runner
+3. Create a GitLab Release with APK / AAB / IPA download links
+4. Publish the APK to Zapstore
+5. Publish the AAB to Google Play (production track)
+6. Submit the iOS IPA to App Store Connect for review
 
 ### Step 12: Confirm
 
@@ -287,11 +290,14 @@ After pushing, inform the user:
 
 ## CI Pipeline
 
-The CI pipeline (`.gitlab-ci.yml`) is triggered by tags matching the pattern `/^v\d+\.\d+\.\d+$/` (e.g., `v2.1.0`). It runs three jobs:
+The CI pipeline (`.gitlab-ci.yml`) is triggered by tags matching the pattern `/^v\d+\.\d+\.\d+$/` (e.g., `v2.1.0`). It runs six jobs:
 
 1. **build-apk**: Builds signed Android APK and AAB, stamps `versionName` and `versionCode` into the build
-2. **release**: Creates a GitLab Release with the changelog content and download links
-3. **publish-zapstore**: Publishes the APK to Zapstore
+2. **build-ipa**: Builds the signed App Store IPA on the self-hosted Mac runner (`tags: [macos]`); stamps `MARKETING_VERSION` and `CFBundleVersion` into the Xcode project. The IPA is uploaded to GitLab's Generic Packages registry and exposed as a CI artifact for downstream jobs
+3. **release**: Creates a GitLab Release with the changelog content and APK / AAB / IPA download links
+4. **publish-zapstore**: Publishes the APK to Zapstore
+5. **publish-google-play**: Uploads the AAB to Google Play production track
+6. **publish-app-store**: Submits the prebuilt IPA to App Store Connect for review (runs on a shared Linux runner; no Xcode needed since the IPA is already built). The build appears in App Store Connect within ~30 minutes; Apple's human review then takes 24-48 hours typically. Once approved, you must release manually in App Store Connect (`automatic_release: false`) — this is the final human gate. For runner operations, match cert rotation, and debugging, load the **`mac-runner`** skill.
 
 ## Troubleshooting
 
