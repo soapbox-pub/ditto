@@ -940,3 +940,19 @@
   100% { transform: translate(-50%, -100%) translate(var(--vomit-dx), var(--vomit-dy)) scale(1); opacity: 1; }
 }
 
+/* Override global scrollbar-hiding for elements that need a visible thin scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  display: block;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
