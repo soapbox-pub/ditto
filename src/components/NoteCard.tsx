@@ -145,6 +145,8 @@ interface ActivityCardProps {
   actorRow: ReactNode;
   /** Optional extra content below the actor row (zap message, vote label, etc.). */
   children?: ReactNode;
+  /** Optional action header rendered above the card body (e.g. "X reposted"). */
+  header?: ReactNode;
   /** Threaded mode: connector line below icon, no bottom border. */
   threaded?: boolean;
   /** Last item in thread — no connector line, has bottom border. */
@@ -160,6 +162,7 @@ export function ActivityCard({
   icon,
   actorRow,
   children,
+  header,
   threaded,
   threadedLast,
   threadedLineClassName,
@@ -180,6 +183,7 @@ export function ActivityCard({
       onClick={onClick}
       onAuxClick={onAuxClick}
     >
+      {header}
       <div className="flex gap-3">
         <div className="flex flex-col items-center">
           {icon}
@@ -904,11 +908,24 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
+  // Repost header — shown above activity-card layouts (reaction/repost/zap/poll vote)
+  // when this event was surfaced via a kind 6 / 16 repost. The normal note layout
+  // renders this inline below; activity-card branches return early so they need it here.
+  const repostHeader = repostedBy ? (
+    <EventActionHeader
+      pubkey={repostedBy}
+      icon={RepostIcon}
+      iconClassName="text-accent"
+      action="reposted"
+    />
+  ) : undefined;
+
   // ── Reaction layout (kind 7) ──
   if (isReaction) {
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
+        header={repostHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
             <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
@@ -929,6 +946,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
+        header={repostHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-accent/10 shrink-0", iconSize)}>
             <RepostIcon className="size-5 text-accent" />
@@ -951,6 +969,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
+        header={repostHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-amber-500/10 shrink-0", iconSize)}>
             <Zap className="size-5 text-amber-500 fill-amber-500" />
@@ -979,6 +998,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
+        header={repostHeader}
         icon={
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
