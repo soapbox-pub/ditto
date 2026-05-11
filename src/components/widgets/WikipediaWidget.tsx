@@ -1,8 +1,8 @@
 import { Star, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { useWikipediaFeatured } from '@/hooks/useWikipediaFeatured';
 import { Skeleton } from '@/components/ui/skeleton';
-import { openUrl } from '@/lib/downloadFile';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
@@ -30,12 +30,13 @@ export function WikipediaWidget() {
 
   const imageUrl = tfa.originalimage?.source ?? tfa.thumbnail?.source;
   const excerpt = tfa.extract.length > 200 ? tfa.extract.slice(0, 200) + '...' : tfa.extract;
+  // Prefer the human-readable title from the API; `tfa.title` uses underscores.
+  const displayTitle = tfa.normalizedtitle ?? tfa.titles?.normalized ?? tfa.title;
   const articleUrl = tfa.content_urls.desktop.page;
 
   return (
-    <button
-      type="button"
-      onClick={() => openUrl(articleUrl)}
+    <Link
+      to={`/i/${encodeURIComponent(articleUrl)}`}
       className="block w-full text-left group"
     >
       {/* Image */}
@@ -43,7 +44,7 @@ export function WikipediaWidget() {
         <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10 mb-2">
           <img
             src={imageUrl}
-            alt={tfa.title}
+            alt={displayTitle}
             className="w-full h-full object-cover"
             loading="lazy"
           />
@@ -55,7 +56,7 @@ export function WikipediaWidget() {
         <div className="flex items-start gap-1.5">
           <Star className="size-3 text-amber-500 shrink-0 mt-0.5" />
           <h3 className="text-sm font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2">
-            {tfa.title}
+            {displayTitle}
           </h3>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
@@ -66,6 +67,6 @@ export function WikipediaWidget() {
           <span>Wikipedia</span>
         </div>
       </div>
-    </button>
+    </Link>
   );
 }
