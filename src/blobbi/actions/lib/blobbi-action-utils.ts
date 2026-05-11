@@ -10,7 +10,7 @@ import { getBlobbiStatDisplayState, type CareState } from '@/blobbi/core/lib/blo
 /**
  * Item-based care actions (use a shop catalog item on the companion)
  */
-export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine';
+export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine' | 'boost';
 
 /**
  * Direct actions that don't use items.
@@ -31,6 +31,7 @@ export const ACTION_TO_ITEM_TYPE: Record<InventoryAction, ShopItemCategory> = {
   play: 'toy',
   clean: 'hygiene',
   medicine: 'medicine',
+  boost: 'energy',
 };
 
 /**
@@ -56,6 +57,11 @@ export const ACTION_METADATA: Record<InventoryAction, { label: string; descripti
     label: 'Medicine',
     description: 'Heal your Blobbi',
     icon: '💊',
+  },
+  boost: {
+    label: 'Boost',
+    description: 'Recharge your Blobbi\'s energy',
+    icon: '⚡',
   },
 };
 
@@ -218,6 +224,14 @@ export function canUseItemForStage(
     return { canUse: true };
   }
 
+  // Energy items: not usable by eggs (egg energy is fixed at 100)
+  if (shopItem.type === 'energy') {
+    if (isEgg) {
+      return { canUse: false, reason: 'Eggs do not need energy boosts' };
+    }
+    return { canUse: true };
+  }
+
   return { canUse: true };
 }
 
@@ -233,6 +247,7 @@ export function getActionForItem(itemId: string): InventoryAction | null {
     toy: 'play',
     hygiene: 'clean',
     medicine: 'medicine',
+    energy: 'boost',
   };
 
   return typeToAction[shopItem.type] ?? null;

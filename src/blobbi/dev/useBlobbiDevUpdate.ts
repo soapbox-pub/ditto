@@ -9,9 +9,11 @@
 
 import { useMutation } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
 import type { BlobbiCompanion, BlobbiStage } from '@/blobbi/core/lib/blobbi';
@@ -33,23 +35,13 @@ interface DevUpdateResult {
   changedFields: string[];
 }
 
-// ─── Content Helper ───────────────────────────────────────────────────────────
-
-/**
- * Generate the content string for a Blobbi at a given stage.
- * Format: "{name} is a {stage} Blobbi."
- */
-function generateBlobbiContent(name: string, stage: BlobbiStage): string {
-  const article = stage === 'egg' ? 'an' : 'a';
-  return `${name} is ${article} ${stage} Blobbi.`;
-}
-
 // ─── Hook Implementation ──────────────────────────────────────────────────────
 
 export function useBlobbiDevUpdate({
   companion,
   updateCompanionEvent,
 }: UseBlobbiDevUpdateParams) {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
@@ -152,12 +144,25 @@ export function useBlobbiDevUpdate({
       tagUpdates.last_interaction = now.toString();
       tagUpdates.last_decay_at = now.toString();
 
-      // ─── Merge Tags ───
-      const newTags = updateBlobbiTags(companion.allTags, tagUpdates);
+      // ─── Fetch Fresh Event ───
+      // Read-modify-write: fetch the latest canonical 31124 from relays
+      // so we don't overwrite concurrent changes (e.g. social consolidation).
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [KIND_BLOBBI_STATE],
+        authors: [user.pubkey],
+        '#d': [companion.d],
+      });
+      const baseTags = prev?.tags ?? companion.allTags;
+      const baseContent = prev?.content ?? companion.event.content;
 
-      // ─── Generate Content ───
+      // ─── Merge Tags ───
+      const newTags = updateBlobbiTags(baseTags, tagUpdates);
+
+      // ─── Preserve Content ───
+      // Content is structured JSON (social_checkpoint, evolution, etc.)
+      // The dev editor only modifies tags — content must pass through unchanged.
       const newStage = updates.stage ?? companion.stage;
-      const content = generateBlobbiContent(companion.name, newStage);
+      const content = baseContent;
 
       // ─── Publish Event ───
       if (import.meta.env.DEV) {
@@ -172,6 +177,7 @@ export function useBlobbiDevUpdate({
         kind: KIND_BLOBBI_STATE,
         content,
         tags: newTags,
+        prev: prev ?? undefined,
       });
 
       // ─── Update Caches ───

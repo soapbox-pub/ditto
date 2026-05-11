@@ -17,13 +17,14 @@ import type { BlobbiAction, InventoryAction, DirectAction } from './blobbi-actio
 // ─── XP Values by Action ──────────────────────────────────────────────────────
 
 /**
- * Base XP values for item-based care actions (feed, play, clean, medicine).
+ * Base XP values for item-based care actions (feed, play, clean, medicine, boost).
  */
 export const INVENTORY_ACTION_XP: Record<InventoryAction, number> = {
   feed: 5,      // Feeding is common and essential - moderate XP
   play: 8,      // Playing toys provides good interaction - higher XP
   clean: 6,     // Hygiene maintenance is important - moderate-high XP
   medicine: 10, // Medicine is critical - highest item XP
+  boost: 7,     // Energy boost is helpful - good XP
 };
 
 /**

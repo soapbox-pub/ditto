@@ -7,7 +7,8 @@ export type ShopItemCategory =
   | 'food' 
   | 'toy' 
   | 'medicine' 
-  | 'hygiene';
+  | 'hygiene'
+  | 'energy';
 
 /**
  * Stat effects that items can apply to Blobbi

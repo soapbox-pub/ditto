@@ -152,8 +152,7 @@ export function AppRouter() {
           <Suspense fallback={null}>
             <BlobbiCompanionLayer />
           </Suspense>
-        </BlobbiActionsProvider>
-        <Routes>
+          <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
 
@@ -300,6 +299,7 @@ export function AppRouter() {
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
+        </BlobbiActionsProvider>
       </BrowserRouter>
     </AudioPlayerProvider>
   );

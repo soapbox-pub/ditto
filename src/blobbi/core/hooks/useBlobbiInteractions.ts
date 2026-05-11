@@ -6,16 +6,13 @@
  * deterministically (ascending created_at, id tie-break) for the
  * selected Blobbi.
  *
- * Checkpoint-aware via `resolveSocialCheckpoint()`: if a valid social
- * checkpoint exists in the 31124 content, only events after that
- * timestamp are fetched. When no valid checkpoint exists (absent,
- * malformed, or incomplete), all available events are fetched without
- * a `since` filter — up to `BLOBBI_INTERACTIONS_LIMIT` (currently 50).
+ * Checkpoint-aware via `resolveSocialCheckpoint()`: clients always apply
+ * a bounded recency window (currently 6 hours). If a valid social checkpoint
+ * exists in the 31124 content and is more recent than the window floor,
+ * that checkpoint is used as the `since` bound instead.
  *
- * V1 limitation: the no-checkpoint fallback still applies a finite
- * relay-side limit of 50 events. This means only the 50 most-recent
- * interactions are fetched, NOT the full history. This is acceptable
- * for V1 read-only projection.
+ * Relay-side fetching is capped by `BLOBBI_INTERACTIONS_LIMIT` (currently 30)
+ * to keep projection and consolidation bounded even for high-volume pets.
  */
 
 import { useMemo } from 'react';
@@ -37,11 +34,22 @@ import {
 /**
  * Maximum number of interaction events to fetch per query.
  *
- * This limit applies in BOTH the checkpoint and no-checkpoint cases.
- * In the no-checkpoint fallback (V1), this means the projection sees
- * at most the 50 most-recent events — not the full history.
+ * Hard relay-side cap regardless of checkpoint state. Combined with the
+ * recency window, this ensures O(30) processing even for high-volume pets.
  */
-const BLOBBI_INTERACTIONS_LIMIT = 50;
+const BLOBBI_INTERACTIONS_LIMIT = 30;
+
+/**
+ * Maximum recency window (in seconds) for social interaction queries.
+ *
+ * Even if the checkpoint is older, we never look back further than this.
+ * Interactions older than 6 hours are considered stale — the Blobbi's stats
+ * will have decayed further since then, making old care less meaningful.
+ *
+ * This is intentional product behavior: social care addresses *current* needs,
+ * not historical backlog.
+ */
+const MAX_SOCIAL_WINDOW_SECONDS = 6 * 60 * 60; // 6 hours
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -90,11 +98,18 @@ export function useBlobbiInteractions(
     queryFn: async ({ signal }) => {
       if (!coordinate) return [];
 
+      // Compute fresh window floor each refetch so long-lived pages don't stale.
+      const now = Math.floor(Date.now() / 1000);
+      const windowFloor = now - MAX_SOCIAL_WINDOW_SECONDS;
+      const since = resolved.valid
+        ? Math.max(resolved.checkpoint.processed_until, windowFloor)
+        : windowFloor;
+
       const filter: NostrFilter = {
         kinds: [KIND_BLOBBI_INTERACTION],
         '#a': [coordinate],
         limit: BLOBBI_INTERACTIONS_LIMIT,
-        ...(resolved.valid ? { since: resolved.checkpoint.processed_until } : {}),
+        since,
       };
 
       const events = await nostr.query([filter], { signal });

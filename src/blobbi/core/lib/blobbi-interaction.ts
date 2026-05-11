@@ -35,7 +35,7 @@ export const KIND_BLOBBI_INTERACTION = 1124;
  * `pet` is intentionally deferred from V1 — it does not map to any current
  * owner flow and will be introduced in a later slice.
  */
-export const INTERACTION_ACTIONS = ['feed', 'play', 'clean', 'medicate'] as const;
+export const INTERACTION_ACTIONS = ['feed', 'play', 'clean', 'medicate', 'boost'] as const;
 export type InteractionAction = typeof INTERACTION_ACTIONS[number];
 
 /**
@@ -47,6 +47,7 @@ export type InteractionAction = typeof INTERACTION_ACTIONS[number];
  * | play            | play        |
  * | clean           | clean       |
  * | medicine        | medicate    |
+ * | boost           | boost       |
  * | play_music      | play        |
  * | sing            | play        |
  *
@@ -58,6 +59,7 @@ export const INTERNAL_TO_INTERACTION_ACTION: Record<string, InteractionAction | 
   play: 'play',
   clean: 'clean',
   medicine: 'medicate',
+  boost: 'boost',
   play_music: 'play',
   sing: 'play',
 };

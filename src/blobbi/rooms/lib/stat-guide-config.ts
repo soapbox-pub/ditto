@@ -64,7 +64,7 @@ export const STAT_GUIDE_ACTION: Partial<Record<keyof BlobbiStats, string>> = {
  */
 const ROOM_CAROUSEL_TYPES: Record<BlobbiRoomId, ShopItemCategory[]> = {
   home:    ['toy'],
-  kitchen: ['food'],
+  kitchen: ['food', 'energy'],
   care:    ['hygiene', 'medicine'],
   rest:    [],
   closet:  [],

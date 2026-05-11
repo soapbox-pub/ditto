@@ -66,6 +66,7 @@ const CATEGORY_TO_PRIMARY_STAT: Record<ShopItemCategory, (keyof BlobbiStats)[]> 
   toy: ['happiness'],
   hygiene: ['hygiene'],
   medicine: ['health'],
+  energy: ['energy'],
 };
 
 // ─── Need Detection Functions ─────────────────────────────────────────────────

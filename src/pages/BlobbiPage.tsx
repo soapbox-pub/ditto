@@ -101,6 +101,7 @@ import {
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
+import { getAllNeeds } from '@/blobbi/companion/interaction/needDetection';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
@@ -1779,6 +1780,7 @@ function BlobbiDashboard({
               {activeDrawer === 'activity' && (
                 <ActivityTabContent
                   companion={companion}
+                  projectedStats={currentStats}
                   socialOpen={companion.socialOpen}
                   onToggleSocial={handleToggleSocial}
                   isSocialToggling={isSocialToggling}
@@ -2234,6 +2236,7 @@ function KitchenBar({
   const poopState = poopStateRef.current;
   const drag = useShovelDrag(poopState);
 
+  // Food items (for drag-to-feed and overfeed logic)
   const foodItems = useMemo(() => {
     const items = getLiveShopItems().filter(i => i.type === 'food');
     return items.map(item => ({
@@ -2242,33 +2245,56 @@ function KitchenBar({
     }));
   }, [currentStats, companion.stage]);
 
-  const foodEntries = useMemo<CarouselEntry[]>(() =>
-    foodItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
-  [foodItems]);
+  // Energy drink item (tap-only, no drag, no overfeed)
+  const energyDrinkItems = useMemo(() => {
+    const items = getLiveShopItems().filter(i => i.id === 'nrg_drink');
+    return items.map(item => ({
+      ...item,
+      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
+    }));
+  }, [currentStats, companion.stage]);
+
+  // Combined items for the fridge grid (food + energy drink)
+  const allKitchenItems = useMemo(() => [...foodItems, ...energyDrinkItems], [foodItems, energyDrinkItems]);
+
+  // Combined carousel entries (food + energy drink)
+  const kitchenEntries = useMemo<CarouselEntry[]>(() =>
+    allKitchenItems.map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+  [allKitchenItems]);
+
+  // Set of food item IDs for quick lookup (overfeed only for these)
+  const foodIdSet = useMemo(() => new Set(foodItems.map(i => i.id)), [foodItems]);
+
+  // All draggable kitchen items (food + energy drink) — used for drag eligibility
+  const ingestibleIdSet = useMemo(
+    () => new Set(allKitchenItems.map(i => i.id)),
+    [allKitchenItems],
+  );
 
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
-  // Current tap-based feed path.
-  // Reuses handleUseItemFromTab and injects the overfeed check first.
-  const handleFeedItem = useCallback((itemId: string) => {
-    const action = getActionForItem(itemId);
-    maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
+  // Unified kitchen item handler: food items get overfeed check, energy items use plain tap.
+  const handleKitchenItem = useCallback((itemId: string) => {
+    if (foodIdSet.has(itemId)) {
+      const action = getActionForItem(itemId);
+      maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
+    }
     handleUseItemFromTab(itemId);
-  }, [companion.stats.hunger, handleUseItemFromTab, poopState]);
+  }, [companion.stats.hunger, handleUseItemFromTab, poopState, foodIdSet]);
 
-  // Build pointer-down handler for food drag-to-feed.
-  // After pointerdown, the drag hook owns the lifecycle via global window
-  // listeners — the carousel button plays no further role.
+  // Build pointer-down handler for ingestible item drag-to-feed.
+  // Engages for all ingestible kitchen items (food + energy drink).
   const centerPointerHandlers = useMemo(() => {
-    if (!foodDragHook || foodEntries.length === 0 || isDisabled) return undefined;
+    if (!foodDragHook || kitchenEntries.length === 0 || isDisabled) return undefined;
     const { onDragStart: start } = foodDragHook;
     return {
       onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => {
-        const rawItem = foodItems.find(i => i.id === entry.id);
+        if (!ingestibleIdSet.has(entry.id)) return;
+        const rawItem = allKitchenItems.find(i => i.id === entry.id);
         start(e, entry.id, rawItem?.icon ?? '🍽');
       },
     };
-  }, [foodDragHook, foodEntries.length, foodItems, isDisabled]);
+  }, [foodDragHook, kitchenEntries.length, allKitchenItems, ingestibleIdSet, isDisabled]);
   return (
     <>
       <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
@@ -2290,12 +2316,12 @@ function KitchenBar({
           </div>
 
           <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
-            {foodItems.map(item => {
+            {allKitchenItems.map(item => {
               const isThisUsing = isUsingItem && usingItemId === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleFeedItem(item.id)}
+                  onClick={() => handleKitchenItem(item.id)}
                   disabled={isDisabled}
                   className={cn(
                     'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
@@ -2340,8 +2366,8 @@ function KitchenBar({
           <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />
           <div className="flex-1 min-w-0 flex justify-center">
             <ItemCarousel
-              items={foodEntries}
-              onUse={handleFeedItem}
+              items={kitchenEntries}
+              onUse={handleKitchenItem}
               activeItemId={isUsingItem ? usingItemId : null}
               disabled={isDisabled}
               highlightId={guideHighlightId}
@@ -2488,8 +2514,11 @@ function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, is
     <>
       <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
-        <div className="flex items-center justify-center">
-          {!isEgg && (
+        <div className="flex items-center justify-between gap-1 sm:gap-3">
+          {/* Left: spacer for visual balance */}
+          <div className="size-14 sm:size-16" />
+          {/* Center: Sleep/Wake */}
+          {!isEgg ? (
             <RoomActionButton
               icon={
                 actionInProgress === 'rest'
@@ -2505,7 +2534,9 @@ function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, is
               disabled={isDisabled}
               glow={guideActionGlow === 'sleep'}
             />
-          )}
+          ) : null}
+          {/* Right: spacer for visual balance */}
+          <div className="size-14 sm:size-16" />
         </div>
       </div>
     </>
@@ -2986,7 +3017,7 @@ function MoreTabContent({
 }
 
 
-// ─── Activity Tab Content ─────────────────────────────────────────────────────
+// ─── Needs Tab Content ────────────────────────────────────────────────────────
 
 /** Action label + emoji for display in the activity list */
 const INTERACTION_ACTION_DISPLAY: Record<string, { label: string; icon: string }> = {
@@ -2994,35 +3025,75 @@ const INTERACTION_ACTION_DISPLAY: Record<string, { label: string; icon: string }
   play: { label: 'Play', icon: '⚽' },
   clean: { label: 'Clean', icon: '🧼' },
   medicate: { label: 'Medicine', icon: '💊' },
+  boost: { label: 'Boost', icon: '⚡' },
+};
+
+/** Stat label + icon for the needs summary */
+const STAT_DISPLAY: Record<string, { label: string; icon: string }> = {
+  hunger: { label: 'Hungry', icon: '🍎' },
+  happiness: { label: 'Unhappy', icon: '⚽' },
+  hygiene: { label: 'Dirty', icon: '🧼' },
+  health: { label: 'Unwell', icon: '💊' },
+  energy: { label: 'Tired', icon: '⚡' },
 };
 
 interface ActivityTabContentProps {
   companion: BlobbiCompanion;
+  projectedStats: BlobbiStats;
   socialOpen: boolean;
   onToggleSocial: (open: boolean) => Promise<void>;
   isSocialToggling: boolean;
   isEgg: boolean;
 }
 
-function ActivityTabContent({ companion, socialOpen, onToggleSocial, isSocialToggling, isEgg }: ActivityTabContentProps) {
-  // Use the history hook: fetches recent interactions WITHOUT checkpoint filtering,
-  // so consumed interactions remain visible in the activity history.
-  const { interactions: allInteractions, isLoading } = useBlobbiActivityHistory(isEgg ? null : companion);
+function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSocial, isSocialToggling, isEgg }: ActivityTabContentProps) {
+  // Fetch recent unconsolidated interactions for the "Recent help" section.
+  const { interactions: recentHelp, isLoading } = useBlobbiActivityHistory(isEgg ? null : companion);
 
-  // Recency rule: if more than 20 interactions available, apply 24h filter.
-  // Otherwise show the most recent ones regardless of age.
-  const displayInteractions = useMemo(() => {
-    if (allInteractions.length <= 20) {
-      return allInteractions;
-    }
-    const cutoff = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
-    return allInteractions.filter((ix) => ix.createdAt >= cutoff).slice(0, 20);
-  }, [allInteractions]);
+  // Compute current needs from projected stats.
+  const needs = useMemo(() => getAllNeeds(projectedStats), [projectedStats]);
 
   const socialToggleId = 'blobbi-social-toggle';
 
   return (
     <div className="px-4 sm:px-6 space-y-4">
+      {/* ─── Needs Now Summary ─── */}
+      {!isEgg && (
+        <div className="rounded-lg border p-3">
+          {needs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center">
+              All good! No needs right now.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Needs now
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {needs.map(({ stat, priority }) => {
+                  const info = STAT_DISPLAY[stat] ?? { label: stat, icon: '?' };
+                  return (
+                    <span
+                      key={stat}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium',
+                        priority === 'critical' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                        priority === 'high' && 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                        priority === 'normal' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+                        priority === 'low' && 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      <span>{info.icon}</span>
+                      <span>{info.label}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── Social Permission Toggle (hidden for eggs) ─── */}
       {isEgg ? (
         <div className="flex items-center gap-2.5 rounded-lg border border-dashed p-3">
@@ -3052,26 +3123,24 @@ function ActivityTabContent({ companion, socialOpen, onToggleSocial, isSocialTog
         </div>
       )}
 
-      {/* ─── Recent Caretakers List ─── */}
+      {/* ─── Recent Help ─── */}
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
-      ) : displayInteractions.length === 0 ? (
+      ) : recentHelp.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-          <Activity className="size-6 mb-2 opacity-40" />
-          <p className="text-sm">No recent activity</p>
+          <Heart className="size-6 mb-2 opacity-40" />
+          <p className="text-sm">No recent help</p>
         </div>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">
-            {allInteractions.length > 20 ? 'Recent caretakers (last 24h)' : 'Recent caretakers'}
-          </p>
-          <div className="space-y-1">
-            {displayInteractions.map((ix) => {
-              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action] ?? { label: ix.action, icon: '❓' };
+          <p className="text-xs text-muted-foreground">Recent help</p>
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {recentHelp.map((ix) => {
+              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action] ?? { label: ix.action, icon: '?' };
               const item = ix.itemId ? getShopItemById(ix.itemId) : undefined;
 
               return (

@@ -523,7 +523,7 @@ Immutable, regular (non-replaceable) event that logs a single interaction with a
 |----------|---------------------------------------------------------------------------------|
 | `a`      | Coordinate of the target Blobbi: `31124:<owner-pubkey>:<blobbi-d-tag>`          |
 | `p`      | Owner pubkey of the target Blobbi                                               |
-| `action` | Interaction action. V1 values: `feed`, `play`, `clean`, `medicate`              |
+| `action` | Interaction action. Values: `feed`, `play`, `clean`, `medicate`, `boost`        |
 | `source` | UI surface that originated the interaction (e.g. `blobbi-page`, `companion`)    |
 
 **Optional tags:**
@@ -534,7 +534,7 @@ Immutable, regular (non-replaceable) event that logs a single interaction with a
 | `item`   | Shop item ID used in the interaction, when applicable              |
 | `client` | Client identifier (added automatically by the publishing hook)     |
 
-**V1 action values:**
+**Action values:**
 
 | Action     | Description                              |
 |------------|------------------------------------------|
@@ -542,6 +542,7 @@ Immutable, regular (non-replaceable) event that logs a single interaction with a
 | `play`     | Playing with the Blobbi (includes music and singing) |
 | `clean`    | Cleaning the Blobbi                      |
 | `medicate` | Administering medicine to the Blobbi     |
+| `boost`    | Recharging the Blobbi's energy           |
 
 The `pet` action is reserved for a future version.
 
@@ -549,7 +550,7 @@ The `pet` action is reserved for a future version.
 
 - Events are processed in ascending `created_at` order with event `id` (hex string comparison) as tie-breaker
 - Cooldown, dedup, and clamping logic live in the projection layer, not at publish time
-- If no social checkpoint exists in the Blobbi's kind 31124 content, clients MUST assume no prior consolidation and fetch all 1124 events without a `since` filter
+- Clients MUST apply a bounded recency window (6 hours) when querying kind 1124 events, regardless of checkpoint state. If a valid checkpoint `processed_until` is more recent than the window floor, clients use the checkpoint as the `since` bound instead. Interactions older than the recency window are considered stale and MUST NOT be projected onto current stats.
 - Owner consolidation writes processed stats back to kind 31124 and advances the checkpoint (stored in the event's `content` JSON). This happens automatically when the owner opens the dashboard.
 - After consolidation, kind 1124 events remain available as history but MUST NOT be re-applied to canonical stats. The checkpoint's `last_event_id` and `processed_until` fields delineate the boundary.
 

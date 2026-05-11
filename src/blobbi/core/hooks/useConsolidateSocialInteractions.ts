@@ -107,8 +107,10 @@ export function useConsolidateSocialInteractions(
       const resolved = resolveSocialCheckpoint(companion);
 
       // ── Step 3: Consolidate interactions onto decayed stats ──
-      // Uses the exact same rules as projection: same dedup, same item
-      // resolution, same effect application, same clamping.
+      // Consumes the full pending batch unconditionally (same rules as
+      // projection: same dedup, same item resolution, same effect
+      // application, same clamping). The checkpoint advances to the
+      // most recent interaction so no leftovers remain.
       const result = consolidateSocialInteractions(
         decayResult.stats,
         interactions,
