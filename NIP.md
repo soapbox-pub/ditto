@@ -493,6 +493,59 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
 
 Each `Mission` is either a **TallyMission** (`{ id, target, count }`) or an **EventMission** (`{ id, target, events: string[] }`) where `events` contains Nostr event IDs that satisfy the mission. Evolution missions are populated when incubation or evolution begins and cleared when the stage transition completes or is cancelled.
 
+#### Kind 11125 `content` JSON — `room_layouts` field
+
+The `content` of kind 11125 MAY include a `room_layouts` field for per-room visual customization:
+
+```json
+{
+  "room_layouts": {
+    "v": 1,
+    "by_room": {
+      "home": {
+        "wall": {
+          "style": "stripes",
+          "palette": ["#2a1f4e", "#3d2d6b"],
+          "variant": "narrow",
+          "angle": 45
+        },
+        "floor": {
+          "style": "wood",
+          "palette": ["#8b5e3c", "#6b4226"],
+          "variant": "medium"
+        }
+      }
+    }
+  }
+}
+```
+
+**Top-level shape:**
+
+| Field     | Type | Description |
+|-----------|------|-------------|
+| `v`       | `1`  | Schema version. MUST be `1`. |
+| `by_room` | `Partial<Record<BlobbiRoomId, RoomLayout>>` | Per-room layouts keyed by room ID. |
+
+**`RoomLayout` shape:** `{ wall: RoomSurfaceLayout, floor: RoomSurfaceLayout }`
+
+**`RoomSurfaceLayout` fields:**
+
+| Field     | Required | Description |
+|-----------|----------|-------------|
+| `style`   | Yes      | Surface style. Walls: `solid`, `stripes`, `dots`, `gradient`. Floors: `solid`, `wood`, `tile`, `carpet`. |
+| `palette` | Yes      | Array of 1–4 hex colors. |
+| `variant` | No       | One of: `soft`, `medium`, `bold`, `wide`, `narrow`. |
+| `angle`   | No       | Pattern rotation in degrees, normalized to 0–359. |
+
+**Hex color validation:** Colors MUST match `/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/` (3, 6, or 8 hex digits with a leading `#`).
+
+**Angle validation:** Angles MUST be finite numbers. Clients normalize by rounding and wrapping into 0–359: `((Math.round(angle) % 360) + 360) % 360`.
+
+**Parser behavior:** Unrecognized room IDs are skipped. Surfaces with an invalid `style` or `palette` cause the entire room entry to be discarded. Invalid `variant` or `angle` values are ignored (treated as absent). The parser never throws — malformed data falls back to defaults. If `v` is not `1`, the entire `room_layouts` object is ignored.
+
+Clients MUST fall back to built-in defaults for any room without a valid layout entry.
+
 #### Kind 1124: Blobbi Social Interaction
 
 Immutable, regular (non-replaceable) event that logs a single interaction with a Blobbi. These events form an append-only interaction log. They do **not** directly mutate the canonical kind 31124 state — the owner's client consolidates pending interactions into canonical stats via a checkpoint-based system.
