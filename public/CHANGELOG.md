@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.14.2] - 2026-05-11
+
+### Added
+- Switch Blobbis straight from the home widget -- a new arrow button below the companion icon opens a popover of all your Blobbis with horizontal scroll, a close button, and accessible labels, so you can flip between them without leaving your feed
+- Two new energy items in the Blobbi shop -- an Energy Drink and a Power Nap Pillow -- plus a "Needs Now" summary in the activity tab that surfaces what your Blobbi is asking for right now, with priority badges
+
+### Changed
+- Visiting friends can only help a Blobbi with stats that are actually in visual distress, so social care goes where it's needed instead of stacking on a Blobbi that's already thriving
+
+### Fixed
+- Caring for a friend's Blobbi reliably triggers the companion's reaction layer again -- the action context is now wired through the Blobbi page so feedback animations land where you tap
+
 ## [2.14.1] - 2026-05-10
 
 ### Added
