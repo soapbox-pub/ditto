@@ -389,7 +389,15 @@ publish-google-play:
 
 publish-app-store:
   stage: publish
-  image: ruby:3.3
+  # Runs on the self-hosted Mac runner, same as build-ipa. fastlane's `deliver`
+  # action shells out to Apple's iTMSTransporter / altool to upload the IPA
+  # binary, and those tools ship inside Xcode. On a generic Linux container
+  # the upload step crashes with `No such file or directory @ dir_chdir0`
+  # because `Helper.itms_path` resolves to a path inside Xcode that doesn't
+  # exist. The IPA is already signed in `build-ipa`; we just need an Apple
+  # tool to push it, which means macOS.
+  tags:
+    - macos
   needs:
     - job: build-ipa
       artifacts: true
@@ -403,7 +411,8 @@ publish-app-store:
     FASTLANE_HIDE_CHANGELOG: "1"
     FASTLANE_SKIP_UPDATE_CHECK: "1"
   before_script:
-    - gem install fastlane --no-document
+    # PATH is set up via ~/.bash_profile on the runner host (brew + Ruby 3.3 + user gems)
+    - ruby --version
     - fastlane --version | head -3
 
     # Decode the App Store Connect API key (.p8) into a private location.
@@ -413,6 +422,9 @@ publish-app-store:
     - export ASC_KEY_PATH="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
     - echo "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 -d > "$ASC_KEY_PATH"
     - chmod 600 "$ASC_KEY_PATH"
+    # Avoid env-var collision: match's APP_STORE_CONNECT_API_KEY_PATH expects
+    # a JSON descriptor; we pass the API key inline via the Fastfile.
+    - unset APP_STORE_CONNECT_API_KEY_PATH || true
   script:
     - test -f artifacts/Ditto.ipa
     - test -f artifacts/release-notes-summary.txt

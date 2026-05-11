@@ -353,7 +353,7 @@ Ditto uses GitLab CI (`.gitlab-ci.yml`) with five stages:
 2. **deploy** — `deploy-nsite` builds and uploads `dist/` to nsite via nsyte (default branch only).
 3. **build** — `build-apk` produces a signed APK and AAB (Linux); `build-ipa` produces a signed IPA on the self-hosted Mac runner; `release-notes` extracts the changelog section + summary paragraph from `CHANGELOG.md`. All three run on tags only.
 4. **release** — creates a GitLab Release with the changelog body and APK / AAB / IPA artifacts (tags only).
-5. **publish** — `publish-zapstore` (APK → Zapstore), `publish-google-play` (AAB → Google Play with the release summary as "What's new"), and `publish-app-store` (IPA → App Store Connect with the release summary as "What's New", runs on a shared Linux runner since the IPA is already signed in `build-ipa`), tags only.
+5. **publish** — `publish-zapstore` (APK → Zapstore), `publish-google-play` (AAB → Google Play with the release summary as "What's new"), and `publish-app-store` (IPA → App Store Connect with the release summary as "What's New", runs on the self-hosted Mac runner because `fastlane deliver` shells out to Apple's iTMSTransporter to push the binary and that tool only exists inside Xcode), tags only.
 
 To cut a release, load the **`release`** skill — it walks through version bumping (`X.Y.Z`), changelog generation, native build-file updates, and tagging/pushing (`vX.Y.Z`) to trigger the CI pipeline.
 

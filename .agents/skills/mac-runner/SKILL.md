@@ -5,7 +5,7 @@ description: Operate the self-hosted GitLab Runner on the Mac that builds Ditto'
 
 # Mac Runner Operations
 
-Ditto's iOS pipeline splits into two CI jobs: `build-ipa` runs on a self-hosted GitLab Runner on a MacBook in the rack (Xcode + signing only run on macOS), and `publish-app-store` runs on a shared Linux runner (no signing — just an Apple API call). This skill covers operating the Mac.
+Ditto's iOS pipeline runs two CI jobs on a self-hosted GitLab Runner on a MacBook in the rack: `build-ipa` (signs and builds the IPA via Xcode + fastlane match) and `publish-app-store` (uploads the IPA via `fastlane deliver`, which shells out to Apple's iTMSTransporter — that tool only ships inside Xcode, so this job can't run on Linux). This skill covers operating the Mac.
 
 This skill covers operating the runner: SSH access, restarting after crashes or Xcode updates, watching logs, debugging fastlane locally, and rotating the match certificates. For initial provisioning, App Store Connect API key creation, and GitLab CI variable setup, load the **`ci-cd-publishing`** skill.
 
@@ -27,7 +27,7 @@ This skill covers operating the runner: SSH access, restarting after crashes or 
 - **User**: `alex` (the runner runs in user-mode so it can access keychain and Xcode UI tooling)
 - **Tooling**: Homebrew (`/opt/homebrew`), `gitlab-runner`, `node@22`, `ruby@3.3`, fastlane installed as a user gem under `~/.gem/ruby/3.3.0/`
 - **Service**: launchd LaunchAgent at `~/Library/LaunchAgents/gitlab-runner.plist`. `KeepAlive=true` (auto-restart on crash) and `RunAtLoad=true` (starts on login). The agent loads when `alex` logs in via auto-login at boot.
-- **Tags**: `macos`, `ios`, `xcode` — only the `build-ipa` job in `.gitlab-ci.yml` targets this runner. The `publish-app-store` job runs on a shared Linux runner (no signing or Xcode needed there — it's a pure Apple API call).
+- **Tags**: `macos`, `ios`, `xcode` — both `build-ipa` and `publish-app-store` in `.gitlab-ci.yml` target this runner. `publish-app-store` doesn't sign anything, but it still needs Xcode's bundled iTMSTransporter to push the IPA to App Store Connect.
 - **Shell setup**: `~/.bash_profile` sources brew shellenv and prepends `~/.gem/ruby/3.3.0/bin` and `/opt/homebrew/opt/ruby@3.3/bin` to `PATH` so `bash --login` (the runner's executor) finds fastlane + ruby 3.3.
 
 ### Why Ruby 3.3, not the brewed 4.0

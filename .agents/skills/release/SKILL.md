@@ -319,7 +319,7 @@ The CI pipeline (`.gitlab-ci.yml`) is triggered by tags matching the pattern `/^
 4. **release**: Creates a GitLab Release with the full changelog section and APK / AAB / IPA download links
 5. **publish-zapstore**: Publishes the APK to Zapstore
 6. **publish-google-play**: Uploads the AAB to Google Play production track and writes the release summary to `metadata/android/en-US/changelogs/<versionCode>.txt`
-7. **publish-app-store**: Submits the prebuilt IPA to App Store Connect for review with the release summary as the "What's New" text (runs on a shared Linux runner; no Xcode needed since the IPA is already built). The build appears in App Store Connect within ~30 minutes; Apple's human review then takes 24-48 hours typically. Once approved, you must release manually in App Store Connect (`automatic_release: false`) — this is the final human gate. For runner operations, match cert rotation, and debugging, load the **`mac-runner`** skill.
+7. **publish-app-store**: Submits the prebuilt IPA to App Store Connect for review with the release summary as the "What's New" text. Runs on the self-hosted Mac runner (`tags: [macos]`) because `fastlane deliver` shells out to Apple's iTMSTransporter to upload the IPA, and that tool only ships inside Xcode — the previous Linux runner crashed at the upload step with `No such file or directory @ dir_chdir0` because `Helper.itms_path` resolved to a missing Xcode path. The build appears in App Store Connect within ~30 minutes; Apple's human review then takes 24-48 hours typically. Once approved, you must release manually in App Store Connect (`automatic_release: false`) — this is the final human gate. For runner operations, match cert rotation, and debugging, load the **`mac-runner`** skill.
 
 ## Troubleshooting
 

@@ -162,9 +162,9 @@ The `publish-google-play` CI job uploads Android AABs to [Google Play](https://p
 Ditto's iOS pipeline is split across two jobs:
 
 - **`build-ipa`** (stage `build`, `tags: [macos]`) runs on the self-hosted Mac runner. Decodes the App Store Connect API key, fetches the encrypted distribution cert + provisioning profile via fastlane match, builds the web assets, runs `cap sync ios`, stamps the marketing version into `project.pbxproj`, then `fastlane build_ipa` produces a signed App Store IPA at `artifacts/Ditto.ipa`. The IPA is uploaded to the GitLab Generic Packages registry as `Ditto-${CI_COMMIT_TAG}.ipa` (mirrors how `build-apk` publishes the APK and AAB) and exposed as a CI artifact for downstream jobs.
-- **`publish-app-store`** (stage `publish`, `image: ruby:3.3` on a shared Linux runner) consumes the IPA artifact via `needs: [build-ipa]` and the release-notes artifact via `needs: [release-notes]`. Installs fastlane via `gem install`, decodes the API key, copies the release-notes summary into `ios/fastlane/metadata/en-US/release_notes.txt`, and runs `fastlane submit_release` which calls `deliver` to upload metadata + select the prebuilt build + auto-submit for App Store review. No Xcode required, no signing in this job — it's just an Apple API call.
+- **`publish-app-store`** (stage `publish`, `tags: [macos]`) also runs on the self-hosted Mac runner. Consumes the IPA artifact via `needs: [build-ipa]` and the release-notes artifact via `needs: [release-notes]`. Decodes the API key, copies the release-notes summary into `ios/fastlane/metadata/en-US/release_notes.txt`, and runs `fastlane submit_release` which calls `deliver` to upload metadata + push the prebuilt IPA + auto-submit for App Store review. **macOS is required** even though the IPA is already signed: `fastlane deliver` shells out to Apple's iTMSTransporter / altool to upload the binary, and those tools only ship inside Xcode. A Linux container ran into `No such file or directory @ dir_chdir0` from `JavaTransporterExecutor#execute` because `Helper.itms_path` resolved to a missing Xcode path.
 
-The Mac runner is therefore only used for `build-ipa`. For runner administration (operating the Mac, restarting the agent, viewing logs, rotating signing certs), load the **`mac-runner`** skill.
+The Mac runner is therefore used for both iOS jobs. For runner administration (operating the Mac, restarting the agent, viewing logs, rotating signing certs), load the **`mac-runner`** skill.
 
 **Configuration files:**
 
@@ -176,7 +176,7 @@ The Mac runner is therefore only used for `build-ipa`. For runner administration
 - `ios/fastlane/Appfile` — bundle identifier and team ID
 - `ios/fastlane/Matchfile` — points at the shared `soapbox-pub/certificates` repo
 - `ios/fastlane/metadata/en-US/release_notes.txt` — placeholder; CI overwrites it with the release summary paragraph from `CHANGELOG.md` per release
-- `.gitlab-ci.yml` — `build-ipa` (Mac runner, `tags: [macos]`) + `publish-app-store` (Linux runner)
+- `.gitlab-ci.yml` — `build-ipa` and `publish-app-store` both run on the Mac runner (`tags: [macos]`)
 
 **Code signing storage**: a private GitLab repo `soapbox-pub/certificates` holds encrypted distribution certs and provisioning profiles, managed by [fastlane match](https://docs.fastlane.tools/actions/match/). Match handles cert/profile lifecycle: one passphrase decrypts everything; the same repo can hold signing material for multiple Soapbox iOS apps under team `GZLTTH5DLM`.
 
@@ -315,12 +315,12 @@ App Store Connect API keys can be revoked anytime. To rotate:
 
 ### Key points
 
-- `build-ipa` (Mac) produces a signed **IPA** (App Store distribution format) and uploads it to GitLab's Generic Packages registry. `publish-app-store` (Linux) submits it to Apple via `deliver`.
+- `build-ipa` (Mac) produces a signed **IPA** (App Store distribution format) and uploads it to GitLab's Generic Packages registry. `publish-app-store` (also Mac) submits it to Apple via `deliver`.
 - Builds go to **App Store Connect**, automatically submit for review, but do **not** auto-release after approval. The final "Release" click is manual in the web UI.
 - Marketing version comes from the git tag (`v2.1.0` → `MARKETING_VERSION = 2.1.0`); build number comes from `CI_PIPELINE_IID`.
 - Release notes ("What's New in This Version") come from the release-notes summary paragraph (see "Release notes pipeline" below).
 - `setup_ci` (in `build-ipa`) creates an ephemeral keychain per build, so the runner never touches the login keychain — works whether or not a GUI session is logged in.
-- `publish-app-store` doesn't sign anything, so it doesn't need macOS or a keychain — pure Apple API call.
+- `publish-app-store` does no code signing, but it still needs macOS: `fastlane deliver` shells out to Apple's iTMSTransporter / altool to upload the binary, and those tools only ship inside Xcode.
 
 ## Release notes pipeline
 
