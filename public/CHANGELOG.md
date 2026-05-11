@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.4] - 2026-05-11
+
+The Wikipedia featured-article card on your home feed now shows article titles cleanly without the underscores, and tapping it opens the article right inside Ditto instead of bouncing you out to a new browser tab.
+
+### Fixed
+- The Wikipedia featured-article widget now shows the article's normalized title (e.g. "Japan Cup" instead of "Japan_Cup") and opens in the in-app article view instead of an external browser tab
+
 ## [2.14.3] - 2026-05-11
 
 A behind-the-scenes maintenance release with no user-facing changes.
