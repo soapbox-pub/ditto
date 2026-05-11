@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.14.1] - 2026-05-10
+
+### Added
+- On-chain zaps now show up in your notifications alongside Lightning zaps, with the same header, sats label, and bolt icon -- and the Zaps notification toggle controls both at once
+
+### Changed
+- Stacked avatars in follow lists, follow sets, and follow packs are now clickable -- tap any face to jump straight to that person's profile, with a visible focus ring for keyboard navigation
+- Follow list links now point to the live, stable list instead of a frozen revision, so you always see the latest version when you open one from a feed
+
+### Fixed
+- When someone reposts a reaction, zap, repost, or poll vote, the "X reposted" attribution now shows above the activity card instead of being silently dropped
+
 ## [2.14.0] - 2026-05-09
 
 ### Added
