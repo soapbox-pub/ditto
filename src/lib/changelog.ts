@@ -5,6 +5,13 @@ type ChangelogCategory = 'Added' | 'Changed' | 'Deprecated' | 'Removed' | 'Fixed
 interface ChangelogEntry {
   version: string;
   date: string;
+  /**
+   * Optional plaintext summary paragraph that appears before any `### Category`
+   * heading. Used as the release blurb on the App Store, Play Store, and the
+   * in-app version-update toast. Convention is a single paragraph of at most
+   * 500 characters.
+   */
+  summary?: string;
   sections: {
     category: ChangelogCategory;
     items: string[];
@@ -27,11 +34,21 @@ function parseChangelog(markdown: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
   let current: ChangelogEntry | null = null;
   let currentCategory: ChangelogCategory | null = null;
+  /** Buffer for lines that are part of the summary paragraph (pre-section text). */
+  let summaryLines: string[] = [];
+
+  const flushSummary = () => {
+    if (current && summaryLines.length) {
+      current.summary = summaryLines.join(' ');
+    }
+    summaryLines = [];
+  };
 
   for (const line of markdown.split('\n')) {
     // Match version heading: ## [X.Y.Z] - YYYY-MM-DD
     const versionMatch = line.match(/^## \[([^\]]+)\]\s*-\s*(.+)$/);
     if (versionMatch) {
+      flushSummary();
       current = { version: versionMatch[1], date: versionMatch[2].trim(), sections: [] };
       entries.push(current);
       currentCategory = null;
@@ -41,6 +58,7 @@ function parseChangelog(markdown: string): ChangelogEntry[] {
     // Match category heading: ### Added, ### Changed, etc.
     const categoryMatch = line.match(/^### (.+)$/);
     if (categoryMatch && current) {
+      flushSummary();
       currentCategory = categoryMatch[1].trim() as ChangelogCategory;
       current.sections.push({ category: currentCategory, items: [] });
       continue;
@@ -53,27 +71,30 @@ function parseChangelog(markdown: string): ChangelogEntry[] {
       if (section) {
         section.items.push(prettify(itemMatch[1]));
       } else {
-        // Item without a category heading — treat as "Changed"
+        // Bullet appearing before any category heading — flush any summary
+        // buffer and treat the bullet as a "Changed" entry. (Backward compat
+        // for legacy entries that opened straight into bullets.)
+        flushSummary();
         current.sections.push({ category: 'Changed', items: [prettify(itemMatch[1])] });
       }
       continue;
     }
 
-    // Lines that don't start with "- " but aren't blank may be a continuation or
-    // freeform text after the version heading (e.g. "Initial release of Ditto 2.0").
+    // Non-blank, non-bullet, non-heading lines.
     const trimmed = line.trim();
     if (trimmed && current && !trimmed.startsWith('#')) {
       const section = current.sections[current.sections.length - 1];
       if (section) {
-        // Append to last item or add new item
+        // Continuation of the current bullet section.
         section.items.push(prettify(trimmed));
       } else {
-        // Freeform text under version with no category — store in a generic section
-        current.sections.push({ category: 'Changed', items: [prettify(trimmed)] });
+        // Pre-section freeform text — accumulate as the summary paragraph.
+        summaryLines.push(trimmed);
       }
     }
   }
 
+  flushSummary();
   return entries;
 }
 

@@ -153,7 +153,8 @@ The `publish-google-play` CI job uploads Android AABs to [Google Play](https://p
 
 - The job uploads the signed **AAB** (not APK) — Google Play requires App Bundles.
 - Uploads go directly to the **production** track. Google's review process still applies before the update reaches users.
-- Metadata, screenshots, and changelogs are managed in the Play Console, not via CI (the job uses `--skip_upload_metadata` etc.).
+- Metadata, screenshots, and store-listing description are managed in the Play Console (the job uses `--skip_upload_metadata`, `--skip_upload_images`, `--skip_upload_screenshots`).
+- **Changelogs ("What's new in this version")** are uploaded from `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`, generated at CI time from the release summary paragraph in `CHANGELOG.md`. See "Release notes pipeline" below.
 - The same signing keystore used for Zapstore is reused here (`ANDROID_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`).
 
 ## App Store Publishing
@@ -161,7 +162,7 @@ The `publish-google-play` CI job uploads Android AABs to [Google Play](https://p
 Ditto's iOS pipeline is split across two jobs:
 
 - **`build-ipa`** (stage `build`, `tags: [macos]`) runs on the self-hosted Mac runner. Decodes the App Store Connect API key, fetches the encrypted distribution cert + provisioning profile via fastlane match, builds the web assets, runs `cap sync ios`, stamps the marketing version into `project.pbxproj`, then `fastlane build_ipa` produces a signed App Store IPA at `artifacts/Ditto.ipa`. The IPA is uploaded to the GitLab Generic Packages registry as `Ditto-${CI_COMMIT_TAG}.ipa` (mirrors how `build-apk` publishes the APK and AAB) and exposed as a CI artifact for downstream jobs.
-- **`publish-app-store`** (stage `publish`, `image: ruby:3.3` on a shared Linux runner) consumes the IPA artifact via `needs: [build-ipa]`. Installs fastlane via `gem install`, decodes the API key, extracts the changelog section for the tag into `release_notes.txt`, and runs `fastlane submit_release` which calls `deliver` to upload metadata + select the prebuilt build + auto-submit for App Store review. No Xcode required, no signing in this job — it's just an Apple API call.
+- **`publish-app-store`** (stage `publish`, `image: ruby:3.3` on a shared Linux runner) consumes the IPA artifact via `needs: [build-ipa]` and the release-notes artifact via `needs: [release-notes]`. Installs fastlane via `gem install`, decodes the API key, copies the release-notes summary into `ios/fastlane/metadata/en-US/release_notes.txt`, and runs `fastlane submit_release` which calls `deliver` to upload metadata + select the prebuilt build + auto-submit for App Store review. No Xcode required, no signing in this job — it's just an Apple API call.
 
 The Mac runner is therefore only used for `build-ipa`. For runner administration (operating the Mac, restarting the agent, viewing logs, rotating signing certs), load the **`mac-runner`** skill.
 
@@ -174,7 +175,7 @@ The Mac runner is therefore only used for `build-ipa`. For runner administration
   - `submit_only` — debug lane that skips build/upload and only runs deliver against an already-uploaded build (set `BUILD_NUMBER` + `VERSION` env vars). See the `mac-runner` skill.
 - `ios/fastlane/Appfile` — bundle identifier and team ID
 - `ios/fastlane/Matchfile` — points at the shared `soapbox-pub/certificates` repo
-- `ios/fastlane/metadata/en-US/release_notes.txt` — placeholder; CI overwrites it from `CHANGELOG.md` per release
+- `ios/fastlane/metadata/en-US/release_notes.txt` — placeholder; CI overwrites it with the release summary paragraph from `CHANGELOG.md` per release
 - `.gitlab-ci.yml` — `build-ipa` (Mac runner, `tags: [macos]`) + `publish-app-store` (Linux runner)
 
 **Code signing storage**: a private GitLab repo `soapbox-pub/certificates` holds encrypted distribution certs and provisioning profiles, managed by [fastlane match](https://docs.fastlane.tools/actions/match/). Match handles cert/profile lifecycle: one passphrase decrypts everything; the same repo can hold signing material for multiple Soapbox iOS apps under team `GZLTTH5DLM`.
@@ -183,7 +184,7 @@ The Mac runner is therefore only used for `build-ipa`. For runner administration
 
 **Distribution**: `submit_for_review: true` automatically pushes the build into Apple's review queue once uploaded. `automatic_release: false` keeps a human-controlled final gate — once Apple approves, you click "Release" in the App Store Connect web UI to publish to users. To remove the manual gate, flip `automatic_release` to `true` in `ios/fastlane/Fastfile`.
 
-**Release notes**: extracted from `CHANGELOG.md` per tag using the same `awk` extraction as the GitLab `release` job, written to `ios/fastlane/metadata/en-US/release_notes.txt`, uploaded by `deliver` as the App Store "What's New in This Version" text.
+**Release notes**: copied from the `release-notes` job's artifact `artifacts/release-notes-summary.txt` (the leading plaintext paragraph of the version's `CHANGELOG.md` section) into `ios/fastlane/metadata/en-US/release_notes.txt`, uploaded by `deliver` as the App Store "What's New in This Version" text. See "Release notes pipeline" below.
 
 **IPA distribution beyond the App Store**: `build-ipa` uploads the signed IPA to the GitLab Generic Packages registry, and the `release` job links it from the GitLab Release page. The IPA is signed with the App Store distribution profile, so it isn't directly sideloadable — installation goes through Apple's review process — but having it as a stable artifact lays the groundwork for AltStore or ad-hoc distribution later (which would require a separate provisioning profile).
 
@@ -317,6 +318,33 @@ App Store Connect API keys can be revoked anytime. To rotate:
 - `build-ipa` (Mac) produces a signed **IPA** (App Store distribution format) and uploads it to GitLab's Generic Packages registry. `publish-app-store` (Linux) submits it to Apple via `deliver`.
 - Builds go to **App Store Connect**, automatically submit for review, but do **not** auto-release after approval. The final "Release" click is manual in the web UI.
 - Marketing version comes from the git tag (`v2.1.0` → `MARKETING_VERSION = 2.1.0`); build number comes from `CI_PIPELINE_IID`.
-- Release notes ("What's New in This Version") are auto-extracted from `CHANGELOG.md` and uploaded by `deliver`.
+- Release notes ("What's New in This Version") come from the release-notes summary paragraph (see "Release notes pipeline" below).
 - `setup_ci` (in `build-ipa`) creates an ephemeral keychain per build, so the runner never touches the login keychain — works whether or not a GUI session is logged in.
 - `publish-app-store` doesn't sign anything, so it doesn't need macOS or a keychain — pure Apple API call.
+
+## Release notes pipeline
+
+Release notes for all three storefronts (App Store, Google Play, GitLab Release page) and the in-app version-update toast are derived from a single source: `CHANGELOG.md`.
+
+**The `release-notes` job** (stage `build`, default `node:22` image, runs only on `v*` tags) calls `scripts/extract-release-notes.mjs` twice and publishes two artifacts:
+
+- `artifacts/release-notes.md` — the full section for this version (summary paragraph + `### Added` / `### Changed` / etc. lists). Used as the GitLab Release description.
+- `artifacts/release-notes-summary.txt` — only the leading plaintext paragraph (max 500 chars by convention). Used as the App Store / Play Store "What's new" text. Falls back to `Ditto vX.Y.Z` if the section has no summary paragraph.
+
+**Downstream consumers** all pull from the `release-notes` job via `needs:`:
+
+| Consumer | Job | Artifact used |
+|---|---|---|
+| GitLab Release description | `release` | `release-notes.md` |
+| App Store "What's New" | `publish-app-store` | `release-notes-summary.txt` → copied to `ios/fastlane/metadata/en-US/release_notes.txt` → uploaded by `deliver` |
+| Play Store "What's new" | `publish-google-play` | `release-notes-summary.txt` → copied to `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` → uploaded by `supply` |
+| In-app toast | `src/components/VersionCheck.tsx` (runtime) | Re-parses `public/CHANGELOG.md` via `parseChangelog()` and reads `entry.summary` (with a fallback to the legacy first-bullet behavior) |
+
+**The summary format** is documented in the `release` skill — a single plaintext paragraph immediately under the `## [X.Y.Z] - YYYY-MM-DD` heading, before any `### Category`. The script enforces nothing on the parser side; CI emits a warning when the summary exceeds 500 chars but does not fail the build.
+
+**To preview locally** what each storefront will receive:
+
+```bash
+node scripts/extract-release-notes.mjs vX.Y.Z              # full GitLab Release body
+node scripts/extract-release-notes.mjs vX.Y.Z --summary    # storefront blurb
+```

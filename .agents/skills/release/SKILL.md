@@ -87,6 +87,8 @@ Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading
 ```markdown
 ## [X.Y.Z] - YYYY-MM-DD
 
+A short single-paragraph summary of this release written in plain prose -- max 500 characters. This appears on the App Store, Google Play, and the in-app "what's new" toast.
+
 ### Added
 - Description of new features
 
@@ -99,6 +101,24 @@ Prepend a new section to `CHANGELOG.md` directly below the `# Changelog` heading
 ### Removed
 - Description of removed features
 ```
+
+#### The Summary Paragraph
+
+Every release section MUST start with a single plaintext paragraph (not a bullet, not a heading) that summarises the release for app-store-style audiences:
+
+- **Single paragraph, plain prose.** No bullets, no headings, no Markdown formatting beyond plain text.
+- **Max ~500 characters.** Apple App Store and Google Play both cap "What's new" text at 500. The CI `release-notes` job warns when the summary is longer.
+- **Audience: end users discovering the update.** Describe the most noticeable user-visible changes; omit internal cleanups even if they're in the bullets below.
+- **Tone matches the bullets.** Present-tense, no Nostr jargon, no NIP/kind numbers (see Rules below).
+- **Maintenance releases** -- write a one-sentence summary like `A behind-the-scenes maintenance release with no user-facing changes.` Don't leave it blank; the CI fallback `Ditto vX.Y.Z` is a last resort for legacy entries, not new ones.
+
+The same paragraph is used in three places automatically:
+- **App Store** -- "What's New in This Version" via fastlane `deliver`
+- **Google Play** -- "What's new in this version" via fastlane `supply` `metadata/android/<lang>/changelogs/<versionCode>.txt`
+- **In-app toast** -- the `What's new in vX.Y.Z` toast that fires when users load a new version (see `src/components/VersionCheck.tsx`)
+- The full section (summary + lists) goes into the GitLab Release description.
+
+Extraction is handled by `scripts/extract-release-notes.mjs`; you don't have to write store-specific copy.
 
 #### Changelog Quality Checklist
 
@@ -266,10 +286,11 @@ git push origin main vX.Y.Z
 This triggers the GitLab CI pipeline which will:
 1. Build a signed Android APK and AAB
 2. Build a signed iOS IPA on the self-hosted Mac runner
-3. Create a GitLab Release with APK / AAB / IPA download links
-4. Publish the APK to Zapstore
-5. Publish the AAB to Google Play (production track)
-6. Submit the iOS IPA to App Store Connect for review
+3. Extract release notes (full body + summary paragraph) from `CHANGELOG.md`
+4. Create a GitLab Release with APK / AAB / IPA download links
+5. Publish the APK to Zapstore
+6. Publish the AAB to Google Play (production track) with the summary as the "What's new" text
+7. Submit the iOS IPA to App Store Connect for review with the summary as the "What's New" text
 
 ### Step 12: Confirm
 
@@ -290,14 +311,15 @@ After pushing, inform the user:
 
 ## CI Pipeline
 
-The CI pipeline (`.gitlab-ci.yml`) is triggered by tags matching the pattern `/^v\d+\.\d+\.\d+$/` (e.g., `v2.1.0`). It runs six jobs:
+The CI pipeline (`.gitlab-ci.yml`) is triggered by tags matching the pattern `/^v\d+\.\d+\.\d+$/` (e.g., `v2.1.0`). It runs seven jobs:
 
 1. **build-apk**: Builds signed Android APK and AAB, stamps `versionName` and `versionCode` into the build
 2. **build-ipa**: Builds the signed App Store IPA on the self-hosted Mac runner (`tags: [macos]`); stamps `MARKETING_VERSION` and `CFBundleVersion` into the Xcode project. The IPA is uploaded to GitLab's Generic Packages registry and exposed as a CI artifact for downstream jobs
-3. **release**: Creates a GitLab Release with the changelog content and APK / AAB / IPA download links
-4. **publish-zapstore**: Publishes the APK to Zapstore
-5. **publish-google-play**: Uploads the AAB to Google Play production track
-6. **publish-app-store**: Submits the prebuilt IPA to App Store Connect for review (runs on a shared Linux runner; no Xcode needed since the IPA is already built). The build appears in App Store Connect within ~30 minutes; Apple's human review then takes 24-48 hours typically. Once approved, you must release manually in App Store Connect (`automatic_release: false`) — this is the final human gate. For runner operations, match cert rotation, and debugging, load the **`mac-runner`** skill.
+3. **release-notes**: Extracts the version's changelog section and summary paragraph from `CHANGELOG.md` into two artifacts (`release-notes.md` and `release-notes-summary.txt`) consumed by `release`, `publish-app-store`, and `publish-google-play`
+4. **release**: Creates a GitLab Release with the full changelog section and APK / AAB / IPA download links
+5. **publish-zapstore**: Publishes the APK to Zapstore
+6. **publish-google-play**: Uploads the AAB to Google Play production track and writes the release summary to `metadata/android/en-US/changelogs/<versionCode>.txt`
+7. **publish-app-store**: Submits the prebuilt IPA to App Store Connect for review with the release summary as the "What's New" text (runs on a shared Linux runner; no Xcode needed since the IPA is already built). The build appears in App Store Connect within ~30 minutes; Apple's human review then takes 24-48 hours typically. Once approved, you must release manually in App Store Connect (`automatic_release: false`) — this is the final human gate. For runner operations, match cert rotation, and debugging, load the **`mac-runner`** skill.
 
 ## Troubleshooting
 

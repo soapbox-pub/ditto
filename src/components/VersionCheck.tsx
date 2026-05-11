@@ -7,7 +7,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { parseChangelog } from '@/lib/changelog';
 import { getStorageKey } from '@/lib/storageKey';
 
-/** Fetch the first changelog item for the given version (or the latest entry). */
+/** Fetch the release blurb for the given version: prefer the section summary, fall back to the first bullet. */
 async function fetchChangelogExcerpt(version: string): Promise<string | undefined> {
   try {
     const res = await fetch('/CHANGELOG.md');
@@ -19,7 +19,10 @@ async function fetchChangelogExcerpt(version: string): Promise<string | undefine
     const entry = entries.find((e) => e.version === version) ?? entries[0];
     if (!entry) return undefined;
 
-    // Return a truncated first item from the first section.
+    // Prefer the explicit summary paragraph if the changelog entry has one.
+    if (entry.summary) return entry.summary;
+
+    // Legacy fallback: a truncated first item from the first section.
     const item = entry.sections[0]?.items[0];
     if (!item) return undefined;
     if (item.length <= 60) return item;

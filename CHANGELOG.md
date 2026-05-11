@@ -2,10 +2,14 @@
 
 ## [2.14.3] - 2026-05-11
 
+A behind-the-scenes maintenance release with no user-facing changes.
+
 ### Changed
 - Behind-the-scenes maintenance release. No user-facing changes.
 
 ## [2.14.2] - 2026-05-11
+
+Your Blobbi gets some attention this release. Switch between Blobbis without leaving the home widget, find new energy items and a "Needs Now" summary in the shop, and visit friends knowing your help only lands where it's actually needed. Also fixes a missed reaction animation when you care for a friend's Blobbi.
 
 ### Added
 - Switch Blobbis straight from the home widget -- a new arrow button below the companion icon opens a popover of all your Blobbis with horizontal scroll, a close button, and accessible labels, so you can flip between them without leaving your feed
@@ -18,6 +22,8 @@
 - Caring for a friend's Blobbi reliably triggers the companion's reaction layer again -- the action context is now wired through the Blobbi page so feedback animations land where you tap
 
 ## [2.14.1] - 2026-05-10
+
+On-chain zaps now appear in your notifications next to Lightning zaps, stacked avatars across follow lists are tappable so you can jump straight to a profile, follow lists always show their latest version, and the "X reposted" header shows up properly when reactions, zaps, reposts, or poll votes are reposted.
 
 ### Added
 - On-chain zaps now show up in your notifications alongside Lightning zaps, with the same header, sats label, and bolt icon -- and the Zaps notification toggle controls both at once

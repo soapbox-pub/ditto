@@ -1,1 +1,1 @@
-Placeholder. CI overwrites this file with the latest CHANGELOG.md section per release.
+Placeholder. CI overwrites this file with the release summary paragraph from CHANGELOG.md (the leading plaintext paragraph in the section for the current version).

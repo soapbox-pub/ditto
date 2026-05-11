@@ -140,6 +140,11 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
           style={!expanded && overflows ? { maxHeight: ENTRY_MAX_HEIGHT, overflow: 'hidden' } : undefined}
           className="space-y-2.5"
         >
+          {entry.summary && (
+            <li className="text-base text-foreground/90 leading-relaxed">
+              {entry.summary}
+            </li>
+          )}
           {entry.sections.flatMap((section) => {
             const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
             const Icon = style.icon;
@@ -223,6 +228,11 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
           style={!expanded && overflows ? { maxHeight: ENTRY_MAX_HEIGHT, overflow: 'hidden' } : undefined}
           className="px-4 py-3 space-y-2.5"
         >
+          {entry.summary && (
+            <li className="text-sm text-foreground/90 leading-relaxed">
+              {entry.summary}
+            </li>
+          )}
           {entry.sections.flatMap((section) => {
             const style = CATEGORY_STYLES[section.category] ?? CATEGORY_STYLES.Changed;
             const Icon = style.icon;
