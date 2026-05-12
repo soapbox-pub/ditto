@@ -7,6 +7,7 @@ import { useCallback, useMemo } from 'react';
 import { useAuthor } from './useAuthor.ts';
 import { signerWithNudge } from '@/lib/signerWithNudge';
 import { NSecSignerBtc, NBrowserSignerBtc, NConnectSignerBtc } from '@/lib/bitcoin-signers';
+import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 
 export function useCurrentUser() {
   const { nostr } = useNostr();
@@ -50,6 +51,11 @@ export function useCurrentUser() {
       case 'extension': // Nostr login with NIP-07 browser extension — use BTC-extended signer
         user = new NUser(login.type, login.pubkey, new NBrowserSignerBtc());
         break;
+      case 'x-android-signer': { // Native Android signer app (Amber, etc.) via nostr-signer-capacitor-plugin
+        const { packageName } = login.data as { packageName: string };
+        user = new NUser(login.type, login.pubkey, new AndroidNativeSigner(packageName, login.pubkey));
+        break;
+      }
       // Other login types can be defined here
       default:
         throw new Error(`Unsupported login type: ${login.type}`);

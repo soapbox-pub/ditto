@@ -17,6 +17,7 @@ dependencies {
     implementation project(':capacitor-share')
     implementation project(':capgo-capacitor-autofill-save-password')
     implementation project(':capacitor-secure-storage-plugin')
+    implementation project(':nostr-signer-capacitor-plugin')
 
 }
 

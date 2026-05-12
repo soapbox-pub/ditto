@@ -25,3 +25,6 @@ project(':capgo-capacitor-autofill-save-password').projectDir = new File('../nod
 
 include ':capacitor-secure-storage-plugin'
 project(':capacitor-secure-storage-plugin').projectDir = new File('../node_modules/capacitor-secure-storage-plugin/android')
+
+include ':nostr-signer-capacitor-plugin'
+project(':nostr-signer-capacitor-plugin').projectDir = new File('../node_modules/nostr-signer-capacitor-plugin/android')

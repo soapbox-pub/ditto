@@ -22,6 +22,7 @@ import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
+import { AndroidSignerOptions } from './AndroidSignerOptions';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -552,6 +553,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
               </button>
             </p>
           )}
+
+          {/* Android signer apps (Amber, etc.) — only renders on Capacitor Android */}
+          <AndroidSignerOptions onLogin={() => { onLogin(); onClose(); }} />
 
           {/* Extension Login Button - shown if extension is available */}
           {hasExtension && (
