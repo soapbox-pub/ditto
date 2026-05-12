@@ -156,18 +156,16 @@ export function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
-/** Fetch the current BTC price in USD from the CoinGecko API. */
+/** Fetch the current BTC price in USD from the mempool.space API. */
 export async function fetchBtcPrice(): Promise<number> {
-  const response = await fetch(
-    'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
-  );
+  const response = await fetch(`${MEMPOOL_API}/v1/prices`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch BTC price');
   }
 
   const data = await response.json();
-  return data.bitcoin.usd;
+  return data.USD;
 }
 
 /** Convert a BTC amount to satoshis (rounded to nearest integer). */

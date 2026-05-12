@@ -99,7 +99,7 @@ All Bitcoin data is fetched from the public [mempool.space](https://mempool.spac
 | `GET https://mempool.space/api/address/{address}/txs` | Transaction history for an address |
 | `GET https://mempool.space/api/tx/{txid}` | Full transaction detail (inputs, outputs, fee, block) |
 
-The wallet page polls balance and transaction data every 30 seconds. BTC/USD price is fetched from CoinGecko every 60 seconds.
+The wallet page polls balance and transaction data every 30 seconds. BTC/USD price is fetched from mempool.space every 60 seconds.
 
 ## NIP-73 Integration
 
