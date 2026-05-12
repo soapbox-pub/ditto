@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 100" fill="none">
+  <!-- Hanger strings -->
+  <line x1="35" y1="0" x2="25" y2="30" stroke="#8b7355" stroke-width="2"/>
+  <line x1="35" y1="0" x2="45" y2="30" stroke="#8b7355" stroke-width="2"/>
+  <!-- Pot -->
+  <path d="M20 30 L23 55 H47 L50 30 Z" fill="#c2703a"/>
+  <rect x="18" y="28" width="34" height="5" rx="2" fill="#a05828"/>
+  <!-- Trailing vines -->
+  <path d="M25 55 Q20 70 25 80 Q30 90 25 100" stroke="#4a8c3f" stroke-width="2.5" fill="none"/>
+  <path d="M45 55 Q50 68 45 78 Q40 88 45 98" stroke="#5a9e4b" stroke-width="2.5" fill="none"/>
+  <path d="M35 55 Q32 72 35 85 Q38 95 35 100" stroke="#4a8c3f" stroke-width="2" fill="none"/>
+  <!-- Leaves on vines -->
+  <ellipse cx="23" cy="72" rx="5" ry="3" fill="#5a9e4b" transform="rotate(-20 23 72)"/>
+  <ellipse cx="47" cy="68" rx="5" ry="3" fill="#4a8c3f" transform="rotate(15 47 68)"/>
+  <ellipse cx="33" cy="78" rx="4" ry="3" fill="#6ab55a" transform="rotate(-10 33 78)"/>
+</svg>

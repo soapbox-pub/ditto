@@ -19,6 +19,8 @@ import {
   getPreviousRoom,
   getRoomIndex,
 } from '../lib/room-config';
+import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
+import { RoomFurnitureLayer } from './RoomFurnitureLayer';
 import {
   generateInitialPoops,
   addPoop as addPoopInstance,
@@ -28,6 +30,8 @@ import {
 import { type RoomLayout, ROOM_FLOOR_RATIO } from '../lib/room-layout-schema';
 import { getSurfaceBackground } from '../lib/room-surface-background';
 import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE } from '../lib/room-layout';
+import { ROOM_ASPECT_RATIO } from '../lib/room-geometry';
+import { ArcBackground } from '@/components/ArcBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +81,8 @@ interface BlobbiRoomShellProps {
   roomLayout?: RoomLayout;
   /** Optional editor trigger rendered top-right corner of the room. */
   editorSlot?: React.ReactNode;
+  /** Optional editor trigger rendered top-left corner of the room. */
+  editorSlotLeft?: React.ReactNode;
   /**
    * Optional editor overlay — rendered as a direct child of the shell so
    * `absolute inset-0` covers only the room area, not sidebars.
@@ -84,12 +90,41 @@ interface BlobbiRoomShellProps {
   editorOverlay?: React.ReactNode;
   /** Whether the top HUD (room header + stats) is visible. Hide when drawer is open. */
   hudVisible?: boolean;
+  /** Effective furniture placements for the current room (decorative, render-only). */
+  furniturePlacements?: FurniturePlacement[];
+  /** Ref to the shell root element — used by furniture drag to measure room bounds. */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Whether the furniture editor is active (makes items interactive). */
+  isFurnitureEditing?: boolean;
+  /** Index of the selected furniture item (editing mode). */
+  furnitureSelectedIndex?: number | null;
+  /** Called when a furniture item is tapped in editing mode. */
+  onFurnitureSelect?: (index: number | null) => void;
+  /** Called when a furniture item is dragged to a new position. */
+  onFurnitureMove?: (index: number, x: number, y: number) => void;
+  /** Active layer for furniture visual emphasis (editing mode only). */
+  furnitureActiveLayer?: FurnitureLayer;
+  /** Called when empty room space is clicked in furniture editing mode. */
+  onFurnitureBackgroundClick?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /** Minimum horizontal swipe distance (px) to trigger room change */
 const SWIPE_THRESHOLD = 50;
+
+/**
+ * Top inset for the coordinate canvas within the shell.
+ *
+ * Matches the old shell-level `top-14` (56px) visual offset that placed HUD
+ * controls below the natural SubHeaderBar height (~32px) + ARC_OVERHANG_PX
+ * (20px) + 4px breathing room.
+ *
+ * The bottom inset uses the CSS variable --blobbi-room-dock-height (defined in
+ * index.css) which resolves responsively to match the actual dock height on
+ * mobile (with bottom-nav + safe-area) and desktop.
+ */
+const ROOM_CANVAS_INSET_TOP = 56;
 
 export function BlobbiRoomShell({
   roomId,
@@ -108,8 +143,17 @@ export function BlobbiRoomShell({
   guideRoomDirection,
   roomLayout,
   editorSlot,
+  editorSlotLeft,
   editorOverlay,
   hudVisible = true,
+  furniturePlacements,
+  containerRef,
+  isFurnitureEditing,
+  furnitureSelectedIndex,
+  onFurnitureSelect,
+  onFurnitureMove,
+  furnitureActiveLayer,
+  onFurnitureBackgroundClick,
 }: BlobbiRoomShellProps) {
   const goLeft = useCallback(() => {
     onChangeRoom(getPreviousRoom(roomId, roomOrder));
@@ -138,13 +182,14 @@ export function BlobbiRoomShell({
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
+    if (isFurnitureEditing) { touchStartX.current = null; return; }
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
     impactLight();
     if (dx > 0) goLeft();
     else goRight();
-  }, [touchStartX, goLeft, goRight]);
+  }, [touchStartX, goLeft, goRight, isFurnitureEditing]);
 
   // ─── Poop system (ephemeral) ───
   const [poops, setPoops] = useState<PoopInstance[]>([]);
@@ -191,150 +236,236 @@ export function BlobbiRoomShell({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Room background layers (decorative, behind all content) */}
-      {roomLayout && (
-        <>
-          {wallBackground && (
+      {/* ═══════════════════════════════════════════════════════════════════════
+          COORDINATE CANVAS — fixed aspect-ratio room surface.
+          Contains: backgrounds, furniture, Blobbi, nav arrows, sleep overlay,
+          room header/HUD, and editor triggers for visual cohesion.
+          containerRef lives here so furniture drag normalizes against this rect.
+          Absolutely positioned and centered; pointer-events-none by default so
+          page controls below remain interactive. Interactive elements inside
+          use pointer-events-auto explicitly.
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        ref={containerRef}
+        className={cn(
+          'absolute inset-x-0 mx-auto pointer-events-none',
+          isFurnitureEditing && 'ring-2 ring-primary/30 rounded-sm',
+        )}
+        style={{
+          aspectRatio: `${ROOM_ASPECT_RATIO}`,
+          width: '100%',
+          maxWidth: '100%',
+          top: ROOM_CANVAS_INSET_TOP,
+          maxHeight: `calc(100% - ${ROOM_CANVAS_INSET_TOP}px - var(--blobbi-room-dock-height))`,
+        }}
+      >
+        {/* Room background layers (decorative, behind all content).
+            Wall bleeds above the canvas to fill the SubHeaderBar gap;
+            clipped by DashboardShell's overflow-hidden. */}
+        {roomLayout && (
+          <>
+            {wallBackground && (
+              <div
+                className="absolute inset-x-0"
+                style={{
+                  top: -(ROOM_CANVAS_INSET_TOP + 4),
+                  background: wallBackground,
+                  bottom: `${ROOM_FLOOR_RATIO * 100}%`,
+                }}
+                aria-hidden
+              />
+            )}
+            {floorBackground && (
+              <div
+                className="absolute inset-x-0 bottom-0"
+                style={{ background: floorBackground, top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
+                aria-hidden
+              />
+            )}
+            {/* Baseboard — shadow/highlight pair at wall/floor boundary */}
             <div
-              className="absolute inset-x-0 top-0 pointer-events-none"
-              style={{ background: wallBackground, bottom: `${ROOM_FLOOR_RATIO * 100}%` }}
+              className="absolute inset-x-0 z-[1] flex flex-col"
+              style={{ top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
+              aria-hidden
+            >
+              <div className="h-px bg-foreground/10" />
+              <div className="h-0.5 bg-background/15" />
+            </div>
+            {/* Floor depth — subtle top shadow on the floor area */}
+            <div
+              className="absolute inset-x-0 h-3 z-[1]"
+              style={{
+                top: `${(1 - ROOM_FLOOR_RATIO) * 100}%`,
+                background: 'linear-gradient(to bottom, hsl(var(--foreground) / 0.06), transparent)',
+              }}
               aria-hidden
             />
-          )}
-          {floorBackground && (
-            <div
-              className="absolute inset-x-0 bottom-0 pointer-events-none"
-              style={{ background: floorBackground, top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
-              aria-hidden
-            />
-          )}
-          {/* Baseboard — shadow/highlight pair at wall/floor boundary */}
+          </>
+        )}
+
+        {/* Ambient floor — extends the canvas floor color below the canvas
+            boundary to visually ground the bottom dock. Positioned at the
+            floor line with a large height that bleeds below the canvas
+            (clipped by DashboardShell's overflow-hidden). Sits behind
+            furniture (no z-index) so it doesn't cover canvas floor details. */}
+        {floorBackground && (
           <div
-            className="absolute inset-x-0 pointer-events-none z-[1] flex flex-col"
-            style={{ top: `${(1 - ROOM_FLOOR_RATIO) * 100}%` }}
-            aria-hidden
-          >
-            <div className="h-px bg-foreground/10" />
-            <div className="h-0.5 bg-background/15" />
-          </div>
-          {/* Floor depth — subtle top shadow on the floor area */}
-          <div
-            className="absolute inset-x-0 h-3 pointer-events-none z-[1]"
-            style={{
-              top: `${(1 - ROOM_FLOOR_RATIO) * 100}%`,
-              background: 'linear-gradient(to bottom, hsl(var(--foreground) / 0.06), transparent)',
-            }}
+            className="absolute inset-x-0 pointer-events-none"
+            style={{ top: `${(1 - ROOM_FLOOR_RATIO) * 100}%`, height: '80%', background: floorBackground }}
             aria-hidden
           />
-        </>
-      )}
+        )}
 
-      {/* Stage overlay — Blobbi visual anchored to the shell's ground line */}
-      {stageOverlay && (
-        <div className="absolute inset-0 z-10 pointer-events-none">
-          {stageOverlay}
-        </div>
-      )}
+        {/* Furniture layer — three z-stacked sublayers (back/floor/front) */}
+        <RoomFurnitureLayer
+          placements={furniturePlacements}
+          isEditing={isFurnitureEditing}
+          selectedIndex={furnitureSelectedIndex}
+          onSelectItem={onFurnitureSelect}
+          onMoveItem={onFurnitureMove}
+          containerRef={containerRef}
+          activeLayer={furnitureActiveLayer}
+          onBackgroundClick={onFurnitureBackgroundClick}
+        />
 
-      {/* Room header — icon + label + dot indicator, below tab bar */}
-      <div className={cn(
-        'absolute top-14 inset-x-0 z-30 flex flex-col items-center pointer-events-none gap-2 transition-opacity duration-200',
-        !hudVisible && 'opacity-0 pointer-events-none',
-      )}>
-        <div className="pointer-events-auto flex flex-col items-center gap-0.5 py-1 px-3 rounded-full bg-background/60 backdrop-blur-sm">
-          <div className="flex items-center gap-1.5">
-            <roomMeta.icon className="size-3.5 text-foreground/50" />
-            <span className="text-xs font-semibold text-foreground/60">{roomMeta.label}</span>
+        {/* Stage overlay — Blobbi visual anchored to the canvas ground line */}
+        {stageOverlay && (
+          <div className={cn(
+            'absolute inset-0 z-10 transition-opacity duration-300',
+            isFurnitureEditing && 'opacity-30',
+          )}>
+            {stageOverlay}
           </div>
-          <div className="flex items-center gap-1">
-            {roomOrder.map((id, i) => (
-              <div
-                key={id}
-                className={cn(
-                  'rounded-full transition-all duration-300',
-                  i === roomIndex ? 'w-3 h-1 bg-primary' : 'w-1 h-1 bg-muted-foreground/20',
-                )}
-              />
-            ))}
+        )}
+
+        {/* Sleep overlay */}
+        {isSleeping && (
+          <div
+            className="absolute inset-0 z-20 transition-opacity duration-700"
+            style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.45) 100%)' }}
+          />
+        )}
+
+        {/* Navigation arrows — attached to canvas edges */}
+        <button
+          onClick={goLeft}
+          disabled={isFurnitureEditing}
+          className={cn(
+            'group absolute left-1 top-1/2 -translate-y-1/2 z-40 pointer-events-auto',
+            'flex items-center justify-center',
+            'size-10 sm:size-12 rounded-full',
+            ROOM_CONTROL_SURFACE_SUBTLE,
+            'text-foreground/70 hover:text-foreground hover:bg-background/85',
+            'transition-all duration-200 active:scale-90',
+            'cursor-pointer select-none',
+            guideRoomDirection === 'left' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
+            isFurnitureEditing && 'opacity-20 pointer-events-none',
+          )}
+          aria-label={`Go to ${leftDest.label}`}
+        >
+          <ChevronLeft
+            className="size-7 sm:size-8 shrink-0"
+            strokeWidth={4}
+            style={guideRoomDirection !== 'left' ? { animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties : undefined}
+          />
+        </button>
+
+        <button
+          onClick={goRight}
+          disabled={isFurnitureEditing}
+          className={cn(
+            'group absolute right-1 top-1/2 -translate-y-1/2 z-40 pointer-events-auto',
+            'flex items-center justify-center',
+            'size-10 sm:size-12 rounded-full',
+            ROOM_CONTROL_SURFACE_SUBTLE,
+            'text-foreground/70 hover:text-foreground hover:bg-background/85',
+            'transition-all duration-200 active:scale-90',
+            'cursor-pointer select-none',
+            guideRoomDirection === 'right' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
+            isFurnitureEditing && 'opacity-20 pointer-events-none',
+          )}
+          aria-label={`Go to ${rightDest.label}`}
+        >
+          <ChevronRight
+            className="size-7 sm:size-8 shrink-0"
+            strokeWidth={4}
+            style={guideRoomDirection !== 'right' ? { animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties : undefined}
+          />
+        </button>
+
+        {/* Room header + status HUD — inside canvas for visual cohesion */}
+        <div className={cn(
+          'absolute top-3 inset-x-0 z-30 flex flex-col items-center pointer-events-none gap-2 transition-opacity duration-200',
+          !hudVisible && 'opacity-0',
+          isFurnitureEditing && 'opacity-30',
+        )}>
+          <div className="pointer-events-auto flex flex-col items-center gap-0.5 py-1 px-3 rounded-full bg-background/60 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5">
+              <roomMeta.icon className="size-3.5 text-foreground/50" />
+              <span className="text-xs font-semibold text-foreground/60">{roomMeta.label}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {roomOrder.map((id, i) => (
+                <div
+                  key={id}
+                  className={cn(
+                    'rounded-full transition-all duration-300',
+                    i === roomIndex ? 'w-3 h-1 bg-primary' : 'w-1 h-1 bg-muted-foreground/20',
+                  )}
+                />
+              ))}
+            </div>
           </div>
+          {/* Stats HUD row */}
+          {statusHud && (
+            <div className="pointer-events-auto">
+              {statusHud}
+            </div>
+          )}
         </div>
-        {/* Stats HUD row */}
-        {statusHud && (
-          <div className="pointer-events-auto">
-            {statusHud}
+
+        {/* Room editor trigger (upper-right) */}
+        {editorSlot && (
+          <div className={cn(
+            'absolute top-3 right-3 z-[55] pointer-events-auto transition-opacity duration-200',
+            !hudVisible && 'opacity-0 pointer-events-none',
+            isFurnitureEditing && 'opacity-0 pointer-events-none',
+          )}>
+            {editorSlot}
+          </div>
+        )}
+
+        {/* Left editor trigger (upper-left) */}
+        {editorSlotLeft && (
+          <div className={cn(
+            'absolute top-3 left-3 z-[55] pointer-events-auto transition-opacity duration-200',
+            !hudVisible && 'opacity-0 pointer-events-none',
+            isFurnitureEditing && 'opacity-0 pointer-events-none',
+          )}>
+            {editorSlotLeft}
           </div>
         )}
       </div>
 
-      {/* Room content */}
-      <div className="flex-1 min-h-0 flex flex-col relative">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          PAGE-LEVEL FLOW — full-width flex column for hero + bottom bar.
+          Sits above canvas visually via z-index; hero is a flex spacer that
+          pushes carousels/bottom bar to the bottom of the page.
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className={cn(
+        'flex-1 min-h-0 flex flex-col relative z-[15] transition-opacity duration-200',
+        isFurnitureEditing && 'opacity-30 pointer-events-none',
+      )}>
         {hero}
         {middleSlot}
-        {children}
+        {/* Bottom dock — frosted bar over ambient floor background */}
+        <div className="relative">
+          <ArcBackground variant="up-subtle" />
+          {children}
+        </div>
       </div>
 
-      {/* Room editor trigger (upper-right, below tab bar overlay) */}
-      {editorSlot && (
-        <div className={cn(
-          'absolute top-14 right-3 z-[55] transition-opacity duration-200',
-          !hudVisible && 'opacity-0 pointer-events-none',
-        )}>
-          {editorSlot}
-        </div>
-      )}
-
-      {/* Sleep overlay */}
-      {isSleeping && (
-        <div
-          className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-700"
-          style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.45) 100%)' }}
-        />
-      )}
-
-      {/* Navigation arrows */}
-      <button
-        onClick={goLeft}
-        className={cn(
-          'group absolute left-1 top-1/2 -translate-y-1/2 z-40',
-          'flex items-center justify-center',
-          'size-10 sm:size-12 rounded-full',
-          ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-foreground/70 hover:text-foreground hover:bg-background/85',
-          'transition-all duration-200 active:scale-90',
-          'cursor-pointer select-none',
-          guideRoomDirection === 'left' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
-        )}
-        aria-label={`Go to ${leftDest.label}`}
-      >
-        <ChevronLeft
-          className="size-7 sm:size-8 shrink-0"
-          strokeWidth={4}
-          style={guideRoomDirection !== 'left' ? { animation: 'room-arrow-nudge-left 2.5s ease-in-out infinite' } as CSSProperties : undefined}
-        />
-      </button>
-
-      <button
-        onClick={goRight}
-        className={cn(
-          'group absolute right-1 top-1/2 -translate-y-1/2 z-40',
-          'flex items-center justify-center',
-          'size-10 sm:size-12 rounded-full',
-          ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-foreground/70 hover:text-foreground hover:bg-background/85',
-          'transition-all duration-200 active:scale-90',
-          'cursor-pointer select-none',
-          guideRoomDirection === 'right' && [ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE],
-        )}
-        aria-label={`Go to ${rightDest.label}`}
-      >
-        <ChevronRight
-          className="size-7 sm:size-8 shrink-0"
-          strokeWidth={4}
-          style={guideRoomDirection !== 'right' ? { animation: 'room-arrow-nudge-right 2.5s ease-in-out infinite' } as CSSProperties : undefined}
-        />
-      </button>
-
-      {/* Editor overlay — absolute to the shell, covers only this column */}
+      {/* Editor overlay — page-level, covers full shell area */}
       {editorOverlay}
     </div>
   );

@@ -123,7 +123,7 @@ export function ItemCarousel({
 
   if (count === 0) {
     return (
-      <div className={cn('flex items-center justify-center h-[4.5rem] sm:h-[5.5rem]', className)}>
+      <div className={cn('flex items-center justify-center h-12 sm:h-14', className)}>
         <p className="text-xs text-muted-foreground/50">Nothing here yet</p>
       </div>
     );

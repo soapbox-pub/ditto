@@ -10,11 +10,20 @@
     /* Mobile chrome dimensions — referenced by layout utility classes below */
     --top-bar-height: 2.5rem;   /* MobileTopBar h-10 = 40px */
     --bottom-nav-height: 2.75rem; /* MobileBottomNav h-11 = 44px */
+    /* Blobbi room canvas: vertical space reserved for the bottom dock */
+    --blobbi-room-dock-height: 82px; /* Desktop: pt-2.5 + carousel(48) + pb-6(24) */
   }
 
   .dark {
     --success: 142 60% 22%;
     --success-foreground: 138 60% 94%;
+  }
+
+  /* Mobile: Blobbi room dock includes bottom-nav clearance + safe-area */
+  @media (max-width: 899px) {
+    :root {
+      --blobbi-room-dock-height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 74px);
+    }
   }
 }
 
@@ -991,5 +1000,13 @@
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ── Furniture editor hold progress ───────────────────────────────────────── */
+
+@keyframes furniture-hold-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
 }
 

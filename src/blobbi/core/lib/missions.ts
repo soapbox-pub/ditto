@@ -67,6 +67,7 @@ export interface MissionsContent {
 export interface ProfileContent {
   missions?: MissionsContent;
   room_layouts?: import('@/blobbi/rooms/lib/room-layout-schema').RoomLayoutsContent;
+  room_furniture?: import('@/blobbi/rooms/lib/room-furniture-schema').RoomFurnitureContent;
 }
 
 // ─── Evolution Missions (kind 31124) ─────────────────────────────────────────

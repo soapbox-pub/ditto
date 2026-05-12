@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- 1. Sombra integrada seguindo a base da cama -->
+  <ellipse cx="80" cy="100" rx="68" ry="7" fill="#000" opacity="0.12" />
+
+  <!-- 2. Base/Borda Externa em formato de concha mais achatada -->
+  <path
+    d="M8 76
+       C8 56, 32 46, 80 46
+       C128 46, 152 56, 152 76
+       C152 98, 122 106, 80 106
+       C38 106, 8 98, 8 76 Z"
+    fill="#6d4c41"
+    stroke="#4e342e"
+    stroke-width="2"
+  />
+
+  <!-- 3. Detalhes de gomos seguindo a concha -->
+  <g stroke="#4e342e" stroke-width="1" opacity="0.3" fill="none">
+    <path d="M28 62 Q20 76 30 92" />
+    <path d="M55 50 Q48 76 58 100" />
+    <path d="M80 46 Q78 76 80 106" />
+    <path d="M105 50 Q112 76 102 100" />
+    <path d="M132 62 Q140 76 130 92" />
+  </g>
+
+  <!-- 4. Almofada Interna em formato encaixado mais achatado -->
+  <path
+    d="M25 73
+       C25 61, 44 56, 80 56
+       C116 56, 135 61, 135 73
+       C135 85, 112 92, 80 92
+       C48 92, 25 85, 25 73 Z"
+    fill="#d7ccc8"
+    stroke="#a1887f"
+    stroke-width="1"
+  />
+
+  <!-- 5. Brilho de Volume Central -->
+  <ellipse cx="80" cy="70" rx="35" ry="8" fill="#ffffff" opacity="0.5" />
+
+  <!-- 6. Etiqueta Frontal -->
+  <rect x="70" y="96" width="20" height="8" rx="2" fill="#a1887f" />
+
+  <!-- 7. Patinhas Decorativas -->
+  <g fill="#ffffff" opacity="0.5">
+    <circle cx="18" cy="82" r="4" /> 
+    <circle cx="13" cy="76" r="2" />
+    <circle cx="18" cy="73" r="2" />
+    <circle cx="23" cy="76" r="2" />
+    
+    <circle cx="142" cy="82" r="4" /> 
+    <circle cx="137" cy="76" r="2" />
+    <circle cx="142" cy="73" r="2" />
+    <circle cx="147" cy="76" r="2" />
+  </g>
+</svg>

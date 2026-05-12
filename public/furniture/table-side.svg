@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 100" fill="none">
+  <!-- Table top -->
+  <rect x="5" y="35" width="80" height="8" rx="3" fill="#a07040"/>
+  <!-- Legs -->
+  <rect x="15" y="43" width="6" height="55" rx="2" fill="#8c5e30"/>
+  <rect x="69" y="43" width="6" height="55" rx="2" fill="#8c5e30"/>
+  <!-- Shelf -->
+  <rect x="15" y="70" width="60" height="5" rx="2" fill="#b08050"/>
+</svg>

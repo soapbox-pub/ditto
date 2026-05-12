@@ -1,7 +1,8 @@
 /**
  * RoomActionButton — Unified circular action button for room bottom bars.
  *
- * Responsive: size-14/size-20 circle, size-7/size-9 icons.
+ * Responsive: size-10/size-14 circle, size-5/size-6 icons.
+ * Hover: soft glow (brightness + drop-shadow), no scale/translate.
  */
 
 import { forwardRef } from 'react';
@@ -54,8 +55,8 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       className={cn(
-        'flex flex-col items-center gap-1 transition-all duration-300 ease-out shrink-0',
-        'hover:-translate-y-1 hover:scale-110 active:scale-95',
+        'flex flex-col items-center gap-1 transition-all duration-300 ease-out shrink-0 translate-y-1',
+        'active:scale-95',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
@@ -72,7 +73,7 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
             backgroundImage: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
           }}
         >
-          {loading ? <Loader2 className="size-7 sm:size-9 animate-spin" /> : icon}
+          {loading ? <Loader2 className="size-5 sm:size-6 animate-spin" /> : <span className="[&>svg]:size-5 sm:[&>svg]:size-6">{icon}</span>}
         </div>
         {badge && <div className="absolute -top-0.5 -right-0.5">{badge}</div>}
       </div>
