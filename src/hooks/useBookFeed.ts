@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
+import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { BOOKSTR_KINDS, isBookEvent } from '@/lib/bookstr';
 
 const PAGE_SIZE = 20;
@@ -13,20 +14,22 @@ export function useBookFeed(tab: 'follows' | 'global' = 'global') {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  const { excludeMuted, mutedKey } = useMutedAuthorFilter();
 
   // For follows tab, wait until follow list is loaded
   const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
   return useInfiniteQuery({
-    queryKey: ['book-feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
+    queryKey: ['book-feed', tab, user?.pubkey ?? '', followList?.length ?? 0, mutedKey],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
       const baseUntil = pageParam as number | undefined;
 
-      // For follows tab, build the authors list
+      // For follows tab, build the authors list (excluding muted pubkeys)
       let authors: string[] | undefined;
       if (tab === 'follows' && user && followList) {
-        authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+        const filtered = excludeMuted(followList);
+        authors = filtered.length > 0 ? [...filtered, user.pubkey] : [user.pubkey];
       }
 
       // Build filters — query multiple filters in one request for efficiency

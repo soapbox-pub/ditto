@@ -11,6 +11,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInbox, useSentLetters } from '@/hooks/useLetters';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { PageHeader } from '@/components/PageHeader';
@@ -50,10 +51,12 @@ export function LettersPage() {
   const { prefs } = useLetterPreferences();
   const followListData = useFollowList();
   const followedPubkeys = followListData.data?.pubkeys;
+  const { excludeMuted } = useMutedAuthorFilter();
 
   // If friendsOnlyInbox is enabled, only show letters from followed users
+  // (minus any muted pubkeys — viewer's mute list always wins).
   const inboxFilter = prefs.friendsOnlyInbox && followedPubkeys
-    ? followedPubkeys
+    ? excludeMuted(followedPubkeys)
     : undefined;
 
   const inboxQuery = useInbox(inboxFilter);

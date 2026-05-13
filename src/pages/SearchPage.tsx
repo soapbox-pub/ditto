@@ -40,6 +40,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 
@@ -343,6 +344,13 @@ export function SearchPage() {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followPubkeys = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
+  // Follow scope subtracts muted authors so the viewer's mute list applies
+  // to search results filtered by "My follows".
+  const { excludeMuted } = useMutedAuthorFilter();
+  const followPubkeysMinusMuted = useMemo(
+    () => excludeMuted(followPubkeys),
+    [followPubkeys, excludeMuted],
+  );
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
@@ -397,7 +405,7 @@ export function SearchPage() {
 
   // Resolve author pubkeys for the stream
   const streamAuthorPubkeys = authorScope === 'follows'
-    ? followPubkeys
+    ? followPubkeysMinusMuted
     : authorScope === 'people' && authorPubkeys.length > 0
       ? authorPubkeys
       : undefined;

@@ -4,6 +4,7 @@ import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
+import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
@@ -48,6 +49,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  // Subtract muted pubkeys from the `authors` filter so muted posts never
+  // cross the wire. Render-layer mute filters remain as defense in depth
+  // (e.g. posts authored by an unmuted user that embed/mention a muted one).
+  const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
 
   // Build the full kinds list from user settings, or use the override.
@@ -87,7 +92,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -242,9 +247,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
       } else if (tab === 'follows' && user && followList !== undefined) {
-        // Follows feed — posts, reposts, and extra kinds from people you follow
-        // If followList is empty, just query own posts
-        const authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+        // Follows feed — posts, reposts, and extra kinds from people you follow,
+        // minus anyone you've also muted (mute wins, no wasted bandwidth).
+        const filteredFollows = excludeMuted(followList);
+        // If followList is empty (or fully muted), just query own posts
+        const authors = filteredFollows.length > 0 ? [...filteredFollows, user.pubkey] : [user.pubkey];
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
         const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: fetchLimit, ...tagFilters };
         if (pageParam) {

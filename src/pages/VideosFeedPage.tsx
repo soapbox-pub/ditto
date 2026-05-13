@@ -42,6 +42,7 @@ import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useFollowList } from "@/hooks/useFollowActions";
 import { useMuteList } from "@/hooks/useMuteList";
+import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
@@ -417,25 +418,28 @@ function useClassifiedStreams(tab: FeedTab): {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followedPubkeys = followData?.pubkeys;
+  const { mutedPubkeys, excludeMuted } = useMutedAuthorFilter();
 
   const { data: allEvents, isLoading } = useAllStreams();
 
   const classified = useMemo<ClassifiedStreams>(() => {
     if (tab === "global") return classifyStreams(allEvents);
 
-    // Follows tab — filter to followed authors + self, client-side.
+    // Follows tab — filter to followed authors + self (minus muted), client-side.
     // Check both the event publisher AND p-tag participants, because
     // streaming services (e.g. streamstr.net) publish kind 30311 on behalf
     // of the streamer, who appears in a p tag with role "host".
     if (!followedPubkeys || !user) return { live: [], planned: [], past: [] };
-    const authorSet = new Set([...followedPubkeys, user.pubkey]);
+    const filteredFollows = excludeMuted(followedPubkeys);
+    const authorSet = new Set([...filteredFollows, user.pubkey]);
     return classifyStreams(
       allEvents.filter((e) => {
+        if (mutedPubkeys.has(e.pubkey)) return false;
         if (authorSet.has(e.pubkey)) return true;
         return e.tags.some(([name, pk]) => name === "p" && authorSet.has(pk));
       }),
     );
-  }, [allEvents, tab, followedPubkeys, user]);
+  }, [allEvents, tab, followedPubkeys, user, mutedPubkeys, excludeMuted]);
 
   return { data: classified, isLoading };
 }

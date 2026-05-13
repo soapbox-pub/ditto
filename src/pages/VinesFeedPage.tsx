@@ -36,6 +36,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDeleteEvent } from "@/hooks/useDeleteEvent";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useFollowList } from "@/hooks/useFollowActions";
+import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
@@ -87,6 +88,7 @@ function useVinesFeed(tab: FeedTab) {
 	const { nostr } = useNostr();
 	const { user } = useCurrentUser();
 	const { data: followData } = useFollowList();
+	const { excludeMuted, mutedKey } = useMutedAuthorFilter();
 
 	// For follows tab: finite query filtered by authors
 	const followsQuery = useQuery<NostrEvent[]>({
@@ -94,11 +96,13 @@ function useVinesFeed(tab: FeedTab) {
 			"vines-follows",
 			user?.pubkey ?? "",
 			followData?.pubkeys?.join(",") ?? "",
+			mutedKey,
 		],
 		queryFn: async ({ signal }) => {
 			if (!user) return [];
-			const authors = followData?.pubkeys?.length
-				? [...followData.pubkeys, user.pubkey]
+			const filtered = excludeMuted(followData?.pubkeys ?? []);
+			const authors = filtered.length
+				? [...filtered, user.pubkey]
 				: [user.pubkey];
 			const events = await nostr.query(
 				[{ kinds: [VINE_KIND], authors, limit: 40 }],

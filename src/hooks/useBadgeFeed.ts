@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
+import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY } from '@/lib/badgeUtils';
 import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
 
@@ -15,6 +16,7 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  const { excludeMuted, mutedKey } = useMutedAuthorFilter();
 
   // When logged out, fetch the Team Soapbox follow pack to use as the authors filter.
   const { data: packPubkeys } = useQuery({
@@ -44,15 +46,17 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
   const authorsKey = authorsList ? [...authorsList].sort().join(',') : '';
 
   return useInfiniteQuery({
-    queryKey: ['badge-feed', tab, user?.pubkey ?? '', authorsKey],
+    queryKey: ['badge-feed', tab, user?.pubkey ?? '', authorsKey, mutedKey],
     queryFn: async ({ pageParam, signal }) => {
       const baseUntil = pageParam as number | undefined;
 
-      // Build the authors list from follows (logged in) or pack members (logged out)
+      // Build the authors list from follows (logged in) or pack members (logged out).
+      // For logged-in users, subtract muted pubkeys so a follow+mute combo wins.
       let authors: string[] | undefined;
       if (tab === 'follows') {
         if (user && followList) {
-          authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+          const filtered = excludeMuted(followList);
+          authors = filtered.length > 0 ? [...filtered, user.pubkey] : [user.pubkey];
         } else if (!user && packPubkeys && packPubkeys.length > 0) {
           authors = packPubkeys;
         }

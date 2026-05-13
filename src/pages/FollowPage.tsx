@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { nip19 } from 'nostr-tools';
 import { UserPlus, Loader2, CheckCircle2 } from 'lucide-react';
-import { useNostr } from '@nostrify/react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -19,11 +18,10 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useToast } from '@/hooks/useToast';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useProfileFeed, filterByTab } from '@/hooks/useProfileFeed';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parsePackEvent } from '@/lib/packUtils';
 import { PeopleListFeedTab, MemberCard, MemberCardSkeleton } from '@/components/PeopleListDetailContent';
+import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
 import { genUserName } from '@/lib/genUserName';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { DittoLogo } from '@/components/DittoLogo';
@@ -357,17 +355,13 @@ type PackTab = 'feed' | 'members';
 
 function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] }) {
   const { data: event, isLoading: eventLoading } = useAddrEvent(addr, relays);
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { data: followList } = useFollowList();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { startSignup } = useOnboarding();
   const [loginOpen, setLoginOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PackTab>('feed');
-  const [isFollowingAll, setIsFollowingAll] = useState(false);
 
   const author = useAuthor(addr.pubkey);
   const authorMeta = author.data?.metadata;
@@ -389,54 +383,6 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
   const newCount = pubkeys.length - followingCount;
 
   const bannerUrl = image || authorMeta?.banner;
-
-  /** Follow All using fetch-fresh -> modify -> publish pattern. */
-  const handleFollowAll = useCallback(async () => {
-    if (!user) return;
-    setIsFollowingAll(true);
-    try {
-      // 1. Fetch freshest kind 3 from relays (not cache)
-      const prev = await fetchFreshEvent(nostr, {
-        kinds: [3],
-        authors: [user.pubkey],
-      });
-
-      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-      const existingPTags = prev?.tags.filter(([n]) => n === 'p') ?? [];
-      const nonPTags = prev?.tags.filter(([n]) => n !== 'p') ?? [];
-      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-      // 3. Merge: add new pubkeys that aren't already followed
-      const newPTags = pubkeys
-        .filter((pk) => !existingPubkeys.has(pk))
-        .map((pk) => ['p', pk]);
-      const added = newPTags.length;
-
-      // 4. Publish with prev for published_at preservation
-      await publishEvent({
-        kind: 3,
-        content: prev?.content ?? '',
-        tags: [...nonPTags, ...existingPTags, ...newPTags],
-        prev: prev ?? undefined,
-      });
-
-      toast({
-        title: allFollowed ? 'Already following all!' : 'Following all!',
-        description: added > 0
-          ? `Added ${added} new account${added !== 1 ? 's' : ''} to your follow list.`
-          : 'You were already following everyone in this pack.',
-      });
-    } catch (error) {
-      console.error('Failed to follow all:', error);
-      toast({
-        title: 'Failed to follow',
-        description: 'There was an error updating your follow list.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsFollowingAll(false);
-    }
-  }, [user, pubkeys, nostr, publishEvent, toast, allFollowed]);
 
   if (eventLoading) {
     return (
@@ -540,31 +486,39 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
                   <UserPlus className="size-5" />
                   Follow {pubkeys.length} people on {config.appName}
                 </Button>
-              ) : isFollowingAll ? (
-                <Button disabled className="w-full rounded-full py-3 text-base font-semibold gap-2" size="lg">
-                  <Loader2 className="size-5 animate-spin" />
-                  Following...
-                </Button>
               ) : allFollowed ? (
                 <div className="text-center space-y-3">
                   <div className="flex items-center justify-center gap-2 text-primary">
                     <CheckCircle2 className="size-5" />
                     <p className="font-semibold">Following all {pubkeys.length} people</p>
                   </div>
-                  <Button variant="secondary" className="rounded-full w-full" onClick={() => navigate('/feed')}>
-                    Go to feed
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      variant="secondary"
+                      className="rounded-full flex-1"
+                      onClick={() => navigate('/feed')}
+                    >
+                      Go to feed
+                    </Button>
+                  </div>
+                  <FollowAllSplitButton
+                    pubkeys={pubkeys}
+                    followedPubkeys={followedPubkeys}
+                    listNoun="this pack"
+                    followedVariant="outline"
+                    className="w-full"
+                    size="sm"
+                  />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Button
-                    onClick={handleFollowAll}
-                    className="w-full rounded-full py-3 text-base font-semibold gap-2"
+                  <FollowAllSplitButton
+                    pubkeys={pubkeys}
+                    followedPubkeys={followedPubkeys}
+                    listNoun="this pack"
                     size="lg"
-                  >
-                    <UserPlus className="size-5" />
-                    Follow All ({pubkeys.length})
-                  </Button>
+                    className="w-full"
+                  />
                   {followingCount > 0 && (
                     <p className="text-center text-sm text-muted-foreground">
                       Already following {followingCount} of {pubkeys.length}

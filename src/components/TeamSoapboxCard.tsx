@@ -1,6 +1,6 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserPlus, Check, Loader2, Heart } from 'lucide-react';
+import { Users, Heart } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -9,12 +9,9 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNostr } from '@nostrify/react';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { useAuthors } from '@/hooks/useAuthors';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useToast } from '@/hooks/useToast';
+import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
 import { genUserName } from '@/lib/genUserName';
 import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
 
@@ -25,14 +22,10 @@ import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
  */
 export function TeamSoapboxCard({ className }: { className?: string }) {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { toast } = useToast();
 
   const [event, setEvent] = useState<NostrEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isFollowingAll, setIsFollowingAll] = useState(false);
 
   // Fetch the pack event
   useEffect(() => {
@@ -72,61 +65,12 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
   const { data: membersMap } = useAuthors(previewPubkeys);
 
   const followedPubkeys = useMemo(() => new Set(followList?.pubkeys ?? []), [followList]);
-  const newPubkeys = useMemo(
-    () => pubkeys.filter((pk) => !followedPubkeys.has(pk)),
-    [pubkeys, followedPubkeys],
-  );
 
   const naddrLink = useMemo(() => {
     if (!event) return undefined;
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return `/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag })}`;
   }, [event]);
-
-  const handleFollowAll = useCallback(async () => {
-    if (!user || !event) return;
-
-    setIsFollowingAll(true);
-    try {
-      // 1. Fetch freshest kind 3 from relays (not cache)
-      const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
-
-      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-      const existingPTags = prev?.tags.filter(([n]) => n === 'p') ?? [];
-      const nonPTags = prev?.tags.filter(([n]) => n !== 'p') ?? [];
-      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-      // 3. Merge: add new pubkeys that aren't already followed
-      const newPTags = pubkeys
-        .filter((pk) => !existingPubkeys.has(pk))
-        .map((pk) => ['p', pk]);
-      const added = newPTags.length;
-
-      // 4. Publish with prev for published_at preservation
-      await publishEvent({
-        kind: 3,
-        content: prev?.content ?? '',
-        tags: [...nonPTags, ...existingPTags, ...newPTags],
-        prev: prev ?? undefined,
-      });
-
-      toast({
-        title: 'Following Team Soapbox!',
-        description: added > 0
-          ? `Added ${added} new account${added !== 1 ? 's' : ''} to your follow list.`
-          : 'You were already following everyone on the team.',
-      });
-    } catch (error) {
-      console.error('Failed to follow all:', error);
-      toast({
-        title: 'Failed to follow',
-        description: 'There was an error updating your follow list.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsFollowingAll(false);
-    }
-  }, [user, event, pubkeys, nostr, publishEvent, toast]);
 
   if (loading) {
     return <TeamSoapboxCardSkeleton className={className} />;
@@ -178,28 +122,13 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button
-              className="gap-2 flex-1"
-              onClick={handleFollowAll}
-              disabled={isFollowingAll || !user}
-            >
-              {isFollowingAll ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Following...
-                </>
-              ) : newPubkeys.length === 0 && user ? (
-                <>
-                  <Check className="size-4" />
-                  Already following all
-                </>
-              ) : (
-                <>
-                  <UserPlus className="size-4" />
-                  Follow All ({pubkeys.length})
-                </>
-              )}
-            </Button>
+            <FollowAllSplitButton
+              pubkeys={pubkeys}
+              followedPubkeys={followedPubkeys}
+              listNoun="Team Soapbox"
+              followSuccessTitle="Following Team Soapbox!"
+              className="flex-1"
+            />
 
             {naddrLink && (
               <Button variant="outline" asChild>

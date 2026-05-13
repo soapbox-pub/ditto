@@ -255,6 +255,51 @@ export function useMuteList() {
     },
   });
 
+  // Bulk-add many pubkeys to the mute list in a single publish.
+  // Returns the count of pubkeys newly muted (excluding ones already muted).
+  const muteManyPubkeys = useMutation<number, Error, string[]>({
+    mutationFn: async (pubkeys: string[]): Promise<number> => {
+      if (!user) throw new Error('User not logged in');
+
+      // Normalize + dedupe input
+      const normalized = new Set<string>();
+      for (const pk of pubkeys) {
+        if (!pk) continue;
+        normalized.add(normalizePubkey(pk));
+      }
+
+      // ① Fetch the freshest kind 10000 from relays
+      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
+      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
+
+      // ② Determine which pubkeys are not already muted
+      const alreadyMuted = new Set(
+        currentItems.filter((i) => i.type === 'pubkey').map((i) => i.value),
+      );
+      const toAdd: MuteListItem[] = [];
+      for (const pk of normalized) {
+        if (!alreadyMuted.has(pk)) {
+          toAdd.push({ type: 'pubkey', value: pk });
+        }
+      }
+
+      // Nothing to add — skip the publish to avoid a no-op kind 10000 broadcast
+      if (toAdd.length === 0) return 0;
+
+      const newItems = [...currentItems, ...toAdd];
+
+      // Update localStorage immediately so mutes apply on refresh
+      setCachedMuteItems(config.appId, user.pubkey, newItems);
+
+      await updateMuteList(newItems, prev);
+
+      return toAdd.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
+    },
+  });
+
   // Update entire mute list
   const updateMuteList = async (items: MuteListItem[], prev: NostrEvent | null) => {
     if (!user) throw new Error('User not logged in');
@@ -323,6 +368,7 @@ export function useMuteList() {
     error: query.error || muteItems.error,
     addMute,
     removeMute,
+    muteManyPubkeys,
     isMuted,
     mutedPubkeys,
     mutedHashtags,
