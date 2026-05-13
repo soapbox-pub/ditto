@@ -44,6 +44,10 @@ export interface FeedSettings {
   feedIncludeReposts: boolean;
   /** Include generic reposts (kind 16) in the feed */
   feedIncludeGenericReposts: boolean;
+  /** Include reactions (kind 7) in the feed, rendered as "X reacted to" overlays on the target event. Default: false. */
+  feedIncludeReactions: boolean;
+  /** Include zaps (Lightning kind 9735 + on-chain kind 8333) in the feed, rendered as "X zapped" overlays on the target event. Default: false. */
+  feedIncludeZaps: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */

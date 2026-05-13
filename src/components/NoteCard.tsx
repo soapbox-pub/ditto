@@ -252,6 +252,12 @@ interface NoteCardProps {
   className?: string;
   /** If set, shows a "Reposted by" header with this pubkey. */
   repostedBy?: string;
+  /** Optional: the underlying kind 6 / 16 repost event. When provided, the "reposted" verb in the header links to its nevent. */
+  repostEvent?: NostrEvent;
+  /** If set, shows a "Reacted by" header. The event is the underlying kind 7 reaction (used for linking to its nevent). */
+  reactedBy?: { event: NostrEvent; pubkey: string };
+  /** If set, shows a "Zapped" header. The event is the underlying kind 9735 / 8333 zap; sats is the parsed amount (0 if unknown). */
+  zappedBy?: { event: NostrEvent; pubkey: string; sats: number };
   /** If true, hide action buttons (used for embeds). */
   compact?: boolean;
   /** If true, render in threaded ancestor style: connector line below avatar, no bottom border. */
@@ -305,6 +311,9 @@ export const NoteCard = memo(function NoteCard({
   event,
   className,
   repostedBy,
+  repostEvent,
+  reactedBy,
+  zappedBy,
   compact,
   threaded,
   threadedLineClassName,
@@ -908,15 +917,46 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
-  // Repost header — shown above activity-card layouts (reaction/repost/zap/poll vote)
-  // when this event was surfaced via a kind 6 / 16 repost. The normal note layout
-  // renders this inline below; activity-card branches return early so they need it here.
-  const repostHeader = repostedBy ? (
+  // Wrapper header — shown above activity-card layouts (reaction/repost/zap/poll vote)
+  // and above the normal layout when this event was surfaced via a repost,
+  // reaction, or zap. The activity-card branches return early so they need
+  // it computed up here.
+  const wrapperHeader = reactedBy ? (
+    <EventActionHeader
+      pubkey={reactedBy.pubkey}
+      icon={SmilePlus}
+      iconNode={
+        <span className="size-4 translate-y-px flex items-center justify-center leading-none">
+          <ReactionEmoji
+            content={reactedBy.event.content}
+            tags={reactedBy.event.tags}
+            className="inline-block h-4 w-4 object-contain"
+          />
+        </span>
+      }
+      action="reacted to"
+      actionEvent={reactedBy.event}
+    />
+  ) : zappedBy ? (
+    <EventActionHeader
+      pubkey={zappedBy.pubkey}
+      icon={zappedBy.event.kind === 8333 ? Bitcoin : Zap}
+      iconClassName="text-amber-500"
+      action="zapped"
+      actionEvent={zappedBy.event}
+      extra={zappedBy.sats > 0 ? (
+        <span className="font-semibold text-amber-500">
+          {formatNumber(zappedBy.sats)} {zappedBy.sats === 1 ? 'sat' : 'sats'}
+        </span>
+      ) : undefined}
+    />
+  ) : repostedBy ? (
     <EventActionHeader
       pubkey={repostedBy}
       icon={RepostIcon}
       iconClassName="text-accent"
       action="reposted"
+      actionEvent={repostEvent}
     />
   ) : undefined;
 
@@ -925,7 +965,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
             <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
@@ -946,7 +986,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-accent/10 shrink-0", iconSize)}>
             <RepostIcon className="size-5 text-accent" />
@@ -969,7 +1009,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-amber-500/10 shrink-0", iconSize)}>
             <Zap className="size-5 text-amber-500 fill-amber-500" />
@@ -998,7 +1038,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1031,7 +1071,7 @@ export const NoteCard = memo(function NoteCard({
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
     // Kind action header (e.g. "updated their badges") — same logic as normal layout
-    const threadedKindHeader = !repostedBy && !hideKindHeader && KIND_HEADER_MAP[event.kind]
+    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !hideKindHeader && KIND_HEADER_MAP[event.kind]
       ? (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
@@ -1062,7 +1102,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        {threadedKindHeader}
+        {wrapperHeader ?? threadedKindHeader}
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
             {avatarElement}
@@ -1101,14 +1141,9 @@ export const NoteCard = memo(function NoteCard({
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
-      {/* Action header — repost takes priority, otherwise derived from event kind */}
-      {repostedBy ? (
-        <EventActionHeader
-          pubkey={repostedBy}
-          icon={RepostIcon}
-          iconClassName="text-accent"
-          action="reposted"
-        />
+      {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
+      {wrapperHeader ? (
+        wrapperHeader
       ) : (
         !hideKindHeader && KIND_HEADER_MAP[event.kind] &&
         (() => {
@@ -1699,6 +1734,14 @@ export interface EventActionHeaderProps {
   pubkey: string;
   /** Lucide icon component shown to the left of the author name. */
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Optional pre-rendered icon node that takes priority over `icon`. Use
+   * this when the icon isn't a generic Lucide component — e.g. a reaction
+   * emoji (`<ReactionEmoji>`) where the visual is data-driven. The node
+   * is rendered as-is inside the same `w-11` slot, so it should size
+   * itself (e.g. `className="size-4"`).
+   */
+  iconNode?: ReactNode;
   /** Optional className for the icon (defaults to text-primary). */
   iconClassName?: string;
   /** Verb phrase shown after the author name, e.g. "hid a" or "is streaming". */
@@ -1707,6 +1750,19 @@ export interface EventActionHeaderProps {
   noun?: string;
   /** Route to link the noun to, e.g. "/treasures". */
   nounRoute?: string;
+  /**
+   * Optional underlying event (reaction, zap, repost) that the verb should
+   * link to. When provided, the entire verb (and the optional `extra`
+   * suffix) is wrapped in a Link pointing at `/${nevent}` so the user
+   * can navigate directly to the underlying event detail page.
+   */
+  actionEvent?: NostrEvent;
+  /**
+   * Optional inline content appended after the verb — used for the sats
+   * amount on zap headers ("zapped · 1,234 sats"). Rendered inside the
+   * same Link as the verb when `actionEvent` is set.
+   */
+  extra?: ReactNode;
 }
 
 /** Static config for deriving the action header from an event's kind and tags. */
@@ -1922,24 +1978,40 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
 export function EventActionHeader({
   pubkey,
   icon: Icon,
+  iconNode,
   iconClassName,
   action,
   noun,
   nounRoute,
+  actionEvent,
+  extra,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
   const url = useProfileUrl(pubkey, author.data?.metadata);
+  const actionHref = useMemo(
+    () => (actionEvent ? `/${encodeEventAddress(actionEvent)}` : undefined),
+    [actionEvent],
+  );
+
+  const verbContent = (
+    <>
+      {action}
+      {extra ? <> {extra}</> : null}
+    </>
+  );
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <Icon
-          className={cn(
-            "size-4 translate-y-px",
-            iconClassName ?? "text-primary",
-          )}
-        />
+        {iconNode ?? (
+          <Icon
+            className={cn(
+              "size-4 translate-y-px",
+              iconClassName ?? "text-primary",
+            )}
+          />
+        )}
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (
@@ -1962,7 +2034,17 @@ export function EventActionHeader({
           </ProfileHoverCard>
         )}
         <span className={cn("shrink-0", author.isLoading && "ml-1")}>
-          {action}
+          {actionHref ? (
+            <Link
+              to={actionHref}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {verbContent}
+            </Link>
+          ) : (
+            verbContent
+          )}
           {noun && nounRoute && (
             <>
               {" "}

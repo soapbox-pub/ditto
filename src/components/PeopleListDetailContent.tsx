@@ -164,6 +164,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
           key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
           event={item.event}
           repostedBy={item.repostedBy}
+          repostEvent={item.repostEvent}
         />
       ))}
       {hasNextPage && (

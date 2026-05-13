@@ -38,6 +38,7 @@ import {
   Stars,
   TrendingUp,
   User,
+  Zap,
 } from "lucide-react";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
@@ -214,6 +215,8 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   comments: MessageSquareMore,
   reposts: Repeat2,
   "generic-reposts": Repeat2,
+  reactions: SmilePlus,
+  zaps: Zap,
   voice: Mic,
   "custom-emojis": Smile,
   statuses: SmilePlus,

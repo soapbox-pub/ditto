@@ -805,7 +805,7 @@ export function SearchPage() {
                   if (isRepostKind(event.kind)) {
                     const embedded = parseRepostContent(event);
                     if (embedded) {
-                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
+                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} repostEvent={event} highlight={isNew} />;
                     }
                     return null;
                   }

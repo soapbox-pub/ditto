@@ -155,6 +155,7 @@ function ProfileFeed({ pubkey }: { pubkey: string }) {
           key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
           event={item.event}
           repostedBy={item.repostedBy}
+          repostEvent={item.repostEvent}
           compact
         />
       ))}

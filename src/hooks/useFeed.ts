@@ -7,10 +7,18 @@ import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import {
+  getPaginationCursor,
+  parseRepostContent,
+  isRepostKind,
+  isReactionKind,
+  isZapKind,
+  type FeedItem,
+} from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { setProfileCached } from '@/lib/profileCache';
 import { getStorageKey } from '@/lib/storageKey';
+import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -106,6 +114,151 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         }
       }
 
+      /**
+       * Turn a list of raw events into FeedItems, unwrapping reposts /
+       * reactions / zaps so that the target event becomes the FeedItem's
+       * primary `event` and the wrapper is surfaced as an overlay
+       * (repostedBy / reactedBy / zappedBy). Any wrapper whose target
+       * isn't in `events` is fetched in a single batched query.
+       */
+      async function buildFeedItems(events: NostrEvent[]): Promise<FeedItem[]> {
+        const items: FeedItem[] = [];
+
+        // Map of target-event id → list of wrappers that need it. A single
+        // target can have multiple wrappers (e.g. several reactions to one
+        // post), so we store an array.
+        type PendingWrapper =
+          | { type: 'repost'; event: NostrEvent }
+          | { type: 'reaction'; event: NostrEvent }
+          | { type: 'zap'; event: NostrEvent };
+        const missingTargets = new Map<string, PendingWrapper[]>();
+
+        const queueMissing = (id: string, wrapper: PendingWrapper) => {
+          const existing = missingTargets.get(id);
+          if (existing) existing.push(wrapper);
+          else missingTargets.set(id, [wrapper]);
+        };
+
+        // Index events by id so we can resolve targets that arrived in the
+        // same page without an extra query.
+        const eventsById = new Map<string, NostrEvent>();
+        for (const ev of events) eventsById.set(ev.id, ev);
+
+        for (const ev of events) {
+          if (isRepostKind(ev.kind)) {
+            // Kind 6 / 16 — repost. Prefer the embedded JSON; fall back to
+            // resolving the `e` tag.
+            const embedded = parseRepostContent(ev);
+            if (embedded && embedded.created_at <= now) {
+              items.push({ event: embedded, repostedBy: ev.pubkey, repostEvent: ev, sortTimestamp: ev.created_at });
+              continue;
+            }
+            const targetId = getTargetEventId(ev);
+            if (!targetId) continue;
+            const resolved = eventsById.get(targetId);
+            if (resolved && resolved.created_at <= now) {
+              items.push({ event: resolved, repostedBy: ev.pubkey, repostEvent: ev, sortTimestamp: ev.created_at });
+            } else {
+              queueMissing(targetId, { type: 'repost', event: ev });
+            }
+          } else if (isReactionKind(ev.kind)) {
+            // Kind 7 — reaction. The target is in the last `e` tag (NIP-25).
+            const eTags = ev.tags.filter(([n]) => n === 'e');
+            const targetId = eTags[eTags.length - 1]?.[1];
+            if (!targetId) continue;
+            const resolved = eventsById.get(targetId);
+            if (resolved && resolved.created_at <= now) {
+              items.push({
+                event: resolved,
+                reactedBy: { event: ev, pubkey: ev.pubkey },
+                sortTimestamp: ev.created_at,
+              });
+            } else {
+              queueMissing(targetId, { type: 'reaction', event: ev });
+            }
+          } else if (isZapKind(ev.kind)) {
+            // Kind 9735 Lightning receipt or kind 8333 on-chain attestation.
+            const targetId = getTargetEventId(ev);
+            if (!targetId) continue;
+            const senderPubkey = getZapSenderPubkey(ev);
+            const sats = getZapAmountSats(ev);
+            const resolved = eventsById.get(targetId);
+            if (resolved && resolved.created_at <= now) {
+              items.push({
+                event: resolved,
+                zappedBy: { event: ev, pubkey: senderPubkey, sats },
+                sortTimestamp: ev.created_at,
+              });
+            } else {
+              queueMissing(targetId, { type: 'zap', event: ev });
+            }
+          } else {
+            // Direct post — kind 1, 1068, 34236, etc.
+            items.push({ event: ev, sortTimestamp: ev.created_at });
+          }
+        }
+
+        // Single batched fetch for all missing target events.
+        if (missingTargets.size > 0) {
+          try {
+            const ids = [...missingTargets.keys()];
+            const originals = await nostr.query(
+              [{ ids, limit: ids.length }],
+              { signal },
+            );
+            for (const original of originals) {
+              if (original.created_at > now) continue;
+              const wrappers = missingTargets.get(original.id);
+              if (!wrappers) continue;
+              for (const w of wrappers) {
+                if (w.type === 'repost') {
+                  items.push({ event: original, repostedBy: w.event.pubkey, repostEvent: w.event, sortTimestamp: w.event.created_at });
+                } else if (w.type === 'reaction') {
+                  items.push({
+                    event: original,
+                    reactedBy: { event: w.event, pubkey: w.event.pubkey },
+                    sortTimestamp: w.event.created_at,
+                  });
+                } else {
+                  items.push({
+                    event: original,
+                    zappedBy: {
+                      event: w.event,
+                      pubkey: getZapSenderPubkey(w.event),
+                      sats: getZapAmountSats(w.event),
+                    },
+                    sortTimestamp: w.event.created_at,
+                  });
+                }
+              }
+            }
+          } catch {
+            // timeout or abort — just skip wrappers whose targets couldn't be fetched
+          }
+        }
+
+        return items;
+      }
+
+      /**
+       * Deduplicate FeedItems by event id. Direct posts win over any
+       * overlay (repost / reaction / zap), so the user sees the original
+       * once with full action buttons rather than as a passive overlay.
+       */
+      function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
+        const seen = new Map<string, FeedItem>();
+        for (const item of items) {
+          const existing = seen.get(item.event.id);
+          const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy;
+          if (!existing) {
+            seen.set(item.event.id, item);
+          } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy)) {
+            seen.set(item.event.id, item);
+          }
+        }
+        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+      }
+
       if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
@@ -180,64 +333,17 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const validFilteredEvents = filteredEvents.filter((ev) => ev.created_at <= now);
         const oldestQueryTimestamp = getPaginationCursor(validFilteredEvents);
 
-        // Process reposts same as follows feed
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validFilteredEvents);
 
-        for (const ev of validFilteredEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1 and extra kinds — direct post
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = dedupeFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+          dedupedItems = dedupedItems.filter(
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || !isReplyEvent(item.event),
+          );
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -268,63 +374,17 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
         const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validEvents);
 
-        for (const ev of validEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = dedupeFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+          dedupedItems = dedupedItems.filter(
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || !isReplyEvent(item.event),
+          );
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -332,8 +392,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
       } else {
-        // Global feed — all enabled kinds except reposts (too noisy without author filter)
-        const globalKinds = allKinds.filter((k) => !isRepostKind(k));
+        // Global feed — all enabled kinds except reposts / reactions / zaps,
+        // which are too noisy without an author filter and require an extra
+        // unwrap step. Users will see those overlays on the Follows tab.
+        const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
         // Use hot sorting on the homepage Global tab for better content quality,
         // but not on kind-specific pages that pass custom kinds.

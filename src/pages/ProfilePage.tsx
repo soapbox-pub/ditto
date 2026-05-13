@@ -2645,6 +2645,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
                   event={item.event}
                   repostedBy={item.repostedBy}
+                  repostEvent={item.repostEvent}
                 />
               ))}
 
@@ -3151,6 +3152,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
           key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
           event={item.event}
           repostedBy={item.repostedBy}
+          repostEvent={item.repostEvent}
         />
       ))}
 
