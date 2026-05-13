@@ -32,6 +32,8 @@ import { getSurfaceBackground } from '../lib/room-surface-background';
 import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_RING, ROOM_GUIDE_RING_PULSE } from '../lib/room-layout';
 import { ROOM_ASPECT_RATIO } from '../lib/room-geometry';
 import { ArcBackground } from '@/components/ArcBackground';
+import { PoopOverlay, InteractivePoopOverlay } from './RoomPoopLayer';
+import { useShovelDrag, type ShovelDrag } from '../hooks/useShovelDrag';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +90,20 @@ interface BlobbiRoomShellProps {
    * `absolute inset-0` covers only the room area, not sidebars.
    */
   editorOverlay?: React.ReactNode;
+  /**
+   * Optional room-level overlay — rendered at the shell level (above the
+   * page-flow and canvas, below the editor overlay). Used for the kitchen
+   * fridge and similar full-room overlays that must not be trapped inside
+   * the bottom dock.
+   */
+  roomOverlay?: React.ReactNode;
+  /**
+   * Ref to expose the shovel-drag state managed internally by the shell.
+   * `useShovelDrag` runs inside BlobbiRoomShell (co-located with poop state)
+   * and becomes active when `roomId === 'kitchen'`. KitchenBar reads this
+   * ref to wire up the ShovelButton.
+   */
+  shovelDragRef?: React.MutableRefObject<ShovelDrag | null>;
   /** Whether the top HUD (room header + stats) is visible. Hide when drawer is open. */
   hudVisible?: boolean;
   /** Effective furniture placements for the current room (decorative, render-only). */
@@ -145,6 +161,8 @@ export function BlobbiRoomShell({
   editorSlot,
   editorSlotLeft,
   editorOverlay,
+  roomOverlay,
+  shovelDragRef,
   hudVisible = true,
   furniturePlacements,
   containerRef,
@@ -218,6 +236,16 @@ export function BlobbiRoomShell({
   }), [poops, onRemovePoop, addPoop]);
 
   if (poopStateRef) poopStateRef.current = poopState;
+
+  // Internal ref so poop overlay components always get a stable, set ref
+  // (the external poopStateRef prop is optional).
+  const internalPoopRef = useReactRef<PoopState | null>(null);
+  internalPoopRef.current = poopState;
+
+  // Shovel drag — only active in the kitchen (null-coerced otherwise).
+  // Lives here alongside poop state so both resolve in the same render pass.
+  const shovelDrag = useShovelDrag(roomId === 'kitchen' ? poopState : null);
+  if (shovelDragRef) shovelDragRef.current = shovelDrag;
 
   // ─── Room background styles (decorative, from validated layout) ───
   const wallBackground = useMemo((): string | undefined => {
@@ -327,6 +355,15 @@ export function BlobbiRoomShell({
           activeLayer={furnitureActiveLayer}
           onBackgroundClick={onFurnitureBackgroundClick}
         />
+
+        {/* Poop layer — inside canvas so positions resolve against the room
+            coordinate system. Kitchen gets the interactive overlay (drag
+            hit-test refs), all other rooms get the passive display layer. */}
+        {roomId === 'kitchen' ? (
+          <InteractivePoopOverlay drag={shovelDrag} poopStateRef={internalPoopRef} roomId={roomId} />
+        ) : (
+          <PoopOverlay poopStateRef={internalPoopRef} />
+        )}
 
         {/* Stage overlay — Blobbi visual anchored to the canvas ground line */}
         {stageOverlay && (
@@ -464,6 +501,14 @@ export function BlobbiRoomShell({
           {children}
         </div>
       </div>
+
+      {/* Room-level overlay — covers the full shell (fridge, etc.).
+          Above page-flow (z-15) and canvas content, below editor overlay. */}
+      {roomOverlay && (
+        <div className="absolute inset-0 z-50">
+          {roomOverlay}
+        </div>
+      )}
 
       {/* Editor overlay — page-level, covers full shell area */}
       {editorOverlay}

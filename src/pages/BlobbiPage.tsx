@@ -115,13 +115,11 @@ import {
   BlobbiRoomEditorTrigger,
   ItemCarousel,
   RoomActionButton,
-  useShovelDrag,
-  PoopOverlay,
-  InteractivePoopOverlay,
   ShovelButton,
   type BlobbiRoomId,
   type CarouselEntry,
   type PoopState,
+  type ShovelDrag,
   ROOM_META,
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
@@ -1857,6 +1855,32 @@ function BlobbiDashboard({
   }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
 
   const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
+
+  // ─── Kitchen fridge overlay (lifted here so it renders via roomOverlay, not inside the dock) ───
+  const [showFridge, setShowFridge] = useState(false);
+  // Close fridge when leaving the kitchen
+  useEffect(() => { if (currentRoom !== 'kitchen') setShowFridge(false); }, [currentRoom]);
+
+  const foodItems = useMemo(() => {
+    const items = getLiveShopItems().filter(i => i.type === 'food');
+    return items.map(item => ({
+      ...item,
+      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
+    }));
+  }, [currentStats, companion.stage]);
+
+  const handleFeedItem = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    handleUseItemFromTab(itemId);
+    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
+      poopStateRef.current?.addPoop('overfeed');
+    }
+  }, [companion.stats.hunger, handleUseItemFromTab]);
+
+  // Ref for BlobbiRoomShell to expose its internal shovel-drag state.
+  // KitchenBar reads this to wire up the ShovelButton.
+  const shovelDragRef = useRef<ShovelDrag | null>(null);
   
   return (
     <DashboardShell>
@@ -2018,6 +2042,66 @@ function BlobbiDashboard({
             placement={furnitureToolbarPlacement}
           />
         ) : undefined}
+        shovelDragRef={shovelDragRef}
+        roomOverlay={showFridge ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
+            <button
+              onClick={() => setShowFridge(false)}
+              className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close fridge"
+            >
+              <X className="size-5" strokeWidth={4} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-4">
+              <Refrigerator className="size-5 text-orange-500" />
+              <h3 className="text-sm font-semibold">Fridge</h3>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
+              {foodItems.map(item => {
+                const isThisUsing = isUsingItem && usingItemId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleFeedItem(item.id)}
+                    disabled={isKitchenDisabled}
+                    className={cn(
+                      'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
+                      'hover:bg-foreground/5 active:scale-95',
+                      isThisUsing && 'bg-foreground/5',
+                      isKitchenDisabled && !isThisUsing && 'opacity-40',
+                    )}
+                  >
+                    <span className="text-4xl leading-none">{item.icon}</span>
+                    <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                      {item.statChanges.map((change) => {
+                        const Icon = STAT_ICON[change.stat];
+                        const positive = change.delta > 0;
+                        const segDelta = change.segmentDelta;
+                        return (
+                          <span key={change.stat} className="flex items-center gap-0.5">
+                            {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
+                            <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                              {positive ? '+' : ''}{change.delta}
+                            </span>
+                            {segDelta !== 0 && (
+                              <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                                {segDelta > 0 ? '+' : ''}{segDelta}▮
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : undefined}
         hero={
           <BlobbiRoomHero
             companion={companion}
@@ -2109,6 +2193,10 @@ function BlobbiDashboard({
             guideActionGlow={guideActionGlow}
             foodDragHook={foodDragHook}
             carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
+            setShowFridge={setShowFridge}
+            foodItems={foodItems}
+            handleFeedItem={handleFeedItem}
+            shovelDragRef={shovelDragRef}
           />
         )}
       </BlobbiRoomShell>
@@ -2263,6 +2351,15 @@ interface RoomBottomBarProps {
   foodDragHook?: UseFoodDragReturn;
   /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
   carouselKeyPrefix: string;
+  // ── Kitchen-specific (passed through to KitchenBar) ──
+  /** Open/close fridge overlay (rendered at shell level via roomOverlay). */
+  setShowFridge?: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Pre-computed food items with stat change previews. */
+  foodItems?: Array<ReturnType<typeof getLiveShopItems>[number] & { statChanges: ReturnType<typeof previewStatChangesWithSegments> }>;
+  /** Feed handler with overfeed-poop logic. */
+  handleFeedItem?: (itemId: string) => void;
+  /** Shovel drag ref exposed by BlobbiRoomShell. */
+  shovelDragRef?: React.MutableRefObject<ShovelDrag | null>;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -2289,7 +2386,6 @@ function HomeBar({
   handleUseItemFromTab,
   handleDirectAction,
   setShowPhotoModal,
-  poopStateRef,
   guideHighlightId,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
@@ -2326,7 +2422,6 @@ function HomeBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           <RoomActionButton
@@ -2403,33 +2498,22 @@ function maybeOverfeedPoop(
 }
 
 function KitchenBar({
-  companion,
-  currentStats,
   isUsingItem,
   usingItemId,
   isPublishing,
   actionInProgress,
-  handleUseItemFromTab,
-  poopStateRef,
   guideHighlightId,
   guideActionGlow,
   foodDragHook,
   carouselKeyPrefix,
+  setShowFridge,
+  foodItems,
+  handleFeedItem,
+  shovelDragRef,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
   const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
-  const [showFridge, setShowFridge] = useState(false);
-  const poopState = poopStateRef.current;
-  const drag = useShovelDrag(poopState);
-
-  // Food items (for drag-to-feed and overfeed logic)
-  const foodItems = useMemo(() => {
-    const items = getLiveShopItems().filter(i => i.type === 'food');
-    return items.map(item => ({
-      ...item,
-      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
-    }));
-  }, [currentStats, companion.stage]);
+  const drag = shovelDragRef?.current;
 
   // Energy drink item (tap-only, no drag, no overfeed)
   const energyDrinkItems = useMemo(() => {
@@ -2441,7 +2525,7 @@ function KitchenBar({
   }, [currentStats, companion.stage]);
 
   // Combined items for the fridge grid (food + energy drink)
-  const allKitchenItems = useMemo(() => [...foodItems, ...energyDrinkItems], [foodItems, energyDrinkItems]);
+  const allKitchenItems = useMemo(() => [...(foodItems ?? []), ...energyDrinkItems], [foodItems, energyDrinkItems]);
 
   // Combined carousel entries (food + energy drink)
   const kitchenEntries = useMemo<CarouselEntry[]>(() =>
@@ -2449,7 +2533,7 @@ function KitchenBar({
   [allKitchenItems]);
 
   // Set of food item IDs for quick lookup (overfeed only for these)
-  const foodIdSet = useMemo(() => new Set(foodItems.map(i => i.id)), [foodItems]);
+  const foodIdSet = useMemo(() => new Set((foodItems ?? []).map(i => i.id)), [foodItems]);
 
   // All draggable kitchen items (food + energy drink) — used for drag eligibility
   const ingestibleIdSet = useMemo(
@@ -2463,10 +2547,10 @@ function KitchenBar({
   const handleKitchenItem = useCallback((itemId: string) => {
     if (foodIdSet.has(itemId)) {
       const action = getActionForItem(itemId);
-      maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
+      maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
     }
     handleUseItemFromTab(itemId);
-  }, [companion.stats.hunger, handleUseItemFromTab, poopState, foodIdSet]);
+  }, [companion.stats.hunger, handleUseItemFromTab, foodIdSet]);
 
   // Build pointer-down handler for ingestible item drag-to-feed.
   // Engages for all ingestible kitchen items (food + energy drink).
@@ -2481,98 +2565,33 @@ function KitchenBar({
       },
     };
   }, [foodDragHook, kitchenEntries.length, allKitchenItems, ingestibleIdSet, isDisabled]);
+
   return (
-    <>
-      <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
-
-      {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
-      {showFridge && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
-          <button
-            onClick={() => setShowFridge(false)}
-            className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close fridge"
-          >
-            <X className="size-5" strokeWidth={4} />
-          </button>
-
-          <div className="flex items-center gap-2 mb-4">
-            <Refrigerator className="size-5 text-orange-500" />
-            <h3 className="text-sm font-semibold">Fridge</h3>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
-            {allKitchenItems.map(item => {
-              const isThisUsing = isUsingItem && usingItemId === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleKitchenItem(item.id)}
-                  disabled={isDisabled}
-                  className={cn(
-                    'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
-                    'hover:bg-foreground/5 active:scale-95',
-                    isThisUsing && 'bg-foreground/5',
-                    isDisabled && !isThisUsing && 'opacity-40',
-                  )}
-                >
-                  <span className="text-4xl leading-none">{item.icon}</span>
-                  <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    {item.statChanges.map((change) => {
-                      const Icon = STAT_ICON[change.stat];
-                      const positive = change.delta > 0;
-                      const segDelta = change.segmentDelta;
-                      return (
-                        <span key={change.stat} className="flex items-center gap-0.5">
-                          {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
-                          <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-                            {positive ? '+' : ''}{change.delta}
-                          </span>
-                          {segDelta !== 0 && (
-                            <span className="text-[9px] text-muted-foreground/70 tabular-nums">
-                              {segDelta > 0 ? '+' : ''}{segDelta}▮
-                            </span>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Normal bottom bar */}
-      <div className={ROOM_BOTTOM_BAR_CLASS}>
-        <div className="flex items-center justify-between gap-1 sm:gap-3">
-          <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />
-          <div className="flex-1 min-w-0 flex justify-center">
-            <ItemCarousel
-              items={kitchenEntries}
-              onUse={handleKitchenItem}
-              activeItemId={isUsingItem ? usingItemId : null}
-              disabled={isDisabled}
-              highlightId={guideHighlightId}
-              centerPointerHandlers={centerPointerHandlers}
-              initialItemId={storedFocusId ?? undefined}
-              onFocusChange={handleFocusChange}
-            />
-          </div>
-          <RoomActionButton
-            icon={<Refrigerator className="size-7 sm:size-9" />}
-            label="Fridge"
-            color="text-orange-500"
-            glowHex="#f97316"
-            onClick={() => setShowFridge(true)}
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        {drag && <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />}
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={kitchenEntries}
+            onUse={handleKitchenItem}
+            activeItemId={isUsingItem ? usingItemId : null}
+            centerPointerHandlers={centerPointerHandlers}
             disabled={isDisabled}
+            highlightId={guideHighlightId}
+            initialItemId={storedFocusId ?? undefined}
+            onFocusChange={handleFocusChange}
           />
         </div>
+        <RoomActionButton
+          icon={<Refrigerator className="size-7 sm:size-9" />}
+          label="Fridge"
+          color="text-orange-500"
+          glowHex="#f97316"
+          onClick={() => setShowFridge?.(true)}
+          disabled={isDisabled}
+        />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -2584,7 +2603,6 @@ function CareBar({
   isPublishing,
   actionInProgress,
   handleUseItemFromTab,
-  poopStateRef,
   guideHighlightId,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
@@ -2655,7 +2673,6 @@ function CareBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {leftButton}
@@ -2693,12 +2710,11 @@ function CareBar({
 
 // ── Rest: sleep/wake button centered ──
 
-function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, poopStateRef, guideActionGlow }: RoomBottomBarProps) {
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, guideActionGlow }: RoomBottomBarProps) {
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {/* Left: spacer for visual balance */}
