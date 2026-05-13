@@ -33,7 +33,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { buildThemeCssFromCore } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import LoginDialog from '@/components/auth/LoginDialog';
-import type { FeedItem } from '@/lib/feedUtils';
+import { feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import NotFound from './NotFound';
 
@@ -152,10 +152,12 @@ function ProfileFeed({ pubkey }: { pubkey: string }) {
     <div>
       {feedItems.map((item) => (
         <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          key={feedItemKey(item)}
           event={item.event}
           repostedBy={item.repostedBy}
           repostEvent={item.repostEvent}
+          reactedBy={item.reactedBy}
+          zappedBy={item.zappedBy}
           compact
         />
       ))}

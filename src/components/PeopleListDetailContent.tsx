@@ -53,7 +53,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useUserLists } from '@/hooks/useUserLists';
 
 import { isEventMuted } from '@/lib/muteHelpers';
-import { shouldHideFeedEvent } from '@/lib/feedUtils';
+import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { genUserName } from '@/lib/genUserName';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
@@ -161,10 +161,12 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
     <div>
       {feedItems.map((item) => (
         <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          key={feedItemKey(item)}
           event={item.event}
           repostedBy={item.repostedBy}
           repostEvent={item.repostEvent}
+          reactedBy={item.reactedBy}
+          zappedBy={item.zappedBy}
         />
       ))}
       {hasNextPage && (

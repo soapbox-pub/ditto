@@ -107,7 +107,7 @@ import { impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
-import type { FeedItem } from '@/lib/feedUtils';
+import { feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
@@ -2642,10 +2642,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <div>
               {currentItems.map((item) => (
                 <NoteCard 
-                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                  key={feedItemKey(item)}
                   event={item.event}
                   repostedBy={item.repostedBy}
                   repostEvent={item.repostEvent}
+                  reactedBy={item.reactedBy}
+                  zappedBy={item.zappedBy}
                 />
               ))}
 
@@ -3149,10 +3151,12 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     <div>
       {items.map((item) => (
         <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          key={feedItemKey(item)}
           event={item.event}
           repostedBy={item.repostedBy}
           repostEvent={item.repostEvent}
+          reactedBy={item.reactedBy}
+          zappedBy={item.zappedBy}
         />
       ))}
 

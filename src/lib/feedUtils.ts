@@ -1,4 +1,5 @@
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
 /**
  * Minimum gap (in seconds) between consecutive events to be considered an
@@ -173,6 +174,161 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     if (!hasContent && !hasSource) return true;
   }
   return false;
+}
+
+/**
+ * Turn a list of raw events into FeedItems, unwrapping reposts /
+ * reactions / zaps so that the target event becomes the FeedItem's
+ * primary `event` and the wrapper is surfaced as an overlay
+ * (repostedBy / reactedBy / zappedBy). Any wrapper whose target
+ * isn't in `events` is fetched in a single batched query.
+ *
+ * Used by every feed hook (home, profile, custom tab) so that reactions
+ * and zaps render consistently — as a header over the target post,
+ * never as a standalone activity card.
+ */
+export async function buildFeedItems(
+  events: NostrEvent[],
+  nostr: NPool,
+  signal: AbortSignal,
+): Promise<FeedItem[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const items: FeedItem[] = [];
+
+  // Map of target-event id → list of wrappers that need it. A single
+  // target can have multiple wrappers (e.g. several reactions to one
+  // post), so we store an array.
+  type PendingWrapper =
+    | { type: 'repost'; event: NostrEvent }
+    | { type: 'reaction'; event: NostrEvent }
+    | { type: 'zap'; event: NostrEvent };
+  const missingTargets = new Map<string, PendingWrapper[]>();
+
+  const queueMissing = (id: string, wrapper: PendingWrapper) => {
+    const existing = missingTargets.get(id);
+    if (existing) existing.push(wrapper);
+    else missingTargets.set(id, [wrapper]);
+  };
+
+  // Index events by id so we can resolve targets that arrived in the
+  // same page without an extra query.
+  const eventsById = new Map<string, NostrEvent>();
+  for (const ev of events) eventsById.set(ev.id, ev);
+
+  for (const ev of events) {
+    if (isRepostKind(ev.kind)) {
+      // Kind 6 / 16 — repost. Prefer the embedded JSON; fall back to
+      // resolving the `e` tag.
+      const embedded = parseRepostContent(ev);
+      if (embedded && embedded.created_at <= now) {
+        items.push({ event: embedded, repostedBy: ev.pubkey, repostEvent: ev, sortTimestamp: ev.created_at });
+        continue;
+      }
+      const targetId = getTargetEventId(ev);
+      if (!targetId) continue;
+      const resolved = eventsById.get(targetId);
+      if (resolved && resolved.created_at <= now) {
+        items.push({ event: resolved, repostedBy: ev.pubkey, repostEvent: ev, sortTimestamp: ev.created_at });
+      } else {
+        queueMissing(targetId, { type: 'repost', event: ev });
+      }
+    } else if (isReactionKind(ev.kind)) {
+      // Kind 7 — reaction. The target is in the last `e` tag (NIP-25).
+      const eTags = ev.tags.filter(([n]) => n === 'e');
+      const targetId = eTags[eTags.length - 1]?.[1];
+      if (!targetId) continue;
+      const resolved = eventsById.get(targetId);
+      if (resolved && resolved.created_at <= now) {
+        items.push({
+          event: resolved,
+          reactedBy: { event: ev, pubkey: ev.pubkey },
+          sortTimestamp: ev.created_at,
+        });
+      } else {
+        queueMissing(targetId, { type: 'reaction', event: ev });
+      }
+    } else if (isZapKind(ev.kind)) {
+      // Kind 9735 Lightning receipt or kind 8333 on-chain attestation.
+      const targetId = getTargetEventId(ev);
+      if (!targetId) continue;
+      const senderPubkey = getZapSenderPubkey(ev);
+      const sats = getZapAmountSats(ev);
+      const resolved = eventsById.get(targetId);
+      if (resolved && resolved.created_at <= now) {
+        items.push({
+          event: resolved,
+          zappedBy: { event: ev, pubkey: senderPubkey, sats },
+          sortTimestamp: ev.created_at,
+        });
+      } else {
+        queueMissing(targetId, { type: 'zap', event: ev });
+      }
+    } else {
+      // Direct post — kind 1, 1068, 34236, etc.
+      items.push({ event: ev, sortTimestamp: ev.created_at });
+    }
+  }
+
+  // Single batched fetch for all missing target events.
+  if (missingTargets.size > 0) {
+    try {
+      const ids = [...missingTargets.keys()];
+      const originals = await nostr.query(
+        [{ ids, limit: ids.length }],
+        { signal },
+      );
+      for (const original of originals) {
+        if (original.created_at > now) continue;
+        const wrappers = missingTargets.get(original.id);
+        if (!wrappers) continue;
+        for (const w of wrappers) {
+          if (w.type === 'repost') {
+            items.push({ event: original, repostedBy: w.event.pubkey, repostEvent: w.event, sortTimestamp: w.event.created_at });
+          } else if (w.type === 'reaction') {
+            items.push({
+              event: original,
+              reactedBy: { event: w.event, pubkey: w.event.pubkey },
+              sortTimestamp: w.event.created_at,
+            });
+          } else {
+            items.push({
+              event: original,
+              zappedBy: {
+                event: w.event,
+                pubkey: getZapSenderPubkey(w.event),
+                sats: getZapAmountSats(w.event),
+              },
+              sortTimestamp: w.event.created_at,
+            });
+          }
+        }
+      }
+    } catch {
+      // timeout or abort — just skip wrappers whose targets couldn't be fetched
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Deduplicate FeedItems by event id. Direct posts win over any
+ * overlay (repost / reaction / zap), so the user sees the original
+ * once with full action buttons rather than as a passive overlay.
+ * Returns items sorted newest-first by sortTimestamp.
+ */
+export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
+  const seen = new Map<string, FeedItem>();
+  for (const item of items) {
+    const existing = seen.get(item.event.id);
+    const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy;
+    if (!existing) {
+      seen.set(item.event.id, item);
+    } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy)) {
+      seen.set(item.event.id, item);
+    }
+  }
+  return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 }
 
 /**
