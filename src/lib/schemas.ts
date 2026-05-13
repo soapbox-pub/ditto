@@ -261,6 +261,7 @@ export const AppConfigSchema = z.object({
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
+  esploraBaseUrl: z.string().url(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),
     height: z.number().optional(),

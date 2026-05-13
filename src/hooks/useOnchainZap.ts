@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner, isSignerCapabilityError, reportSignerUnsupported } from '@/hooks/useBitcoinSigner';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import { notificationSuccess } from '@/lib/haptics';
 import {
   nostrPubkeyToBitcoinAddress,
@@ -72,6 +73,8 @@ export function useOnchainZap(
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
   const queryClient = useQueryClient();
 
   const [isZapping, setIsZapping] = useState(false);
@@ -101,8 +104,8 @@ export function useOnchainZap(
 
       // Fetch UTXOs and fee rates
       const [utxos, rates] = await Promise.all([
-        fetchUTXOs(senderAddress),
-        getFeeRates(),
+        fetchUTXOs(senderAddress, esploraBaseUrl),
+        getFeeRates(esploraBaseUrl),
       ]);
 
       if (utxos.length === 0) {
@@ -134,7 +137,7 @@ export function useOnchainZap(
 
       // Broadcast
       setProgress('broadcasting');
-      const txid = await broadcastTransaction(txHex);
+      const txid = await broadcastTransaction(txHex, esploraBaseUrl);
 
       // Publish kind 8333 event
       setProgress('publishing');

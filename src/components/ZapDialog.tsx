@@ -23,6 +23,7 @@ import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
+import { useAppContext } from '@/hooks/useAppContext';
 import { canZap } from '@/lib/canZap';
 import {
   fetchBtcPrice,
@@ -287,6 +288,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { data: author } = useAuthor(target.pubkey);
   const { toast } = useToast();
   const { webln, activeNWC } = useWallet();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
 
   // Success state: populated by either zap rail's onSuccess callback.
   // When set, we replace the tab UI with <ZapSuccessScreen />.
@@ -320,8 +323,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price'],
-    queryFn: fetchBtcPrice,
+    queryKey: ['btc-price', esploraBaseUrl],
+    queryFn: () => fetchBtcPrice(esploraBaseUrl),
     staleTime: 30_000,
   });
 

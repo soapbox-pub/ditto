@@ -91,15 +91,15 @@ bitcoin.initEccLib(ecc);
 
 ## Balance & Transaction APIs
 
-All Bitcoin data is fetched from the public [mempool.space](https://mempool.space) Esplora-compatible API:
+All Bitcoin data is fetched from an [Esplora](https://github.com/Blockstream/esplora/blob/master/API.md)-compatible REST API. The base URL is read from `AppConfig.esploraBaseUrl` (default: `https://mempool.space/api`) and can be overridden in `ditto.json` at build time or in Settings at runtime. Any Esplora-compatible backend works (mempool.space, Blockstream, self-hosted).
 
-| Endpoint | Purpose |
+| Endpoint (relative to `esploraBaseUrl`) | Purpose |
 |---|---|
-| `GET https://mempool.space/api/address/{address}` | Balance stats (funded/spent sums, tx counts) |
-| `GET https://mempool.space/api/address/{address}/txs` | Transaction history for an address |
-| `GET https://mempool.space/api/tx/{txid}` | Full transaction detail (inputs, outputs, fee, block) |
+| `GET /address/{address}` | Balance stats (funded/spent sums, tx counts) |
+| `GET /address/{address}/txs` | Transaction history for an address |
+| `GET /tx/{txid}` | Full transaction detail (inputs, outputs, fee, block) |
 
-The wallet page polls balance and transaction data every 30 seconds. BTC/USD price is fetched from mempool.space every 60 seconds.
+The wallet page polls balance and transaction data every 30 seconds. BTC/USD price is fetched every 60 seconds via `GET /v1/prices` — a mempool.space-specific extension that is not part of the standard Esplora REST surface.
 
 ## NIP-73 Integration
 
@@ -140,9 +140,9 @@ The signer classes (`NSecSignerBtc`, `NBrowserSignerBtc`, `NConnectSignerBtc`) e
 
 The send flow constructs a standard Taproot (P2TR) key-path spend:
 
-1. **Fetch UTXOs** -- All unspent outputs for the sender's address are retrieved from `mempool.space/api/address/{address}/utxo`.
+1. **Fetch UTXOs** -- All unspent outputs for the sender's address are retrieved from `GET {esploraBaseUrl}/address/{address}/utxo`.
 
-2. **Fetch fee rates** -- Recommended fee rates (sat/vB) for four confirmation targets are retrieved from `mempool.space/api/fee-estimates`:
+2. **Fetch fee rates** -- Recommended fee rates (sat/vB) for four confirmation targets are retrieved from `GET {esploraBaseUrl}/fee-estimates`:
 
    | Speed | Block target | Typical wait |
    |---|---|---|
@@ -170,7 +170,7 @@ The send flow constructs a standard Taproot (P2TR) key-path spend:
 
    For extension and bunker signers, the tweaking is handled by the external signer.
 
-8. **Finalize and broadcast** -- The signed PSBT is finalized, the raw transaction hex is extracted, and POSTed to `mempool.space/api/tx`, which returns the txid on success.
+8. **Finalize and broadcast** -- The signed PSBT is finalized, the raw transaction hex is extracted, and POSTed to `{esploraBaseUrl}/tx`, which returns the txid on success.
 
 ### User Flow
 
@@ -182,11 +182,11 @@ The send dialog has three steps:
 
 ### Additional API Endpoints
 
-| Endpoint | Purpose |
+| Endpoint (relative to `esploraBaseUrl`) | Purpose |
 |---|---|
-| `GET https://mempool.space/api/address/{address}/utxo` | Unspent transaction outputs |
-| `GET https://mempool.space/api/fee-estimates` | Recommended fee rates by block target |
-| `POST https://mempool.space/api/tx` | Broadcast signed transaction (raw hex body) |
+| `GET /address/{address}/utxo` | Unspent transaction outputs |
+| `GET /fee-estimates` | Recommended fee rates by block target |
+| `POST /tx` | Broadcast signed transaction (raw hex body) |
 
 ### Dependencies (sending-specific)
 

@@ -122,6 +122,7 @@ export function TestApp({ children }: TestAppProps) {
     autoplayVideos: false,
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
+    esploraBaseUrl: 'https://mempool.space/api',
     sidebarWidgets: [],
   };
 

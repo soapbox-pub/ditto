@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import {
   nostrPubkeyToBitcoinAddress,
   npubToBitcoinAddress,
@@ -108,6 +109,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
   const queryClient = useQueryClient();
 
   // Form state
@@ -126,15 +129,15 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   // ── Data fetching ──────────────────────────────────────────────
 
   const { data: utxos, isLoading: isLoadingUtxos } = useQuery({
-    queryKey: ['bitcoin-utxos', senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress),
+    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
+    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
     enabled: !!senderAddress && isOpen,
     staleTime: 30_000,
   });
 
   const { data: feeRates, isLoading: isLoadingFees } = useQuery({
-    queryKey: ['bitcoin-fee-rates'],
-    queryFn: getFeeRates,
+    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
+    queryFn: () => getFeeRates(esploraBaseUrl),
     enabled: isOpen,
     staleTime: 30_000,
   });
@@ -202,7 +205,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
       // 3. Finalize and extract raw tx
       const txHex = finalizePsbt(signedHex);
 
-      const id = await broadcastTransaction(txHex);
+      const id = await broadcastTransaction(txHex, esploraBaseUrl);
       return { txId: id, fee };
     },
     onSuccess: ({ txId: id, fee }) => {

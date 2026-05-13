@@ -278,6 +278,13 @@ export interface AppConfig {
   curatorPubkey?: string;
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
+  /**
+   * Base URL for the Esplora-compatible Bitcoin REST API. Used by the wallet,
+   * on-chain zap flows, and NIP-73 Bitcoin tx/address pages. The standard
+   * Esplora REST root (no version segment). The mempool.space `/v1/prices`
+   * extension is appended by the price call. Default: "https://mempool.space/api".
+   */
+  esploraBaseUrl: string;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
 }

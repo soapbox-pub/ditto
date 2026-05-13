@@ -17,6 +17,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useOnchainZap, type OnchainFeeSpeed } from '@/hooks/useOnchainZap';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useNostrLogin } from '@nostrify/react/login';
 import {
   nostrPubkeyToBitcoinAddress,
@@ -94,6 +95,8 @@ export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapCont
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
   const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
@@ -114,21 +117,21 @@ export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapCont
     : '';
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price'],
-    queryFn: fetchBtcPrice,
+    queryKey: ['btc-price', esploraBaseUrl],
+    queryFn: () => fetchBtcPrice(esploraBaseUrl),
     staleTime: 30_000,
   });
 
   const { data: utxos } = useQuery({
-    queryKey: ['bitcoin-utxos', senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress),
+    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
+    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
     enabled: !!senderAddress && capability !== 'unsupported',
     staleTime: 30_000,
   });
 
   const { data: feeRates } = useQuery({
-    queryKey: ['bitcoin-fee-rates'],
-    queryFn: getFeeRates,
+    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
+    queryFn: () => getFeeRates(esploraBaseUrl),
     enabled: capability !== 'unsupported',
     staleTime: 30_000,
   });
