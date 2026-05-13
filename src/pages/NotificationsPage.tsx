@@ -26,6 +26,8 @@ import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatNumber } from '@/lib/formatNumber';
+import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
+import { encodeEventAddress } from '@/lib/encodeEvent';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
@@ -407,7 +409,7 @@ function GroupHeader({
 }: {
   actors: NotificationItem[];
   icon: React.ReactNode;
-  action: string;
+  action: React.ReactNode;
 }) {
   // Build a human-readable subject line from the first 2 actor names
   const firstActor = actors[0];
@@ -489,7 +491,7 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
               <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4 object-contain" />
             </span>
           }
-          action={`reacted to your ${noun}`}
+          action={<ActionLink event={item.event}>{`reacted to your ${noun}`}</ActionLink>}
         />
       </div>
       {!isProfileReaction && <ReferencedNoteCard item={item} />}
@@ -508,7 +510,7 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<RepostIcon className="size-4 text-accent" />}
-          action={`reposted your ${noun}`}
+          action={<ActionLink event={item.event}>{`reposted your ${noun}`}</ActionLink>}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -521,65 +523,18 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
 // ──────────────────────────────────────
 
 /**
- * Extracts the zap amount in sats from either a kind 9735 lightning zap
- * receipt or a kind 8333 on-chain Bitcoin zap event.
- *
- * Kind 9735 (NIP-57): the `amount` tag carries millisats — check the receipt
- * first, then fall back to the embedded zap-request JSON in `description`.
- * Kind 8333: the `amount` tag carries sats directly (see NIP.md).
+ * Renders a notification action verb that links to the underlying event
+ * (the reaction, repost, or zap) on the /:nip19 detail page. Falls back
+ * to a plain span when `event` is undefined.
  */
-function getZapAmountSats(event: NostrEvent): number {
-  if (event.kind === 8333) {
-    const amountTag = event.tags.find(([name]) => name === 'amount');
-    if (amountTag?.[1]) {
-      const sats = parseInt(amountTag[1], 10);
-      if (!isNaN(sats) && sats > 0) return sats;
-    }
-    return 0;
-  }
-
-  // Kind 9735: amount is in millisats
-  const amountTag = event.tags.find(([name]) => name === 'amount');
-  if (amountTag?.[1]) {
-    const msats = parseInt(amountTag[1], 10);
-    if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
-  }
-  const descTag = event.tags.find(([name]) => name === 'description');
-  if (descTag?.[1]) {
-    try {
-      const zapRequest = JSON.parse(descTag[1]);
-      const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
-      if (reqAmountTag?.[1]) {
-        const msats = parseInt(reqAmountTag[1], 10);
-        if (!isNaN(msats) && msats > 0) return Math.floor(msats / 1000);
-      }
-    } catch { /* ignore */ }
-  }
-  return 0;
-}
-
-/**
- * Extracts the sender pubkey from a zap event.
- *
- * Kind 9735: the receipt is signed by the LNURL provider, so the sender lives
- * in the uppercase `P` tag (preferred) or in the `description` JSON's pubkey
- * (the original zap request).
- * Kind 8333: the sender authors the event themselves, so `event.pubkey` IS
- * the sender (see NIP.md).
- */
-function getZapSenderPubkey(event: NostrEvent): string {
-  if (event.kind === 8333) return event.pubkey;
-
-  const pTag = event.tags.find(([name]) => name === 'P');
-  if (pTag?.[1]) return pTag[1];
-  const descTag = event.tags.find(([name]) => name === 'description');
-  if (descTag?.[1]) {
-    try {
-      const zapRequest = JSON.parse(descTag[1]);
-      if (zapRequest.pubkey) return zapRequest.pubkey;
-    } catch { /* ignore */ }
-  }
-  return event.pubkey;
+function ActionLink({ event, children }: { event: NostrEvent | undefined; children: React.ReactNode }) {
+  const href = useMemo(() => (event ? `/${encodeEventAddress(event)}` : undefined), [event]);
+  if (!href) return <>{children}</>;
+  return (
+    <Link to={href} className="hover:underline">
+      {children}
+    </Link>
+  );
 }
 
 function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
@@ -596,7 +551,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
         <NotificationHeader
           actorPubkey={senderPubkey}
           icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-          action={`zapped you${amountLabel}`}
+          action={<ActionLink event={event}>{`zapped you${amountLabel}`}</ActionLink>}
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -622,7 +577,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
             <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} className="inline-block h-4 w-4 object-contain" />
           </span>
         }
-        action={`reacted to your ${noun}`}
+        action={<ActionLink event={firstEvent}>{`reacted to your ${noun}`}</ActionLink>}
       />
       {!isProfileReaction && <ReferencedNoteCard item={group.actors[0]} />}
     </NotificationWrapper>
@@ -639,7 +594,7 @@ function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) 
       <GroupHeader
         actors={group.actors}
         icon={<RepostIcon className="size-4 text-accent" />}
-        action={`reposted your ${noun}`}
+        action={<ActionLink event={group.actors[0].event}>{`reposted your ${noun}`}</ActionLink>}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -678,7 +633,7 @@ function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
       <GroupHeader
         actors={zapActors}
         icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-        action={`zapped you${amountLabel}`}
+        action={<ActionLink event={group.actors[0].event}>{`zapped you${amountLabel}`}</ActionLink>}
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -998,7 +953,7 @@ function NotificationHeader({
 }: {
   actorPubkey: string;
   icon: React.ReactNode;
-  action: string;
+  action: React.ReactNode;
 }) {
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
