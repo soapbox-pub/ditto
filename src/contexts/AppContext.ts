@@ -19,6 +19,16 @@ export type ContentWarningPolicy = "blur" | "hide" | "show";
 /** How to handle events with a NIP-36 content-warning tag. */
 export type NsfwPolicy = "blur" | "hide" | "show";
 
+/**
+ * How to display monetary amounts (zap totals, wallet balances, etc.).
+ * - "usd": Convert sats to USD using the current BTC/USD price. Falls back
+ *   to sats if the price is unavailable.
+ * - "sats": Show the raw satoshi amount.
+ *
+ * Default: "usd".
+ */
+export type CurrencyDisplay = "usd" | "sats";
+
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];
@@ -289,6 +299,12 @@ export interface AppConfig {
    * extension is appended by the price call. Default: "https://mempool.space/api".
    */
   esploraBaseUrl: string;
+  /**
+   * How to display monetary amounts (zap totals, wallet balances, etc.).
+   * "usd" converts sats to USD via the current BTC price; "sats" shows raw
+   * satoshi amounts. Default: "usd".
+   */
+  currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
 }

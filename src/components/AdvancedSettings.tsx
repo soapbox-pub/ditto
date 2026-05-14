@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 /** The build-time default DSN from the environment variable. */
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
@@ -20,6 +22,7 @@ export function AdvancedSettings() {
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
   const [systemOpen, setSystemOpen] = useState(true);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const [sentryOpen, setSentryOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
@@ -38,6 +41,18 @@ export function AdvancedSettings() {
       updateConfig(() => ({ nip85StatsPubkey: '' }));
       toast({ title: 'Stats source cleared' });
     }
+  };
+
+  const currencyDisplay: CurrencyDisplay = config.currencyDisplay ?? 'usd';
+
+  const handleCurrencyChange = async (value: string) => {
+    if (value !== 'usd' && value !== 'sats') return;
+    updateConfig(() => ({ currencyDisplay: value }));
+    if (user) await updateSettings.mutateAsync({ currencyDisplay: value });
+    toast({
+      title: 'Currency display updated',
+      description: value === 'usd' ? 'Amounts shown in US dollars.' : 'Amounts shown in satoshis.',
+    });
   };
 
   return (
@@ -174,6 +189,71 @@ export function AdvancedSettings() {
                   <span className="font-medium">Default: </span>
                   <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
                 </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Currency Section */}
+      <div>
+        <Collapsible open={currencyOpen} onOpenChange={setCurrencyOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+            >
+              <span className="flex items-center gap-2 text-base font-semibold">
+                <Coins className="h-4 w-4" />
+                Currency
+              </span>
+              {currencyOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-3 pt-3 pb-4 space-y-3">
+              <div>
+                <Label className="text-sm font-medium">Display amounts in</Label>
+                <p className="text-xs text-muted-foreground mt-1 mb-3">
+                  Choose how zap totals, balances, and other monetary amounts are shown
+                  throughout the app. USD is converted from sats using the current BTC
+                  price; sats falls back automatically when the price is unavailable.
+                </p>
+                <RadioGroup
+                  value={currencyDisplay}
+                  onValueChange={handleCurrencyChange}
+                  className="gap-2"
+                >
+                  <label
+                    htmlFor="currency-usd"
+                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                  >
+                    <RadioGroupItem value="usd" id="currency-usd" />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">US Dollars</span>
+                      <p className="text-xs text-muted-foreground">
+                        e.g. <span className="font-semibold">$2.50</span>
+                      </p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="currency-sats"
+                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                  >
+                    <RadioGroupItem value="sats" id="currency-sats" />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">Satoshis</span>
+                      <p className="text-xs text-muted-foreground">
+                        e.g. <span className="font-semibold">6,300 sats</span>
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
               </div>
             </div>
           </CollapsibleContent>

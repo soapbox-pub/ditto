@@ -264,6 +264,7 @@ export const AppConfigSchema = z.object({
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
   sandboxDomain: z.string().optional(),
   esploraBaseUrl: z.string().url(),
+  currencyDisplay: z.enum(['usd', 'sats']).optional(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),
     height: z.number().optional(),
@@ -356,6 +357,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
   sentryDsn: z.string().optional(),
+  currencyDisplay: z.enum(['usd', 'sats']).optional(),
   savedFeeds: z.array(z.unknown()).transform((arr) =>
     arr.flatMap((item) => {
       if (typeof item !== 'object' || item === null) return [];

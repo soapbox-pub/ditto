@@ -25,7 +25,7 @@ import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/u
 import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
-import { formatNumber } from '@/lib/formatNumber';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -266,6 +266,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
   const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <div
@@ -329,7 +330,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
             <span className="text-sm text-muted-foreground">zapped</span>
             {amountSats > 0 && (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                {formatMoney(amountSats)}
               </span>
             )}
             <span className="text-xs text-muted-foreground shrink-0">
@@ -384,6 +385,7 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
   const senderName = senderMeta?.name || senderMeta?.display_name || genUserName(senderPubkey);
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <div
@@ -440,7 +442,7 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
             <span className="text-sm text-muted-foreground">zapped</span>
             {amountSats > 0 && (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                {formatMoney(amountSats)}
               </span>
             )}
             {/* Muted hint that this is an on-chain rather than Lightning zap,

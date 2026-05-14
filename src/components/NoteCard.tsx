@@ -2,7 +2,6 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Bird,
-  Bitcoin,
   Camera,
   Egg,
   FileCode,
@@ -109,6 +108,7 @@ import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
 import { useUserZap } from "@/hooks/useUserZap";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
@@ -362,6 +362,10 @@ export const NoteCard = memo(function NoteCard({
   // Optimistic cache is set by the send hooks, so the icon fills instantly
   // on success without waiting for the relay echo.
   const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
+
+  // Money formatter (USD by default, with sats fallback). Reused for the
+  // "X zapped Y" wrapper header and the kind 9735 zap-receipt card below.
+  const { format: formatMoney } = useFormatMoney();
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
@@ -831,7 +835,7 @@ export const NoteCard = memo(function NoteCard({
             />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">
-                {formatNumber(stats.zapAmount)}
+                {formatMoney(stats.zapAmount, { layout: 'compact' })}
               </span>
             ) : null}
           </button>
@@ -940,13 +944,13 @@ export const NoteCard = memo(function NoteCard({
   ) : zappedBy ? (
     <EventActionHeader
       pubkey={zappedBy.pubkey}
-      icon={zappedBy.event.kind === 8333 ? Bitcoin : Zap}
+      icon={Zap}
       iconClassName="text-amber-500"
       action="zapped"
       actionEvent={zappedBy.event}
       extra={zappedBy.sats > 0 ? (
         <span className="font-semibold text-amber-500">
-          {formatNumber(zappedBy.sats)} {zappedBy.sats === 1 ? 'sat' : 'sats'}
+          {formatMoney(zappedBy.sats)}
         </span>
       ) : undefined}
     />
@@ -1020,7 +1024,7 @@ export const NoteCard = memo(function NoteCard({
             displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading} label="zapped" timestampLabel={timeAgo(event.created_at)}
             extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+                {formatMoney(zapAmountSats)}
               </span>
             ) : undefined}
           />
@@ -1924,8 +1928,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/highlights",
   },
   8333: {
-    icon: Bitcoin,
-    action: "Bitcoin-zapped",
+    icon: Zap,
+    action: "zapped",
   },
   31124: {
     icon: Egg,

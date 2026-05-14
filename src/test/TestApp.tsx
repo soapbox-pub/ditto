@@ -125,6 +125,7 @@ export function TestApp({ children }: TestAppProps) {
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
     esploraBaseUrl: 'https://mempool.space/api',
+    currencyDisplay: 'usd',
     sidebarWidgets: [],
   };
 

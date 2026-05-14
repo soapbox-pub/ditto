@@ -50,6 +50,7 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -343,6 +344,7 @@ export function VineCard({
 	const displayName = getDisplayName(metadata, event.pubkey);
 	const profileUrl = useProfileUrl(event.pubkey, metadata);
 	const { data: stats } = useEventStats(event.id, event);
+	const { format: formatMoney } = useFormatMoney();
 	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 	const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
@@ -656,7 +658,7 @@ export function VineCard({
 									/>
 								}
 								label={
-									stats?.zapAmount ? formatNumber(stats.zapAmount) : undefined
+									stats?.zapAmount ? formatMoney(stats.zapAmount, { layout: 'compact' }) : undefined
 								}
 								className={
 									isZapped

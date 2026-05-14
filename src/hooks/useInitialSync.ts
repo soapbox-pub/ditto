@@ -243,6 +243,9 @@ export function useInitialSync() {
               if (parsed.linkPreviewUrl) {
                 updates.linkPreviewUrl = parsed.linkPreviewUrl;
               }
+              if (parsed.currencyDisplay) {
+                updates.currencyDisplay = parsed.currencyDisplay;
+              }
 
               return updates;
             });

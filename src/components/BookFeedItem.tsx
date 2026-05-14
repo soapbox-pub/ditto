@@ -26,6 +26,7 @@ import { useBookSummary } from '@/hooks/useBookSummary';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
 import { formatNumber } from '@/lib/formatNumber';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { cn } from '@/lib/utils';
 import { BOOKSTR_KINDS, extractISBNFromEvent, parseBookReview, ratingToStars } from '@/lib/bookstr';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -57,6 +58,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id, event);
+  const { format: formatMoney } = useFormatMoney();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
@@ -263,7 +265,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                   title={isZapped ? 'Zapped' : 'Zap'}
                 >
                   <Zap className="size-5" fill={isZapped ? 'currentColor' : 'none'} />
-                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span> : null}
+                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span> : null}
                 </button>
               </ZapDialog>
             )}

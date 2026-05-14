@@ -405,6 +405,14 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (
+        encryptedSettings.currencyDisplay &&
+        encryptedSettings.currencyDisplay !== current.currencyDisplay
+      ) {
+        updates.currencyDisplay = encryptedSettings.currencyDisplay;
+        changed = true;
+      }
+
       // Return the same reference if nothing changed to prevent re-render
       return changed ? updates : current;
     });

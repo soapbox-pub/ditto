@@ -182,6 +182,7 @@ import { useReplies } from "@/hooks/useReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
@@ -1093,6 +1094,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
+  const { format: formatMoney } = useFormatMoney();
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
   const topEmojis = useMemo<ResolvedEmoji[]>(() => {
@@ -1812,7 +1814,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     <span className="text-sm text-muted-foreground">zapped</span>
                     {zapAmountSats > 0 && (
                       <span className="text-sm font-semibold text-amber-500 shrink-0">
-                        {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+                        {formatMoney(zapAmountSats)}
                       </span>
                     )}
                   </>
@@ -1881,7 +1883,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <span className="text-sm text-muted-foreground">zapped</span>
                 {amountSats > 0 && (
                   <span className="text-sm font-semibold text-amber-500 shrink-0">
-                    {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                    {formatMoney(amountSats)}
                   </span>
                 )}
                 {failedVerification ? (

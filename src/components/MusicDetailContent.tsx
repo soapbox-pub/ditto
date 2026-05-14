@@ -20,6 +20,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { formatNumber } from '@/lib/formatNumber';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -96,6 +97,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   };
 
   const zapAmount = stats.data?.zapAmount ?? 0;
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <main className="">
@@ -201,7 +203,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
             {/* Zap stats */}
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
-                <p className="text-lg font-bold leading-tight">{formatNumber(zapAmount)} sats</p>
+                <p className="text-lg font-bold leading-tight">{formatMoney(zapAmount)}</p>
                 <p className="text-xs text-muted-foreground">{formatNumber(stats.data?.zapCount ?? 0)} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
               </button>
             )}

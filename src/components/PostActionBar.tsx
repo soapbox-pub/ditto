@@ -8,6 +8,7 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { useUserZap } from '@/hooks/useUserZap';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ export function PostActionBar({
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <div className={`flex items-center justify-between py-1 border-t border-b border-border${className ? ` ${className}` : ''}`}>
@@ -104,7 +106,7 @@ export function PostActionBar({
               fill={isZapped ? 'currentColor' : 'none'}
             />
             {stats?.zapAmount ? (
-              <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span>
+              <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>
             ) : null}
           </button>
         </ZapDialog>

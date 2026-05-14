@@ -25,8 +25,8 @@ import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { formatNumber } from '@/lib/formatNumber';
 import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -542,8 +542,9 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 
   const zapAmount = useMemo(() => getZapAmountSats(event), [event]);
   const senderPubkey = useMemo(() => getZapSenderPubkey(event), [event]);
+  const { format: formatMoney } = useFormatMoney();
 
-  const amountLabel = zapAmount > 0 ? ` ${formatNumber(zapAmount)} sats` : '';
+  const amountLabel = zapAmount > 0 ? ` ${formatMoney(zapAmount)}` : '';
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -626,7 +627,8 @@ function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
     });
   }, [group.actors]);
 
-  const amountLabel = totalSats > 0 ? ` ${formatNumber(totalSats)} sats` : '';
+  const { format: formatMoney } = useFormatMoney();
+  const amountLabel = totalSats > 0 ? ` ${formatMoney(totalSats)}` : '';
 
   return (
     <NotificationWrapper isNew={group.isNew}>

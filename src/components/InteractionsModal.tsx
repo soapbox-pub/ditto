@@ -23,6 +23,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { formatNumber } from '@/lib/formatNumber';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { cn } from '@/lib/utils';
 
 export type InteractionTab = 'reposts' | 'quotes' | 'reactions' | 'zaps';
@@ -251,6 +252,7 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
  * click through to the source event if they care about the mechanics.
  */
 function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
+  const { format: formatMoney } = useFormatMoney();
   if (zaps.length === 0) {
     return <EmptyState message="No zaps yet" />;
   }
@@ -262,7 +264,7 @@ function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
       {/* Total */}
       <div className="flex items-center justify-center gap-2 px-4 py-3 bg-secondary/30 border-b border-border">
         <Zap className="size-4 text-amber-500 fill-amber-500" />
-        <span className="text-sm font-bold text-amber-500">{formatNumber(totalSats)} sats</span>
+        <span className="text-sm font-bold text-amber-500">{formatMoney(totalSats)}</span>
         <span className="text-xs text-muted-foreground">from {zaps.length} zap{zaps.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -373,6 +375,7 @@ function ZapRow({ zap }: { zap: UnifiedZap }) {
     () => nip19.neventEncode({ id: zap.linkEventId, author: zap.linkPubkey }),
     [zap.linkEventId, zap.linkPubkey],
   );
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <Link
@@ -405,7 +408,7 @@ function ZapRow({ zap }: { zap: UnifiedZap }) {
       {/* Zap amount badge — identical for Lightning + on-chain zaps by design. */}
       <div className="flex items-center gap-1 shrink-0 bg-amber-500/10 text-amber-500 rounded-full px-2.5 py-1">
         <Zap className="size-3.5 fill-amber-500" />
-        <span className="text-xs font-bold tabular-nums">{formatNumber(zap.amountSats)}</span>
+        <span className="text-xs font-bold tabular-nums">{formatMoney(zap.amountSats, { layout: 'compact' })}</span>
       </div>
 
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
