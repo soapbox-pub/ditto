@@ -22,6 +22,7 @@
 
 import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import type { FurniturePlacement, FurnitureLayer } from '../lib/room-furniture-schema';
 import { resolveFurniture, getFurnitureAsset, type FurnitureDefinition } from '../lib/furniture-registry';
@@ -212,6 +213,8 @@ function FurnitureItem({
   const scale = placement.scale ?? 1;
   const widthPct = def.baseWidth * scale * 100;
   const flip = placement.flip ? ' scaleX(-1)' : '';
+  // Defense-in-depth: re-sanitize event-sourced imageUrl at render time
+  const safeImageUrl = sanitizeUrl(placement.content?.imageUrl ?? '');
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isEditing) return;
@@ -276,10 +279,10 @@ function FurnitureItem({
           isDragging={isDragging}
           isHolding={isHolding}
         />
-      ) : def.isFrame && placement.content?.imageUrl ? (
+      ) : def.isFrame && safeImageUrl ? (
         <FrameWithImage
-          key={placement.content.imageUrl}
-          imageUrl={placement.content.imageUrl}
+          key={safeImageUrl}
+          imageUrl={safeImageUrl}
           overlayAsset={getFrameOverlayAsset(asset)}
           fallbackAsset={asset}
           imageInset={def.frameImageInset}

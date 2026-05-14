@@ -546,6 +546,57 @@ The `content` of kind 11125 MAY include a `room_layouts` field for per-room visu
 
 Clients MUST fall back to built-in defaults for any room without a valid layout entry.
 
+#### Kind 11125 `content` JSON — `room_furniture` field
+
+The `content` of kind 11125 MAY include a `room_furniture` field for per-room decorative furniture placements:
+
+```json
+{
+  "room_furniture": {
+    "v": 1,
+    "by_room": {
+      "home": [
+        { "id": "official:plant-small", "x": 0.85, "y": 0.72, "layer": "front", "scale": 0.9 },
+        { "id": "official:clock-wall", "x": 0.5, "y": 0.18, "layer": "back" },
+        { "id": "official:picture-frame", "x": 0.3, "y": 0.3, "layer": "back", "content": { "imageUrl": "https://cdn.example.com/photo.jpg" } }
+      ]
+    }
+  }
+}
+```
+
+**Top-level shape:**
+
+| Field     | Type | Description |
+|-----------|------|-------------|
+| `v`       | `1`  | Schema version. MUST be `1`. |
+| `by_room` | `Partial<Record<BlobbiRoomId, FurniturePlacement[]>>` | Per-room placement arrays keyed by room ID. |
+
+**`FurniturePlacement` fields:**
+
+| Field     | Required | Description |
+|-----------|----------|-------------|
+| `id`      | Yes      | Namespaced furniture ID. MUST match `/^[a-z][a-z0-9]*:[a-z][a-z0-9-]*$/` (e.g. `official:plant-small`). |
+| `x`       | Yes      | Horizontal position, normalized 0–1 (0 = left edge, 1 = right edge). Clamped to [0, 1]. |
+| `y`       | Yes      | Vertical position, normalized 0–1 (0 = top of room, 1 = bottom). Clamped to [0, 1]. |
+| `layer`   | Yes      | Rendering layer: `back` (wall-mounted), `floor` (behind Blobbi), or `front` (in front of Blobbi). |
+| `scale`   | No       | Size multiplier. Clamped to [0.5, 2.0]. Default `1`. |
+| `flip`    | No       | Horizontal mirror. Boolean. Default `false`. |
+| `variant` | No       | Named variant string (1–32 chars), validated against the item's definition at render time. |
+| `content` | No       | Dynamic per-instance content. See below. |
+
+**`FurnitureContent` fields:**
+
+| Field      | Required | Description |
+|------------|----------|-------------|
+| `imageUrl` | No       | Image URL for picture frames. MUST be a valid `https:` URL; non-https URLs are rejected. |
+
+**Per-room cap:** A maximum of 20 placements per room is enforced. Excess items beyond the cap are dropped (first 20 kept).
+
+**Parser behavior:** Unrecognized room IDs are skipped. Items with an invalid `id`, non-finite `x`/`y`, or unrecognized `layer` are silently dropped. Invalid optional fields (`scale`, `flip`, `variant`, `content`) are ignored (treated as absent). `imageUrl` values that are not valid `https:` URLs are rejected. The parser never throws — malformed data falls back to defaults. If `v` is not `1`, the entire `room_furniture` object is ignored.
+
+Clients MUST fall back to built-in defaults for any room without a valid furniture entry.
+
 #### Kind 1124: Blobbi Social Interaction
 
 Immutable, regular (non-replaceable) event that logs a single interaction with a Blobbi. These events form an append-only interaction log. They do **not** directly mutate the canonical kind 31124 state — the owner's client consolidates pending interactions into canonical stats via a checkpoint-based system.
