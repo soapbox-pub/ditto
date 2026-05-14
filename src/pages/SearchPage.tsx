@@ -15,6 +15,8 @@ import {
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -55,7 +57,7 @@ import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
-import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
+import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'posts' | 'accounts';
@@ -420,6 +422,23 @@ export function SearchPage() {
     sort,
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
+
+  // Unwrap reposts / reactions / zaps so the target event renders with the
+  // wrapper as an overlay header — same pipeline as the home, profile, and
+  // follow feeds. Without this, kind 7 reactions and kind 9735 / 8333 zaps
+  // would fall through to NoteCard's standalone activity-card layout.
+  // Re-runs only when the set of post ids changes (not on every reorder).
+  const { nostr } = useNostr();
+  const postsKey = useMemo(() => posts.map((p) => p.id).join(','), [posts]);
+  const { data: feedItems = [] } = useQuery<FeedItem[]>({
+    queryKey: ['search-feed-items', postsKey],
+    queryFn: async ({ signal }) => {
+      const items = await buildFeedItems(posts, nostr, signal);
+      return dedupeFeedItems(items);
+    },
+    enabled: posts.length > 0,
+    staleTime: 60_000,
+  });
 
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
@@ -798,18 +817,21 @@ export function SearchPage() {
                   <PostSkeleton key={i} />
                 ))}
               </div>
-            ) : posts.length > 0 ? (
+            ) : feedItems.length > 0 ? (
               <div>
-                {posts.map((event) => {
-                  const isNew = flushedIds.has(event.id);
-                  if (isRepostKind(event.kind)) {
-                    const embedded = parseRepostContent(event);
-                    if (embedded) {
-                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} repostEvent={event} highlight={isNew} />;
-                    }
-                    return null;
-                  }
-                  return <NoteCard key={event.id} event={event} highlight={isNew} />;
+                {feedItems.map((item) => {
+                  const isNew = flushedIds.has(item.event.id);
+                  return (
+                    <NoteCard
+                      key={feedItemKey(item)}
+                      event={item.event}
+                      repostedBy={item.repostedBy}
+                      repostEvent={item.repostEvent}
+                      reactedBy={item.reactedBy}
+                      zappedBy={item.zappedBy}
+                      highlight={isNew}
+                    />
+                  );
                 })}
                 {/* Infinite scroll sentinel */}
                 {hasNextPage && (
