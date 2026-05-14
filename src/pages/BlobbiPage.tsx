@@ -1599,12 +1599,16 @@ function BlobbiDashboard({
   // do not clear a newer visual state.
   const actionCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Handle using an item from the items tab
+  const guideTargetRef = useRef(guideTarget);
+  guideTargetRef.current = guideTarget;
+
   // Handle tap-based item use.
   // Non-food actions use this path from room bars, and the fridge still uses it for food for now.
   // Triggers a temporary interaction reaction based on the action type.
   // For 'clean' actions, detects whether the Blobbi was visibly dirty before
   // the action and uses 'clean_complete' if the dirt was fully removed.
-  const handleUseItemFromTab = (itemId: string) => {
+  const handleUseItemFromTab = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
     clearTimeout(actionCleanupRef.current);
@@ -1624,7 +1628,8 @@ function BlobbiDashboard({
     }
 
     onUseItem(itemId, action).then(() => {
-      if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
+      // Clear guide only after the action succeeds
+      if (guideTargetRef.current?.targetItemId === itemId) setGuideTarget(null);
 
       // For clean actions, trigger after the action succeeds so we can
       // detect clean_complete from the updated projected stats.
@@ -1649,7 +1654,7 @@ function BlobbiDashboard({
       setUsingItemId(null);
       actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
-  };
+  }, [isUsingItem, onUseItem]);
 
   // ─── Food drag-to-feed ───────────────────────────────────────────────────
   //
@@ -1861,6 +1866,8 @@ function BlobbiDashboard({
   // Close fridge when leaving the kitchen
   useEffect(() => { if (currentRoom !== 'kitchen') setShowFridge(false); }, [currentRoom]);
 
+  const isKitchenDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
   const foodItems = useMemo(() => {
     const items = getLiveShopItems().filter(i => i.type === 'food');
     return items.map(item => ({
@@ -1967,7 +1974,7 @@ function BlobbiDashboard({
           </ScrollArea>
         </div>
 
-        <SubHeaderBar className="relative !top-0" innerClassName='md:min-h-0 min-h-[50px]'>
+        <SubHeaderBar className="relative !top-0" innerClassName="md:min-h-0 min-h-[50px]">
           <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
@@ -2501,17 +2508,21 @@ function maybeOverfeedPoop(
 }
 
 function KitchenBar({
+  companion,
+  currentStats,
   isUsingItem,
   usingItemId,
   isPublishing,
   actionInProgress,
+  handleUseItemFromTab,
+  poopStateRef,
   guideHighlightId,
   guideActionGlow,
   foodDragHook,
   carouselKeyPrefix,
   setShowFridge,
   foodItems,
-  handleFeedItem,
+  handleFeedItem: _handleFeedItem,
   shovelDragRef,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
