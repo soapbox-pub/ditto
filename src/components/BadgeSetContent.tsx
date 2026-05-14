@@ -80,7 +80,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           title and description remain legible on top. */}
       {image ? (
         <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-black">
-          <div className="aspect-[16/9] w-full">
+          <div className="aspect-[3/1] w-full">
             <img
               src={image}
               alt={title}
