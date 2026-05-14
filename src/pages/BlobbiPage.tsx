@@ -2045,21 +2045,23 @@ function BlobbiDashboard({
         shovelDragRef={shovelDragRef}
         roomOverlay={showFridge ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
-            <button
-              onClick={() => setShowFridge(false)}
-              className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close fridge"
-            >
-              <X className="size-5" strokeWidth={4} />
-            </button>
+            <div className="w-full max-w-md px-4" onClick={(e) => e.stopPropagation()}>
+              <div className="relative flex items-center justify-center mb-4">
+                <div className="flex items-center gap-2">
+                  <Refrigerator className="size-5 text-orange-500" />
+                  <h3 className="text-sm font-semibold">Fridge</h3>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowFridge(false); }}
+                  className="absolute right-0 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Close fridge"
+                >
+                  <X className="size-5" strokeWidth={4} />
+                </button>
+              </div>
 
-            <div className="flex items-center gap-2 mb-4">
-              <Refrigerator className="size-5 text-orange-500" />
-              <h3 className="text-sm font-semibold">Fridge</h3>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
-              {foodItems.map(item => {
+              <div className="flex flex-wrap justify-center gap-1">
+                {foodItems.map(item => {
                 const isThisUsing = isUsingItem && usingItemId === item.id;
                 return (
                   <button
@@ -2099,6 +2101,7 @@ function BlobbiDashboard({
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
         ) : undefined}
