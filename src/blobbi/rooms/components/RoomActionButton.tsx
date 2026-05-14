@@ -8,7 +8,7 @@
 import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
+import { ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
 
 interface RoomActionButtonProps {
   icon: React.ReactNode;
@@ -64,20 +64,22 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
       <div className="relative">
         <div
           className={cn(
-            'size-14 sm:size-20 rounded-full flex items-center justify-center',
-            ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
+            'size-10 sm:size-14 rounded-full flex items-center justify-center',
+            'bg-background/50 backdrop-blur-[2px] border border-border/20 shadow-sm transition-shadow duration-200',
+            'hover:shadow-[0_0_12px_var(--glow)]',
             color,
             glow && ROOM_GUIDE_HIGHLIGHT,
           )}
           style={{
+            '--glow': `color-mix(in srgb, ${glowHex} 50%, transparent)`,
             backgroundImage: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
-          }}
+          } as React.CSSProperties}
         >
           {loading ? <Loader2 className="size-5 sm:size-6 animate-spin" /> : <span className="[&>svg]:size-5 sm:[&>svg]:size-6">{icon}</span>}
         </div>
         {badge && <div className="absolute -top-0.5 -right-0.5">{badge}</div>}
       </div>
-      <span className={cn('text-[10px] sm:text-xs font-medium text-muted-foreground rounded-full px-1.5 py-px', ROOM_CONTROL_SURFACE_SUBTLE)}>{label}</span>
+      <span className="text-[10px] sm:text-xs font-medium text-muted-foreground bg-background/50 backdrop-blur-[2px] rounded-full px-1.5 py-px">{label}</span>
     </button>
   );
 });
