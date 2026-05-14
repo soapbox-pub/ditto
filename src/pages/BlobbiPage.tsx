@@ -1975,19 +1975,19 @@ function BlobbiDashboard({
         </div>
 
         <SubHeaderBar className="relative !top-0" innerClassName="md:min-h-0 min-h-[50px]">
-          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
+          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')} className="translate-y-0">
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
             </span>
           </TabButton>
-          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')}>
+          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')} className="translate-y-2">
             <span className="flex items-center gap-1.5">
               <Activity className="size-4" />
               <span className="text-sm">Activity</span>
             </span>
           </TabButton>
-          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
+          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')} className="translate-y-0">
             <span className="flex items-center gap-1.5">
               <Egg className="size-4" />
               <span className="text-sm">Blobbis</span>
