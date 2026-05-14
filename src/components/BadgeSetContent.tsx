@@ -74,30 +74,52 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
 
   return (
     <div className="mt-3 space-y-3">
-      {/* Set hero: image (if any) + title + description */}
-      <div className="flex gap-3 items-start">
-        {image ? (
-          <img
-            src={image}
-            alt={title}
-            className="size-16 rounded-lg object-cover shrink-0"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="size-16 rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center shrink-0">
-            <Award className="size-7 text-primary/40" />
+      {/* Set hero — full-bleed poster when an image is provided, otherwise a
+          minimalist text-only header. The image is treated as cover art:
+          letterboxed at a wide aspect ratio with a dark gradient so the
+          title and description remain legible on top. */}
+      {image ? (
+        <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-black">
+          <div className="aspect-[16/9] w-full">
+            <img
+              src={image}
+              alt={title}
+              className="size-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold leading-snug break-words">{title}</p>
+          {/* Bottom-up gradient for legibility */}
+          <div
+            className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/85 via-black/30 to-transparent"
+            aria-hidden="true"
+          />
+          {/* Text overlay */}
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 text-white">
+            <h3 className="text-xl sm:text-2xl font-bold leading-tight drop-shadow-md break-words">
+              {title}
+            </h3>
+            {description && (
+              <p className="text-sm text-white/85 mt-1.5 leading-snug line-clamp-2 drop-shadow break-words">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
+          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Award className="size-3.5" />
+            Badge set
+          </div>
+          <h3 className="text-xl font-bold mt-1.5 leading-tight break-words">{title}</h3>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-3 break-words">
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-3 break-words">
               {description}
             </p>
           )}
         </div>
-      </div>
+      )}
 
       {/* Badge grid */}
       {badgeDefsQuery.isLoading ? (
