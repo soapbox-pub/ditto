@@ -123,9 +123,6 @@ const BADGE_DEFINITION_KIND = 30009;
 /** NIP-58 Profile Badges (new replaceable kind). */
 const BADGE_PROFILE_KIND_NEW = 10008;
 
-/** NIP-58 Profile Badges (legacy addressable kind). */
-const BADGE_PROFILE_KIND_LEGACY = 30008;
-
 /** NIP-58 Badge Award. */
 const BADGE_AWARD_KIND = 8;
 
@@ -152,7 +149,11 @@ function shellTitleForKind(kind?: number): string {
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
   // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
-  if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
+  // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
+  // Kind 30008 falls through to the central registry ("Badge set") because
+  // it could be either a legacy profile badges event or a NIP-51 badge set
+  // and the loading-state shell title runs before we have the event/d-tag.
+  if (kind === BADGE_PROFILE_KIND_NEW) return "Badge Collection";
   // Fall back to the central registry
   const label = KIND_LABELS[kind];
   if (label) return label;
@@ -185,6 +186,7 @@ import { useEventStats } from "@/hooks/useTrending";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
+import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -300,9 +302,21 @@ export function PostDetailPage({
   }
 
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
-  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
+  if (isProfileBadgesEvent(resolvedEvent)) {
     return (
       <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-51 badge set (kind 30008 with a non-`profile_badges` d-tag) — uses
+  // the same NoteCard + comments layout but with a set-aware title.
+  if (isBadgeSetEvent(resolvedEvent)) {
+    return (
+      <PostDetailShell title="Badge Set">
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -417,9 +431,20 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   }
 
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
-  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
+  if (isProfileBadgesEvent(resolvedEvent)) {
     return (
       <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-51 badge set — same layout as profile badges with a different title.
+  if (isBadgeSetEvent(resolvedEvent)) {
+    return (
+      <PostDetailShell title="Badge Set">
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -436,7 +461,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-/** NoteCard + NIP-22 comments section for kind 10008/30008 profile badges detail page. */
+/**
+ * NoteCard + NIP-22 comments section shared by:
+ * - kind 10008 profile badges (NIP-51 standard list)
+ * - kind 30008 with `d=profile_badges` (legacy NIP-58 profile badges)
+ * - kind 30008 with arbitrary `d` (NIP-51 badge sets)
+ *
+ * NoteCard handles the kind-specific rendering internally; this wrapper just
+ * provides the comments tree.
+ */
 function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);

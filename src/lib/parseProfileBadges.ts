@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { isProfileBadgesKind } from '@/lib/badgeUtils';
+import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 
 /** A parsed badge reference from a profile badges event. */
 export interface BadgeRef {
@@ -14,14 +14,16 @@ export interface BadgeRef {
   identifier: string;
 }
 
-/** Parse a profile badges event (kind 10008 or legacy 30008) into badge references. */
+/**
+ * Parse a NIP-58 profile badges event (kind 10008, or legacy kind 30008 with
+ * `d=profile_badges`) into badge references.
+ *
+ * Returns an empty array for NIP-51 badge sets (kind 30008 with arbitrary
+ * `d`) — those are categorized groups of badges, not a user's accepted
+ * badge showcase, and should be rendered by the dedicated badge-set path.
+ */
 export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
-  if (!isProfileBadgesKind(event.kind)) return [];
-  // Legacy kind 30008 requires d=profile_badges; kind 10008 doesn't need it
-  if (event.kind === 30008) {
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-    if (dTag !== 'profile_badges') return [];
-  }
+  if (!isProfileBadgesEvent(event)) return [];
 
   const refs: BadgeRef[] = [];
   const tags = event.tags;

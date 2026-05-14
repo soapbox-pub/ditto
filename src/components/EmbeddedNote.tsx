@@ -18,7 +18,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isProfileBadgesKind, parseBadgeATag, unslugify } from '@/lib/badgeUtils';
+import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isProfileBadgesEvent, parseBadgeATag, unslugify } from '@/lib/badgeUtils';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
@@ -79,8 +79,10 @@ export function EmbeddedNote({ eventId, relays, authorHint, className, disableHo
     return <EncryptedLetterCompact event={event} className={className} />;
   }
 
-  // Profile badges (kind 10008/30008) get a compact badge row preview
-  if (isProfileBadgesKind(event.kind)) {
+  // Profile badges (kind 10008 / legacy 30008 with d=profile_badges) get a
+  // compact badge row preview. NIP-51 badge sets fall through to the generic
+  // embedded card.
+  if (isProfileBadgesEvent(event)) {
     return <EmbeddedProfileBadgesCard event={event} className={className} />;
   }
 

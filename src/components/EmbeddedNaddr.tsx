@@ -21,7 +21,7 @@ import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { isProfileBadgesKind } from '@/lib/badgeUtils';
+import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
@@ -94,8 +94,11 @@ export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNa
     return <EmbeddedBadgeCard event={event} className={className} />;
   }
 
-  // Profile badges (kind 10008/30008) get a compact badge row preview
-  if (isProfileBadgesKind(event.kind)) {
+  // Profile badges (kind 10008 / legacy 30008 with d=profile_badges) get a
+  // compact badge row preview. NIP-51 badge sets (kind 30008 with arbitrary
+  // d) fall through to the generic EmbeddedNaddrCard, which already renders
+  // title / description / image from tags.
+  if (isProfileBadgesEvent(event)) {
     return <EmbeddedProfileBadgesCard event={event} className={className} />;
   }
 

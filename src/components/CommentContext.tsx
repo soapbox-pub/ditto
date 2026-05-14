@@ -124,7 +124,9 @@ const KIND_LABELS: Record<number, string> = {
   15128: 'an nsite',
   16767: 'a theme',
   10008: 'profile badges',
-  30008: 'profile badges',
+  // Kind 30008 = NIP-51 badge set (legacy `d=profile_badges` is routed
+  // through ProfileBadgesCommentContext before reaching this map).
+  30008: 'a badge set',
   30009: 'a badge',
   30023: 'an article',
   30030: 'an emoji pack',
@@ -239,6 +241,10 @@ function getRootKindLabel(rootKind: string | undefined): string {
 /** Suffix that describes the kind, appended after a title (e.g. "Wet Dry World theme"). */
 const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30009: 'badge',
+  // Kind 30008 = NIP-51 badge set (legacy profile-badges variant is routed
+  // separately by AddrCommentContext via the `profile_badges` d-tag check
+  // before reaching this map).
+  30008: 'badges',
   30030: 'emoji pack',
   36767: 'theme',
   16767: 'theme',
@@ -453,8 +459,13 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     return <ProfileCommentContext pubkey={root.addr.pubkey} className={className} />;
   }
 
-  // Kind 10008 or 30008 (profile badges) roots — show "@User's profile badges"
-  if (root.addr?.kind === 10008 || root.addr?.kind === 30008) {
+  // Kind 10008, or legacy kind 30008 with d=profile_badges → NIP-58 profile
+  // badges. Kind 30008 with any other d is a NIP-51 badge set (handled by
+  // the generic addr context, which fetches the event and uses its title).
+  if (
+    root.addr?.kind === 10008 ||
+    (root.addr?.kind === 30008 && root.addr.identifier === 'profile_badges')
+  ) {
     return <ProfileBadgesCommentContext root={root} className={className} />;
   }
 

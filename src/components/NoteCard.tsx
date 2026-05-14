@@ -46,6 +46,7 @@ import {
 } from "@/components/AudioKindContent";
 import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
+import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
 import {
   ColorMomentContent,
@@ -95,6 +96,7 @@ import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/Zapst
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
+import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -119,6 +121,7 @@ import { isSingleImagePost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
+import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 import { encodeEventAddress } from "@/lib/encodeEvent";
@@ -402,9 +405,10 @@ export const NoteCard = memo(function NoteCard({
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
-  const isProfileBadges = event.kind === 10008 || event.kind === 30008;
+  const isProfileBadges = isProfileBadgesEvent(event);
+  const isBadgeSet = isBadgeSetEvent(event);
   const isBadgeAward = event.kind === 8;
-  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeAward;
+  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeSet || isBadgeAward;
   const isReaction = event.kind === 7;
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -623,6 +627,8 @@ export const NoteCard = memo(function NoteCard({
           <EmojiPackContent event={event} />
         ) : isBadgeDefinition ? (
           <BadgeContent event={event} />
+        ) : isBadgeSet ? (
+          <BadgeSetContent event={event} />
         ) : isProfileBadges ? (
           <ProfileBadgesContent event={event} />
         ) : isBadgeAward ? (
@@ -1853,7 +1859,19 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   30008: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: (event) => {
+      // Kind 30008 is overloaded: legacy NIP-58 profile badges
+      // (`d=profile_badges`) vs. NIP-51 badge set (arbitrary `d`).
+      if (isProfileBadgesEvent(event)) {
+        return publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" });
+      }
+      // Badge set — interpolate the set's title into the verb so the
+      // header reads "Alice updated Super Mario Bros." with "badges"
+      // rendered as the linked noun ("/badges") by EventActionHeader.
+      const title = parseBadgeSet(event)?.title;
+      const base = publishedAtAction(event, { created: "created", updated: "updated", fallback: "updated" });
+      return title ? `${base} ${title}` : base;
+    },
     noun: "badges",
     nounRoute: "/badges",
   },

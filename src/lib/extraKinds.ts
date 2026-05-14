@@ -630,7 +630,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   1618: 'patch comment',
   15128: 'nsite',
   35128: 'nsite',
-  30008: 'profile badges',
+  30008: 'badge set',
   30817: 'repository issue',
   32267: 'Zapstore app',
   31990: 'app',

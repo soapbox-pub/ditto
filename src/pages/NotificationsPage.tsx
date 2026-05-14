@@ -78,7 +78,12 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   15128: 'nsite',
   16767: 'theme',
   10008: 'profile badges',
-  30008: 'profile badges',
+  // 30008 is overloaded (legacy profile badges with d=profile_badges vs.
+  // NIP-51 badge set). The badge-set reading is more common today; for
+  // legacy profile-badges events the noun will be slightly off ("reacted
+  // to your badge set" instead of "profile badges"), which is acceptable
+  // since 10008 is the canonical kind for profile badges now.
+  30008: 'badge set',
   30009: 'badge',
   30023: 'article',
   30030: 'emoji pack',
