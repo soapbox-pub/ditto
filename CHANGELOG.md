@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.15.0] - 2026-05-14
+
+Reactions and zaps from people you follow can now show up in your feed as a header above the post they targeted -- two new toggles, off by default. Zap amounts now appear in dollars by default with a single bolt icon for Lightning and on-chain alike, switchable in Advanced Settings. Every Follow All button gains a Mute All sibling, so any people list can become a mute source. Badge sets render as poster-style cards, and zap notifications finally show the amount.
+
+### Added
+- Reaction and zap overlays in your feed -- two new toggles in Content Settings (off by default) let reactions and zaps from people you follow surface as a header above the post they targeted, the same way reposts already do. The reaction overlay renders the actual emoji (including custom ones), the zap overlay shows the amount, and tapping the verb jumps to the underlying reaction or zap. Works in the home feed, profile feeds, custom tabs, follow-page feeds, people-list feeds, and search results
+- Mute All next to every Follow All -- people lists, follow packs, follow sets, badges, and the Team Soapbox page now have a caret next to Follow All with a Mute All option that adds every pubkey in the list to your mute list at once. Feeds you're following are filtered by your mute list at query time too, so muting someone you already followed actually quiets them
+- Currency preference -- a new Currency section in Advanced Settings switches zap amounts between USD (the new default) and sats, and the preference rides along on encrypted settings sync so it follows you across devices
+
+### Changed
+- Zap amounts now display as dollars by default everywhere -- feed overlays, notifications, embedded zap cards, the Zaps tab of the interactions modal, music and podcast totals, and the bolt counter on every post. On-chain zaps share the same bolt icon and "Zap" label as Lightning zaps in feeds, since the social meaning is identical -- the Bitcoin icon stays on the zap dialog's tab strip and on profile BTC address rows where the rail actually matters
+- Zap notifications now show the amount in the header instead of a bare "X zapped you", reading zaps whose amount is only encoded in the bolt11 invoice. The verbs in "reacted to", "reposted", and "zapped" notifications are now links to the underlying event
+- Badge sets render as a poster-style card with the artwork as a full-bleed banner and the title and description overlaid, distinct from the legacy profile-badge layout. The feed action header reads e.g. "Alice updated Super Mario Bros. badges" with the set title interpolated in
+- The block explorer URL is now configurable in Advanced Settings, so self-hosted Esplora deployments (or Blockstream's) work without code changes. Bitcoin price data also comes from mempool.space now, consolidating wallet network calls onto a single host
+
+### Fixed
+- The "What's new" toast after an update now truncates long release summaries on a word boundary instead of rendering the entire paragraph
+
 ## [2.14.4] - 2026-05-11
 
 The Wikipedia featured-article card on your home feed now shows article titles cleanly without the underscores, and tapping it opens the article right inside Ditto instead of bouncing you out to a new browser tab.
