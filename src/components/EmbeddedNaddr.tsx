@@ -12,6 +12,8 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { BrokenEventFallback } from '@/components/BrokenEventFallback';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
@@ -78,7 +80,25 @@ function extractMetadata(event: NostrEvent): {
 }
 
 /** Inline embedded card for an addressable Nostr event (naddr). */
-export function EmbeddedNaddr({ addr, className, disableHoverCards }: EmbeddedNaddrProps) {
+export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
+  const { addr } = props;
+  return (
+    <ErrorBoundary
+      fallback={<BrokenEventFallback compact className={props.className} />}
+      sentryLevel="error"
+      sentryTags={{
+        errorBoundary: 'embedded-naddr',
+        kind: addr.kind,
+        pubkey: addr.pubkey,
+      }}
+      resetKeys={[addr.kind, addr.pubkey, addr.identifier]}
+    >
+      <EmbeddedNaddrInner {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
   if (isLoading) {

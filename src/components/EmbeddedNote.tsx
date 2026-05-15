@@ -5,7 +5,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { Award, Highlighter, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BrokenEventFallback } from '@/components/BrokenEventFallback';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
@@ -53,7 +55,20 @@ interface EmbeddedNoteProps {
 }
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
-export function EmbeddedNote({ eventId, relays, authorHint, className, disableHoverCards }: EmbeddedNoteProps) {
+export function EmbeddedNote(props: EmbeddedNoteProps) {
+  return (
+    <ErrorBoundary
+      fallback={<BrokenEventFallback compact className={props.className} />}
+      sentryLevel="error"
+      sentryTags={{ errorBoundary: 'embedded-note', eventId: props.eventId }}
+      resetKeys={[props.eventId]}
+    >
+      <EmbeddedNoteInner {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHoverCards }: EmbeddedNoteProps) {
   const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
 
   if (isLoading) {

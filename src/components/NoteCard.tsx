@@ -52,8 +52,10 @@ import {
   ColorMomentContent,
   ColorMomentEyeButton,
 } from "@/components/ColorMomentContent";
+import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
@@ -583,7 +585,13 @@ export const NoteCard = memo(function NoteCard({
       )}
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
-      <ContentWarningGuard event={event}>
+      <ErrorBoundary
+        fallback={<BrokenEventFallback />}
+        sentryLevel="error"
+        sentryTags={{ errorBoundary: 'note-card', kind: event.kind }}
+        resetKeys={[event.id]}
+      >
+        <ContentWarningGuard event={event}>
         {isPhoto ? (
           <PhotoContent event={event} />
         ) : isVideo ? (
@@ -701,6 +709,7 @@ export const NoteCard = memo(function NoteCard({
           />
         )}
       </ContentWarningGuard>
+      </ErrorBoundary>
     </>
   );
 
