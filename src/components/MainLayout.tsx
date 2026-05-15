@@ -1,11 +1,12 @@
 import { Suspense, useState, useMemo, useCallback, useRef, lazy } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -40,6 +41,7 @@ function MainLayoutInner() {
   const [centerColumnEl, setCenterColumnEl] = useState<HTMLElement | null>(null);
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
+  const location = useLocation();
   return (
     <CenterColumnContext.Provider value={centerColumnEl}>
     <DrawerContext.Provider value={openDrawer}>
@@ -70,7 +72,12 @@ function MainLayoutInner() {
             ref={(el) => { centerColumnRef.current = el; setCenterColumnEl(el); }}
             className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
           >
-            <Outlet />
+            <ErrorBoundary
+              sentryTags={{ errorBoundary: 'center-column', path: location.pathname }}
+              resetKeys={[location.pathname]}
+            >
+              <Outlet />
+            </ErrorBoundary>
 
             {/* Desktop FAB — sticky within the feed column so it stays
                 anchored to the bottom-right of the content area, not the
