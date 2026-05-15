@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -686,7 +686,7 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<MessageSquare className="size-4 text-primary" />}
+          icon={<MessageCircle className="size-4 text-primary" />}
           action={action}
         />
       </div>
