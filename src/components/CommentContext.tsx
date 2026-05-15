@@ -32,6 +32,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
+import { isNostrId } from '@/lib/nostrId';
 import { cardPrimaryImage } from '@/lib/scryfall';
 
 
@@ -55,7 +56,15 @@ interface CommentRoot {
   authorHint?: string;
 }
 
-/** Parse the root reference from a kind 1111 comment's tags. */
+/**
+ * Parse the root reference from a kind 1111 comment's tags.
+ *
+ * **Postcondition:** any returned `addr.pubkey`, `eventId`, or `authorHint`
+ * is a valid 64-char lowercase hex string (or `undefined`). Renderers can
+ * pass these to `nip19.*Encode` without guarding. If the primary uppercase
+ * tag is malformed we fall through to the next tag type rather than
+ * returning a partially-broken root.
+ */
 function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   const aTagFull = event.tags.find(([name]) => name === 'A');
   // Use find (not findLast) to get the root E tag, not a parent e tag
@@ -72,15 +81,22 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
     const kind = parseInt(parts[0], 10);
     const pubkey = parts[1] ?? '';
     const identifier = parts.slice(2).join(':');
-    return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag, relayHint };
+    if (Number.isFinite(kind) && isNostrId(pubkey)) {
+      return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag, relayHint };
+    }
+    // Malformed A tag — fall through to E / I tags below.
   }
 
   if (eTagFull) {
     const eTag = eTagFull[1];
     const relayHint = eTagFull[2] || undefined;
-    // NIP-22 E tags may have the author pubkey at position [3]; fall back to P tag
-    const authorHint = eTagFull[3] || pTag || undefined;
-    return { type: 'event', eventId: eTag, rootKind: kTag, relayHint, authorHint };
+    // NIP-22 E tags may have the author pubkey at position [3]; fall back to P tag.
+    const rawAuthorHint = eTagFull[3] || pTag || undefined;
+    const authorHint = isNostrId(rawAuthorHint) ? rawAuthorHint : undefined;
+    if (isNostrId(eTag)) {
+      return { type: 'event', eventId: eTag, rootKind: kTag, relayHint, authorHint };
+    }
+    // Malformed E tag — fall through to I tag below.
   }
 
   if (iTag) {
@@ -404,8 +420,10 @@ export function CommentContext({ event, className }: CommentContextProps) {
   const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
   const parentAuthorPubkey = event.tags.findLast(([name]) => name === 'p')?.[1];
 
-  if (parentKind === '1111' && parentAuthorPubkey) {
-    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={event.tags.findLast(([name]) => name === 'e')?.[1]} className={className} />;
+  if (parentKind === '1111' && isNostrId(parentAuthorPubkey)) {
+    const rawParentEventId = event.tags.findLast(([name]) => name === 'e')?.[1];
+    const parentEventId = isNostrId(rawParentEventId) ? rawParentEventId : undefined;
+    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={parentEventId} className={className} />;
   }
 
   const root = parseCommentRoot(event);

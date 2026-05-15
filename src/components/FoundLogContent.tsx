@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
+import { isNostrId } from '@/lib/nostrId';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 function getTag(tags: string[][], name: string): string | undefined {
@@ -16,7 +17,11 @@ function getAllTags(tags: string[][], name: string): string[] {
   return tags.filter(([n]) => n === name).map(([, v]) => v);
 }
 
-/** Parse the `a` tag from a found log into addressable event coordinates. */
+/**
+ * Parse the `a` tag from a found log into addressable event coordinates.
+ * Returns `undefined` if the pubkey isn't a valid 64-char hex string —
+ * callers can use the encoded result directly without further guarding.
+ */
 function parseGeocacheAddr(tags: string[][]): AddrCoords | undefined {
   const aTag = getTag(tags, 'a');
   if (!aTag) return undefined;
@@ -24,7 +29,7 @@ function parseGeocacheAddr(tags: string[][]): AddrCoords | undefined {
   if (parts.length < 3) return undefined;
   const [kindStr, pubkey, ...rest] = parts;
   const kind = Number(kindStr);
-  if (!kind || !pubkey) return undefined;
+  if (!kind || !isNostrId(pubkey)) return undefined;
   return { kind, pubkey, identifier: rest.join(':') };
 }
 

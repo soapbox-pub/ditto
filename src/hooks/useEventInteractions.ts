@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isCustomEmoji, getCustomEmojiUrl } from '@/lib/customEmoji';
+import { isNostrId } from '@/lib/nostrId';
 
 export interface RepostEntry {
   eventId: string;
@@ -87,18 +88,26 @@ function parseBolt11Amount(bolt11: string): number {
   }
 }
 
-/** Extracts the sender pubkey from a kind 9735 zap receipt. */
+/**
+ * Extracts the sender pubkey from a kind 9735 zap receipt.
+ *
+ * Returns `''` (empty string sentinel) when the receipt has no usable sender
+ * pubkey OR when the value present isn't a valid 64-char hex string. The
+ * empty-string sentinel lets callers `useMemo` the result without dealing
+ * with `undefined` while still being safely falsy at gate points like
+ * `useAuthor(sender || undefined)`.
+ */
 export function extractZapSender(event: NostrEvent): string {
   // First check the P tag (uppercase) which NIP-57 specifies for sender pubkey
   const pTag = event.tags.find(([name]) => name === 'P');
-  if (pTag?.[1]) return pTag[1];
+  if (isNostrId(pTag?.[1])) return pTag![1];
 
   // Fall back to parsing the description (zap request) for the pubkey
   const descTag = event.tags.find(([name]) => name === 'description');
   if (descTag?.[1]) {
     try {
       const zapRequest = JSON.parse(descTag[1]);
-      if (zapRequest.pubkey) return zapRequest.pubkey;
+      if (isNostrId(zapRequest?.pubkey)) return zapRequest.pubkey;
     } catch {
       // Invalid JSON
     }

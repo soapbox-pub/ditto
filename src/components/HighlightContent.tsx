@@ -6,6 +6,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -18,11 +19,15 @@ interface HighlightContentProps {
   disableSourceEmbed?: boolean;
 }
 
-/** Parse an `a` tag value in the `kind:pubkey:identifier` form. */
+/**
+ * Parse an `a` tag value in the `kind:pubkey:identifier` form.
+ * Returns `undefined` unless `pubkey` is a valid 64-char lowercase hex
+ * string so callers can pass the result to `nip19.naddrEncode` directly.
+ */
 function parseAddr(value: string): { kind: number; pubkey: string; identifier: string } | undefined {
   const [kindStr, pubkey, ...rest] = value.split(':');
   const kind = Number(kindStr);
-  if (!Number.isFinite(kind) || !pubkey || pubkey.length !== 64) return undefined;
+  if (!Number.isFinite(kind) || !isNostrId(pubkey)) return undefined;
   return { kind, pubkey, identifier: rest.join(':') };
 }
 
@@ -80,12 +85,16 @@ export function HighlightContent({ event, expanded = false, className, disableSo
     }
     if (!src && eTag?.[1]) {
       const [, id, relayHint, , authorHint] = eTag;
-      src = {
-        kind: 'event',
-        id,
-        relays: relayHint ? [relayHint] : undefined,
-        authorHint: authorHint && authorHint.length === 64 ? authorHint : undefined,
-      };
+      // Drop the source entirely if the event id isn't a valid 64-char hex —
+      // any downstream `neventEncode` would crash on it.
+      if (isNostrId(id)) {
+        src = {
+          kind: 'event',
+          id,
+          relays: relayHint ? [relayHint] : undefined,
+          authorHint: isNostrId(authorHint) ? authorHint : undefined,
+        };
+      }
     }
     if (!src && rSourceTag) {
       const sanitized = sanitizeUrl(rSourceTag);

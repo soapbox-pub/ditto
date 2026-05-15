@@ -23,6 +23,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
+import { isNostrId } from '@/lib/nostrId';
 import { cn } from '@/lib/utils';
 
 /** Extract the first value of a tag by name. */
@@ -40,7 +41,9 @@ interface Participant {
 function parseParticipants(tags: string[][]): Participant[] {
   return tags
     .filter(([name]) => name === 'p')
-    .map(([, pubkey, relay, role]) => ({ pubkey, relay, role }));
+    .map(([, pubkey, relay, role]) => ({ pubkey, relay, role }))
+    // Drop participants with malformed pubkeys — would crash nip19 encoders downstream.
+    .filter((p) => isNostrId(p.pubkey));
 }
 
 /** Status badge colors and labels. */

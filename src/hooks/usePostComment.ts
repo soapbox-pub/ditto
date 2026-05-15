@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
+import { isNostrId } from '@/lib/nostrId';
 
 interface PostCommentParams {
   root: NostrEvent | URL | `#${string}`; // The root event to comment on
@@ -134,7 +135,7 @@ function extractHints(target: NostrEvent | URL | `#${string}` | undefined): Hint
         // Not a valid URL, ignore hints for this tag
       }
     } else if (n === 'e') {
-      const author = /^[0-9a-f]{64}$/.test(hints[1]) ? hints[1] : undefined;
+      const author = isNostrId(hints[1]) ? hints[1] : undefined;
       try {
         const relayUrl = new URL(hints[0]);
         eHints.set(value, [relayUrl.href, ...(author ? [author] : [])]);

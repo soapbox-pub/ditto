@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isBadgeSetEvent } from '@/lib/badgeUtils';
+import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** A single badge reference parsed from a kind 30008 NIP-51 badge set. */
@@ -64,7 +65,7 @@ export function parseBadgeSet(event: NostrEvent): BadgeSetData | null {
     if (kind !== BADGE_DEFINITION_KIND) continue;
 
     const pubkey = parts[1];
-    if (!/^[0-9a-f]{64}$/.test(pubkey)) continue;
+    if (!isNostrId(pubkey)) continue;
     const refIdentifier = parts.slice(2).join(':');
 
     // An optional `e` tag immediately following the `a` tag is the matching

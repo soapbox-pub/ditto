@@ -10,6 +10,7 @@ import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
+import { isNostrId } from '@/lib/nostrId';
 
 interface StreamPostsOptions {
   includeReplies: boolean;
@@ -200,7 +201,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const resolved: string[] = [];
     for (const raw of options.authorPubkeys) {
       const t = raw.trim();
-      if (/^[0-9a-f]{64}$/i.test(t)) {
+      if (isNostrId(t)) {
         resolved.push(t);
       } else {
         try {

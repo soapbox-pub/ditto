@@ -191,6 +191,7 @@ import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
+import { isNostrId } from "@/lib/nostrId";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { cn } from "@/lib/utils";
@@ -1387,7 +1388,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
     if (!aTag) return undefined;
     const parts = aTag.split(":");
-    return parts[1] || undefined;
+    return isNostrId(parts[1]) ? parts[1] : undefined;
   }, [event, isComment]);
 
   // For kind 1111 comments on a community (kind 34550), extract the addr for the community preview
@@ -1401,7 +1402,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kind = parseInt(parts[0], 10);
     const pubkey = parts[1];
     const identifier = parts.slice(2).join(":");
-    if (!pubkey || isNaN(kind)) return undefined;
+    if (!isNostrId(pubkey) || isNaN(kind)) return undefined;
     return { kind, pubkey, identifier };
   }, [event, isComment]);
 
@@ -1424,7 +1425,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const parts = aTag.split(":");
     const pubkey = parts[1];
     const identifier = parts.slice(2).join(":");
-    if (!pubkey) return undefined;
+    if (!isNostrId(pubkey)) return undefined;
     return { kind, pubkey, identifier };
   }, [
     event,

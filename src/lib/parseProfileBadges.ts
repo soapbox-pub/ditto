@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
+import { isNostrId } from '@/lib/nostrId';
 
 /** A parsed badge reference from a profile badges event. */
 export interface BadgeRef {
@@ -38,6 +39,9 @@ export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
       if (kind !== 30009) continue;
 
       const pubkey = parts[1];
+      // Skip malformed references — a non-hex pubkey would crash nip19
+      // encoders downstream with "padded hex string expected".
+      if (!isNostrId(pubkey)) continue;
       const identifier = parts.slice(2).join(':');
 
       // Look for the corresponding `e` tag immediately after

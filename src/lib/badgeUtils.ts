@@ -1,5 +1,7 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 
+import { isNostrId } from '@/lib/nostrId';
+
 /** Kind numbers for NIP-58 badge events. */
 export const BADGE_DEFINITION_KIND = 30009;
 export const BADGE_AWARD_KIND = 8;
@@ -117,7 +119,7 @@ export function parseBadgeATag(
   if (!aVal) return undefined;
   const parts = aVal.split(':');
   if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
-  if (!/^[0-9a-f]{64}$/.test(parts[1])) return undefined;
+  if (!isNostrId(parts[1])) return undefined;
   return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
 }
 
@@ -131,6 +133,7 @@ export function unslugify(slug: string): string {
 /** Extract all recipient pubkeys (`p` tags) from a kind 8 badge award event. */
 export function getBadgeRecipients(event: NostrEvent): string[] {
   return event.tags
-    .filter(([n, v]) => n === 'p' && typeof v === 'string' && v.length > 0)
-    .map(([, v]) => v);
+    .filter(([n]) => n === 'p')
+    .map(([, v]) => v)
+    .filter(isNostrId);
 }

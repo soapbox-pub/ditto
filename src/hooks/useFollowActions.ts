@@ -5,6 +5,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -65,9 +66,12 @@ export function useFollowList() {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       if (!event) return { event: null, pubkeys: [] };
+      // Drop malformed `p` tag pubkeys — anything but valid hex would crash
+      // nip19 encoders in the consumer UI (avatar stacks, follow lists).
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk);
+        .map(([, pk]) => pk)
+        .filter(isNostrId);
       setCachedFollowList(cacheKey, user.pubkey, pubkeys);
       return { event, pubkeys };
     },

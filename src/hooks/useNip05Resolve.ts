@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getNip05Cached, setNip05Cached, deleteNip05Cached } from '@/lib/nip05Cache';
+import { isNostrId } from '@/lib/nostrId';
 
 /**
  * Fetches a NIP-05 nostr.json URL.
@@ -103,7 +104,7 @@ export function useNip05Resolve(identifier: string | undefined) {
       // hex pubkey. Without this check, a malicious or broken NIP-05 server
       // could return arbitrary strings that get persisted to IndexedDB and
       // later fed into Nostr filters or passed to downstream consumers.
-      if (!/^[0-9a-f]{64}$/.test(pubkey)) {
+      if (!isNostrId(pubkey)) {
         void deleteNip05Cached(identifier);
         return null;
       }

@@ -15,6 +15,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useFollowPacks } from './useFollowPacks';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { isNostrId } from '@/lib/nostrId';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
@@ -92,7 +93,11 @@ function parseListEvent(event: NostrEvent): UserList {
   const title = getTag('title') || getTag('name') || id;
   const description = getTag('description') || getTag('summary') || undefined;
   const image = getTag('image') || getTag('thumb') || undefined;
-  const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
+  // Drop malformed pubkeys so downstream `nip19.npubEncode` calls stay safe.
+  const pubkeys = event.tags
+    .filter(([n]) => n === 'p')
+    .map(([, pk]) => pk)
+    .filter(isNostrId);
   return { id, title, description, image, pubkeys, privatePubkeys: [], event };
 }
 
@@ -115,7 +120,7 @@ async function parseListEventWithDecryption(
   const privatePubkeys = privateTags
     .filter(([n]) => n === 'p')
     .map(([, pk]) => pk)
-    .filter(Boolean);
+    .filter(isNostrId);
 
   if (privatePubkeys.length === 0) return base;
 
