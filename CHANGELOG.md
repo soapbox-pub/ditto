@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.15.2] - 2026-05-15
+
+Reactions and zaps from people you follow now show up in your home feed by default -- catch up on the moments your friends loved without flipping a switch. A malformed post can no longer take down your feed or a thread: broken events are replaced with a small tombstone and everything around them keeps working. Comment notifications get their own speech-bubble icon, distinct from replies.
+
+### Changed
+- Reactions and zaps from people you follow now appear in your home feed by default, the same way reposts do. Both toggles still live in Content Settings if you'd rather turn them off
+- Comment notifications now use a speech-bubble icon, visually distinct from thread replies
+
+### Fixed
+- A single broken post can no longer blank out your feed, a thread, or an entire page. Malformed events render as a small "This post could not be displayed" tombstone, the rest of the feed stays interactive, and the sidebar and navigation remain usable even if a route handler crashes
+- Profiles with malformed badge sets, people lists with malformed entries, and posts referencing malformed event ids no longer crash the surrounding card
+
 ## [2.15.1] - 2026-05-14
 
 Badge sets with lots of badges -- like RetroAchievements game sets with 100+ icons -- now load every tile instead of falling back to a wall of anonymous trophies.
