@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.1] - 2026-05-14
+
+Badge sets with lots of badges -- like RetroAchievements game sets with 100+ icons -- now load every tile instead of falling back to a wall of anonymous trophies.
+
+### Fixed
+- Large badge sets (e.g. RetroAchievements game collections with 100+ badges) now render every tile with its real artwork and name instead of falling back to a grid of generic trophy icons
+
 ## [2.15.0] - 2026-05-14
 
 Reactions and zaps from people you follow can now show up in your feed as a header above the post they targeted -- two new toggles, off by default. Zap amounts now appear in dollars by default with a single bolt icon for Lightning and on-chain alike, switchable in Advanced Settings. Every Follow All button gains a Mute All sibling, so any people list can become a mute source. Badge sets render as poster-style cards, and zap notifications finally show the amount.
