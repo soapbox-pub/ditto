@@ -163,6 +163,8 @@ function shellTitleForKind(kind?: number): string {
 import { CommentContext } from "@/components/CommentContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { BrokenEventFallback } from "@/components/BrokenEventFallback";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import {
   CommunityPreview,
@@ -2236,7 +2238,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
 
           {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
-          <ContentWarningGuard event={event}>
+          <ErrorBoundary
+            fallback={<BrokenEventFallback />}
+            sentryLevel="error"
+            sentryTags={{ errorBoundary: 'post-detail', kind: event.kind }}
+            resetKeys={[event.id]}
+          >
+            <ContentWarningGuard event={event}>
             {isPhoto ? (
               <PhotoDetailContent event={event} />
             ) : isVideo ? (
@@ -2344,6 +2352,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             )}
           </ContentWarningGuard>
+          </ErrorBoundary>
 
           {/* Stats + date row (shared with activity-style detail cards) */}
           {statsAndDateRow}
