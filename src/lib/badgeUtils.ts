@@ -1,6 +1,7 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 
 import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 
 /** Kind numbers for NIP-58 badge events. */
 export const BADGE_DEFINITION_KIND = 30009;
@@ -116,11 +117,12 @@ export function parseBadgeATag(
   const aVal = event.tags.find(
     ([n, v]) => n === 'a' && v?.startsWith(`${BADGE_DEFINITION_KIND}:`),
   )?.[1];
-  if (!aVal) return undefined;
-  const parts = aVal.split(':');
-  if (parts.length < 3 || !parts[1] || !parts[2]) return undefined;
-  if (!isNostrId(parts[1])) return undefined;
-  return { pubkey: parts[1], identifier: parts.slice(2).join(':') };
+  const parsed = parseAddr(aVal);
+  // Require a non-empty d-tag — `parseAddr` permits empty identifiers, but
+  // a badge with no `d` value would resolve to a different (or non-existent)
+  // definition event.
+  if (!parsed || !parsed.identifier) return undefined;
+  return { pubkey: parsed.pubkey, identifier: parsed.identifier };
 }
 
 /** Turn a d-tag slug like "first-post" into "First Post". */

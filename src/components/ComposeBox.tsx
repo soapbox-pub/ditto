@@ -46,6 +46,7 @@ import { genUserName } from '@/lib/genUserName';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import { resizeImage } from '@/lib/resizeImage';
 import { extractHashtags } from '@/lib/hashtag';
+import { parseAddr } from '@/lib/parseAddr';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const MAX_CHARS = 5000;
@@ -995,8 +996,7 @@ export function ComposeBox({
 
             if (A) {
               // Addressable/replaceable root: extract d-tag from the A value
-              const parts = A.split(':');
-              const dValue = parts.length >= 3 ? parts.slice(2).join(':') : '';
+              const dValue = parseAddr(A)?.identifier ?? '';
               root = {
                 id: E ?? '',
                 kind: rootKind,

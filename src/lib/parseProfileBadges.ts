@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
-import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 
 /** A parsed badge reference from a profile badges event. */
 export interface BadgeRef {
@@ -32,17 +32,10 @@ export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
   for (let i = 0; i < tags.length; i++) {
     if (tags[i][0] === 'a' && tags[i][1]) {
       const aTag = tags[i][1];
-      const parts = aTag.split(':');
-      if (parts.length < 3) continue;
-
-      const kind = parseInt(parts[0], 10);
-      if (kind !== 30009) continue;
-
-      const pubkey = parts[1];
       // Skip malformed references — a non-hex pubkey would crash nip19
       // encoders downstream with "padded hex string expected".
-      if (!isNostrId(pubkey)) continue;
-      const identifier = parts.slice(2).join(':');
+      const parsed = parseAddr(aTag);
+      if (!parsed || parsed.kind !== 30009) continue;
 
       // Look for the corresponding `e` tag immediately after
       let eTag: string | undefined;
@@ -50,7 +43,7 @@ export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
         eTag = tags[i + 1][1];
       }
 
-      refs.push({ aTag, eTag, kind, pubkey, identifier });
+      refs.push({ aTag, eTag, kind: parsed.kind, pubkey: parsed.pubkey, identifier: parsed.identifier });
     }
   }
 

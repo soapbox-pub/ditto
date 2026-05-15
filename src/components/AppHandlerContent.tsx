@@ -9,6 +9,7 @@ import { NsitePreviewDialog } from '@/components/NsitePreviewDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { NostrURI } from '@/lib/NostrURI';
+import { parseAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -58,11 +59,9 @@ function displayDomain(url: string): string {
 function getShakespeareUrl(tags: string[][]): string | undefined {
   for (const tag of tags) {
     if (tag[0] !== 'a') continue;
-    const parts = tag[1]?.split(':');
-    if (!parts || parts[0] !== '30617' || parts.length < 3) continue;
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(':');
-    const nostrUri = new NostrURI({ pubkey, identifier }).toString();
+    const parsed = parseAddr(tag[1]);
+    if (!parsed || parsed.kind !== 30617) continue;
+    const nostrUri = new NostrURI({ pubkey: parsed.pubkey, identifier: parsed.identifier }).toString();
     return `https://shakespeare.diy/clone?url=${encodeURIComponent(nostrUri)}`;
   }
   return undefined;
@@ -83,12 +82,9 @@ interface NsiteRef {
 function getNsiteRef(tags: string[][]): NsiteRef | undefined {
   for (const tag of tags) {
     if (tag[0] !== 'a') continue;
-    const parts = tag[1]?.split(':');
-    if (!parts || parts[0] !== '35128' || parts.length < 3) continue;
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(':');
-    if (!pubkey || !identifier) continue;
-    return { pubkey, identifier };
+    const parsed = parseAddr(tag[1]);
+    if (!parsed || parsed.kind !== 35128 || !parsed.identifier) continue;
+    return { pubkey: parsed.pubkey, identifier: parsed.identifier };
   }
   return undefined;
 }

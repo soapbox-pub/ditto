@@ -33,6 +33,7 @@ import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 import { cardPrimaryImage } from '@/lib/scryfall';
 
 
@@ -77,12 +78,9 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   if (aTagFull) {
     const aTag = aTagFull[1];
     const relayHint = aTagFull[2] || undefined;
-    const parts = aTag.split(':');
-    const kind = parseInt(parts[0], 10);
-    const pubkey = parts[1] ?? '';
-    const identifier = parts.slice(2).join(':');
-    if (Number.isFinite(kind) && isNostrId(pubkey)) {
-      return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag, relayHint };
+    const addr = parseAddr(aTag);
+    if (addr) {
+      return { type: 'addr', addr, rootKind: kTag, relayHint };
     }
     // Malformed A tag — fall through to E / I tags below.
   }

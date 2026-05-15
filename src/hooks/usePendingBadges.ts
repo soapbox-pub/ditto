@@ -5,7 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { BADGE_AWARD_KIND } from '@/lib/badgeUtils';
-import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 
 /** A pending (unaccepted) badge award. */
 export interface PendingBadge {
@@ -77,20 +77,17 @@ export function usePendingBadges(pubkey: string | undefined) {
 
       seenATags.add(aTag);
 
-      const parts = aTag.split(':');
-      if (parts.length < 3) continue;
-
-      const issuerPubkey = parts[1];
       // Drop pending entries with malformed pubkeys — they'd crash any
       // nip19 encoder used to render the badge link.
-      if (!isNostrId(issuerPubkey)) continue;
+      const parsed = parseAddr(aTag);
+      if (!parsed) continue;
 
       pending.push({
         aTag,
         awardEvent,
         awardedAt: awardEvent.created_at,
-        issuerPubkey,
-        identifier: parts.slice(2).join(':'),
+        issuerPubkey: parsed.pubkey,
+        identifier: parsed.identifier,
       });
     }
 

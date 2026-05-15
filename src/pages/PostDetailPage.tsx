@@ -191,7 +191,7 @@ import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
-import { isNostrId } from "@/lib/nostrId";
+import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { cn } from "@/lib/utils";
@@ -1194,8 +1194,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const rootPubkey = P ?? "";
 
     if (A) {
-      const parts = A.split(":");
-      const dValue = parts.length >= 3 ? parts.slice(2).join(":") : "";
+      const dValue = parseAddr(A)?.identifier ?? "";
       return {
         id: E ?? "",
         kind: rootKind,
@@ -1386,9 +1385,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "0") return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    return isNostrId(parts[1]) ? parts[1] : undefined;
+    return parseAddr(aTag)?.pubkey;
   }, [event, isComment]);
 
   // For kind 1111 comments on a community (kind 34550), extract the addr for the community preview
@@ -1397,13 +1394,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "34550") return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    const kind = parseInt(parts[0], 10);
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(":");
-    if (!isNostrId(pubkey) || isNaN(kind)) return undefined;
-    return { kind, pubkey, identifier };
+    return parseAddr(aTag);
   }, [event, isComment]);
 
   // For kind 1111 comments on any other addressable event (vines, music, etc.),
@@ -1421,12 +1412,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kind = parseInt(kTag, 10);
     if (isNaN(kind)) return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(":");
-    if (!isNostrId(pubkey)) return undefined;
-    return { kind, pubkey, identifier };
+    const parsed = parseAddr(aTag);
+    if (!parsed) return undefined;
+    // K tag is the authoritative root kind — the A tag's first segment must
+    // match, but if it doesn't (or the A tag references a different kind by
+    // mistake), prefer K so the addressable-event preview still resolves.
+    return { kind, pubkey: parsed.pubkey, identifier: parsed.identifier };
   }, [
     event,
     isComment,

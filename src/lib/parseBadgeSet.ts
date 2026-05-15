@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isBadgeSetEvent } from '@/lib/badgeUtils';
-import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** A single badge reference parsed from a kind 30008 NIP-51 badge set. */
@@ -58,15 +58,8 @@ export function parseBadgeSet(event: NostrEvent): BadgeSetData | null {
     const tag = event.tags[i];
     if (tag[0] !== 'a' || !tag[1]) continue;
 
-    const parts = tag[1].split(':');
-    if (parts.length < 3) continue;
-
-    const kind = parseInt(parts[0], 10);
-    if (kind !== BADGE_DEFINITION_KIND) continue;
-
-    const pubkey = parts[1];
-    if (!isNostrId(pubkey)) continue;
-    const refIdentifier = parts.slice(2).join(':');
+    const parsed = parseAddr(tag[1]);
+    if (!parsed || parsed.kind !== BADGE_DEFINITION_KIND) continue;
 
     // An optional `e` tag immediately following the `a` tag is the matching
     // kind 8 badge award event for this entry — mirroring NIP-58 profile
@@ -81,7 +74,7 @@ export function parseBadgeSet(event: NostrEvent): BadgeSetData | null {
     if (seen.has(aTag)) continue;
     seen.add(aTag);
 
-    badges.push({ aTag, kind, pubkey, identifier: refIdentifier, eTag });
+    badges.push({ aTag, kind: parsed.kind, pubkey: parsed.pubkey, identifier: parsed.identifier, eTag });
   }
 
   return { identifier, title, description, image, badges };

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { parseAddr } from '@/lib/parseAddr';
 
 export interface CustomEmoji {
   shortcode: string;
@@ -51,14 +52,9 @@ export function useCustomEmojis() {
       const packRefs: { kind: number; pubkey: string; identifier: string }[] = [];
       for (const tag of listEvent.tags) {
         if (tag[0] === 'a' && tag[1]) {
-          const parts = tag[1].split(':');
-          const kind = parseInt(parts[0], 10);
-          if (kind === 30030 && parts[1] && parts[2] !== undefined) {
-            packRefs.push({
-              kind,
-              pubkey: parts[1],
-              identifier: parts.slice(2).join(':'),
-            });
+          const parsed = parseAddr(tag[1]);
+          if (parsed && parsed.kind === 30030) {
+            packRefs.push(parsed);
           }
         }
       }

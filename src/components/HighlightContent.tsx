@@ -7,6 +7,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { isNostrId } from '@/lib/nostrId';
+import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -17,18 +18,6 @@ interface HighlightContentProps {
   className?: string;
   /** When true, skip the embedded source event preview (used inside embeds to avoid nesting). */
   disableSourceEmbed?: boolean;
-}
-
-/**
- * Parse an `a` tag value in the `kind:pubkey:identifier` form.
- * Returns `undefined` unless `pubkey` is a valid 64-char lowercase hex
- * string so callers can pass the result to `nip19.naddrEncode` directly.
- */
-function parseAddr(value: string): { kind: number; pubkey: string; identifier: string } | undefined {
-  const [kindStr, pubkey, ...rest] = value.split(':');
-  const kind = Number(kindStr);
-  if (!Number.isFinite(kind) || !isNostrId(pubkey)) return undefined;
-  return { kind, pubkey, identifier: rest.join(':') };
 }
 
 /** Extract the hostname (without leading `www.`) from a URL, or `undefined` on failure. */
@@ -71,7 +60,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
       ?? event.tags.find(([n, , , marker]) => n === 'r' && marker !== 'mention')?.[1];
 
     let src:
-      | { kind: 'addr'; addr: { kind: number; pubkey: string; identifier: string }; relays?: string[] }
+      | { kind: 'addr'; addr: ParsedAddr; relays?: string[] }
       | { kind: 'event'; id: string; relays?: string[]; authorHint?: string }
       | { kind: 'url'; url: string }
       | undefined;
