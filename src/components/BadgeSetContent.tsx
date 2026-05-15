@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award } from 'lucide-react';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
+import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { parseBadgeSet } from '@/lib/parseBadgeSet';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 
@@ -28,39 +26,17 @@ interface BadgeSetContentProps {
  * title, description, and optional image.
  */
 export function BadgeSetContent({ event }: BadgeSetContentProps) {
-  const { nostr } = useNostr();
   const badgeSet = useMemo(() => parseBadgeSet(event), [event]);
 
-  // Fetch all referenced badge definitions in a single query
-  const badgeDefsQuery = useQuery({
-    queryKey: ['badge-definitions', badgeSet ? badgeSet.badges.map((b) => b.aTag).join(',') : ''],
-    queryFn: async () => {
-      if (!badgeSet || badgeSet.badges.length === 0) return [];
-
-      const filters = badgeSet.badges.map((ref) => ({
-        kinds: [30009 as const],
-        authors: [ref.pubkey],
-        '#d': [ref.identifier],
-        limit: 1,
-      }));
-
-      return nostr.query(filters);
-    },
-    enabled: !!badgeSet && badgeSet.badges.length > 0,
-    staleTime: 5 * 60_000,
-  });
-
-  // Build a lookup from a-tag → parsed badge data
-  const badgeMap = useMemo(() => {
-    const map = new Map<string, BadgeData>();
-    if (!badgeDefsQuery.data) return map;
-    for (const ev of badgeDefsQuery.data) {
-      const parsed = parseBadgeDefinition(ev);
-      if (!parsed) continue;
-      map.set(`30009:${ev.pubkey}:${parsed.identifier}`, parsed);
-    }
-    return map;
-  }, [badgeDefsQuery.data]);
+  // Fetch all referenced badge definitions. The shared hook groups refs by
+  // author so a set with N badges from one issuer sends one filter (with
+  // `#d: [...identifiers]`) instead of N filters — important for large sets
+  // like RetroAchievements game-completion lists with 100+ entries.
+  const badgeRefs = useMemo(
+    () => badgeSet?.badges.map((b) => ({ pubkey: b.pubkey, identifier: b.identifier })) ?? [],
+    [badgeSet],
+  );
+  const { badgeMap, isLoading: isLoadingDefs } = useBadgeDefinitions(badgeRefs);
 
   const [expanded, setExpanded] = useState(false);
 
@@ -122,7 +98,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
       )}
 
       {/* Badge grid */}
-      {badgeDefsQuery.isLoading ? (
+      {isLoadingDefs ? (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
           {badges.slice(0, visibleLimit).map((ref, idx) => (
             <div key={`${ref.aTag}-${idx}`} className="flex flex-col items-center gap-1.5">

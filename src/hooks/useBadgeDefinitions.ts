@@ -38,14 +38,26 @@ export function useBadgeDefinitions(badgeRefs: BadgeRef[]) {
     queryFn: async ({ signal }) => {
       if (badgeRefs.length === 0) return [];
 
-      // Build one filter per unique author+identifier combination.
-      // This is necessary because Nostr filters don't support OR-within-AND
-      // on different tag values from different authors.
-      const filters = badgeRefs.map((ref) => ({
+      // Group refs by author so a set with N badges from the same issuer
+      // (e.g. a large NIP-51 badge set with 100+ entries) sends one filter
+      // with `#d: [...identifiers]` instead of N filters. This keeps the
+      // request under per-subscription filter limits that some relays
+      // enforce and avoids tripping rate limits.
+      const byAuthor = new Map<string, Set<string>>();
+      for (const ref of badgeRefs) {
+        let identifiers = byAuthor.get(ref.pubkey);
+        if (!identifiers) {
+          identifiers = new Set();
+          byAuthor.set(ref.pubkey, identifiers);
+        }
+        identifiers.add(ref.identifier);
+      }
+
+      const filters = Array.from(byAuthor, ([pubkey, identifiers]) => ({
         kinds: [BADGE_DEFINITION_KIND as number],
-        authors: [ref.pubkey],
-        '#d': [ref.identifier],
-        limit: 1,
+        authors: [pubkey],
+        '#d': Array.from(identifiers),
+        limit: identifiers.size,
       }));
 
       return nostr.query(filters, { signal });
