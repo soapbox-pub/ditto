@@ -114,8 +114,8 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
 import { useUserZap } from "@/hooks/useUserZap";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
-import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
-import { getZapAmountSats } from "@/lib/zapHelpers";
+import { extractZapMessage } from "@/hooks/useEventInteractions";
+import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -344,7 +344,15 @@ export const NoteCard = memo(function NoteCard({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
-  const zapSenderPubkey = useMemo(() => event.kind === 9735 ? extractZapSender(event) : '', [event]);
+  // Sender of a zap event (kind 9735 or 8333). `getZapSenderPubkey` handles
+  // both kinds — kind 9735 reads the P tag / description.pubkey because the
+  // receipt is signed by the LNURL server, kind 8333 returns `event.pubkey`
+  // directly because the sender authors the on-chain attestation. Returns
+  // `''` only when the event isn't a zap or the sender can't be resolved.
+  const zapSenderPubkey = useMemo(
+    () => (event.kind === 9735 || event.kind === 8333 ? getZapSenderPubkey(event) : ''),
+    [event],
+  );
   const zapSender = useAuthor(zapSenderPubkey || undefined);
   const zapSenderMeta = zapSender.data?.metadata;
   const zapSenderShape = getAvatarShape(zapSenderMeta);
@@ -1231,7 +1239,12 @@ export const NoteCard = memo(function NoteCard({
   // name + action bar) so the recipient context and the amount sit in
   // the content area rather than as a compact activity row.
   if (isZap && !profileZapRecipient) {
-    const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
+    // `getZapAmountSats` handles both kinds — kind 9735 reads the bolt11
+    // millisats and divides by 1000; kind 8333 reads the `amount` tag
+    // (already in sats). The previous `extractZapAmount(event) / 1000`
+    // path only worked for kind 9735 and silently divided kind 8333 sats
+    // by 1000, displaying 1/1000th of the actual zap.
+    const zapAmountSats = getZapAmountSats(event);
     const zapMessage = extractZapMessage(event);
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
