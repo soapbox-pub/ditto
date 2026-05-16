@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   AlertTriangle,
@@ -28,7 +29,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { openUrl } from '@/lib/downloadFile';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -1170,11 +1170,13 @@ function RawAddressSuccess({ txid, amountSats, btcPrice, onClose }: RawAddressSu
         <Button
           type="button"
           variant="outline"
-          onClick={() => openUrl(`https://mempool.space/tx/${txid}`)}
+          asChild
           className="w-full"
         >
-          <ExternalLink className="size-4 mr-2" />
-          View transaction
+          <Link to={`/i/bitcoin:tx:${txid}`} onClick={onClose}>
+            <ExternalLink className="size-4 mr-2" />
+            View transaction
+          </Link>
         </Button>
         <Button type="button" onClick={onClose} className="w-full">
           Done
