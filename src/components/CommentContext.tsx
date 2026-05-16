@@ -26,6 +26,7 @@ import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -35,6 +36,7 @@ import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { isNostrId } from '@/lib/nostrId';
 import { parseAddr } from '@/lib/parseAddr';
 import { cardPrimaryImage } from '@/lib/scryfall';
+import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
 
 
 /** Default classes shared by all comment context rows. */
@@ -655,6 +657,15 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return <PollVoteCommentContext event={event} className={className} />;
   }
 
+  // Kind 9735 Lightning / kind 8333 on-chain zaps get special treatment so
+  // the row reads "Commenting on $100 zap by Alex Gleason" instead of
+  // falling through to the generic display-name path, which has nothing
+  // useful for a zap and ends up rendering the NIP-31 `alt` tag
+  // ("Bitcoin zap: 127,897 sats" or similar — sender-less and verbose).
+  if (event?.kind === 9735 || event?.kind === 8333) {
+    return <ZapCommentContext event={event} className={className} />;
+  }
+
   const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
@@ -709,6 +720,70 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
             @{displayName}
           </Link>
         </ProfileHoverCard>
+      )}
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for kind 9735 Lightning / kind 8333 on-chain zap roots —
+ * shows "Commenting on {amount} zap by @{sender}". Without this branch the
+ * row falls through to the generic display-name path, which has no useful
+ * title/name for a zap and ends up showing the NIP-31 `alt` tag (e.g.
+ * "Bitcoin zap: 127,897 sats") — sender-less and verbose.
+ *
+ * `getZapAmountSats` / `getZapSenderPubkey` handle both kinds: kind 8333
+ * `amount` is sats and sender is `event.pubkey`; kind 9735 amount falls
+ * through (amount tag → description amount → bolt11) and sender comes from
+ * the P tag / description JSON.
+ */
+function ZapCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const sats = useMemo(() => getZapAmountSats(event), [event]);
+  const senderPubkey = useMemo(() => getZapSenderPubkey(event), [event]);
+  const { format: formatMoney } = useFormatMoney();
+
+  const author = useAuthor(senderPubkey || undefined);
+  const metadata = author.data?.metadata;
+  const senderName = getDisplayName(metadata, senderPubkey);
+  const zapLink = getRootLink(event);
+  const profileLink = useMemo(() => {
+    if (!isNostrId(senderPubkey)) return undefined;
+    try { return `/${nip19.npubEncode(senderPubkey)}`; } catch { return undefined; }
+  }, [senderPubkey]);
+
+  // Amount link styled the same as the reaction emoji link — links to the
+  // zap event itself so a click drills into the receipt.
+  const amountNode = (
+    <Link
+      to={zapLink}
+      className="inline-flex items-center gap-1 text-primary hover:underline shrink-0 cursor-pointer"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Zap className="size-3.5 shrink-0 text-amber-500" />
+      <span>{sats > 0 ? `${formatMoney(sats)} zap` : 'zap'}</span>
+    </Link>
+  );
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      {amountNode}
+      {profileLink && (
+        <>
+          <span className="shrink-0">by</span>
+          {author.isLoading ? (
+            <Skeleton className="h-3.5 w-16 inline-block" />
+          ) : (
+            <ProfileHoverCard pubkey={senderPubkey} asChild>
+              <Link
+                to={profileLink}
+                className="text-primary hover:underline truncate cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                @{senderName}
+              </Link>
+            </ProfileHoverCard>
+          )}
+        </>
       )}
     </CommentContextRow>
   );
