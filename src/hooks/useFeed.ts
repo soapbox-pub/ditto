@@ -196,7 +196,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
           dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || !isReplyEvent(item.event),
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
           );
         }
 
@@ -237,7 +237,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
           dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || !isReplyEvent(item.event),
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
           );
         }
 

@@ -93,7 +93,13 @@ export interface ZapOverlay {
 
 /** A feed item — either a direct post, a repost, a reaction, or a zap wrapping the original event. */
 export interface FeedItem {
-  /** The event to display (original note / target event). */
+  /**
+   * The event to display. For direct posts this is the post itself; for
+   * reposts / reactions / zaps wrapping a note it's the target note (the
+   * wrapper lives in `repostedBy` / `reactedBy` / `zappedBy`). For a
+   * profile-targeted zap (no `e` tag) it's the zap event itself — see
+   * `profileZapRecipient` below.
+   */
   event: NostrEvent;
   /** If this item is a repost, the pubkey of the person who reposted it. */
   repostedBy?: string;
@@ -103,6 +109,15 @@ export interface FeedItem {
   reactedBy?: ReactionOverlay;
   /** If this item is a zap overlay, the zap event + sender pubkey + amount. */
   zappedBy?: ZapOverlay;
+  /**
+   * If set, this item is a profile-targeted zap (a kind 9735 / 8333 event
+   * with a `p` tag but no `e`/`a` tag — i.e. tipping a person, not a
+   * specific note). `event` is the zap event itself and this field holds
+   * the recipient pubkey from the `p` tag. NoteCard renders these with
+   * the normal post layout, showing "Zapped @recipient" as a context
+   * line above the amount.
+   */
+  profileZapRecipient?: string;
   /** Sort timestamp — uses the wrapper event's timestamp when present for correct ordering. */
   sortTimestamp: number;
 }
@@ -116,6 +131,10 @@ export function feedItemKey(item: FeedItem): string {
   if (item.reactedBy) return `reaction-${item.reactedBy.event.id}-${item.event.id}`;
   if (item.zappedBy) return `zap-${item.zappedBy.event.id}-${item.event.id}`;
   if (item.repostedBy) return `repost-${item.repostedBy}-${item.event.id}`;
+  // Profile-targeted zap — the zap event itself IS `item.event`, so its
+  // id is already unique. Prefix to disambiguate from a hypothetical
+  // direct render of the same event.
+  if (item.profileZapRecipient) return `profile-zap-${item.event.id}`;
   return item.event.id;
 }
 
@@ -250,7 +269,26 @@ export async function buildFeedItems(
     } else if (isZapKind(ev.kind)) {
       // Kind 9735 Lightning receipt or kind 8333 on-chain attestation.
       const targetId = getTargetEventId(ev);
-      if (!targetId) continue;
+      if (!targetId) {
+        // No `e` tag — this is a profile-targeted zap (tipping a person,
+        // not a specific note). Surface kind 8333 events as a standalone
+        // card with the recipient as the target. Kind 9735 doesn't get
+        // this treatment because its `event.pubkey` is the LNURL server,
+        // not the sender, so NoteCard's normal kind-1 layout (which keys
+        // off `event.pubkey` for the author) would render the wrong
+        // person as the actor. Profile-targeted Lightning zaps are also
+        // vanishingly rare in practice; if one shows up, fall through
+        // and let the standalone ActivityCard branch handle it.
+        if (ev.kind !== 8333) continue;
+        const recipientPubkey = ev.tags.find(([n]) => n === 'p')?.[1];
+        if (!recipientPubkey) continue;
+        items.push({
+          event: ev,
+          profileZapRecipient: recipientPubkey,
+          sortTimestamp: ev.created_at,
+        });
+        continue;
+      }
       const senderPubkey = getZapSenderPubkey(ev);
       const sats = getZapAmountSats(ev);
       const resolved = eventsById.get(targetId);
@@ -321,10 +359,10 @@ export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
   const seen = new Map<string, FeedItem>();
   for (const item of items) {
     const existing = seen.get(item.event.id);
-    const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy;
+    const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy && !item.profileZapRecipient;
     if (!existing) {
       seen.set(item.event.id, item);
-    } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy)) {
+    } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy || existing.profileZapRecipient)) {
       seen.set(item.event.id, item);
     }
   }

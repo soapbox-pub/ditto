@@ -316,6 +316,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
                   repostEvent={item.repostEvent}
                   reactedBy={item.reactedBy}
                   zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
                 />
               ))}
               {hasNextPage && (
@@ -458,6 +459,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
             repostEvent={item.repostEvent}
             reactedBy={item.reactedBy}
             zappedBy={item.zappedBy}
+            profileZapRecipient={item.profileZapRecipient}
           />
         ))}
         {hasNextPage && (

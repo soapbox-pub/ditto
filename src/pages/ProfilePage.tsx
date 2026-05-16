@@ -2642,13 +2642,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           ) : currentItems.length > 0 ? (
             <div>
               {currentItems.map((item) => (
-                <NoteCard 
+                <NoteCard
                   key={feedItemKey(item)}
                   event={item.event}
                   repostedBy={item.repostedBy}
                   repostEvent={item.repostEvent}
                   reactedBy={item.reactedBy}
                   zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
                 />
               ))}
 
@@ -3155,6 +3156,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
           repostEvent={item.repostEvent}
           reactedBy={item.reactedBy}
           zappedBy={item.zappedBy}
+          profileZapRecipient={item.profileZapRecipient}
         />
       ))}
 
