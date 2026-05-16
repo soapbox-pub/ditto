@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.16.0] - 2026-05-16
+
+Send Bitcoin straight to anyone on Nostr from a redesigned wallet Send dialog -- start typing a name, pick from the suggestions, set the amount in dollars, and go. Tipping a person now shows up in feeds and notifications as a first-class zap with their avatar and name, the same shape as a note zap. After you send, "View transaction" opens the in-app Bitcoin page instead of bouncing out to mempool.space, so the on-chain zap, the sender, and any comments all stay one tap away.
+
+### Added
+- Tip anyone on Nostr from the wallet -- the Send dialog now has a profile-autocomplete recipient picker that searches your follows and the wider network as you type, plus paste support for npub, nprofile, nip05, and hex pubkeys. Raw bitcoin addresses still work as before
+- Profile zaps render as first-class activity -- when someone tips a person rather than a specific note, the zap appears in feeds and notifications with the recipient's avatar, display name, and the standard action bar, instead of being silently dropped
+
+### Changed
+- Wallet Send dialog redesigned to match the on-chain zap UI -- single screen with a big editable USD amount, preset chips, a fee-speed picker, and a two-tap confirm for large sends, replacing the previous three-step BTC-denominated wizard
+- After sending Bitcoin, "View transaction" now opens the in-app Bitcoin page so you can see the on-chain zap attestation, the sender's Nostr identity, and any comments -- not just the raw mempool view
+- Comment threads rooted on a zap now read e.g. "Commenting on $100 zap by @Alex" with links to the zap and the sender, instead of dumping the raw zap description
+
+### Fixed
+- On-chain zaps in the feed and in thread ancestors now show the sender's name and the correct sats amount, instead of "Anonymous zapped" and a value one thousandth of the real tip
+- Zaps no longer disappear from your feed when the post they targeted is missing from the current relay page -- they fall back to a profile-zap card so the activity still surfaces
+
 ## [2.15.2] - 2026-05-15
 
 Reactions and zaps from people you follow now show up in your home feed by default -- catch up on the moments your friends loved without flipping a switch. A malformed post can no longer take down your feed or a thread: broken events are replaced with a small tombstone and everything around them keeps working. Comment notifications get their own speech-bubble icon, distinct from replies.
