@@ -266,12 +266,15 @@ interface NoteCardProps {
   /** If set, shows a "Zapped" header. The event is the underlying kind 9735 / 8333 zap; sats is the parsed amount (0 if unknown). */
   zappedBy?: { event: NostrEvent; pubkey: string; sats: number };
   /**
-   * If set, `event` is a profile-targeted zap (kind 9735 or 8333 with a
-   * `p` tag but no `e`/`a` tag) and this is the recipient pubkey from
-   * the `p` tag. The card renders the sender as the post author with a
-   * "Zapped @recipient" context line, the big amber amount, and an
-   * optional comment — same layout as a normal kind 1 note, including
-   * the full action bar attached to the zap event itself.
+   * If set, `event` is a profile-targeted zap (kind 9735 or 8333) and
+   * this is the recipient pubkey from the `p` tag. Used both when the
+   * zap has no `e`/`a` tag (tipping a person, not a note) and as a
+   * fallback when the `e`-tagged target note couldn't be resolved on
+   * the user's relays — either way the user sees the zap activity as
+   * a standalone card rather than losing it. Rendered with the
+   * recipient's author header (avatar + name + nip05 + timestamp)
+   * under an "X zapped — Y sats" `EventActionHeader`, plus the standard
+   * action bar wired to the recipient's kind-0 identity event.
    */
   profileZapRecipient?: string;
   /** If true, hide action buttons (used for embeds). */
@@ -1045,15 +1048,18 @@ export const NoteCard = memo(function NoteCard({
     />
   ) : undefined;
 
-  // ── Profile-targeted zap layout (kind 8333 / 9735 with no `e` tag) ──
-  // The zap targets a profile, not a specific note, so there is no
-  // underlying content to render. We mirror the e-tagged zap layout:
-  // the `EventActionHeader` ("X zapped — Y sats") sits on top (the
-  // verb itself links to the zap event), then the recipient's author
-  // header (avatar + display name + nip05 + timestamp) takes the place
-  // of the would-be target note's author block, with the standard
-  // action bar attached to the zap event below. Clicking the card
-  // navigates to the recipient's profile.
+  // ── Profile-targeted zap layout (kind 8333 / 9735) ──
+  // Used when the zap has no resolvable target note — either because
+  // it tips a profile directly (no `e` tag) or because the e-tagged
+  // target note couldn't be fetched from the user's relays. Either
+  // way there's no underlying content to render. We mirror the
+  // e-tagged zap layout: the `EventActionHeader` ("X zapped — Y
+  // sats") sits on top (the verb itself links to the zap event),
+  // then the recipient's author header (avatar + display name +
+  // nip05 + timestamp) takes the place of the would-be target note's
+  // author block, with the standard action bar attached to the
+  // recipient's kind-0 event below. Clicking the card navigates to
+  // the recipient's profile.
   if (isZap && profileZapRecipient) {
     const zapSats = getZapAmountSats(event);
     // Kind 8333: event.pubkey is the sender. Kind 9735: P tag / description.pubkey.

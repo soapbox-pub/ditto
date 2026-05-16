@@ -126,15 +126,21 @@ export interface FeedItem {
  * Compute a stable React key / dedup key for a feed item. The same target
  * event can appear with multiple wrappers (a repost AND a reaction AND a
  * zap), so the key incorporates the wrapper event id when present.
+ *
+ * Zaps are keyed by the zap event id alone (not the target id) so that
+ * the same zap rendering as a `zappedBy` overlay on one page and as a
+ * `profileZapRecipient` fallback on another (because the target note
+ * resolved on one page but not the other) collide during cross-page
+ * dedup and only render once.
  */
 export function feedItemKey(item: FeedItem): string {
   if (item.reactedBy) return `reaction-${item.reactedBy.event.id}-${item.event.id}`;
-  if (item.zappedBy) return `zap-${item.zappedBy.event.id}-${item.event.id}`;
+  if (item.zappedBy) return `zap-${item.zappedBy.event.id}`;
   if (item.repostedBy) return `repost-${item.repostedBy}-${item.event.id}`;
   // Profile-targeted zap — the zap event itself IS `item.event`, so its
-  // id is already unique. Prefix to disambiguate from a hypothetical
-  // direct render of the same event.
-  if (item.profileZapRecipient) return `profile-zap-${item.event.id}`;
+  // id is already unique. Use the same `zap-` prefix as `zappedBy` so
+  // both variants of the same zap dedup against each other.
+  if (item.profileZapRecipient) return `zap-${item.event.id}`;
   return item.event.id;
 }
 
@@ -216,11 +222,14 @@ export async function buildFeedItems(
 
   // Map of target-event id → list of wrappers that need it. A single
   // target can have multiple wrappers (e.g. several reactions to one
-  // post), so we store an array.
+  // post), so we store an array. Zap wrappers carry an optional
+  // `recipientPubkey` (from the `p` tag) so that if the target note
+  // can't be resolved, we can still surface the zap as a standalone
+  // profile-zap card rather than silently dropping it.
   type PendingWrapper =
     | { type: 'repost'; event: NostrEvent }
     | { type: 'reaction'; event: NostrEvent }
-    | { type: 'zap'; event: NostrEvent };
+    | { type: 'zap'; event: NostrEvent; recipientPubkey?: string };
   const missingTargets = new Map<string, PendingWrapper[]>();
 
   const queueMissing = (id: string, wrapper: PendingWrapper) => {
@@ -269,18 +278,12 @@ export async function buildFeedItems(
     } else if (isZapKind(ev.kind)) {
       // Kind 9735 Lightning receipt or kind 8333 on-chain attestation.
       const targetId = getTargetEventId(ev);
+      const recipientPubkey = ev.tags.find(([n]) => n === 'p')?.[1];
       if (!targetId) {
         // No `e` tag — this is a profile-targeted zap (tipping a person,
-        // not a specific note). Surface kind 8333 events as a standalone
-        // card with the recipient as the target. Kind 9735 doesn't get
-        // this treatment because its `event.pubkey` is the LNURL server,
-        // not the sender, so NoteCard's normal kind-1 layout (which keys
-        // off `event.pubkey` for the author) would render the wrong
-        // person as the actor. Profile-targeted Lightning zaps are also
-        // vanishingly rare in practice; if one shows up, fall through
-        // and let the standalone ActivityCard branch handle it.
-        if (ev.kind !== 8333) continue;
-        const recipientPubkey = ev.tags.find(([n]) => n === 'p')?.[1];
+        // not a specific note). Surface as a standalone card with the
+        // recipient as the target. Without a `p` tag we have nothing
+        // to render, so drop it.
         if (!recipientPubkey) continue;
         items.push({
           event: ev,
@@ -299,7 +302,11 @@ export async function buildFeedItems(
           sortTimestamp: ev.created_at,
         });
       } else {
-        queueMissing(targetId, { type: 'zap', event: ev });
+        // Target note isn't in this page. Queue it for the batched
+        // fetch below; if that also fails to resolve the note, the
+        // zap falls back to a profile-zap card so the user sees the
+        // activity regardless of whether the target note is reachable.
+        queueMissing(targetId, { type: 'zap', event: ev, recipientPubkey });
       }
     } else {
       // Direct post — kind 1, 1068, 34236, etc.
@@ -309,6 +316,7 @@ export async function buildFeedItems(
 
   // Single batched fetch for all missing target events.
   if (missingTargets.size > 0) {
+    const resolvedIds = new Set<string>();
     try {
       const ids = [...missingTargets.keys()];
       const originals = await nostr.query(
@@ -319,6 +327,7 @@ export async function buildFeedItems(
         if (original.created_at > now) continue;
         const wrappers = missingTargets.get(original.id);
         if (!wrappers) continue;
+        resolvedIds.add(original.id);
         for (const w of wrappers) {
           if (w.type === 'repost') {
             items.push({ event: original, repostedBy: w.event.pubkey, repostEvent: w.event, sortTimestamp: w.event.created_at });
@@ -342,7 +351,27 @@ export async function buildFeedItems(
         }
       }
     } catch {
-      // timeout or abort — just skip wrappers whose targets couldn't be fetched
+      // timeout or abort — fall through to the zap fallback below.
+      // Reposts/reactions without a resolvable target are still dropped
+      // (there's no meaningful standalone render for them), but zaps
+      // can stand on their own as profile-zap cards.
+    }
+
+    // Zap fallback: any zap whose target note couldn't be resolved
+    // (either because the batched query failed or because the relay
+    // doesn't have the note) still surfaces as a standalone profile-zap
+    // card. The user sees the zap activity instead of silently losing it.
+    for (const [targetId, wrappers] of missingTargets) {
+      if (resolvedIds.has(targetId)) continue;
+      for (const w of wrappers) {
+        if (w.type !== 'zap') continue;
+        if (!w.recipientPubkey) continue;
+        items.push({
+          event: w.event,
+          profileZapRecipient: w.recipientPubkey,
+          sortTimestamp: w.event.created_at,
+        });
+      }
     }
   }
 
