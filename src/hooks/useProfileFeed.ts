@@ -50,7 +50,7 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
       return items.filter((item) => {
         const e = item.event;
         // Always show wrappers — they're activity, not authored content
-        if (item.repostedBy || item.reactedBy || item.zappedBy) return true;
+        if (item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient) return true;
         if (e.kind === 1111) return false; // Kind 1111 comments are always replies
         if (e.kind === 1) return !isReplyEvent(e); // Kind 1 without reply e-tags
         return !isReplyEvent(e); // Other kinds without reply e-tags

@@ -238,7 +238,7 @@ export const AppConfigSchema = z.object({
   feedSettings: FeedSettingsSchema,
   sidebarOrder: z.array(z.string()),
   nip85StatsPubkey: z.string().refine(
-    (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
+    (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/.test(val)),
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
   blossomServerMetadata: BlossomServerMetadataSchema,
@@ -261,7 +261,7 @@ export const AppConfigSchema = z.object({
   ).optional().default([]),
   autoplayVideos: z.boolean(),
   imageQuality: z.enum(['compressed', 'original']),
-  curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
+  curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   sandboxDomain: z.string().optional(),
   esploraBaseUrl: z.string().url(),
   currencyDisplay: z.enum(['usd', 'sats']).optional(),

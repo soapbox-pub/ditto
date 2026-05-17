@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { isProfileBadgesKind } from '@/lib/badgeUtils';
+import { isProfileBadgesEvent } from '@/lib/badgeUtils';
+import { parseAddr } from '@/lib/parseAddr';
 
 /** A parsed badge reference from a profile badges event. */
 export interface BadgeRef {
@@ -14,14 +15,16 @@ export interface BadgeRef {
   identifier: string;
 }
 
-/** Parse a profile badges event (kind 10008 or legacy 30008) into badge references. */
+/**
+ * Parse a NIP-58 profile badges event (kind 10008, or legacy kind 30008 with
+ * `d=profile_badges`) into badge references.
+ *
+ * Returns an empty array for NIP-51 badge sets (kind 30008 with arbitrary
+ * `d`) — those are categorized groups of badges, not a user's accepted
+ * badge showcase, and should be rendered by the dedicated badge-set path.
+ */
 export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
-  if (!isProfileBadgesKind(event.kind)) return [];
-  // Legacy kind 30008 requires d=profile_badges; kind 10008 doesn't need it
-  if (event.kind === 30008) {
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-    if (dTag !== 'profile_badges') return [];
-  }
+  if (!isProfileBadgesEvent(event)) return [];
 
   const refs: BadgeRef[] = [];
   const tags = event.tags;
@@ -29,14 +32,10 @@ export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
   for (let i = 0; i < tags.length; i++) {
     if (tags[i][0] === 'a' && tags[i][1]) {
       const aTag = tags[i][1];
-      const parts = aTag.split(':');
-      if (parts.length < 3) continue;
-
-      const kind = parseInt(parts[0], 10);
-      if (kind !== 30009) continue;
-
-      const pubkey = parts[1];
-      const identifier = parts.slice(2).join(':');
+      // Skip malformed references — a non-hex pubkey would crash nip19
+      // encoders downstream with "padded hex string expected".
+      const parsed = parseAddr(aTag);
+      if (!parsed || parsed.kind !== 30009) continue;
 
       // Look for the corresponding `e` tag immediately after
       let eTag: string | undefined;
@@ -44,7 +43,7 @@ export function parseProfileBadges(event: NostrEvent): BadgeRef[] {
         eTag = tags[i + 1][1];
       }
 
-      refs.push({ aTag, eTag, kind, pubkey, identifier });
+      refs.push({ aTag, eTag, kind: parsed.kind, pubkey: parsed.pubkey, identifier: parsed.identifier });
     }
   }
 

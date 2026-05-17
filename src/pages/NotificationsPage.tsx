@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageSquare, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -30,6 +30,9 @@ import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { Nip05Badge } from '@/components/Nip05Badge';
+import { useNip05Verify } from '@/hooks/useNip05Verify';
+import { timeAgo } from '@/lib/timeAgo';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { AcceptBadgeButton } from '@/components/AcceptBadgeButton';
@@ -78,7 +81,12 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   15128: 'nsite',
   16767: 'theme',
   10008: 'profile badges',
-  30008: 'profile badges',
+  // 30008 is overloaded (legacy profile badges with d=profile_badges vs.
+  // NIP-51 badge set). The badge-set reading is more common today; for
+  // legacy profile-badges events the noun will be slightly off ("reacted
+  // to your badge set" instead of "profile badges"), which is acceptable
+  // since 10008 is the canonical kind for profile badges now.
+  30008: 'badge set',
   30009: 'badge',
   30023: 'article',
   30030: 'emoji pack',
@@ -546,6 +554,15 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
 
   const amountLabel = zapAmount > 0 ? ` ${formatMoney(zapAmount)}` : '';
 
+  // A profile-targeted zap has a `p` tag but no `e` tag — there's no
+  // referenced note to render. Show the recipient (the current user) as
+  // a NoteCard-style header instead so the card has visual body, mirroring
+  // how profile zaps render in feeds.
+  const hasReferencedNote = event.tags.some(([n]) => n === 'e');
+  const recipientPubkey = !hasReferencedNote
+    ? event.tags.find(([n]) => n === 'p')?.[1]
+    : undefined;
+
   return (
     <NotificationWrapper isNew={isNew}>
       <div className="px-4 pt-3">
@@ -555,8 +572,95 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
           action={<ActionLink event={event}>{`zapped you${amountLabel}`}</ActionLink>}
         />
       </div>
-      <ReferencedNoteCard item={item} />
+      {recipientPubkey
+        ? <ZapRecipientCard recipientPubkey={recipientPubkey} timestamp={event.created_at} />
+        : <ReferencedNoteCard item={item} />}
     </NotificationWrapper>
+  );
+}
+
+/**
+ * Body for a profile-targeted zap notification — shows the recipient's
+ * avatar, display name, nip05 badge, and timestamp in the same shape as
+ * a NoteCard author header. Used when the zap has no `e` tag (tipping
+ * the user's identity rather than a specific note), so the notification
+ * has a visible body instead of just the thin header line.
+ */
+function ZapRecipientCard({
+  recipientPubkey,
+  timestamp,
+}: {
+  recipientPubkey: string;
+  timestamp: number;
+}) {
+  const recipient = useAuthor(recipientPubkey);
+  const recipientMeta = recipient.data?.metadata;
+  const recipientShape = getAvatarShape(recipientMeta);
+  const recipientName = recipientMeta?.name
+    ?? recipientMeta?.display_name
+    ?? genUserName(recipientPubkey);
+  const recipientUrl = useProfileUrl(recipientPubkey, recipientMeta);
+  const recipientNip05 = recipientMeta?.nip05;
+  const { data: recipientNip05Verified, isPending: recipientNip05Pending } = useNip05Verify(
+    recipientNip05,
+    recipientPubkey,
+  );
+
+  return (
+    <div className="px-4 pb-3 pt-2">
+      <div className="flex items-center gap-3">
+        {recipient.isLoading ? (
+          <Skeleton className="size-11 rounded-full shrink-0" />
+        ) : (
+          <ProfileHoverCard pubkey={recipientPubkey} asChild>
+            <Link to={recipientUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar shape={recipientShape} className="size-11">
+                <AvatarImage src={recipientMeta?.picture} alt={recipientName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {recipientName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </ProfileHoverCard>
+        )}
+        {recipient.isLoading ? (
+          <div className="min-w-0 min-h-[42px] flex flex-col justify-center space-y-1.5">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-36" />
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
+            <div className="flex items-center gap-1.5">
+              <ProfileHoverCard pubkey={recipientPubkey} asChild>
+                <Link
+                  to={recipientUrl}
+                  className="font-bold text-[15px] hover:underline truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {recipient.data?.event ? (
+                    <EmojifiedText tags={recipient.data.event.tags}>{recipientName}</EmojifiedText>
+                  ) : (
+                    recipientName
+                  )}
+                </Link>
+              </ProfileHoverCard>
+              {recipientMeta?.bot && (
+                <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+              {recipientNip05 && recipientNip05Pending && <Skeleton className="h-3 w-24" />}
+              {recipientNip05 && recipientNip05Pending && <span className="shrink-0">·</span>}
+              {recipientNip05 && recipientNip05Verified && (
+                <Nip05Badge nip05={recipientNip05} pubkey={recipientPubkey} />
+              )}
+              {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(timestamp)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -681,7 +785,7 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<MessageSquare className="size-4 text-primary" />}
+          icon={<MessageCircle className="size-4 text-primary" />}
           action={action}
         />
       </div>

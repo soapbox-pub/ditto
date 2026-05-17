@@ -6,6 +6,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { isNostrId } from '@/lib/nostrId';
+import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -16,14 +18,6 @@ interface HighlightContentProps {
   className?: string;
   /** When true, skip the embedded source event preview (used inside embeds to avoid nesting). */
   disableSourceEmbed?: boolean;
-}
-
-/** Parse an `a` tag value in the `kind:pubkey:identifier` form. */
-function parseAddr(value: string): { kind: number; pubkey: string; identifier: string } | undefined {
-  const [kindStr, pubkey, ...rest] = value.split(':');
-  const kind = Number(kindStr);
-  if (!Number.isFinite(kind) || !pubkey || pubkey.length !== 64) return undefined;
-  return { kind, pubkey, identifier: rest.join(':') };
 }
 
 /** Extract the hostname (without leading `www.`) from a URL, or `undefined` on failure. */
@@ -66,7 +60,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
       ?? event.tags.find(([n, , , marker]) => n === 'r' && marker !== 'mention')?.[1];
 
     let src:
-      | { kind: 'addr'; addr: { kind: number; pubkey: string; identifier: string }; relays?: string[] }
+      | { kind: 'addr'; addr: ParsedAddr; relays?: string[] }
       | { kind: 'event'; id: string; relays?: string[]; authorHint?: string }
       | { kind: 'url'; url: string }
       | undefined;
@@ -80,12 +74,16 @@ export function HighlightContent({ event, expanded = false, className, disableSo
     }
     if (!src && eTag?.[1]) {
       const [, id, relayHint, , authorHint] = eTag;
-      src = {
-        kind: 'event',
-        id,
-        relays: relayHint ? [relayHint] : undefined,
-        authorHint: authorHint && authorHint.length === 64 ? authorHint : undefined,
-      };
+      // Drop the source entirely if the event id isn't a valid 64-char hex —
+      // any downstream `neventEncode` would crash on it.
+      if (isNostrId(id)) {
+        src = {
+          kind: 'event',
+          id,
+          relays: relayHint ? [relayHint] : undefined,
+          authorHint: isNostrId(authorHint) ? authorHint : undefined,
+        };
+      }
     }
     if (!src && rSourceTag) {
       const sanitized = sanitizeUrl(rSourceTag);

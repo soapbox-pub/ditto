@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
+import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
 
 /** Read cached curator follow list from localStorage. */
@@ -52,7 +53,8 @@ export function useCuratorFollowList() {
 
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk);
+        .map(([, pk]) => pk)
+        .filter(isNostrId);
 
       // Include the curator themselves
       const allPubkeys = [...new Set([curatorPubkey, ...pubkeys])];

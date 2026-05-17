@@ -1,6 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
+import { isNostrId } from '@/lib/nostrId';
+
 /**
  * Music curator pubkey (Heather / npub1nl8r463...).
  *
@@ -32,7 +34,8 @@ export function useMusicCuratorFollows() {
 
       const pubkeys = events[0].tags
         .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk);
+        .map(([, pk]) => pk)
+        .filter(isNostrId);
 
       return pubkeys;
     },

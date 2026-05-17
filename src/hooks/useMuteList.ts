@@ -7,6 +7,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
 
 export interface MuteListItem {
@@ -48,10 +49,12 @@ export function parseMuteTags(tags: string[][]): MuteListItem[] {
     const [tagName, value] = tag;
     if (!value) continue;
     switch (tagName) {
-      case 'p': items.push({ type: 'pubkey', value }); break;
+      // Pubkey and event-id mute entries must be valid 64-char hex — anything
+      // else would crash nip19 encoders in the mute-list management UI.
+      case 'p': if (isNostrId(value)) items.push({ type: 'pubkey', value }); break;
       case 't': items.push({ type: 'hashtag', value }); break;
       case 'word': items.push({ type: 'word', value }); break;
-      case 'e': items.push({ type: 'thread', value }); break;
+      case 'e': if (isNostrId(value)) items.push({ type: 'thread', value }); break;
     }
   }
   return items;
@@ -200,13 +203,18 @@ export function useMuteList() {
     mutationFn: async (item: MuteListItem) => {
       if (!user) throw new Error('User not logged in');
 
-      // Normalize the value based on type
+      // Normalize the value based on type. Throw on unrecognisable input
+      // rather than silently storing garbage that would crash renderers.
       let normalizedValue = item.value;
-      
+
       if (item.type === 'pubkey') {
-        normalizedValue = normalizePubkey(item.value);
+        const np = normalizePubkey(item.value);
+        if (!np) throw new Error(`Invalid pubkey: ${item.value}`);
+        normalizedValue = np;
       } else if (item.type === 'thread') {
-        normalizedValue = normalizeEventId(item.value);
+        const ne = normalizeEventId(item.value);
+        if (!ne) throw new Error(`Invalid event id: ${item.value}`);
+        normalizedValue = ne;
       }
 
       // ① Fetch the freshest kind 10000 from relays before mutating
@@ -261,11 +269,12 @@ export function useMuteList() {
     mutationFn: async (pubkeys: string[]): Promise<number> => {
       if (!user) throw new Error('User not logged in');
 
-      // Normalize + dedupe input
+      // Normalize + dedupe input — drop entries we can't recognise.
       const normalized = new Set<string>();
       for (const pk of pubkeys) {
         if (!pk) continue;
-        normalized.add(normalizePubkey(pk));
+        const np = normalizePubkey(pk);
+        if (np) normalized.add(np);
       }
 
       // ① Fetch the freshest kind 10000 from relays
@@ -378,12 +387,17 @@ export function useMuteList() {
 }
 
 /**
- * Normalize a pubkey value that might be hex or npub
+ * Normalize a pubkey value that might be hex or npub/nprofile.
+ *
+ * Returns `undefined` when the value isn't a recognisable pubkey form. The
+ * previous behaviour of returning the original (invalid) string silently
+ * polluted the mute list with garbage that crashed `nip19.npubEncode`
+ * downstream in rendering — callers must now drop the entry.
  */
-function normalizePubkey(value: string): string {
-  // If it looks like a hex pubkey (64 chars), return as-is
-  if (/^[0-9a-f]{64}$/i.test(value)) {
-    return value.toLowerCase();
+function normalizePubkey(value: string): string | undefined {
+  // If it's a valid hex pubkey, return as-is.
+  if (isNostrId(value)) {
+    return value;
   }
 
   // If it's an npub or nprofile, try to decode it
@@ -396,21 +410,24 @@ function normalizePubkey(value: string): string {
         return decoded.data.pubkey;
       }
     } catch (error) {
-      // Fall through to return original value
       console.warn('Failed to decode npub/nprofile:', error);
     }
   }
 
-  return value;
+  return undefined;
 }
 
 /**
- * Normalize an event ID that might be hex or note
+ * Normalize an event ID that might be hex or note/nevent.
+ *
+ * Returns `undefined` when the value isn't a recognisable event-id form.
+ * See {@link normalizePubkey} for why we no longer fall through to the
+ * original string.
  */
-function normalizeEventId(value: string): string {
-  // If it looks like a hex event ID (64 chars), return as-is
-  if (/^[0-9a-f]{64}$/i.test(value)) {
-    return value.toLowerCase();
+function normalizeEventId(value: string): string | undefined {
+  // If it's a valid hex event ID, return as-is.
+  if (isNostrId(value)) {
+    return value;
   }
 
   // If it's a note or nevent, try to decode it
@@ -423,10 +440,9 @@ function normalizeEventId(value: string): string {
         return decoded.data.id;
       }
     } catch (error) {
-      // Fall through to return original value
       console.warn('Failed to decode note/nevent:', error);
     }
   }
 
-  return value;
+  return undefined;
 }

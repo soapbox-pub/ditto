@@ -26,13 +26,17 @@ import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useBookInfo } from '@/hooks/useBookInfo';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
+import { isNostrId } from '@/lib/nostrId';
+import { parseAddr } from '@/lib/parseAddr';
 import { cardPrimaryImage } from '@/lib/scryfall';
+import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
 
 
 /** Default classes shared by all comment context rows. */
@@ -55,7 +59,15 @@ interface CommentRoot {
   authorHint?: string;
 }
 
-/** Parse the root reference from a kind 1111 comment's tags. */
+/**
+ * Parse the root reference from a kind 1111 comment's tags.
+ *
+ * **Postcondition:** any returned `addr.pubkey`, `eventId`, or `authorHint`
+ * is a valid 64-char lowercase hex string (or `undefined`). Renderers can
+ * pass these to `nip19.*Encode` without guarding. If the primary uppercase
+ * tag is malformed we fall through to the next tag type rather than
+ * returning a partially-broken root.
+ */
 function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   const aTagFull = event.tags.find(([name]) => name === 'A');
   // Use find (not findLast) to get the root E tag, not a parent e tag
@@ -68,19 +80,23 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   if (aTagFull) {
     const aTag = aTagFull[1];
     const relayHint = aTagFull[2] || undefined;
-    const parts = aTag.split(':');
-    const kind = parseInt(parts[0], 10);
-    const pubkey = parts[1] ?? '';
-    const identifier = parts.slice(2).join(':');
-    return { type: 'addr', addr: { kind, pubkey, identifier }, rootKind: kTag, relayHint };
+    const addr = parseAddr(aTag);
+    if (addr) {
+      return { type: 'addr', addr, rootKind: kTag, relayHint };
+    }
+    // Malformed A tag — fall through to E / I tags below.
   }
 
   if (eTagFull) {
     const eTag = eTagFull[1];
     const relayHint = eTagFull[2] || undefined;
-    // NIP-22 E tags may have the author pubkey at position [3]; fall back to P tag
-    const authorHint = eTagFull[3] || pTag || undefined;
-    return { type: 'event', eventId: eTag, rootKind: kTag, relayHint, authorHint };
+    // NIP-22 E tags may have the author pubkey at position [3]; fall back to P tag.
+    const rawAuthorHint = eTagFull[3] || pTag || undefined;
+    const authorHint = isNostrId(rawAuthorHint) ? rawAuthorHint : undefined;
+    if (isNostrId(eTag)) {
+      return { type: 'event', eventId: eTag, rootKind: kTag, relayHint, authorHint };
+    }
+    // Malformed E tag — fall through to I tag below.
   }
 
   if (iTag) {
@@ -124,7 +140,9 @@ const KIND_LABELS: Record<number, string> = {
   15128: 'an nsite',
   16767: 'a theme',
   10008: 'profile badges',
-  30008: 'profile badges',
+  // Kind 30008 = NIP-51 badge set (legacy `d=profile_badges` is routed
+  // through ProfileBadgesCommentContext before reaching this map).
+  30008: 'a badge set',
   30009: 'a badge',
   30023: 'an article',
   30030: 'an emoji pack',
@@ -239,6 +257,10 @@ function getRootKindLabel(rootKind: string | undefined): string {
 /** Suffix that describes the kind, appended after a title (e.g. "Wet Dry World theme"). */
 const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30009: 'badge',
+  // Kind 30008 = NIP-51 badge set (legacy profile-badges variant is routed
+  // separately by AddrCommentContext via the `profile_badges` d-tag check
+  // before reaching this map).
+  30008: 'badges',
   30030: 'emoji pack',
   36767: 'theme',
   16767: 'theme',
@@ -398,8 +420,10 @@ export function CommentContext({ event, className }: CommentContextProps) {
   const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
   const parentAuthorPubkey = event.tags.findLast(([name]) => name === 'p')?.[1];
 
-  if (parentKind === '1111' && parentAuthorPubkey) {
-    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={event.tags.findLast(([name]) => name === 'e')?.[1]} className={className} />;
+  if (parentKind === '1111' && isNostrId(parentAuthorPubkey)) {
+    const rawParentEventId = event.tags.findLast(([name]) => name === 'e')?.[1];
+    const parentEventId = isNostrId(rawParentEventId) ? rawParentEventId : undefined;
+    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={parentEventId} className={className} />;
   }
 
   const root = parseCommentRoot(event);
@@ -453,8 +477,13 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     return <ProfileCommentContext pubkey={root.addr.pubkey} className={className} />;
   }
 
-  // Kind 10008 or 30008 (profile badges) roots — show "@User's profile badges"
-  if (root.addr?.kind === 10008 || root.addr?.kind === 30008) {
+  // Kind 10008, or legacy kind 30008 with d=profile_badges → NIP-58 profile
+  // badges. Kind 30008 with any other d is a NIP-51 badge set (handled by
+  // the generic addr context, which fetches the event and uses its title).
+  if (
+    root.addr?.kind === 10008 ||
+    (root.addr?.kind === 30008 && root.addr.identifier === 'profile_badges')
+  ) {
     return <ProfileBadgesCommentContext root={root} className={className} />;
   }
 
@@ -628,6 +657,15 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return <PollVoteCommentContext event={event} className={className} />;
   }
 
+  // Kind 9735 Lightning / kind 8333 on-chain zaps get special treatment so
+  // the row reads "Commenting on $100 zap by Alex Gleason" instead of
+  // falling through to the generic display-name path, which has nothing
+  // useful for a zap and ends up rendering the NIP-31 `alt` tag
+  // ("Bitcoin zap: 127,897 sats" or similar — sender-less and verbose).
+  if (event?.kind === 9735 || event?.kind === 8333) {
+    return <ZapCommentContext event={event} className={className} />;
+  }
+
   const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
@@ -682,6 +720,70 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
             @{displayName}
           </Link>
         </ProfileHoverCard>
+      )}
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for kind 9735 Lightning / kind 8333 on-chain zap roots —
+ * shows "Commenting on {amount} zap by @{sender}". Without this branch the
+ * row falls through to the generic display-name path, which has no useful
+ * title/name for a zap and ends up showing the NIP-31 `alt` tag (e.g.
+ * "Bitcoin zap: 127,897 sats") — sender-less and verbose.
+ *
+ * `getZapAmountSats` / `getZapSenderPubkey` handle both kinds: kind 8333
+ * `amount` is sats and sender is `event.pubkey`; kind 9735 amount falls
+ * through (amount tag → description amount → bolt11) and sender comes from
+ * the P tag / description JSON.
+ */
+function ZapCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const sats = useMemo(() => getZapAmountSats(event), [event]);
+  const senderPubkey = useMemo(() => getZapSenderPubkey(event), [event]);
+  const { format: formatMoney } = useFormatMoney();
+
+  const author = useAuthor(senderPubkey || undefined);
+  const metadata = author.data?.metadata;
+  const senderName = getDisplayName(metadata, senderPubkey);
+  const zapLink = getRootLink(event);
+  const profileLink = useMemo(() => {
+    if (!isNostrId(senderPubkey)) return undefined;
+    try { return `/${nip19.npubEncode(senderPubkey)}`; } catch { return undefined; }
+  }, [senderPubkey]);
+
+  // Amount link styled the same as the reaction emoji link — links to the
+  // zap event itself so a click drills into the receipt.
+  const amountNode = (
+    <Link
+      to={zapLink}
+      className="inline-flex items-center gap-1 text-primary hover:underline shrink-0 cursor-pointer"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Zap className="size-3.5 shrink-0 text-amber-500" />
+      <span>{sats > 0 ? `${formatMoney(sats)} zap` : 'zap'}</span>
+    </Link>
+  );
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className}>
+      {amountNode}
+      {profileLink && (
+        <>
+          <span className="shrink-0">by</span>
+          {author.isLoading ? (
+            <Skeleton className="h-3.5 w-16 inline-block" />
+          ) : (
+            <ProfileHoverCard pubkey={senderPubkey} asChild>
+              <Link
+                to={profileLink}
+                className="text-primary hover:underline truncate cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                @{senderName}
+              </Link>
+            </ProfileHoverCard>
+          )}
+        </>
       )}
     </CommentContextRow>
   );

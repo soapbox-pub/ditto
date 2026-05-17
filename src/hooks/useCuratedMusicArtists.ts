@@ -1,6 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
+import { isNostrId } from '@/lib/nostrId';
+
 /**
  * Curated music artists list coordinates.
  *
@@ -51,7 +53,8 @@ export function useCuratedMusicArtists() {
 
       const pubkeys = events[0].tags
         .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk);
+        .map(([, pk]) => pk)
+        .filter(isNostrId);
 
       return pubkeys.length > 0 ? pubkeys : FALLBACK_ARTIST_PUBKEYS;
     },

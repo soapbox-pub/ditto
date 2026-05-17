@@ -2,21 +2,8 @@ import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { parseMusicTrack } from '@/lib/musicHelpers';
+import { parseAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
-
-/**
- * Parse an `a`-tag ref like `36787:<pubkey>:<d-tag>` into filter components.
- */
-function parseATagRef(ref: string): { kind: number; pubkey: string; identifier: string } | null {
-  const parts = ref.split(':');
-  if (parts.length < 3) return null;
-  const kind = parseInt(parts[0], 10);
-  if (isNaN(kind)) return null;
-  const pubkey = parts[1];
-  const identifier = parts.slice(2).join(':');
-  if (!pubkey) return null;
-  return { kind, pubkey, identifier };
-}
 
 /**
  * Lightweight hook to resolve a playlist's cover art.
@@ -42,8 +29,8 @@ export function usePlaylistCoverArt(
   const { nostr } = useNostr();
 
   const firstRef = useMemo(() => {
-    if (trackRefs.length === 0) return null;
-    return parseATagRef(trackRefs[0]);
+    if (trackRefs.length === 0) return undefined;
+    return parseAddr(trackRefs[0]);
   }, [trackRefs]);
 
   const { data: fallbackArt } = useQuery({

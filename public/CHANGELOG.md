@@ -1,5 +1,59 @@
 # Changelog
 
+## [2.16.0] - 2026-05-16
+
+Send Bitcoin straight to anyone on Nostr from a redesigned wallet Send dialog -- start typing a name, pick from the suggestions, set the amount in dollars, and go. Tipping a person now shows up in feeds and notifications as a first-class zap with their avatar and name, the same shape as a note zap. After you send, "View transaction" opens the in-app Bitcoin page instead of bouncing out to mempool.space, so the on-chain zap, the sender, and any comments all stay one tap away.
+
+### Added
+- Tip anyone on Nostr from the wallet -- the Send dialog now has a profile-autocomplete recipient picker that searches your follows and the wider network as you type, plus paste support for npub, nprofile, nip05, and hex pubkeys. Raw bitcoin addresses still work as before
+- Profile zaps render as first-class activity -- when someone tips a person rather than a specific note, the zap appears in feeds and notifications with the recipient's avatar, display name, and the standard action bar, instead of being silently dropped
+
+### Changed
+- Wallet Send dialog redesigned to match the on-chain zap UI -- single screen with a big editable USD amount, preset chips, a fee-speed picker, and a two-tap confirm for large sends, replacing the previous three-step BTC-denominated wizard
+- After sending Bitcoin, "View transaction" now opens the in-app Bitcoin page so you can see the on-chain zap attestation, the sender's Nostr identity, and any comments -- not just the raw mempool view
+- Comment threads rooted on a zap now read e.g. "Commenting on $100 zap by @Alex" with links to the zap and the sender, instead of dumping the raw zap description
+
+### Fixed
+- On-chain zaps in the feed and in thread ancestors now show the sender's name and the correct sats amount, instead of "Anonymous zapped" and a value one thousandth of the real tip
+- Zaps no longer disappear from your feed when the post they targeted is missing from the current relay page -- they fall back to a profile-zap card so the activity still surfaces
+
+## [2.15.2] - 2026-05-15
+
+Reactions and zaps from people you follow now show up in your home feed by default -- catch up on the moments your friends loved without flipping a switch. A malformed post can no longer take down your feed or a thread: broken events are replaced with a small tombstone and everything around them keeps working. Comment notifications get their own speech-bubble icon, distinct from replies.
+
+### Changed
+- Reactions and zaps from people you follow now appear in your home feed by default, the same way reposts do. Both toggles still live in Content Settings if you'd rather turn them off
+- Comment notifications now use a speech-bubble icon, visually distinct from thread replies
+
+### Fixed
+- A single broken post can no longer blank out your feed, a thread, or an entire page. Malformed events render as a small "This post could not be displayed" tombstone, the rest of the feed stays interactive, and the sidebar and navigation remain usable even if a route handler crashes
+- Profiles with malformed badge sets, people lists with malformed entries, and posts referencing malformed event ids no longer crash the surrounding card
+
+## [2.15.1] - 2026-05-14
+
+Badge sets with lots of badges -- like RetroAchievements game sets with 100+ icons -- now load every tile instead of falling back to a wall of anonymous trophies.
+
+### Fixed
+- Large badge sets (e.g. RetroAchievements game collections with 100+ badges) now render every tile with its real artwork and name instead of falling back to a grid of generic trophy icons
+
+## [2.15.0] - 2026-05-14
+
+Reactions and zaps from people you follow can now show up in your feed as a header above the post they targeted -- two new toggles, off by default. Zap amounts now appear in dollars by default with a single bolt icon for Lightning and on-chain alike, switchable in Advanced Settings. Every Follow All button gains a Mute All sibling, so any people list can become a mute source. Badge sets render as poster-style cards, and zap notifications finally show the amount.
+
+### Added
+- Reaction and zap overlays in your feed -- two new toggles in Content Settings (off by default) let reactions and zaps from people you follow surface as a header above the post they targeted, the same way reposts already do. The reaction overlay renders the actual emoji (including custom ones), the zap overlay shows the amount, and tapping the verb jumps to the underlying reaction or zap. Works in the home feed, profile feeds, custom tabs, follow-page feeds, people-list feeds, and search results
+- Mute All next to every Follow All -- people lists, follow packs, follow sets, badges, and the Team Soapbox page now have a caret next to Follow All with a Mute All option that adds every pubkey in the list to your mute list at once. Feeds you're following are filtered by your mute list at query time too, so muting someone you already followed actually quiets them
+- Currency preference -- a new Currency section in Advanced Settings switches zap amounts between USD (the new default) and sats, and the preference rides along on encrypted settings sync so it follows you across devices
+
+### Changed
+- Zap amounts now display as dollars by default everywhere -- feed overlays, notifications, embedded zap cards, the Zaps tab of the interactions modal, music and podcast totals, and the bolt counter on every post. On-chain zaps share the same bolt icon and "Zap" label as Lightning zaps in feeds, since the social meaning is identical -- the Bitcoin icon stays on the zap dialog's tab strip and on profile BTC address rows where the rail actually matters
+- Zap notifications now show the amount in the header instead of a bare "X zapped you", reading zaps whose amount is only encoded in the bolt11 invoice. The verbs in "reacted to", "reposted", and "zapped" notifications are now links to the underlying event
+- Badge sets render as a poster-style card with the artwork as a full-bleed banner and the title and description overlaid, distinct from the legacy profile-badge layout. The feed action header reads e.g. "Alice updated Super Mario Bros. badges" with the set title interpolated in
+- The block explorer URL is now configurable in Advanced Settings, so self-hosted Esplora deployments (or Blockstream's) work without code changes. Bitcoin price data also comes from mempool.space now, consolidating wallet network calls onto a single host
+
+### Fixed
+- The "What's new" toast after an update now truncates long release summaries on a word boundary instead of rendering the entire paragraph
+
 ## [2.14.4] - 2026-05-11
 
 The Wikipedia featured-article card on your home feed now shows article titles cleanly without the underscores, and tapping it opens the article right inside Ditto instead of bouncing you out to a new browser tab.

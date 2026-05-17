@@ -1,15 +1,19 @@
 import { nip19 } from 'nostr-tools';
-import type { DecodedResult } from 'nostr-tools/nip19';
+import type {
+  DecodedResult,
+  NAddr,
+  NEvent,
+  NProfile,
+  NPub,
+  Note,
+} from 'nostr-tools/nip19';
+
+import { isNostrId } from '@/lib/nostrId';
 
 /**
  * Known NIP-19 bech32 prefixes that the app can route to.
  */
 const NIP19_PREFIXES = ['npub1', 'nprofile1', 'note1', 'nevent1', 'naddr1'];
-
-/**
- * Matches a 64-character lowercase hex string (a raw Nostr event ID or pubkey).
- */
-const HEX_64_RE = /^[0-9a-f]{64}$/;
 
 /**
  * Checks whether a string looks like a NIP-05 identifier (user@domain.com)
@@ -52,8 +56,15 @@ export function isFullUrl(value: string): boolean {
  * Try to decode the input as a NIP-19 bech32 identifier.
  * Strips the `nostr:` URI prefix if present.
  * Returns the decoded result or `null` if it isn't a valid NIP-19 string.
+ *
+ * The `raw` field carries the precise template-literal type matching the
+ * decoded variant (`NPub`/`NEvent`/`NAddr`/`Note`/`NProfile`) so callers
+ * can pass it straight to props typed for those bech32 prefixes — no
+ * `as string` coercion or re-encoding needed.
  */
-export function tryDecodeNip19(input: string): { decoded: DecodedResult; raw: string } | null {
+export function tryDecodeNip19(
+  input: string,
+): { decoded: DecodedResult; raw: NPub | NProfile | Note | NEvent | NAddr } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -61,8 +72,8 @@ export function tryDecodeNip19(input: string): { decoded: DecodedResult; raw: st
 
   if (NIP19_PREFIXES.some((p) => value.startsWith(p))) {
     try {
-      const decoded = nip19.decode(value);
-      return { decoded, raw: value };
+      const decoded = nip19.decode(value as NPub | NProfile | Note | NEvent | NAddr);
+      return { decoded, raw: value as NPub | NProfile | Note | NEvent | NAddr };
     } catch {
       // Not a valid NIP-19
     }
@@ -71,10 +82,12 @@ export function tryDecodeNip19(input: string): { decoded: DecodedResult; raw: st
 }
 
 /**
- * Check if the input is a raw 64-char hex string (event ID or pubkey).
+ * Check if the input (after trimming) is a raw 64-char hex string —
+ * event ID or pubkey. Tolerates surrounding whitespace; use {@link isNostrId}
+ * directly when the caller has already validated input shape.
  */
 export function isHex64(input: string): boolean {
-  return HEX_64_RE.test(input.trim());
+  return isNostrId(input.trim());
 }
 
 /** Coordinates for an addressable event (naddr). */
@@ -86,14 +99,18 @@ interface AddrCoords {
 
 /**
  * Structured result describing a detected Nostr identifier in user input.
+ *
+ * The `raw` field on each NIP-19 variant carries the precise template-literal
+ * type from `nostr-tools` (`NPub`, `NProfile`, etc.) so downstream consumers
+ * can pass it directly into props typed for those bech32 prefixes.
  */
 export type IdentifierMatch =
   | { type: 'nip05'; identifier: string }
-  | { type: 'npub'; pubkey: string; raw: string }
-  | { type: 'nprofile'; pubkey: string; raw: string }
-  | { type: 'note'; eventId: string; raw: string }
-  | { type: 'nevent'; eventId: string; relays?: string[]; authorHint?: string; raw: string }
-  | { type: 'naddr'; addr: AddrCoords; relays?: string[]; raw: string }
+  | { type: 'npub'; pubkey: string; raw: NPub }
+  | { type: 'nprofile'; pubkey: string; raw: NProfile }
+  | { type: 'note'; eventId: string; raw: Note }
+  | { type: 'nevent'; eventId: string; relays?: string[]; authorHint?: string; raw: NEvent }
+  | { type: 'naddr'; addr: AddrCoords; relays?: string[]; raw: NAddr }
   | { type: 'hex'; hex: string };
 
 /**
@@ -116,25 +133,25 @@ export function detectIdentifier(query: string): IdentifierMatch | null {
     const { decoded, raw } = nip19Result;
     switch (decoded.type) {
       case 'npub':
-        return { type: 'npub', pubkey: decoded.data, raw };
+        return { type: 'npub', pubkey: decoded.data, raw: raw as NPub };
       case 'nprofile':
-        return { type: 'nprofile', pubkey: decoded.data.pubkey, raw };
+        return { type: 'nprofile', pubkey: decoded.data.pubkey, raw: raw as NProfile };
       case 'note':
-        return { type: 'note', eventId: decoded.data, raw };
+        return { type: 'note', eventId: decoded.data, raw: raw as Note };
       case 'nevent':
         return {
           type: 'nevent',
           eventId: decoded.data.id,
           relays: decoded.data.relays,
           authorHint: decoded.data.author,
-          raw,
+          raw: raw as NEvent,
         };
       case 'naddr':
         return {
           type: 'naddr',
           addr: { kind: decoded.data.kind, pubkey: decoded.data.pubkey, identifier: decoded.data.identifier },
           relays: decoded.data.relays,
-          raw,
+          raw: raw as NAddr,
         };
     }
   }
@@ -177,7 +194,7 @@ export function getNostrIdentifierPath(input: string): string | null {
   }
 
   // Try raw 64-char hex (event ID or pubkey) — route handles it directly
-  if (HEX_64_RE.test(value)) {
+  if (isNostrId(value)) {
     return `/${value}`;
   }
 

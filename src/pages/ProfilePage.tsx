@@ -103,6 +103,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
@@ -2641,13 +2642,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           ) : currentItems.length > 0 ? (
             <div>
               {currentItems.map((item) => (
-                <NoteCard 
+                <NoteCard
                   key={feedItemKey(item)}
                   event={item.event}
                   repostedBy={item.repostedBy}
                   repostEvent={item.repostEvent}
                   reactedBy={item.reactedBy}
                   zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
                 />
               ))}
 
@@ -2952,18 +2954,15 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
     for (let i = 0; i < tags.length; i++) {
       if (tags[i][0] === 'a' && tags[i][1]) {
         const aTag = tags[i][1];
-        const parts = aTag.split(':');
-        if (parts.length < 3 || parts[0] !== '30009') continue;
-
-        const bPubkey = parts[1];
-        const identifier = parts.slice(2).join(':');
+        const parsed = parseAddr(aTag);
+        if (!parsed || parsed.kind !== 30009) continue;
 
         let eTag: string | undefined;
         if (i + 1 < tags.length && tags[i + 1][0] === 'e') {
           eTag = tags[i + 1][1];
         }
 
-        refs.push({ aTag, eTag, pubkey: bPubkey, identifier });
+        refs.push({ aTag, eTag, pubkey: parsed.pubkey, identifier: parsed.identifier });
       }
     }
     // Deduplicate by aTag — keep first occurrence only
@@ -3157,6 +3156,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
           repostEvent={item.repostEvent}
           reactedBy={item.reactedBy}
           zappedBy={item.zappedBy}
+          profileZapRecipient={item.profileZapRecipient}
         />
       ))}
 

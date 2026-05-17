@@ -93,7 +93,13 @@ export interface ZapOverlay {
 
 /** A feed item — either a direct post, a repost, a reaction, or a zap wrapping the original event. */
 export interface FeedItem {
-  /** The event to display (original note / target event). */
+  /**
+   * The event to display. For direct posts this is the post itself; for
+   * reposts / reactions / zaps wrapping a note it's the target note (the
+   * wrapper lives in `repostedBy` / `reactedBy` / `zappedBy`). For a
+   * profile-targeted zap (no `e` tag) it's the zap event itself — see
+   * `profileZapRecipient` below.
+   */
   event: NostrEvent;
   /** If this item is a repost, the pubkey of the person who reposted it. */
   repostedBy?: string;
@@ -103,6 +109,15 @@ export interface FeedItem {
   reactedBy?: ReactionOverlay;
   /** If this item is a zap overlay, the zap event + sender pubkey + amount. */
   zappedBy?: ZapOverlay;
+  /**
+   * If set, this item is a profile-targeted zap (a kind 9735 / 8333 event
+   * with a `p` tag but no `e`/`a` tag — i.e. tipping a person, not a
+   * specific note). `event` is the zap event itself and this field holds
+   * the recipient pubkey from the `p` tag. NoteCard renders these with
+   * the normal post layout, showing "Zapped @recipient" as a context
+   * line above the amount.
+   */
+  profileZapRecipient?: string;
   /** Sort timestamp — uses the wrapper event's timestamp when present for correct ordering. */
   sortTimestamp: number;
 }
@@ -111,11 +126,21 @@ export interface FeedItem {
  * Compute a stable React key / dedup key for a feed item. The same target
  * event can appear with multiple wrappers (a repost AND a reaction AND a
  * zap), so the key incorporates the wrapper event id when present.
+ *
+ * Zaps are keyed by the zap event id alone (not the target id) so that
+ * the same zap rendering as a `zappedBy` overlay on one page and as a
+ * `profileZapRecipient` fallback on another (because the target note
+ * resolved on one page but not the other) collide during cross-page
+ * dedup and only render once.
  */
 export function feedItemKey(item: FeedItem): string {
   if (item.reactedBy) return `reaction-${item.reactedBy.event.id}-${item.event.id}`;
-  if (item.zappedBy) return `zap-${item.zappedBy.event.id}-${item.event.id}`;
+  if (item.zappedBy) return `zap-${item.zappedBy.event.id}`;
   if (item.repostedBy) return `repost-${item.repostedBy}-${item.event.id}`;
+  // Profile-targeted zap — the zap event itself IS `item.event`, so its
+  // id is already unique. Use the same `zap-` prefix as `zappedBy` so
+  // both variants of the same zap dedup against each other.
+  if (item.profileZapRecipient) return `zap-${item.event.id}`;
   return item.event.id;
 }
 
@@ -197,11 +222,14 @@ export async function buildFeedItems(
 
   // Map of target-event id → list of wrappers that need it. A single
   // target can have multiple wrappers (e.g. several reactions to one
-  // post), so we store an array.
+  // post), so we store an array. Zap wrappers carry an optional
+  // `recipientPubkey` (from the `p` tag) so that if the target note
+  // can't be resolved, we can still surface the zap as a standalone
+  // profile-zap card rather than silently dropping it.
   type PendingWrapper =
     | { type: 'repost'; event: NostrEvent }
     | { type: 'reaction'; event: NostrEvent }
-    | { type: 'zap'; event: NostrEvent };
+    | { type: 'zap'; event: NostrEvent; recipientPubkey?: string };
   const missingTargets = new Map<string, PendingWrapper[]>();
 
   const queueMissing = (id: string, wrapper: PendingWrapper) => {
@@ -250,7 +278,20 @@ export async function buildFeedItems(
     } else if (isZapKind(ev.kind)) {
       // Kind 9735 Lightning receipt or kind 8333 on-chain attestation.
       const targetId = getTargetEventId(ev);
-      if (!targetId) continue;
+      const recipientPubkey = ev.tags.find(([n]) => n === 'p')?.[1];
+      if (!targetId) {
+        // No `e` tag — this is a profile-targeted zap (tipping a person,
+        // not a specific note). Surface as a standalone card with the
+        // recipient as the target. Without a `p` tag we have nothing
+        // to render, so drop it.
+        if (!recipientPubkey) continue;
+        items.push({
+          event: ev,
+          profileZapRecipient: recipientPubkey,
+          sortTimestamp: ev.created_at,
+        });
+        continue;
+      }
       const senderPubkey = getZapSenderPubkey(ev);
       const sats = getZapAmountSats(ev);
       const resolved = eventsById.get(targetId);
@@ -261,7 +302,11 @@ export async function buildFeedItems(
           sortTimestamp: ev.created_at,
         });
       } else {
-        queueMissing(targetId, { type: 'zap', event: ev });
+        // Target note isn't in this page. Queue it for the batched
+        // fetch below; if that also fails to resolve the note, the
+        // zap falls back to a profile-zap card so the user sees the
+        // activity regardless of whether the target note is reachable.
+        queueMissing(targetId, { type: 'zap', event: ev, recipientPubkey });
       }
     } else {
       // Direct post — kind 1, 1068, 34236, etc.
@@ -271,6 +316,7 @@ export async function buildFeedItems(
 
   // Single batched fetch for all missing target events.
   if (missingTargets.size > 0) {
+    const resolvedIds = new Set<string>();
     try {
       const ids = [...missingTargets.keys()];
       const originals = await nostr.query(
@@ -281,6 +327,7 @@ export async function buildFeedItems(
         if (original.created_at > now) continue;
         const wrappers = missingTargets.get(original.id);
         if (!wrappers) continue;
+        resolvedIds.add(original.id);
         for (const w of wrappers) {
           if (w.type === 'repost') {
             items.push({ event: original, repostedBy: w.event.pubkey, repostEvent: w.event, sortTimestamp: w.event.created_at });
@@ -304,7 +351,27 @@ export async function buildFeedItems(
         }
       }
     } catch {
-      // timeout or abort — just skip wrappers whose targets couldn't be fetched
+      // timeout or abort — fall through to the zap fallback below.
+      // Reposts/reactions without a resolvable target are still dropped
+      // (there's no meaningful standalone render for them), but zaps
+      // can stand on their own as profile-zap cards.
+    }
+
+    // Zap fallback: any zap whose target note couldn't be resolved
+    // (either because the batched query failed or because the relay
+    // doesn't have the note) still surfaces as a standalone profile-zap
+    // card. The user sees the zap activity instead of silently losing it.
+    for (const [targetId, wrappers] of missingTargets) {
+      if (resolvedIds.has(targetId)) continue;
+      for (const w of wrappers) {
+        if (w.type !== 'zap') continue;
+        if (!w.recipientPubkey) continue;
+        items.push({
+          event: w.event,
+          profileZapRecipient: w.recipientPubkey,
+          sortTimestamp: w.event.created_at,
+        });
+      }
     }
   }
 
@@ -321,10 +388,10 @@ export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
   const seen = new Map<string, FeedItem>();
   for (const item of items) {
     const existing = seen.get(item.event.id);
-    const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy;
+    const isDirect = !item.repostedBy && !item.reactedBy && !item.zappedBy && !item.profileZapRecipient;
     if (!existing) {
       seen.set(item.event.id, item);
-    } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy)) {
+    } else if (isDirect && (existing.repostedBy || existing.reactedBy || existing.zappedBy || existing.profileZapRecipient)) {
       seen.set(item.event.id, item);
     }
   }

@@ -158,6 +158,7 @@ function ProfileFeed({ pubkey }: { pubkey: string }) {
           repostEvent={item.repostEvent}
           reactedBy={item.reactedBy}
           zappedBy={item.zappedBy}
+          profileZapRecipient={item.profileZapRecipient}
           compact
         />
       ))}

@@ -115,7 +115,7 @@ platform :ios do
     options = {
       api_key: api_key,
       submit_for_review: true,
-      automatic_release: false,
+      automatic_release: true,
       force: true,
       precheck_include_in_app_purchases: false,
       # Don't try to PATCH content rights on every submit — Apple's API
