@@ -102,6 +102,7 @@ import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
@@ -1016,12 +1017,17 @@ export function ProfilePage() {
   // incorrectly triggering the "User not found" branch on a hard refresh.
   const { data: nip05Pubkey, isPending: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
 
-  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, or logged-in user
+  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, raw hex, or logged-in user
   const pubkey = useMemo(() => {
     if (npub) {
       // If it's a NIP-05 identifier, use the resolved pubkey
       if (isNip05Param) {
         return nip05Pubkey ?? undefined;
+      }
+      // Raw 64-char hex pubkey (NIP19Page routes these here when the relay
+      // resolves the hex to a kind-0 author)
+      if (isNostrId(npub)) {
+        return npub;
       }
       // Otherwise try to decode as NIP-19
       try {
@@ -1907,7 +1913,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return (
       <main className="flex-1 min-w-0">
         <div className="p-8 text-center text-muted-foreground">
-          <p>Please log in to view your profile.</p>
+          <p>User not found{npub ? `: ${npub}` : ''}</p>
         </div>
       </main>
     );
