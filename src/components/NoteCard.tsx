@@ -61,6 +61,7 @@ const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => 
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { BirdDetectionContent } from "@/components/BirdDetectionContent";
@@ -116,6 +117,7 @@ import { useUserZap } from "@/hooks/useUserZap";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
+import { extractOnchainZapRecipients } from "@/hooks/useOnchainZaps";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -491,6 +493,14 @@ export const NoteCard = memo(function NoteCard({
   const isHighlight = event.kind === 9802;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
+  // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
+  // Renders as a standalone zap activity card with an avatar stack instead
+  // of the single-recipient "headline" layout where one recipient takes the
+  // place of the post author.
+  const isMultiRecipientOnchainZap = useMemo(
+    () => event.kind === 8333 && extractOnchainZapRecipients(event).length > 1,
+    [event],
+  );
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
   const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
@@ -1068,7 +1078,7 @@ export const NoteCard = memo(function NoteCard({
   // author block, with the standard action bar attached to the
   // recipient's kind-0 event below. Clicking the card navigates to
   // the recipient's profile.
-  if (isZap && profileZapRecipient) {
+  if (isZap && profileZapRecipient && !isMultiRecipientOnchainZap) {
     const zapSats = getZapAmountSats(event);
     // Kind 8333: event.pubkey is the sender. Kind 9735: P tag / description.pubkey.
     const senderPubkey = event.kind === 8333 ? event.pubkey : (zapSenderPubkey || event.pubkey);
@@ -1234,11 +1244,12 @@ export const NoteCard = memo(function NoteCard({
   }
 
   // ── Zap receipt layout (kind 9735 / 8333) ──
-  // Skipped when `profileZapRecipient` is set — those are profile-targeted
-  // zaps that should render with the normal kind-1 post layout (avatar +
-  // name + action bar) so the recipient context and the amount sit in
-  // the content area rather than as a compact activity row.
-  if (isZap && !profileZapRecipient) {
+  // Skipped when `profileZapRecipient` is set AND the event has a single
+  // recipient — those are profile-targeted zaps that render with the
+  // "recipient as headline" layout above. Multi-recipient kind 8333 events
+  // fall through to this branch even when `profileZapRecipient` is set, so
+  // the avatar stack can replace the single-recipient layout.
+  if (isZap && (!profileZapRecipient || isMultiRecipientOnchainZap)) {
     // `getZapAmountSats` handles both kinds — kind 9735 reads the bolt11
     // millisats and divides by 1000; kind 8333 reads the `amount` tag
     // (already in sats). The previous `extractZapAmount(event) / 1000`
@@ -1247,6 +1258,10 @@ export const NoteCard = memo(function NoteCard({
     const zapAmountSats = getZapAmountSats(event);
     const zapMessage = extractZapMessage(event);
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
+    // Multi-recipient batch zap (NIP-BC) — render the recipient pubkeys as
+    // an avatar stack in the card body. The "zapped N people" verb in the
+    // ActorRow makes the count explicit; the stack shows who.
+    const zapRecipients = isMultiRecipientOnchainZap ? extractOnchainZapRecipients(event) : [];
     return (
       <ActivityCard
         header={wrapperHeader}
@@ -1257,7 +1272,9 @@ export const NoteCard = memo(function NoteCard({
         }
         actorRow={
           <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture}
-            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading} label="zapped" timestampLabel={timeAgo(event.created_at)}
+            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading}
+            label={isMultiRecipientOnchainZap ? `zapped ${zapRecipients.length} people` : "zapped"}
+            timestampLabel={timeAgo(event.created_at)}
             extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatMoney(zapAmountSats)}
@@ -1268,6 +1285,11 @@ export const NoteCard = memo(function NoteCard({
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
       >
+        {isMultiRecipientOnchainZap && zapRecipients.length > 0 && (
+          <div className="mt-1.5">
+            <PeopleAvatarStack pubkeys={zapRecipients} size="sm" maxVisible={6} />
+          </div>
+        )}
         {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
       </ActivityCard>
     );

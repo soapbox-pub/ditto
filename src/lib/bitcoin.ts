@@ -624,6 +624,104 @@ export function buildUnsignedPsbt(
   return { psbtHex: psbt.toHex(), fee };
 }
 
+/** A single recipient output for a multi-output PSBT. */
+export interface PsbtRecipient {
+  /** Bitcoin address to pay. */
+  address: string;
+  /** Amount to send to this address in satoshis. */
+  amountSats: number;
+}
+
+/**
+ * Build an unsigned Taproot PSBT with multiple recipient outputs.
+ *
+ * Same flow as {@link buildUnsignedPsbt} but produces a single transaction
+ * paying many recipients in one broadcast. Used by the "zap all" flow where
+ * the sender wants to tip every member of a NIP-51 follow set / pack with one
+ * signature and one network fee.
+ *
+ * Per-recipient amounts MUST each be at or above {@link DUST_LIMIT} (546 sats);
+ * dust outputs are rejected by Bitcoin's standardness rules and the whole tx
+ * would fail to broadcast. The caller is responsible for filtering small
+ * recipients or bumping their amounts before calling this.
+ *
+ * @param senderPubkeyHex 32-byte hex x-only public key of the sender.
+ * @param recipients      List of recipient (address, amountSats) pairs.
+ * @param utxos           Available UTXOs (all will be consumed).
+ * @param feeRate         Fee rate in sat/vB.
+ */
+export function buildUnsignedPsbtMulti(
+  senderPubkeyHex: string,
+  recipients: PsbtRecipient[],
+  utxos: UTXO[],
+  feeRate: number,
+): UnsignedPsbt {
+  if (recipients.length === 0) throw new Error('At least one recipient is required.');
+
+  for (const r of recipients) {
+    if (!Number.isFinite(r.amountSats) || r.amountSats < DUST_LIMIT) {
+      throw new Error(
+        `Each recipient must receive at least ${DUST_LIMIT} sats (dust limit). Got ${r.amountSats}.`,
+      );
+    }
+  }
+
+  const internalPubkey = Buffer.from(senderPubkeyHex, 'hex');
+
+  // Derive change address (same Taproot address as sender)
+  const { address: changeAddress } = bitcoin.payments.p2tr({
+    internalPubkey,
+    network: bitcoin.networks.bitcoin,
+  });
+  if (!changeAddress) throw new Error('Failed to derive change address');
+
+  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
+  let totalInput = 0;
+
+  for (const utxo of utxos) {
+    psbt.addInput({
+      hash: utxo.txid,
+      index: utxo.vout,
+      witnessUtxo: {
+        script: bitcoin.payments.p2tr({
+          internalPubkey,
+          network: bitcoin.networks.bitcoin,
+        }).output!,
+        value: BigInt(utxo.value),
+      },
+      tapInternalKey: internalPubkey,
+    });
+    totalInput += utxo.value;
+  }
+
+  const totalOut = recipients.reduce((s, r) => s + r.amountSats, 0);
+
+  // Estimate fee — first assume N + 1 outputs (recipients + change).
+  const numRecipients = recipients.length;
+  const feeWithChange = estimateFee(utxos.length, numRecipients + 1, feeRate);
+  const changeWithBoth = totalInput - totalOut - feeWithChange;
+  const hasChange = changeWithBoth >= DUST_LIMIT;
+  const numOutputs = hasChange ? numRecipients + 1 : numRecipients;
+  const fee = estimateFee(utxos.length, numOutputs, feeRate);
+  const change = totalInput - totalOut - fee;
+
+  if (change < 0) {
+    throw new Error(
+      `Insufficient funds. Need ${(totalOut + fee).toLocaleString()} sats, have ${totalInput.toLocaleString()} sats.`,
+    );
+  }
+
+  for (const r of recipients) {
+    psbt.addOutput({ address: r.address, value: BigInt(r.amountSats) });
+  }
+
+  if (hasChange) {
+    psbt.addOutput({ address: changeAddress, value: BigInt(change) });
+  }
+
+  return { psbtHex: psbt.toHex(), fee };
+}
+
 /**
  * Sign a PSBT locally using a raw private key (nsec).
  *

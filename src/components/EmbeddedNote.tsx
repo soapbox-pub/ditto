@@ -13,6 +13,7 @@ import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -24,7 +25,7 @@ import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, isProfileBadgesEvent, parseBad
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
-import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
+import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
@@ -391,6 +392,8 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
   // server is the author and the sender lives in a P tag).
   const senderPubkey = event.pubkey;
   const claimed = useMemo(() => extractOnchainZapClaimedAmount(event), [event]);
+  const recipientPubkeys = useMemo(() => extractOnchainZapRecipients(event), [event]);
+  const isMultiRecipient = recipientPubkeys.length > 1;
   const verified = useVerifiedOnchainZap(event);
   const amountSats = verified?.amountSats ?? claimed;
   const isVerifying = verified === undefined;
@@ -456,7 +459,18 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
                 ) : senderName}
               </Link>
             </MaybeHoverCard>
-            <span className="text-sm text-muted-foreground">zapped</span>
+            <span className="text-sm text-muted-foreground">
+              zapped
+              {isMultiRecipient && ` ${recipientPubkeys.length} people`}
+            </span>
+            {isMultiRecipient && (
+              <PeopleAvatarStack
+                pubkeys={recipientPubkeys}
+                size="sm"
+                maxVisible={4}
+                className="shrink-0"
+              />
+            )}
             {amountSats > 0 && (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatMoney(amountSats)}

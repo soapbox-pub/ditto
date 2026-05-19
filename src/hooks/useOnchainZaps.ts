@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { fetchTxDetail, nostrPubkeyToBitcoinAddress } from '@/lib/bitcoin';
 import { useAppContext } from '@/hooks/useAppContext';
+import { isNostrId } from '@/lib/nostrId';
 /** A single verified on-chain zap, with the amount that actually paid the recipient on-chain. */
 export interface OnchainZapEntry {
   /** The kind 8333 event. */
@@ -12,9 +13,23 @@ export interface OnchainZapEntry {
   txid: string;
   /** Pubkey of the sender (the 8333 event author). */
   senderPubkey: string;
-  /** Pubkey of the recipient (from `p` tag). */
+  /**
+   * Pubkey of the primary recipient — the first `p` tag in the event.
+   * For multi-recipient zaps, see {@link recipientPubkeys} for the full list.
+   */
   recipientPubkey: string;
-  /** Verified amount in sats — sum of tx outputs that pay the recipient's derived Taproot address. */
+  /**
+   * All recipient pubkeys from the event's `p` tags, in event order.
+   * Single-recipient events have one entry; multi-recipient (NIP-BC
+   * batch) zaps have many.
+   */
+  recipientPubkeys: string[];
+  /**
+   * Verified amount in sats — sum of tx outputs that pay any of the listed
+   * recipients' derived Taproot addresses. For multi-recipient events this
+   * is the *total* paid across all recipients (matches the `amount` tag
+   * semantic in the spec).
+   */
   amountSats: number;
   /** Sender's self-reported amount (may differ from verified). */
   claimedAmountSats: number;
@@ -43,21 +58,47 @@ export function extractOnchainZapClaimedAmount(event: NostrEvent): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** Parse the recipient pubkey from a kind 8333 event (first `p` tag). */
+/**
+ * Parse the **primary** recipient pubkey from a kind 8333 event — the first
+ * valid `p` tag. Most rendering code wants this single value (sender X
+ * "zapped" recipient Y) and falls back to the avatar-stack treatment only
+ * when the event is multi-recipient.
+ */
 export function extractOnchainZapRecipient(event: NostrEvent): string {
-  const tag = event.tags.find(([n]) => n === 'p');
-  return tag?.[1] ?? '';
+  return extractOnchainZapRecipients(event)[0] ?? '';
+}
+
+/**
+ * Parse **all** recipient pubkeys from a kind 8333 event's `p` tags, in
+ * event order. Malformed hex is dropped — anything that wouldn't be safe
+ * to pass to `nostrPubkeyToBitcoinAddress` or `nip19.npubEncode` is
+ * filtered at the boundary so downstream renderers can assume the values
+ * are well-formed.
+ */
+export function extractOnchainZapRecipients(event: NostrEvent): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tag of event.tags) {
+    if (tag[0] !== 'p') continue;
+    const pk = tag[1];
+    if (!pk || !isNostrId(pk)) continue;
+    if (seen.has(pk)) continue;
+    seen.add(pk);
+    out.push(pk);
+  }
+  return out;
 }
 
 /**
  * Verify a kind 8333 on-chain zap event against the Bitcoin blockchain.
  *
- * Returns the verified amount (sum of tx outputs paying the recipient's
- * derived Taproot address) and confirmation status. Returns `null` if the
- * event is malformed or the transaction cannot be verified.
+ * Per NIP-BC, the verified amount is the sum of tx outputs paying the
+ * derived Taproot addresses of **all** listed `p` recipients combined.
+ * Self-zaps are rejected (sender appearing in any `p` tag), and outputs
+ * paying back to the sender's own address are excluded as change.
  *
- * A verified amount of 0 means the transaction exists but does not pay
- * the claimed recipient — callers should discard such events.
+ * Returns `null` if the event is malformed, the transaction can't be
+ * fetched, or none of the listed recipients received anything on-chain.
  *
  * @param event       The kind 8333 event to verify.
  * @param esploraBaseUrl  Esplora REST root used to fetch the tx detail.
@@ -67,16 +108,23 @@ export async function verifyOnchainZap(
   esploraBaseUrl: string,
 ): Promise<OnchainZapEntry | null> {
   const txid = extractOnchainZapTxid(event);
-  const recipientPubkey = extractOnchainZapRecipient(event);
-  if (!txid || !recipientPubkey) return null;
+  const recipientPubkeys = extractOnchainZapRecipients(event);
+  if (!txid || recipientPubkeys.length === 0) return null;
 
-  // Reject self-zaps (sender == recipient). The sender already controls the
-  // destination address, so self-zaps are trivial to fabricate and contribute
-  // nothing meaningful to zap totals.
-  if (event.pubkey === recipientPubkey) return null;
+  // Reject self-zaps — the sender's pubkey appearing in ANY p tag means
+  // they're paying themselves, which is trivial to fabricate.
+  if (recipientPubkeys.includes(event.pubkey)) return null;
 
-  const recipientAddress = nostrPubkeyToBitcoinAddress(recipientPubkey);
-  if (!recipientAddress) return null;
+  // Derive the expected Taproot address for each recipient, plus the
+  // sender's so we can exclude change outputs.
+  const recipientAddresses = new Set<string>();
+  for (const pk of recipientPubkeys) {
+    const addr = nostrPubkeyToBitcoinAddress(pk);
+    if (addr) recipientAddresses.add(addr);
+  }
+  if (recipientAddresses.size === 0) return null;
+
+  const senderAddress = nostrPubkeyToBitcoinAddress(event.pubkey);
 
   let detail;
   try {
@@ -86,7 +134,11 @@ export async function verifyOnchainZap(
   }
 
   const amountSats = detail.outputs
-    .filter((o) => o.address === recipientAddress)
+    .filter((o) =>
+      // Pay outputs only — exclude any output back to the sender (change)
+      // regardless of whether it accidentally appears in the recipient set.
+      o.address !== senderAddress && recipientAddresses.has(o.address ?? ''),
+    )
     .reduce((sum, o) => sum + o.value, 0);
 
   if (amountSats === 0) return null;
@@ -99,7 +151,8 @@ export async function verifyOnchainZap(
     event,
     txid,
     senderPubkey: event.pubkey,
-    recipientPubkey,
+    recipientPubkey: recipientPubkeys[0],
+    recipientPubkeys,
     amountSats: effectiveClaim,
     claimedAmountSats: claimed,
     comment: event.content,
@@ -160,11 +213,20 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
     staleTime: 30_000,
   });
 
-  // Step 2: verify each event on-chain (parallel, cached per txid)
+  // Step 2: verify each event on-chain (parallel, cached per (txid, recipients))
   const events = eventsQuery.data ?? [];
   const verifications = useQueries({
     queries: events.map((event) => ({
-      queryKey: ['onchain-zaps', 'verify', esploraBaseUrl, extractOnchainZapTxid(event), extractOnchainZapRecipient(event)],
+      queryKey: [
+        'onchain-zaps',
+        'verify',
+        esploraBaseUrl,
+        extractOnchainZapTxid(event),
+        // Include the full sorted recipient list so a multi-recipient event
+        // doesn't collide with a single-recipient event that happens to
+        // share the first `p`. Sorted because order doesn't affect verification.
+        extractOnchainZapRecipients(event).slice().sort().join(','),
+      ],
       queryFn: () => verifyOnchainZap(event, esploraBaseUrl),
       staleTime: 60_000,
     })),
@@ -201,12 +263,13 @@ export function useVerifiedOnchainZap(event: NostrEvent | undefined): OnchainZap
   const { config } = useAppContext();
   const { esploraBaseUrl } = config;
   const txid = event ? extractOnchainZapTxid(event) : null;
-  const recipient = event ? extractOnchainZapRecipient(event) : '';
+  const recipients = event ? extractOnchainZapRecipients(event) : [];
+  const recipientsKey = recipients.slice().sort().join(',');
 
   const { data } = useQuery({
-    queryKey: ['onchain-zaps', 'verify', esploraBaseUrl, txid, recipient],
+    queryKey: ['onchain-zaps', 'verify', esploraBaseUrl, txid, recipientsKey],
     queryFn: () => verifyOnchainZap(event!, esploraBaseUrl),
-    enabled: !!event && !!txid && !!recipient,
+    enabled: !!event && !!txid && recipients.length > 0,
     staleTime: 60_000,
   });
 

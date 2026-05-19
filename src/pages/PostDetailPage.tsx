@@ -70,6 +70,7 @@ import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PostActionBar } from "@/components/PostActionBar";
+import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
@@ -178,7 +179,7 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
-import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
+import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
@@ -1880,6 +1881,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const isVerifying = verifiedOnchainZap === undefined;
         const failedVerification = verifiedOnchainZap === null;
         const zapMsg = event.content;
+        // Multi-recipient batch zap (NIP-BC) — show an avatar stack so the
+        // viewer sees who got paid. The single-recipient case is implicit
+        // when the zap targets a specific event (the recipient is the
+        // event's author) or shown elsewhere for profile-targeted zaps.
+        const recipientPubkeys = extractOnchainZapRecipients(event);
+        const isMultiRecipient = recipientPubkeys.length > 1;
         // Sender is the author (self-signed, unlike 9735 where the LNURL server signs).
         return (
           <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
@@ -1907,7 +1914,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     ) : displayName}
                   </Link>
                 </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground">zapped</span>
+                <span className="text-sm text-muted-foreground">
+                  zapped
+                  {isMultiRecipient && ` ${recipientPubkeys.length} people`}
+                </span>
                 {amountSats > 0 && (
                   <span className="text-sm font-semibold text-amber-500 shrink-0">
                     {formatMoney(amountSats)}
@@ -1920,6 +1930,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 ) : null}
               </div>
             </div>
+
+            {isMultiRecipient && (
+              <div className="mt-2 pl-[52px]">
+                <PeopleAvatarStack pubkeys={recipientPubkeys} size="md" maxVisible={8} />
+              </div>
+            )}
 
             {zapMsg && (
               <p className="text-sm text-muted-foreground italic pl-[52px]">&ldquo;{zapMsg}&rdquo;</p>

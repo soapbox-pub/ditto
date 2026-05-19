@@ -5,11 +5,12 @@ import { Zap } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 
 import { useAuthor } from '@/hooks/useAuthor';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
-import { useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
+import { extractOnchainZapRecipients, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { extractZapAmount, extractZapMessage } from '@/hooks/useEventInteractions';
 
 import { genUserName } from '@/lib/genUserName';
@@ -20,9 +21,11 @@ interface ZapContentProps {
   event: NostrEvent;
   /**
    * If set, this is a profile-targeted zap and this pubkey is the
-   * recipient (from the event's `p` tag). Renders a muted
-   * "Zapped @recipient" context line above the amount. Omit for
-   * note-zaps — those use `zappedBy` overlays on the target note.
+   * primary recipient (from the event's first `p` tag). Renders a muted
+   * "Zapped @recipient" context line above the amount. For kind 8333
+   * events with multiple `p` tags, the line is replaced with an avatar
+   * stack and a "Zapped N people" label regardless of this prop. Omit
+   * for note-zaps — those use `zappedBy` overlays on the target note.
    */
   recipientPubkey?: string;
 }
@@ -32,6 +35,10 @@ interface ZapContentProps {
  * context line (for profile-targeted zaps), the prominent amber amount,
  * and the optional sender comment. Used inside `NoteCard`'s content
  * block for kind 9735 / 8333 events.
+ *
+ * For kind 8333 multi-recipient zaps (NIP-BC batch form with several `p`
+ * tags) the recipient line collapses into an avatar stack and an
+ * aggregate "Zapped N people" label.
  */
 export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
   const isOnchain = event.kind === 8333;
@@ -42,6 +49,14 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
   const verified = useVerifiedOnchainZap(isOnchain ? event : undefined);
   const isVerifying = isOnchain && verified === undefined;
   const failedVerification = isOnchain && verified === null;
+
+  // Multi-recipient detection — only applies to on-chain zaps. Lightning
+  // receipts have a single `p` tag by spec.
+  const recipientPubkeys = useMemo(
+    () => (isOnchain ? extractOnchainZapRecipients(event) : []),
+    [event, isOnchain],
+  );
+  const isMultiRecipient = isOnchain && recipientPubkeys.length > 1;
 
   const sats = useMemo(() => {
     if (isOnchain) {
@@ -61,9 +76,11 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
 
   return (
     <div className="mt-2 space-y-2">
-      {recipientPubkey && isNostrId(recipientPubkey) && (
+      {isMultiRecipient ? (
+        <ZapMultiRecipientLine pubkeys={recipientPubkeys} />
+      ) : recipientPubkey && isNostrId(recipientPubkey) ? (
         <ZapRecipientLine pubkey={recipientPubkey} />
-      )}
+      ) : null}
 
       {sats > 0 && (
         <div className="flex items-baseline gap-2 flex-wrap">
@@ -111,6 +128,22 @@ function ZapRecipientLine({ pubkey }: { pubkey: string }) {
           )}
         </Link>
       </ProfileHoverCard>
+    </div>
+  );
+}
+
+/**
+ * Muted "⚡ Zapped {N} people" context line with an overlapping avatar
+ * stack, shown for kind 8333 multi-recipient batch zaps.
+ */
+function ZapMultiRecipientLine({ pubkeys }: { pubkeys: string[] }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+      <Zap className="size-3.5 text-amber-500 shrink-0" />
+      <span className="shrink-0">
+        Zapped {pubkeys.length} {pubkeys.length === 1 ? 'person' : 'people'}
+      </span>
+      <PeopleAvatarStack pubkeys={pubkeys} size="sm" maxVisible={5} />
     </div>
   );
 }
