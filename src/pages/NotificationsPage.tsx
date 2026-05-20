@@ -25,7 +25,7 @@ import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
+import { countZapRecipients, getZapAmountSatsForRecipient, getZapSenderPubkey } from '@/lib/zapHelpers';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { cn } from '@/lib/utils';
@@ -548,11 +548,20 @@ function ActionLink({ event, children }: { event: NostrEvent | undefined; childr
 function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const { event } = item;
 
-  const zapAmount = useMemo(() => getZapAmountSats(event), [event]);
+  // For multi-recipient kind 8333 batch zaps, show the per-recipient
+  // share rather than the total — otherwise everyone in a 500-way
+  // zap-all sees "X zapped you $250" when they actually got $0.50.
+  const zapAmount = useMemo(() => getZapAmountSatsForRecipient(event), [event]);
   const senderPubkey = useMemo(() => getZapSenderPubkey(event), [event]);
+  const recipientCount = useMemo(() => countZapRecipients(event), [event]);
   const { format: formatMoney } = useFormatMoney();
 
+  const otherCount = event.kind === 8333 && recipientCount > 1 ? recipientCount - 1 : 0;
+  const othersLabel = otherCount > 0
+    ? ` and ${otherCount.toLocaleString()} ${otherCount === 1 ? 'other' : 'others'}`
+    : '';
   const amountLabel = zapAmount > 0 ? ` ${formatMoney(zapAmount)}` : '';
+  const actionText = `zapped you${othersLabel}${amountLabel}`;
 
   // A profile-targeted zap has a `p` tag but no `e` tag — there's no
   // referenced note to render. Show the recipient (the current user) as
@@ -569,7 +578,7 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
         <NotificationHeader
           actorPubkey={senderPubkey}
           icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-          action={<ActionLink event={event}>{`zapped you${amountLabel}`}</ActionLink>}
+          action={<ActionLink event={event}>{actionText}</ActionLink>}
         />
       </div>
       {recipientPubkey
@@ -712,10 +721,13 @@ function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) 
 function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   // Sum zap amounts across all actors in the group. Mixes lightning (9735)
   // and on-chain (8333) zaps — both contribute their sat value to the total.
+  // For multi-recipient kind 8333 batch zaps we use the per-recipient share
+  // (not the total across all recipients), so a 500-way zap-all shows up as
+  // each recipient's actual share, not the full batch total.
   const totalSats = useMemo(() => {
     let total = 0;
     for (const item of group.actors) {
-      total += getZapAmountSats(item.event);
+      total += getZapAmountSatsForRecipient(item.event);
     }
     return total;
   }, [group.actors]);
