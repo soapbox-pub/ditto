@@ -30,6 +30,8 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { ToastAction } from '@/components/ui/toast';
+import { tryNeventEncode } from '@/lib/safeNip19';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
@@ -956,6 +958,7 @@ export function ComposeBox({
 
 
 
+      let published: NostrEvent;
       if (isNip22Reply) {
         // NIP-22: use usePostComment for non-kind-1 targets and URL roots
         // Determine root and reply params for the comment hook
@@ -1023,9 +1026,9 @@ export function ComposeBox({
           root = replyTo;
         }
 
-        await postComment({ root, reply, content: finalContent, tags });
+        published = await postComment({ root, reply, content: finalContent, tags });
       } else {
-        await createEvent({
+        published = await createEvent({
           kind: 1,
           content: finalContent,
           tags,
@@ -1059,7 +1062,16 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
       }
       notificationSuccess();
-      toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.' });
+      const nevent = tryNeventEncode({ id: published.id, author: published.pubkey, kind: published.kind });
+      toast({
+        title: 'Posted!',
+        description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.',
+        action: nevent ? (
+          <ToastAction altText="View post" asChild>
+            <Link to={`/${nevent}`}>View</Link>
+          </ToastAction>
+        ) : undefined,
+      });
       onSuccess?.();
     } catch {
       toast({ title: 'Error', description: 'Failed to publish note.', variant: 'destructive' });
