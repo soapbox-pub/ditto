@@ -1,8 +1,25 @@
+/**
+ * Bitcoin helpers — address derivation, balance/tx fetching, fee
+ * estimation, PSBT construction & signing, and broadcast.
+ *
+ * Every fetcher takes an ordered `baseUrls` array (Esplora REST roots, e.g.
+ * `['https://mempool.space/api', 'https://blockstream.info/api']`) and routes
+ * the request through {@link esploraFetch}, which handles per-attempt
+ * timeouts, exponential-backoff cool-downs, and ordered failover across
+ * endpoints. Callers can also pass an `AbortSignal` (typically from a
+ * TanStack Query `queryFn`) to cancel the inflight request.
+ *
+ * The mempool.space-specific `/v1/prices` endpoint is the one exception —
+ * only `mempool.space`-compatible backends expose it. {@link fetchBtcPrice}
+ * configures `skipStatuses: [404]` so non-mempool backends (Blockstream's
+ * Esplora) coexist in the list without being penalised.
+ */
 import * as bitcoin from 'bitcoinjs-lib';
 import { toXOnly } from 'bitcoinjs-lib';
 import { nip19 } from 'nostr-tools';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { ECPairFactory, type ECPairAPI } from 'ecpair';
+import { esploraFetch } from './esplora';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -109,10 +126,15 @@ export interface AddressData {
  * Esplora-compatible REST API (e.g. mempool.space, Blockstream).
  *
  * @param address    The Bitcoin address to look up.
- * @param baseUrl    Esplora REST root, no trailing slash (e.g. `https://mempool.space/api`).
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchAddressData(address: string, baseUrl: string): Promise<AddressData> {
-  const response = await fetch(`${baseUrl}/address/${address}`);
+export async function fetchAddressData(
+  address: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<AddressData> {
+  const response = await esploraFetch(baseUrls, `/address/${address}`, { signal });
 
   if (!response.ok) {
     throw new Error('Failed to fetch balance');
@@ -161,12 +183,20 @@ export function formatSats(sats: number): string {
  *
  * Note: the `/v1/prices` endpoint is a mempool.space extension to the
  * standard Esplora REST surface. Backends like Blockstream's Esplora do
- * not expose it.
+ * not expose it — those endpoints return `404` and the failover client
+ * silently advances to the next URL (without penalising the endpoint).
  *
- * @param baseUrl    Esplora REST root, no trailing slash (e.g. `https://mempool.space/api`).
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchBtcPrice(baseUrl: string): Promise<number> {
-  const response = await fetch(`${baseUrl}/v1/prices`);
+export async function fetchBtcPrice(baseUrls: string[], signal?: AbortSignal): Promise<number> {
+  const response = await esploraFetch(baseUrls, `/v1/prices`, {
+    // /v1/prices is a mempool.space extension — 404 means "endpoint doesn't
+    // speak this path", not "the endpoint is dead". Soft-failover to the
+    // next URL without putting this one in cool-down.
+    skipStatuses: [404],
+    signal,
+  });
 
   if (!response.ok) {
     throw new Error('Failed to fetch BTC price');
@@ -234,10 +264,15 @@ export interface Transaction {
  * Returns simplified transactions with net amount relative to the address.
  *
  * @param address    The Bitcoin address to look up.
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchTransactions(address: string, baseUrl: string): Promise<Transaction[]> {
-  const response = await fetch(`${baseUrl}/address/${address}/txs`);
+export async function fetchTransactions(
+  address: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<Transaction[]> {
+  const response = await esploraFetch(baseUrls, `/address/${address}/txs`, { signal });
 
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
@@ -324,10 +359,15 @@ export interface TxDetail {
  * Fetch full transaction details from an Esplora-compatible API.
  *
  * @param txid       The transaction ID (hex).
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchTxDetail(txid: string, baseUrl: string): Promise<TxDetail> {
-  const response = await fetch(`${baseUrl}/tx/${txid}`);
+export async function fetchTxDetail(
+  txid: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<TxDetail> {
+  const response = await esploraFetch(baseUrls, `/tx/${txid}`, { signal });
   if (!response.ok) throw new Error('Failed to fetch transaction');
 
   const tx = await response.json();
@@ -403,12 +443,17 @@ export interface AddressDetail {
  * Fetch full address details (balance + recent txs) from an Esplora-compatible API.
  *
  * @param address    The Bitcoin address to look up.
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchAddressDetail(address: string, baseUrl: string): Promise<AddressDetail> {
+export async function fetchAddressDetail(
+  address: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<AddressDetail> {
   const [addrData, txs] = await Promise.all([
-    fetchAddressData(address, baseUrl),
-    fetchTransactions(address, baseUrl),
+    fetchAddressData(address, baseUrls, signal),
+    fetchTransactions(address, baseUrls, signal),
   ]);
 
   return {
@@ -440,10 +485,15 @@ export interface UTXO {
  * Fetch UTXOs for a Bitcoin address from an Esplora-compatible API.
  *
  * @param address    The Bitcoin address to look up.
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function fetchUTXOs(address: string, baseUrl: string): Promise<UTXO[]> {
-  const response = await fetch(`${baseUrl}/address/${address}/utxo`);
+export async function fetchUTXOs(
+  address: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<UTXO[]> {
+  const response = await esploraFetch(baseUrls, `/address/${address}/utxo`, { signal });
   if (!response.ok) throw new Error('Failed to fetch UTXOs');
   return response.json();
 }
@@ -465,10 +515,11 @@ export interface FeeRates {
 /**
  * Fetch recommended fee rates (sat/vB) from an Esplora-compatible API.
  *
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function getFeeRates(baseUrl: string): Promise<FeeRates> {
-  const response = await fetch(`${baseUrl}/fee-estimates`);
+export async function getFeeRates(baseUrls: string[], signal?: AbortSignal): Promise<FeeRates> {
+  const response = await esploraFetch(baseUrls, `/fee-estimates`, { signal });
   if (!response.ok) throw new Error('Failed to fetch fee estimates');
 
   const data = await response.json();
@@ -511,13 +562,24 @@ export function validateBitcoinAddress(address: string): boolean {
  * Broadcast a signed transaction hex to the Bitcoin network via an
  * Esplora-compatible API. Returns the txid.
  *
+ * Broadcast is idempotent at the Bitcoin protocol layer — re-broadcasting a
+ * tx that's already in mempool is harmless — so we let the failover client
+ * retry across endpoints normally. The first endpoint that accepts the tx
+ * wins.
+ *
  * @param txHex      The signed transaction hex.
- * @param baseUrl    Esplora REST root, no trailing slash.
+ * @param baseUrls   Ordered list of Esplora REST roots tried with failover.
+ * @param signal     Optional abort signal (e.g. from TanStack Query).
  */
-export async function broadcastTransaction(txHex: string, baseUrl: string): Promise<string> {
-  const response = await fetch(`${baseUrl}/tx`, {
+export async function broadcastTransaction(
+  txHex: string,
+  baseUrls: string[],
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await esploraFetch(baseUrls, `/tx`, {
     method: 'POST',
     body: txHex,
+    signal,
   });
 
   if (!response.ok) {

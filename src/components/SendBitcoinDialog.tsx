@@ -159,7 +159,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const queryClient = useQueryClient();
 
   // ── Form state ───────────────────────────────────────────────
@@ -179,15 +179,15 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   // ── Data fetching ────────────────────────────────────────────
 
   const { data: utxos } = useQuery({
-    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
+    queryKey: ['bitcoin-utxos', esploraApis, senderAddress],
+    queryFn: ({ signal }) => fetchUTXOs(senderAddress, esploraApis, signal),
     enabled: !!senderAddress && isOpen && canSignPsbt,
     staleTime: 30_000,
   });
 
   const { data: feeRates } = useQuery({
-    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
-    queryFn: () => getFeeRates(esploraBaseUrl),
+    queryKey: ['bitcoin-fee-rates', esploraApis],
+    queryFn: ({ signal }) => getFeeRates(esploraApis, signal),
     enabled: isOpen && canSignPsbt,
     staleTime: 30_000,
   });
@@ -322,7 +322,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
       const txHex = finalizePsbt(signedHex);
 
       setProgress('broadcasting');
-      const txid = await broadcastTransaction(txHex, esploraBaseUrl);
+      const txid = await broadcastTransaction(txHex, esploraApis);
 
       // When the recipient is a Nostr identity, publish a kind 8333 profile zap
       // attesting the send. Per NIP.md, omitting `e`/`a` targets the recipient's

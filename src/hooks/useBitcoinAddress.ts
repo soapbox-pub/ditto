@@ -10,18 +10,18 @@ import { useAppContext } from '@/hooks/useAppContext';
  */
 export function useBitcoinAddress(address: string) {
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
 
   const { data: addressDetail, isLoading, error, refetch } = useQuery({
-    queryKey: ['bitcoin-address-detail', esploraBaseUrl, address],
-    queryFn: () => fetchAddressDetail(address, esploraBaseUrl),
+    queryKey: ['bitcoin-address-detail', esploraApis, address],
+    queryFn: ({ signal }) => fetchAddressDetail(address, esploraApis, signal),
     enabled: !!address,
     refetchInterval: 30_000,
   });
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price', esploraBaseUrl],
-    queryFn: () => fetchBtcPrice(esploraBaseUrl),
+    queryKey: ['btc-price', esploraApis],
+    queryFn: ({ signal }) => fetchBtcPrice(esploraApis, signal),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });

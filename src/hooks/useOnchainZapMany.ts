@@ -99,7 +99,7 @@ export function useOnchainZapMany(
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const queryClient = useQueryClient();
 
   const [isZapping, setIsZapping] = useState(false);
@@ -157,8 +157,8 @@ export function useOnchainZapMany(
 
       // Fetch UTXOs and fee rates in parallel.
       const [utxos, rates] = await Promise.all([
-        fetchUTXOs(senderAddress, esploraBaseUrl),
-        getFeeRates(esploraBaseUrl),
+        fetchUTXOs(senderAddress, esploraApis),
+        getFeeRates(esploraApis),
       ]);
 
       if (utxos.length === 0) {
@@ -189,7 +189,7 @@ export function useOnchainZapMany(
       const txHex = finalizePsbt(signedHex);
 
       setProgress('broadcasting');
-      const txid = await broadcastTransaction(txHex, esploraBaseUrl);
+      const txid = await broadcastTransaction(txHex, esploraApis);
 
       // Publish ONE kind 8333 event with every recipient listed as a `p`
       // tag, per the updated NIP-BC spec. The `amount` tag is the total

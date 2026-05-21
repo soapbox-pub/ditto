@@ -10,18 +10,18 @@ import { useAppContext } from '@/hooks/useAppContext';
  */
 export function useBitcoinTx(txid: string) {
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
 
   const { data: tx, isLoading, error } = useQuery({
-    queryKey: ['bitcoin-tx-detail', esploraBaseUrl, txid],
-    queryFn: () => fetchTxDetail(txid, esploraBaseUrl),
+    queryKey: ['bitcoin-tx-detail', esploraApis, txid],
+    queryFn: ({ signal }) => fetchTxDetail(txid, esploraApis, signal),
     enabled: !!txid,
     staleTime: 60_000,
   });
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price', esploraBaseUrl],
-    queryFn: () => fetchBtcPrice(esploraBaseUrl),
+    queryKey: ['btc-price', esploraApis],
+    queryFn: ({ signal }) => fetchBtcPrice(esploraApis, signal),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
