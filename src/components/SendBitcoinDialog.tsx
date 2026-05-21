@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import {
   AlertTriangle,
   Bitcoin,
+  Camera,
   Check,
   ExternalLink,
   Loader2,
@@ -30,6 +31,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { QrScannerDialog } from '@/components/QrScannerDialog';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -709,6 +711,8 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -812,6 +816,42 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     inputRef.current?.blur();
   }, [onChange]);
 
+  const handleScan = useCallback((scanned: string) => {
+    setScannerOpen(false);
+
+    // Strip optional `nostr:` / `bitcoin:` URI prefixes. For `bitcoin:` the
+    // BIP-21 payload is `bitcoin:<address>[?params]` — we only care about the
+    // address. Any params (amount, label) are ignored; the user picks the
+    // amount in the dialog.
+    const trimmed = scanned.trim();
+    let candidate = trimmed;
+    if (/^bitcoin:/i.test(trimmed)) {
+      candidate = trimmed.slice('bitcoin:'.length).split('?')[0].trim();
+    }
+
+    // Direct on-chain address → resolve immediately.
+    if (validateBitcoinAddress(candidate)) {
+      selectBtcAddress(candidate);
+      return;
+    }
+
+    // Anything else (npub/nprofile/nip05/hex, with or without `nostr:` prefix)
+    // gets fed into the query so the existing identifier-detection + dropdown
+    // logic picks it up. The user taps the resulting row to confirm.
+    if (detectIdentifier(candidate)) {
+      setQuery(candidate);
+      setOpen(true);
+      inputRef.current?.focus();
+      return;
+    }
+
+    toast({
+      title: "Couldn't read that QR code",
+      description: 'Expected a Bitcoin address or a Nostr identifier (npub, nprofile, NIP-05).',
+      variant: 'destructive',
+    });
+  }, [selectBtcAddress, toast]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -883,7 +923,23 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-autocomplete="list"
-        className="rounded-full"
+        className="rounded-full pr-11"
+      />
+
+      <button
+        type="button"
+        onClick={() => setScannerOpen(true)}
+        aria-label="Scan QR code"
+        className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Camera className="size-4" />
+      </button>
+
+      <QrScannerDialog
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleScan}
+        title="Scan recipient QR"
       />
 
       {open && totalItems > 0 && (
