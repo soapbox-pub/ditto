@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X } from 'lucide-react';
+import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X, Bitcoin, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -13,7 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import { useNWC } from '@/hooks/useNWCContext';
 import { useWallet } from '@/hooks/useWallet';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
+import { DEFAULT_ESPLORA_APIS } from '@/lib/esplora';
 
 export function WalletSettings() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -32,6 +35,102 @@ export function WalletSettings() {
   const { webln } = useWallet();
   const hasNWC = connections.length > 0 && connections.some(c => c.isConnected);
   const { toast } = useToast();
+
+  // ── Esplora APIs (Bitcoin REST endpoints) ─────────────────────
+  const { config, updateConfig } = useAppContext();
+  const esploraApis = config.esploraApis;
+  const [newEsploraUrl, setNewEsploraUrl] = useState('');
+
+  const normalizeEsploraUrl = (url: string): string => {
+    const trimmed = url.trim();
+    try {
+      const parsed = new URL(trimmed);
+      // Strip trailing slash so equality checks and the failover client agree.
+      return parsed.toString().replace(/\/+$/, '');
+    } catch {
+      try {
+        const parsed = new URL(`https://${trimmed}`);
+        return parsed.toString().replace(/\/+$/, '');
+      } catch {
+        return trimmed;
+      }
+    }
+  };
+
+  const isValidEsploraUrl = (url: string): boolean => {
+    const normalized = normalizeEsploraUrl(url);
+    try {
+      const parsed = new URL(normalized);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch {
+      return false;
+    }
+  };
+
+  const saveEsploraApis = (next: string[]) => {
+    updateConfig((current) => ({
+      ...current,
+      esploraApis: next,
+    }));
+  };
+
+  const handleAddEsplora = () => {
+    if (!isValidEsploraUrl(newEsploraUrl)) {
+      toast({
+        title: 'Invalid API URL',
+        description: 'Enter a valid HTTPS URL (e.g. https://mempool.space/api)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const normalized = normalizeEsploraUrl(newEsploraUrl);
+    if (esploraApis.includes(normalized)) {
+      toast({ title: 'Already in the list', variant: 'destructive' });
+      return;
+    }
+    saveEsploraApis([...esploraApis, normalized]);
+    setNewEsploraUrl('');
+  };
+
+  const handleRemoveEsplora = (url: string) => {
+    // Zod schema requires at least one URL. Refuse to remove the last entry —
+    // the user can hit "Restore defaults" if they want to start over.
+    if (esploraApis.length <= 1) {
+      toast({
+        title: 'At least one API is required',
+        description: 'Add another endpoint before removing this one, or restore the defaults.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    saveEsploraApis(esploraApis.filter((u) => u !== url));
+  };
+
+  const handleMoveEsplora = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= esploraApis.length) return;
+    const next = [...esploraApis];
+    [next[index], next[target]] = [next[target], next[index]];
+    saveEsploraApis(next);
+  };
+
+  const handleResetEsplora = () => {
+    saveEsploraApis([...DEFAULT_ESPLORA_APIS]);
+    toast({ title: 'Bitcoin APIs restored to defaults' });
+  };
+
+  const isAtDefaults =
+    esploraApis.length === DEFAULT_ESPLORA_APIS.length &&
+    esploraApis.every((u, i) => u === DEFAULT_ESPLORA_APIS[i]);
+
+  const renderEsploraUrl = (url: string): string => {
+    try {
+      const parsed = new URL(url);
+      return parsed.host + (parsed.pathname === '/' ? '' : parsed.pathname);
+    } catch {
+      return url;
+    }
+  };
 
   const handleAddConnection = async () => {
     if (!connectionUri.trim()) {
@@ -206,6 +305,117 @@ export function WalletSettings() {
             </div>
           </>
         )}
+
+        <Separator />
+
+        {/* Bitcoin APIs (Esplora failover list) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Bitcoin APIs
+            </h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleResetEsplora}
+              disabled={isAtDefaults}
+              className="rounded-full text-xs h-7"
+              title="Restore the default mempool.space → mempool.emzy.de → blockstream.info list"
+            >
+              <RotateCcw className="size-3.5 mr-1" />
+              Restore defaults
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground px-1">
+            Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps,
+            and tx/address pages. Tried in order — if the top one is rate-limited or down,
+            the next is tried automatically. Reorder so your preferred endpoint is first.
+          </p>
+
+          <div className="space-y-2">
+            {esploraApis.map((url, index) => (
+              <Card key={url}>
+                <CardContent className="flex items-center justify-between gap-2 p-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex items-center justify-center size-9 rounded-full bg-secondary shrink-0">
+                      <Bitcoin className="size-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-mono truncate" title={url}>
+                        {renderEsploraUrl(url)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {index === 0 ? 'Primary' : `Fallback ${index}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleMoveEsplora(index, -1)}
+                      disabled={index === 0}
+                      className="rounded-full size-8 p-0"
+                      title="Move up"
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleMoveEsplora(index, 1)}
+                      disabled={index === esploraApis.length - 1}
+                      className="rounded-full size-8 p-0"
+                      title="Move down"
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRemoveEsplora(url)}
+                      disabled={esploraApis.length <= 1}
+                      className="rounded-full size-8 p-0 text-muted-foreground hover:text-destructive"
+                      title={esploraApis.length <= 1 ? 'At least one API is required' : 'Remove'}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Add new endpoint */}
+          <div className="flex gap-2 px-1">
+            <div className="flex-1">
+              <Label htmlFor="new-esplora-url" className="sr-only">
+                Bitcoin API URL
+              </Label>
+              <Input
+                id="new-esplora-url"
+                value={newEsploraUrl}
+                onChange={(e) => setNewEsploraUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddEsplora();
+                }}
+                placeholder="https://mempool.space/api"
+                className="h-9 text-base md:text-sm font-mono"
+              />
+            </div>
+            <Button
+              onClick={handleAddEsplora}
+              disabled={!newEsploraUrl.trim()}
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Add wallet dialog */}

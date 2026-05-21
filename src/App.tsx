@@ -20,6 +20,7 @@ import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
+import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -155,11 +156,7 @@ const hardcodedConfig: AppConfig = {
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
-  esploraApis: [
-    'https://mempool.space/api',
-    'https://mempool.emzy.de/api',
-    'https://blockstream.info/api',
-  ],
+  esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
   sidebarWidgets: [
     { id: 'trends' },

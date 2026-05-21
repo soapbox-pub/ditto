@@ -36,6 +36,22 @@ const INITIAL_COOLDOWN_MS = 30_000;
 const MAX_COOLDOWN_MS = 300_000;
 
 /**
+ * Default ordered list of Esplora-compatible REST roots. Used as the initial
+ * value of `AppConfig.esploraApis` and surfaced by the Settings UI as the
+ * "Restore defaults" target.
+ *
+ * Ordering is deliberate — `mempool.space` is the primary, `mempool.emzy.de`
+ * is a well-maintained mempool.space mirror, and `blockstream.info` is the
+ * reference Esplora implementation. The mempool mirrors are listed first so
+ * the `/v1/prices` extension is available without the soft-failover hop.
+ */
+export const DEFAULT_ESPLORA_APIS: readonly string[] = [
+  'https://mempool.space/api',
+  'https://mempool.emzy.de/api',
+  'https://blockstream.info/api',
+];
+
+/**
  * Default per-attempt timeout. Chosen to catch shadowban-style hangs
  * (mempool.space's "absorb the request and never reply" rate-limit pattern)
  * quickly, while still allowing genuinely slow responses on healthy endpoints
