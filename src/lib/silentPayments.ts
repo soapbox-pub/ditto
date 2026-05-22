@@ -272,7 +272,12 @@ const SECP_N =
 
 /** Tagged hash (BIP-340 style): SHA256(SHA256(tag) || SHA256(tag) || msg). */
 function taggedHash(tag: string, msg: Uint8Array): Uint8Array {
-  const tagHash = sha256(new TextEncoder().encode(tag));
+  // `new TextEncoder().encode()` returns a Uint8Array, but in jsdom the
+  // returned instance is from a different realm than noble's internal
+  // `u8a` check — so we copy into a fresh `new Uint8Array(…)` to ensure
+  // the prototype matches. Same applies to the message we receive.
+  const tagBytes = new Uint8Array(new TextEncoder().encode(tag));
+  const tagHash = sha256(tagBytes);
   const data = new Uint8Array(tagHash.length * 2 + msg.length);
   data.set(tagHash, 0);
   data.set(tagHash, tagHash.length);
