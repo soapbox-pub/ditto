@@ -1,77 +1,64 @@
 /**
- * Minimal PSBT v2 (BIP-370) encoder + parser with BIP-375 silent payment
- * field support.
+ * PSBT v2 (BIP-370) encoder + parser with BIP-375 silent payment field
+ * support — a thin typed layer over `@scure/btc-signer`'s raw PSBT coder.
  *
- * `@scure/btc-signer` is the rest of Ditto's PSBT engine, but its
- * `Transaction` class enforces a `script` on every output. BIP-375 makes
- * `PSBT_OUT_SCRIPT` optional on outputs that carry `PSBT_OUT_SP_V0_INFO`
- * (the signer derives the script during signing), so we need to emit those
- * outputs ourselves. The encoder produces a byte-for-byte compliant PSBT v2
- * that any BIP-375-aware signer (NIP-07 or NIP-46 in the assumption of this
- * file's caller) can ingest, and the parser reads back the signer's
- * response — specifically the input-level witnesses, scriptSigs, and now-
- * derived output scripts — so we can extract a finalized raw transaction
- * for broadcast.
+ * We delegate the wire-format work (magic, framing, varint, per-field
+ * typed codecs, on-curve validation of embedded pubkeys) to the library's
+ * internal `_RawPSBTV2` coder, which — unlike the more strict `RawPSBTV2`
+ * surface used by `Transaction` — leaves `PSBT_OUT_SCRIPT` optional on
+ * outputs that only carry `PSBT_OUT_SP_V0_INFO`. That last property is
+ * essential for BIP-375: the signer derives the script during signing,
+ * so the constructor emits SP outputs without one.
  *
- * The parser is intentionally lenient: it tolerates unknown key types and
- * unknown sub-fields, since signers may attach implementation-specific
- * proprietary rows we have no opinion on.
+ * The public API exposed here is the higher-level shape Ditto's wallet
+ * code prefers — typed `PsbtV2Input` / `PsbtV2Output` records, the SP
+ * variant flagged with `type: 'sp'`, and a parsed view that surfaces
+ * `unknown` rows by their keytype so callers can poke at BIP-375 fields
+ * the library doesn't know about. The convenience wrappers don't change;
+ * the byte-level codec underneath is now the library's job.
  *
  * Wire format references:
  *   - BIP-174 §"Specification" (key/value framing, varint, key types).
  *   - BIP-370 §"Specification" (PSBT v2 globals + PREVIOUS_TXID / OUTPUT_INDEX
  *     / OUTPUT_AMOUNT / OUTPUT_SCRIPT keys).
  *   - BIP-375 §"Specification" (PSBT_OUT_SP_V0_INFO + ECDH/DLEQ fields,
- *     OUTPUT_SCRIPT optional when SP_V0_INFO is set).
+ *     OUTPUT_SCRIPT optional when SP_V0_INFO is set; SP_V0_INFO
+ *     serialized as `version (1 byte) || scan (33) || spend (33)` per
+ *     the "Unique Identification" section).
  */
+import { _RawPSBTV2 } from '@scure/btc-signer/psbt.js';
 
 // ---------------------------------------------------------------------------
-// Constants
+// BIP-375 + BIP-370 keytype constants (kept private to this module; callers
+// that need to inspect unknown rows look them up by `keyType`).
 // ---------------------------------------------------------------------------
 
-/** 5-byte PSBT magic: `0x70 0x73 0x62 0x74 0xff` ("psbt" + 0xff). */
-const PSBT_MAGIC = new Uint8Array([0x70, 0x73, 0x62, 0x74, 0xff]);
-
-/** Key/value separator: terminates each scope (globals / per-input / per-output). */
-const PSBT_SEPARATOR = 0x00;
-
-// Global key types — BIP-174 + BIP-370 + BIP-375
-const G_TX_VERSION = 0x02;
-const G_FALLBACK_LOCKTIME = 0x03;
-const G_INPUT_COUNT = 0x04;
-const G_OUTPUT_COUNT = 0x05;
+// Global key types — only the ones we explicitly write/read.
 const G_TX_MODIFIABLE = 0x06;
-const G_VERSION = 0xfb;
-// BIP-375 globals — emitted by some signers, ignored on the constructor side.
-// Documented here for reference; the parser walks past them as "unknown".
+// BIP-375 globals (preserved as "unknown" by the library; documented here
+// for cross-reference):
 //   PSBT_GLOBAL_SP_ECDH_SHARE = 0x07
 //   PSBT_GLOBAL_SP_DLEQ       = 0x08
 
-// Input key types — BIP-174 + BIP-370 + BIP-375
-const I_WITNESS_UTXO = 0x01;
-const I_FINAL_SCRIPTSIG = 0x07;
-const I_FINAL_SCRIPTWITNESS = 0x08;
-const I_PREVIOUS_TXID = 0x0e;
-const I_OUTPUT_INDEX = 0x0f;
-const I_SEQUENCE = 0x10;
-const I_TAP_INTERNAL_KEY = 0x17;
-// BIP-375 input fields — see note above for globals.
+// BIP-375 per-input fields (preserved as "unknown" by the library):
 //   PSBT_IN_SP_ECDH_SHARE = 0x1d
 //   PSBT_IN_SP_DLEQ       = 0x1e
 
-// Output key types — BIP-174 + BIP-370 + BIP-375
-const O_AMOUNT = 0x03;
-const O_SCRIPT = 0x04;
-const O_SP_V0_INFO = 0x09;     // BIP-375
-const O_SP_V0_LABEL = 0x0a;    // BIP-375
+// Per-output BIP-375 keytypes — emitted/read via the library's `unknown`
+// passthrough.
+const O_SP_V0_INFO = 0x09;
+const O_SP_V0_LABEL = 0x0a;
 
 // ---------------------------------------------------------------------------
-// Low-level wire helpers
+// Public byte-level helpers
 // ---------------------------------------------------------------------------
 
 /**
  * Encode a Bitcoin compact-size integer (1, 3, 5, or 9 bytes depending on
  * magnitude). PSBTs use this for every length prefix.
+ *
+ * Re-exported because `bitcoin-signers.ts` uses it to encode witness
+ * stacks when finalizing locally-signed PSBTs.
  */
 export function encodeCompactSize(n: number): Uint8Array {
   if (!Number.isFinite(n) || n < 0) throw new Error(`compactSize: out of range (${n}).`);
@@ -96,20 +83,13 @@ export function encodeCompactSize(n: number): Uint8Array {
   throw new Error('compactSize: value too large for safe-integer encoding.');
 }
 
-/**
- * Decode a compact-size integer starting at `bytes[offset]`. Returns the
- * value and the byte length consumed.
- */
 function decodeCompactSize(bytes: Uint8Array, offset: number): { value: number; size: number } {
   if (offset >= bytes.length) throw new Error('compactSize: unexpected end of input.');
   const first = bytes[offset];
   if (first < 0xfd) return { value: first, size: 1 };
   if (first === 0xfd) {
     if (offset + 3 > bytes.length) throw new Error('compactSize: truncated 16-bit value.');
-    return {
-      value: bytes[offset + 1] | (bytes[offset + 2] << 8),
-      size: 3,
-    };
+    return { value: bytes[offset + 1] | (bytes[offset + 2] << 8), size: 3 };
   }
   if (first === 0xfe) {
     if (offset + 5 > bytes.length) throw new Error('compactSize: truncated 32-bit value.');
@@ -119,19 +99,9 @@ function decodeCompactSize(bytes: Uint8Array, offset: number): { value: number; 
       | (bytes[offset + 4] << 24)) >>> 0;
     return { value: v, size: 5 };
   }
-  // 0xff → 8-byte; we don't need to support these sizes here.
   throw new Error('compactSize: 64-bit values not supported.');
 }
 
-/** Little-endian unsigned 16-bit. */
-function u16le(n: number): Uint8Array {
-  const b = new Uint8Array(2);
-  b[0] = n & 0xff;
-  b[1] = (n >>> 8) & 0xff;
-  return b;
-}
-
-/** Little-endian unsigned 32-bit. */
 function u32le(n: number): Uint8Array {
   const b = new Uint8Array(4);
   b[0] = n & 0xff;
@@ -141,7 +111,6 @@ function u32le(n: number): Uint8Array {
   return b;
 }
 
-/** Little-endian unsigned 64-bit (bigint). */
 function u64le(n: bigint): Uint8Array {
   if (n < 0n) throw new Error('u64le: negative value.');
   const b = new Uint8Array(8);
@@ -165,18 +134,6 @@ function concat(...arrs: Uint8Array[]): Uint8Array {
   return out;
 }
 
-/** Encode a PSBT key/value pair. `key` is the raw bytes after the keytype. */
-function kv(keyType: number, key: Uint8Array, value: Uint8Array): Uint8Array {
-  const keyBytes = concat(new Uint8Array([keyType]), key);
-  return concat(
-    encodeCompactSize(keyBytes.length),
-    keyBytes,
-    encodeCompactSize(value.length),
-    value,
-  );
-}
-
-/** Hex → bytes. Throws on odd-length or non-hex. */
 function hexToBytes(s: string): Uint8Array {
   if (typeof s !== 'string' || s.length % 2 !== 0) {
     throw new Error('hexToBytes: invalid hex string.');
@@ -197,14 +154,38 @@ function bytesToHex(b: Uint8Array): string {
 }
 
 /**
- * Reverse a 32-byte txid between display order (big-endian, the form users
- * paste from explorers / RPC) and internal byte order (little-endian, the
- * form that goes into raw transactions and PSBT v2 PREVIOUS_TXID fields).
+ * Cheap PSBT-version sniff: walk the globals scope after the magic header
+ * looking for a `PSBT_GLOBAL_VERSION` (keytype 0xfb) row with value `2`.
+ * If we hit the globals separator (`0x00` key-length) before finding one,
+ * the PSBT is v0 (the version field is optional and defaults to 0).
+ *
+ * We do this ourselves because `@scure/btc-signer`'s v2 decoder rejects v0
+ * with a "missing unsignedTx" message that's hard to route on — surfacing
+ * the same wording the project's tests and call sites already expect.
  */
-function reverseBytes(b: Uint8Array): Uint8Array {
-  const out = new Uint8Array(b.length);
-  for (let i = 0; i < b.length; i++) out[i] = b[b.length - 1 - i];
-  return out;
+function hasPsbtV2Marker(bytes: Uint8Array): boolean {
+  let offset = 5; // skip magic
+  while (offset < bytes.length) {
+    const klen = decodeCompactSize(bytes, offset);
+    offset += klen.size;
+    if (klen.value === 0) return false; // hit globals separator with no version row
+    if (offset + klen.value > bytes.length) return false;
+    const keyType = bytes[offset];
+    const keyEnd = offset + klen.value;
+    offset = keyEnd;
+    const vlen = decodeCompactSize(bytes, offset);
+    offset += vlen.size;
+    if (offset + vlen.value > bytes.length) return false;
+    if (keyType === 0xfb && vlen.value === 4) {
+      const v = bytes[offset]
+        | (bytes[offset + 1] << 8)
+        | (bytes[offset + 2] << 16)
+        | (bytes[offset + 3] << 24);
+      if (v === 2) return true;
+    }
+    offset += vlen.value;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +213,13 @@ export interface PsbtV2Input {
   };
   /** Optional 32-byte x-only Taproot internal key. */
   tapInternalKey?: Uint8Array;
+  /**
+   * Optional pre-finalized witness stack — emitted as
+   * `PSBT_IN_FINAL_SCRIPTWITNESS`. The local nsec signer uses this to
+   * round-trip a fully-signed PSBT v2 through {@link extractTxFromSignedPsbtV2}
+   * without going via `@scure/btc-signer`'s `Transaction` model.
+   */
+  finalScriptWitness?: Uint8Array[];
 }
 
 /** A regular (non-SP) output: known script + amount. */
@@ -288,11 +276,21 @@ export interface PsbtV2EncodeOptions {
 // ---------------------------------------------------------------------------
 
 /**
+ * Library shape used by `_RawPSBTV2.encode`. We construct globals/inputs/
+ * outputs as `Record<string, unknown>` and pass the whole thing through
+ * the library's encoder; the precise (very deeply nested) typing isn't
+ * worth threading through statically. The library tolerates any subset
+ * of named fields plus an `unknown` array of `[{type, key}, value]`
+ * tuples.
+ */
+type LibUnknown = [{ type: number; key: Uint8Array }, Uint8Array][];
+
+/**
  * Serialize a PSBT v2 with BIP-375 silent payment outputs.
  *
- * Outputs of `type: 'sp'` are emitted with `PSBT_OUT_SP_V0_INFO` instead of
- * a `PSBT_OUT_SCRIPT` — per BIP-375 the signer derives and writes the
- * script during signing.
+ * Outputs of `type: 'sp'` are emitted with `PSBT_OUT_SP_V0_INFO` (and
+ * optionally `PSBT_OUT_SP_V0_LABEL`) instead of a `PSBT_OUT_SCRIPT` — per
+ * BIP-375 the signer derives and writes the script during signing.
  *
  * Returns the hex-encoded PSBT.
  */
@@ -302,80 +300,112 @@ export function encodePsbtV2(opts: PsbtV2EncodeOptions): string {
   const inputs = opts.inputs;
   const outputs = opts.outputs;
 
-  const parts: Uint8Array[] = [];
-  parts.push(PSBT_MAGIC);
-
-  // ── Globals ─────────────────────────────────────────────────
-  parts.push(kv(G_VERSION, new Uint8Array(0), u32le(2)));
-  parts.push(kv(G_TX_VERSION, new Uint8Array(0), u32le(txVersion)));
-  parts.push(kv(G_FALLBACK_LOCKTIME, new Uint8Array(0), u32le(fallbackLocktime)));
-  parts.push(kv(G_INPUT_COUNT, new Uint8Array(0), encodeCompactSize(inputs.length)));
-  parts.push(kv(G_OUTPUT_COUNT, new Uint8Array(0), encodeCompactSize(outputs.length)));
+  // Globals -- the library writes PSBT_GLOBAL_VERSION on encode (set to 2
+  // by the table schema), so we don't pass it explicitly.
+  const globalUnknown: LibUnknown = [];
   if (opts.txModifiable !== undefined) {
-    parts.push(kv(G_TX_MODIFIABLE, new Uint8Array(0), new Uint8Array([opts.txModifiable & 0xff])));
+    globalUnknown.push([
+      { type: G_TX_MODIFIABLE, key: new Uint8Array(0) },
+      new Uint8Array([opts.txModifiable & 0xff]),
+    ]);
   }
-  parts.push(new Uint8Array([PSBT_SEPARATOR]));
 
-  // ── Per-input maps ──────────────────────────────────────────
-  for (const inp of inputs) {
-    // PREVIOUS_TXID is serialized in standard (little-endian / internal)
-    // byte order — opposite of the display-order hex everywhere else.
-    const txidLE = reverseBytes(hexToBytes(inp.txid));
-    if (txidLE.length !== 32) throw new Error('PSBT v2 input: txid must be 32 bytes.');
-    parts.push(kv(I_PREVIOUS_TXID, new Uint8Array(0), txidLE));
-    parts.push(kv(I_OUTPUT_INDEX, new Uint8Array(0), u32le(inp.vout)));
-    parts.push(kv(I_SEQUENCE, new Uint8Array(0), u32le(inp.sequence ?? 0xfffffffd)));
+  const globalShape: Record<string, unknown> = {
+    txVersion,
+    fallbackLocktime,
+    inputCount: inputs.length,
+    outputCount: outputs.length,
+    version: 2,
+  };
+  if (globalUnknown.length > 0) globalShape.unknown = globalUnknown;
 
-    // WITNESS_UTXO: 8-byte LE amount || compact-size scriptlen || scriptPubKey
-    const wu = concat(
-      u64le(inp.witnessUtxo.amount),
-      encodeCompactSize(inp.witnessUtxo.script.length),
-      inp.witnessUtxo.script,
-    );
-    parts.push(kv(I_WITNESS_UTXO, new Uint8Array(0), wu));
-
-    if (inp.tapInternalKey) {
-      if (inp.tapInternalKey.length !== 32) {
-        throw new Error('PSBT v2 input: tapInternalKey must be 32 bytes.');
-      }
-      parts.push(kv(I_TAP_INTERNAL_KEY, new Uint8Array(0), inp.tapInternalKey));
+  const inputShapes = inputs.map((inp) => {
+    if (inp.tapInternalKey !== undefined && inp.tapInternalKey.length !== 32) {
+      throw new Error('PSBT v2 input: tapInternalKey must be 32 bytes.');
     }
+    const txidBytes = hexToBytes(inp.txid);
+    if (txidBytes.length !== 32) {
+      throw new Error('PSBT v2 input: txid must be 32 bytes.');
+    }
+    const obj: Record<string, unknown> = {
+      // Library expects display-order bytes for txid (it reverses to wire
+      // little-endian internally on encode); same applies on decode.
+      txid: txidBytes,
+      index: inp.vout,
+      sequence: inp.sequence ?? 0xfffffffd,
+      witnessUtxo: { amount: inp.witnessUtxo.amount, script: inp.witnessUtxo.script },
+    };
+    if (inp.tapInternalKey) obj.tapInternalKey = inp.tapInternalKey;
+    // `finalScriptWitness` is the BIP-174 finalized-input witness stack —
+    // present on PSBTs that have already been signed by the local nsec
+    // path. The library serializes the stack into the
+    // `PSBT_IN_FINAL_SCRIPTWITNESS` row automatically.
+    if (inp.finalScriptWitness && inp.finalScriptWitness.length > 0) {
+      obj.finalScriptWitness = inp.finalScriptWitness;
+    }
+    return obj;
+  });
 
-    parts.push(new Uint8Array([PSBT_SEPARATOR]));
-  }
-
-  // ── Per-output maps ─────────────────────────────────────────
-  for (const out of outputs) {
-    parts.push(kv(O_AMOUNT, new Uint8Array(0), u64le(out.amount)));
+  const outputShapes = outputs.map((out) => {
     if (out.type === 'script') {
-      parts.push(kv(O_SCRIPT, new Uint8Array(0), out.script));
-    } else {
-      // BIP-375: PSBT_OUT_SP_V0_INFO = version (1 byte = 0) || scan (33) || spend (33)
-      if (out.scanPubKey.length !== 33) {
-        throw new Error('PSBT v2 SP output: scan key must be 33 bytes.');
-      }
-      if (out.spendPubKey.length !== 33) {
-        throw new Error('PSBT v2 SP output: spend key must be 33 bytes.');
-      }
-      const spInfo = concat(new Uint8Array([0x00]), out.scanPubKey, out.spendPubKey);
-      parts.push(kv(O_SP_V0_INFO, new Uint8Array(0), spInfo));
-      if (out.label !== undefined) {
-        parts.push(kv(O_SP_V0_LABEL, new Uint8Array(0), u32le(out.label)));
-      }
+      return { amount: out.amount, script: out.script };
     }
-    parts.push(new Uint8Array([PSBT_SEPARATOR]));
-  }
+    // BIP-375 silent payment output.
+    if (out.scanPubKey.length !== 33) {
+      throw new Error('PSBT v2 output: scanPubKey must be 33 bytes.');
+    }
+    if (out.spendPubKey.length !== 33) {
+      throw new Error('PSBT v2 output: spendPubKey must be 33 bytes.');
+    }
+    // PSBT_OUT_SP_V0_INFO value = 1-byte version (0) || 33 scan || 33 spend.
+    // Per BIP-375 §"Unique Identification". The trailing version byte
+    // makes the field stable across silent-payment versions.
+    const spInfo = concat(new Uint8Array([0x00]), out.scanPubKey, out.spendPubKey);
+    const unknown: LibUnknown = [[{ type: O_SP_V0_INFO, key: new Uint8Array(0) }, spInfo]];
+    if (out.label !== undefined) {
+      unknown.push([
+        { type: O_SP_V0_LABEL, key: new Uint8Array(0) },
+        u32le(out.label),
+      ]);
+    }
+    return {
+      amount: out.amount,
+      // No `script` field — BIP-375 makes it optional when SP_V0_INFO is set.
+      unknown,
+    };
+  });
 
-  return bytesToHex(concat(...parts));
+  // `_RawPSBTV2.encode` accepts a `Record<string, unknown>` that the library
+  // narrows internally; the (very deeply nested) static typing isn't worth
+  // threading through. The library tolerates any subset of named fields
+  // plus an `unknown` array.
+  type LibInput = Parameters<typeof _RawPSBTV2.encode>[0];
+  const libPsbt = {
+    magic: undefined,
+    global: globalShape,
+    inputs: inputShapes,
+    outputs: outputShapes,
+  } as unknown as LibInput;
+
+  let bytes: Uint8Array;
+  try {
+    bytes = _RawPSBTV2.encode(libPsbt);
+  } catch (err) {
+    throw new Error(
+      `PSBT v2 encode failed: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
+  return bytesToHex(bytes);
 }
 
 // ---------------------------------------------------------------------------
-// PSBT v2 parser (lenient)
+// Parsed PSBT v2 (consumer-facing view)
 // ---------------------------------------------------------------------------
 
-/** A single key/value row inside a PSBT scope. */
-interface PsbtKV {
-  /** First byte of the key — the BIP-174 keytype number. */
+/** An unknown PSBT key/value row, with the keytype byte separated out. */
+export interface PsbtKV {
+  /** First byte of the key (the BIP-174 keytype). */
   keyType: number;
   /** Bytes of the key after the keytype byte (often empty). */
   keyData: Uint8Array;
@@ -384,7 +414,7 @@ interface PsbtKV {
 
 /** Decoded PSBT v2 input scope. */
 export interface ParsedPsbtV2Input {
-  /** Display-order txid hex (we reverse the wire bytes back to display order). */
+  /** Display-order txid hex (the form everywhere in mempool.space / RPC). */
   txid: string;
   vout: number;
   sequence: number;
@@ -417,32 +447,21 @@ export interface ParsedPsbtV2 {
   outputs: ParsedPsbtV2Output[];
 }
 
+// ---------------------------------------------------------------------------
+// PSBT v2 parser
+// ---------------------------------------------------------------------------
+
 /**
- * Parse a single key/value row at `offset`. Returns the row plus the new
- * offset. When the first byte is the separator (0x00) the caller should
- * close the current scope; we surface that by returning `null`.
+ * Bridge the library's `unknown` representation (an array of
+ * `[{ type, key }, value]` tuples) to our flat `PsbtKV` shape.
  */
-function readKV(bytes: Uint8Array, offset: number): { kv: PsbtKV | null; next: number } {
-  const keyLen = decodeCompactSize(bytes, offset);
-  offset += keyLen.size;
-  if (keyLen.value === 0) {
-    // Separator
-    return { kv: null, next: offset };
-  }
-  if (offset + keyLen.value > bytes.length) {
-    throw new Error('PSBT v2 parse: key extends past end of input.');
-  }
-  const keyType = bytes[offset];
-  const keyData = bytes.slice(offset + 1, offset + keyLen.value);
-  offset += keyLen.value;
-  const valLen = decodeCompactSize(bytes, offset);
-  offset += valLen.size;
-  if (offset + valLen.value > bytes.length) {
-    throw new Error('PSBT v2 parse: value extends past end of input.');
-  }
-  const value = bytes.slice(offset, offset + valLen.value);
-  offset += valLen.value;
-  return { kv: { keyType, keyData, value }, next: offset };
+function unknownToKVs(unknown: unknown): PsbtKV[] {
+  if (!unknown || !Array.isArray(unknown)) return [];
+  return (unknown as LibUnknown).map(([k, v]) => ({
+    keyType: k.type,
+    keyData: new Uint8Array(k.key),
+    value: new Uint8Array(v),
+  }));
 }
 
 /**
@@ -450,174 +469,125 @@ function readKV(bytes: Uint8Array, offset: number): { kv: PsbtKV | null; next: n
  *
  * The parser tolerates unrecognised key types so the signer can attach
  * implementation-specific rows without breaking the consumer. Required
- * structural fields (`PSBT_GLOBAL_INPUT_COUNT`, `PSBT_GLOBAL_OUTPUT_COUNT`,
- * per-input `PSBT_IN_PREVIOUS_TXID` / `PSBT_IN_OUTPUT_INDEX`, per-output
+ * structural fields (`PSBT_GLOBAL_VERSION = 2`, `PSBT_GLOBAL_TX_VERSION`,
+ * `PSBT_GLOBAL_INPUT_COUNT`, `PSBT_GLOBAL_OUTPUT_COUNT`, per-input
+ * `PSBT_IN_PREVIOUS_TXID` / `PSBT_IN_OUTPUT_INDEX`, per-output
  * `PSBT_OUT_AMOUNT`) are validated. PSBT v0/v1 inputs are rejected.
  */
 export function parsePsbtV2(psbtHex: string): ParsedPsbtV2 {
   const bytes = hexToBytes(psbtHex);
-  if (bytes.length < PSBT_MAGIC.length + 1) {
-    throw new Error('PSBT parse: truncated header.');
+  // Cheap shape checks before handing off to the library, so we surface
+  // the project's familiar error wording for the obvious failure modes
+  // (truncated input, wrong magic, PSBT v0).
+  if (bytes.length < 5) {
+    throw new Error('PSBT parse: truncated header (magic).');
   }
-  for (let i = 0; i < PSBT_MAGIC.length; i++) {
-    if (bytes[i] !== PSBT_MAGIC[i]) throw new Error('PSBT parse: bad magic.');
+  if (
+    bytes[0] !== 0x70 || bytes[1] !== 0x73 || bytes[2] !== 0x62 || bytes[3] !== 0x74 || bytes[4] !== 0xff
+  ) {
+    throw new Error('PSBT parse: bad magic.');
   }
-  let offset = PSBT_MAGIC.length;
 
-  // ── Globals ─────────────────────────────────────────────────
-  let version: number | undefined;
-  let txVersion: number | undefined;
-  let fallbackLocktime = 0;
-  let inputCount: number | undefined;
-  let outputCount: number | undefined;
-  for (;;) {
-    const { kv: row, next } = readKV(bytes, offset);
-    offset = next;
-    if (!row) break;
-    switch (row.keyType) {
-      case G_VERSION:
-        if (row.value.length !== 4) throw new Error('PSBT parse: bad PSBT_GLOBAL_VERSION length.');
-        version = row.value[0] | (row.value[1] << 8) | (row.value[2] << 16) | (row.value[3] << 24);
-        break;
-      case G_TX_VERSION:
-        if (row.value.length !== 4) throw new Error('PSBT parse: bad PSBT_GLOBAL_TX_VERSION length.');
-        txVersion = (row.value[0] | (row.value[1] << 8) | (row.value[2] << 16) | (row.value[3] << 24)) >>> 0;
-        break;
-      case G_FALLBACK_LOCKTIME:
-        if (row.value.length !== 4) throw new Error('PSBT parse: bad fallback locktime length.');
-        fallbackLocktime = (row.value[0] | (row.value[1] << 8) | (row.value[2] << 16) | (row.value[3] << 24)) >>> 0;
-        break;
-      case G_INPUT_COUNT: {
-        const c = decodeCompactSize(row.value, 0);
-        inputCount = c.value;
-        break;
-      }
-      case G_OUTPUT_COUNT: {
-        const c = decodeCompactSize(row.value, 0);
-        outputCount = c.value;
-        break;
-      }
-      // Other globals (xpub, tx_modifiable, sp ecdh share, sp dleq, proprietary,
-      // unsignedTx for v0) we ignore — they don't affect transaction extraction.
-    }
+  // The library would happily accept a PSBT v0 here and surface a confusing
+  // "missing unsignedTx" error from deep inside its decoder. Sniff the
+  // version byte ourselves so we can throw something the call sites can
+  // route on. PSBT_GLOBAL_VERSION (0xfb) is optional; its absence means v0.
+  if (!hasPsbtV2Marker(bytes)) {
+    throw new Error('PSBT parse: only PSBT v2 is supported in this code path.');
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let raw: any;
+  try {
+    raw = _RawPSBTV2.decode(bytes);
+  } catch (err) {
+    throw new Error(
+      `PSBT parse: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
+
+  const global = raw.global as Record<string, unknown> | undefined;
+  const version = (global?.version as number | undefined) ?? 0;
   if (version !== 2) {
     throw new Error('PSBT parse: only PSBT v2 is supported in this code path.');
   }
-  if (txVersion === undefined) throw new Error('PSBT parse: missing PSBT_GLOBAL_TX_VERSION.');
-  if (inputCount === undefined) throw new Error('PSBT parse: missing PSBT_GLOBAL_INPUT_COUNT.');
-  if (outputCount === undefined) throw new Error('PSBT parse: missing PSBT_GLOBAL_OUTPUT_COUNT.');
+  // BIP-370: PSBT_GLOBAL_UNSIGNED_TX must NOT appear in PSBTv2.
+  if (global?.unsignedTx !== undefined) {
+    throw new Error('PSBT parse: PSBT_GLOBAL_UNSIGNED_TX must not appear in PSBT v2.');
+  }
+  const txVersion = global?.txVersion as number | undefined;
+  if (txVersion === undefined) {
+    throw new Error('PSBT parse: missing PSBT_GLOBAL_TX_VERSION.');
+  }
+  const fallbackLocktime = (global?.fallbackLocktime as number | undefined) ?? 0;
+  const inputCount = global?.inputCount as number | undefined;
+  const outputCount = global?.outputCount as number | undefined;
+  if (inputCount === undefined) {
+    throw new Error('PSBT parse: missing PSBT_GLOBAL_INPUT_COUNT.');
+  }
+  if (outputCount === undefined) {
+    throw new Error('PSBT parse: missing PSBT_GLOBAL_OUTPUT_COUNT.');
+  }
 
-  // ── Inputs ──────────────────────────────────────────────────
-  const inputs: ParsedPsbtV2Input[] = [];
-  for (let i = 0; i < inputCount; i++) {
-    let txidLE: Uint8Array | undefined;
-    let vout: number | undefined;
-    let sequence = 0xfffffffd;
-    let finalScriptSig: Uint8Array | undefined;
-    let finalScriptWitness: Uint8Array[] | undefined;
-    let witnessUtxo: { amount: bigint; script: Uint8Array } | undefined;
-    const unknown: PsbtKV[] = [];
-    for (;;) {
-      const { kv: row, next } = readKV(bytes, offset);
-      offset = next;
-      if (!row) break;
-      switch (row.keyType) {
-        case I_PREVIOUS_TXID:
-          if (row.value.length !== 32) throw new Error('PSBT parse: bad PSBT_IN_PREVIOUS_TXID length.');
-          txidLE = row.value;
-          break;
-        case I_OUTPUT_INDEX:
-          if (row.value.length !== 4) throw new Error('PSBT parse: bad PSBT_IN_OUTPUT_INDEX length.');
-          vout = (row.value[0] | (row.value[1] << 8) | (row.value[2] << 16) | (row.value[3] << 24)) >>> 0;
-          break;
-        case I_SEQUENCE:
-          if (row.value.length !== 4) throw new Error('PSBT parse: bad PSBT_IN_SEQUENCE length.');
-          sequence = (row.value[0] | (row.value[1] << 8) | (row.value[2] << 16) | (row.value[3] << 24)) >>> 0;
-          break;
-        case I_FINAL_SCRIPTSIG:
-          finalScriptSig = row.value;
-          break;
-        case I_FINAL_SCRIPTWITNESS:
-          finalScriptWitness = decodeWitness(row.value);
-          break;
-        case I_WITNESS_UTXO: {
-          if (row.value.length < 9) throw new Error('PSBT parse: bad PSBT_IN_WITNESS_UTXO length.');
-          let v = 0n;
-          for (let j = 7; j >= 0; j--) v = (v << 8n) | BigInt(row.value[j]);
-          const slen = decodeCompactSize(row.value, 8);
-          const script = row.value.slice(8 + slen.size, 8 + slen.size + slen.value);
-          witnessUtxo = { amount: v, script };
-          break;
-        }
-        default:
-          unknown.push(row);
-      }
+  const rawInputs = (raw.inputs ?? []) as Record<string, unknown>[];
+  const rawOutputs = (raw.outputs ?? []) as Record<string, unknown>[];
+  if (rawInputs.length !== inputCount) {
+    throw new Error(
+      `PSBT parse: input count mismatch (header says ${inputCount}, got ${rawInputs.length}).`,
+    );
+  }
+  if (rawOutputs.length !== outputCount) {
+    throw new Error(
+      `PSBT parse: output count mismatch (header says ${outputCount}, got ${rawOutputs.length}).`,
+    );
+  }
+
+  const inputs: ParsedPsbtV2Input[] = rawInputs.map((inp, i) => {
+    const txidBytes = inp.txid as Uint8Array | undefined;
+    const vout = inp.index as number | undefined;
+    if (!txidBytes || txidBytes.length !== 32) {
+      throw new Error(`PSBT parse: input ${i} missing PSBT_IN_PREVIOUS_TXID.`);
     }
-    if (!txidLE) throw new Error(`PSBT parse: input ${i} missing PSBT_IN_PREVIOUS_TXID.`);
-    if (vout === undefined) throw new Error(`PSBT parse: input ${i} missing PSBT_IN_OUTPUT_INDEX.`);
-    inputs.push({
-      txid: bytesToHex(reverseBytes(txidLE)),
+    if (vout === undefined) {
+      throw new Error(`PSBT parse: input ${i} missing PSBT_IN_OUTPUT_INDEX.`);
+    }
+    const sequence = (inp.sequence as number | undefined) ?? 0xfffffffd;
+    const witnessUtxoLib = inp.witnessUtxo as { amount: bigint; script: Uint8Array } | undefined;
+    const witnessUtxo = witnessUtxoLib
+      ? { amount: witnessUtxoLib.amount, script: new Uint8Array(witnessUtxoLib.script) }
+      : undefined;
+    const finalScriptSig = inp.finalScriptSig as Uint8Array | undefined;
+    const finalScriptWitness = inp.finalScriptWitness as Uint8Array[] | undefined;
+    return {
+      // Library returns display-order bytes (it already reversed the wire
+      // little-endian during decode).
+      txid: bytesToHex(txidBytes),
       vout,
       sequence,
-      finalScriptSig,
-      finalScriptWitness,
+      finalScriptSig: finalScriptSig ? new Uint8Array(finalScriptSig) : undefined,
+      finalScriptWitness: finalScriptWitness
+        ? finalScriptWitness.map((w) => new Uint8Array(w))
+        : undefined,
       witnessUtxo,
-      unknown,
-    });
-  }
+      unknown: unknownToKVs(inp.unknown),
+    };
+  });
 
-  // ── Outputs ─────────────────────────────────────────────────
-  const outputs: ParsedPsbtV2Output[] = [];
-  for (let i = 0; i < outputCount; i++) {
-    let amount: bigint | undefined;
-    let script: Uint8Array | undefined;
-    const unknown: PsbtKV[] = [];
-    for (;;) {
-      const { kv: row, next } = readKV(bytes, offset);
-      offset = next;
-      if (!row) break;
-      switch (row.keyType) {
-        case O_AMOUNT: {
-          if (row.value.length !== 8) throw new Error('PSBT parse: bad PSBT_OUT_AMOUNT length.');
-          let v = 0n;
-          for (let j = 7; j >= 0; j--) v = (v << 8n) | BigInt(row.value[j]);
-          amount = v;
-          break;
-        }
-        case O_SCRIPT:
-          script = row.value;
-          break;
-        default:
-          unknown.push(row);
-      }
+  const outputs: ParsedPsbtV2Output[] = rawOutputs.map((out, i) => {
+    const amount = out.amount as bigint | undefined;
+    if (amount === undefined) {
+      throw new Error(`PSBT parse: output ${i} missing PSBT_OUT_AMOUNT.`);
     }
-    if (amount === undefined) throw new Error(`PSBT parse: output ${i} missing PSBT_OUT_AMOUNT.`);
-    outputs.push({ amount, script, unknown });
-  }
+    const script = out.script as Uint8Array | undefined;
+    return {
+      amount,
+      script: script ? new Uint8Array(script) : undefined,
+      unknown: unknownToKVs(out.unknown),
+    };
+  });
 
   return { txVersion, fallbackLocktime, inputs, outputs };
-}
-
-/**
- * Decode a PSBT-serialized witness (compact-size item count followed by
- * `<compact-size length> <bytes>` per item).
- */
-function decodeWitness(bytes: Uint8Array): Uint8Array[] {
-  let offset = 0;
-  const count = decodeCompactSize(bytes, offset);
-  offset += count.size;
-  const items: Uint8Array[] = [];
-  for (let i = 0; i < count.value; i++) {
-    const len = decodeCompactSize(bytes, offset);
-    offset += len.size;
-    if (offset + len.value > bytes.length) {
-      throw new Error('PSBT parse: witness item extends past end of input.');
-    }
-    items.push(bytes.slice(offset, offset + len.value));
-    offset += len.value;
-  }
-  return items;
 }
 
 // ---------------------------------------------------------------------------
@@ -652,7 +622,9 @@ export function extractTxFromSignedPsbtV2(psbtHex: string): string {
     }
   }
 
-  const hasAnyWitness = psbt.inputs.some((i) => i.finalScriptWitness && i.finalScriptWitness.length > 0);
+  const hasAnyWitness = psbt.inputs.some(
+    (i) => i.finalScriptWitness && i.finalScriptWitness.length > 0,
+  );
 
   const parts: Uint8Array[] = [];
   parts.push(u32le(psbt.txVersion));
@@ -662,10 +634,12 @@ export function extractTxFromSignedPsbtV2(psbtHex: string): string {
     parts.push(new Uint8Array([0x00, 0x01]));
   }
 
-  // Inputs
   parts.push(encodeCompactSize(psbt.inputs.length));
   for (const inp of psbt.inputs) {
-    parts.push(reverseBytes(hexToBytes(inp.txid))); // wire is little-endian
+    // Display-order hex → wire little-endian.
+    const txidDisplay = hexToBytes(inp.txid);
+    const txidWire = new Uint8Array(txidDisplay).reverse();
+    parts.push(txidWire);
     parts.push(u32le(inp.vout));
     const ss = inp.finalScriptSig ?? new Uint8Array(0);
     parts.push(encodeCompactSize(ss.length));
@@ -673,7 +647,6 @@ export function extractTxFromSignedPsbtV2(psbtHex: string): string {
     parts.push(u32le(inp.sequence));
   }
 
-  // Outputs
   parts.push(encodeCompactSize(psbt.outputs.length));
   for (const out of psbt.outputs) {
     parts.push(u64le(out.amount));
@@ -693,13 +666,13 @@ export function extractTxFromSignedPsbtV2(psbtHex: string): string {
     }
   }
 
-  // nLocktime
   parts.push(u32le(psbt.fallbackLocktime));
 
   return bytesToHex(concat(...parts));
 }
 
-/**
- * Helper for tests / diagnostics: encode a 16-bit little-endian uint.
- */
-export const _internal = { u16le, u32le, u64le };
+// ---------------------------------------------------------------------------
+// Re-exported helpers used elsewhere (e.g. tests / `bitcoin-signers.ts`).
+// ---------------------------------------------------------------------------
+
+export const _internal = { decodeCompactSize, u32le, u64le };

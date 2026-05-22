@@ -247,13 +247,12 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 /**
- * Serialize a fully-signed `Transaction` from `@scure/btc-signer` back into
- * the PSBT v2 wire format with `finalScriptWitness` set on each input and
- * resolved scripts in each output.
- *
- * Using the library's own `tx.toPSBT(2)` would be simpler, but it strips
- * unknown fields and we want a minimal-output PSBT we can hand straight to
- * {@link extractTxFromSignedPsbtV2}.
+ * Serialize a fully-signed `@scure/btc-signer` `Transaction` back into the
+ * PSBT v2 wire format with `finalScriptWitness` set on each input and
+ * resolved scripts on each output. The library's own `tx.toPSBT(2)` would
+ * be simpler but strips unknown fields and brings in v0/v2 hybrid
+ * plumbing we don't need — re-emitting through our typed encoder, which
+ * knows about `finalScriptWitness` natively, is straightforward.
  */
 function finalizedTxToPsbtV2(
   tx: btc.Transaction,
@@ -273,138 +272,11 @@ function finalizedTxToPsbtV2(
       vout: orig.vout,
       sequence: orig.sequence,
       witnessUtxo: orig.witnessUtxo,
-      // Carry the final witness as the "unknown" mechanism isn't available
-      // for inputs in our encoder — but the consumer extracts using
-      // `extractTxFromSignedPsbtV2`, which reads the witness directly. We
-      // therefore round-trip via a small extension to the encoder below.
+      finalScriptWitness: finalWitness.length > 0 ? finalWitness : undefined,
     });
-    // Encode the witness onto the last-pushed input. We piggyback through
-    // the parser's "unknown" path by extending the encoder below.
-    (psbtInputs[psbtInputs.length - 1] as PsbtV2Input & { _finalWitness?: Uint8Array[] })._finalWitness = finalWitness;
   }
 
-  return encodePsbtV2WithWitnesses({
-    inputs: psbtInputs as (PsbtV2Input & { _finalWitness?: Uint8Array[] })[],
-    outputs,
-  });
-}
-
-/**
- * Local variant of {@link encodePsbtV2} that additionally emits
- * `PSBT_IN_FINAL_SCRIPTWITNESS` rows when an input has a `_finalWitness`.
- *
- * We do this inline here rather than threading a new param through the
- * public encoder because finalized PSBT v2 is only produced by the local
- * nsec signer path — external signers return their own finalized PSBT v2.
- */
-function encodePsbtV2WithWitnesses(opts: {
-  inputs: (PsbtV2Input & { _finalWitness?: Uint8Array[] })[];
-  outputs: PsbtV2Output[];
-}): string {
-  // We start from the encoder's output, then re-emit per-input rows with
-  // an added `PSBT_IN_FINAL_SCRIPTWITNESS` (keytype 0x08) just before the
-  // input separator. Easier to just reassemble from scratch — the encoder
-  // already exposes `encodeCompactSize` for us.
-  const baseHex = encodePsbtV2({ inputs: opts.inputs, outputs: opts.outputs });
-  // Walk the bytes, splicing the witness into each input scope.
-  const bytes = hexBytes(baseHex);
-  const out: number[] = [];
-  let offset = 0;
-  // Copy magic.
-  for (let i = 0; i < 5; i++) out.push(bytes[offset++]);
-  // Copy globals up to and including separator.
-  offset = copyScope(bytes, offset, out);
-  // Per-input scopes.
-  for (let i = 0; i < opts.inputs.length; i++) {
-    const inputStart = out.length;
-    // Copy the original input scope (without separator).
-    const sepAt = findSeparator(bytes, offset);
-    for (let j = offset; j < sepAt; j++) out.push(bytes[j]);
-    offset = sepAt;
-    // Append PSBT_IN_FINAL_SCRIPTWITNESS if present.
-    const witness = opts.inputs[i]._finalWitness;
-    if (witness && witness.length > 0) {
-      const value = encodeWitnessStack(witness);
-      // key: 1-byte length || 0x08
-      out.push(0x01);
-      out.push(0x08);
-      // value: compact-size length || bytes
-      pushCompactSize(out, value.length);
-      for (const b of value) out.push(b);
-    }
-    // Separator.
-    out.push(bytes[offset++]);
-    // unused capture so linter doesn't complain; useful for debugging.
-    void inputStart;
-  }
-  // Copy per-output scopes verbatim.
-  while (offset < bytes.length) out.push(bytes[offset++]);
-
-  let s = '';
-  for (const b of out) s += b.toString(16).padStart(2, '0');
-  return s;
-}
-
-function hexBytes(s: string): Uint8Array {
-  const out = new Uint8Array(s.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
-
-function findSeparator(bytes: Uint8Array, start: number): number {
-  // Find the end of the current scope: walk key/value rows until a 0x00 key
-  // length is encountered. The byte position of that 0x00 is returned.
-  let offset = start;
-  while (offset < bytes.length) {
-    const klen = readCompact(bytes, offset);
-    if (klen.value === 0) return offset; // standing on the separator
-    offset += klen.size + klen.value;
-    const vlen = readCompact(bytes, offset);
-    offset += vlen.size + vlen.value;
-  }
-  throw new Error('encoder: missing separator.');
-}
-
-function copyScope(bytes: Uint8Array, start: number, out: number[]): number {
-  const sepAt = findSeparator(bytes, start);
-  for (let i = start; i <= sepAt; i++) out.push(bytes[i]);
-  return sepAt + 1;
-}
-
-function readCompact(bytes: Uint8Array, offset: number): { value: number; size: number } {
-  const first = bytes[offset];
-  if (first < 0xfd) return { value: first, size: 1 };
-  if (first === 0xfd) return { value: bytes[offset + 1] | (bytes[offset + 2] << 8), size: 3 };
-  if (first === 0xfe) {
-    return {
-      value:
-        (bytes[offset + 1] | (bytes[offset + 2] << 8) | (bytes[offset + 3] << 16) | (bytes[offset + 4] << 24)) >>> 0,
-      size: 5,
-    };
-  }
-  throw new Error('encoder: 64-bit compact-size unsupported.');
-}
-
-function pushCompactSize(out: number[], n: number): void {
-  if (n < 0xfd) {
-    out.push(n);
-  } else if (n <= 0xffff) {
-    out.push(0xfd, n & 0xff, (n >>> 8) & 0xff);
-  } else {
-    out.push(0xfe, n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff);
-  }
-}
-
-function encodeWitnessStack(items: Uint8Array[]): Uint8Array {
-  const parts: number[] = [];
-  pushCompactSize(parts, items.length);
-  for (const item of items) {
-    pushCompactSize(parts, item.length);
-    for (const b of item) parts.push(b);
-  }
-  return new Uint8Array(parts);
+  return encodePsbtV2({ inputs: psbtInputs, outputs });
 }
 
 // Re-export so callers can do `extractTxFromSignedPsbtV2` next to the signer
