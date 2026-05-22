@@ -464,6 +464,16 @@ export interface ParsedPsbtV2Input {
   finalScriptSig?: Uint8Array;
   /** Witness stack — populated for SegWit inputs after the signer finalizes. */
   finalScriptWitness?: Uint8Array[];
+  /**
+   * BIP-371 `PSBT_IN_TAP_KEY_SIG` — Schnorr signature for a Taproot
+   * key-path spend. Set by signers that follow the BIP-174 split between
+   * "signed" and "finalized": the signature is recorded here, and a
+   * Finalizer wraps it into `finalScriptWitness = [tapKeySig]` before the
+   * raw transaction can be extracted. `extractTxFromSignedPsbtV2` handles
+   * that conversion automatically for the wallet's Taproot-only input
+   * shape.
+   */
+  tapKeySig?: Uint8Array;
   witnessUtxo?: { amount: bigint; script: Uint8Array };
   /** Unrecognised key/value pairs preserved for completeness. */
   unknown: PsbtKV[];
@@ -602,6 +612,7 @@ export function parsePsbtV2(psbtHex: string): ParsedPsbtV2 {
       : undefined;
     const finalScriptSig = inp.finalScriptSig as Uint8Array | undefined;
     const finalScriptWitness = inp.finalScriptWitness as Uint8Array[] | undefined;
+    const tapKeySig = inp.tapKeySig as Uint8Array | undefined;
     return {
       // Library returns display-order bytes (it already reversed the wire
       // little-endian during decode).
@@ -612,6 +623,7 @@ export function parsePsbtV2(psbtHex: string): ParsedPsbtV2 {
       finalScriptWitness: finalScriptWitness
         ? finalScriptWitness.map((w) => new Uint8Array(w))
         : undefined,
+      tapKeySig: tapKeySig ? new Uint8Array(tapKeySig) : undefined,
       witnessUtxo,
       unknown: unknownToKVs(inp.unknown),
     };
@@ -641,8 +653,10 @@ export function parsePsbtV2(psbtHex: string): ParsedPsbtV2 {
  * Extract a finalized raw Bitcoin transaction from a fully-signed PSBT v2.
  *
  * Requires:
- *   - every input to have either `finalScriptSig`, `finalScriptWitness`, or
- *     both (legacy inputs use scriptSig; SegWit + Taproot use witness);
+ *   - every input to have either `finalScriptSig`, `finalScriptWitness`,
+ *     `tapKeySig`, or some combination — Taproot key-path inputs that only
+ *     carry `tapKeySig` are auto-finalized here by wrapping it into the
+ *     single-item witness stack BIP-341 §"Validation" demands;
  *   - every output to have `PSBT_OUT_SCRIPT` set (BIP-375 silent payment
  *     outputs must have been derived and finalized by the signer).
  *
@@ -650,6 +664,22 @@ export function parsePsbtV2(psbtHex: string): ParsedPsbtV2 {
  */
 export function extractTxFromSignedPsbtV2(psbtHex: string): string {
   const psbt = parsePsbtV2(psbtHex);
+
+  // BIP-174 separates "signed" from "finalized": a Taproot key-path
+  // signer may legitimately return a PSBT with `tapKeySig` set but no
+  // `finalScriptWitness`. The Finalizer role wraps `tapKeySig` into a
+  // single-item witness stack. We do that here so callers don't have to
+  // care about which role their signer fulfils.
+  for (let i = 0; i < psbt.inputs.length; i++) {
+    const inp = psbt.inputs[i];
+    if (
+      !inp.finalScriptSig &&
+      !inp.finalScriptWitness &&
+      inp.tapKeySig
+    ) {
+      inp.finalScriptWitness = [inp.tapKeySig];
+    }
+  }
 
   for (let i = 0; i < psbt.inputs.length; i++) {
     const inp = psbt.inputs[i];
