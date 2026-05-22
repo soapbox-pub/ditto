@@ -14,12 +14,15 @@ import {
   type PsbtV2Input,
 } from '@/lib/psbtV2';
 import {
+  aggregateSenderPrivateKey,
+  computeBip375EcdhShare,
   deriveSilentPaymentOutputs,
   p2trScriptPubKey,
   type SilentPaymentAddress,
   type SilentPaymentInput,
   type SilentPaymentRecipient,
 } from '@/lib/silentPayments';
+import { generateDLEQProof } from '@/lib/dleq';
 
 // ---------------------------------------------------------------------------
 // BtcSigner interface
@@ -198,6 +201,41 @@ function signBip375PsbtV2Locally(
     }
   }
 
+  // Compute the BIP-375 global ECDH share + DLEQ proof per recipient scan
+  // key. Per BIP-375 §"Computing the ECDH Shares and DLEQ Proofs", a single
+  // signer that owns every eligible input should emit one global share per
+  // scan key — which is exactly our case (all inputs are P2TR owned by the
+  // sender). We attach these to the finalized PSBT v2 so an external
+  // BIP-375 verifier can re-derive the output scripts without trusting us.
+  const spGlobals: { scanPubKey: Uint8Array; ecdhShare: Uint8Array; dleqProof: Uint8Array }[] = [];
+  if (spRecipients.length > 0) {
+    const agg = aggregateSenderPrivateKey(
+      [
+        {
+          txid: psbt.inputs[0].txid,
+          vout: psbt.inputs[0].vout,
+          privateKey: tweakedPrivKey,
+          isTaproot: true,
+        },
+      ],
+      allOutpoints,
+    );
+    // Group recipient scan keys, deduplicating so we emit one share per
+    // unique scan key (multiple SP outputs to the same recipient share).
+    const seen = new Map<string, Uint8Array>();
+    for (const r of spRecipients) {
+      const hex = bytesToHexLocal(r.address.scanPubKey);
+      if (!seen.has(hex)) seen.set(hex, r.address.scanPubKey);
+    }
+    for (const scanPubKey of seen.values()) {
+      const ecdhShare = computeBip375EcdhShare(agg.aggregateScalar, scanPubKey);
+      const auxRand = new Uint8Array(32);
+      crypto.getRandomValues(auxRand);
+      const { proof } = generateDLEQProof({ a: agg.aggregateScalar, B: scanPubKey, auxRand });
+      spGlobals.push({ scanPubKey, ecdhShare, dleqProof: proof });
+    }
+  }
+
   // Re-encode as a regular (script-only) PSBT v2 so we can hand it off to
   // the @scure/btc-signer PSBT v0 signing path. We emit v2 → convert to v0
   // by leveraging the library's PSBT version handling: the easiest route
@@ -235,15 +273,22 @@ function signBip375PsbtV2Locally(
   tx.finalize();
 
   // Round-trip back to a finalized PSBT v2 with the resolved scripts plus
-  // the input-level final witnesses. The caller's `extractTxFromSignedPsbtV2`
-  // will pull out the raw transaction hex from this.
-  return finalizedTxToPsbtV2(tx, psbt.inputs, resolvedOutputs);
+  // the input-level final witnesses and any BIP-375 global ECDH shares +
+  // DLEQ proofs. The caller's `extractTxFromSignedPsbtV2` will pull out the
+  // raw transaction hex from this.
+  return finalizedTxToPsbtV2(tx, psbt.inputs, resolvedOutputs, spGlobals);
 }
 
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+function bytesToHexLocal(b: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, '0');
+  return s;
 }
 
 /**
@@ -258,6 +303,7 @@ function finalizedTxToPsbtV2(
   tx: btc.Transaction,
   inputs: { txid: string; vout: number; sequence: number; witnessUtxo?: { amount: bigint; script: Uint8Array } }[],
   outputs: PsbtV2Output[],
+  silentPaymentGlobals?: { scanPubKey: Uint8Array; ecdhShare: Uint8Array; dleqProof: Uint8Array }[],
 ): string {
   const psbtInputs: PsbtV2Input[] = [];
   for (let i = 0; i < tx.inputsLength; i++) {
@@ -276,7 +322,16 @@ function finalizedTxToPsbtV2(
     });
   }
 
-  return encodePsbtV2({ inputs: psbtInputs, outputs });
+  return encodePsbtV2({
+    inputs: psbtInputs,
+    outputs,
+    silentPaymentGlobals: silentPaymentGlobals && silentPaymentGlobals.length > 0
+      ? silentPaymentGlobals
+      : undefined,
+    // Once we've resolved every SP output script and signed, BIP-375
+    // requires `PSBT_GLOBAL_TX_MODIFIABLE` to be 0.
+    txModifiable: silentPaymentGlobals && silentPaymentGlobals.length > 0 ? 0 : undefined,
+  });
 }
 
 // Re-export so callers can do `extractTxFromSignedPsbtV2` next to the signer

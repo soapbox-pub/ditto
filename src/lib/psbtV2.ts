@@ -35,10 +35,11 @@ import { _RawPSBTV2 } from '@scure/btc-signer/psbt.js';
 
 // Global key types — only the ones we explicitly write/read.
 const G_TX_MODIFIABLE = 0x06;
-// BIP-375 globals (preserved as "unknown" by the library; documented here
-// for cross-reference):
-//   PSBT_GLOBAL_SP_ECDH_SHARE = 0x07
-//   PSBT_GLOBAL_SP_DLEQ       = 0x08
+// BIP-375 globals — emitted by the local signer when it finalizes an SP
+// PSBT and read on the verifier side. We write/read these via the
+// library's `unknown` passthrough.
+const G_SP_ECDH_SHARE = 0x07;
+const G_SP_DLEQ = 0x08;
 
 // BIP-375 per-input fields (preserved as "unknown" by the library):
 //   PSBT_IN_SP_ECDH_SHARE = 0x1d
@@ -267,6 +268,26 @@ export interface PsbtV2EncodeOptions {
    * that need to bump it back on do so during signing.
    */
   txModifiable?: number;
+  /**
+   * Optional BIP-375 global ECDH shares + DLEQ proofs, keyed by scan key.
+   *
+   * Per BIP-375 §"Computing the ECDH Shares and DLEQ Proofs", when a single
+   * signer owns the private keys for every eligible input it should emit
+   * one global share per recipient scan key (rather than per-input shares).
+   * Each entry produces a paired `PSBT_GLOBAL_SP_ECDH_SHARE` (keytype 0x07,
+   * keydata = 33-byte scan key, value = 33-byte share `C = a·B_scan`) and
+   * `PSBT_GLOBAL_SP_DLEQ` (keytype 0x08, keydata = scan key, value = 64-byte
+   * BIP-374 proof) row.
+   *
+   * The local nsec signer fills this in when finalizing an SP PSBT so an
+   * external BIP-375 verifier can re-derive the output scripts without
+   * trusting the signer.
+   */
+  silentPaymentGlobals?: {
+    scanPubKey: Uint8Array;
+    ecdhShare: Uint8Array;
+    dleqProof: Uint8Array;
+  }[];
   inputs: PsbtV2Input[];
   outputs: PsbtV2Output[];
 }
@@ -308,6 +329,28 @@ export function encodePsbtV2(opts: PsbtV2EncodeOptions): string {
       { type: G_TX_MODIFIABLE, key: new Uint8Array(0) },
       new Uint8Array([opts.txModifiable & 0xff]),
     ]);
+  }
+  if (opts.silentPaymentGlobals) {
+    for (const sp of opts.silentPaymentGlobals) {
+      if (sp.scanPubKey.length !== 33) {
+        throw new Error('PSBT v2 global SP: scanPubKey must be 33 bytes.');
+      }
+      if (sp.ecdhShare.length !== 33) {
+        throw new Error('PSBT v2 global SP: ecdhShare must be 33 bytes.');
+      }
+      if (sp.dleqProof.length !== 64) {
+        throw new Error('PSBT v2 global SP: dleqProof must be 64 bytes.');
+      }
+      // BIP-375 keys these records by the recipient's 33-byte scan key.
+      globalUnknown.push([
+        { type: G_SP_ECDH_SHARE, key: new Uint8Array(sp.scanPubKey) },
+        new Uint8Array(sp.ecdhShare),
+      ]);
+      globalUnknown.push([
+        { type: G_SP_DLEQ, key: new Uint8Array(sp.scanPubKey) },
+        new Uint8Array(sp.dleqProof),
+      ]);
+    }
   }
 
   const globalShape: Record<string, unknown> = {
