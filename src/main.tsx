@@ -1,12 +1,7 @@
 import { createRoot } from 'react-dom/client';
 
-// Import polyfills first (Buffer must be globally available before bitcoinjs-lib)
+// Import polyfills first (AbortSignal.any / AbortSignal.timeout).
 import './lib/polyfills.ts';
-
-// Initialize ECC library for bitcoinjs-lib (Taproot / Schnorr support)
-import * as bitcoin from 'bitcoinjs-lib';
-import * as ecc from '@bitcoinerlab/secp256k1';
-bitcoin.initEccLib(ecc);
 
 // Kick off cache hydration early so data is ready before components render.
 import { hydrateNip05Cache } from '@/lib/nip05Cache';

@@ -1,7 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { nip19 } from 'nostr-tools';
-import * as bitcoin from 'bitcoinjs-lib';
-import * as ecc from '@bitcoinerlab/secp256k1';
 
 import '@/lib/polyfills';
 import {
@@ -12,20 +10,14 @@ import {
   validateBitcoinAddress,
 } from '@/lib/bitcoin';
 
-// Initialise ECC once for this test file. In the running app, `main.tsx`
-// does this at startup; in a test process `main.tsx` is never imported.
-beforeAll(() => {
-  bitcoin.initEccLib(ecc);
-});
-
 /**
  * Regression test vectors for key-path-only P2TR address derivation using the
  * Nostr pubkey directly as the internal key (no script tree).
  *
- * Each vector was produced by the live `bitcoinjs-lib` + `@bitcoinerlab/secp256k1`
- * toolchain and independently validated against the address's bech32m
- * checksum. They serve as regression fixtures: if the derivation ever changes
- * (library upgrade, ECC backend switch, etc.) these tests will fail loudly.
+ * Each vector was produced by the live bitcoin toolchain and independently
+ * validated against the address's bech32m checksum. They serve as regression
+ * fixtures: if the derivation ever changes (library upgrade, ECC backend
+ * switch, etc.) these tests will fail loudly.
  *
  * Note: these are NOT the addresses in the BIP-341 wallet test vectors,
  * because those vectors use a non-empty script tree (merkle root); our

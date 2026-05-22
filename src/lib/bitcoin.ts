@@ -14,11 +14,9 @@
  * configures `skipStatuses: [404]` so non-mempool backends (Blockstream's
  * Esplora) coexist in the list without being penalised.
  */
-import * as bitcoin from 'bitcoinjs-lib';
-import { toXOnly } from 'bitcoinjs-lib';
+import * as btc from '@scure/btc-signer';
+import { hex } from '@scure/base';
 import { nip19 } from 'nostr-tools';
-import * as ecc from '@bitcoinerlab/secp256k1';
-import { ECPairFactory, type ECPairAPI } from 'ecpair';
 import { esploraFetch } from './esplora';
 
 // ---------------------------------------------------------------------------
@@ -37,26 +35,20 @@ const VBYTES_PER_OUTPUT = 43;
 /** Estimated vBytes for transaction overhead (version, locktime, etc.). */
 const VBYTES_OVERHEAD = 10.5;
 
-// ---------------------------------------------------------------------------
-// ECC initialisation (lazy)
-// ---------------------------------------------------------------------------
-
-let _ECPair: ECPairAPI | null = null;
-
-function getECPair(): ECPairAPI {
-  if (!_ECPair) {
-    bitcoin.initEccLib(ecc);
-    _ECPair = ECPairFactory(ecc);
-  }
-  return _ECPair;
-}
-
 /**
  * Strict 32-byte hex validator. Rejects anything that isn't exactly 64
  * lowercase-or-uppercase hex characters.
  */
-function isValidPubkeyHex(hex: string): boolean {
-  return typeof hex === 'string' && /^[0-9a-fA-F]{64}$/.test(hex);
+function isValidPubkeyHex(s: string): boolean {
+  return typeof s === 'string' && /^[0-9a-fA-F]{64}$/.test(s);
+}
+
+/**
+ * Decode a 32-byte (64-char) hex string to bytes. `@scure/base`'s `hex.decode`
+ * only accepts lowercase, so normalise the case first.
+ */
+function hexToBytes(s: string): Uint8Array {
+  return hex.decode(s.toLowerCase());
 }
 
 /**
@@ -73,14 +65,9 @@ export function nostrPubkeyToBitcoinAddress(pubkeyHex: string): string {
   if (!isValidPubkeyHex(pubkeyHex)) return '';
 
   try {
-    const pubkeyBuffer = Buffer.from(pubkeyHex, 'hex');
-
-    const { address } = bitcoin.payments.p2tr({
-      internalPubkey: pubkeyBuffer,
-      network: bitcoin.networks.bitcoin,
-    });
-
-    return address || '';
+    const internalPubkey = hexToBytes(pubkeyHex);
+    const payment = btc.p2tr(internalPubkey, undefined, btc.NETWORK);
+    return payment.address || '';
   } catch (error) {
     console.error('Error generating Bitcoin address:', error);
     return '';
@@ -551,7 +538,7 @@ export function estimateFee(numInputs: number, numOutputs: number, feeRate: numb
  */
 export function validateBitcoinAddress(address: string): boolean {
   try {
-    bitcoin.address.toOutputScript(address, bitcoin.networks.bitcoin);
+    btc.Address(btc.NETWORK).decode(address);
     return true;
   } catch {
     return false;
@@ -632,58 +619,12 @@ export function buildUnsignedPsbt(
   utxos: UTXO[],
   feeRate: number,
 ): UnsignedPsbt {
-  const internalPubkey = Buffer.from(senderPubkeyHex, 'hex');
-
-  // Derive change address (same Taproot address as sender)
-  const { address: changeAddress } = bitcoin.payments.p2tr({
-    internalPubkey,
-    network: bitcoin.networks.bitcoin,
-  });
-  if (!changeAddress) throw new Error('Failed to derive change address');
-
-  // Build PSBT, add all UTXOs as inputs
-  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
-  let totalInput = 0;
-
-  for (const utxo of utxos) {
-    psbt.addInput({
-      hash: utxo.txid,
-      index: utxo.vout,
-      witnessUtxo: {
-        script: bitcoin.payments.p2tr({
-          internalPubkey,
-          network: bitcoin.networks.bitcoin,
-        }).output!,
-        value: BigInt(utxo.value),
-      },
-      tapInternalKey: internalPubkey,
-    });
-    totalInput += utxo.value;
-  }
-
-  // Estimate fee — first assume 2 outputs (recipient + change). Change at the
-  // dust limit exactly is still standard, so use >= (not >) per BIP-141/P2TR
-  // relay policy (minimum non-dust output is 546 sats).
-  const change2Out = totalInput - amountSats - estimateFee(utxos.length, 2, feeRate);
-  const hasChange = change2Out >= DUST_LIMIT;
-  const numOutputs = hasChange ? 2 : 1;
-  const fee = estimateFee(utxos.length, numOutputs, feeRate);
-  const change = totalInput - amountSats - fee;
-
-  if (change < 0) {
-    throw new Error(
-      `Insufficient funds. Need ${(amountSats + fee).toLocaleString()} sats, have ${totalInput.toLocaleString()} sats.`,
-    );
-  }
-
-  // Add outputs
-  psbt.addOutput({ address: toAddress, value: BigInt(amountSats) });
-
-  if (hasChange) {
-    psbt.addOutput({ address: changeAddress, value: BigInt(change) });
-  }
-
-  return { psbtHex: psbt.toHex(), fee };
+  return buildUnsignedPsbtMulti(
+    senderPubkeyHex,
+    [{ address: toAddress, amountSats }],
+    utxos,
+    feeRate,
+  );
 }
 
 /** A single recipient output for a multi-output PSBT. */
@@ -728,28 +669,25 @@ export function buildUnsignedPsbtMulti(
     }
   }
 
-  const internalPubkey = Buffer.from(senderPubkeyHex, 'hex');
+  const internalPubkey = hexToBytes(senderPubkeyHex);
 
-  // Derive change address (same Taproot address as sender)
-  const { address: changeAddress } = bitcoin.payments.p2tr({
-    internalPubkey,
-    network: bitcoin.networks.bitcoin,
-  });
+  // Derive change address (same Taproot address as sender) and the
+  // scriptPubKey used for each P2TR witness UTXO.
+  const senderPayment = btc.p2tr(internalPubkey, undefined, btc.NETWORK);
+  const changeAddress = senderPayment.address;
   if (!changeAddress) throw new Error('Failed to derive change address');
+  const senderScript = senderPayment.script;
 
-  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
+  const tx = new btc.Transaction();
   let totalInput = 0;
 
   for (const utxo of utxos) {
-    psbt.addInput({
-      hash: utxo.txid,
+    tx.addInput({
+      txid: utxo.txid,
       index: utxo.vout,
       witnessUtxo: {
-        script: bitcoin.payments.p2tr({
-          internalPubkey,
-          network: bitcoin.networks.bitcoin,
-        }).output!,
-        value: BigInt(utxo.value),
+        script: senderScript,
+        amount: BigInt(utxo.value),
       },
       tapInternalKey: internalPubkey,
     });
@@ -758,7 +696,9 @@ export function buildUnsignedPsbtMulti(
 
   const totalOut = recipients.reduce((s, r) => s + r.amountSats, 0);
 
-  // Estimate fee — first assume N + 1 outputs (recipients + change).
+  // Estimate fee — first assume N + 1 outputs (recipients + change). Change
+  // at the dust limit exactly is still standard, so use >= (not >) per
+  // BIP-141/P2TR relay policy (minimum non-dust output is 546 sats).
   const numRecipients = recipients.length;
   const feeWithChange = estimateFee(utxos.length, numRecipients + 1, feeRate);
   const changeWithBoth = totalInput - totalOut - feeWithChange;
@@ -774,58 +714,41 @@ export function buildUnsignedPsbtMulti(
   }
 
   for (const r of recipients) {
-    psbt.addOutput({ address: r.address, value: BigInt(r.amountSats) });
+    tx.addOutputAddress(r.address, BigInt(r.amountSats), btc.NETWORK);
   }
 
   if (hasChange) {
-    psbt.addOutput({ address: changeAddress, value: BigInt(change) });
+    tx.addOutputAddress(changeAddress, BigInt(change), btc.NETWORK);
   }
 
-  return { psbtHex: psbt.toHex(), fee };
+  return { psbtHex: hex.encode(tx.toPSBT()), fee };
 }
 
 /**
  * Sign a PSBT locally using a raw private key (nsec).
  *
- * Applies the BIP-341 TapTweak to the private key, signs all inputs whose
- * `tapInternalKey` matches, and returns the signed (but not finalized) PSBT hex.
+ * `@scure/btc-signer`'s `Transaction.sign(privateKey)` handles BIP-341
+ * TapTweak internally for any input whose `tapInternalKey` matches the
+ * key's x-only public key. Inputs that don't match are left untouched,
+ * which matters for future multi-signer PSBTs; today `buildUnsignedPsbt`
+ * only ever adds the user's own UTXOs, so in practice every input matches.
  *
  * @param psbtHex       Hex-encoded unsigned PSBT.
  * @param privateKeyHex 32-byte hex private key.
  * @returns Hex-encoded signed PSBT (not finalized).
  */
 export function signPsbtLocal(psbtHex: string, privateKeyHex: string): string {
-  bitcoin.initEccLib(ecc);
-  const psbt = bitcoin.Psbt.fromHex(psbtHex, { network: bitcoin.networks.bitcoin });
+  const tx = btc.Transaction.fromPSBT(hexToBytes(psbtHex));
+  const privKey = hexToBytes(privateKeyHex);
 
-  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
-  const internalPubkey = toXOnly(keyPair.publicKey);
+  // `tx.sign` returns the number of inputs signed.
+  const signedCount = tx.sign(privKey);
 
-  // Tweak private key for Taproot key-path spending (BIP-341)
-  const tweakedSigner = keyPair.tweak(
-    bitcoin.crypto.taggedHash('TapTweak', internalPubkey),
-  );
-
-  // Per the NIP spec: inputs whose `tapInternalKey` does not match the
-  // signer's x-only pubkey MUST be left unchanged. This matters for future
-  // multi-signer PSBTs; today `buildUnsignedPsbt` only ever adds the user's
-  // own UTXOs, so in practice every input matches.
-  let signedAny = false;
-  for (let i = 0; i < psbt.inputCount; i++) {
-    const input = psbt.data.inputs[i];
-    const inputInternalKey = input.tapInternalKey;
-    if (!inputInternalKey || !Buffer.from(inputInternalKey).equals(Buffer.from(internalPubkey))) {
-      continue;
-    }
-    psbt.signInput(i, tweakedSigner);
-    signedAny = true;
-  }
-
-  if (!signedAny) {
+  if (signedCount === 0) {
     throw new Error('No inputs in this PSBT are owned by the signer.');
   }
 
-  return psbt.toHex();
+  return hex.encode(tx.toPSBT());
 }
 
 /**
@@ -835,10 +758,9 @@ export function signPsbtLocal(psbtHex: string, privateKeyHex: string): string {
  * @returns Raw transaction hex ready for broadcast.
  */
 export function finalizePsbt(psbtHex: string): string {
-  bitcoin.initEccLib(ecc);
-  const psbt = bitcoin.Psbt.fromHex(psbtHex, { network: bitcoin.networks.bitcoin });
-  psbt.finalizeAllInputs();
-  return psbt.extractTransaction().toHex();
+  const tx = btc.Transaction.fromPSBT(hexToBytes(psbtHex));
+  tx.finalize();
+  return hex.encode(tx.extract());
 }
 
 /**
@@ -862,9 +784,8 @@ export function createBitcoinTransaction(
   feeRate: number,
 ): { txHex: string; fee: number } {
   // Derive the x-only pubkey from the private key for buildUnsignedPsbt
-  const keyPair = getECPair().fromPrivateKey(Buffer.from(privateKeyHex, 'hex'));
-  const internalPubkey = toXOnly(keyPair.publicKey);
-  const senderPubkeyHex = Buffer.from(internalPubkey).toString('hex');
+  const internalPubkey = btc.utils.pubSchnorr(hexToBytes(privateKeyHex));
+  const senderPubkeyHex = hex.encode(internalPubkey);
 
   const { psbtHex, fee } = buildUnsignedPsbt(senderPubkeyHex, toAddress, amountSats, utxos, feeRate);
   const signedHex = signPsbtLocal(psbtHex, privateKeyHex);

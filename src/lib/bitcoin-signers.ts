@@ -1,6 +1,7 @@
 import type { NostrSigner } from '@nostrify/types';
 import { NSecSigner, NBrowserSigner, NConnectSigner } from '@nostrify/nostrify';
 import type { NConnectSignerOpts } from '@nostrify/nostrify';
+import { hex } from '@scure/base';
 
 import { signPsbtLocal } from '@/lib/bitcoin';
 
@@ -46,7 +47,7 @@ export class NSecSignerBtc extends NSecSigner implements BtcSigner {
   }
 
   async signPsbt(psbtHex: string): Promise<string> {
-    const privateKeyHex = Buffer.from(this.#secretKeyBytes).toString('hex');
+    const privateKeyHex = hex.encode(this.#secretKeyBytes);
     return signPsbtLocal(psbtHex, privateKeyHex);
   }
 }
