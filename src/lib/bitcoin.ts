@@ -18,6 +18,13 @@ import * as btc from '@scure/btc-signer';
 import { hex } from '@scure/base';
 import { nip19 } from 'nostr-tools';
 import { esploraFetch } from './esplora';
+import {
+  decodeSilentPaymentAddress,
+  isSilentPaymentAddress,
+  validateSilentPaymentAddress,
+  type SilentPaymentAddress,
+} from './silentPayments';
+import { encodePsbtV2, type PsbtV2Input, type PsbtV2Output } from './psbtV2';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -793,3 +800,169 @@ export function createBitcoinTransaction(
 
   return { txHex, fee };
 }
+
+// ---------------------------------------------------------------------------
+// BIP-352 / BIP-375 silent payment sends (sp1… / tsp1…)
+// ---------------------------------------------------------------------------
+//
+// Silent payment recipients hand out a static `sp1…` address that the
+// sender's wallet turns into a per-transaction BIP-341 taproot output. The
+// transformation depends on the sender's input set (BIP-352
+// `outpoint_L · a · B_scan`), so the on-chain output isn't computable
+// without either:
+//
+//   (a) the sender's private key (the local nsec path) — we decode the SP
+//       address ourselves and embed the derived P2TR in a regular PSBT v0
+//       before signing, or
+//   (b) the signer (NIP-07 / NIP-46) supporting BIP-375 — we hand it a
+//       PSBT v2 carrying `PSBT_OUT_SP_V0_INFO`, and the signer fills in the
+//       output script while signing.
+//
+// {@link buildUnsignedSilentPaymentPsbt} produces the PSBT v2 + BIP-375
+// flavour that any signer of the latter shape can consume. The local
+// `NSecSignerBtc.signPsbt` short-circuits this by detecting the BIP-375
+// fields in the PSBT v2 and resolving the SP output before signing.
+
+/**
+ * Cheap routing predicate for the recipient picker.
+ *
+ * Returns `true` iff `s` looks like a silent payment address. A `true`
+ * here only commits the UI to treating the input as an SP address; full
+ * validation happens at coin-selection time.
+ */
+export function looksLikeSilentPaymentAddress(s: string): boolean {
+  return isSilentPaymentAddress(s);
+}
+
+/**
+ * Validate a silent payment address, returning the decoded scan/spend
+ * pubkeys on success or `null` on failure.
+ *
+ * Use for inline form validation. The reason `null` (rather than throwing)
+ * is that pickers may speculatively check half-typed addresses.
+ */
+export function validateAndDecodeSilentPaymentAddress(addr: string): SilentPaymentAddress | null {
+  try {
+    return decodeSilentPaymentAddress(addr);
+  } catch {
+    return null;
+  }
+}
+
+/** Re-export the cheap check so callers don't have to reach into `silentPayments`. */
+export { validateSilentPaymentAddress };
+
+/**
+ * Build an unsigned PSBT v2 + BIP-375 transaction paying a single silent
+ * payment recipient.
+ *
+ * The PSBT carries the recipient as a `PSBT_OUT_SP_V0_INFO` (no
+ * `PSBT_OUT_SCRIPT`), plus a regular change output to the sender. The
+ * signer (any of nsec, NIP-07, NIP-46 — all of which we route through
+ * `BtcSigner.signPsbt`) is expected to:
+ *
+ *   1. derive the recipient's per-transaction P2TR output from the SP
+ *      address and the input set's ECDH share,
+ *   2. write the result into `PSBT_OUT_SCRIPT`,
+ *   3. sign each input (SIGHASH_ALL only, per BIP-375),
+ *   4. return a finalized PSBT v2 we can extract with
+ *      {@link extractTxFromSignedPsbtV2}.
+ *
+ * BIP-375 forbids inputs with witness version > 1. Ditto's wallet only
+ * spends from the sender's own P2TR (witness v1) UTXOs, so we never hit
+ * that constraint, but the check is still applied here for safety.
+ *
+ * Mainnet only — the wallet doesn't support testnet UTXOs anywhere.
+ *
+ * @param senderPubkeyHex 32-byte hex x-only public key of the sender (used
+ *                        for the change output and as the tapInternalKey).
+ * @param spAddress       The recipient's `sp1…` silent payment address.
+ * @param amountSats      Amount to send in satoshis.
+ * @param utxos           Available UTXOs (all are consumed).
+ * @param feeRate         Fee rate in sat/vB.
+ */
+export function buildUnsignedSilentPaymentPsbt(
+  senderPubkeyHex: string,
+  spAddress: string,
+  amountSats: number,
+  utxos: UTXO[],
+  feeRate: number,
+): UnsignedPsbt {
+  if (!isValidPubkeyHex(senderPubkeyHex)) {
+    throw new Error('Silent payment send: invalid sender pubkey.');
+  }
+  if (utxos.length === 0) {
+    throw new Error('Silent payment send: no UTXOs available.');
+  }
+  if (!Number.isFinite(amountSats) || amountSats < 546) {
+    throw new Error(`Silent payment send: amount must be at least 546 sats (got ${amountSats}).`);
+  }
+
+  // ── 1. Decode the silent payment address ──
+  const sp = decodeSilentPaymentAddress(spAddress);
+  if (sp.network !== 'mainnet') {
+    throw new Error('Silent payment send: testnet addresses are not supported.');
+  }
+  if (sp.version !== 0) {
+    // Forward-compat: the BIP defines v0 today; v1+ are reserved for future
+    // upgrades and we refuse them rather than silently truncating the
+    // payload (which is what the BIP allows for v1-v30 receivers).
+    throw new Error(`Silent payment send: address version ${sp.version} is not yet supported.`);
+  }
+
+  const internalPubkey = hexToBytes(senderPubkeyHex);
+  const senderPayment = btc.p2tr(internalPubkey, undefined, btc.NETWORK);
+  const changeAddress = senderPayment.address;
+  if (!changeAddress) throw new Error('Silent payment send: failed to derive change address.');
+  const senderScript = senderPayment.script;
+
+  // The change scriptPubKey (also P2TR) goes into the change output if any.
+  const changeScript = senderScript;
+
+  // ── 2. Fee + change calculation (mirrors buildUnsignedPsbtMulti) ──
+  const totalInput = utxos.reduce((s, u) => s + u.value, 0);
+  const feeWithChange = estimateFee(utxos.length, 2, feeRate);
+  const changeWithBoth = totalInput - amountSats - feeWithChange;
+  const hasChange = changeWithBoth >= DUST_LIMIT;
+  const numOutputs = hasChange ? 2 : 1;
+  const fee = estimateFee(utxos.length, numOutputs, feeRate);
+  const change = totalInput - amountSats - fee;
+  if (change < 0) {
+    throw new Error(
+      `Insufficient funds. Need ${(amountSats + fee).toLocaleString()} sats, have ${totalInput.toLocaleString()} sats.`,
+    );
+  }
+
+  // ── 3. PSBT v2 input set ──
+  const psbtInputs: PsbtV2Input[] = utxos.map((u) => ({
+    txid: u.txid,
+    vout: u.vout,
+    witnessUtxo: { amount: BigInt(u.value), script: senderScript },
+    tapInternalKey: internalPubkey,
+  }));
+
+  // ── 4. Outputs: SP recipient (no script) + optional change (script) ──
+  const psbtOutputs: PsbtV2Output[] = [
+    {
+      type: 'sp',
+      amount: BigInt(amountSats),
+      scanPubKey: sp.scanPubKey,
+      spendPubKey: sp.spendPubKey,
+    },
+  ];
+  if (hasChange) {
+    psbtOutputs.push({
+      type: 'script',
+      amount: BigInt(change),
+      script: changeScript,
+    });
+  }
+
+  const psbtHex = encodePsbtV2({
+    inputs: psbtInputs,
+    outputs: psbtOutputs,
+  });
+
+  return { psbtHex, fee };
+}
+

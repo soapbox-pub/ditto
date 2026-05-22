@@ -7,6 +7,7 @@ import {
   Camera,
   Check,
   ExternalLink,
+  EyeOff,
   Loader2,
   UserRoundCheck,
   X,
@@ -53,13 +54,17 @@ import {
   fetchUTXOs,
   getFeeRates,
   buildUnsignedPsbt,
+  buildUnsignedSilentPaymentPsbt,
   finalizePsbt,
   broadcastTransaction,
   estimateFee,
   satsToUSD,
   isLargeAmount,
+  looksLikeSilentPaymentAddress,
+  validateSilentPaymentAddress,
   type FeeRates,
 } from '@/lib/bitcoin';
+import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -107,13 +112,21 @@ function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
 // ---------------------------------------------------------------------------
 
 /**
- * A recipient resolved to send Bitcoin to. Always carries a Bitcoin address.
+ * A recipient resolved to send Bitcoin to. Always carries a destination
+ * address — either a regular on-chain Bitcoin address (`bc1…` / `1…` / `3…`)
+ * or a BIP-352 silent payment address (`sp1…`).
+ *
  * When `pubkey` is set, the recipient is also a Nostr identity — meaning we
  * can publish a kind 8333 profile-zap attesting the send.
  */
 interface ResolvedRecipient {
-  /** P2TR Bitcoin address to send to. */
+  /** Bitcoin address or silent payment address (`sp1…`) to send to. */
   address: string;
+  /**
+   * Address kind. `'onchain'` covers all standard scriptPubKey types; `'sp'`
+   * is BIP-352 silent payment and goes through {@link buildUnsignedSilentPaymentPsbt}.
+   */
+  kind: 'onchain' | 'sp';
   /** Hex Nostr pubkey, when the recipient is a Nostr user. */
   pubkey?: string;
   /** Optional profile metadata for display. */
@@ -266,8 +279,13 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   // Bitcoin's public ledger means the send can be linked back to the sender's
   // wallet forever. Require an explicit checkbox before unlocking the Send
   // button, and force the two-tap arm regardless of amount.
+  //
+  // Silent payment recipients (BIP-352) do not have this problem — the
+  // on-chain output is derived per-transaction and is indistinguishable
+  // from any other P2TR output, so the recipient's identity isn't exposed
+  // on chain. We skip the warning for SP sends.
 
-  const isRawAddress = !!recipient && !recipient.pubkey;
+  const isRawAddress = !!recipient && !recipient.pubkey && recipient.kind !== 'sp';
   const [acknowledgedPublic, setAcknowledgedPublic] = useState(false);
 
   useEffect(() => {
@@ -311,17 +329,39 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
       setProgress('building');
       const rate = getRateForSpeed(feeRates, feeSpeed);
-      const { psbtHex, fee } = buildUnsignedPsbt(
-        user.pubkey,
-        recipient.address,
-        amountSats,
-        utxos,
-        rate,
-      );
+
+      let psbtHex: string;
+      let fee: number;
+      if (recipient.kind === 'sp') {
+        // BIP-375 silent payment: build a PSBT v2 with PSBT_OUT_SP_V0_INFO,
+        // hand it to the signer (NIP-07 / NIP-46 / local nsec — all assumed
+        // to understand BIP-375 PSBTs, per the wallet's signer contract),
+        // and extract a finalized raw transaction from the response.
+        ({ psbtHex, fee } = buildUnsignedSilentPaymentPsbt(
+          user.pubkey,
+          recipient.address,
+          amountSats,
+          utxos,
+          rate,
+        ));
+      } else {
+        ({ psbtHex, fee } = buildUnsignedPsbt(
+          user.pubkey,
+          recipient.address,
+          amountSats,
+          utxos,
+          rate,
+        ));
+      }
 
       setProgress('signing');
       const signedHex = await signPsbt(psbtHex);
-      const txHex = finalizePsbt(signedHex);
+      // BIP-375 signers return a finalized PSBT v2; the legacy signer path
+      // returns a PSBT v0 we hand to `finalizePsbt`. We pick by the input
+      // PSBT shape we sent.
+      const txHex = recipient.kind === 'sp'
+        ? extractTxFromSignedPsbtV2(signedHex)
+        : finalizePsbt(signedHex);
 
       setProgress('broadcasting');
       const txid = await broadcastTransaction(txHex, esploraApis);
@@ -733,12 +773,22 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     }
   }, [query]);
 
-  // Raw bitcoin address fallback — only when nothing else matches.
+  // Raw on-chain bitcoin address fallback — only when nothing else matches.
   const trimmed = query.trim();
   const looksLikeBtcAddress = !identifierMatch
     && trimmed.length > 0
     && !profiles?.length
+    && !looksLikeSilentPaymentAddress(trimmed)
     && validateBitcoinAddress(trimmed);
+
+  // BIP-352 silent payment address fallback — recognised independently of
+  // on-chain addresses so the dropdown can show a distinct "Silent payment"
+  // row with the right privacy framing.
+  const looksLikeSpAddress = !identifierMatch
+    && trimmed.length > 0
+    && !profiles?.length
+    && looksLikeSilentPaymentAddress(trimmed)
+    && validateSilentPaymentAddress(trimmed);
 
   // Deduplicate: if the identifier resolves to a pubkey that's also in the
   // profile results, drop it from the profile list.
@@ -756,8 +806,9 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
 
   const hasIdentifier = !!identifierMatch;
   const hasBtcAddress = !!looksLikeBtcAddress;
+  const hasSpAddress = !!looksLikeSpAddress;
   const profileCount = filteredProfiles.length;
-  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasBtcAddress ? 1 : 0);
+  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasBtcAddress ? 1 : 0) + (hasSpAddress ? 1 : 0);
 
   // Open the dropdown whenever we have any suggestion or a non-empty query.
   useEffect(() => {
@@ -765,14 +816,14 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
       setOpen(false);
       return;
     }
-    if (hasIdentifier || hasBtcAddress || profileCount > 0 || isFetching) {
+    if (hasIdentifier || hasBtcAddress || hasSpAddress || profileCount > 0 || isFetching) {
       setOpen(true);
     }
-  }, [trimmed, hasIdentifier, hasBtcAddress, profileCount, isFetching]);
+  }, [trimmed, hasIdentifier, hasBtcAddress, hasSpAddress, profileCount, isFetching]);
 
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [profiles, identifierMatch, looksLikeBtcAddress]);
+  }, [profiles, identifierMatch, looksLikeBtcAddress, looksLikeSpAddress]);
 
   // Close on outside click
   useEffect(() => {
@@ -790,6 +841,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     if (!address) return;
     onChange({
       address,
+      kind: 'onchain',
       pubkey: profile.pubkey,
       profile,
       raw: query,
@@ -803,14 +855,21 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     if (!isNostrId(pubkey)) return;
     const address = nostrPubkeyToBitcoinAddress(pubkey);
     if (!address) return;
-    onChange({ address, pubkey, raw });
+    onChange({ address, kind: 'onchain', pubkey, raw });
     setQuery('');
     setOpen(false);
     inputRef.current?.blur();
   }, [onChange]);
 
   const selectBtcAddress = useCallback((address: string) => {
-    onChange({ address, raw: address });
+    onChange({ address, kind: 'onchain', raw: address });
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
+  const selectSpAddress = useCallback((address: string) => {
+    onChange({ address, kind: 'sp', raw: address });
     setQuery('');
     setOpen(false);
     inputRef.current?.blur();
@@ -835,6 +894,12 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
       return;
     }
 
+    // BIP-352 silent payment address → resolve immediately.
+    if (looksLikeSilentPaymentAddress(candidate) && validateSilentPaymentAddress(candidate)) {
+      selectSpAddress(candidate);
+      return;
+    }
+
     // Anything else (npub/nprofile/nip05/hex, with or without `nostr:` prefix)
     // gets fed into the query so the existing identifier-detection + dropdown
     // logic picks it up. The user taps the resulting row to confirm.
@@ -847,10 +912,10 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
 
     toast({
       title: "Couldn't read that QR code",
-      description: 'Expected a Bitcoin address or a Nostr identifier (npub, nprofile, NIP-05).',
+      description: 'Expected a Bitcoin address, a silent payment address (sp1…), or a Nostr identifier (npub, nprofile, NIP-05).',
       variant: 'destructive',
     });
-  }, [selectBtcAddress, toast]);
+  }, [selectBtcAddress, selectSpAddress, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -863,7 +928,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        // Order: [identifier?, ...profiles, btcAddress?]
+        // Order: [identifier?, ...profiles, btcAddress?, spAddress?]
         let idx = selectedIndex;
         if (hasIdentifier) {
           if (idx === 0) {
@@ -882,6 +947,11 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
         idx -= profileCount;
         if (hasBtcAddress && idx === 0) {
           selectBtcAddress(trimmed);
+          return;
+        }
+        if (hasBtcAddress) idx -= 1;
+        if (hasSpAddress && idx === 0) {
+          selectSpAddress(trimmed);
           return;
         }
       }
@@ -917,7 +987,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => { if (trimmed.length > 0) setOpen(true); }}
         onKeyDown={handleKeyDown}
-        placeholder="Search people, paste npub, or enter a Bitcoin address"
+        placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
@@ -967,8 +1037,15 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
             {hasBtcAddress && (
               <BtcAddressRow
                 address={trimmed}
-                isSelected={selectedIndex === totalItems - 1}
+                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
                 onClick={selectBtcAddress}
+              />
+            )}
+            {hasSpAddress && (
+              <SpAddressRow
+                address={trimmed}
+                isSelected={selectedIndex === totalItems - 1}
+                onClick={selectSpAddress}
               />
             )}
           </div>
@@ -979,7 +1056,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
       {open && trimmed.length > 0 && !isFetching && totalItems === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
-            No matches. Paste an npub or a Bitcoin address.
+            No matches. Paste an npub, a Bitcoin address, or a silent payment address.
           </div>
         </div>
       )}
@@ -996,7 +1073,7 @@ function SelectedRecipientChip({
   value: ResolvedRecipient;
   onClear: () => void;
 }) {
-  const { pubkey, profile, address } = value;
+  const { pubkey, profile, address, kind } = value;
   // Author lookup only when we have a pubkey but no inline profile.
   const author = useAuthor(profile ? undefined : pubkey);
   const metadata = profile?.metadata ?? author.data?.metadata;
@@ -1004,7 +1081,9 @@ function SelectedRecipientChip({
 
   const displayName = pubkey
     ? metadata?.name || metadata?.display_name || genUserName(pubkey)
-    : 'Bitcoin address';
+    : kind === 'sp'
+      ? 'Silent payment address'
+      : 'Bitcoin address';
 
   const subtitle = pubkey
     ? metadata?.nip05 ?? nip19.npubEncode(pubkey)
@@ -1019,6 +1098,10 @@ function SelectedRecipientChip({
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
         </Avatar>
+      ) : kind === 'sp' ? (
+        <div className="size-9 shrink-0 rounded-full bg-violet-500/10 flex items-center justify-center">
+          <EyeOff className="size-4 text-violet-500" />
+        </div>
       ) : (
         <div className="size-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center">
           <Bitcoin className="size-4 text-orange-500" />
@@ -1232,6 +1315,49 @@ function BtcAddressRow({
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm truncate">Send to Bitcoin address</div>
+        <div className="text-xs text-muted-foreground truncate font-mono">
+          {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Silent payment address (sp1…) dropdown row ────────────────
+
+/**
+ * Dropdown row for BIP-352 silent payment addresses. We give it a distinct
+ * label and icon (privacy eye-off) so the user can tell at a glance that
+ * this is a static, unlinkable address rather than a regular Bitcoin
+ * scriptPubKey — the privacy story is materially different.
+ */
+function SpAddressRow({
+  address,
+  isSelected,
+  onClick,
+}: {
+  address: string;
+  isSelected: boolean;
+  onClick: (address: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-recipient-item
+      role="option"
+      aria-selected={isSelected}
+      onClick={() => onClick(address)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+    >
+      <div className="size-9 shrink-0 rounded-full bg-violet-500/10 flex items-center justify-center">
+        <EyeOff className="size-4 text-violet-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate">Send to silent payment address</div>
         <div className="text-xs text-muted-foreground truncate font-mono">
           {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
         </div>
