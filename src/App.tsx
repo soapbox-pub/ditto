@@ -64,7 +64,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeArticles: true,
     showArticles: true,
     showHighlights: true,
-    feedIncludeHighlights: false,
+    feedIncludeHighlights: true,
     showEvents: true,
     feedIncludeEvents: true,
     showVines: true,
