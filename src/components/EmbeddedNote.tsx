@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, Highlighter, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Zap } from 'lucide-react';
+import { Award, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
@@ -165,7 +165,7 @@ function EmbeddedHighlightCard({
       disableHoverCards={disableHoverCards}
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        <Highlighter className="size-3" />
+        <Quote className="size-3" />
         Highlight
       </div>
       {hasText ? (

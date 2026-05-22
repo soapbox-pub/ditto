@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -917,7 +917,7 @@ function HighlightNotification({ item, isNew }: { item: NotificationItem; isNew:
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<Highlighter className="size-4 text-primary" />}
+          icon={<Quote className="size-4 text-primary" />}
           action={`highlighted your ${noun}`}
         />
       </div>
@@ -937,7 +937,7 @@ function HighlightNotificationGroup({ group }: { group: GroupedNotificationItem 
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
         actors={group.actors}
-        icon={<Highlighter className="size-4 text-primary" />}
+        icon={<Quote className="size-4 text-primary" />}
         action={`highlighted your ${noun}`}
       />
       {first && <HighlightExcerpt event={first.event} />}

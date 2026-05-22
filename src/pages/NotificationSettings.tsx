@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@unhead/react';
-import { Bell, BellOff, AlertTriangle, Heart, Highlighter, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -78,7 +78,7 @@ const NOTIFICATION_TYPES: NotificationTypeRow[] = [
     label: 'Highlights',
     kinds: [9802],
     description: 'When someone highlights your content',
-    icon: <Highlighter className="size-5" />,
+    icon: <Quote className="size-5" />,
   },
 ];
 

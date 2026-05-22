@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, Highlighter, Mail, MapPin, MessageSquare, Mic, Music,
-  Package, Palette, PartyPopper, Podcast, Radio, Rocket, SmilePlus, Sparkles,
+  GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
+  Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -221,7 +221,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   39089: PartyPopper,
   3367: Palette,
   9735: Zap,
-  9802: Highlighter,
+  9802: Quote,
   8333: Zap,
   31124: Egg,
   2473: Bird,
@@ -666,6 +666,13 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return <ZapCommentContext event={event} className={className} />;
   }
 
+  // Kind 9802 highlights: attribute the highlight to its author
+  // ("Commenting on @Sebastix's highlight") instead of the generic
+  // "Commenting on a highlight" fallback.
+  if (event?.kind === 9802) {
+    return <HighlightCommentContext event={event} className={className} />;
+  }
+
   const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
@@ -785,6 +792,48 @@ function ZapCommentContext({ event, className }: { event: NostrEvent; className?
           )}
         </>
       )}
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for kind 9802 NIP-84 highlight roots — shows
+ * "Commenting on @{name}'s highlight". Names the highlight's author so a
+ * thread on a highlight reads coherently, and gives the highlight noun a
+ * hover-card preview of the excerpt (via EmbeddedNote → EmbeddedHighlightCard).
+ */
+function HighlightCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const highlightLink = getRootLink(event);
+  const profileLink = `/${nip19.npubEncode(event.pubkey)}`;
+
+  const hoverContent = (
+    <EmbeddedNote
+      eventId={event.id}
+      authorHint={event.pubkey}
+      className="border-0 rounded-none"
+      disableHoverCards
+    />
+  );
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+      <ProfileHoverCard pubkey={event.pubkey} asChild>
+        <Link
+          to={profileLink}
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @{displayName}'s
+        </Link>
+      </ProfileHoverCard>
+      <EventHoverLink
+        display={{ text: 'highlight' }}
+        link={highlightLink}
+        hoverContent={hoverContent}
+      />
     </CommentContextRow>
   );
 }
