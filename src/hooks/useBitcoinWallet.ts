@@ -38,8 +38,12 @@ export function useBitcoinWallet() {
   const { data: btcPrice } = useQuery({
     queryKey: ['btc-price', esploraApis],
     queryFn: ({ signal }) => fetchBtcPrice(esploraApis, signal),
+    // Mempool.space refreshes its price feed roughly once a minute; there's
+    // no reason to refetch faster than that, and treating the value as fresh
+    // for the same window stops us from firing off a new request every time
+    // the wallet page mounts.
     refetchInterval: 60_000,
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const {

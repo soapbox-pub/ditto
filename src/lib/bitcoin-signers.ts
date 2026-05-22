@@ -14,8 +14,11 @@ import {
   type PsbtV2Input,
 } from '@/lib/psbtV2';
 import {
-  deriveSilentPaymentOutputScript,
+  deriveSilentPaymentOutputs,
+  p2trScriptPubKey,
   type SilentPaymentAddress,
+  type SilentPaymentInput,
+  type SilentPaymentRecipient,
 } from '@/lib/silentPayments';
 
 // ---------------------------------------------------------------------------
@@ -131,7 +134,13 @@ function signBip375PsbtV2Locally(
   // lex-smallest outpoint for `input_hash`).
   const allOutpoints = psbt.inputs.map((i) => ({ txid: i.txid, vout: i.vout }));
 
-  const resolvedOutputs: PsbtV2Output[] = psbt.outputs.map((out) => {
+  // Collect all SP recipients up-front so `deriveSilentPaymentOutputs` can
+  // group them by scan key and assign `k = 0, 1, …` per group. The PSBT-
+  // output order is preserved alongside so we can re-pair derived xonly
+  // keys with the right `PsbtV2Output` after derivation.
+  const spRecipientIndex: number[] = [];
+  const spRecipients: SilentPaymentRecipient[] = [];
+  const resolvedOutputs: PsbtV2Output[] = psbt.outputs.map((out, idx) => {
     if (out.script) {
       return { type: 'script', amount: out.amount, script: out.script };
     }
@@ -147,35 +156,47 @@ function signBip375PsbtV2Locally(
     if (version !== 0) {
       throw new Error(`NSecSignerBtc: silent payment version ${version} is not supported by the local signer.`);
     }
-    const scanPubKey = spInfo.value.slice(1, 34);
-    const spendPubKey = spInfo.value.slice(34, 67);
     const spAddress: SilentPaymentAddress = {
       hrp: 'sp',
       network: 'mainnet',
       version: 0,
-      scanPubKey,
-      spendPubKey,
+      scanPubKey: spInfo.value.slice(1, 34),
+      spendPubKey: spInfo.value.slice(34, 67),
     };
-
-    const xonly = deriveSilentPaymentOutputScript(
-      [
-        {
-          txid: psbt.inputs[0].txid,
-          vout: psbt.inputs[0].vout,
-          privateKey: tweakedPrivKey,
-          isTaproot: true,
-        },
-      ],
-      spAddress,
-      { allOutpoints, k: 0 },
-    );
-    // BIP-341 output script: OP_1 (0x51) push32 (0x20) <xonly>
-    const script = new Uint8Array(34);
-    script[0] = 0x51;
-    script[1] = 0x20;
-    script.set(xonly, 2);
-    return { type: 'script', amount: out.amount, script };
+    spRecipientIndex.push(idx);
+    spRecipients.push({ address: spAddress });
+    // Placeholder; filled in after the batch derivation below.
+    return { type: 'script', amount: out.amount, script: new Uint8Array(0) };
   });
+
+  if (spRecipients.length > 0) {
+    const spInput: SilentPaymentInput = {
+      txid: psbt.inputs[0].txid,
+      vout: psbt.inputs[0].vout,
+      privateKey: tweakedPrivKey,
+      isTaproot: true,
+    };
+    const derived = deriveSilentPaymentOutputs([spInput], spRecipients, {
+      allOutpoints,
+      network: 'mainnet',
+    });
+    // `deriveSilentPaymentOutputs` returns outputs grouped by scan key, in
+    // recipient-input order within each group. Walk the result and match
+    // each derived xonly back to its original PSBT output by reference-
+    // equality on the recipient object — that's how we threaded the
+    // PSBT-output index through.
+    for (const out of derived) {
+      const i = spRecipients.indexOf(out.recipient);
+      if (i < 0) throw new Error('NSecSignerBtc: derived SP output has no matching recipient.');
+      const psbtIdx = spRecipientIndex[i];
+      const script = p2trScriptPubKey(out.xOnlyPubKey);
+      resolvedOutputs[psbtIdx] = {
+        type: 'script',
+        amount: psbt.outputs[psbtIdx].amount,
+        script,
+      };
+    }
+  }
 
   // Re-encode as a regular (script-only) PSBT v2 so we can hand it off to
   // the @scure/btc-signer PSBT v0 signing path. We emit v2 → convert to v0
