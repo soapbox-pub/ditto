@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import { CalendarClock, Check, Copy, ExternalLink, HandHeart, MapPin, ShieldCheck, Target } from 'lucide-react';
+import { CalendarClock, Check, Copy, ExternalLink, HandHeart, MapPin, ShieldCheck, Target, Zap } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
+import { ZapDialog } from '@/components/ZapDialog';
+import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
 import {
   formatCampaignDeadline,
@@ -186,7 +189,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
       {/* Expanded view: donate button + full markdown story */}
       {expanded && (
         <>
-          <DonateButton wallets={campaign.wallets} title={campaign.title} />
+          <DonateButton event={event} wallets={campaign.wallets} title={campaign.title} />
 
           {campaign.story.trim() && (
             <div className="pt-2">
@@ -227,29 +230,44 @@ function buildBip21(wallets: CampaignWallets): string {
 }
 
 interface DonateButtonProps {
+  /** The raw kind 33863 event — handed to ZapDialog when the user opts
+   *  into the in-app Zap flow. */
+  event: NostrEvent;
   wallets: CampaignWallets;
   title: string;
 }
 
 /**
  * Donate button + dialog rendered on the campaign's detail page. The
- * dialog shows a single BIP-21 QR plus exactly one copyable URI that
- * matches the QR byte-for-byte, and an "Open in Wallet" button that
- * hands the URI to {@link openUrl} (Capacitor `Share` on native;
- * `window.open` on web — the latter triggers the registered `bitcoin:`
- * URL handler if one is installed, e.g. a desktop wallet).
+ * dialog offers three paths in order of friction:
+ *
+ * 1. **Zap** — opens {@link ZapDialog} for the campaign event, routing the
+ *    send through Ditto's built-in PSBT wallet to the campaign's `w`
+ *    endpoint and publishing a kind 8333 receipt (on-chain only; SP
+ *    donations publish no Nostr event per spec). Hidden when the user
+ *    has no PSBT-capable signer, since they have nothing to sign with.
+ * 2. **Open native wallet** — hands the BIP-21 URI to {@link openUrl}
+ *    (Capacitor `Share` on native; `window.open` on web — the latter
+ *    triggers the registered `bitcoin:` URL handler if one is installed,
+ *    e.g. a desktop wallet).
+ * 3. **QR + copyable URI** — for users scanning from a separate device
+ *    or pasting into an external wallet.
  *
  * There is intentionally **one** URI and **one** input. The combined
  * BIP-21 form transparently handles all wallet modes (legacy wallets
  * read the on-chain address; BIP-352-aware wallets pick up the `?sp=`
  * extension), so splitting it into per-rail rows would only add noise.
  */
-function DonateButton({ wallets, title }: DonateButtonProps) {
+function DonateButton({ event, wallets, title }: DonateButtonProps) {
   const bip21 = useMemo(() => buildBip21(wallets), [wallets]);
   const { toast } = useToast();
+  const { user } = useCurrentUser();
+  const { canSignPsbt } = useBitcoinSigner();
   const [copied, setCopied] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
+  const [zapOpen, setZapOpen] = useState(false);
 
-  const openWallet = useCallback(async () => {
+  const openNativeWallet = useCallback(async () => {
     if (!bip21) return;
     try {
       await openUrl(bip21);
@@ -277,66 +295,101 @@ function DonateButton({ wallets, title }: DonateButtonProps) {
     }
   }, [bip21, toast]);
 
+  // The in-app Zap button only makes sense when the user is logged in
+  // and has a PSBT-capable signer. Without one, the parent dialog's
+  // QR + Open-native-wallet path is the only way to donate from Ditto.
+  const showZapButton = !!user && canSignPsbt;
+
+  const handleZapClick = useCallback(() => {
+    setDonateOpen(false);
+    // Defer opening the ZapDialog by a frame so the donate dialog's
+    // close animation can start; otherwise the two dialogs briefly stack.
+    requestAnimationFrame(() => setZapOpen(true));
+  }, []);
+
   if (!bip21) return null;
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" size="lg" className="w-full">
-          <HandHeart className="size-4" />
-          Donate
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Donate to {title}</DialogTitle>
-          <DialogDescription>
-            Scan with a Bitcoin wallet, open it directly, or copy the address.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={donateOpen} onOpenChange={setDonateOpen}>
+        <DialogTrigger asChild>
+          <Button type="button" size="lg" className="w-full">
+            <HandHeart className="size-4" />
+            Donate
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Donate to {title}</DialogTitle>
+            <DialogDescription>
+              {showZapButton
+                ? 'Zap from Ditto, open in a native wallet, or scan the QR.'
+                : 'Open in a native wallet or scan the QR.'}
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* QR */}
-        <div className="flex justify-center min-w-0">
-          <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
-            <QRCodeCanvas value={bip21} size={240} level="M" className="block" />
-          </div>
-        </div>
-
-        {/* Single copyable input — exactly matches the QR contents.
-            min-w-0 on the button (a grid child of DialogContent) lets
-            the truncating span inside actually shrink; without it the
-            long bip21 string blows the dialog out to the right. */}
-        <button
-          type="button"
-          onClick={copy}
-          className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label="Copy payment address"
-        >
-          <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>
-          {copied ? (
-            <Check className="size-4 shrink-0 text-primary" />
-          ) : (
-            <Copy className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+          {showZapButton && (
+            <Button type="button" onClick={handleZapClick} className="w-full" size="lg">
+              <Zap className="size-4" />
+              Zap
+            </Button>
           )}
-        </button>
 
-        {/* Action */}
-        <Button type="button" onClick={openWallet} className="w-full" size="lg">
-          <ExternalLink className="size-4" />
-          Open in Wallet
-        </Button>
+          <Button
+            type="button"
+            onClick={openNativeWallet}
+            variant={showZapButton ? 'outline' : 'default'}
+            className="w-full"
+            size="lg"
+          >
+            <ExternalLink className="size-4" />
+            Open native wallet
+          </Button>
 
-        {wallets.sp && (
-          <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck className="size-3.5 shrink-0 mt-0.5" />
-            <p>
-              Silent-payment donations are unlinkable by design and are not reflected in any
-              public donation total.
-            </p>
+          {/* QR */}
+          <div className="flex justify-center min-w-0">
+            <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
+              <QRCodeCanvas value={bip21} size={240} level="M" className="block" />
+            </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          {/* Single copyable input — exactly matches the QR contents.
+              min-w-0 on the button (a grid child of DialogContent) lets
+              the truncating span inside actually shrink; without it the
+              long bip21 string blows the dialog out to the right. */}
+          <button
+            type="button"
+            onClick={copy}
+            className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label="Copy payment address"
+          >
+            <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>
+            {copied ? (
+              <Check className="size-4 shrink-0 text-primary" />
+            ) : (
+              <Copy className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+            )}
+          </button>
+
+          {wallets.sp && (
+            <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <ShieldCheck className="size-3.5 shrink-0 mt-0.5" />
+              <p>
+                Silent-payment donations are unlinkable by design and are not reflected in any
+                public donation total.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Controlled ZapDialog. ZapDialog detects kind 33863 and routes
+          the send through useCampaignZap to the campaign's `w` endpoint.
+          nostrify's NostrEvent and nostr-tools' Event are structurally
+          identical (id, pubkey, kind, content, tags, created_at, sig);
+          we cast to bridge the two type packages. */}
+      <ZapDialog target={event as Parameters<typeof ZapDialog>[0]['target']} open={zapOpen} onOpenChange={setZapOpen} />
+    </>
   );
 }
 

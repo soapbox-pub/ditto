@@ -25,12 +25,14 @@ import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useAppContext } from '@/hooks/useAppContext';
 import { canZap } from '@/lib/canZap';
+import { parseCampaign } from '@/lib/campaign';
 import {
   fetchBtcPrice,
   isLargeAmount,
   satsToUSD,
 } from '@/lib/bitcoin';
 import type { Event } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 import type { WebLNProvider } from '@webbtc/webln-types';
 
 interface ZapDialogProps {
@@ -302,6 +304,14 @@ export function ZapDialog({
   open: controlledOpen,
   onOpenChange,
 }: ZapDialogProps) {
+  // Parse kind 33863 campaigns so this dialog can route donations to the
+  // campaign's declared `w` endpoint instead of the author's derived
+  // Taproot address. Falsy when the target is not a campaign (or is a
+  // malformed one — let the regular flow handle it).
+  const campaign = useMemo(
+    () => (target.kind === 33863 ? parseCampaign(target as NostrEvent) : null),
+    [target],
+  );
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   // Allow the caller to control open state from the outside (used by ZapMenu
   // to open the dialog after its parent popover finishes dismissing).
@@ -503,9 +513,9 @@ export function ZapDialog({
   };
 
   // Zap button shows for any logged-in user except when targeting oneself.
-  // On-chain is always available; Lightning is offered as an in-dialog option
-  // when the author has a Lightning address.
-  const canOpenZap = !!user && user.pubkey !== target.pubkey;
+  // Campaigns bypass the self-check: a creator donating to their own
+  // campaign is legitimate.
+  const canOpenZap = !!user && (!!campaign || user.pubkey !== target.pubkey);
 
   if (!canOpenZap) {
     // Uncontrolled callers wrap a trigger node; render it bare so the icon
@@ -528,10 +538,12 @@ export function ZapDialog({
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
             {success
               ? 'Success'
-              : invoice
-                ? 'Lightning Payment'
-                : 'Send Bitcoin'}{' '}
-            {!success && (
+              : campaign
+                ? `Donate to ${campaign.title}`
+                : invoice
+                  ? 'Lightning Payment'
+                  : 'Send Bitcoin'}{' '}
+            {!success && !campaign && (
               <HelpTip
                 faqId={
                   invoice || activeTab === 'lightning'
@@ -552,12 +564,13 @@ export function ZapDialog({
           {success ? (
             <ZapSuccessScreen
               recipientPubkey={target.pubkey}
+              recipientLabel={campaign?.title}
               amountSats={success.amountSats}
               btcPrice={btcPrice}
               txid={success.kind === 'onchain' ? success.txid : undefined}
               onClose={() => setOpen(false)}
             />
-          ) : hasLightning ? (
+          ) : !campaign && hasLightning ? (
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'onchain' | 'lightning')} className="w-full">
               <div className="px-4 pt-2">
                 <TabsList className="grid w-full grid-cols-2 h-9">
@@ -583,8 +596,14 @@ export function ZapDialog({
               </TabsContent>
             </Tabs>
           ) : (
+            // Campaign donations (kind 33863) and authors with no Lightning
+            // address share the same single-pane on-chain UI. Campaigns
+            // route the send through the campaign's `w` endpoint via the
+            // `campaign` prop; profile zaps fall back to the derived
+            // Taproot address of the target author.
             <OnchainZapContent
               target={target}
+              campaign={campaign ?? undefined}
               onSuccess={({ txid, amountSats }) =>
                 setSuccess({ kind: 'onchain', amountSats, txid })
               }
