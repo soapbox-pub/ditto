@@ -44,6 +44,7 @@ export function TestApp({ children }: TestAppProps) {
       showArticles: false,
       showHighlights: false,
       feedIncludeHighlights: false,
+      feedIncludeCampaigns: false,
       showEvents: false,
       feedIncludeEvents: false,
       showVines: true,

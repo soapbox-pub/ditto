@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, Mail, MapPin, MessageSquare, Mic, Music,
+  GitBranch, GitPullRequest, HandHeart, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
@@ -173,6 +173,7 @@ const KIND_LABELS: Record<number, string> = {
   9802: 'a highlight',
   8333: 'a zap',
   31124: 'a Blobbi',
+  33863: 'a fundraiser',
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
@@ -227,6 +228,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  33863: HandHeart,
 };
 
 /**
@@ -490,6 +492,13 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
   // Kind 3 follow lists have no title of their own — synthesize one from the author's name
   if (root.addr?.kind === 3) {
     return <FollowListCommentContext pubkey={root.addr.pubkey} className={className} />;
+  }
+
+  // Kind 33863 fundraisers: attribute to the campaign owner so the row
+  // reads "Commenting on @Alice's fundraiser" instead of falling
+  // through to the generic title path.
+  if (root.addr?.kind === 33863) {
+    return <CampaignCommentContext root={root} className={className} />;
   }
 
   return <GenericAddrCommentContext root={root} className={className} />;
@@ -834,6 +843,71 @@ function HighlightCommentContext({ event, className }: { event: NostrEvent; clas
         link={highlightLink}
         hoverContent={hoverContent}
       />
+    </CommentContextRow>
+  );
+}
+
+/**
+ * Comment context for kind 33863 Fundraiser/Campaign roots — shows
+ * "Commenting on @{name}'s fundraiser". Names the campaign owner so a
+ * thread on a fundraiser reads coherently, and gives the fundraiser
+ * noun a hover-card preview of the campaign (via EmbeddedNaddr →
+ * EmbeddedCampaignCard).
+ */
+function CampaignCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const pubkey = root.addr?.pubkey ?? '';
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, pubkey);
+  const profileLink = useMemo(() => {
+    if (!pubkey) return undefined;
+    try { return `/${nip19.npubEncode(pubkey)}`; } catch { return undefined; }
+  }, [pubkey]);
+
+  // Build naddr link for the campaign itself.
+  const campaignLink = useMemo(() => {
+    if (!root.addr) return undefined;
+    try {
+      return `/${nip19.naddrEncode({ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier })}`;
+    } catch {
+      return undefined;
+    }
+  }, [root.addr]);
+
+  const hoverContent = root.addr ? (
+    <EmbeddedNaddr
+      addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      className="border-0 rounded-none"
+    />
+  ) : undefined;
+
+  return (
+    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+      {profileLink ? (
+        <ProfileHoverCard pubkey={pubkey} asChild>
+          <Link
+            to={profileLink}
+            className="text-primary hover:underline truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            @{displayName}'s
+          </Link>
+        </ProfileHoverCard>
+      ) : (
+        <span className="truncate">@{displayName}'s</span>
+      )}
+      {campaignLink && hoverContent ? (
+        <EventHoverLink
+          display={{ text: 'fundraiser', icon: HandHeart }}
+          link={campaignLink}
+          hoverContent={hoverContent}
+        />
+      ) : (
+        <span className="inline-flex items-center gap-1 truncate">
+          <HandHeart className="size-3.5 shrink-0" />
+          fundraiser
+        </span>
+      )}
     </CommentContextRow>
   );
 }

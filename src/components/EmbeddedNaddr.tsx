@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, Image, MessageSquareOff } from 'lucide-react';
+import { Award, HandHeart, Image, MessageSquareOff } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -24,6 +24,8 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
+import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
@@ -125,6 +127,15 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNadd
   // Blobbi state events render the pet visual inline
   if (event.kind === 31124) {
     return <EmbeddedBlobbiCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 33863 Fundraiser/Campaign — compact card with banner + title +
+  // summary + "Fundraiser" badge so quote embeds read at a glance.
+  // Falling through to the generic naddr card would still work (it
+  // picks up title/summary), but we want the banner and the campaign
+  // pill prominent.
+  if (event.kind === CAMPAIGN_KIND) {
+    return <EmbeddedCampaignCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // People-list events (kind 30000 follow sets, 39089 follow packs) get a
@@ -466,6 +477,75 @@ function EmbeddedBlobbiCard({ event, className, disableHoverCards }: { event: No
       <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
         <BlobbiStateCard event={event} />
       </Suspense>
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 33863 Fundraiser/Campaign events.
+ *
+ * Quote embeds get banner + "Fundraiser" pill + title + summary so the
+ * card reads at a glance. Malformed campaigns (missing `d` / `title` /
+ * valid `w`) fall through to the generic {@link EmbeddedNaddrCard},
+ * which still does something useful with the NIP-31 `alt` tag.
+ */
+function EmbeddedCampaignCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const campaign = useMemo(() => parseCampaign(event), [event]);
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  if (!campaign) {
+    return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  const banner = sanitizeUrl(campaign.banner);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={campaign.pubkey}
+      createdAt={campaign.createdAt}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="relative w-full overflow-hidden rounded-lg aspect-[16/9] bg-gradient-to-br from-primary/15 via-primary/5 to-secondary">
+        {banner ? (
+          <img
+            src={banner}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 size-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <HandHeart className="size-10 text-primary/40" />
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <HandHeart className="size-3" />
+        Fundraiser
+      </div>
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        {campaign.title}
+      </p>
+      {campaign.summary && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {campaign.summary}
+        </p>
+      )}
     </EmbeddedCardShell>
   );
 }

@@ -8,6 +8,7 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
+  HandHeart,
   ListMusic,
   Mail,
   MessageCircle,
@@ -69,6 +70,7 @@ import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -491,6 +493,7 @@ export const NoteCard = memo(function NoteCard({
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isHighlight = event.kind === 9802;
+  const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
   // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
@@ -543,6 +546,7 @@ export const NoteCard = memo(function NoteCard({
     !isEncryptedDM &&
     !isLetter &&
     !isHighlight &&
+    !isCampaign &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -760,6 +764,8 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedLetterContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isCampaign ? (
+          <CampaignContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
@@ -2196,6 +2202,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  33863: {
+    icon: HandHeart,
+    action: (event) => publishedAtAction(event, { created: "started a", updated: "updated their", fallback: "shared a" }),
+    noun: "fundraiser",
   },
   8333: {
     icon: Zap,
