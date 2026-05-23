@@ -3,6 +3,14 @@ import { CalendarClock, Check, Copy, ExternalLink, HandHeart, MapPin, ShieldChec
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
@@ -37,9 +45,9 @@ interface CampaignContentProps {
  * - **Feed card** (default) — banner, "Fundraiser" pill, title, summary,
  *   optional goal bar, and country / deadline meta. Donation widgets
  *   live on the expanded view; the feed card is a navigation target.
- * - **Expanded** (`expanded`) — same header plus a BIP-21 QR code and an
- *   "Open in Wallet" button that hands the URI off to the OS (or
- *   `window.open` on the web), followed by the markdown story.
+ * - **Expanded** (`expanded`) — same header plus a "Donate" button that
+ *   opens a dialog with the BIP-21 QR and a single copyable URI, and
+ *   the campaign's markdown story rendered below.
  *
  * Malformed events (missing `d`, blank `title`, no valid `w` wallet)
  * fail parse and render `null`, letting the feed quietly skip them.
@@ -175,10 +183,10 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
         )}
       </div>
 
-      {/* Expanded view: donate panel + full markdown story */}
+      {/* Expanded view: donate button + full markdown story */}
       {expanded && (
         <>
-          <DonatePanel wallets={campaign.wallets} title={campaign.title} />
+          <DonateButton wallets={campaign.wallets} title={campaign.title} />
 
           {campaign.story.trim() && (
             <div className="pt-2">
@@ -218,26 +226,28 @@ function buildBip21(wallets: CampaignWallets): string {
   return '';
 }
 
-interface DonatePanelProps {
+interface DonateButtonProps {
   wallets: CampaignWallets;
   title: string;
 }
 
 /**
- * Donate panel rendered on the campaign's detail page. Shows a BIP-21
- * QR plus an "Open in Wallet" button that hands the URI to the OS via
- * {@link openUrl} (Capacitor `Share` on native; `window.open` on web —
- * the latter triggers the registered `bitcoin:` URL handler if one is
- * installed, e.g. a desktop wallet).
+ * Donate button + dialog rendered on the campaign's detail page. The
+ * dialog shows a single BIP-21 QR plus exactly one copyable URI that
+ * matches the QR byte-for-byte, and an "Open in Wallet" button that
+ * hands the URI to {@link openUrl} (Capacitor `Share` on native;
+ * `window.open` on web — the latter triggers the registered `bitcoin:`
+ * URL handler if one is installed, e.g. a desktop wallet).
  *
- * Below the action button we surface the raw endpoint strings as copy
- * affordances so donors who prefer one rail over the other can pick
- * explicitly without scanning.
+ * There is intentionally **one** URI and **one** input. The combined
+ * BIP-21 form transparently handles all wallet modes (legacy wallets
+ * read the on-chain address; BIP-352-aware wallets pick up the `?sp=`
+ * extension), so splitting it into per-rail rows would only add noise.
  */
-function DonatePanel({ wallets, title }: DonatePanelProps) {
+function DonateButton({ wallets, title }: DonateButtonProps) {
   const bip21 = useMemo(() => buildBip21(wallets), [wallets]);
   const { toast } = useToast();
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const openWallet = useCallback(async () => {
     if (!bip21) return;
@@ -246,111 +256,84 @@ function DonatePanel({ wallets, title }: DonatePanelProps) {
     } catch {
       toast({
         title: 'Could not open wallet',
-        description: 'Scan the QR code or copy the address below.',
+        description: 'Scan the QR code or copy the address.',
         variant: 'destructive',
       });
     }
   }, [bip21, toast]);
 
-  const copy = useCallback(
-    async (value: string, key: string, label: string) => {
-      try {
-        await navigator.clipboard.writeText(value);
-        setCopied(key);
-        toast({ title: 'Copied', description: `${label} copied to clipboard` });
-        setTimeout(() => setCopied((curr) => (curr === key ? null : curr)), 2000);
-      } catch {
-        toast({
-          title: 'Copy failed',
-          description: 'Please copy manually.',
-          variant: 'destructive',
-        });
-      }
-    },
-    [toast],
-  );
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(bip21);
+      setCopied(true);
+      toast({ title: 'Copied', description: 'Payment address copied to clipboard' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Please copy manually.',
+        variant: 'destructive',
+      });
+    }
+  }, [bip21, toast]);
 
   if (!bip21) return null;
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5 space-y-4">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        <HandHeart className="size-3" />
-        Donate to {title}
-      </div>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="lg" className="w-full">
+          <HandHeart className="size-4" />
+          Donate
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Donate to {title}</DialogTitle>
+          <DialogDescription>
+            Scan with a Bitcoin wallet, open it directly, or copy the address.
+          </DialogDescription>
+        </DialogHeader>
 
-      {/* QR */}
-      <div className="flex justify-center">
-        <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
-          <QRCodeCanvas value={bip21} size={220} level="M" className="block" />
+        {/* QR */}
+        <div className="flex justify-center">
+          <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
+            <QRCodeCanvas value={bip21} size={240} level="M" className="block" />
+          </div>
         </div>
-      </div>
 
-      {/* Action */}
-      <Button type="button" onClick={openWallet} className="w-full" size="lg">
-        <ExternalLink className="size-4" />
-        Open in Wallet
-      </Button>
+        {/* Single copyable input — exactly matches the QR contents. */}
+        <button
+          type="button"
+          onClick={copy}
+          className="group flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label="Copy payment address"
+        >
+          <span className="truncate flex-1 text-foreground">{bip21}</span>
+          {copied ? (
+            <Check className="size-4 shrink-0 text-primary" />
+          ) : (
+            <Copy className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+          )}
+        </button>
 
-      {/* Raw endpoints — copy affordance */}
-      <div className="space-y-1.5">
-        {wallets.onchain && (
-          <CopyableEndpoint
-            label="On-chain"
-            value={wallets.onchain.value}
-            copied={copied === 'onchain'}
-            onCopy={() => copy(wallets.onchain!.value, 'onchain', 'On-chain address')}
-          />
-        )}
+        {/* Action */}
+        <Button type="button" onClick={openWallet} className="w-full" size="lg">
+          <ExternalLink className="size-4" />
+          Open in Wallet
+        </Button>
+
         {wallets.sp && (
-          <CopyableEndpoint
-            label="Silent payment"
-            value={wallets.sp.value}
-            copied={copied === 'sp'}
-            onCopy={() => copy(wallets.sp!.value, 'sp', 'Silent-payment code')}
-          />
+          <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="size-3.5 shrink-0 mt-0.5" />
+            <p>
+              Silent-payment donations are unlinkable by design and are not reflected in any
+              public donation total.
+            </p>
+          </div>
         )}
-      </div>
-
-      {/* Note about SP unlinkability when applicable. */}
-      {wallets.sp && (
-        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5 shrink-0 mt-0.5" />
-          <p>
-            Silent-payment donations are unlinkable by design and are not reflected in any
-            public donation total.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface CopyableEndpointProps {
-  label: string;
-  value: string;
-  copied: boolean;
-  onCopy: () => void;
-}
-
-function CopyableEndpoint({ label, value, copied, onCopy }: CopyableEndpointProps) {
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="group flex w-full items-center gap-2 rounded-lg border border-border/70 bg-secondary/40 px-2.5 py-1.5 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label={`Copy ${label.toLowerCase()} endpoint`}
-    >
-      <span className="text-[10px] uppercase tracking-wide font-sans font-medium text-muted-foreground shrink-0">
-        {label}
-      </span>
-      <span className="truncate flex-1 text-foreground">{value}</span>
-      {copied ? (
-        <Check className="size-3.5 shrink-0 text-primary" />
-      ) : (
-        <Copy className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-      )}
-    </button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
