@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.17.0] - 2026-05-23
+
+Tip a whole follow list in one Bitcoin transaction with "Zap all members" -- one signature, one fee, every member paid. Send Bitcoin to silent-payment (sp1...) addresses for a private, reusable recipient. Scan a QR code from the Send dialog to grab a Bitcoin address or Nostr identifier instantly. Highlights now flow into your home feed alongside posts and articles. And the wallet stays alive when mempool.space rate-limits you -- automatic failover across endpoints, configurable in settings.
+
+### Added
+- "Zap all members" on people-list events -- the lightning button on follow lists, follow sets, and follow packs now opens a small menu with "Zap author" and "Zap all members". The all-members option pays every member in a single Bitcoin transaction with one fee and one signature, splits the USD total evenly per recipient, and shows up in each recipient's notifications as their per-recipient share ("$X and N others") instead of the full batch total
+- Send Bitcoin to silent-payment (BIP-352) addresses -- a reusable single-string `sp1...` recipient that derives a fresh on-chain output for every payment, so your wallet activity isn't trivially linkable on-chain. Works alongside the existing recipient picker for raw addresses and Nostr identities
+- QR scan button in the wallet's Send dialog -- tap the camera icon next to the recipient field to scan an on-chain address, a `bitcoin:` payment URI, or a Nostr identifier (npub, nprofile, nip05, or hex). Bitcoin addresses fill in directly; Nostr identifiers route through the recipient picker for one-tap confirmation
+- Bitcoin APIs editor in Wallet settings -- view, reorder, add, and remove the Esplora endpoints your wallet uses, with a "Restore defaults" button. Removal is blocked when only one endpoint is left
+- "View" action on the post success toast -- after publishing, tap "View" in the toast to jump straight to your new post
+
+### Changed
+- Highlights from highlighting apps now appear in your home feed (Follows, Global, and Communities) and on profile feeds by default, alongside posts and articles. The toggle is still in Feed Settings if you'd rather hide them. Highlights render with a rich link preview of the source URL, a typographic quote icon, and replies to a highlight now read "Commenting on @author's highlight" with a hover preview
+- The wallet automatically fails over between Esplora endpoints (mempool.space → mempool.emzy.de → blockstream.info by default), so a rate-limited or unreachable host no longer freezes balance, fee, address, or zap-verification calls. Failed endpoints cool down with exponential backoff and rejoin rotation as soon as they recover
+- The wallet's Send dialog now shows a privacy warning whenever the recipient is a raw `bc1...` address with no Nostr identity attached -- Bitcoin's public ledger means an on-chain send is traceable forever. Tick "I understand" and tap Send twice to confirm
+
+### Fixed
+- Visiting another user's profile by their raw hex pubkey URL now shows the profile correctly instead of "Please log in to view your profile"
+
 ## [2.16.0] - 2026-05-16
 
 Send Bitcoin straight to anyone on Nostr from a redesigned wallet Send dialog -- start typing a name, pick from the suggestions, set the amount in dollars, and go. Tipping a person now shows up in feeds and notifications as a first-class zap with their avatar and name, the same shape as a note zap. After you send, "View transaction" opens the in-app Bitcoin page instead of bouncing out to mempool.space, so the on-chain zap, the sender, and any comments all stay one tap away.
