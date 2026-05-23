@@ -879,13 +879,32 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     setScannerOpen(false);
 
     // Strip optional `nostr:` / `bitcoin:` URI prefixes. For `bitcoin:` the
-    // BIP-21 payload is `bitcoin:<address>[?params]` — we only care about the
-    // address. Any params (amount, label) are ignored; the user picks the
-    // amount in the dialog.
+    // BIP-21 payload is `bitcoin:<address>[?params]`. We honor the BIP-352
+    // `sp=` parameter (silent payment recipient) when present and valid,
+    // preferring it over the on-chain fallback address. Other params
+    // (`amount`, `label`, `message`, `lightning`, …) are ignored; the user
+    // picks the amount in the dialog.
     const trimmed = scanned.trim();
     let candidate = trimmed;
+    let spParam: string | undefined;
     if (/^bitcoin:/i.test(trimmed)) {
-      candidate = trimmed.slice('bitcoin:'.length).split('?')[0].trim();
+      const payload = trimmed.slice('bitcoin:'.length);
+      const qIdx = payload.indexOf('?');
+      candidate = (qIdx === -1 ? payload : payload.slice(0, qIdx)).trim();
+      if (qIdx !== -1) {
+        // URLSearchParams handles percent-decoding and repeated keys.
+        const params = new URLSearchParams(payload.slice(qIdx + 1));
+        spParam = params.get('sp')?.trim() || undefined;
+      }
+    }
+
+    // BIP-352 silent payment via `bitcoin:…?sp=sp1…` takes priority over the
+    // on-chain fallback. A scanned URI like `bitcoin:bc1q…?sp=sp1q…` means
+    // "send via silent payment if you can; otherwise fall back to bc1q…".
+    // We can, so we do.
+    if (spParam && looksLikeSilentPaymentAddress(spParam) && validateSilentPaymentAddress(spParam)) {
+      selectSpAddress(spParam);
+      return;
     }
 
     // Direct on-chain address → resolve immediately.
