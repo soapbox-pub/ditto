@@ -296,20 +296,23 @@ function DonateButton({ wallets, title }: DonateButtonProps) {
         </DialogHeader>
 
         {/* QR */}
-        <div className="flex justify-center">
+        <div className="flex justify-center min-w-0">
           <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
             <QRCodeCanvas value={bip21} size={240} level="M" className="block" />
           </div>
         </div>
 
-        {/* Single copyable input — exactly matches the QR contents. */}
+        {/* Single copyable input — exactly matches the QR contents.
+            min-w-0 on the button (a grid child of DialogContent) lets
+            the truncating span inside actually shrink; without it the
+            long bip21 string blows the dialog out to the right. */}
         <button
           type="button"
           onClick={copy}
-          className="group flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label="Copy payment address"
         >
-          <span className="truncate flex-1 text-foreground">{bip21}</span>
+          <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>
           {copied ? (
             <Check className="size-4 shrink-0 text-primary" />
           ) : (
