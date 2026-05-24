@@ -241,3 +241,29 @@ export function formatUsdGoal(usd: number): string {
   if (!Number.isFinite(usd) || usd <= 0) return '$0';
   return `$${Math.floor(usd).toLocaleString()}`;
 }
+
+/**
+ * Convert a sats amount to USD using a live BTC/USD price. Returns
+ * `undefined` when the price isn't available — callers should fall
+ * back to the sats representation rather than rendering `$0`.
+ */
+export function satsToUsdNumber(sats: number, btcPrice: number | undefined): number | undefined {
+  if (!btcPrice || !Number.isFinite(btcPrice) || btcPrice <= 0) return undefined;
+  return (sats / 100_000_000) * btcPrice;
+}
+
+/**
+ * Compact "raised" amount for a campaign card. Prefers a USD figure
+ * when a BTC price is available, falling back to a sats label
+ * otherwise. Mirrors Agora's `formatCampaignAmount`.
+ */
+export function formatCampaignRaised(sats: number, btcPrice: number | undefined): string {
+  if (sats <= 0) return '$0';
+  const usd = satsToUsdNumber(sats, btcPrice);
+  if (usd !== undefined) {
+    if (usd >= 1) return `$${Math.round(usd).toLocaleString()}`;
+    // Tiny donations: keep two decimals so a $0.50 tip doesn't read $0.
+    return `$${usd.toFixed(2)}`;
+  }
+  return `${sats.toLocaleString()} sats`;
+}

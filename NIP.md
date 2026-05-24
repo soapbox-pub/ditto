@@ -713,14 +713,20 @@ Clients MUST verify each kind 8333 event on-chain before counting it toward the 
 
 ### Ditto Implementation Notes
 
-Ditto is not a campaign-management app — Agora is the canonical place to author and donate to campaigns. Ditto renders kind 33863 events:
+Ditto is not a campaign-management app — Agora is the canonical place to author campaigns. Ditto renders kind 33863 events:
 
 - in the home feed and profile feeds (toggle: `feedIncludeCampaigns`, default on);
 - on a campaign's `/:nip19` route (its `naddr1…` link) via the standard addressable-event detail page, which renders the markdown story through the same pipeline as NIP-23 articles;
 - as quote-embeds inside other notes, with banner + title + summary;
 - as `Commenting on @{author}'s fundraiser` in NIP-22 comment threads anchored to the campaign coordinate.
 
-Ditto does NOT verify on-chain donation totals, render donation QRs, or publish kind 8333 receipts against campaigns. Aggregate donation UI is intentionally omitted; the campaign card shows the goal as a target with an empty progress bar, and points users to the campaign's naddr page to actually donate. Moderation labels in the `agora.moderation` namespace are not consulted.
+Ditto **does** support donating to a campaign from inside the app:
+
+- The action-bar zap button on a campaign post and the in-dialog **Zap** button route through `useCampaignZap` to send Bitcoin to the campaign's declared `w` endpoint. On-chain donations publish a campaign-mode kind 8333 receipt (with `a` and `K` tags, no `p` tag). Silent-payment donations publish no Nostr event, preserving SP unlinkability.
+- The Donate dialog also exposes a BIP-21 QR + "Open native wallet" path for users without a PSBT-capable signer.
+- The "raised" headline on the campaign card is fetched directly from the on-chain `w` address (cumulative `funded_txo_sum` from the configured Esplora endpoint, default mempool.space). Donations count regardless of whether the donor published a Nostr receipt; the number does not regress when the beneficiary spends from the address. Silent-payment-only campaigns show no aggregate.
+
+Ditto does NOT consult `agora.moderation` labels for surfacing decisions — every parseable kind 33863 event renders.
 
 ---
 

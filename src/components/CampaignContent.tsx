@@ -16,13 +16,16 @@ import { Progress } from '@/components/ui/progress';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { ZapDialog } from '@/components/ZapDialog';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
+import { useCampaignDonations } from '@/hooks/useCampaignDonations';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
 import {
   formatCampaignDeadline,
+  formatCampaignRaised,
   formatUsdGoal,
   getCampaignCountryLabel,
   parseCampaign,
+  satsToUsdNumber,
   type CampaignWallets,
 } from '@/lib/campaign';
 import { openUrl } from '@/lib/downloadFile';
@@ -57,6 +60,9 @@ interface CampaignContentProps {
  */
 export function CampaignContent({ event, expanded = false, className }: CampaignContentProps) {
   const campaign = useMemo(() => parseCampaign(event), [event]);
+  // Hook must run unconditionally; passes `undefined` (and short-circuits)
+  // when the event didn't parse as a valid campaign.
+  const { totalSats: raisedSats, btcPrice } = useCampaignDonations(campaign ?? undefined);
 
   if (!campaign) return null;
 
@@ -144,22 +150,13 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
             )}
           </div>
         ) : (
-          campaign.goalUsd && campaign.goalUsd > 0 && (
-            <div className="space-y-1.5 text-sm">
-              {/* No verified donation total — we render a 0% bar with the
-                  goal as the headline so the campaign still reads like a
-                  campaign. A future enhancement could plug in verified
-                  kind 8333 totals against the campaign's `w` address. */}
-              <Progress value={0} className="h-2" />
-              <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <Target className="size-3.5" />
-                  Goal
-                </span>
-                <span>{formatUsdGoal(campaign.goalUsd)}</span>
-              </div>
-            </div>
-          )
+          (campaign.goalUsd && campaign.goalUsd > 0) || raisedSats > 0 ? (
+            <CampaignProgress
+              raisedSats={raisedSats}
+              goalUsd={campaign.goalUsd}
+              btcPrice={btcPrice}
+            />
+          ) : null
         )}
 
         {/* Meta row */}
@@ -390,6 +387,49 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
           we cast to bridge the two type packages. */}
       <ZapDialog target={event as Parameters<typeof ZapDialog>[0]['target']} open={zapOpen} onOpenChange={setZapOpen} />
     </>
+  );
+}
+
+/**
+ * Headline "raised" amount + optional progress bar against a USD goal.
+ *
+ * Sourced from the campaign's on-chain `w` address total received (see
+ * {@link useCampaignDonations}) — donations count whether or not the
+ * donor publishes a kind 8333 Nostr receipt.
+ */
+function CampaignProgress({
+  raisedSats,
+  goalUsd,
+  btcPrice,
+}: {
+  raisedSats: number;
+  goalUsd?: number;
+  btcPrice: number | undefined;
+}) {
+  const hasGoal = !!goalUsd && goalUsd > 0;
+  const raisedUsd = satsToUsdNumber(raisedSats, btcPrice);
+  const pct = hasGoal && raisedUsd !== undefined
+    ? Math.min(100, Math.round((raisedUsd / goalUsd!) * 100))
+    : 0;
+
+  return (
+    <div className="space-y-1.5 text-sm">
+      {hasGoal && <Progress value={pct} className="h-2" />}
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">
+          {formatCampaignRaised(raisedSats, btcPrice)}
+          {!hasGoal && (
+            <span className="ml-1 font-normal text-muted-foreground">raised</span>
+          )}
+        </span>
+        {hasGoal && (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Target className="size-3.5" />
+            of {formatUsdGoal(goalUsd!)} goal
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
