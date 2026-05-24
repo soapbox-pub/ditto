@@ -328,24 +328,6 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
             </DialogDescription>
           </DialogHeader>
 
-          {showZapButton && (
-            <Button type="button" onClick={handleZapClick} className="w-full" size="lg">
-              <Zap className="size-4" />
-              Zap
-            </Button>
-          )}
-
-          <Button
-            type="button"
-            onClick={openNativeWallet}
-            variant={showZapButton ? 'outline' : 'default'}
-            className="w-full"
-            size="lg"
-          >
-            <ExternalLink className="size-4" />
-            Open native wallet
-          </Button>
-
           {/* QR */}
           <div className="flex justify-center min-w-0">
             <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
@@ -370,6 +352,24 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
               <Copy className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
             )}
           </button>
+
+          {showZapButton && (
+            <Button type="button" onClick={handleZapClick} className="w-full" size="lg">
+              <Zap className="size-4" />
+              Zap
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            onClick={openNativeWallet}
+            variant={showZapButton ? 'outline' : 'default'}
+            className="w-full"
+            size="lg"
+          >
+            <ExternalLink className="size-4" />
+            Open native wallet
+          </Button>
 
           {wallets.sp && (
             <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
