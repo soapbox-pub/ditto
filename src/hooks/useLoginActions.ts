@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import {
   NLogin,
+  type NLoginType,
   type NostrConnectParams,
   type NostrConnectStatus,
   useNostrLogin,
@@ -15,24 +16,34 @@ export { generateNostrConnectParams, generateNostrConnectURI } from '@nostrify/r
 
 export function useLoginActions() {
   const { nostr } = useNostr();
-  const { logins, addLogin, removeLogin } = useNostrLogin();
+  const { logins, addLogin, setLogin, removeLogin } = useNostrLogin();
   const { config } = useAppContext();
+
+  // Add a login and promote it to be the current user. Without the
+  // setLogin call the new login is appended to the end of the array,
+  // leaving the prior account as logins[0] — which is what
+  // useCurrentUser / useLoggedInAccounts treat as the active user.
+  // Promoting here makes "Add another account" actually switch.
+  const addAndActivate = (login: NLoginType) => {
+    addLogin(login);
+    setLogin(login.id);
+  };
 
   return {
     // Login with a Nostr secret key
     nsec(nsec: string): void {
       const login = NLogin.fromNsec(nsec);
-      addLogin(login);
+      addAndActivate(login);
     },
     // Login with a NIP-46 "bunker://" URI
     async bunker(uri: string): Promise<void> {
       const login = await NLogin.fromBunker(uri, nostr);
-      addLogin(login);
+      addAndActivate(login);
     },
     // Login with a NIP-07 browser extension
     async extension(): Promise<void> {
       const login = await NLogin.fromExtension();
-      addLogin(login);
+      addAndActivate(login);
     },
     // Login via nostrconnect:// (client-initiated NIP-46)
     // The client displays a QR code and waits for the remote signer to connect.
@@ -45,7 +56,7 @@ export function useLoginActions() {
       onStatus?: (status: NostrConnectStatus) => void,
     ): Promise<void> {
       const login = await NLogin.fromNostrConnect(params, nostr, { signal, onStatus });
-      addLogin(login);
+      addAndActivate(login);
     },
     // Get the relay URLs for NIP-46 nostrconnect communication
     getRelayUrls(): string[] {
