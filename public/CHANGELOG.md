@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.18.0] - 2026-05-23
+
+Agora Fundraisers now show up across Ditto -- in your feed, on profile pages, as quote embeds, and in comment threads. Open one to see the campaign story, a live "raised of goal" bar pulled straight from Bitcoin, and a Donate button that hands you a QR plus an "Open in Wallet" link, or lets you zap from Ditto's built-in wallet in one tap. The Send dialog's QR scanner also learned BIP-21's `sp=` parameter, so scanning a payment code that offers a silent-payment address will use it automatically.
+
+### Added
+- Agora Fundraisers in your feed and on profiles -- self-authored Bitcoin fundraising campaigns now render wherever Ditto shows Nostr content, including home and profile feeds, quote embeds, and comment threads. The campaign detail page shows the full markdown story, a "raised of goal" progress bar pulled live from the campaign's on-chain address (so donations count even when the donor doesn't publish a receipt), and a Donate button that opens a dialog with a QR code, an "Open in Wallet" link, and a "Zap" option that pays the campaign instantly from your Ditto wallet
+
+### Changed
+- The wallet's QR scanner now honors BIP-21's `sp=` silent-payment parameter -- scanning a `bitcoin:` URI that advertises a silent-payment address uses it automatically, giving you the private, reusable recipient instead of the raw on-chain address
+
 ## [2.17.0] - 2026-05-23
 
 Tip a whole follow list in one Bitcoin transaction with "Zap all members" -- one signature, one fee, every member paid. Send Bitcoin to silent-payment (sp1...) addresses for a private, reusable recipient. Scan a QR code from the Send dialog to grab a Bitcoin address or Nostr identifier instantly. Highlights now flow into your home feed alongside posts and articles. And the wallet stays alive when mempool.space rate-limits you -- automatic failover across endpoints, configurable in settings.
