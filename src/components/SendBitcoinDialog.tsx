@@ -24,6 +24,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
@@ -44,6 +45,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { isNostrId } from '@/lib/nostrId';
 import { notificationSuccess } from '@/lib/haptics';
@@ -188,6 +190,10 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   const feeSpeedUserChanged = useRef(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
 
@@ -485,7 +491,11 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden">
+      <DialogContent
+        ref={dialogContentRef}
+        className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-visible max-h-[95vh] [&>button]:hidden"
+      >
+        <PortalContainerProvider value={portalContainer}>
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
             {success ? 'Success' : 'Send Bitcoin'}
@@ -499,7 +509,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
           </button>
         </div>
 
-        <div className="overflow-y-auto">
+        <div className="overflow-y-auto max-h-[calc(95vh-3rem)]">
           {success ? (
             success.recipientPubkey ? (
               <ZapSuccessScreen
@@ -692,6 +702,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
             </div>
           )}
         </div>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );
@@ -730,8 +741,8 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [scannerOpen, setScannerOpen] = useState(false);
   const { toast } = useToast();
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const popoverContentRef = useRef<HTMLDivElement>(null);
 
   // BIP-21 `bitcoin:` URI handling. If the user pastes one, we route the
   // same way the QR scanner does (sp first, on-chain fallback), but when the
@@ -837,17 +848,6 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   useEffect(() => {
     setSelectedIndex(-1);
   }, [profiles, identifierMatch, hasBtcAddress, hasSpAddress]);
-
-  // Close on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const selectProfile = useCallback((profile: SearchProfile) => {
     const address = nostrPubkeyToBitcoinAddress(profile.pubkey);
@@ -957,7 +957,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
           if (idx === 0) {
             // IdentifierRow handles its own selection via DOM click — the
             // selectedPubkey may need NIP-05 resolution.
-            const items = containerRef.current?.querySelectorAll('[data-recipient-item]');
+            const items = popoverContentRef.current?.querySelectorAll('[data-recipient-item]');
             (items?.[selectedIndex] as HTMLElement | undefined)?.click();
             return;
           }
@@ -1002,45 +1002,65 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
 
   // ── Input + dropdown ───────────────────────────────────────
 
+  // The dropdown is a Radix Popover anchored to the input. It portals into
+  // the Send Bitcoin DialogContent (which is itself overflow-visible) via
+  // PortalContainerProvider so it can extend past the dialog's body while
+  // remaining inside the dialog's RemoveScroll boundary — touch-scroll
+  // inside the results list still works on mobile.
+  const showEmptyState = trimmedRaw.length > 0 && !isFetching && totalItems === 0;
+  const popoverOpen = open && (totalItems > 0 || showEmptyState);
+
   return (
-    <div ref={containerRef} className="relative">
-      <Input
-        ref={inputRef}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => { if (trimmedRaw.length > 0) setOpen(true); }}
-        onKeyDown={handleKeyDown}
-        placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
-        autoComplete="off"
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-autocomplete="list"
-        className="rounded-full pr-11"
-      />
+    <Popover open={popoverOpen} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div className="relative">
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => { if (trimmedRaw.length > 0) setOpen(true); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={popoverOpen}
+            aria-haspopup="listbox"
+            aria-autocomplete="list"
+            className="rounded-full pr-11"
+          />
 
-      <button
-        type="button"
-        onClick={() => setScannerOpen(true)}
-        aria-label="Scan QR code"
-        className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            aria-label="Scan QR code"
+            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Camera className="size-4" />
+          </button>
+
+          <QrScannerDialog
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={handleScan}
+            title="Scan recipient QR"
+          />
+        </div>
+      </PopoverAnchor>
+
+      <PopoverContent
+        ref={popoverContentRef}
+        align="start"
+        sideOffset={6}
+        // Keep typing focus in the input on open/close — Radix's default is
+        // to focus the popover content, which would steal focus from the
+        // input and dismiss the mobile keyboard mid-type.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        style={{ width: 'var(--radix-popover-trigger-width)' }}
+        className="p-0 w-[--radix-popover-trigger-width] rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
       >
-        <Camera className="size-4" />
-      </button>
-
-      <QrScannerDialog
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleScan}
-        title="Scan recipient QR"
-      />
-
-      {open && totalItems > 0 && (
-        <div
-          role="listbox"
-          className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
-        >
-          <div className="max-h-[280px] overflow-y-auto py-1">
+        {totalItems > 0 ? (
+          <div role="listbox" className="max-h-[280px] overflow-y-auto py-1">
             {hasIdentifier && (
               <IdentifierRow
                 match={identifierMatch!}
@@ -1072,18 +1092,13 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
               />
             )}
           </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {open && trimmedRaw.length > 0 && !isFetching && totalItems === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+        ) : (
           <div className="py-6 text-center text-sm text-muted-foreground">
             No matches. Paste an npub, a Bitcoin address, or a silent payment address.
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
