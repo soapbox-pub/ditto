@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { QrScannerDialog } from '@/components/QrScannerDialog';
@@ -274,28 +273,27 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const isLarge = isLargeAmount(totalSats, btcPrice);
   const [confirmArmed, setConfirmArmed] = useState(false);
 
-  // ── Raw Bitcoin address privacy acknowledgement ─────────────
+  // ── Raw Bitcoin address privacy notice ──────────────────────
   //
   // When the recipient is a raw on-chain address (no Nostr pubkey attached),
   // Bitcoin's public ledger means the send can be linked back to the sender's
-  // wallet forever. Require an explicit checkbox before unlocking the Send
-  // button, and force the two-tap arm regardless of amount.
+  // wallet forever. We show a soft amber notice so the user understands the
+  // trade-off, but don't gate the send on it — the warning is informational.
   //
   // Silent payment recipients (BIP-352) do not have this problem — the
   // on-chain output is derived per-transaction and is indistinguishable
   // from any other P2TR output, so the recipient's identity isn't exposed
-  // on chain. We skip the warning for SP sends.
+  // on chain. We skip the notice for SP sends.
 
   const isRawAddress = !!recipient && !recipient.pubkey && recipient.kind !== 'sp';
-  const [acknowledgedPublic, setAcknowledgedPublic] = useState(false);
 
   useEffect(() => {
     setConfirmArmed(false);
-    setAcknowledgedPublic(false);
   }, [amountSats, currentFeeRate, btcPrice, recipient?.address]);
 
-  // For raw addresses we always require the two-tap arm, not just for large sends.
-  const requiresArm = isLarge || isRawAddress;
+  // The two-tap arm is reserved for large amounts; raw on-chain sends no
+  // longer trigger it on their own.
+  const requiresArm = isLarge;
 
   // ── Big amount focus management ──────────────────────────────
 
@@ -429,11 +427,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     if (!utxos?.length) { setError("You don't have any Bitcoin yet."); return; }
     if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
 
-    if (isRawAddress && !acknowledgedPublic) {
-      setError('Acknowledge the privacy warning before sending.');
-      return;
-    }
-
     if (requiresArm && !confirmArmed) {
       setConfirmArmed(true);
       return;
@@ -444,7 +437,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     } catch {
       // Toast handled in onError; nothing further to do here.
     }
-  }, [user, recipient, btcPrice, amountSats, utxos, insufficient, isRawAddress, acknowledgedPublic, requiresArm, confirmArmed, sendMutation]);
+  }, [user, recipient, btcPrice, amountSats, utxos, insufficient, requiresArm, confirmArmed, sendMutation]);
 
   // ── Reset on close ───────────────────────────────────────────
 
@@ -455,7 +448,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     setFeeSpeed('halfHour');
     setSuccess(null);
     setConfirmArmed(false);
-    setAcknowledgedPublic(false);
     setEditingAmount(false);
     feeSpeedUserChanged.current = false;
     onClose();
@@ -593,45 +585,30 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                 <p className="text-xs text-destructive">{error}</p>
               )}
 
-              {/* Privacy warning for raw Bitcoin addresses */}
+              {/* Privacy notice for raw Bitcoin addresses. Informational
+                  only — we no longer gate the send on an acknowledgement. */}
               {isRawAddress && (
-                <Alert variant="destructive" className="bg-destructive/5">
+                <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
                   <AlertTriangle className="size-4" />
                   <AlertDescription className="text-xs">
-                    <p>
-                      Money you send is public and can be traced back to you.{' '}
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                          >
-                            Learn more
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
-                          Bitcoin is a public ledger. Transactions you send can
-                          be traced back to you forever, even after being
-                          exchanged by multiple people. Send it only to those
-                          you wish to support publicly, or cash out at an
-                          exchange.
-                        </PopoverContent>
-                      </Popover>
-                    </p>
-                    <label className="mt-2 flex items-start gap-2 cursor-pointer select-none">
-                      <Checkbox
-                        checked={acknowledgedPublic}
-                        onCheckedChange={(checked) => {
-                          setAcknowledgedPublic(checked === true);
-                          setError('');
-                          // Re-arming required after toggling the acknowledgement.
-                          setConfirmArmed(false);
-                        }}
-                        className="mt-0.5 border-destructive data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
-                        aria-label="I understand this transaction is public"
-                      />
-                      <span>I understand this transaction is public.</span>
-                    </label>
+                    Money you send is public and can be traced back to you.{' '}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                        >
+                          Learn more
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
+                        Bitcoin is a public ledger. Transactions you send can
+                        be traced back to you forever, even after being
+                        exchanged by multiple people. Send it only to those
+                        you wish to support publicly, or cash out at an
+                        exchange.
+                      </PopoverContent>
+                    </Popover>
                   </AlertDescription>
                 </Alert>
               )}
@@ -645,7 +622,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                   || isPending
                   || insufficient
                   || !recipient
-                  || (isRawAddress && !acknowledgedPublic)
                 }
                 variant={(insufficient || requiresArm) && !isPending ? 'destructive' : 'default'}
                 className="w-full"
