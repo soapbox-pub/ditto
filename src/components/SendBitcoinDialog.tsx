@@ -757,23 +757,30 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // BIP-21 `bitcoin:` URI handling. If the user pastes one, route the same
-  // way the QR scanner does: prefer a valid `sp=` parameter, fall back to the
-  // on-chain address in the path. We expose the resolved candidate as a
-  // single string so the existing on-chain / silent-payment validation paths
-  // below can reuse their checks unchanged.
+  // BIP-21 `bitcoin:` URI handling. If the user pastes one, we route the
+  // same way the QR scanner does (sp first, on-chain fallback), but when the
+  // URI carries *both* a valid on-chain address and a valid `sp=` parameter
+  // we surface both rows so the user can pick the privacy/compatibility
+  // trade-off. A raw bc1…/sp1… input falls through here unchanged: `bip21`
+  // is null and the candidate is just the trimmed query.
   const trimmedRaw = query.trim();
   const bip21 = useMemo(() => parseBitcoinUri(trimmedRaw), [trimmedRaw]);
-  const trimmed = useMemo(() => {
-    if (!bip21) return trimmedRaw;
-    if (
-      bip21.sp
-      && looksLikeSilentPaymentAddress(bip21.sp)
-      && validateSilentPaymentAddress(bip21.sp)
-    ) {
-      return bip21.sp;
-    }
-    return bip21.address;
+
+  const btcCandidate = useMemo(() => {
+    const c = bip21 ? bip21.address : trimmedRaw;
+    if (!c) return '';
+    if (looksLikeSilentPaymentAddress(c)) return ''; // sp addresses live in spCandidate
+    return validateBitcoinAddress(c) ? c : '';
+  }, [bip21, trimmedRaw]);
+
+  const spCandidate = useMemo(() => {
+    // From the URI: prefer `sp=` if valid; otherwise the path may itself be
+    // an sp1 address (rare but legal — `bitcoin:sp1…` is just a URI without
+    // an on-chain fallback).
+    const c = bip21 ? (bip21.sp ?? bip21.address) : trimmedRaw;
+    if (!c) return '';
+    if (!looksLikeSilentPaymentAddress(c)) return '';
+    return validateSilentPaymentAddress(c) ? c : '';
   }, [bip21, trimmedRaw]);
 
   // Suppress profile search when the input already resolves to a Bitcoin
@@ -783,10 +790,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   // the local address-recognition path — flashing a "Send to silent payment
   // address" row that gets flooded out by stragglers a moment later. It also
   // avoids leaking the recipient address to the search relay.
-  const isAddressLike = trimmed.length > 0 && (
-    validateBitcoinAddress(trimmed)
-    || (looksLikeSilentPaymentAddress(trimmed) && validateSilentPaymentAddress(trimmed))
-  );
+  const isAddressLike = !!btcCandidate || !!spCandidate;
   const searchQuery = isAddressLike ? '' : query;
 
   const { data: rawProfiles, isFetching: rawIsFetching, followedPubkeys } = useSearchProfiles(searchQuery);
@@ -812,20 +816,18 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   }, [query]);
 
   // Raw on-chain bitcoin address fallback — only when nothing else matches.
-  const looksLikeBtcAddress = !identifierMatch
-    && trimmed.length > 0
-    && !profiles?.length
-    && !looksLikeSilentPaymentAddress(trimmed)
-    && validateBitcoinAddress(trimmed);
+  const hasBtcAddress = !identifierMatch
+    && !!btcCandidate
+    && !profiles?.length;
 
   // BIP-352 silent payment address fallback — recognised independently of
   // on-chain addresses so the dropdown can show a distinct "Silent payment"
-  // row with the right privacy framing.
-  const looksLikeSpAddress = !identifierMatch
-    && trimmed.length > 0
-    && !profiles?.length
-    && looksLikeSilentPaymentAddress(trimmed)
-    && validateSilentPaymentAddress(trimmed);
+  // row with the right privacy framing. When the input is a BIP-21 URI
+  // carrying both, this and `hasBtcAddress` are both true and the user
+  // picks which payment path to use.
+  const hasSpAddress = !identifierMatch
+    && !!spCandidate
+    && !profiles?.length;
 
   // Deduplicate: if the identifier resolves to a pubkey that's also in the
   // profile results, drop it from the profile list.
@@ -842,25 +844,23 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   }, [profiles, identifierPubkey]);
 
   const hasIdentifier = !!identifierMatch;
-  const hasBtcAddress = !!looksLikeBtcAddress;
-  const hasSpAddress = !!looksLikeSpAddress;
   const profileCount = filteredProfiles.length;
-  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasBtcAddress ? 1 : 0) + (hasSpAddress ? 1 : 0);
+  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasSpAddress ? 1 : 0) + (hasBtcAddress ? 1 : 0);
 
   // Open the dropdown whenever we have any suggestion or a non-empty query.
   useEffect(() => {
-    if (trimmed.length === 0) {
+    if (trimmedRaw.length === 0) {
       setOpen(false);
       return;
     }
     if (hasIdentifier || hasBtcAddress || hasSpAddress || profileCount > 0 || isFetching) {
       setOpen(true);
     }
-  }, [trimmed, hasIdentifier, hasBtcAddress, hasSpAddress, profileCount, isFetching]);
+  }, [trimmedRaw, hasIdentifier, hasBtcAddress, hasSpAddress, profileCount, isFetching]);
 
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [profiles, identifierMatch, looksLikeBtcAddress, looksLikeSpAddress]);
+  }, [profiles, identifierMatch, hasBtcAddress, hasSpAddress]);
 
   // Close on outside click
   useEffect(() => {
@@ -992,13 +992,13 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
           return;
         }
         idx -= profileCount;
-        if (hasBtcAddress && idx === 0) {
-          selectBtcAddress(trimmed);
+        if (hasSpAddress && idx === 0) {
+          selectSpAddress(spCandidate);
           return;
         }
-        if (hasBtcAddress) idx -= 1;
-        if (hasSpAddress && idx === 0) {
-          selectSpAddress(trimmed);
+        if (hasSpAddress) idx -= 1;
+        if (hasBtcAddress && idx === 0) {
+          selectBtcAddress(btcCandidate);
           return;
         }
       }
@@ -1032,7 +1032,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
         ref={inputRef}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => { if (trimmed.length > 0) setOpen(true); }}
+        onFocus={() => { if (trimmedRaw.length > 0) setOpen(true); }}
         onKeyDown={handleKeyDown}
         placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
         autoComplete="off"
@@ -1081,18 +1081,18 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
                 onClick={selectProfile}
               />
             ))}
-            {hasBtcAddress && (
-              <BtcAddressRow
-                address={trimmed}
-                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
-                onClick={selectBtcAddress}
-              />
-            )}
             {hasSpAddress && (
               <SpAddressRow
-                address={trimmed}
-                isSelected={selectedIndex === totalItems - 1}
+                address={spCandidate}
+                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
                 onClick={selectSpAddress}
+              />
+            )}
+            {hasBtcAddress && (
+              <BtcAddressRow
+                address={btcCandidate}
+                isSelected={selectedIndex === totalItems - 1}
+                onClick={selectBtcAddress}
               />
             )}
           </div>
@@ -1100,7 +1100,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
       )}
 
       {/* Empty state */}
-      {open && trimmed.length > 0 && !isFetching && totalItems === 0 && (
+      {open && trimmedRaw.length > 0 && !isFetching && totalItems === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No matches. Paste an npub, a Bitcoin address, or a silent payment address.
