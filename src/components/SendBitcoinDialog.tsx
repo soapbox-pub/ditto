@@ -61,6 +61,7 @@ import {
   satsToUSD,
   isLargeAmount,
   looksLikeSilentPaymentAddress,
+  parseBitcoinUri,
   validateSilentPaymentAddress,
   type FeeRates,
 } from '@/lib/bitcoin';
@@ -773,8 +774,26 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     }
   }, [query]);
 
+  // BIP-21 `bitcoin:` URI handling. If the user pastes one, route the same
+  // way the QR scanner does: prefer a valid `sp=` parameter, fall back to the
+  // on-chain address in the path. We expose the resolved candidate as a
+  // single string so the existing on-chain / silent-payment validation paths
+  // below can reuse their checks unchanged.
+  const trimmedRaw = query.trim();
+  const bip21 = useMemo(() => parseBitcoinUri(trimmedRaw), [trimmedRaw]);
+  const trimmed = useMemo(() => {
+    if (!bip21) return trimmedRaw;
+    if (
+      bip21.sp
+      && looksLikeSilentPaymentAddress(bip21.sp)
+      && validateSilentPaymentAddress(bip21.sp)
+    ) {
+      return bip21.sp;
+    }
+    return bip21.address;
+  }, [bip21, trimmedRaw]);
+
   // Raw on-chain bitcoin address fallback — only when nothing else matches.
-  const trimmed = query.trim();
   const looksLikeBtcAddress = !identifierMatch
     && trimmed.length > 0
     && !profiles?.length
@@ -884,19 +903,10 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     // preferring it over the on-chain fallback address. Other params
     // (`amount`, `label`, `message`, `lightning`, …) are ignored; the user
     // picks the amount in the dialog.
-    const trimmed = scanned.trim();
-    let candidate = trimmed;
-    let spParam: string | undefined;
-    if (/^bitcoin:/i.test(trimmed)) {
-      const payload = trimmed.slice('bitcoin:'.length);
-      const qIdx = payload.indexOf('?');
-      candidate = (qIdx === -1 ? payload : payload.slice(0, qIdx)).trim();
-      if (qIdx !== -1) {
-        // URLSearchParams handles percent-decoding and repeated keys.
-        const params = new URLSearchParams(payload.slice(qIdx + 1));
-        spParam = params.get('sp')?.trim() || undefined;
-      }
-    }
+    const scannedTrimmed = scanned.trim();
+    const bip21 = parseBitcoinUri(scannedTrimmed);
+    const candidate = bip21 ? bip21.address : scannedTrimmed;
+    const spParam = bip21?.sp;
 
     // BIP-352 silent payment via `bitcoin:…?sp=sp1…` takes priority over the
     // on-chain fallback. A scanned URI like `bitcoin:bc1q…?sp=sp1q…` means

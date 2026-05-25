@@ -553,6 +553,48 @@ export function validateBitcoinAddress(address: string): boolean {
 }
 
 /**
+ * Parsed BIP-21 payment URI.
+ *
+ * `address` is the on-chain fallback (the URI's path); `sp` is the BIP-352
+ * silent payment recipient if the URI included a valid `sp=` parameter.
+ * Other BIP-21 parameters (`amount`, `label`, `message`, `lightning`, …)
+ * are not surfaced — the wallet UI lets the user pick the amount, and we
+ * have no lightning support to fall back to.
+ */
+export interface ParsedBitcoinUri {
+  /** On-chain address from the URI path. May be empty for sp-only URIs. */
+  address: string;
+  /** BIP-352 silent payment address from the `sp=` parameter, if present. */
+  sp?: string;
+}
+
+/**
+ * Parse a `bitcoin:` BIP-21 URI without committing to any particular address
+ * format. Returns `null` for anything that isn't `bitcoin:…`.
+ *
+ * The scheme check is case-insensitive (`bitcoin:` and `BITCOIN:` both parse).
+ * Validation of the address/sp values is left to the caller — this helper
+ * just splits the URI into its parts.
+ */
+export function parseBitcoinUri(input: string): ParsedBitcoinUri | null {
+  const trimmed = input.trim();
+  if (!/^bitcoin:/i.test(trimmed)) return null;
+
+  const payload = trimmed.slice('bitcoin:'.length);
+  const qIdx = payload.indexOf('?');
+  const address = (qIdx === -1 ? payload : payload.slice(0, qIdx)).trim();
+
+  let sp: string | undefined;
+  if (qIdx !== -1) {
+    // URLSearchParams handles percent-decoding and repeated keys.
+    const params = new URLSearchParams(payload.slice(qIdx + 1));
+    sp = params.get('sp')?.trim() || undefined;
+  }
+
+  return { address, sp };
+}
+
+/**
  * Broadcast a signed transaction hex to the Bitcoin network via an
  * Esplora-compatible API. Returns the txid.
  *

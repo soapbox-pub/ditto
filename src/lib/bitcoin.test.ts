@@ -11,6 +11,7 @@ import {
   looksLikeSilentPaymentAddress,
   nostrPubkeyToBitcoinAddress,
   npubToBitcoinAddress,
+  parseBitcoinUri,
   validateBitcoinAddress,
   validateSilentPaymentAddress,
   type UTXO,
@@ -138,6 +139,51 @@ describe('validateBitcoinAddress', () => {
     expect(validateBitcoinAddress('not-an-address')).toBe(false);
     // Valid-looking bech32m with broken checksum (flipped last char).
     expect(validateBitcoinAddress('bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z6')).toBe(false);
+  });
+});
+
+describe('parseBitcoinUri', () => {
+  it('returns null for inputs without a bitcoin: scheme', () => {
+    expect(parseBitcoinUri('')).toBeNull();
+    expect(parseBitcoinUri('bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5')).toBeNull();
+    expect(parseBitcoinUri('lightning:lnbc...')).toBeNull();
+  });
+
+  it('extracts the address from a bare bitcoin: URI', () => {
+    expect(parseBitcoinUri('bitcoin:bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5')).toEqual({
+      address: 'bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5',
+      sp: undefined,
+    });
+  });
+
+  it('is case-insensitive on the scheme', () => {
+    expect(parseBitcoinUri('BITCOIN:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')).toEqual({
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      sp: undefined,
+    });
+  });
+
+  it('strips a trailing query string and surfaces the sp parameter', () => {
+    const uri = 'bitcoin:bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5?amount=0.5&label=Tip&sp=sp1qq';
+    expect(parseBitcoinUri(uri)).toEqual({
+      address: 'bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5',
+      sp: 'sp1qq',
+    });
+  });
+
+  it('ignores non-sp parameters', () => {
+    const uri = 'bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.5&label=Tip&message=hi';
+    expect(parseBitcoinUri(uri)).toEqual({
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      sp: undefined,
+    });
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(parseBitcoinUri('  bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2  ')).toEqual({
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      sp: undefined,
+    });
   });
 });
 
