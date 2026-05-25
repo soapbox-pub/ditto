@@ -757,23 +757,6 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
-
-  const identifierMatch = useMemo(() => {
-    const m = detectIdentifier(query);
-    if (!m) return null;
-    // Only pubkey-resolvable identifiers belong in this picker.
-    switch (m.type) {
-      case 'npub':
-      case 'nprofile':
-      case 'nip05':
-      case 'hex':
-        return m;
-      default:
-        return null;
-    }
-  }, [query]);
-
   // BIP-21 `bitcoin:` URI handling. If the user pastes one, route the same
   // way the QR scanner does: prefer a valid `sp=` parameter, fall back to the
   // on-chain address in the path. We expose the resolved candidate as a
@@ -792,6 +775,41 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     }
     return bip21.address;
   }, [bip21, trimmedRaw]);
+
+  // Suppress profile search when the input already resolves to a Bitcoin
+  // address, silent payment address, or `bitcoin:` URI. Without this, the
+  // NIP-50 relay search runs against the URI / address string and the
+  // (usually empty, but sometimes substring-matching) results race against
+  // the local address-recognition path — flashing a "Send to silent payment
+  // address" row that gets flooded out by stragglers a moment later. It also
+  // avoids leaking the recipient address to the search relay.
+  const isAddressLike = trimmed.length > 0 && (
+    validateBitcoinAddress(trimmed)
+    || (looksLikeSilentPaymentAddress(trimmed) && validateSilentPaymentAddress(trimmed))
+  );
+  const searchQuery = isAddressLike ? '' : query;
+
+  const { data: rawProfiles, isFetching: rawIsFetching, followedPubkeys } = useSearchProfiles(searchQuery);
+  // Drop any stale profile data once the input becomes address-like, so the
+  // dropdown doesn't briefly show a "Silent payment" row alongside leftover
+  // search results from a previous query.
+  const profiles = isAddressLike ? undefined : rawProfiles;
+  const isFetching = isAddressLike ? false : rawIsFetching;
+
+  const identifierMatch = useMemo(() => {
+    const m = detectIdentifier(query);
+    if (!m) return null;
+    // Only pubkey-resolvable identifiers belong in this picker.
+    switch (m.type) {
+      case 'npub':
+      case 'nprofile':
+      case 'nip05':
+      case 'hex':
+        return m;
+      default:
+        return null;
+    }
+  }, [query]);
 
   // Raw on-chain bitcoin address fallback — only when nothing else matches.
   const looksLikeBtcAddress = !identifierMatch
