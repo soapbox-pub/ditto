@@ -2,6 +2,8 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { useMutedAuthorFilter } from './useMutedAuthorFilter';
+
 const PAGE_SIZE = 20;
 
 interface WallPage {
@@ -15,14 +17,18 @@ interface WallPage {
  * Wall comments are filtered by the target user's kind 3 follow list — only
  * comments from authors the profile owner follows are shown. If no follow list
  * is available, no comments are returned.
+ *
+ * The current viewer's mute list is also applied at query time so muted
+ * authors never appear on the wall, even if the profile owner follows them.
  */
 export function useWallComments(pubkey: string | undefined, followList: string[] | undefined) {
   const { nostr } = useNostr();
+  const { mutedPubkeys, mutedKey } = useMutedAuthorFilter();
 
   const aTag = pubkey ? `0:${pubkey}:` : '';
 
   return useInfiniteQuery<WallPage, Error>({
-    queryKey: ['wall-comments', pubkey ?? '', followList?.length ?? 0],
+    queryKey: ['wall-comments', pubkey ?? '', followList?.length ?? 0, mutedKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!pubkey || !followList || followList.length === 0) {
         return { comments: [], oldestTimestamp: undefined };
@@ -30,8 +36,14 @@ export function useWallComments(pubkey: string | undefined, followList: string[]
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
-      // Include the profile owner's own pubkey alongside their follow list
-      const authors = followList.includes(pubkey) ? followList : [pubkey, ...followList];
+      // Include the profile owner's own pubkey alongside their follow list.
+      const baseAuthors = followList.includes(pubkey) ? followList : [pubkey, ...followList];
+      // Subtract muted pubkeys (but never the profile owner themselves).
+      const authors = baseAuthors.filter((pk) => pk === pubkey || !mutedPubkeys.has(pk));
+
+      if (authors.length === 0) {
+        return { comments: [], oldestTimestamp: undefined };
+      }
 
       const filter: NostrFilter = {
         kinds: [1111, 1244],

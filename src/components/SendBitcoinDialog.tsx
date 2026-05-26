@@ -1,41 +1,52 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 import {
-  ArrowUpRight,
   AlertTriangle,
+  Bitcoin,
   Check,
-  ChevronLeft,
+  ExternalLink,
   Loader2,
-  Send,
+  UserRoundCheck,
+  X,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { getAvatarShape } from '@/lib/avatarShape';
+import { genUserName } from '@/lib/genUserName';
+import { cn } from '@/lib/utils';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useNip05Resolve } from '@/hooks/useNip05Resolve';
+import { detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
+import { isNostrId } from '@/lib/nostrId';
+import { notificationSuccess } from '@/lib/haptics';
 import {
   nostrPubkeyToBitcoinAddress,
-  npubToBitcoinAddress,
   validateBitcoinAddress,
   fetchUTXOs,
   getFeeRates,
@@ -43,22 +54,71 @@ import {
   finalizePsbt,
   broadcastTransaction,
   estimateFee,
-  maxSendable,
-  btcToSats,
   satsToUSD,
-  formatSats,
-  formatBTC,
   isLargeAmount,
+  type FeeRates,
 } from '@/lib/bitcoin';
-import type { FeeRates, UTXO } from '@/lib/bitcoin';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const USD_PRESETS = [1, 5, 10, 25, 100];
+
+type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy';
+
+const FEE_SPEED_LABELS: Record<FeeSpeed, string> = {
+  fastest: '~10 min',
+  halfHour: '~30 min',
+  hour: '~1 hour',
+  economy: '~1 day',
+};
+
+const FEE_SPEED_ORDER: FeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
+
+function getRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
+  switch (speed) {
+    case 'fastest': return rates.fastestFee;
+    case 'halfHour': return rates.halfHourFee;
+    case 'hour': return rates.hourFee;
+    case 'economy': return rates.economyFee;
+  }
+}
+
+/** Deduplicate fee tiers that share the same sat/vB rate. */
+function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
+  if (!rates) return FEE_SPEED_ORDER;
+  const seen = new Set<number>();
+  const result: FeeSpeed[] = [];
+  for (const speed of FEE_SPEED_ORDER) {
+    const rate = getRateForSpeed(rates, speed);
+    if (!seen.has(rate)) {
+      seen.add(rate);
+      result.push(speed);
+    }
+  }
+  return result;
+}
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy';
-
-type Step = 'form' | 'confirm' | 'success';
+/**
+ * A recipient resolved to send Bitcoin to. Always carries a Bitcoin address.
+ * When `pubkey` is set, the recipient is also a Nostr identity — meaning we
+ * can publish a kind 8333 profile-zap attesting the send.
+ */
+interface ResolvedRecipient {
+  /** P2TR Bitcoin address to send to. */
+  address: string;
+  /** Hex Nostr pubkey, when the recipient is a Nostr user. */
+  pubkey?: string;
+  /** Optional profile metadata for display. */
+  profile?: SearchProfile;
+  /** Raw text the user originally typed (for re-display on backspace). */
+  raw: string;
+}
 
 interface SendBitcoinDialogProps {
   isOpen: boolean;
@@ -67,208 +127,319 @@ interface SendBitcoinDialogProps {
   btcPrice?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const FEE_SPEED_LABELS: Record<FeeSpeed, string> = {
-  fastest: 'Fastest (~10 min)',
-  halfHour: 'Half hour',
-  hour: 'One hour',
-  economy: 'Economy (~1 day)',
-};
-
-function feeRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
-  const map: Record<FeeSpeed, number> = {
-    fastest: rates.fastestFee,
-    halfHour: rates.halfHourFee,
-    hour: rates.hourFee,
-    economy: rates.economyFee,
-  };
-  return map[speed];
-}
-
-/** Resolve a recipient string to a Bitcoin address, or throw. */
-function resolveRecipient(input: string): string {
-  const trimmed = input.trim();
-  if (trimmed.startsWith('npub1')) {
-    return npubToBitcoinAddress(trimmed);
-  }
-  if (validateBitcoinAddress(trimmed)) {
-    return trimmed;
-  }
-  throw new Error('Invalid recipient. Enter an npub or a Bitcoin address (bc1...).');
+interface SendResult {
+  txid: string;
+  amountSats: number;
+  /** Set when the recipient was a Nostr user (kind 8333 published). */
+  recipientPubkey?: string;
+  /** Bitcoin network fee in satoshis. */
+  fee: number;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
+/**
+ * Wallet "Send Bitcoin" dialog. Mirrors the `OnchainZapContent` UX for the
+ * standalone wallet flow:
+ *
+ *  - Single screen, no review step. Big editable USD amount on top, USD preset
+ *    chips below.
+ *  - Recipient picker with profile autocomplete (same lookups as the global
+ *    search bar — profiles only, plus pasted npub/nprofile/nip05/hex), and
+ *    fallback acceptance of a raw Bitcoin address (bc1…).
+ *  - Fee speed shown as a small line below the send button; popover for picking.
+ *  - When the recipient is a Nostr identity, publishes a kind 8333 onchain-zap
+ *    event after broadcast (no `e`/`a` tag → profile-level zap, per NIP.md).
+ */
 export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDialogProps) {
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
+  const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
   const queryClient = useQueryClient();
 
-  // Form state
-  const [recipient, setRecipient] = useState('');
-  const [amount, setAmount] = useState('');
+  // ── Form state ───────────────────────────────────────────────
+  const [recipient, setRecipient] = useState<ResolvedRecipient | null>(null);
+  const [usdAmount, setUsdAmount] = useState<number | string>(5);
   const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>('halfHour');
   const [error, setError] = useState('');
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [feePopoverOpen, setFeePopoverOpen] = useState(false);
+  const [success, setSuccess] = useState<SendResult | null>(null);
 
-  // Multi-step state
-  const [step, setStep] = useState<Step>('form');
-  const [txId, setTxId] = useState('');
-  const [confirmedFee, setConfirmedFee] = useState(0);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const feeSpeedUserChanged = useRef(false);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
 
-  // ── Data fetching ──────────────────────────────────────────────
+  // ── Data fetching ────────────────────────────────────────────
 
-  const { data: utxos, isLoading: isLoadingUtxos } = useQuery({
-    queryKey: ['bitcoin-utxos', senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress),
-    enabled: !!senderAddress && isOpen,
+  const { data: utxos } = useQuery({
+    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
+    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
+    enabled: !!senderAddress && isOpen && canSignPsbt,
     staleTime: 30_000,
   });
 
-  const { data: feeRates, isLoading: isLoadingFees } = useQuery({
-    queryKey: ['bitcoin-fee-rates'],
-    queryFn: getFeeRates,
-    enabled: isOpen,
+  const { data: feeRates } = useQuery({
+    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
+    queryFn: () => getFeeRates(esploraBaseUrl),
+    enabled: isOpen && canSignPsbt,
     staleTime: 30_000,
   });
 
   const totalBalance = useMemo(() => utxos?.reduce((s, u) => s + u.value, 0) ?? 0, [utxos]);
 
-  const currentFeeRate = feeRates ? feeRateForSpeed(feeRates, feeSpeed) : 0;
+  const currentFeeRate = useMemo(() => {
+    if (!feeRates) return 0;
+    return getRateForSpeed(feeRates, feeSpeed);
+  }, [feeRates, feeSpeed]);
 
-  // ── Derived values for the confirm screen ──────────────────────
+  // ── USD → sats conversion ────────────────────────────────────
 
-  const parsedAmountSats = useMemo(() => {
-    const n = parseFloat(amount);
-    return isNaN(n) || n <= 0 ? 0 : btcToSats(n);
-  }, [amount]);
+  const amountSats = useMemo(() => {
+    if (!btcPrice) return 0;
+    const usd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
+    if (!Number.isFinite(usd) || usd <= 0) return 0;
+    const btc = usd / btcPrice;
+    return Math.round(btc * 100_000_000);
+  }, [usdAmount, btcPrice]);
 
-  const resolvedRecipient = useMemo(() => {
-    try { return resolveRecipient(recipient); } catch { return ''; }
-  }, [recipient]);
-
-  const previewFee = useMemo(() => {
-    if (!utxos?.length || !currentFeeRate || !parsedAmountSats) return 0;
-    // Estimate with 2 outputs first, then check if change would be below dust
+  const estimatedFeeSats = useMemo(() => {
+    if (!utxos?.length || !currentFeeRate || !amountSats) return 0;
+    // Estimate with 2 outputs first, then check whether change would be dust
     const fee2 = estimateFee(utxos.length, 2, currentFeeRate);
-    const change = totalBalance - parsedAmountSats - fee2;
+    const change = totalBalance - amountSats - fee2;
     const numOutputs = change > 546 ? 2 : 1;
     return estimateFee(utxos.length, numOutputs, currentFeeRate);
-  }, [utxos, currentFeeRate, parsedAmountSats, totalBalance]);
+  }, [utxos, currentFeeRate, amountSats, totalBalance]);
 
-  // ── Send Max ───────────────────────────────────────────────────
+  const totalSats = amountSats + estimatedFeeSats;
+  const insufficient = totalBalance > 0 && totalSats > totalBalance;
+  const showBalance = insufficient || (amountSats > 0 && totalBalance === 0);
 
-  const handleSendMax = useCallback(() => {
-    if (!utxos?.length || !currentFeeRate) return;
-    const max = maxSendable(totalBalance, utxos.length, currentFeeRate);
-    if (max <= 0) return;
-    setAmount(formatBTC(max));
-    setError('');
-  }, [utxos, currentFeeRate, totalBalance]);
+  // Auto-tune the fee speed so the network fee stays under 40% of the send
+  // amount, unless the user has manually picked a speed. Mirrors OnchainZapContent.
+  useEffect(() => {
+    if (feeSpeedUserChanged.current) return;
+    if (!utxos?.length || !feeRates || amountSats <= 0) return;
 
-  // ── Send mutation ──────────────────────────────────────────────
+    const uniqueSpeeds = getUniqueFeeSpeeds(feeRates);
+    const threshold = amountSats * 0.4;
 
-  const sendMutation = useMutation({
+    let target: FeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
+    for (const speed of uniqueSpeeds) {
+      const rate = getRateForSpeed(feeRates, speed);
+      const fee2 = estimateFee(utxos.length, 2, rate);
+      const change = totalBalance - amountSats - fee2;
+      const outputs = change > 546 ? 2 : 1;
+      const fee = estimateFee(utxos.length, outputs, rate);
+      if (fee <= threshold) {
+        target = speed;
+        break;
+      }
+    }
+
+    setFeeSpeed((prev) => (prev === target ? prev : target));
+  }, [amountSats, feeRates, utxos, totalBalance]);
+
+  const handleFeeSpeedChange = useCallback((speed: FeeSpeed) => {
+    feeSpeedUserChanged.current = true;
+    setFeeSpeed(speed);
+    setFeePopoverOpen(false);
+  }, []);
+
+  // ── Two-tap "arm" for large amounts ──────────────────────────
+
+  const isLarge = isLargeAmount(totalSats, btcPrice);
+  const [confirmArmed, setConfirmArmed] = useState(false);
+
+  // ── Raw Bitcoin address privacy acknowledgement ─────────────
+  //
+  // When the recipient is a raw on-chain address (no Nostr pubkey attached),
+  // Bitcoin's public ledger means the send can be linked back to the sender's
+  // wallet forever. Require an explicit checkbox before unlocking the Send
+  // button, and force the two-tap arm regardless of amount.
+
+  const isRawAddress = !!recipient && !recipient.pubkey;
+  const [acknowledgedPublic, setAcknowledgedPublic] = useState(false);
+
+  useEffect(() => {
+    setConfirmArmed(false);
+    setAcknowledgedPublic(false);
+  }, [amountSats, currentFeeRate, btcPrice, recipient?.address]);
+
+  // For raw addresses we always require the two-tap arm, not just for large sends.
+  const requiresArm = isLarge || isRawAddress;
+
+  // ── Big amount focus management ──────────────────────────────
+
+  useEffect(() => {
+    if (editingAmount) {
+      amountInputRef.current?.focus();
+      amountInputRef.current?.select();
+    }
+  }, [editingAmount]);
+
+  const commitAmountEdit = useCallback(() => {
+    setEditingAmount(false);
+    if (typeof usdAmount === 'string' && usdAmount.trim() === '') {
+      setUsdAmount(0);
+    }
+  }, [usdAmount]);
+
+  // ── Send mutation ────────────────────────────────────────────
+
+  const [progress, setProgress] = useState<'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing'>('idle');
+
+  const sendMutation = useMutation<SendResult, Error, void>({
     mutationFn: async () => {
-      if (!user || !canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
+      if (!user) throw new Error('You must be logged in.');
+      if (!recipient) throw new Error('Choose a recipient.');
+      if (!canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
       if (!utxos?.length) throw new Error('No spendable Bitcoin available.');
       if (!feeRates) throw new Error('Fee rates not loaded.');
+      if (recipient.pubkey === user.pubkey) throw new Error("You can't send to yourself.");
+      if (amountSats <= 0) throw new Error('Enter an amount.');
+      if (insufficient) throw new Error('Not enough Bitcoin for this amount + network fee.');
 
-      const recipientAddress = resolveRecipient(recipient);
-      const amountSats = btcToSats(parseFloat(amount));
-      if (isNaN(amountSats) || amountSats <= 0) throw new Error('Invalid amount.');
-
-      const feeRate = feeRateForSpeed(feeRates, feeSpeed);
-
-      // 1. Build unsigned PSBT
+      setProgress('building');
+      const rate = getRateForSpeed(feeRates, feeSpeed);
       const { psbtHex, fee } = buildUnsignedPsbt(
         user.pubkey,
-        recipientAddress,
+        recipient.address,
         amountSats,
         utxos,
-        feeRate,
+        rate,
       );
 
-      // 2. Sign via the signer (local nsec, NIP-07 extension, or NIP-46 bunker)
+      setProgress('signing');
       const signedHex = await signPsbt(psbtHex);
-
-      // 3. Finalize and extract raw tx
       const txHex = finalizePsbt(signedHex);
 
-      const id = await broadcastTransaction(txHex);
-      return { txId: id, fee };
-    },
-    onSuccess: ({ txId: id, fee }) => {
-      setTxId(id);
-      setConfirmedFee(fee);
-      setStep('success');
-      toast({ title: 'Transaction sent', description: `Fee: ${formatSats(fee)} sats` });
+      setProgress('broadcasting');
+      const txid = await broadcastTransaction(txHex, esploraBaseUrl);
 
-      // Invalidate wallet data so balance updates
+      // When the recipient is a Nostr identity, publish a kind 8333 profile zap
+      // attesting the send. Per NIP.md, omitting `e`/`a` targets the recipient's
+      // profile (a tip to the pubkey, not a specific event).
+      if (recipient.pubkey) {
+        setProgress('publishing');
+        try {
+          await publishEvent({
+            kind: 8333,
+            content: '',
+            tags: [
+              ['i', `bitcoin:tx:${txid}`],
+              ['p', recipient.pubkey],
+              ['amount', String(amountSats)],
+              ['alt', `On-chain zap: ${amountSats.toLocaleString()} sats`],
+            ],
+          });
+        } catch (err) {
+          // The Bitcoin transaction already broadcast — the kind 8333 is a
+          // best-effort attestation. Surface the failure but don't blow up
+          // the success screen.
+          console.warn('Failed to publish kind 8333 zap event:', err);
+        }
+      }
+
+      return {
+        txid,
+        amountSats,
+        recipientPubkey: recipient.pubkey,
+        fee,
+      };    },
+    onSuccess: (result) => {
+      notificationSuccess();
+      setSuccess(result);
+      // Invalidate caches that track balances / zaps
       queryClient.invalidateQueries({ queryKey: ['bitcoin-wallet'] });
       queryClient.invalidateQueries({ queryKey: ['bitcoin-utxos'] });
+      queryClient.invalidateQueries({ queryKey: ['bitcoin-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['bitcoin-txs'] });
+      if (result.recipientPubkey) {
+        queryClient.invalidateQueries({ queryKey: ['onchain-zaps'] });
+      }
     },
-    onError: (err: Error) => {
-      setError(err.message);
-      setStep('form');
+    onError: (err) => {
       toast({ title: 'Transaction failed', description: err.message, variant: 'destructive' });
+    },
+    onSettled: () => {
+      setProgress('idle');
     },
   });
 
-  // ── Navigation ─────────────────────────────────────────────────
+  // ── Send handler ─────────────────────────────────────────────
 
-  const goToConfirm = () => {
+  const handleSend = useCallback(async () => {
     setError('');
-    try {
-      resolveRecipient(recipient);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid recipient');
+    if (!user) { setError('You must be logged in.'); return; }
+    if (!recipient) { setError('Choose a recipient.'); return; }
+    if (recipient.pubkey === user.pubkey) { setError("You can't send to yourself."); return; }
+    if (!btcPrice) { setError('Waiting for BTC price…'); return; }
+    if (amountSats <= 0) { setError('Enter an amount.'); return; }
+    if (!utxos?.length) { setError("You don't have any Bitcoin yet."); return; }
+    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
+
+    if (isRawAddress && !acknowledgedPublic) {
+      setError('Acknowledge the privacy warning before sending.');
       return;
     }
-    const sats = btcToSats(parseFloat(amount));
-    if (isNaN(sats) || sats <= 0) { setError('Enter a valid amount.'); return; }
-    if (sats + previewFee > totalBalance) { setError('Insufficient funds.'); return; }
-    setStep('confirm');
-  };
 
-  const handleClose = () => {
-    setRecipient('');
-    setAmount('');
+    if (requiresArm && !confirmArmed) {
+      setConfirmArmed(true);
+      return;
+    }
+
+    try {
+      await sendMutation.mutateAsync();
+    } catch {
+      // Toast handled in onError; nothing further to do here.
+    }
+  }, [user, recipient, btcPrice, amountSats, utxos, insufficient, isRawAddress, acknowledgedPublic, requiresArm, confirmArmed, sendMutation]);
+
+  // ── Reset on close ───────────────────────────────────────────
+
+  const handleClose = useCallback(() => {
+    setRecipient(null);
+    setUsdAmount(5);
     setError('');
-    setTxId('');
-    setConfirmedFee(0);
-    setStep('form');
     setFeeSpeed('halfHour');
+    setSuccess(null);
+    setConfirmArmed(false);
+    setAcknowledgedPublic(false);
+    setEditingAmount(false);
+    feeSpeedUserChanged.current = false;
     onClose();
-  };
+  }, [onClose]);
 
-  // ── Render ─────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────
 
-  // Signer doesn't support Bitcoin signing
+  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
+  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
+  const totalUsdString = btcPrice ? satsToUSD(totalSats, btcPrice) : '';
+  const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
+  const isPending = sendMutation.isPending;
+
+  // ── Unsupported signer ───────────────────────────────────────
+
   if (isOpen && !canSignPsbt) {
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-orange-500" />
-              Sending Not Available
-            </DialogTitle>
-            <DialogDescription>
-              Your login doesn't support sending Bitcoin.
-            </DialogDescription>
-          </DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="size-5 text-orange-500" />
+            Sending Not Available
+          </DialogTitle>
           <Alert>
             <AlertTriangle className="size-4" />
             <AlertDescription>
-              Log in with your secret key to send Bitcoin.
+              Your login doesn't support sending Bitcoin. Log in with your secret key to send.
             </AlertDescription>
           </Alert>
           <Button onClick={handleClose}>Close</Button>
@@ -279,352 +450,809 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        {step === 'success' ? (
-          <SuccessView txId={txId} fee={confirmedFee} btcPrice={btcPrice} onClose={handleClose} />
-        ) : step === 'confirm' ? (
-          <ConfirmView
-            recipient={resolvedRecipient}
-            amountSats={parsedAmountSats}
-            fee={previewFee}
-            feeSpeed={feeSpeed}
-            btcPrice={btcPrice}
-            isPending={sendMutation.isPending}
-            onBack={() => setStep('form')}
-            onConfirm={() => sendMutation.mutate()}
-          />
-        ) : (
-          <FormView
-            recipient={recipient}
-            amount={amount}
-            feeSpeed={feeSpeed}
-            error={error}
-            totalBalance={totalBalance}
-            btcPrice={btcPrice}
-            utxos={utxos}
-            feeRates={feeRates}
-            isLoadingUtxos={isLoadingUtxos}
-            isLoadingFees={isLoadingFees}
-            currentFeeRate={currentFeeRate}
-            onRecipientChange={(v) => { setRecipient(v); setError(''); }}
-            onAmountChange={(v) => { setAmount(v); setError(''); }}
-            onFeeSpeedChange={setFeeSpeed}
-            onSendMax={handleSendMax}
-            onNext={goToConfirm}
-            onCancel={handleClose}
-          />
-        )}
+      <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden">
+        <div className="flex items-center justify-between px-4 h-12">
+          <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
+            {success ? 'Success' : 'Send Bitcoin'}
+          </DialogTitle>
+          <button
+            onClick={handleClose}
+            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            aria-label="Close"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto">
+          {success ? (
+            success.recipientPubkey ? (
+              <ZapSuccessScreen
+                recipientPubkey={success.recipientPubkey}
+                amountSats={success.amountSats}
+                btcPrice={btcPrice}
+                txid={success.txid}
+                onClose={handleClose}
+              />
+            ) : (
+              <RawAddressSuccess
+                txid={success.txid}
+                amountSats={success.amountSats}
+                btcPrice={btcPrice}
+                onClose={handleClose}
+              />
+            )
+          ) : (
+            <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
+              {/* Recipient picker */}
+              <RecipientPicker
+                value={recipient}
+                onChange={(v) => { setRecipient(v); setError(''); }}
+              />
+
+              {/* Big editable USD amount */}
+              <div className="flex flex-col items-center pt-2">
+                {editingAmount ? (
+                  <div className="flex items-baseline justify-center">
+                    <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
+                    <input
+                      ref={amountInputRef}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.01"
+                      value={usdAmount}
+                      onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
+                      onBlur={commitAmountEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); commitAmountEdit(); }
+                      }}
+                      aria-label="Amount in USD"
+                      className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient ? 'text-destructive' : ''}`}
+                      style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingAmount(true)}
+                    aria-label="Edit amount"
+                    className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  >
+                    <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
+                    <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
+                      {hasValidAmount ? currentUsd : 0}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Preset chips */}
+              <ToggleGroup
+                type="single"
+                value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
+                onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
+                className="grid grid-cols-5 gap-1 w-full"
+              >
+                {USD_PRESETS.map((v) => (
+                  <ToggleGroupItem
+                    key={v}
+                    value={String(v)}
+                    className="h-8 min-w-0 text-xs font-semibold px-1"
+                  >
+                    ${v}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+
+              {/* Error */}
+              {error && (
+                <p className="text-xs text-destructive">{error}</p>
+              )}
+
+              {/* Privacy warning for raw Bitcoin addresses */}
+              {isRawAddress && (
+                <Alert variant="destructive" className="bg-destructive/5">
+                  <AlertTriangle className="size-4" />
+                  <AlertDescription className="text-xs">
+                    <p>
+                      Money you send is public and can be traced back to you.{' '}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                          >
+                            Learn more
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
+                          Bitcoin is a public ledger. Transactions you send can
+                          be traced back to you forever, even after being
+                          exchanged by multiple people. Send it only to those
+                          you wish to support publicly, or cash out at an
+                          exchange.
+                        </PopoverContent>
+                      </Popover>
+                    </p>
+                    <label className="mt-2 flex items-start gap-2 cursor-pointer select-none">
+                      <Checkbox
+                        checked={acknowledgedPublic}
+                        onCheckedChange={(checked) => {
+                          setAcknowledgedPublic(checked === true);
+                          setError('');
+                          // Re-arming required after toggling the acknowledgement.
+                          setConfirmArmed(false);
+                        }}
+                        className="mt-0.5 border-destructive data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
+                        aria-label="I understand this transaction is public"
+                      />
+                      <span>I understand this transaction is public.</span>
+                    </label>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Send button */}
+              <Button
+                onClick={handleSend}
+                disabled={
+                  !btcPrice
+                  || amountSats <= 0
+                  || isPending
+                  || insufficient
+                  || !recipient
+                  || (isRawAddress && !acknowledgedPublic)
+                }
+                variant={(insufficient || requiresArm) && !isPending ? 'destructive' : 'default'}
+                className="w-full"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="size-4 mr-1.5 animate-spin" />
+                    {progressLabel(progress)}
+                  </>
+                ) : insufficient ? (
+                  <>Not enough Bitcoin</>
+                ) : requiresArm && confirmArmed ? (
+                  <>Tap again to send {totalUsdString}</>
+                ) : (
+                  <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+                )}
+              </Button>
+
+              {/* Fee line / picker */}
+              {amountSats > 0 && (
+                <div className="flex items-center justify-center gap-3 -mt-1 text-xs">
+                  <Popover open={feePopoverOpen} onOpenChange={setFeePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <span>
+                          Fee{' '}
+                          {estimatedFeeSats > 0 && btcPrice
+                            ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
+                            : '…'}
+                          <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="center" sideOffset={6} className="w-56 p-1">
+                      <div className="flex flex-col">
+                        {uniqueFeeSpeeds.map((speed) => {
+                          const rate = feeRates ? getRateForSpeed(feeRates, speed) : 0;
+                          const selected = speed === feeSpeed;
+                          return (
+                            <button
+                              key={speed}
+                              type="button"
+                              onClick={() => handleFeeSpeedChange(speed)}
+                              className={cn(
+                                'flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors',
+                                selected && 'bg-muted font-medium',
+                              )}
+                            >
+                              <span>{FEE_SPEED_LABELS[speed]}</span>
+                              <span className="text-muted-foreground">{rate} sat/vB</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {showBalance && !insufficient && btcPrice && (
+                    <span className="text-muted-foreground">
+                      Balance: {satsToUSD(totalBalance, btcPrice)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Sub-views
-// ═══════════════════════════════════════════════════════════════════
-
-// ── Form ─────────────────────────────────────────────────────────
-
-interface FormViewProps {
-  recipient: string;
-  amount: string;
-  feeSpeed: FeeSpeed;
-  error: string;
-  totalBalance: number;
-  btcPrice?: number;
-  utxos?: UTXO[];
-  feeRates?: FeeRates;
-  isLoadingUtxos: boolean;
-  isLoadingFees: boolean;
-  currentFeeRate: number;
-  onRecipientChange: (v: string) => void;
-  onAmountChange: (v: string) => void;
-  onFeeSpeedChange: (v: FeeSpeed) => void;
-  onSendMax: () => void;
-  onNext: () => void;
-  onCancel: () => void;
+function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing'): string {
+  switch (progress) {
+    case 'building': return 'Building…';
+    case 'signing': return 'Signing…';
+    case 'broadcasting': return 'Broadcasting…';
+    case 'publishing': return 'Publishing…';
+    default: return 'Sending…';
+  }
 }
 
-function FormView({
-  recipient, amount, feeSpeed, error, totalBalance, btcPrice,
-  feeRates, isLoadingUtxos, isLoadingFees, currentFeeRate,
-  onRecipientChange, onAmountChange, onFeeSpeedChange, onSendMax, onNext, onCancel,
-}: FormViewProps) {
-  const parsedBtc = parseFloat(amount) || 0;
+// ═══════════════════════════════════════════════════════════════════
+// Recipient picker
+// ═══════════════════════════════════════════════════════════════════
+
+interface RecipientPickerProps {
+  value: ResolvedRecipient | null;
+  onChange: (value: ResolvedRecipient | null) => void;
+}
+
+/**
+ * Combobox that lets the user pick a Nostr profile from autocomplete, paste a
+ * Nostr identifier (npub/nprofile/nip05/hex), or type a raw Bitcoin address.
+ *
+ * The dropdown intentionally only surfaces profile-shaped suggestions — no
+ * Wikipedia / Internet Archive / country / nav-item rows. That keeps the
+ * picker focused: every selection is something the user can actually be paid.
+ */
+function RecipientPicker({ value, onChange }: RecipientPickerProps) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
+
+  const identifierMatch = useMemo(() => {
+    const m = detectIdentifier(query);
+    if (!m) return null;
+    // Only pubkey-resolvable identifiers belong in this picker.
+    switch (m.type) {
+      case 'npub':
+      case 'nprofile':
+      case 'nip05':
+      case 'hex':
+        return m;
+      default:
+        return null;
+    }
+  }, [query]);
+
+  // Raw bitcoin address fallback — only when nothing else matches.
+  const trimmed = query.trim();
+  const looksLikeBtcAddress = !identifierMatch
+    && trimmed.length > 0
+    && !profiles?.length
+    && validateBitcoinAddress(trimmed);
+
+  // Deduplicate: if the identifier resolves to a pubkey that's also in the
+  // profile results, drop it from the profile list.
+  const identifierPubkey = useMemo(() => {
+    if (!identifierMatch) return undefined;
+    if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') return identifierMatch.pubkey;
+    if (identifierMatch.type === 'hex') return identifierMatch.hex;
+    return undefined; // nip05 resolves async; handled by IdentifierRow
+  }, [identifierMatch]);
+
+  const filteredProfiles = useMemo(() => {
+    if (!profiles || !identifierPubkey) return profiles ?? [];
+    return profiles.filter((p) => p.pubkey !== identifierPubkey);
+  }, [profiles, identifierPubkey]);
+
+  const hasIdentifier = !!identifierMatch;
+  const hasBtcAddress = !!looksLikeBtcAddress;
+  const profileCount = filteredProfiles.length;
+  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasBtcAddress ? 1 : 0);
+
+  // Open the dropdown whenever we have any suggestion or a non-empty query.
+  useEffect(() => {
+    if (trimmed.length === 0) {
+      setOpen(false);
+      return;
+    }
+    if (hasIdentifier || hasBtcAddress || profileCount > 0 || isFetching) {
+      setOpen(true);
+    }
+  }, [trimmed, hasIdentifier, hasBtcAddress, profileCount, isFetching]);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [profiles, identifierMatch, looksLikeBtcAddress]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectProfile = useCallback((profile: SearchProfile) => {
+    const address = nostrPubkeyToBitcoinAddress(profile.pubkey);
+    if (!address) return;
+    onChange({
+      address,
+      pubkey: profile.pubkey,
+      profile,
+      raw: query,
+    });
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange, query]);
+
+  const selectPubkey = useCallback((pubkey: string, raw: string) => {
+    if (!isNostrId(pubkey)) return;
+    const address = nostrPubkeyToBitcoinAddress(pubkey);
+    if (!address) return;
+    onChange({ address, pubkey, raw });
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
+  const selectBtcAddress = useCallback((address: string) => {
+    onChange({ address, raw: address });
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+      inputRef.current?.blur();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
+        // Order: [identifier?, ...profiles, btcAddress?]
+        let idx = selectedIndex;
+        if (hasIdentifier) {
+          if (idx === 0) {
+            // IdentifierRow handles its own selection via DOM click — the
+            // selectedPubkey may need NIP-05 resolution.
+            const items = containerRef.current?.querySelectorAll('[data-recipient-item]');
+            (items?.[selectedIndex] as HTMLElement | undefined)?.click();
+            return;
+          }
+          idx -= 1;
+        }
+        if (idx < profileCount) {
+          selectProfile(filteredProfiles[idx]);
+          return;
+        }
+        idx -= profileCount;
+        if (hasBtcAddress && idx === 0) {
+          selectBtcAddress(trimmed);
+          return;
+        }
+      }
+      return;
+    }
+
+    if (!open || totalItems === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
+    }
+  };
+
+  // ── Selected-chip view ─────────────────────────────────────
+
+  if (value) {
+    return (
+      <SelectedRecipientChip value={value} onClear={() => onChange(null)} />
+    );
+  }
+
+  // ── Input + dropdown ───────────────────────────────────────
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Send className="size-5 text-orange-500" />
-          Send Bitcoin
-        </DialogTitle>
-        <DialogDescription>
-          Send Bitcoin to a Nostr user or Bitcoin address
-        </DialogDescription>
-      </DialogHeader>
+    <div ref={containerRef} className="relative">
+      <Input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => { if (trimmed.length > 0) setOpen(true); }}
+        onKeyDown={handleKeyDown}
+        placeholder="Search people, paste npub, or enter a Bitcoin address"
+        autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        className="rounded-full"
+      />
 
-      <div className="space-y-4">
-        {/* Balance */}
-        <div className="rounded-lg bg-muted/50 p-4">
-          <Label className="text-xs text-muted-foreground">Available Balance</Label>
-          {isLoadingUtxos ? (
-            <Skeleton className="mt-1 h-7 w-36" />
-          ) : (
-            <p className="text-xl font-bold">
-              {btcPrice
-                ? satsToUSD(totalBalance, btcPrice)
-                : `${formatBTC(totalBalance)} BTC`}
-            </p>
-          )}
-        </div>
-
-        {/* Recipient */}
-        <div className="space-y-2">
-          <Label htmlFor="send-recipient">Recipient</Label>
-          <Input
-            id="send-recipient"
-            placeholder="npub1... or bc1..."
-            value={recipient}
-            onChange={(e) => onRecipientChange(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">Nostr npub or Bitcoin address</p>
-        </div>
-
-        {/* Amount */}
-        <div className="space-y-2">
-          <Label htmlFor="send-amount">Amount (BTC)</Label>
-          <Input
-            id="send-amount"
-            type="number"
-            step="0.00000001"
-            min="0"
-            placeholder="0.00000000"
-            value={amount}
-            onChange={(e) => onAmountChange(e.target.value)}
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>
-              {parsedBtc > 0
-                ? btcPrice
-                  ? satsToUSD(btcToSats(parsedBtc), btcPrice)
-                  : `${formatSats(btcToSats(parsedBtc))} sats`
-                : ''}
-            </span>
-            <button
-              type="button"
-              onClick={onSendMax}
-              className="text-primary hover:underline cursor-pointer"
-            >
-              Send Max
-            </button>
+      {open && totalItems > 0 && (
+        <div
+          role="listbox"
+          className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+        >
+          <div className="max-h-[280px] overflow-y-auto py-1">
+            {hasIdentifier && (
+              <IdentifierRow
+                match={identifierMatch!}
+                isSelected={selectedIndex === 0}
+                onSelectPubkey={selectPubkey}
+              />
+            )}
+            {filteredProfiles.map((profile, i) => (
+              <ProfileRow
+                key={profile.pubkey}
+                profile={profile}
+                isFollowed={followedPubkeys.has(profile.pubkey)}
+                isSelected={selectedIndex === (hasIdentifier ? i + 1 : i)}
+                onClick={selectProfile}
+              />
+            ))}
+            {hasBtcAddress && (
+              <BtcAddressRow
+                address={trimmed}
+                isSelected={selectedIndex === totalItems - 1}
+                onClick={selectBtcAddress}
+              />
+            )}
           </div>
         </div>
+      )}
 
-        {/* Fee speed */}
-        <div className="space-y-2">
-          <Label>Transaction Speed</Label>
-          <Select value={feeSpeed} onValueChange={(v) => onFeeSpeedChange(v as FeeSpeed)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(FEE_SPEED_LABELS) as FeeSpeed[]).map((speed) => (
-                <SelectItem key={speed} value={speed}>
-                  {FEE_SPEED_LABELS[speed]}
-                  {' — '}
-                  {isLoadingFees ? '...' : feeRates ? `${feeRateForSpeed(feeRates, speed)} sat/vB` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {currentFeeRate > 0 && parsedBtc > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Estimated fee: ~{formatSats(estimateFee(1, 2, currentFeeRate))} sats
-            </p>
-          )}
+      {/* Empty state */}
+      {open && trimmed.length > 0 && !isFetching && totalItems === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            No matches. Paste an npub or a Bitcoin address.
+          </div>
         </div>
-
-        {/* Error */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Warning */}
-        <Alert>
-          <AlertTriangle className="size-4" />
-          <AlertDescription className="text-xs">
-            <strong>Warning:</strong> This is an experimental feature. Test with small amounts first.
-            Transactions cannot be reversed.
-          </AlertDescription>
-        </Alert>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel} className="flex-1">Cancel</Button>
-          <Button
-            onClick={onNext}
-            disabled={!recipient || !amount || parsedBtc <= 0 || isLoadingUtxos || isLoadingFees}
-            className="flex-1"
-          >
-            <ArrowUpRight className="size-4 mr-1.5" />
-            Review
-          </Button>
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
 
-// ── Confirm ──────────────────────────────────────────────────────
+// ── Selected recipient chip ───────────────────────────────────
 
-interface ConfirmViewProps {
-  recipient: string;
-  amountSats: number;
-  fee: number;
-  feeSpeed: FeeSpeed;
-  btcPrice?: number;
-  isPending: boolean;
-  onBack: () => void;
-  onConfirm: () => void;
+function SelectedRecipientChip({
+  value,
+  onClear,
+}: {
+  value: ResolvedRecipient;
+  onClear: () => void;
+}) {
+  const { pubkey, profile, address } = value;
+  // Author lookup only when we have a pubkey but no inline profile.
+  const author = useAuthor(profile ? undefined : pubkey);
+  const metadata = profile?.metadata ?? author.data?.metadata;
+  const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
+
+  const displayName = pubkey
+    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
+    : 'Bitcoin address';
+
+  const subtitle = pubkey
+    ? metadata?.nip05 ?? nip19.npubEncode(pubkey)
+    : `${address.slice(0, 12)}…${address.slice(-8)}`;
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 pl-2 pr-2 py-1.5 w-full min-w-0 max-w-full">
+      {pubkey ? (
+        <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+      ) : (
+        <div className="size-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center">
+          <Bitcoin className="size-4 text-orange-500" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="text-[11px] text-muted-foreground leading-tight">To</div>
+        <div className="text-sm font-medium truncate">
+          {pubkey ? <EmojifiedText tags={tags}>{displayName}</EmojifiedText> : displayName}
+        </div>
+        <div className={cn('text-xs text-muted-foreground truncate', !pubkey && 'font-mono')}>
+          {subtitle}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Clear recipient"
+        className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
 }
 
-function ConfirmView({ recipient, amountSats, fee, feeSpeed, btcPrice, isPending, onBack, onConfirm }: ConfirmViewProps) {
-  const totalSats = amountSats + fee;
-  const isLarge = isLargeAmount(totalSats, btcPrice);
+// ── Profile dropdown row ──────────────────────────────────────
 
-  const row = (label: string, sats: number) => (
-    <div className="flex justify-between items-baseline">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="text-right">
-        <span className="text-sm font-medium">
-          {formatBTC(sats)} BTC
-        </span>
-        {btcPrice && (
-          <span className="text-xs text-muted-foreground ml-2">
-            ({satsToUSD(sats, btcPrice)})
+function ProfileRow({
+  profile,
+  isFollowed,
+  isSelected,
+  onClick,
+}: {
+  profile: SearchProfile;
+  isFollowed: boolean;
+  isSelected: boolean;
+  onClick: (profile: SearchProfile) => void;
+}) {
+  const { metadata, pubkey } = profile;
+  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const subtitle = metadata.nip05 ?? nip19.npubEncode(pubkey);
+
+  return (
+    <button
+      type="button"
+      data-recipient-item
+      role="option"
+      aria-selected={isSelected}
+      onClick={() => onClick(profile)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+    >
+      <div className="relative shrink-0">
+        <Avatar shape={getAvatarShape(metadata)} className="size-9">
+          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+        {isFollowed && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
+            title="Following"
+          >
+            <UserRoundCheck className="size-2 text-primary-foreground" strokeWidth={3} />
           </span>
         )}
       </div>
-    </div>
-  );
-
-  const truncatedRecipient = recipient.length > 24
-    ? `${recipient.slice(0, 12)}...${recipient.slice(-8)}`
-    : recipient;
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Send className="size-5 text-orange-500" />
-          Confirm Transaction
-        </DialogTitle>
-        <DialogDescription>
-          Review the details before sending
-        </DialogDescription>
-      </DialogHeader>
-
-      <div className="space-y-4">
-        {/* Recipient */}
-        <div className="rounded-lg bg-muted/50 p-4 space-y-1">
-          <Label className="text-xs text-muted-foreground">Sending to</Label>
-          <p className="text-sm font-mono break-all">{truncatedRecipient}</p>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate">
+          <EmojifiedText tags={profile.event.tags}>{displayName}</EmojifiedText>
         </div>
-
-        {/* Breakdown */}
-        <div className="space-y-2">
-          {row('Amount', amountSats)}
-          {row(`Fee (${FEE_SPEED_LABELS[feeSpeed].toLowerCase()})`, fee)}
-          <div className="border-t pt-2">
-            {row('Total', totalSats)}
-          </div>
-        </div>
-
-        {/* Large-amount notice — informational, not alarmist. */}
-        {isLarge && btcPrice && (
-          <p className="text-xs text-muted-foreground text-center">
-            Sending {satsToUSD(totalSats, btcPrice)} — double-check the recipient and amount.
-          </p>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack} disabled={isPending} className="flex-1">
-            <ChevronLeft className="size-4 mr-1" />
-            Back
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isPending}
-            variant={isLarge && !isPending ? 'destructive' : 'default'}
-            className="flex-1"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="size-4 mr-1.5 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="size-4 mr-1.5" />
-                Confirm &amp; Send
-              </>
-            )}
-          </Button>
+        <div className={cn('text-xs text-muted-foreground truncate', !metadata.nip05 && 'font-mono')}>
+          {subtitle}
         </div>
       </div>
-    </>
+    </button>
   );
 }
 
-// ── Success ──────────────────────────────────────────────────────
+// ── Identifier (npub / nprofile / nip05 / hex) dropdown row ───
 
-interface SuccessViewProps {
-  txId: string;
-  fee: number;
-  btcPrice?: number;
+function IdentifierRow({
+  match,
+  isSelected,
+  onSelectPubkey,
+}: {
+  match: IdentifierMatch;
+  isSelected: boolean;
+  onSelectPubkey: (pubkey: string, raw: string) => void;
+}) {
+  // Resolve nip05 → pubkey asynchronously. For other types we already have
+  // the pubkey inline.
+  const nip05Id = match.type === 'nip05' ? match.identifier : undefined;
+  const { data: nip05Pubkey, isLoading: isResolvingNip05 } = useNip05Resolve(nip05Id);
+
+  const pubkey = match.type === 'npub' || match.type === 'nprofile'
+    ? match.pubkey
+    : match.type === 'hex'
+      ? match.hex
+      : nip05Pubkey ?? undefined;
+
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = pubkey
+    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
+    : match.type === 'nip05' ? match.identifier : '';
+
+  const subtitle = match.type === 'nip05'
+    ? match.identifier
+    : pubkey
+      ? metadata?.nip05 ?? `${pubkey.slice(0, 8)}…${pubkey.slice(-4)}`
+      : '';
+
+  const handleClick = useCallback(() => {
+    if (!pubkey) return;
+    const raw = match.type === 'nip05' ? match.identifier
+      : match.type === 'hex' ? match.hex
+        : match.raw;
+    onSelectPubkey(pubkey, raw);
+  }, [pubkey, match, onSelectPubkey]);
+
+  if (isResolvingNip05) {
+    return (
+      <div
+        data-recipient-item
+        className={cn(
+          'w-full flex items-center gap-3 px-3 py-2 text-left',
+          isSelected && 'bg-accent text-accent-foreground',
+        )}
+      >
+        <div className="size-9 shrink-0 rounded-full bg-secondary animate-pulse" />
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="h-3.5 w-24 bg-secondary animate-pulse rounded" />
+          <div className="h-3 w-32 bg-secondary animate-pulse rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!pubkey) {
+    // nip05 didn't resolve — drop the row entirely
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      data-recipient-item
+      role="option"
+      aria-selected={isSelected}
+      onClick={handleClick}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+    >
+      <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0]?.toUpperCase() || '?'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate">
+          {author.isLoading ? (
+            <span className="text-muted-foreground">Loading profile…</span>
+          ) : (
+            <EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
+          )}
+        </div>
+        <div className={cn('text-xs text-muted-foreground truncate', match.type !== 'nip05' && !metadata?.nip05 && 'font-mono')}>
+          {subtitle}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Raw bitcoin address dropdown row ──────────────────────────
+
+function BtcAddressRow({
+  address,
+  isSelected,
+  onClick,
+}: {
+  address: string;
+  isSelected: boolean;
+  onClick: (address: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-recipient-item
+      role="option"
+      aria-selected={isSelected}
+      onClick={() => onClick(address)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+    >
+      <div className="size-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center">
+        <Bitcoin className="size-4 text-orange-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate">Send to Bitcoin address</div>
+        <div className="text-xs text-muted-foreground truncate font-mono">
+          {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Success view for raw-address sends (no Nostr identity)
+// ═══════════════════════════════════════════════════════════════════
+
+interface RawAddressSuccessProps {
+  txid: string;
+  amountSats: number;
+  btcPrice: number | undefined;
   onClose: () => void;
 }
 
-function SuccessView({ txId, fee, btcPrice, onClose }: SuccessViewProps) {
+/**
+ * Lighter-weight success screen for raw-address sends. No avatar / recipient
+ * card because the user typed a bare Bitcoin address — we have no Nostr
+ * identity to attribute the send to.
+ */
+function RawAddressSuccess({ txid, amountSats, btcPrice, onClose }: RawAddressSuccessProps) {
+  const usdDisplay = btcPrice ? satsToUSD(amountSats, btcPrice) : '';
+
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-400">
-          <Check className="size-5" />
-          Transaction Sent
-        </DialogTitle>
-        <DialogDescription>
-          Your transaction has been broadcast to the Bitcoin network.
-        </DialogDescription>
-      </DialogHeader>
+    <div
+      role="status"
+      aria-live="polite"
+      className="relative grid gap-5 px-6 py-8 w-full overflow-hidden text-center motion-safe:animate-success-fade-up"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_35%,hsl(var(--primary)/0.18),transparent_65%)]"
+      />
 
-      <div className="space-y-4">
-        <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-4 space-y-1">
-          <Label className="text-xs text-green-700 dark:text-green-300">Transaction ID</Label>
-          <p className="text-xs font-mono break-all text-green-900 dark:text-green-100">{txId}</p>
-        </div>
+      <div className="relative mx-auto flex size-28 items-center justify-center">
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400/40 to-orange-500/30 motion-safe:animate-success-halo"
+        />
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
+        />
+        <Check
+          className="relative size-14 text-white drop-shadow-sm motion-safe:animate-success-pop"
+          strokeWidth={3}
+          aria-hidden
+        />
+      </div>
 
-        <p className="text-xs text-muted-foreground text-center">
-          Fee: {formatSats(fee)} sats
-          {btcPrice ? ` (${satsToUSD(fee, btcPrice)})` : ''}
-        </p>
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" asChild>
-            <Link to={`/i/bitcoin:tx:${txId}`} onClick={onClose}>
-              View Details
-            </Link>
-          </Button>
-          <Button className="flex-1" onClick={onClose}>
-            Done
-          </Button>
+      <div className="grid gap-1">
+        <h2 className="text-lg font-semibold tracking-tight">Bitcoin sent</h2>
+        <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
+          {usdDisplay || `${amountSats.toLocaleString()} sats`}
         </div>
       </div>
-    </>
+
+      <div className="grid gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          asChild
+          className="w-full"
+        >
+          <Link to={`/i/bitcoin:tx:${txid}`} onClick={onClose}>
+            <ExternalLink className="size-4 mr-2" />
+            View transaction
+          </Link>
+        </Button>
+        <Button type="button" onClick={onClose} className="w-full">
+          Done
+        </Button>
+      </div>
+    </div>
   );
 }

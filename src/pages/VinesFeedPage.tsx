@@ -36,6 +36,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDeleteEvent } from "@/hooks/useDeleteEvent";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useFollowList } from "@/hooks/useFollowActions";
+import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
@@ -49,6 +50,7 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
 import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -87,6 +89,7 @@ function useVinesFeed(tab: FeedTab) {
 	const { nostr } = useNostr();
 	const { user } = useCurrentUser();
 	const { data: followData } = useFollowList();
+	const { excludeMuted, mutedKey } = useMutedAuthorFilter();
 
 	// For follows tab: finite query filtered by authors
 	const followsQuery = useQuery<NostrEvent[]>({
@@ -94,11 +97,13 @@ function useVinesFeed(tab: FeedTab) {
 			"vines-follows",
 			user?.pubkey ?? "",
 			followData?.pubkeys?.join(",") ?? "",
+			mutedKey,
 		],
 		queryFn: async ({ signal }) => {
 			if (!user) return [];
-			const authors = followData?.pubkeys?.length
-				? [...followData.pubkeys, user.pubkey]
+			const filtered = excludeMuted(followData?.pubkeys ?? []);
+			const authors = filtered.length
+				? [...filtered, user.pubkey]
 				: [user.pubkey];
 			const events = await nostr.query(
 				[{ kinds: [VINE_KIND], authors, limit: 40 }],
@@ -339,6 +344,7 @@ export function VineCard({
 	const displayName = getDisplayName(metadata, event.pubkey);
 	const profileUrl = useProfileUrl(event.pubkey, metadata);
 	const { data: stats } = useEventStats(event.id, event);
+	const { format: formatMoney } = useFormatMoney();
 	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
 	const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
@@ -652,7 +658,7 @@ export function VineCard({
 									/>
 								}
 								label={
-									stats?.zapAmount ? formatNumber(stats.zapAmount) : undefined
+									stats?.zapAmount ? formatMoney(stats.zapAmount, { layout: 'compact' }) : undefined
 								}
 								className={
 									isZapped

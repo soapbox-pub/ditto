@@ -167,8 +167,10 @@ export const KIND_LABELS: Record<number, string> = {
   // NIP-57 Zaps
   9734: 'Zap request',
   9735: 'Zap',
-  // Bitcoin Zap
-  8333: 'Bitcoin zap',
+  // On-chain zap — labeled as plain "Zap" so the UI doesn't single it out from
+  // Lightning zaps. The two rails intentionally look the same in feeds and
+  // detail headers; the difference is mechanical, not social.
+  8333: 'Zap',
   // NIP-84
   9802: 'Highlight',
 

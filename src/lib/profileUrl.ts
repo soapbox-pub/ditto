@@ -14,6 +14,10 @@ import type { NostrMetadata } from '@nostrify/nostrify';
  *
  * `_@domain.com` users link to `/domain.com` — the profile page detects
  * bare domains as NIP-05 identifiers and resolves them correctly.
+ *
+ * **Precondition:** `pubkey` must be a valid 64-char lowercase hex string.
+ * Callers extracting pubkeys from tag content must validate with
+ * `isNostrId` first (parse-layer responsibility).
  */
 export function getProfileUrl(
   pubkey: string,

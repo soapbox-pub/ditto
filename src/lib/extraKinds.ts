@@ -120,6 +120,29 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
   },
   {
+    kind: 7,
+    id: 'reactions',
+    feedKey: 'feedIncludeReactions',
+    label: 'Reactions',
+    description: 'People reacting to posts (likes and emoji reactions). Disabled by default.',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
+    kind: 9735,
+    id: 'zaps',
+    feedKey: 'feedIncludeZaps',
+    // Combine Lightning (9735) and on-chain Bitcoin (8333) zaps into a single
+    // toggle so users don't have to think about which rail was used.
+    extraFeedKinds: [8333],
+    label: 'Zaps',
+    description: 'People zapping posts (Lightning and on-chain Bitcoin). Disabled by default.',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
     kind: 30023,
     id: 'articles',
     showKey: 'showArticles',
@@ -607,7 +630,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   1618: 'patch comment',
   15128: 'nsite',
   35128: 'nsite',
-  30008: 'profile badges',
+  30008: 'badge set',
   30817: 'repository issue',
   32267: 'Zapstore app',
   31990: 'app',

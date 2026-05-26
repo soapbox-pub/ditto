@@ -4,13 +4,21 @@ import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
+import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
+import {
+  getPaginationCursor,
+  isRepostKind,
+  isReactionKind,
+  isZapKind,
+  buildFeedItems,
+  dedupeFeedItems,
+  type FeedItem,
+} from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { setProfileCached } from '@/lib/profileCache';
 import { getStorageKey } from '@/lib/storageKey';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
 
@@ -48,6 +56,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  // Subtract muted pubkeys from the `authors` filter so muted posts never
+  // cross the wire. Render-layer mute filters remain as defense in depth
+  // (e.g. posts authored by an unmuted user that embed/mention a muted one).
+  const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
 
   // Build the full kinds list from user settings, or use the override.
@@ -87,7 +99,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -175,64 +187,17 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const validFilteredEvents = filteredEvents.filter((ev) => ev.created_at <= now);
         const oldestQueryTimestamp = getPaginationCursor(validFilteredEvents);
 
-        // Process reposts same as follows feed
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validFilteredEvents, nostr, signal);
 
-        for (const ev of validFilteredEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1 and extra kinds — direct post
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = dedupeFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+          dedupedItems = dedupedItems.filter(
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
+          );
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -242,9 +207,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
       } else if (tab === 'follows' && user && followList !== undefined) {
-        // Follows feed — posts, reposts, and extra kinds from people you follow
-        // If followList is empty, just query own posts
-        const authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
+        // Follows feed — posts, reposts, and extra kinds from people you follow,
+        // minus anyone you've also muted (mute wins, no wasted bandwidth).
+        const filteredFollows = excludeMuted(followList);
+        // If followList is empty (or fully muted), just query own posts
+        const authors = filteredFollows.length > 0 ? [...filteredFollows, user.pubkey] : [user.pubkey];
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
         const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: fetchLimit, ...tagFilters };
         if (pageParam) {
@@ -261,63 +228,17 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
         const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
-        const items: FeedItem[] = [];
-        const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>();
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validEvents, nostr, signal);
 
-        for (const ev of validEvents) {
-          if (isRepostKind(ev.kind)) {
-            // Handle reposts (kind 6 for notes, kind 16 for generic)
-            const embedded = parseRepostContent(ev);
-            if (embedded && embedded.created_at <= now) {
-              items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-            } else {
-              const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-              if (repostedId) {
-                repostMissingIds.push(repostedId);
-                repostMap.set(repostedId, ev);
-              }
-            }
-          } else {
-            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          }
-        }
-
-        // Fetch any missing reposted events in a single query
-        if (repostMissingIds.length > 0) {
-          try {
-            const originals = await nostr.query(
-              [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal },
-            );
-            for (const original of originals) {
-              const repost = repostMap.get(original.id);
-              if (repost && original.created_at <= now) {
-                items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-              }
-            }
-          } catch {
-            // timeout or abort — just skip the missing reposts
-          }
-        }
-
-        // Deduplicate
-        const seen = new Map<string, FeedItem>();
-        for (const item of items) {
-          const existing = seen.get(item.event.id);
-          if (!existing) {
-            seen.set(item.event.id, item);
-          } else if (!item.repostedBy && existing.repostedBy) {
-            seen.set(item.event.id, item);
-          }
-        }
-
-        let dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        let dedupedItems = dedupeFeedItems(items);
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter((item) => item.repostedBy || !isReplyEvent(item.event));
+          dedupedItems = dedupedItems.filter(
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
+          );
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -325,8 +246,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
       } else {
-        // Global feed — all enabled kinds except reposts (too noisy without author filter)
-        const globalKinds = allKinds.filter((k) => !isRepostKind(k));
+        // Global feed — all enabled kinds except reposts / reactions / zaps,
+        // which are too noisy without an author filter and require an extra
+        // unwrap step. Users will see those overlays on the Follows tab.
+        const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
         // Use hot sorting on the homepage Global tab for better content quality,
         // but not on kind-specific pages that pass custom kinds.

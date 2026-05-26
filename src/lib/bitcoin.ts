@@ -8,9 +8,6 @@ import { ECPairFactory, type ECPairAPI } from 'ecpair';
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Base URL for the mempool.space Esplora-compatible REST API. */
-const MEMPOOL_API = 'https://mempool.space/api';
-
 /** Standard Bitcoin dust limit in satoshis. */
 const DUST_LIMIT = 546;
 
@@ -108,11 +105,14 @@ export interface AddressData {
 }
 
 /**
- * Fetch balance and transaction stats for a Bitcoin address from the
- * mempool.space Esplora API.
+ * Fetch balance and transaction stats for a Bitcoin address from an
+ * Esplora-compatible REST API (e.g. mempool.space, Blockstream).
+ *
+ * @param address    The Bitcoin address to look up.
+ * @param baseUrl    Esplora REST root, no trailing slash (e.g. `https://mempool.space/api`).
  */
-export async function fetchAddressData(address: string): Promise<AddressData> {
-  const response = await fetch(`${MEMPOOL_API}/address/${address}`);
+export async function fetchAddressData(address: string, baseUrl: string): Promise<AddressData> {
+  const response = await fetch(`${baseUrl}/address/${address}`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch balance');
@@ -156,9 +156,17 @@ export function formatSats(sats: number): string {
   return sats.toLocaleString();
 }
 
-/** Fetch the current BTC price in USD from the mempool.space API. */
-export async function fetchBtcPrice(): Promise<number> {
-  const response = await fetch(`${MEMPOOL_API}/v1/prices`);
+/**
+ * Fetch the current BTC price in USD from a mempool.space-compatible API.
+ *
+ * Note: the `/v1/prices` endpoint is a mempool.space extension to the
+ * standard Esplora REST surface. Backends like Blockstream's Esplora do
+ * not expose it.
+ *
+ * @param baseUrl    Esplora REST root, no trailing slash (e.g. `https://mempool.space/api`).
+ */
+export async function fetchBtcPrice(baseUrl: string): Promise<number> {
+  const response = await fetch(`${baseUrl}/v1/prices`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch BTC price');
@@ -222,11 +230,14 @@ export interface Transaction {
 }
 
 /**
- * Fetch transactions for a Bitcoin address from the mempool.space Esplora API.
+ * Fetch transactions for a Bitcoin address from an Esplora-compatible API.
  * Returns simplified transactions with net amount relative to the address.
+ *
+ * @param address    The Bitcoin address to look up.
+ * @param baseUrl    Esplora REST root, no trailing slash.
  */
-export async function fetchTransactions(address: string): Promise<Transaction[]> {
-  const response = await fetch(`${MEMPOOL_API}/address/${address}/txs`);
+export async function fetchTransactions(address: string, baseUrl: string): Promise<Transaction[]> {
+  const response = await fetch(`${baseUrl}/address/${address}/txs`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
@@ -309,9 +320,14 @@ export interface TxDetail {
   totalOutput: number;
 }
 
-/** Fetch full transaction details from mempool.space. */
-export async function fetchTxDetail(txid: string): Promise<TxDetail> {
-  const response = await fetch(`${MEMPOOL_API}/tx/${txid}`);
+/**
+ * Fetch full transaction details from an Esplora-compatible API.
+ *
+ * @param txid       The transaction ID (hex).
+ * @param baseUrl    Esplora REST root, no trailing slash.
+ */
+export async function fetchTxDetail(txid: string, baseUrl: string): Promise<TxDetail> {
+  const response = await fetch(`${baseUrl}/tx/${txid}`);
   if (!response.ok) throw new Error('Failed to fetch transaction');
 
   const tx = await response.json();
@@ -383,11 +399,16 @@ export interface AddressDetail {
   recentTxs: Transaction[];
 }
 
-/** Fetch full address details (balance + recent txs) from mempool.space. */
-export async function fetchAddressDetail(address: string): Promise<AddressDetail> {
+/**
+ * Fetch full address details (balance + recent txs) from an Esplora-compatible API.
+ *
+ * @param address    The Bitcoin address to look up.
+ * @param baseUrl    Esplora REST root, no trailing slash.
+ */
+export async function fetchAddressDetail(address: string, baseUrl: string): Promise<AddressDetail> {
   const [addrData, txs] = await Promise.all([
-    fetchAddressData(address),
-    fetchTransactions(address),
+    fetchAddressData(address, baseUrl),
+    fetchTransactions(address, baseUrl),
   ]);
 
   return {
@@ -415,9 +436,14 @@ export interface UTXO {
   };
 }
 
-/** Fetch UTXOs for a Bitcoin address from mempool.space. */
-export async function fetchUTXOs(address: string): Promise<UTXO[]> {
-  const response = await fetch(`${MEMPOOL_API}/address/${address}/utxo`);
+/**
+ * Fetch UTXOs for a Bitcoin address from an Esplora-compatible API.
+ *
+ * @param address    The Bitcoin address to look up.
+ * @param baseUrl    Esplora REST root, no trailing slash.
+ */
+export async function fetchUTXOs(address: string, baseUrl: string): Promise<UTXO[]> {
+  const response = await fetch(`${baseUrl}/address/${address}/utxo`);
   if (!response.ok) throw new Error('Failed to fetch UTXOs');
   return response.json();
 }
@@ -436,9 +462,13 @@ export interface FeeRates {
   minimumFee: number;
 }
 
-/** Fetch recommended fee rates (sat/vB) from mempool.space. */
-export async function getFeeRates(): Promise<FeeRates> {
-  const response = await fetch(`${MEMPOOL_API}/fee-estimates`);
+/**
+ * Fetch recommended fee rates (sat/vB) from an Esplora-compatible API.
+ *
+ * @param baseUrl    Esplora REST root, no trailing slash.
+ */
+export async function getFeeRates(baseUrl: string): Promise<FeeRates> {
+  const response = await fetch(`${baseUrl}/fee-estimates`);
   if (!response.ok) throw new Error('Failed to fetch fee estimates');
 
   const data = await response.json();
@@ -477,9 +507,15 @@ export function validateBitcoinAddress(address: string): boolean {
   }
 }
 
-/** Broadcast a signed transaction hex to the Bitcoin network via mempool.space. Returns the txid. */
-export async function broadcastTransaction(txHex: string): Promise<string> {
-  const response = await fetch(`${MEMPOOL_API}/tx`, {
+/**
+ * Broadcast a signed transaction hex to the Bitcoin network via an
+ * Esplora-compatible API. Returns the txid.
+ *
+ * @param txHex      The signed transaction hex.
+ * @param baseUrl    Esplora REST root, no trailing slash.
+ */
+export async function broadcastTransaction(txHex: string, baseUrl: string): Promise<string> {
+  const response = await fetch(`${baseUrl}/tx`, {
     method: 'POST',
     body: txHex,
   });
@@ -580,6 +616,104 @@ export function buildUnsignedPsbt(
 
   // Add outputs
   psbt.addOutput({ address: toAddress, value: BigInt(amountSats) });
+
+  if (hasChange) {
+    psbt.addOutput({ address: changeAddress, value: BigInt(change) });
+  }
+
+  return { psbtHex: psbt.toHex(), fee };
+}
+
+/** A single recipient output for a multi-output PSBT. */
+export interface PsbtRecipient {
+  /** Bitcoin address to pay. */
+  address: string;
+  /** Amount to send to this address in satoshis. */
+  amountSats: number;
+}
+
+/**
+ * Build an unsigned Taproot PSBT with multiple recipient outputs.
+ *
+ * Same flow as {@link buildUnsignedPsbt} but produces a single transaction
+ * paying many recipients in one broadcast. Used by the "zap all" flow where
+ * the sender wants to tip every member of a NIP-51 follow set / pack with one
+ * signature and one network fee.
+ *
+ * Per-recipient amounts MUST each be at or above {@link DUST_LIMIT} (546 sats);
+ * dust outputs are rejected by Bitcoin's standardness rules and the whole tx
+ * would fail to broadcast. The caller is responsible for filtering small
+ * recipients or bumping their amounts before calling this.
+ *
+ * @param senderPubkeyHex 32-byte hex x-only public key of the sender.
+ * @param recipients      List of recipient (address, amountSats) pairs.
+ * @param utxos           Available UTXOs (all will be consumed).
+ * @param feeRate         Fee rate in sat/vB.
+ */
+export function buildUnsignedPsbtMulti(
+  senderPubkeyHex: string,
+  recipients: PsbtRecipient[],
+  utxos: UTXO[],
+  feeRate: number,
+): UnsignedPsbt {
+  if (recipients.length === 0) throw new Error('At least one recipient is required.');
+
+  for (const r of recipients) {
+    if (!Number.isFinite(r.amountSats) || r.amountSats < DUST_LIMIT) {
+      throw new Error(
+        `Each recipient must receive at least ${DUST_LIMIT} sats (dust limit). Got ${r.amountSats}.`,
+      );
+    }
+  }
+
+  const internalPubkey = Buffer.from(senderPubkeyHex, 'hex');
+
+  // Derive change address (same Taproot address as sender)
+  const { address: changeAddress } = bitcoin.payments.p2tr({
+    internalPubkey,
+    network: bitcoin.networks.bitcoin,
+  });
+  if (!changeAddress) throw new Error('Failed to derive change address');
+
+  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
+  let totalInput = 0;
+
+  for (const utxo of utxos) {
+    psbt.addInput({
+      hash: utxo.txid,
+      index: utxo.vout,
+      witnessUtxo: {
+        script: bitcoin.payments.p2tr({
+          internalPubkey,
+          network: bitcoin.networks.bitcoin,
+        }).output!,
+        value: BigInt(utxo.value),
+      },
+      tapInternalKey: internalPubkey,
+    });
+    totalInput += utxo.value;
+  }
+
+  const totalOut = recipients.reduce((s, r) => s + r.amountSats, 0);
+
+  // Estimate fee — first assume N + 1 outputs (recipients + change).
+  const numRecipients = recipients.length;
+  const feeWithChange = estimateFee(utxos.length, numRecipients + 1, feeRate);
+  const changeWithBoth = totalInput - totalOut - feeWithChange;
+  const hasChange = changeWithBoth >= DUST_LIMIT;
+  const numOutputs = hasChange ? numRecipients + 1 : numRecipients;
+  const fee = estimateFee(utxos.length, numOutputs, feeRate);
+  const change = totalInput - totalOut - fee;
+
+  if (change < 0) {
+    throw new Error(
+      `Insufficient funds. Need ${(totalOut + fee).toLocaleString()} sats, have ${totalInput.toLocaleString()} sats.`,
+    );
+  }
+
+  for (const r of recipients) {
+    psbt.addOutput({ address: r.address, value: BigInt(r.amountSats) });
+  }
 
   if (hasChange) {
     psbt.addOutput({ address: changeAddress, value: BigInt(change) });

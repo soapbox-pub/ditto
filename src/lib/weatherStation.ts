@@ -1,5 +1,7 @@
 import { nip19 } from 'nostr-tools';
 
+import { isNostrId } from '@/lib/nostrId';
+
 export const WEATHER_STATION_METADATA_KIND = 16158;
 export const WEATHER_STATION_READING_KIND = 4223;
 
@@ -35,7 +37,7 @@ export function parseWeatherStationRef(input: string): WeatherStationRef | null 
   const base = hashIdx >= 0 ? withoutPrefix.slice(0, hashIdx) : withoutPrefix;
   const suffixStationId = hashIdx >= 0 ? withoutPrefix.slice(hashIdx + 1).trim() : '';
 
-  const asHexPubkey = /^[0-9a-f]{64}$/i.test(base) ? base.toLowerCase() : undefined;
+  const asHexPubkey = isNostrId(base) ? base : undefined;
   if (asHexPubkey) {
     return {
       pubkey: asHexPubkey,

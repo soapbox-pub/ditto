@@ -2,7 +2,6 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Bird,
-  Bitcoin,
   Camera,
   Egg,
   FileCode,
@@ -47,18 +46,22 @@ import {
 } from "@/components/AudioKindContent";
 import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
+import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
 } from "@/components/ColorMomentContent";
+import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
 import { BirdDetectionContent } from "@/components/BirdDetectionContent";
@@ -66,6 +69,7 @@ import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -96,6 +100,7 @@ import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/Zapst
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
+import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -109,7 +114,10 @@ import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
 import { useUserZap } from "@/hooks/useUserZap";
-import { extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { extractZapMessage } from "@/hooks/useEventInteractions";
+import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
+import { extractOnchainZapRecipients } from "@/hooks/useOnchainZaps";
 import { getContentWarning } from "@/lib/contentWarning";
 import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -119,6 +127,7 @@ import { isSingleImagePost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
+import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 import { encodeEventAddress } from "@/lib/encodeEvent";
@@ -252,6 +261,24 @@ interface NoteCardProps {
   className?: string;
   /** If set, shows a "Reposted by" header with this pubkey. */
   repostedBy?: string;
+  /** Optional: the underlying kind 6 / 16 repost event. When provided, the "reposted" verb in the header links to its nevent. */
+  repostEvent?: NostrEvent;
+  /** If set, shows a "Reacted by" header. The event is the underlying kind 7 reaction (used for linking to its nevent). */
+  reactedBy?: { event: NostrEvent; pubkey: string };
+  /** If set, shows a "Zapped" header. The event is the underlying kind 9735 / 8333 zap; sats is the parsed amount (0 if unknown). */
+  zappedBy?: { event: NostrEvent; pubkey: string; sats: number };
+  /**
+   * If set, `event` is a profile-targeted zap (kind 9735 or 8333) and
+   * this is the recipient pubkey from the `p` tag. Used both when the
+   * zap has no `e`/`a` tag (tipping a person, not a note) and as a
+   * fallback when the `e`-tagged target note couldn't be resolved on
+   * the user's relays — either way the user sees the zap activity as
+   * a standalone card rather than losing it. Rendered with the
+   * recipient's author header (avatar + name + nip05 + timestamp)
+   * under an "X zapped — Y sats" `EventActionHeader`, plus the standard
+   * action bar wired to the recipient's kind-0 identity event.
+   */
+  profileZapRecipient?: string;
   /** If true, hide action buttons (used for embeds). */
   compact?: boolean;
   /** If true, render in threaded ancestor style: connector line below avatar, no bottom border. */
@@ -305,6 +332,10 @@ export const NoteCard = memo(function NoteCard({
   event,
   className,
   repostedBy,
+  repostEvent,
+  reactedBy,
+  zappedBy,
+  profileZapRecipient,
   compact,
   threaded,
   threadedLineClassName,
@@ -315,12 +346,34 @@ export const NoteCard = memo(function NoteCard({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
-  const zapSenderPubkey = useMemo(() => event.kind === 9735 ? extractZapSender(event) : '', [event]);
+  // Sender of a zap event (kind 9735 or 8333). `getZapSenderPubkey` handles
+  // both kinds — kind 9735 reads the P tag / description.pubkey because the
+  // receipt is signed by the LNURL server, kind 8333 returns `event.pubkey`
+  // directly because the sender authors the on-chain attestation. Returns
+  // `''` only when the event isn't a zap or the sender can't be resolved.
+  const zapSenderPubkey = useMemo(
+    () => (event.kind === 9735 || event.kind === 8333 ? getZapSenderPubkey(event) : ''),
+    [event],
+  );
   const zapSender = useAuthor(zapSenderPubkey || undefined);
   const zapSenderMeta = zapSender.data?.metadata;
   const zapSenderShape = getAvatarShape(zapSenderMeta);
   const zapSenderName = getDisplayName(zapSenderMeta, zapSenderPubkey);
   const zapSenderUrl = useProfileUrl(zapSenderPubkey, zapSenderMeta);
+
+  // Recipient of a profile-targeted zap (kind 8333 / 9735 with `p` tag but
+  // no `e` tag). Hooks are called unconditionally with `undefined` when not
+  // applicable so the order stays stable across renders.
+  const recipient = useAuthor(profileZapRecipient || undefined);
+  const recipientMeta = recipient.data?.metadata;
+  const recipientShape = getAvatarShape(recipientMeta);
+  const recipientName = getDisplayName(recipientMeta, profileZapRecipient ?? "");
+  const recipientUrl = useProfileUrl(profileZapRecipient ?? "", recipientMeta);
+  const recipientNip05 = recipientMeta?.nip05;
+  const { data: recipientNip05Verified, isPending: recipientNip05Pending } = useNip05Verify(
+    recipientNip05,
+    profileZapRecipient,
+  );
 
   const pollVoteLabel = usePollVoteLabel(event);
 
@@ -337,6 +390,10 @@ export const NoteCard = memo(function NoteCard({
   const { data: stats } = useEventStats(event.id, event);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
+  // Separate modal state for the profile-zap action bar, which targets the
+  // recipient's kind-0 profile event rather than the zap event itself.
+  const [recipientMoreMenuOpen, setRecipientMoreMenuOpen] = useState(false);
+  const [recipientReplyOpen, setRecipientReplyOpen] = useState(false);
 
   // Blobbi interaction reaction — triggers visual feedback on the card when social action succeeds
   const { state: blobbiReactionState, trigger: triggerBlobbiReaction } = useInteractionReaction();
@@ -354,8 +411,26 @@ export const NoteCard = memo(function NoteCard({
   // on success without waiting for the relay echo.
   const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
+  // Profile-zap variants: when the card targets a recipient profile rather
+  // than a specific note, the action bar attaches to the recipient's kind-0
+  // event so reply/repost/react/zap operate on that identity event. Hooks
+  // run unconditionally with `undefined` when not applicable.
+  const recipientEvent = recipient.data?.event;
+  const { data: recipientStats } = useEventStats(recipientEvent?.id, recipientEvent);
+  const canZapRecipient = !!user && !!profileZapRecipient && user.pubkey !== profileZapRecipient;
+  const isRecipientZapped = useUserZap(canZapRecipient ? recipientEvent?.id : undefined) === true;
+
+  // Money formatter (USD by default, with sats fallback). Reused for the
+  // "X zapped Y" wrapper header and the kind 9735 zap-receipt card below.
+  const { format: formatMoney } = useFormatMoney();
+
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
+  );
+
+  // Profile-zap card click target: the recipient's profile, not the zap event.
+  const { onClick: openRecipient, onAuxClick: auxOpenRecipient } = useOpenPost(
+    recipientUrl || `/${encodedId}`,
   );
 
   // Handler to navigate to post detail, but only if click didn't originate from a modal
@@ -389,9 +464,10 @@ export const NoteCard = memo(function NoteCard({
   const isCalendarEvent = event.kind === 31922 || event.kind === 31923;
   const isEmojiPack = event.kind === 30030;
   const isBadgeDefinition = event.kind === 30009;
-  const isProfileBadges = event.kind === 10008 || event.kind === 30008;
+  const isProfileBadges = isProfileBadgesEvent(event);
+  const isBadgeSet = isBadgeSetEvent(event);
   const isBadgeAward = event.kind === 8;
-  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeAward;
+  const isBadge = isBadgeDefinition || isProfileBadges || isBadgeSet || isBadgeAward;
   const isReaction = event.kind === 7;
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
@@ -416,7 +492,15 @@ export const NoteCard = memo(function NoteCard({
   const isLetter = event.kind === 8211;
   const isHighlight = event.kind === 9802;
   const isVanish = event.kind === 62;
-  const isZap = event.kind === 9735;
+  const isZap = event.kind === 9735 || event.kind === 8333;
+  // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
+  // Renders as a standalone zap activity card with an avatar stack instead
+  // of the single-recipient "headline" layout where one recipient takes the
+  // place of the post author.
+  const isMultiRecipientOnchainZap = useMemo(
+    () => event.kind === 8333 && extractOnchainZapRecipients(event).length > 1,
+    [event],
+  );
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
   const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
@@ -566,7 +650,13 @@ export const NoteCard = memo(function NoteCard({
       )}
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
-      <ContentWarningGuard event={event}>
+      <ErrorBoundary
+        fallback={<BrokenEventFallback />}
+        sentryLevel="error"
+        sentryTags={{ errorBoundary: 'note-card', kind: event.kind }}
+        resetKeys={[event.id]}
+      >
+        <ContentWarningGuard event={event}>
         {isPhoto ? (
           <PhotoContent event={event} />
         ) : isVideo ? (
@@ -610,6 +700,8 @@ export const NoteCard = memo(function NoteCard({
           <EmojiPackContent event={event} />
         ) : isBadgeDefinition ? (
           <BadgeContent event={event} />
+        ) : isBadgeSet ? (
+          <BadgeSetContent event={event} />
         ) : isProfileBadges ? (
           <ProfileBadgesContent event={event} />
         ) : isBadgeAward ? (
@@ -674,6 +766,8 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />
           </Suspense>
+        ) : isZap ? (
+          <ZapContent event={event} recipientPubkey={profileZapRecipient} />
         ) : isUnknownKind ? (
           <UnknownKindContent event={event} />
         ) : (
@@ -682,6 +776,7 @@ export const NoteCard = memo(function NoteCard({
           />
         )}
       </ContentWarningGuard>
+      </ErrorBoundary>
     </>
   );
 
@@ -756,92 +851,112 @@ export const NoteCard = memo(function NoteCard({
   );
 
   // ── Shared action buttons (used in all layouts) ──
-  const actionButtons = (
-    <div className={cn("flex items-center mt-3 -ml-2", showBlobbiInteract ? "gap-4 sm:gap-5" : "gap-5")}>
-      <button
-        type="button"
-        className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-        title="Reply"
-        onClick={(e) => {
-          e.stopPropagation();
-          setReplyOpen(true);
-        }}
-      >
-        <MessageCircle className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-            {stats?.replies ? (
-              <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-            ) : null}
-          </button>
+  // Most cards bind the bar to `event`. Profile-zap cards bind it to the
+  // recipient's kind-0 profile event instead, so reply/repost/react/zap
+  // operate on the identity event the zap actually targeted.
+  const renderActionButtons = (opts?: {
+    target?: NostrEvent;
+    targetStats?: typeof stats;
+    canZap?: boolean;
+    zapped?: boolean;
+    onReply?: () => void;
+    onMore?: () => void;
+  }) => {
+    const t = opts?.target ?? event;
+    const s = opts?.targetStats ?? stats;
+    const cz = opts?.canZap ?? canZapAuthor;
+    const zd = opts?.zapped ?? isZapped;
+    const reply = opts?.onReply ?? (() => setReplyOpen(true));
+    const more = opts?.onMore ?? (() => setMoreMenuOpen(true));
+    return (
+      <div className={cn("flex items-center mt-3 -ml-2", showBlobbiInteract ? "gap-4 sm:gap-5" : "gap-5")}>
+        <button
+          type="button"
+          className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          title="Reply"
+          onClick={(e) => {
+            e.stopPropagation();
+            reply();
+          }}
+        >
+          <MessageCircle className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
+          {s?.replies ? (
+            <span className="text-sm tabular-nums">{formatNumber(s.replies)}</span>
+          ) : null}
+        </button>
 
-          <RepostMenu event={event}>
-            {(isReposted: boolean) => (
-              <button
-                type="button"
-                className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-                title={isReposted ? "Undo repost" : "Repost"}
-              >
-                <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-                {stats?.reposts || stats?.quotes ? (
-                  <span className="text-sm tabular-nums">
-                    {formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}
-                  </span>
-                ) : null}
-              </button>
-            )}
-          </RepostMenu>
+        <RepostMenu event={t}>
+          {(isReposted: boolean) => (
+            <button
+              type="button"
+              className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+              title={isReposted ? "Undo repost" : "Repost"}
+            >
+              <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
+              {s?.reposts || s?.quotes ? (
+                <span className="text-sm tabular-nums">
+                  {formatNumber((s?.reposts ?? 0) + (s?.quotes ?? 0))}
+                </span>
+              ) : null}
+            </button>
+          )}
+        </RepostMenu>
 
-          <ReactionButton
-        eventId={event.id}
-        eventPubkey={event.pubkey}
-        eventKind={event.kind}
-        reactionCount={stats?.reactions}
-      />
+        <ReactionButton
+          eventId={t.id}
+          eventPubkey={t.pubkey}
+          eventKind={t.kind}
+          reactionCount={s?.reactions}
+        />
 
-      {showBlobbiInteract && (
-        <Suspense fallback={null}>
-          <BlobbiSocialActions event={event} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
-        </Suspense>
-      )}
+        {showBlobbiInteract && (
+          <Suspense fallback={null}>
+            <BlobbiSocialActions event={t} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+          </Suspense>
+        )}
 
-      {canZapAuthor && (
-        <ZapDialog target={event}>
-          <button
-            type="button"
-            className={cn(
-              "flex items-center gap-1.5 rounded-full transition-colors",
-              isZapped
-                ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
-                : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
-              showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
-            )}
-            title={isZapped ? "Zapped" : "Zap"}
-          >
-            <Zap
-              className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
-              fill={isZapped ? "currentColor" : "none"}
-            />
-            {stats?.zapAmount ? (
-              <span className="text-sm tabular-nums">
-                {formatNumber(stats.zapAmount)}
-              </span>
-            ) : null}
-          </button>
-        </ZapDialog>
-      )}
+        {cz && (
+          <ZapDialog target={t}>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-1.5 rounded-full transition-colors",
+                zd
+                  ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
+                  : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+                showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
+              )}
+              title={zd ? "Zapped" : "Zap"}
+            >
+              <Zap
+                className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
+                fill={zd ? "currentColor" : "none"}
+              />
+              {s?.zapAmount ? (
+                <span className="text-sm tabular-nums">
+                  {formatMoney(s.zapAmount, { layout: 'compact' })}
+                </span>
+              ) : null}
+            </button>
+          </ZapDialog>
+        )}
 
-      <button
-        type="button"
-        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-        title="More"
-        onClick={(e) => {
-          e.stopPropagation();
-          setMoreMenuOpen(true);
-        }}
-      >
-        <MoreHorizontal className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-      </button>
-    </div>
-  );
+        <button
+          type="button"
+          className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          title="More"
+          onClick={(e) => {
+            e.stopPropagation();
+            more();
+          }}
+        >
+          <MoreHorizontal className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
+        </button>
+      </div>
+    );
+  };
+
+  const actionButtons = renderActionButtons();
 
   // ── Vanish layout (kind 62) — dramatic card, no author row ──
   if (isVanish) {
@@ -908,24 +1023,190 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
-  // Repost header — shown above activity-card layouts (reaction/repost/zap/poll vote)
-  // when this event was surfaced via a kind 6 / 16 repost. The normal note layout
-  // renders this inline below; activity-card branches return early so they need it here.
-  const repostHeader = repostedBy ? (
+  // Wrapper header — shown above activity-card layouts (reaction/repost/zap/poll vote)
+  // and above the normal layout when this event was surfaced via a repost,
+  // reaction, or zap. The activity-card branches return early so they need
+  // it computed up here.
+  const wrapperHeader = reactedBy ? (
+    <EventActionHeader
+      pubkey={reactedBy.pubkey}
+      icon={SmilePlus}
+      iconNode={
+        <span className="size-4 translate-y-px flex items-center justify-center leading-none">
+          <ReactionEmoji
+            content={reactedBy.event.content}
+            tags={reactedBy.event.tags}
+            className="inline-block h-4 w-4 object-contain"
+          />
+        </span>
+      }
+      action="reacted to"
+      actionEvent={reactedBy.event}
+    />
+  ) : zappedBy ? (
+    <EventActionHeader
+      pubkey={zappedBy.pubkey}
+      icon={Zap}
+      iconClassName="text-amber-500"
+      action="zapped"
+      actionEvent={zappedBy.event}
+      extra={zappedBy.sats > 0 ? (
+        <span className="font-semibold text-amber-500">
+          {formatMoney(zappedBy.sats)}
+        </span>
+      ) : undefined}
+    />
+  ) : repostedBy ? (
     <EventActionHeader
       pubkey={repostedBy}
       icon={RepostIcon}
       iconClassName="text-accent"
       action="reposted"
+      actionEvent={repostEvent}
     />
   ) : undefined;
+
+  // ── Profile-targeted zap layout (kind 8333 / 9735) ──
+  // Used when the zap has no resolvable target note — either because
+  // it tips a profile directly (no `e` tag) or because the e-tagged
+  // target note couldn't be fetched from the user's relays. Either
+  // way there's no underlying content to render. We mirror the
+  // e-tagged zap layout: the `EventActionHeader` ("X zapped — Y
+  // sats") sits on top (the verb itself links to the zap event),
+  // then the recipient's author header (avatar + display name +
+  // nip05 + timestamp) takes the place of the would-be target note's
+  // author block, with the standard action bar attached to the
+  // recipient's kind-0 event below. Clicking the card navigates to
+  // the recipient's profile.
+  if (isZap && profileZapRecipient && !isMultiRecipientOnchainZap) {
+    const zapSats = getZapAmountSats(event);
+    // Kind 8333: event.pubkey is the sender. Kind 9735: P tag / description.pubkey.
+    const senderPubkey = event.kind === 8333 ? event.pubkey : (zapSenderPubkey || event.pubkey);
+    const onRecipientClick = (e: React.MouseEvent) => {
+      if (isInteractiveTarget(e)) return;
+      openRecipient();
+    };
+    const onRecipientAuxClick = (e: React.MouseEvent) => {
+      if (isInteractiveTarget(e)) return;
+      auxOpenRecipient(e);
+    };
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          highlight && "animate-highlight-fade",
+          className,
+        )}
+        onClick={onRecipientClick}
+        onAuxClick={onRecipientAuxClick}
+      >
+        <EventActionHeader
+          pubkey={senderPubkey}
+          icon={Zap}
+          iconClassName="text-amber-500"
+          action="zapped"
+          actionEvent={event}
+          extra={zapSats > 0 ? (
+            <span className="font-semibold text-amber-500">
+              {formatMoney(zapSats)}
+            </span>
+          ) : undefined}
+        />
+        {/* Recipient's profile header — matches the normal kind-1 author block. */}
+        <div className="flex items-center gap-3">
+          {recipient.isLoading ? (
+            <Skeleton className="size-11 rounded-full shrink-0" />
+          ) : (
+            <ProfileHoverCard pubkey={profileZapRecipient} asChild>
+              <Link
+                to={recipientUrl}
+                className="shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Avatar shape={recipientShape} className="size-11">
+                  <AvatarImage src={recipientMeta?.picture} alt={recipientName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {recipientName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </ProfileHoverCard>
+          )}
+          {recipient.isLoading ? (
+            <div className="min-w-0 min-h-[42px] flex flex-col justify-center space-y-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
+              <div className="flex items-center gap-1.5">
+                <ProfileHoverCard pubkey={profileZapRecipient} asChild>
+                  <Link
+                    to={recipientUrl}
+                    className="font-bold text-[15px] hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {recipient.data?.event ? (
+                      <EmojifiedText tags={recipient.data.event.tags}>
+                        {recipientName}
+                      </EmojifiedText>
+                    ) : (
+                      recipientName
+                    )}
+                  </Link>
+                </ProfileHoverCard>
+                {recipientMeta?.bot && (
+                  <span className="text-xs text-primary shrink-0" title="Bot account">
+                    🤖
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+                {recipientNip05 && recipientNip05Pending && <Skeleton className="h-3 w-24" />}
+                {recipientNip05 && recipientNip05Pending && <span className="shrink-0">·</span>}
+                {recipientNip05 && recipientNip05Verified && (
+                  <Nip05Badge nip05={recipientNip05} pubkey={profileZapRecipient} />
+                )}
+                {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
+                <span className="shrink-0 hover:underline whitespace-nowrap">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+        {!compact && recipientEvent && (
+          <>
+            {renderActionButtons({
+              target: recipientEvent,
+              targetStats: recipientStats,
+              canZap: canZapRecipient,
+              zapped: isRecipientZapped,
+              onReply: () => setRecipientReplyOpen(true),
+              onMore: () => setRecipientMoreMenuOpen(true),
+            })}
+            <NoteMoreMenu
+              event={recipientEvent}
+              open={recipientMoreMenuOpen}
+              onOpenChange={setRecipientMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={recipientEvent}
+              open={recipientReplyOpen}
+              onOpenChange={setRecipientReplyOpen}
+            />
+          </>
+        )}
+      </article>
+    );
+  }
 
   // ── Reaction layout (kind 7) ──
   if (isReaction) {
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
             <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
@@ -946,7 +1227,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-accent/10 shrink-0", iconSize)}>
             <RepostIcon className="size-5 text-accent" />
@@ -962,14 +1243,28 @@ export const NoteCard = memo(function NoteCard({
     );
   }
 
-  // ── Zap receipt layout (kind 9735) ──
-  if (isZap) {
-    const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
+  // ── Zap receipt layout (kind 9735 / 8333) ──
+  // Skipped when `profileZapRecipient` is set AND the event has a single
+  // recipient — those are profile-targeted zaps that render with the
+  // "recipient as headline" layout above. Multi-recipient kind 8333 events
+  // fall through to this branch even when `profileZapRecipient` is set, so
+  // the avatar stack can replace the single-recipient layout.
+  if (isZap && (!profileZapRecipient || isMultiRecipientOnchainZap)) {
+    // `getZapAmountSats` handles both kinds — kind 9735 reads the bolt11
+    // millisats and divides by 1000; kind 8333 reads the `amount` tag
+    // (already in sats). The previous `extractZapAmount(event) / 1000`
+    // path only worked for kind 9735 and silently divided kind 8333 sats
+    // by 1000, displaying 1/1000th of the actual zap.
+    const zapAmountSats = getZapAmountSats(event);
     const zapMessage = extractZapMessage(event);
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
+    // Multi-recipient batch zap (NIP-BC) — render the recipient pubkeys as
+    // an avatar stack in the card body. The "zapped N people" verb in the
+    // ActorRow makes the count explicit; the stack shows who.
+    const zapRecipients = isMultiRecipientOnchainZap ? extractOnchainZapRecipients(event) : [];
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-amber-500/10 shrink-0", iconSize)}>
             <Zap className="size-5 text-amber-500 fill-amber-500" />
@@ -977,10 +1272,12 @@ export const NoteCard = memo(function NoteCard({
         }
         actorRow={
           <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture}
-            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading} label="zapped" timestampLabel={timeAgo(event.created_at)}
+            displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading}
+            label={isMultiRecipientOnchainZap ? `zapped ${zapRecipients.length} people` : "zapped"}
+            timestampLabel={timeAgo(event.created_at)}
             extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+                {formatMoney(zapAmountSats)}
               </span>
             ) : undefined}
           />
@@ -988,6 +1285,11 @@ export const NoteCard = memo(function NoteCard({
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
       >
+        {isMultiRecipientOnchainZap && zapRecipients.length > 0 && (
+          <div className="mt-1.5">
+            <PeopleAvatarStack pubkeys={zapRecipients} size="sm" maxVisible={6} />
+          </div>
+        )}
         {zapMessage && <p className="text-xs text-muted-foreground italic mt-1">&ldquo;{zapMessage}&rdquo;</p>}
       </ActivityCard>
     );
@@ -998,7 +1300,7 @@ export const NoteCard = memo(function NoteCard({
     const iconSize = threaded || threadedLast ? "size-10" : "size-11";
     return (
       <ActivityCard
-        header={repostHeader}
+        header={wrapperHeader}
         icon={
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1031,7 +1333,7 @@ export const NoteCard = memo(function NoteCard({
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
     // Kind action header (e.g. "updated their badges") — same logic as normal layout
-    const threadedKindHeader = !repostedBy && !hideKindHeader && KIND_HEADER_MAP[event.kind]
+    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !profileZapRecipient && !hideKindHeader && KIND_HEADER_MAP[event.kind]
       ? (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
@@ -1062,7 +1364,7 @@ export const NoteCard = memo(function NoteCard({
         onClick={handleCardClick}
         onAuxClick={handleAuxClick}
       >
-        {threadedKindHeader}
+        {wrapperHeader ?? threadedKindHeader}
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
             {avatarElement}
@@ -1101,16 +1403,11 @@ export const NoteCard = memo(function NoteCard({
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
-      {/* Action header — repost takes priority, otherwise derived from event kind */}
-      {repostedBy ? (
-        <EventActionHeader
-          pubkey={repostedBy}
-          icon={RepostIcon}
-          iconClassName="text-accent"
-          action="reposted"
-        />
+      {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
+      {wrapperHeader ? (
+        wrapperHeader
       ) : (
-        !hideKindHeader && KIND_HEADER_MAP[event.kind] &&
+        !hideKindHeader && !profileZapRecipient && KIND_HEADER_MAP[event.kind] &&
         (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive =
@@ -1148,21 +1445,21 @@ export const NoteCard = memo(function NoteCard({
       {contentBlock}
 
       {/* Action buttons — hidden in compact/embed mode */}
-      {!compact && (
-        <>
-          {actionButtons}
-          <NoteMoreMenu
-            event={event}
-            open={moreMenuOpen}
-            onOpenChange={setMoreMenuOpen}
-          />
-          <ReplyComposeModal
-            event={event}
-            open={replyOpen}
-            onOpenChange={setReplyOpen}
-          />
-        </>
-      )}
+        {!compact && (
+          <>
+            {actionButtons}
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
+          </>
+        )}
     </article>
   );
 });
@@ -1699,6 +1996,14 @@ export interface EventActionHeaderProps {
   pubkey: string;
   /** Lucide icon component shown to the left of the author name. */
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Optional pre-rendered icon node that takes priority over `icon`. Use
+   * this when the icon isn't a generic Lucide component — e.g. a reaction
+   * emoji (`<ReactionEmoji>`) where the visual is data-driven. The node
+   * is rendered as-is inside the same `w-11` slot, so it should size
+   * itself (e.g. `className="size-4"`).
+   */
+  iconNode?: ReactNode;
   /** Optional className for the icon (defaults to text-primary). */
   iconClassName?: string;
   /** Verb phrase shown after the author name, e.g. "hid a" or "is streaming". */
@@ -1707,6 +2012,19 @@ export interface EventActionHeaderProps {
   noun?: string;
   /** Route to link the noun to, e.g. "/treasures". */
   nounRoute?: string;
+  /**
+   * Optional underlying event (reaction, zap, repost) that the verb should
+   * link to. When provided, the entire verb (and the optional `extra`
+   * suffix) is wrapped in a Link pointing at `/${nevent}` so the user
+   * can navigate directly to the underlying event detail page.
+   */
+  actionEvent?: NostrEvent;
+  /**
+   * Optional inline content appended after the verb — used for the sats
+   * amount on zap headers ("zapped · 1,234 sats"). Rendered inside the
+   * same Link as the verb when `actionEvent` is set.
+   */
+  extra?: ReactNode;
 }
 
 /** Static config for deriving the action header from an event's kind and tags. */
@@ -1793,7 +2111,19 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   30008: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
+    action: (event) => {
+      // Kind 30008 is overloaded: legacy NIP-58 profile badges
+      // (`d=profile_badges`) vs. NIP-51 badge set (arbitrary `d`).
+      if (isProfileBadgesEvent(event)) {
+        return publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" });
+      }
+      // Badge set — interpolate the set's title into the verb so the
+      // header reads "Alice updated Super Mario Bros." with "badges"
+      // rendered as the linked noun ("/badges") by EventActionHeader.
+      const title = parseBadgeSet(event)?.title;
+      const base = publishedAtAction(event, { created: "created", updated: "updated", fallback: "updated" });
+      return title ? `${base} ${title}` : base;
+    },
     noun: "badges",
     nounRoute: "/badges",
   },
@@ -1868,8 +2198,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     nounRoute: "/highlights",
   },
   8333: {
-    icon: Bitcoin,
-    action: "Bitcoin-zapped",
+    icon: Zap,
+    action: "zapped",
   },
   31124: {
     icon: Egg,
@@ -1922,24 +2252,40 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
 export function EventActionHeader({
   pubkey,
   icon: Icon,
+  iconNode,
   iconClassName,
   action,
   noun,
   nounRoute,
+  actionEvent,
+  extra,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
   const url = useProfileUrl(pubkey, author.data?.metadata);
+  const actionHref = useMemo(
+    () => (actionEvent ? `/${encodeEventAddress(actionEvent)}` : undefined),
+    [actionEvent],
+  );
+
+  const verbContent = (
+    <>
+      {action}
+      {extra ? <> {extra}</> : null}
+    </>
+  );
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <Icon
-          className={cn(
-            "size-4 translate-y-px",
-            iconClassName ?? "text-primary",
-          )}
-        />
+        {iconNode ?? (
+          <Icon
+            className={cn(
+              "size-4 translate-y-px",
+              iconClassName ?? "text-primary",
+            )}
+          />
+        )}
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (
@@ -1962,7 +2308,17 @@ export function EventActionHeader({
           </ProfileHoverCard>
         )}
         <span className={cn("shrink-0", author.isLoading && "ml-1")}>
-          {action}
+          {actionHref ? (
+            <Link
+              to={actionHref}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {verbContent}
+            </Link>
+          ) : (
+            verbContent
+          )}
           {noun && nounRoute && (
             <>
               {" "}

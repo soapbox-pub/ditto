@@ -18,7 +18,6 @@ import { useInView } from 'react-intersection-observer';
 import {
   Users,
   UserPlus,
-  Check,
   Loader2,
   Copy,
   X,
@@ -41,6 +40,7 @@ import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { PostActionBar } from '@/components/PostActionBar';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
+import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
 
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -48,15 +48,12 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useUserLists } from '@/hooks/useUserLists';
-import { useNostr } from '@nostrify/react';
 
 import { isEventMuted } from '@/lib/muteHelpers';
-import { shouldHideFeedEvent } from '@/lib/feedUtils';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { genUserName } from '@/lib/genUserName';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
@@ -164,9 +161,13 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
     <div>
       {feedItems.map((item) => (
         <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          key={feedItemKey(item)}
           event={item.event}
           repostedBy={item.repostedBy}
+          repostEvent={item.repostEvent}
+          reactedBy={item.reactedBy}
+          zappedBy={item.zappedBy}
+          profileZapRecipient={item.profileZapRecipient}
         />
       ))}
       {hasNextPage && (
@@ -285,10 +286,8 @@ function CommentsSkeleton() {
 
 export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { toast } = useToast();
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
-  const { mutateAsync: publishEvent } = useNostrPublish();
   const { lists: ownLists, createList } = useUserLists();
 
   const isOwnList = user && event.pubkey === user.pubkey;
@@ -353,7 +352,6 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   );
 
   const [activeTab, setActiveTab] = useState<Tab>('feed');
-  const [isFollowingAll, setIsFollowingAll] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [addMembersOpen, setAddMembersOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -373,61 +371,6 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       identifier: dTag,
     });
   }, [event, dTag, isFollowList]);
-
-  // ── Follow All ───────────────────────────────────────────────────────────
-  const handleFollowAll = useCallback(async () => {
-    if (!user) {
-      toast({
-        title: 'Not logged in',
-        description: 'Please log in to follow users.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsFollowingAll(true);
-    try {
-      // 1. Fetch freshest kind 3 from relays (not cache)
-      const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
-
-      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-      const existingPTags = prev?.tags.filter(([n]) => n === 'p') ?? [];
-      const nonPTags = prev?.tags.filter(([n]) => n !== 'p') ?? [];
-      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-      // 3. Merge: add new pubkeys that aren't already followed.
-      //    For kind 3 follow lists (the viewed event IS a kind 3), always also add the author.
-      const candidates = isFollowList ? [...pubkeys, event.pubkey] : pubkeys;
-      const newPTags = candidates
-        .filter((pk) => pk !== user.pubkey && !existingPubkeys.has(pk))
-        .map((pk) => ['p', pk]);
-      const added = newPTags.length;
-
-      // 4. Publish with prev for published_at preservation
-      await publishEvent({
-        kind: 3,
-        content: prev?.content ?? '',
-        tags: [...nonPTags, ...existingPTags, ...newPTags],
-        prev: prev ?? undefined,
-      });
-
-      toast({
-        title: 'Following all!',
-        description: added > 0
-          ? `Added ${added} new account${added !== 1 ? 's' : ''} to your follow list.`
-          : 'You were already following everyone in this list.',
-      });
-    } catch (error) {
-      console.error('Failed to follow all:', error);
-      toast({
-        title: 'Failed to follow',
-        description: 'There was an error updating your follow list.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsFollowingAll(false);
-    }
-  }, [user, pubkeys, nostr, publishEvent, toast, isFollowList, event.pubkey]);
 
   // ── Clone (save a copy of this list as my own kind 30000) ─────────────────
   const handleClone = useCallback(async () => {
@@ -516,28 +459,13 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         {/* Actions */}
         <div className="flex gap-2 mt-3">
           {showFollowAllButton && (
-            <Button
-              className="gap-2 flex-1"
-              onClick={handleFollowAll}
-              disabled={isFollowingAll || !user}
-            >
-              {isFollowingAll ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Following…
-                </>
-              ) : newPubkeys.length === 0 && user ? (
-                <>
-                  <Check className="size-4" />
-                  Already following all
-                </>
-              ) : (
-                <>
-                  <UserPlus className="size-4" />
-                  Follow All ({pubkeys.length})
-                </>
-              )}
-            </Button>
+            <FollowAllSplitButton
+              pubkeys={pubkeys}
+              followedPubkeys={followedPubkeys}
+              listNoun={isFollowList ? "this person's follow list" : 'this list'}
+              includeAuthorPubkey={isFollowList ? event.pubkey : undefined}
+              className="flex-1"
+            />
           )}
 
           {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 (that's your follow list, you don't clone it) */}

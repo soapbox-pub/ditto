@@ -28,7 +28,7 @@ import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
-import { isRepostKind, shouldHideFeedEvent } from '@/lib/feedUtils';
+import { isRepostKind, shouldHideFeedEvent, feedItemKey } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -213,7 +213,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return (rawData.pages as unknown as { items: FeedItem[] }[])
       .flatMap((page) => page.items)
       .filter((item) => {
-        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        const key = feedItemKey(item);
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
@@ -310,9 +310,13 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <div>
               {feedItems.map((item: FeedItem) => (
                 <NoteCard
-                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                  key={feedItemKey(item)}
                   event={item.event}
                   repostedBy={item.repostedBy}
+                  repostEvent={item.repostEvent}
+                  reactedBy={item.reactedBy}
+                  zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
                 />
               ))}
               {hasNextPage && (
@@ -417,7 +421,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     return rawData.pages
       .flatMap((page) => page.items)
       .filter((item) => {
-        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        const key = feedItemKey(item);
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
@@ -449,9 +453,13 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
       <div>
         {feedItems.map((item) => (
           <NoteCard
-            key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+            key={feedItemKey(item)}
             event={item.event}
             repostedBy={item.repostedBy}
+            repostEvent={item.repostEvent}
+            reactedBy={item.reactedBy}
+            zappedBy={item.zappedBy}
+            profileZapRecipient={item.profileZapRecipient}
           />
         ))}
         {hasNextPage && (

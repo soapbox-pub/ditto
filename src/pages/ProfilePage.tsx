@@ -102,12 +102,14 @@ import { useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
-import type { FeedItem } from '@/lib/feedUtils';
+import { feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
@@ -1015,12 +1017,17 @@ export function ProfilePage() {
   // incorrectly triggering the "User not found" branch on a hard refresh.
   const { data: nip05Pubkey, isPending: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
 
-  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, or logged-in user
+  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, raw hex, or logged-in user
   const pubkey = useMemo(() => {
     if (npub) {
       // If it's a NIP-05 identifier, use the resolved pubkey
       if (isNip05Param) {
         return nip05Pubkey ?? undefined;
+      }
+      // Raw 64-char hex pubkey (NIP19Page routes these here when the relay
+      // resolves the hex to a kind-0 author)
+      if (isNostrId(npub)) {
+        return npub;
       }
       // Otherwise try to decode as NIP-19
       try {
@@ -1906,7 +1913,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return (
       <main className="flex-1 min-w-0">
         <div className="p-8 text-center text-muted-foreground">
-          <p>Please log in to view your profile.</p>
+          <p>User not found{npub ? `: ${npub}` : ''}</p>
         </div>
       </main>
     );
@@ -2641,10 +2648,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           ) : currentItems.length > 0 ? (
             <div>
               {currentItems.map((item) => (
-                <NoteCard 
-                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                <NoteCard
+                  key={feedItemKey(item)}
                   event={item.event}
                   repostedBy={item.repostedBy}
+                  repostEvent={item.repostEvent}
+                  reactedBy={item.reactedBy}
+                  zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
                 />
               ))}
 
@@ -2949,18 +2960,15 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
     for (let i = 0; i < tags.length; i++) {
       if (tags[i][0] === 'a' && tags[i][1]) {
         const aTag = tags[i][1];
-        const parts = aTag.split(':');
-        if (parts.length < 3 || parts[0] !== '30009') continue;
-
-        const bPubkey = parts[1];
-        const identifier = parts.slice(2).join(':');
+        const parsed = parseAddr(aTag);
+        if (!parsed || parsed.kind !== 30009) continue;
 
         let eTag: string | undefined;
         if (i + 1 < tags.length && tags[i + 1][0] === 'e') {
           eTag = tags[i + 1][1];
         }
 
-        refs.push({ aTag, eTag, pubkey: bPubkey, identifier });
+        refs.push({ aTag, eTag, pubkey: parsed.pubkey, identifier: parsed.identifier });
       }
     }
     // Deduplicate by aTag — keep first occurrence only
@@ -3148,9 +3156,13 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
     <div>
       {items.map((item) => (
         <NoteCard
-          key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+          key={feedItemKey(item)}
           event={item.event}
           repostedBy={item.repostedBy}
+          repostEvent={item.repostEvent}
+          reactedBy={item.reactedBy}
+          zappedBy={item.zappedBy}
+          profileZapRecipient={item.profileZapRecipient}
         />
       ))}
 

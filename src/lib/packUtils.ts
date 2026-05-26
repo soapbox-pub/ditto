@@ -1,5 +1,7 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
+import { isNostrId } from '@/lib/nostrId';
+
 /** Kinds rendered as "people lists" — kind 3 follow lists, NIP-51 follow sets, and follow packs. */
 export const PEOPLE_LIST_KINDS = new Set<number>([3, 30000, 39089]);
 
@@ -48,7 +50,12 @@ export function parsePeopleList(
   opts?: { authorMetadata?: NostrMetadata; authorDisplayName?: string },
 ): ParsedPeopleList {
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const pubkeys = event.tags.filter(([n]) => n === 'p').map(([, pk]) => pk);
+  // Drop malformed `p` tag pubkeys — anything but a 64-char lowercase hex string
+  // would crash `nip19.npubEncode` deep inside the renderer.
+  const pubkeys = event.tags
+    .filter(([n]) => n === 'p')
+    .map(([, pk]) => pk)
+    .filter(isNostrId);
   const variant = getPeopleListVariant(event.kind) ?? 'follow-pack';
 
   if (event.kind === 3) {

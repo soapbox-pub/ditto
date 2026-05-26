@@ -1,8 +1,10 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import type { NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import type { MusicSort, MusicScope } from '@/components/music/MusicSortFilterBar';
 
 const PAGE_SIZE = 20;
@@ -26,7 +28,7 @@ interface UseMusicFeedOptions {
  * - **Sort**: Maps to Ditto NIP-50 search extensions (`sort:hot`, `sort:top`,
  *   or chronological for `new`).
  * - **Scope**: `global` queries all authors; `following` restricts to the
- *   current user's kind 3 follow list.
+ *   current user's kind 3 follow list (minus any muted pubkeys).
  *
  * Hot and Top sorts query the Ditto relay (NIP-50 required).
  * New sort queries the default relay pool (standard chronological).
@@ -37,11 +39,23 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
   const { nostr } = useNostr();
   const { data: followData } = useFollowList();
   const followPubkeys = followData?.pubkeys;
+  const { excludeMuted, mutedKey } = useMutedAuthorFilter();
 
-  // Following scope requires a loaded follow list
-  const isFollowsReady = scope !== 'following' || (followPubkeys && followPubkeys.length > 0);
+  // Following scope: filter out muted pubkeys before building the authors list.
+  // Memoized so the array identity is stable across renders that don't change
+  // the follow or mute lists.
+  const followingAuthors = useMemo(() => {
+    if (scope !== 'following' || !followPubkeys || followPubkeys.length === 0) {
+      return undefined;
+    }
+    const filtered = excludeMuted(followPubkeys);
+    return filtered.length > 0 ? filtered : undefined;
+  }, [scope, followPubkeys, excludeMuted]);
 
-  const queryKey = ['music-feed', kind, sort, scope, genre ?? '', scope === 'following' ? followPubkeys?.join(',') ?? '' : ''] as const;
+  // Following scope requires a loaded follow list with at least one non-muted author
+  const isFollowsReady = scope !== 'following' || (followingAuthors && followingAuthors.length > 0);
+
+  const queryKey = ['music-feed', kind, sort, scope, genre ?? '', scope === 'following' ? followPubkeys?.join(',') ?? '' : '', mutedKey] as const;
 
   return useInfiniteQuery({
     queryKey,
@@ -55,9 +69,9 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
         filter.until = pageParam;
       }
 
-      // Scope: restrict to followed authors
-      if (scope === 'following' && followPubkeys && followPubkeys.length > 0) {
-        filter.authors = followPubkeys;
+      // Scope: restrict to followed authors (minus muted)
+      if (scope === 'following' && followingAuthors && followingAuthors.length > 0) {
+        filter.authors = followingAuthors;
       }
 
       // Genre: relay-level tag filtering

@@ -15,6 +15,8 @@ import {
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -40,6 +42,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 
@@ -54,7 +57,7 @@ import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
-import { isRepostKind, parseRepostContent } from '@/lib/feedUtils';
+import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'posts' | 'accounts';
@@ -343,6 +346,13 @@ export function SearchPage() {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followPubkeys = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
+  // Follow scope subtracts muted authors so the viewer's mute list applies
+  // to search results filtered by "My follows".
+  const { excludeMuted } = useMutedAuthorFilter();
+  const followPubkeysMinusMuted = useMemo(
+    () => excludeMuted(followPubkeys),
+    [followPubkeys, excludeMuted],
+  );
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
   const { savedFeeds, addSavedFeed, isPending: isSavingFeed } = useSavedFeeds();
@@ -397,7 +407,7 @@ export function SearchPage() {
 
   // Resolve author pubkeys for the stream
   const streamAuthorPubkeys = authorScope === 'follows'
-    ? followPubkeys
+    ? followPubkeysMinusMuted
     : authorScope === 'people' && authorPubkeys.length > 0
       ? authorPubkeys
       : undefined;
@@ -412,6 +422,23 @@ export function SearchPage() {
     sort,
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
+
+  // Unwrap reposts / reactions / zaps so the target event renders with the
+  // wrapper as an overlay header — same pipeline as the home, profile, and
+  // follow feeds. Without this, kind 7 reactions and kind 9735 / 8333 zaps
+  // would fall through to NoteCard's standalone activity-card layout.
+  // Re-runs only when the set of post ids changes (not on every reorder).
+  const { nostr } = useNostr();
+  const postsKey = useMemo(() => posts.map((p) => p.id).join(','), [posts]);
+  const { data: feedItems = [] } = useQuery<FeedItem[]>({
+    queryKey: ['search-feed-items', postsKey],
+    queryFn: async ({ signal }) => {
+      const items = await buildFeedItems(posts, nostr, signal);
+      return dedupeFeedItems(items);
+    },
+    enabled: posts.length > 0,
+    staleTime: 60_000,
+  });
 
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
@@ -790,18 +817,22 @@ export function SearchPage() {
                   <PostSkeleton key={i} />
                 ))}
               </div>
-            ) : posts.length > 0 ? (
+            ) : feedItems.length > 0 ? (
               <div>
-                {posts.map((event) => {
-                  const isNew = flushedIds.has(event.id);
-                  if (isRepostKind(event.kind)) {
-                    const embedded = parseRepostContent(event);
-                    if (embedded) {
-                      return <NoteCard key={event.id} event={embedded} repostedBy={event.pubkey} highlight={isNew} />;
-                    }
-                    return null;
-                  }
-                  return <NoteCard key={event.id} event={event} highlight={isNew} />;
+                {feedItems.map((item) => {
+                  const isNew = flushedIds.has(item.event.id);
+                  return (
+                    <NoteCard
+                      key={feedItemKey(item)}
+                      event={item.event}
+                      repostedBy={item.repostedBy}
+                      repostEvent={item.repostEvent}
+                      reactedBy={item.reactedBy}
+                      zappedBy={item.zappedBy}
+                      profileZapRecipient={item.profileZapRecipient}
+                      highlight={isNew}
+                    />
+                  );
                 })}
                 {/* Infinite scroll sentinel */}
                 {hasNextPage && (

@@ -19,6 +19,16 @@ export type ContentWarningPolicy = "blur" | "hide" | "show";
 /** How to handle events with a NIP-36 content-warning tag. */
 export type NsfwPolicy = "blur" | "hide" | "show";
 
+/**
+ * How to display monetary amounts (zap totals, wallet balances, etc.).
+ * - "usd": Convert sats to USD using the current BTC/USD price. Falls back
+ *   to sats if the price is unavailable.
+ * - "sats": Show the raw satoshi amount.
+ *
+ * Default: "usd".
+ */
+export type CurrencyDisplay = "usd" | "sats";
+
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];
@@ -44,6 +54,10 @@ export interface FeedSettings {
   feedIncludeReposts: boolean;
   /** Include generic reposts (kind 16) in the feed */
   feedIncludeGenericReposts: boolean;
+  /** Include reactions (kind 7) in the feed, rendered as "X reacted to" overlays on the target event. Default: true. */
+  feedIncludeReactions: boolean;
+  /** Include zaps (Lightning kind 9735 + on-chain kind 8333) in the feed, rendered as "X zapped" overlays on the target event. Default: true. */
+  feedIncludeZaps: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
@@ -278,6 +292,19 @@ export interface AppConfig {
   curatorPubkey?: string;
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
+  /**
+   * Base URL for the Esplora-compatible Bitcoin REST API. Used by the wallet,
+   * on-chain zap flows, and NIP-73 Bitcoin tx/address pages. The standard
+   * Esplora REST root (no version segment). The mempool.space `/v1/prices`
+   * extension is appended by the price call. Default: "https://mempool.space/api".
+   */
+  esploraBaseUrl: string;
+  /**
+   * How to display monetary amounts (zap totals, wallet balances, etc.).
+   * "usd" converts sats to USD via the current BTC price; "sats" shows raw
+   * satoshi amounts. Default: "usd".
+   */
+  currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
 }

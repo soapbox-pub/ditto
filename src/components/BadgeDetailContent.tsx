@@ -34,6 +34,8 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { PostActionBar } from '@/components/PostActionBar';
+import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
+import { useFollowList } from '@/hooks/useFollowActions';
 
 type DetailTab = 'awarded' | 'feed' | 'comments';
 
@@ -58,6 +60,13 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+
+  // Follow list (for "already following all" state on the Follow All split button)
+  const { data: followListData } = useFollowList();
+  const followedPubkeys = useMemo(
+    () => new Set(followListData?.pubkeys ?? []),
+    [followListData],
+  );
 
   // Query kind 8 badge award events referencing this badge definition
   const badgeATag = badge ? `30009:${event.pubkey}:${badge.identifier}` : '';
@@ -195,6 +204,18 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
             </Button>
           )}
         </div>
+
+        {/* Follow All / Mute All — treat badge holders as a follow source */}
+        {user && awardedPubkeys.length > 0 && (
+          <div className="mt-3 flex">
+            <FollowAllSplitButton
+              pubkeys={awardedPubkeys}
+              followedPubkeys={followedPubkeys}
+              listNoun="this badge's awardees"
+              className="flex-1"
+            />
+          </div>
+        )}
 
         {/* Accept Badge action */}
         {pendingForUser && (

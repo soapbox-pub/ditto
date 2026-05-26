@@ -107,6 +107,8 @@ export interface EncryptedSettings {
   autoplayVideos?: boolean;
   /** Sentry DSN for error reporting (empty string = disabled) */
   sentryDsn?: string;
+  /** How to display monetary amounts ("usd" or "sats"). */
+  currencyDisplay?: 'usd' | 'sats';
   /** Saved feed tabs created from the search page. */
   savedFeeds?: SavedFeed[];
   /** Letter preferences (stationery, font, frame, closing, signature, inbox filters) */

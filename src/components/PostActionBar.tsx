@@ -4,11 +4,13 @@ import { MessageCircle, MoreHorizontal, Zap } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
-import { ZapDialog } from '@/components/ZapDialog';
+import { ZapMenu } from '@/components/ZapMenu';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { useUserZap } from '@/hooks/useUserZap';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { formatNumber } from '@/lib/formatNumber';
+import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
 import { cn } from '@/lib/utils';
 
 interface PostActionBarProps {
@@ -36,13 +38,21 @@ export function PostActionBar({
 }: PostActionBarProps) {
   const { user } = useCurrentUser();
   // Zap button shows for any logged-in user except on their own posts.
-  // Both on-chain and Lightning zaps are supported inside the dialog.
-  const canZapAuthor = !!user && user.pubkey !== event.pubkey;
+  // Exception: people-list events the user authored — they can't zap
+  // themselves, but they CAN zap-all-members of their own list (as long as
+  // the list has non-self members). The ZapMenu handles the menu-vs-direct
+  // decision based on the event kind.
+  const isOwnEvent = !!user && user.pubkey === event.pubkey;
+  const hasOtherMembers = isPeopleListKind(event.kind)
+    && parsePeopleList(event).pubkeys.some((pk) => pk !== user?.pubkey);
+  const canZapAuthor = !!user && (!isOwnEvent || hasOtherMembers);
   // Fills the bolt icon after the user has zapped this event on either rail.
-  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
+  // Suppressed on the user's own list events (no self-zap to track).
+  const isZapped = useUserZap(canZapAuthor && !isOwnEvent ? event.id : undefined) === true;
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
+  const { format: formatMoney } = useFormatMoney();
 
   return (
     <div className={`flex items-center justify-between py-1 border-t border-b border-border${className ? ` ${className}` : ''}`}>
@@ -87,7 +97,7 @@ export function PostActionBar({
 
       {/* Zap */}
       {canZapAuthor && (
-        <ZapDialog target={event}>
+        <ZapMenu event={event} isZapped={isZapped}>
           <button
             type="button"
             className={cn(
@@ -104,10 +114,10 @@ export function PostActionBar({
               fill={isZapped ? 'currentColor' : 'none'}
             />
             {stats?.zapAmount ? (
-              <span className="text-sm tabular-nums">{formatNumber(stats.zapAmount)}</span>
+              <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>
             ) : null}
           </button>
-        </ZapDialog>
+        </ZapMenu>
       )}
 
       {/* More */}

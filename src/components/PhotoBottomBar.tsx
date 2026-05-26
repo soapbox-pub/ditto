@@ -25,6 +25,7 @@ import { useUserZap } from '@/hooks/useUserZap';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
+import { useFormatMoney } from '@/hooks/useFormatMoney';
 
 interface PhotoBottomBarProps {
   event: NostrEvent;
@@ -38,6 +39,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id, event);
+  const { format: formatMoney } = useFormatMoney();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
@@ -107,7 +109,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
                   title={isZapped ? 'Zapped' : 'Zap'}
                 >
                   <Zap className="size-5" fill={isZapped ? 'currentColor' : 'none'} />
-                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.zapAmount)}</span>}
+                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>}
                 </button>
               </ZapDialog>
             )}

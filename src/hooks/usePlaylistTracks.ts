@@ -3,18 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { parseMusicTrack } from '@/lib/musicHelpers';
-
-/** Parse an `a`-tag ref like `36787:<pubkey>:<d-tag>` into filter components. */
-function parseATagRef(ref: string): { kind: number; pubkey: string; identifier: string } | null {
-  const parts = ref.split(':');
-  if (parts.length < 3) return null;
-  const kind = parseInt(parts[0], 10);
-  if (isNaN(kind)) return null;
-  const pubkey = parts[1];
-  const identifier = parts.slice(2).join(':'); // d-tag may contain colons
-  if (!pubkey) return null;
-  return { kind, pubkey, identifier };
-}
+import { parseAddr } from '@/lib/parseAddr';
 
 /**
  * Resolve playlist `a`-tag references to actual music track events.
@@ -29,7 +18,7 @@ export function usePlaylistTracks(trackRefs: string[]) {
   const { nostr } = useNostr();
 
   const parsedRefs = useMemo(
-    () => trackRefs.map(parseATagRef).filter((r): r is NonNullable<typeof r> => r !== null),
+    () => trackRefs.map(parseAddr).filter((r): r is NonNullable<typeof r> => r !== undefined),
     [trackRefs],
   );
 

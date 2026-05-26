@@ -38,6 +38,8 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeComments: true,
       feedIncludeReposts: true,
       feedIncludeGenericReposts: true,
+      feedIncludeReactions: false,
+      feedIncludeZaps: false,
       feedIncludeArticles: false,
       showArticles: false,
       showHighlights: false,
@@ -122,6 +124,8 @@ export function TestApp({ children }: TestAppProps) {
     autoplayVideos: false,
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
+    esploraBaseUrl: 'https://mempool.space/api',
+    currencyDisplay: 'usd',
     sidebarWidgets: [],
   };
 

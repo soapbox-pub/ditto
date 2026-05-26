@@ -23,6 +23,7 @@ import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
+import { useAppContext } from '@/hooks/useAppContext';
 import { canZap } from '@/lib/canZap';
 import {
   fetchBtcPrice,
@@ -34,8 +35,21 @@ import type { WebLNProvider } from '@webbtc/webln-types';
 
 interface ZapDialogProps {
   target: Event;
+  /**
+   * Optional trigger node. When provided, the dialog wraps it in a
+   * `DialogTrigger` so a click opens the dialog (uncontrolled use).
+   * Omit when controlling the dialog's `open` state from the outside.
+   */
   children?: React.ReactNode;
   className?: string;
+  /**
+   * Controlled open state. When set, the dialog ignores its internal
+   * trigger-click handling and follows this prop instead. Pair with
+   * `onOpenChange`.
+   */
+  open?: boolean;
+  /** Controlled open setter. Required when `open` is provided. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 // USD presets for the Lightning tab. Lightning zaps are expected to be
@@ -281,12 +295,34 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
 });
 LightningZapContent.displayName = 'LightningZapContent';
 
-export function ZapDialog({ target, children, className }: ZapDialogProps) {
-  const [open, setOpen] = useState(false);
+export function ZapDialog({
+  target,
+  children,
+  className,
+  open: controlledOpen,
+  onOpenChange,
+}: ZapDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  // Allow the caller to control open state from the outside (used by ZapMenu
+  // to open the dialog after its parent popover finishes dismissing).
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (isControlled) {
+        onOpenChange?.(next);
+      } else {
+        setUncontrolledOpen(next);
+      }
+    },
+    [isControlled, onOpenChange],
+  );
   const { user } = useCurrentUser();
   const { data: author } = useAuthor(target.pubkey);
   const { toast } = useToast();
   const { webln, activeNWC } = useWallet();
+  const { config } = useAppContext();
+  const { esploraBaseUrl } = config;
 
   // Success state: populated by either zap rail's onSuccess callback.
   // When set, we replace the tab UI with <ZapSuccessScreen />.
@@ -320,8 +356,8 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price'],
-    queryFn: fetchBtcPrice,
+    queryKey: ['btc-price', esploraBaseUrl],
+    queryFn: () => fetchBtcPrice(esploraBaseUrl),
     staleTime: 30_000,
   });
 
@@ -472,16 +508,21 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const canOpenZap = !!user && user.pubkey !== target.pubkey;
 
   if (!canOpenZap) {
-    return <>{children}</>;
+    // Uncontrolled callers wrap a trigger node; render it bare so the icon
+    // still appears (just won't open anything). Controlled callers don't
+    // pass children and won't try to open the dialog for themselves anyway.
+    return children ? <>{children}</> : null;
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
-          {children}
-        </div>
-      </DialogTrigger>
+      {children && (
+        <DialogTrigger asChild>
+          <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
+            {children}
+          </div>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">

@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
+import { isNostrId } from '@/lib/nostrId';
 import {
   LETTER_KIND,
   type Letter,
@@ -20,7 +21,9 @@ function parseLetterEvent(event: NostrEvent): Letter | null {
   if (event.kind !== LETTER_KIND) return null;
 
   const recipient = event.tags.find(([name]) => name === 'p')?.[1];
-  if (!recipient) return null;
+  // Drop letters with a malformed recipient pubkey — they'd crash any
+  // downstream nip19 encoder used to build a profile link.
+  if (!isNostrId(recipient)) return null;
 
   return {
     event,

@@ -5,6 +5,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -65,9 +66,12 @@ export function useFollowList() {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       if (!event) return { event: null, pubkeys: [] };
+      // Drop malformed `p` tag pubkeys — anything but valid hex would crash
+      // nip19 encoders in the consumer UI (avatar stacks, follow lists).
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk);
+        .map(([, pk]) => pk)
+        .filter(isNostrId);
       setCachedFollowList(cacheKey, user.pubkey, pubkeys);
       return { event, pubkeys };
     },
@@ -88,6 +92,12 @@ export interface UseFollowActionsReturn {
   follow: (pubkey: string) => Promise<void>;
   /** Unfollow a pubkey. Fetches the freshest kind 3 first, then publishes. */
   unfollow: (pubkey: string) => Promise<void>;
+  /**
+   * Follow many pubkeys in a single kind 3 publish. Fetches the freshest kind 3
+   * first, merges in any pubkeys not already followed, and preserves all
+   * existing tags + content. Returns the count of pubkeys newly added.
+   */
+  followMany: (pubkeys: string[]) => Promise<number>;
 }
 
 /**
@@ -164,5 +174,51 @@ export function useFollowActions(): UseFollowActionsReturn {
     [mutateFollowList],
   );
 
-  return { isPending, follow, unfollow };
+  const followMany = useCallback(
+    async (pubkeys: string[]): Promise<number> => {
+      if (!user) throw new Error('Not logged in');
+      setIsPending(true);
+
+      try {
+        // ① Fetch the freshest kind 3 event via pool
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+
+        // ② Separate p-tags from everything else (preserve relay hints, petnames, etc.)
+        const existingTags = prev?.tags ?? [];
+        const existingPTags = existingTags.filter(([name]) => name === 'p');
+        const nonPTags = existingTags.filter(([name]) => name !== 'p');
+        const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
+
+        // ③ Compute the additions: dedupe input + filter out already-followed + skip self
+        const seen = new Set<string>();
+        const newPTags: string[][] = [];
+        for (const pk of pubkeys) {
+          if (!pk || pk === user.pubkey || existingPubkeys.has(pk) || seen.has(pk)) continue;
+          seen.add(pk);
+          newPTags.push(['p', pk]);
+        }
+
+        // Nothing to add — skip the publish to avoid a no-op kind 3 broadcast
+        if (newPTags.length === 0) return 0;
+
+        // ④ Publish (non-p tags first, then existing p tags, then new p tags)
+        await publishEvent({
+          kind: 3,
+          content: prev?.content ?? '',
+          tags: [...nonPTags, ...existingPTags, ...newPTags],
+          prev: prev ?? undefined,
+        });
+
+        // ⑤ Invalidate cached follow-list queries so UI updates
+        queryClient.invalidateQueries({ queryKey: ['follow-list'] });
+
+        return newPTags.length;
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [nostr, user, publishEvent, queryClient],
+  );
+
+  return { isPending, follow, unfollow, followMany };
 }

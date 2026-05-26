@@ -2,7 +2,13 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, isRepostKind, shouldHideFeedEvent, type FeedItem } from '@/lib/feedUtils';
+import {
+  getPaginationCursor,
+  shouldHideFeedEvent,
+  buildFeedItems,
+  dedupeFeedItems,
+  type FeedItem,
+} from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
@@ -40,10 +46,11 @@ function hasMedia(item: FeedItem): boolean {
 export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
   switch (tab) {
     case 'posts':
-      // Show posts without reply markers (including reposts)
+      // Show posts without reply markers (including reposts, reactions, and zaps as overlays)
       return items.filter((item) => {
         const e = item.event;
-        if (item.repostedBy) return true; // Always show reposts
+        // Always show wrappers — they're activity, not authored content
+        if (item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient) return true;
         if (e.kind === 1111) return false; // Kind 1111 comments are always replies
         if (e.kind === 1) return !isReplyEvent(e); // Kind 1 without reply e-tags
         return !isReplyEvent(e); // Other kinds without reply e-tags
@@ -139,50 +146,10 @@ export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab
       // feed consistent with the home feed (Feed.tsx uses the same helper).
       const visibleEvents = validEvents.filter((ev) => !shouldHideFeedEvent(ev));
 
-      // Process events into FeedItems, unwrapping kind 6/16 reposts
-      const items: FeedItem[] = [];
-      const repostMissingIds: string[] = [];
-      const repostMap = new Map<string, NostrEvent>();
-
-      for (const ev of visibleEvents) {
-        if (isRepostKind(ev.kind)) {
-          // Handle reposts (kind 6 for notes, kind 16 for generic)
-          const embedded = parseRepostContent(ev);
-          if (embedded && embedded.created_at <= now) {
-            items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-          } else {
-            const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-            if (repostedId) {
-              repostMissingIds.push(repostedId);
-              repostMap.set(repostedId, ev);
-            }
-          }
-        } else {
-          // Direct post or other kinds
-          items.push({ event: ev, sortTimestamp: ev.created_at });
-        }
-      }
-
-      // Fetch any missing reposted events in a single query
-      if (repostMissingIds.length > 0) {
-        try {
-          const originals = await nostr.query(
-            [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-            { signal: querySignal },
-          );
-          for (const original of originals) {
-            const repost = repostMap.get(original.id);
-            if (repost && original.created_at <= now) {
-              items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-            }
-          }
-        } catch {
-          // timeout or abort — just skip the missing reposts
-        }
-      }
-
-      // Sort by timestamp
-      const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+      // Unwrap reposts / reactions / zaps so the target event renders
+      // with the wrapper as an overlay header — same pipeline as useFeed.
+      const items = await buildFeedItems(visibleEvents, nostr, querySignal);
+      const sorted = dedupeFeedItems(items);
 
       // Seed event cache so post detail views resolve instantly
       cacheEvents(sorted);
@@ -351,46 +318,11 @@ export function useTabFeed(
       const validEvents = allEvents.filter((ev) => ev.created_at <= now);
       const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
-      // Process events into FeedItems, unwrapping reposts
-      const items: FeedItem[] = [];
-      const repostMissingIds: string[] = [];
-      const repostMap = new Map<string, NostrEvent>();
-
-      for (const ev of validEvents) {
-        if (isRepostKind(ev.kind)) {
-          const embedded = parseRepostContent(ev);
-          if (embedded && embedded.created_at <= now) {
-            items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
-          } else {
-            const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
-            if (repostedId) {
-              repostMissingIds.push(repostedId);
-              repostMap.set(repostedId, ev);
-            }
-          }
-        } else {
-          items.push({ event: ev, sortTimestamp: ev.created_at });
-        }
-      }
-
-      if (repostMissingIds.length > 0) {
-        try {
-          const originals = await nostr.query(
-            [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-            { signal: querySignal },
-          );
-          for (const original of originals) {
-            const repost = repostMap.get(original.id);
-            if (repost && original.created_at <= now) {
-              items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
-            }
-          }
-        } catch {
-          // timeout or abort — skip missing reposts
-        }
-      }
-
-      const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+      // Unwrap reposts / reactions / zaps the same way the home and profile
+      // feeds do, so kind 7 / 9735 events render as overlay headers on the
+      // target post rather than as standalone activity cards.
+      const items = await buildFeedItems(validEvents, nostr, querySignal);
+      const sorted = dedupeFeedItems(items);
       return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length, fetchLimit: PAGE_SIZE };
     },
     getNextPageParam: (lastPage) => {

@@ -58,6 +58,8 @@ const hardcodedConfig: AppConfig = {
     feedIncludeComments: true,
     feedIncludeReposts: true,
     feedIncludeGenericReposts: true,
+    feedIncludeReactions: true,
+    feedIncludeZaps: true,
     feedIncludeArticles: true,
     showArticles: true,
     showHighlights: true,
@@ -153,6 +155,8 @@ const hardcodedConfig: AppConfig = {
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
+  esploraBaseUrl: 'https://mempool.space/api',
+  currencyDisplay: 'usd',
   sidebarWidgets: [
     { id: 'trends' },
     { id: 'hot-posts' },

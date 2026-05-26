@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, ExternalLink } from 'lucide-react';
-import { openUrl } from '@/lib/downloadFile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -15,7 +15,7 @@ interface ZapSuccessScreenProps {
   amountSats: number;
   /** Current BTC/USD price for display; optional, falls back to sats only. */
   btcPrice: number | undefined;
-  /** Bitcoin txid (onchain only). Enables the mempool.space link. */
+  /** Bitcoin txid (onchain only). Enables the "View transaction" link to the in-app tx detail page. */
   txid?: string;
   /** Close handler invoked by the "Done" button. */
   onClose: () => void;
@@ -66,10 +66,6 @@ export function ZapSuccessScreen({
       }),
     [],
   );
-
-  const viewOnMempool = () => {
-    if (txid) openUrl(`https://mempool.space/tx/${txid}`);
-  };
 
   return (
     <div
@@ -152,11 +148,13 @@ export function ZapSuccessScreen({
           <Button
             type="button"
             variant="outline"
-            onClick={viewOnMempool}
+            asChild
             className="w-full"
           >
-            <ExternalLink className="size-4 mr-2" />
-            View transaction
+            <Link to={`/i/bitcoin:tx:${txid}`} onClick={onClose}>
+              <ExternalLink className="size-4 mr-2" />
+              View transaction
+            </Link>
           </Button>
         )}
         <Button type="button" onClick={onClose} className="w-full">

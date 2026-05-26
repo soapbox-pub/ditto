@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
+import { isNostrId } from '@/lib/nostrId';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export interface FollowPack {
@@ -17,7 +18,11 @@ function parsePackEvent(event: NostrEvent): FollowPack {
   const title = event.tags.find((t) => t[0] === 'title')?.[1]
     || event.tags.find((t) => t[0] === 'name')?.[1]
     || 'Untitled Pack';
-  const pubkeys = event.tags.filter((t) => t[0] === 'p' && t[1]).map((t) => t[1]);
+  // Drop malformed pubkeys so downstream nip19 encoders stay safe.
+  const pubkeys = event.tags
+    .filter((t) => t[0] === 'p' && t[1])
+    .map((t) => t[1])
+    .filter(isNostrId);
   return { id, title, pubkeys, event };
 }
 

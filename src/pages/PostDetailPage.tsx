@@ -70,6 +70,7 @@ import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
 import { PostActionBar } from "@/components/PostActionBar";
+import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
 import { PollContent } from "@/components/PollContent";
@@ -123,9 +124,6 @@ const BADGE_DEFINITION_KIND = 30009;
 /** NIP-58 Profile Badges (new replaceable kind). */
 const BADGE_PROFILE_KIND_NEW = 10008;
 
-/** NIP-58 Profile Badges (legacy addressable kind). */
-const BADGE_PROFILE_KIND_LEGACY = 30008;
-
 /** NIP-58 Badge Award. */
 const BADGE_AWARD_KIND = 8;
 
@@ -152,7 +150,11 @@ function shellTitleForKind(kind?: number): string {
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
   // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
-  if (kind === BADGE_PROFILE_KIND_NEW || kind === BADGE_PROFILE_KIND_LEGACY) return "Badge Collection";
+  // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
+  // Kind 30008 falls through to the central registry ("Badge set") because
+  // it could be either a legacy profile badges event or a NIP-51 badge set
+  // and the loading-state shell title runs before we have the event/d-tag.
+  if (kind === BADGE_PROFILE_KIND_NEW) return "Badge Collection";
   // Fall back to the central registry
   const label = KIND_LABELS[kind];
   if (label) return label;
@@ -162,6 +164,8 @@ function shellTitleForKind(kind?: number): string {
 import { CommentContext } from "@/components/CommentContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { BrokenEventFallback } from "@/components/BrokenEventFallback";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import {
   CommunityPreview,
@@ -175,19 +179,22 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
-import { extractOnchainZapClaimedAmount, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
+import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteList } from "@/hooks/useMuteList";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
+import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
+import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { isEventMuted } from "@/lib/muteHelpers";
+import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { cn } from "@/lib/utils";
@@ -299,9 +306,21 @@ export function PostDetailPage({
   }
 
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
-  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
+  if (isProfileBadgesEvent(resolvedEvent)) {
     return (
       <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-51 badge set (kind 30008 with a non-`profile_badges` d-tag) — uses
+  // the same NoteCard + comments layout but with a set-aware title.
+  if (isBadgeSetEvent(resolvedEvent)) {
+    return (
+      <PostDetailShell title="Badge Set">
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -416,9 +435,20 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   }
 
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
-  if (resolvedEvent.kind === BADGE_PROFILE_KIND_NEW || resolvedEvent.kind === BADGE_PROFILE_KIND_LEGACY) {
+  if (isProfileBadgesEvent(resolvedEvent)) {
     return (
       <PostDetailShell title="Badge Collection">
+        <MutedContentGuard event={resolvedEvent}>
+          <ProfileBadgesDetailView event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
+    );
+  }
+
+  // NIP-51 badge set — same layout as profile badges with a different title.
+  if (isBadgeSetEvent(resolvedEvent)) {
+    return (
+      <PostDetailShell title="Badge Set">
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -435,7 +465,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-/** NoteCard + NIP-22 comments section for kind 10008/30008 profile badges detail page. */
+/**
+ * NoteCard + NIP-22 comments section shared by:
+ * - kind 10008 profile badges (NIP-51 standard list)
+ * - kind 30008 with `d=profile_badges` (legacy NIP-58 profile badges)
+ * - kind 30008 with arbitrary `d` (NIP-51 badge sets)
+ *
+ * NoteCard handles the kind-specific rendering internally; this wrapper just
+ * provides the comments tree.
+ */
 function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   const { muteItems } = useMuteList();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
@@ -1093,6 +1131,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
+  const { format: formatMoney } = useFormatMoney();
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
   const topEmojis = useMemo<ResolvedEmoji[]>(() => {
@@ -1158,8 +1197,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const rootPubkey = P ?? "";
 
     if (A) {
-      const parts = A.split(":");
-      const dValue = parts.length >= 3 ? parts.slice(2).join(":") : "";
+      const dValue = parseAddr(A)?.identifier ?? "";
       return {
         id: E ?? "",
         kind: rootKind,
@@ -1350,9 +1388,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "0") return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    return parts[1] || undefined;
+    return parseAddr(aTag)?.pubkey;
   }, [event, isComment]);
 
   // For kind 1111 comments on a community (kind 34550), extract the addr for the community preview
@@ -1361,13 +1397,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "34550") return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    const kind = parseInt(parts[0], 10);
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(":");
-    if (!pubkey || isNaN(kind)) return undefined;
-    return { kind, pubkey, identifier };
+    return parseAddr(aTag);
   }, [event, isComment]);
 
   // For kind 1111 comments on any other addressable event (vines, music, etc.),
@@ -1385,12 +1415,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const kind = parseInt(kTag, 10);
     if (isNaN(kind)) return undefined;
     const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    if (!aTag) return undefined;
-    const parts = aTag.split(":");
-    const pubkey = parts[1];
-    const identifier = parts.slice(2).join(":");
-    if (!pubkey) return undefined;
-    return { kind, pubkey, identifier };
+    const parsed = parseAddr(aTag);
+    if (!parsed) return undefined;
+    // K tag is the authoritative root kind — the A tag's first segment must
+    // match, but if it doesn't (or the A tag references a different kind by
+    // mistake), prefer K so the addressable-event preview still resolves.
+    return { kind, pubkey: parsed.pubkey, identifier: parsed.identifier };
   }, [
     event,
     isComment,
@@ -1812,7 +1842,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     <span className="text-sm text-muted-foreground">zapped</span>
                     {zapAmountSats > 0 && (
                       <span className="text-sm font-semibold text-amber-500 shrink-0">
-                        {formatNumber(zapAmountSats)} {zapAmountSats === 1 ? 'sat' : 'sats'}
+                        {formatMoney(zapAmountSats)}
                       </span>
                     )}
                   </>
@@ -1851,6 +1881,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const isVerifying = verifiedOnchainZap === undefined;
         const failedVerification = verifiedOnchainZap === null;
         const zapMsg = event.content;
+        // Multi-recipient batch zap (NIP-BC) — show an avatar stack so the
+        // viewer sees who got paid. The single-recipient case is implicit
+        // when the zap targets a specific event (the recipient is the
+        // event's author) or shown elsewhere for profile-targeted zaps.
+        const recipientPubkeys = extractOnchainZapRecipients(event);
+        const isMultiRecipient = recipientPubkeys.length > 1;
         // Sender is the author (self-signed, unlike 9735 where the LNURL server signs).
         return (
           <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
@@ -1878,10 +1914,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     ) : displayName}
                   </Link>
                 </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground">zapped</span>
+                <span className="text-sm text-muted-foreground">
+                  zapped
+                  {isMultiRecipient && ` ${recipientPubkeys.length} people`}
+                </span>
                 {amountSats > 0 && (
                   <span className="text-sm font-semibold text-amber-500 shrink-0">
-                    {formatNumber(amountSats)} {amountSats === 1 ? 'sat' : 'sats'}
+                    {formatMoney(amountSats)}
                   </span>
                 )}
                 {failedVerification ? (
@@ -1891,6 +1930,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 ) : null}
               </div>
             </div>
+
+            {isMultiRecipient && (
+              <div className="mt-2 pl-[52px]">
+                <PeopleAvatarStack pubkeys={recipientPubkeys} size="md" maxVisible={8} />
+              </div>
+            )}
 
             {zapMsg && (
               <p className="text-sm text-muted-foreground italic pl-[52px]">&ldquo;{zapMsg}&rdquo;</p>
@@ -2209,7 +2254,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
 
           {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
-          <ContentWarningGuard event={event}>
+          <ErrorBoundary
+            fallback={<BrokenEventFallback />}
+            sentryLevel="error"
+            sentryTags={{ errorBoundary: 'post-detail', kind: event.kind }}
+            resetKeys={[event.id]}
+          >
+            <ContentWarningGuard event={event}>
             {isPhoto ? (
               <PhotoDetailContent event={event} />
             ) : isVideo ? (
@@ -2317,6 +2368,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             )}
           </ContentWarningGuard>
+          </ErrorBoundary>
 
           {/* Stats + date row (shared with activity-style detail cards) */}
           {statsAndDateRow}

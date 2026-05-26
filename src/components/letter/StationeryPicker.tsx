@@ -23,6 +23,7 @@ import {
 } from '@/lib/letterTypes';
 import { useColorMomentsPage, useThemesPage } from '@/hooks/useStationery';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { StationeryPreview } from './StationeryBackground';
 
 const PAGE_SIZE = 24;
@@ -249,12 +250,18 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
   const followListData = useFollowList();
   const followPubkeyArray = followListData.data?.pubkeys;
   const followList = useMemo(() => new Set(followPubkeyArray ?? []), [followPubkeyArray]);
+  const { excludeMuted } = useMutedAuthorFilter();
 
   const scopedAuthors = useMemo(() => {
     if (scope === 'mine') return user ? [user.pubkey] : undefined;
-    if (scope === 'friends') return followList.size > 0 ? Array.from(followList) : undefined;
+    if (scope === 'friends') {
+      if (followList.size === 0) return undefined;
+      // Subtract muted pubkeys so the viewer's mute list wins over follow.
+      const filtered = excludeMuted(Array.from(followList));
+      return filtered.length > 0 ? filtered : undefined;
+    }
     return undefined;
-  }, [scope, user, followList]);
+  }, [scope, user, followList, excludeMuted]);
 
   const resolved = selected ? resolveStationery(selected) : undefined;
   const emojiMode = selected?.emojiMode ?? 'tile';

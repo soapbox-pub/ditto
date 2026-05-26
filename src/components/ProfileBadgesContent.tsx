@@ -91,6 +91,8 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
           {showRefs.map((ref, idx) => {
             const badge = badgeMap.get(ref.aTag);
+            // `parseProfileBadges` guarantees `ref.pubkey` is a 64-char hex
+            // string, so the encoder cannot throw here.
             const badgeUrl = `/${nip19.naddrEncode({ kind: 30009, pubkey: ref.pubkey, identifier: ref.identifier })}`;
 
             return (
