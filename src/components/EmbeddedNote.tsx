@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap } from 'lucide-react';
+import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
@@ -33,7 +33,8 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
-import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
+import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
+import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 
@@ -128,6 +129,22 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 1068 NIP-88 polls get a compact card showing the question + a
+  // preview of the options. Without this branch, polls fall through to
+  // `EmbeddedNoteCard`, which has no concept of `option` tags and would
+  // either show the bare `alt` text or tombstone as "not supported" for
+  // polls authored by clients that don't include an `alt` tag.
+  if (event.kind === 1068) {
+    return <EmbeddedPollCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 1018 poll votes have empty content and would otherwise tombstone.
+  // Render a compact "voted for X" card by resolving the option label from
+  // the parent poll.
+  if (event.kind === 1018) {
+    return <EmbeddedPollVoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // People-list events (kind 3 follow lists) get a dedicated card showing
   // title + avatar stack + member count. The generic fallback renders empty
   // because all the data lives in `p` tags, not content or title tags.
@@ -176,6 +193,145 @@ function EmbeddedHighlightCard({
         </blockquote>
       ) : (
         <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 1068 NIP-88 polls.
+ *
+ * Renders the poll question (the event `content`) via `NoteContent` so
+ * mentions/hashtags inside the question still tokenize correctly, plus a
+ * non-interactive preview of the first few `option` tags and a chip row
+ * showing poll type (single/multi) and expiry state. Voting happens on
+ * the dedicated detail page (click-through), not inline — embeds are
+ * read-only previews.
+ */
+function EmbeddedPollCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const options = useMemo(
+    () =>
+      event.tags
+        .filter(([n]) => n === 'option')
+        .map(([, , label]) => (label ?? '').trim())
+        .filter((label) => label.length > 0),
+    [event.tags],
+  );
+  const pollType = event.tags.find(([n]) => n === 'polltype')?.[1] ?? 'singlechoice';
+  const endsAtTag = event.tags.find(([n]) => n === 'endsAt')?.[1];
+  const endsAt = endsAtTag ? Number(endsAtTag) : undefined;
+  const isExpired =
+    typeof endsAt === 'number' && Number.isFinite(endsAt) && endsAt < Math.floor(Date.now() / 1000);
+
+  const MAX_OPTION_PREVIEW = 4;
+  const previewOptions = options.slice(0, MAX_OPTION_PREVIEW);
+  const remainingOptions = Math.max(0, options.length - MAX_OPTION_PREVIEW);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      {/* Question */}
+      {event.content.trim().length > 0 && (
+        <div className="text-sm leading-relaxed font-medium break-words">
+          <NoteContent event={event} disableMediaEmbeds disableNoteEmbeds />
+        </div>
+      )}
+
+      {/* Poll type + expiry chips */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
+          <BarChart3 className="size-3" />
+          {pollType === 'multiplechoice' ? 'Multiple choice' : 'Poll'}
+        </span>
+        {isExpired && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
+            <Clock className="size-3" />
+            Ended
+          </span>
+        )}
+      </div>
+
+      {/* Options preview — non-interactive, just shows option text */}
+      {previewOptions.length > 0 && (
+        <div className="space-y-1">
+          {previewOptions.map((label, i) => (
+            <div
+              key={i}
+              className="rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground bg-secondary/20 break-words line-clamp-1"
+            >
+              {label}
+            </div>
+          ))}
+          {remainingOptions > 0 && (
+            <p className="text-[11px] text-muted-foreground pl-1">
+              +{remainingOptions} more option{remainingOptions === 1 ? '' : 's'}
+            </p>
+          )}
+        </div>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 1018 poll vote events.
+ *
+ * Vote events have empty `content`, so the generic embedded card would
+ * tombstone them as "not supported". We resolve the option label from the
+ * parent poll (via `usePollVoteLabel`) and display "voted for X" — same
+ * shape used on the feed/detail card for vote events.
+ */
+function EmbeddedPollVoteCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+  const voteLabel = usePollVoteLabel(event);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <BarChart3 className="size-3" />
+        Poll vote
+      </div>
+      {voteLabel ? (
+        <p className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+          {voteLabel}
+        </p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Voted</p>
       )}
     </EmbeddedCardShell>
   );
@@ -560,14 +716,19 @@ function EmbeddedNoteCard({
     // NIP-31 `alt` is the author's own fallback for clients that can't
     // render the kind. Other tags (title, name, d, …) have kind-specific
     // semantics and are not reliably safe as user-facing preview text.
-    const altTag = event.tags.find(([n]) => n === 'alt')?.[1];
-    const title = altTag && altTag.trim().length > 0 ? altTag.trim() : undefined;
-    if (!title) return undefined;
-    return { title, description: undefined as string | undefined };
-  }, [isContentKind, hasContent, event.tags]);
+    const altText = getEventFallbackText(event);
+    if (!altText) return undefined;
+    return { title: altText, description: undefined as string | undefined };
+  }, [isContentKind, hasContent, event]);
 
-  // Unknown/unsupported kind with no displayable tags and no content-kind body.
-  const isUnsupportedKind = !isContentKind && !isBlobbiState && !tagMeta;
+  // Truly unknown kind: not a content kind, no Blobbi inline visual, no `alt`
+  // fallback text, AND we don't recognize the kind via `getKindLabel`. Only
+  // these get the "This event kind is not supported" tombstone. Kinds Ditto
+  // knows about (via `EXTRA_KINDS`) but that the author authored without an
+  // `alt` tag get a kind-labeled card showing the icon + label centrally,
+  // so the embed at least communicates what type of content it points to.
+  const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta;
+  const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta;
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -580,7 +741,8 @@ function EmbeddedNoteCard({
 
   const hasChips = !hasCW && (
     attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 ||
-    attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0 || kindMeta
+    attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0 ||
+    (kindMeta && !isKnownKindWithoutPreview)
   );
   const hasFooter = hasChips || contentOverflows;
 
@@ -610,7 +772,12 @@ function EmbeddedNoteCard({
             <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{tagMeta.description}</p>
           )}
         </>
-      ) : isUnsupportedKind ? (
+      ) : isKnownKindWithoutPreview && kindMeta ? (
+        <div className="flex items-center gap-2 py-1 text-muted-foreground">
+          {kindMeta.Icon && <kindMeta.Icon className="size-4 shrink-0" />}
+          <span className="text-sm font-medium capitalize">{kindMeta.label}</span>
+        </div>
+      ) : isUnknownKind ? (
         <p className="text-sm italic text-muted-foreground">
           This event kind is not supported
         </p>
@@ -621,7 +788,7 @@ function EmbeddedNoteCard({
       {/* Attachment / kind indicator chips + Read more toggle */}
       {hasFooter && (
         <div className="flex items-center gap-2 flex-wrap">
-          {kindMeta && (
+          {kindMeta && !isKnownKindWithoutPreview && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
               {kindMeta.label}
