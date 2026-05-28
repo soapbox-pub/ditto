@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.2] - 2026-05-28
+
+A small fix for tapping `bitcoin:` links. When a link offers both a private silent-payment address and a regular on-chain one, the Send dialog now lets you choose between privacy and compatibility instead of silently picking for you -- matching what pasting or scanning the same code already did.
+
+### Fixed
+- Tapping a `bitcoin:` link that carries both a silent-payment and an on-chain address now opens the recipient chooser so you can pick privacy vs. compatibility, instead of always defaulting to the silent-payment address
+
 ## [2.18.1] - 2026-05-28
 
 Tap a `bitcoin:` link anywhere on your phone and Ditto opens its Send dialog with the payment pre-filled. The Send dialog also accepts BIP-21 URIs pasted into the recipient field, offers a chooser when a code carries both a silent-payment and on-chain address, and leads with the amount first. Quote-embedded polls, short videos, voice messages, and a dozen other content types now show proper preview cards instead of "not supported." Adding a second account also actually switches to it now.
