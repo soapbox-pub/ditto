@@ -556,16 +556,23 @@ export function validateBitcoinAddress(address: string): boolean {
  * Parsed BIP-21 payment URI.
  *
  * `address` is the on-chain fallback (the URI's path); `sp` is the BIP-352
- * silent payment recipient if the URI included a valid `sp=` parameter.
- * Other BIP-21 parameters (`amount`, `label`, `message`, `lightning`, …)
- * are not surfaced — the wallet UI lets the user pick the amount, and we
- * have no lightning support to fall back to.
+ * silent payment recipient if the URI included a valid `sp=` parameter;
+ * `amountSats` is the BIP-21 `amount=` parameter converted from BTC to
+ * satoshis. Other BIP-21 parameters (`label`, `message`, `lightning`, …) are
+ * not surfaced — we have no lightning support to fall back to.
  */
 export interface ParsedBitcoinUri {
   /** On-chain address from the URI path. May be empty for sp-only URIs. */
   address: string;
   /** BIP-352 silent payment address from the `sp=` parameter, if present. */
   sp?: string;
+  /**
+   * Amount in satoshis, parsed from the BIP-21 `amount=` parameter (which is
+   * specified in BTC). Undefined when the URI has no amount or the value is
+   * malformed / non-positive / non-finite. Rounded down to whole sats so we
+   * never overstate the requester's intent.
+   */
+  amountSats?: number;
 }
 
 /**
@@ -585,13 +592,23 @@ export function parseBitcoinUri(input: string): ParsedBitcoinUri | null {
   const address = (qIdx === -1 ? payload : payload.slice(0, qIdx)).trim();
 
   let sp: string | undefined;
+  let amountSats: number | undefined;
   if (qIdx !== -1) {
     // URLSearchParams handles percent-decoding and repeated keys.
     const params = new URLSearchParams(payload.slice(qIdx + 1));
     sp = params.get('sp')?.trim() || undefined;
+
+    const amountRaw = params.get('amount')?.trim();
+    if (amountRaw) {
+      const btc = Number(amountRaw);
+      if (Number.isFinite(btc) && btc > 0) {
+        // Round down — never overstate the requested amount.
+        amountSats = Math.floor(btc * 100_000_000);
+      }
+    }
   }
 
-  return { address, sp };
+  return { address, sp, amountSats };
 }
 
 /**

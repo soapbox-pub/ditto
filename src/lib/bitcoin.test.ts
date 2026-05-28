@@ -153,6 +153,7 @@ describe('parseBitcoinUri', () => {
     expect(parseBitcoinUri('bitcoin:bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5')).toEqual({
       address: 'bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5',
       sp: undefined,
+      amountSats: undefined,
     });
   });
 
@@ -160,22 +161,25 @@ describe('parseBitcoinUri', () => {
     expect(parseBitcoinUri('BITCOIN:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')).toEqual({
       address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
       sp: undefined,
+      amountSats: undefined,
     });
   });
 
   it('strips a trailing query string and surfaces the sp parameter', () => {
-    const uri = 'bitcoin:bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5?amount=0.5&label=Tip&sp=sp1qq';
+    const uri = 'bitcoin:bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5?label=Tip&sp=sp1qq';
     expect(parseBitcoinUri(uri)).toEqual({
       address: 'bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5',
       sp: 'sp1qq',
+      amountSats: undefined,
     });
   });
 
-  it('ignores non-sp parameters', () => {
-    const uri = 'bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.5&label=Tip&message=hi';
+  it('ignores non-amount/non-sp parameters', () => {
+    const uri = 'bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?label=Tip&message=hi';
     expect(parseBitcoinUri(uri)).toEqual({
       address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
       sp: undefined,
+      amountSats: undefined,
     });
   });
 
@@ -183,7 +187,33 @@ describe('parseBitcoinUri', () => {
     expect(parseBitcoinUri('  bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2  ')).toEqual({
       address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
       sp: undefined,
+      amountSats: undefined,
     });
+  });
+
+  it('parses the BIP-21 amount (BTC) into satoshis', () => {
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.5')).toEqual({
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      sp: undefined,
+      amountSats: 50_000_000,
+    });
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.00012345')).toEqual({
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      sp: undefined,
+      amountSats: 12_345,
+    });
+  });
+
+  it('rounds the amount down rather than overstating it', () => {
+    // 0.000000019 BTC = 1.9 sats — must floor to 1, never round up to 2.
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.000000019')?.amountSats).toBe(1);
+  });
+
+  it('omits amountSats when the parameter is malformed or non-positive', () => {
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=abc')?.amountSats).toBeUndefined();
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0')?.amountSats).toBeUndefined();
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=-1')?.amountSats).toBeUndefined();
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=')?.amountSats).toBeUndefined();
   });
 });
 

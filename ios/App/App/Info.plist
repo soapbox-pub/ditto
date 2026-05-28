@@ -63,5 +63,16 @@
 	<array>
 		<string>pub.ditto.app.notification-refresh</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pub.ditto.app.bitcoin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>bitcoin</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

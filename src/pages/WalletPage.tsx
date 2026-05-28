@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { Bitcoin, Copy, Check, RefreshCw, Wallet, ChevronDown, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 
@@ -15,14 +15,53 @@ import { useBitcoinWallet } from '@/hooks/useBitcoinWallet';
 import { satsToUSD, formatBTC } from '@/lib/bitcoin';
 import type { Transaction } from '@/lib/bitcoin';
 
+/**
+ * Shape of `location.state` consumed by this page when arriving via a
+ * `bitcoin:` deep link. The `DeepLinkHandler` navigates to `/wallet` with
+ * `state: { bip21Uri }` so we can auto-open the Send dialog with the URI
+ * prefilled. Kept here (rather than exported) because no other route
+ * produces this state.
+ */
+interface WalletLocationState {
+  bip21Uri?: string;
+}
+
 export function WalletPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, error, refetch } = useBitcoinWallet();
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const locationState = location.state as WalletLocationState | null;
+
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  // Snapshot of the URI we opened with. We snapshot once (rather than reading
+  // `locationState?.bip21Uri` on every render) so clearing `location.state`
+  // after consumption doesn't blank out the dialog's `initialUri` prop while
+  // it's still open.
+  const [pendingUri, setPendingUri] = useState<string | undefined>(undefined);
+  const consumedDeepLinkRef = useRef(false);
+
+  // Auto-open the Send dialog when the user arrived via a `bitcoin:` deep
+  // link. Only fires once per navigation; we then clear `location.state` so
+  // a back-then-forward navigation, or a refresh, doesn't relaunch the
+  // dialog. Logged-out users get the login prompt instead — no point opening
+  // a Send dialog they can't use.
+  useEffect(() => {
+    if (consumedDeepLinkRef.current) return;
+    const uri = locationState?.bip21Uri;
+    if (!uri) return;
+    consumedDeepLinkRef.current = true;
+    if (user) {
+      setPendingUri(uri);
+      setSendOpen(true);
+    }
+    // Strip the URI from history state so it doesn't replay on back-forward.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [locationState, user, navigate, location.pathname]);
 
   useSeoMeta({
     title: `Wallet | ${config.appName}`,
@@ -114,8 +153,12 @@ export function WalletPage() {
 
           <SendBitcoinDialog
             isOpen={sendOpen}
-            onClose={() => setSendOpen(false)}
+            onClose={() => {
+              setSendOpen(false);
+              setPendingUri(undefined);
+            }}
             btcPrice={btcPrice}
+            initialUri={pendingUri}
           />
 
           {/* QR Code */}

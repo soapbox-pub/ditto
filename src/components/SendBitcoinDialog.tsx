@@ -142,6 +142,13 @@ interface SendBitcoinDialogProps {
   onClose: () => void;
   /** BTC/USD price — passed from the parent to avoid a duplicate fetch. */
   btcPrice?: number;
+  /**
+   * Optional BIP-21 `bitcoin:` URI to prefill the form with. When the dialog
+   * opens with this set, the recipient (and amount, if present and resolvable
+   * to USD) is seeded as if the user had pasted it. The user can still edit
+   * the amount before sending.
+   */
+  initialUri?: string;
 }
 
 interface SendResult {
@@ -170,7 +177,7 @@ interface SendResult {
  *  - When the recipient is a Nostr identity, publishes a kind 8333 onchain-zap
  *    event after broadcast (no `e`/`a` tag → profile-level zap, per NIP.md).
  */
-export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDialogProps) {
+export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: SendBitcoinDialogProps) {
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -194,6 +201,64 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
     setPortalContainer(node ?? undefined);
   }, []);
+
+  // ── BIP-21 prefill ───────────────────────────────────────────
+  //
+  // When the dialog opens with an `initialUri` (e.g. from a `bitcoin:` deep
+  // link), seed the recipient and amount from it. The recipient is seeded
+  // immediately. The amount seed waits for `btcPrice` to load so we can
+  // convert sats → USD (the form's native unit). The user can edit either
+  // field before sending.
+  //
+  // `initialUriHandled` prevents the URI from re-applying after the user
+  // edits or clears the prefill within the same open cycle. It resets when
+  // the dialog closes (see `handleClose`).
+  const initialUriHandled = useRef(false);
+  const pendingAmountSats = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialUriHandled.current) return;
+    if (!initialUri) return;
+
+    const parsed = parseBitcoinUri(initialUri);
+    if (!parsed) {
+      initialUriHandled.current = true;
+      return;
+    }
+
+    // Resolve a recipient from the URI. Prefer the silent-payment address
+    // when present and valid (better privacy), else the on-chain fallback.
+    // If neither validates, leave the recipient slot empty and surface an
+    // error — the URI was malformed.
+    const spCandidate = parsed.sp;
+    if (spCandidate && looksLikeSilentPaymentAddress(spCandidate) && validateSilentPaymentAddress(spCandidate)) {
+      setRecipient({ address: spCandidate, kind: 'sp', raw: spCandidate });
+    } else if (parsed.address && validateBitcoinAddress(parsed.address)) {
+      setRecipient({ address: parsed.address, kind: 'onchain', raw: parsed.address });
+    } else {
+      setError("Couldn't read the payment address from that link.");
+    }
+
+    pendingAmountSats.current = parsed.amountSats ?? null;
+    initialUriHandled.current = true;
+  }, [isOpen, initialUri]);
+
+  // Apply the pending amount once `btcPrice` is available. The form stores
+  // a USD value; we round to cents for a clean display, but the actual send
+  // amount comes from `amountSats` recomputed from the USD value, so tiny
+  // rounding differences (< $0.005) get smoothed out at send time.
+  useEffect(() => {
+    if (!isOpen) return;
+    const sats = pendingAmountSats.current;
+    if (sats == null || !btcPrice) return;
+
+    const usd = (sats / 100_000_000) * btcPrice;
+    if (Number.isFinite(usd) && usd > 0) {
+      setUsdAmount(Math.round(usd * 100) / 100);
+    }
+    pendingAmountSats.current = null;
+  }, [isOpen, btcPrice]);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
 
@@ -456,6 +521,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     setConfirmArmed(false);
     setEditingAmount(false);
     feeSpeedUserChanged.current = false;
+    initialUriHandled.current = false;
+    pendingAmountSats.current = null;
     onClose();
   }, [onClose]);
 
