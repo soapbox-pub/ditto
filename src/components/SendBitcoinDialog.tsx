@@ -902,6 +902,25 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     const candidate = bip21 ? bip21.address : scannedTrimmed;
     const spParam = bip21?.sp;
 
+    // When a `bitcoin:` URI carries BOTH a valid on-chain address AND a valid
+    // `sp=` silent payment address, surface both choices in the dropdown
+    // instead of auto-routing — matches the paste/type behavior so the user
+    // explicitly picks privacy (sp) vs. compatibility (on-chain). Pushing the
+    // raw URI into the query input lets the existing `btcCandidate` and
+    // `spCandidate` memos render both `BtcAddressRow` and `SpAddressRow`.
+    if (bip21) {
+      const hasValidBtc = !!candidate && validateBitcoinAddress(candidate);
+      const hasValidSp = !!spParam
+        && looksLikeSilentPaymentAddress(spParam)
+        && validateSilentPaymentAddress(spParam);
+      if (hasValidBtc && hasValidSp) {
+        setQuery(scannedTrimmed);
+        setOpen(true);
+        inputRef.current?.focus();
+        return;
+      }
+    }
+
     // BIP-352 silent payment via `bitcoin:…?sp=sp1…` takes priority over the
     // on-chain fallback. A scanned URI like `bitcoin:bc1q…?sp=sp1q…` means
     // "send via silent payment if you can; otherwise fall back to bc1q…".
