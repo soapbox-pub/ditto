@@ -205,16 +205,26 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   // ── BIP-21 prefill ───────────────────────────────────────────
   //
   // When the dialog opens with an `initialUri` (e.g. from a `bitcoin:` deep
-  // link), seed the recipient and amount from it. The recipient is seeded
-  // immediately. The amount seed waits for `btcPrice` to load so we can
-  // convert sats → USD (the form's native unit). The user can edit either
-  // field before sending.
+  // link), seed the recipient and amount from it. The amount seed waits for
+  // `btcPrice` to load so we can convert sats → USD (the form's native unit).
+  // The user can edit either field before sending.
+  //
+  // Three cases for the recipient:
+  //
+  //   1. URI carries BOTH a valid on-chain address AND a valid `sp=` silent
+  //      payment address — push the raw URI into the recipient picker query
+  //      so the dropdown surfaces both rows (privacy vs. compatibility). This
+  //      matches the QR-scan dual-endpoint behavior; the user explicitly
+  //      picks. We deliberately do NOT auto-select sp here.
+  //   2. URI carries exactly one valid endpoint — auto-select it as a chip.
+  //   3. Nothing validates — surface an error.
   //
   // `initialUriHandled` prevents the URI from re-applying after the user
   // edits or clears the prefill within the same open cycle. It resets when
   // the dialog closes (see `handleClose`).
   const initialUriHandled = useRef(false);
   const pendingAmountSats = useRef<number | null>(null);
+  const [pickerInitialQuery, setPickerInitialQuery] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -227,14 +237,18 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
       return;
     }
 
-    // Resolve a recipient from the URI. Prefer the silent-payment address
-    // when present and valid (better privacy), else the on-chain fallback.
-    // If neither validates, leave the recipient slot empty and surface an
-    // error — the URI was malformed.
     const spCandidate = parsed.sp;
-    if (spCandidate && looksLikeSilentPaymentAddress(spCandidate) && validateSilentPaymentAddress(spCandidate)) {
-      setRecipient({ address: spCandidate, kind: 'sp', raw: spCandidate });
-    } else if (parsed.address && validateBitcoinAddress(parsed.address)) {
+    const hasValidSp = !!spCandidate
+      && looksLikeSilentPaymentAddress(spCandidate)
+      && validateSilentPaymentAddress(spCandidate);
+    const hasValidBtc = !!parsed.address && validateBitcoinAddress(parsed.address);
+
+    if (hasValidSp && hasValidBtc) {
+      // Dual-endpoint URI — let the user pick.
+      setPickerInitialQuery(initialUri.trim());
+    } else if (hasValidSp) {
+      setRecipient({ address: spCandidate!, kind: 'sp', raw: spCandidate! });
+    } else if (hasValidBtc) {
       setRecipient({ address: parsed.address, kind: 'onchain', raw: parsed.address });
     } else {
       setError("Couldn't read the payment address from that link.");
@@ -523,6 +537,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     feeSpeedUserChanged.current = false;
     initialUriHandled.current = false;
     pendingAmountSats.current = null;
+    setPickerInitialQuery(undefined);
     onClose();
   }, [onClose]);
 
@@ -655,6 +670,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
               <RecipientPicker
                 value={recipient}
                 onChange={(v) => { setRecipient(v); setError(''); }}
+                initialQuery={pickerInitialQuery}
+                onInitialQueryConsumed={() => setPickerInitialQuery(undefined)}
               />
 
               {/* Error */}
@@ -792,6 +809,16 @@ function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting
 interface RecipientPickerProps {
   value: ResolvedRecipient | null;
   onChange: (value: ResolvedRecipient | null) => void;
+  /**
+   * Optional initial query to seed the input with — used by the BIP-21
+   * dual-endpoint flow so the dropdown surfaces both the on-chain and
+   * silent-payment rows for the user to pick from. Treated as one-shot:
+   * applied once when it becomes non-undefined, then the parent should
+   * clear it via `onInitialQueryConsumed`.
+   */
+  initialQuery?: string;
+  /** Called after `initialQuery` has been applied so the parent can clear it. */
+  onInitialQueryConsumed?: () => void;
 }
 
 /**
@@ -802,7 +829,7 @@ interface RecipientPickerProps {
  * Wikipedia / Internet Archive / country / nav-item rows. That keeps the
  * picker focused: every selection is something the user can actually be paid.
  */
-function RecipientPicker({ value, onChange }: RecipientPickerProps) {
+function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed }: RecipientPickerProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -810,6 +837,19 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverContentRef = useRef<HTMLDivElement>(null);
+
+  // One-shot seeding from the parent (BIP-21 deep link dual-endpoint flow).
+  // We mirror `initialQuery` into the internal `query` state once, then ask
+  // the parent to clear it so the user's subsequent edits aren't overwritten
+  // by re-renders. Opening the dropdown is handled by the existing
+  // query-watcher effect further down.
+  useEffect(() => {
+    if (!initialQuery) return;
+    setQuery(initialQuery);
+    setOpen(true);
+    onInitialQueryConsumed?.();
+  }, [initialQuery, onInitialQueryConsumed]);
+
 
   // BIP-21 `bitcoin:` URI handling. If the user pastes one, we route the
   // same way the QR scanner does (sp first, on-chain fallback), but when the
