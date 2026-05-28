@@ -1038,6 +1038,11 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => { if (trimmedRaw.length > 0) setOpen(true); }}
+            // Tapping the input reopens the dropdown after an outside-click
+            // dismiss. `onFocus` only fires on the first tap; subsequent taps
+            // while the input is still focused need their own opener so the
+            // user can recover the choice list without un-focusing first.
+            onClick={() => { if (trimmedRaw.length > 0) setOpen(true); }}
             onKeyDown={handleKeyDown}
             placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
             autoComplete="off"
