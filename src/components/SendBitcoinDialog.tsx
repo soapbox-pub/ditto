@@ -4,11 +4,11 @@ import { nip19 } from 'nostr-tools';
 import {
   AlertTriangle,
   Bitcoin,
-  Camera,
   Check,
   ExternalLink,
   EyeOff,
   Loader2,
+  QrCode,
   UserRoundCheck,
   X,
 } from 'lucide-react';
@@ -529,12 +529,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
             )
           ) : (
             <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
-              {/* Recipient picker */}
-              <RecipientPicker
-                value={recipient}
-                onChange={(v) => { setRecipient(v); setError(''); }}
-              />
-
               {/* Big editable USD amount */}
               <div className="flex flex-col items-center pt-2">
                 {editingAmount ? (
@@ -589,6 +583,12 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
+
+              {/* Recipient picker */}
+              <RecipientPicker
+                value={recipient}
+                onChange={(v) => { setRecipient(v); setError(''); }}
+              />
 
               {/* Error */}
               {error && (
@@ -1035,7 +1035,7 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
             aria-label="Scan QR code"
             className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Camera className="size-4" />
+            <QrCode className="size-4" />
           </button>
 
           <QrScannerDialog
