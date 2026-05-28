@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.18.1] - 2026-05-28
+
+Tap a `bitcoin:` link anywhere on your phone and Ditto opens its Send dialog with the payment pre-filled. The Send dialog also accepts BIP-21 URIs pasted into the recipient field, offers a chooser when a code carries both a silent-payment and on-chain address, and leads with the amount first. Quote-embedded polls, short videos, voice messages, and a dozen other content types now show proper preview cards instead of "not supported." Adding a second account also actually switches to it now.
+
+### Added
+- Tap a `bitcoin:` link on iOS or Android and Ditto opens its Send dialog with the address, silent-payment code, and amount pre-filled, ready to confirm
+
+### Changed
+- The Send dialog now accepts BIP-21 URIs (`bitcoin:bc1...?sp=sp1...`) pasted into the recipient field, matching what its QR scanner already understood. When the URI carries both a silent-payment address and an on-chain fallback, you get a chooser instead of being silently routed one way
+- Send dialog reordered to lead with the amount, then the recipient -- matching how you actually think about a payment. The recipient input's icon switched from a camera to a QR-code mark, and the recipient dropdown now reopens on re-tap and floats above the dialog instead of getting clipped
+- Profile-search suggestions no longer flash under the recipient field when you've pasted a raw Bitcoin address or BIP-21 URI, and the privacy notice for raw on-chain sends now reads as a friendly warning rather than a scolding
+- Quote-embedded polls, poll votes, short videos, voice messages, color moments, found logs, reactions, reposts, nsites, Zapstore assets, and other known content types now render as compact kind-labeled cards instead of falling back to "This event kind is not supported"
+
+### Fixed
+- Logging into a second account from "Add another account" now actually switches to that account. Previously the new account silently landed at the back of the queue while the prior account stayed current, which on the signup flow caused the new account's profile and follow list to overwrite the previous user's
+
 ## [2.18.0] - 2026-05-23
 
 Agora Fundraisers now show up across Ditto -- in your feed, on profile pages, as quote embeds, and in comment threads. Open one to see the campaign story, a live "raised of goal" bar pulled straight from Bitcoin, and a Donate button that hands you a QR plus an "Open in Wallet" link, or lets you zap from Ditto's built-in wallet in one tap. The Send dialog's QR scanner also learned BIP-21's `sp=` parameter, so scanning a payment code that offers a silent-payment address will use it automatically.
