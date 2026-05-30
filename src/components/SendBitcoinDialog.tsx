@@ -73,18 +73,23 @@ import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 
 const USD_PRESETS = [1, 5, 10, 25, 100];
 
-type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy';
+/** Preset confirmation-speed tiers, plus a user-entered `'custom'` rate. */
+type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy' | 'custom';
+
+/** The preset tiers (everything except `'custom'`), in display order. */
+type PresetFeeSpeed = Exclude<FeeSpeed, 'custom'>;
 
 const FEE_SPEED_LABELS: Record<FeeSpeed, string> = {
   fastest: '~10 min',
   halfHour: '~30 min',
   hour: '~1 hour',
   economy: '~1 day',
+  custom: 'Custom',
 };
 
-const FEE_SPEED_ORDER: FeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
+const FEE_SPEED_ORDER: PresetFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
 
-function getRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
+function getRateForSpeed(rates: FeeRates, speed: PresetFeeSpeed): number {
   switch (speed) {
     case 'fastest': return rates.fastestFee;
     case 'halfHour': return rates.halfHourFee;
@@ -94,10 +99,10 @@ function getRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
 }
 
 /** Deduplicate fee tiers that share the same sat/vB rate. */
-function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
+function getUniqueFeeSpeeds(rates: FeeRates | undefined): PresetFeeSpeed[] {
   if (!rates) return FEE_SPEED_ORDER;
   const seen = new Set<number>();
-  const result: FeeSpeed[] = [];
+  const result: PresetFeeSpeed[] = [];
   for (const speed of FEE_SPEED_ORDER) {
     const rate = getRateForSpeed(rates, speed);
     if (!seen.has(rate)) {
@@ -106,6 +111,25 @@ function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
     }
   }
   return result;
+}
+
+/**
+ * Resolve the effective sat/vB rate for the current selection. For `'custom'`
+ * the user-typed value wins (parsed, clamped to ≥ 1). For preset tiers we read
+ * the loaded rates; returns `0` when rates haven't loaded, which callers treat
+ * as "not ready" rather than a real rate.
+ */
+function resolveFeeRate(
+  speed: FeeSpeed,
+  rates: FeeRates | undefined,
+  customFeeRate: string,
+): number {
+  if (speed === 'custom') {
+    const parsed = Math.floor(Number(customFeeRate));
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed : 0;
+  }
+  if (!rates) return 0;
+  return getRateForSpeed(rates, speed);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +213,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   const [recipient, setRecipient] = useState<ResolvedRecipient | null>(null);
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
   const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>('halfHour');
+  /** Raw text for the custom sat/vB rate input (only used when feeSpeed === 'custom'). */
+  const [customFeeRate, setCustomFeeRate] = useState('');
   const [error, setError] = useState('');
   const [editingAmount, setEditingAmount] = useState(false);
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
@@ -284,7 +310,12 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     staleTime: 30_000,
   });
 
-  const { data: feeRates } = useQuery({
+  const {
+    data: feeRates,
+    isLoading: feeRatesLoading,
+    isError: feeRatesError,
+    refetch: refetchFeeRates,
+  } = useQuery({
     queryKey: ['bitcoin-fee-rates', esploraApis],
     queryFn: ({ signal }) => getFeeRates(esploraApis, signal),
     enabled: isOpen && canSignPsbt,
@@ -293,10 +324,10 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
 
   const totalBalance = useMemo(() => utxos?.reduce((s, u) => s + u.value, 0) ?? 0, [utxos]);
 
-  const currentFeeRate = useMemo(() => {
-    if (!feeRates) return 0;
-    return getRateForSpeed(feeRates, feeSpeed);
-  }, [feeRates, feeSpeed]);
+  const currentFeeRate = useMemo(
+    () => resolveFeeRate(feeSpeed, feeRates, customFeeRate),
+    [feeSpeed, feeRates, customFeeRate],
+  );
 
   // ── USD → sats conversion ────────────────────────────────────
 
@@ -330,7 +361,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     const uniqueSpeeds = getUniqueFeeSpeeds(feeRates);
     const threshold = amountSats * 0.4;
 
-    let target: FeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
+    let target: PresetFeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
     for (const speed of uniqueSpeeds) {
       const rate = getRateForSpeed(feeRates, speed);
       const fee2 = estimateFee(utxos.length, 2, rate);
@@ -349,7 +380,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   const handleFeeSpeedChange = useCallback((speed: FeeSpeed) => {
     feeSpeedUserChanged.current = true;
     setFeeSpeed(speed);
-    setFeePopoverOpen(false);
+    // Keep the popover open for 'custom' so the user can type a rate; close it
+    // for preset tiers since the choice is complete.
+    if (speed !== 'custom') setFeePopoverOpen(false);
   }, []);
 
   // ── Two-tap "arm" for large amounts ──────────────────────────
@@ -405,13 +438,14 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
       if (!recipient) throw new Error('Choose a recipient.');
       if (!canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
       if (!utxos?.length) throw new Error('No spendable Bitcoin available.');
-      if (!feeRates) throw new Error('Fee rates not loaded.');
+      if (feeSpeed !== 'custom' && !feeRates) throw new Error('Fee rates not loaded.');
       if (recipient.pubkey === user.pubkey) throw new Error("You can't send to yourself.");
       if (amountSats <= 0) throw new Error('Enter an amount.');
       if (insufficient) throw new Error('Not enough Bitcoin for this amount + network fee.');
 
       setProgress('building');
-      const rate = getRateForSpeed(feeRates, feeSpeed);
+      const rate = resolveFeeRate(feeSpeed, feeRates, customFeeRate);
+      if (rate < 1) throw new Error('Enter a fee rate of at least 1 sat/vB.');
 
       let psbtHex: string;
       let fee: number;
@@ -509,6 +543,14 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     if (!btcPrice) { setError('Waiting for BTC price…'); return; }
     if (amountSats <= 0) { setError('Enter an amount.'); return; }
     if (!utxos?.length) { setError("You don't have any Bitcoin yet."); return; }
+    if (currentFeeRate < 1) {
+      setError(
+        feeSpeed === 'custom'
+          ? 'Enter a fee rate of at least 1 sat/vB.'
+          : "Fee rates haven't loaded yet.",
+      );
+      return;
+    }
     if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
 
     if (requiresArm && !confirmArmed) {
@@ -521,7 +563,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     } catch {
       // Toast handled in onError; nothing further to do here.
     }
-  }, [user, recipient, btcPrice, amountSats, utxos, insufficient, requiresArm, confirmArmed, sendMutation]);
+  }, [user, recipient, btcPrice, amountSats, utxos, currentFeeRate, feeSpeed, insufficient, requiresArm, confirmArmed, sendMutation]);
 
   // ── Reset on close ───────────────────────────────────────────
 
@@ -530,6 +572,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     setUsdAmount(5);
     setError('');
     setFeeSpeed('halfHour');
+    setCustomFeeRate('');
     setSuccess(null);
     setConfirmArmed(false);
     setEditingAmount(false);
@@ -715,6 +758,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                   || isPending
                   || insufficient
                   || !recipient
+                  || currentFeeRate < 1
                 }
                 variant={(insufficient || requiresArm) && !isPending ? 'destructive' : 'default'}
                 className="w-full"
@@ -746,15 +790,43 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                           Fee{' '}
                           {estimatedFeeSats > 0 && btcPrice
                             ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
-                            : '…'}
-                          <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
+                            : feeRatesLoading && feeSpeed !== 'custom'
+                              ? 'loading…'
+                              : feeRatesError && feeSpeed !== 'custom'
+                                ? 'unavailable'
+                                : '…'}
+                          <span className="opacity-60">
+                            {' · '}
+                            {feeSpeed === 'custom' && currentFeeRate >= 1
+                              ? `${currentFeeRate} sat/vB`
+                              : FEE_SPEED_LABELS[feeSpeed]}
+                          </span>
                         </span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="center" sideOffset={6} className="w-56 p-1">
                       <div className="flex flex-col">
-                        {uniqueFeeSpeeds.map((speed) => {
-                          const rate = feeRates ? getRateForSpeed(feeRates, speed) : 0;
+                        {feeRatesError && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            <p className="text-destructive">Couldn't load fee rates.</p>
+                            <button
+                              type="button"
+                              onClick={() => refetchFeeRates()}
+                              className="mt-1 underline hover:text-foreground transition-colors"
+                            >
+                              Retry
+                            </button>
+                            <p className="mt-1">Or enter a custom rate below.</p>
+                          </div>
+                        )}
+                        {feeRatesLoading && !feeRatesError && (
+                          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" />
+                            Loading fee rates…
+                          </div>
+                        )}
+                        {feeRates && uniqueFeeSpeeds.map((speed) => {
+                          const rate = getRateForSpeed(feeRates, speed);
                           const selected = speed === feeSpeed;
                           return (
                             <button
@@ -771,6 +843,34 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                             </button>
                           );
                         })}
+                        {/* Custom fee rate */}
+                        <button
+                          type="button"
+                          onClick={() => handleFeeSpeedChange('custom')}
+                          className={cn(
+                            'flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors',
+                            feeSpeed === 'custom' && 'bg-muted font-medium',
+                          )}
+                        >
+                          <span>{FEE_SPEED_LABELS.custom}</span>
+                        </button>
+                        {feeSpeed === 'custom' && (
+                          <div className="flex items-center gap-1.5 px-2 py-1.5">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min={1}
+                              step={1}
+                              autoFocus
+                              value={customFeeRate}
+                              onChange={(e) => setCustomFeeRate(e.target.value)}
+                              placeholder="e.g. 5"
+                              className="h-7 text-xs"
+                              aria-label="Custom fee rate in sat/vB"
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">sat/vB</span>
+                          </div>
+                        )}
                       </div>
                     </PopoverContent>
                   </Popover>
