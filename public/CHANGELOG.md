@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.18.3] - 2026-05-30
+
+Tap a Nostr link anywhere on your phone and Ditto now opens straight to the right profile, post, or page. The wallet's Send dialog gains a Custom fee option so you can always set your own rate -- and fees that used to fail to load on mobile data now load reliably. People without a name now simply show as "Anonymous" instead of a random made-up handle.
+
+### Added
+- Tapping a `nostr:` link on iOS or Android opens it directly in Ditto, jumping to the matching profile, post, or page
+- The wallet's Send dialog now has a "Custom" fee tier with an inline rate input, so you can always pick your own fee -- even when the network estimate is unavailable
+
+### Changed
+- People with no name set now appear as "Anonymous" instead of a randomly generated handle
+- The Send dialog's fee picker now shows a clear loading or error state (with a Retry) instead of displaying a misleading "0 sat/vB", and blocks sending until a valid fee rate is available
+
+### Fixed
+- Wallet fees now load reliably on mobile data. They previously failed to appear on some cellular connections, leaving the Send dialog with no fee rates
+
 ## [2.18.2] - 2026-05-28
 
 A small fix for tapping `bitcoin:` links. When a link offers both a private silent-payment address and a regular on-chain one, the Send dialog now lets you choose between privacy and compatibility instead of silently picking for you -- matching what pasting or scanning the same code already did.
