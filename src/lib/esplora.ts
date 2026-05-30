@@ -139,6 +139,26 @@ export interface EsploraFetchOptions extends Omit<RequestInit, 'signal'> {
    * caller as-is.
    */
   skipStatuses?: number[];
+  /**
+   * Additional HTTP statuses to treat as a retryable endpoint failure for
+   * *this* call — failover to the next URL AND cool the endpoint down — on top
+   * of the global {@link RETRYABLE_STATUS} set.
+   *
+   * Use this for paths that are *always present* on a healthy Esplora backend
+   * (e.g. `/fee-estimates`, `/address/…`, `/tx` broadcast), where a `404` is
+   * never a legitimate "not found" but a sign the endpoint is misbehaving —
+   * notably mempool.space returning `404` instead of `429` to rate-limited
+   * clients (common on carrier-NAT'd mobile connections). Without this, the
+   * `404` is mistaken for a real answer, returned to the caller, and no
+   * failover happens.
+   *
+   * Do NOT use for paths where `404` is a meaningful answer — e.g.
+   * `/tx/{txid}` lookups, where "not found" means the tx genuinely isn't
+   * known yet.
+   *
+   * Defaults to `[]`.
+   */
+  retryStatuses?: number[];
 }
 
 /** Error thrown when every endpoint in the list is unreachable or cooled down. */
@@ -241,6 +261,7 @@ export async function esploraFetch(
 
   const {
     skipStatuses = [],
+    retryStatuses = [],
     signal: callerSignal,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     ...fetchInit
@@ -254,6 +275,7 @@ export async function esploraFetch(
   }
 
   const skip = new Set(skipStatuses);
+  const retry = new Set(retryStatuses);
   const causes: Array<{ url: string; reason: string }> = [];
   const now = Date.now();
 
@@ -312,8 +334,11 @@ export async function esploraFetch(
       continue;
     }
 
-    // 5xx / 429 / 408 → cool down and try the next URL.
-    if (RETRYABLE_STATUS.has(response.status)) {
+    // 5xx / 429 / 408 → cool down and try the next URL. Callers can extend
+    // this set per-call via `retryStatuses` for always-present paths where a
+    // 404 means "misbehaving endpoint" rather than "genuinely not found"
+    // (e.g. mempool.space returning 404 to rate-limited mobile clients).
+    if (RETRYABLE_STATUS.has(response.status) || retry.has(response.status)) {
       markFailure(baseUrl, Date.now());
       causes.push({ url: baseUrl, reason: `HTTP ${response.status}` });
       continue;
