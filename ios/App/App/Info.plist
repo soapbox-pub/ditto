@@ -73,6 +73,14 @@
 				<string>bitcoin</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pub.ditto.app.nostr</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nostr</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

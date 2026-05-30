@@ -41,6 +41,15 @@
                 <data android:scheme="bitcoin" />
             </intent-filter>
 
+            <!-- NIP-21 nostr: URIs. Ditto appears in the system chooser
+                 alongside other installed Nostr clients. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nostr" />
+            </intent-filter>
+
         </activity>
 
         <service
