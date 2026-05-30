@@ -34,7 +34,6 @@ import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { QrScannerDialog } from '@/components/QrScannerDialog';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -1249,7 +1248,7 @@ function SelectedRecipientChip({
   const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
+    ? metadata?.name || metadata?.display_name || 'Anonymous'
     : kind === 'sp'
       ? 'Silent payment address'
       : 'Bitcoin address';
@@ -1311,7 +1310,7 @@ function ProfileRow({
   onClick: (profile: SearchProfile) => void;
 }) {
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const subtitle = metadata.nip05 ?? nip19.npubEncode(pubkey);
 
   return (
@@ -1380,7 +1379,7 @@ function IdentifierRow({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
+    ? metadata?.name || metadata?.display_name || 'Anonymous'
     : match.type === 'nip05' ? match.identifier : '';
 
   const subtitle = match.type === 'nip05'

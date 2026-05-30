@@ -10,7 +10,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { toast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import { backgroundTextColor } from '@/lib/colorUtils';
 import {
   LETTER_KIND,
@@ -93,7 +92,7 @@ const BODY_MAX_LENGTH = 220;
 function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () => void }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
@@ -310,7 +309,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const recipientAuthor = useAuthor(resolvedRecipient);
   const recipientName = recipientAuthor.data?.metadata?.name
     || recipientAuthor.data?.metadata?.display_name
-    || (resolvedRecipient ? genUserName(resolvedRecipient) : 'friend');
+    || (resolvedRecipient ? 'Anonymous' : 'friend');
 
   const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
   const bgColor = resolvedSt.color ?? DEFAULT_STATIONERY_COLOR;

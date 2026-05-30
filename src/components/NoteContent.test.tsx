@@ -128,7 +128,7 @@ describe('NoteContent', () => {
     expect(nostrHashtag).toHaveAttribute('href', '/t/nostr');
   });
 
-  it('generates deterministic names for users without metadata and styles them differently', async () => {
+  it('falls back to "Anonymous" for users without metadata and styles them differently', async () => {
     // Use a valid npub for testing
     const event: NostrEvent = {
       id: 'test-id',
@@ -146,17 +146,17 @@ describe('NoteContent', () => {
       </TestApp>
     );
 
-    // The mention should be rendered with a deterministic name
+    // The mention should be rendered with the Anonymous fallback name
     const mention = await screen.findByRole('link');
     expect(mention).toBeInTheDocument();
     
-    // Should have muted styling for generated names (muted-foreground instead of primary)
+    // Should have muted styling for fallback names (muted-foreground instead of primary)
     expect(mention).toHaveClass('text-muted-foreground');
     expect(mention).not.toHaveClass('text-primary');
     
-    // The text should start with @ and contain a generated name (not a truncated npub)
+    // The text should start with @ and use the Anonymous fallback (not a truncated npub)
     const linkText = mention.textContent;
     expect(linkText).not.toMatch(/^@npub1/); // Should not be a truncated npub
-    expect(linkText).toEqual("@Swift Falcon");
+    expect(linkText).toEqual("@Anonymous");
   });
 });

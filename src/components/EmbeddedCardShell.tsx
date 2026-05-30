@@ -6,7 +6,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -44,7 +43,7 @@ export function EmbeddedCardShell({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (

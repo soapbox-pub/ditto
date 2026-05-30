@@ -16,7 +16,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
-import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
 
@@ -96,7 +95,7 @@ function CompactEventCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   // Try to get a title from tags (articles, events, etc.)

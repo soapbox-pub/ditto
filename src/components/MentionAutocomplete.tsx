@@ -5,7 +5,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
-import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { cn } from '@/lib/utils';
 import { usePortalDropdown } from '@/hooks/usePortalDropdown';
@@ -297,7 +296,7 @@ function MentionItem({
   onClick: () => void;
 }) {
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;

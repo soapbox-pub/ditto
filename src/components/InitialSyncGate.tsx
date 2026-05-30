@@ -44,7 +44,6 @@ import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
-import { genUserName } from "@/lib/genUserName";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
@@ -1117,7 +1116,7 @@ function PackCard({
           <div className="flex -space-x-2">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
+              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
               return (
                 <MiniAvatar
                   key={pk}
@@ -1171,7 +1170,7 @@ function PackCard({
 function AuthorAttribution({ pubkey }: { pubkey: string }) {
   const { data: authorData } = useAuthors([pubkey]);
   const metadata: NostrMetadata | undefined = authorData?.get(pubkey)?.metadata;
-  const name = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const name = metadata?.name || metadata?.display_name || 'Anonymous';
 
   return (
     <div className="px-4 py-2 bg-muted/30 border-t border-border flex items-center gap-2">

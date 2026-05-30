@@ -80,7 +80,6 @@ import { useToast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
-import { genUserName } from "@/lib/genUserName";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1123,7 +1122,7 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
 
 function IssuerName({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey);
+  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
   return (
     <span className="text-xs text-muted-foreground truncate">by {name}</span>
   );

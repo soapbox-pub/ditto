@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthors } from '@/hooks/useAuthors';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
 type AvatarSize = 'sm' | 'md' | 'lg';
@@ -69,7 +68,7 @@ export function PeopleAvatarStack({
         {previewPubkeys.map((pk) => {
           const member = membersMap?.get(pk);
           const displayName =
-            member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
+            member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
           const shape = getAvatarShape(member?.metadata);
           return (
             <Tooltip key={pk}>

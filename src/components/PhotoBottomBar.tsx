@@ -23,7 +23,6 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useEventStats } from '@/hooks/useTrending';
 import { useUserZap } from '@/hooks/useUserZap';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { genUserName } from '@/lib/genUserName';
 import { formatNumber } from '@/lib/formatNumber';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 
@@ -36,7 +35,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
+  const displayName = getDisplayName(metadata, event.pubkey) ?? 'Anonymous';
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id, event);
   const { format: formatMoney } = useFormatMoney();

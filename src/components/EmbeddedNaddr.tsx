@@ -21,7 +21,6 @@ import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
@@ -250,7 +249,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);

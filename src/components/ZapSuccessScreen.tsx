@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
 import { satsToUSD } from '@/lib/bitcoin';
-import { genUserName } from '@/lib/genUserName';
 
 interface ZapSuccessScreenProps {
   /** Recipient pubkey (hex). Used to resolve the author avatar + name
@@ -49,7 +48,7 @@ export function ZapSuccessScreen({
 }: ZapSuccessScreenProps) {
   const { data: author } = useAuthor(recipientPubkey);
   const metadata = author?.metadata;
-  const fallbackName = metadata?.name || metadata?.display_name || genUserName(recipientPubkey);
+  const fallbackName = metadata?.name || metadata?.display_name || 'Anonymous';
   const displayName = recipientLabel ?? fallbackName;
   const avatarShape = getAvatarShape(metadata);
 

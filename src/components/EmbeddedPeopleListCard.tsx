@@ -8,7 +8,6 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { encodeEventAddress } from '@/lib/encodeEvent';
-import { genUserName } from '@/lib/genUserName';
 import { parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
@@ -102,7 +101,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
           <div className="flex -space-x-1.5">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
+              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
               const shape = getAvatarShape(member?.metadata);
               return (
                 <Avatar

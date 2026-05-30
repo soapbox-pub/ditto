@@ -13,7 +13,6 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
@@ -100,8 +99,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || genUserName(account.pubkey);
-  const displayName = metadata?.name || metadata?.display_name || (user ? genUserName(user.pubkey) : 'Anonymous');
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || (user ? 'Anonymous' : 'Anonymous');
 
   return (
     <>
@@ -290,7 +289,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
-                    <span>Log out @{metadata?.name || metadata?.display_name || genUserName(user.pubkey)}</span>
+                    <span>Log out @{metadata?.name || metadata?.display_name || 'Anonymous'}</span>
                   </button>
                 </div>
               )}

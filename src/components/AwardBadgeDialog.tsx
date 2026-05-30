@@ -15,7 +15,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useAwardBadge } from '@/hooks/useAwardBadge';
 import { useToast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 
 interface AwardBadgeDialogProps {
   open: boolean;
@@ -113,7 +112,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           <div className="px-4 pb-2">
             <div className="flex flex-wrap gap-1.5">
               {selected.map((profile) => {
-                const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
+                const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
                 return (
                   <button
                     key={profile.pubkey}
@@ -191,7 +190,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
 }
 
 function SearchResultItem({ profile, onSelect }: { profile: SearchProfile; onSelect: (p: SearchProfile) => void }) {
-  const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
+  const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
   const about = profile.metadata.about;
 
   return (

@@ -27,7 +27,6 @@ import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { extractZapAmount, extractZapSender, extractZapMessage } from '@/hooks/useEventInteractions';
 import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { genUserName } from '@/lib/genUserName';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -360,7 +359,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
 
   const issuer = useAuthor(event.pubkey);
   const issuerMeta = issuer.data?.metadata;
-  const issuerName = issuerMeta?.name || issuerMeta?.display_name || genUserName(event.pubkey);
+  const issuerName = issuerMeta?.name || issuerMeta?.display_name || 'Anonymous';
   const issuerProfileUrl = useProfileUrl(event.pubkey, issuerMeta);
 
   return (
@@ -437,7 +436,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
 
   const sender = useAuthor(senderPubkey || undefined);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? genUserName(senderPubkey) : 'Someone');
+  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? 'Anonymous' : 'Someone');
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
   const { format: formatMoney } = useFormatMoney();
@@ -558,7 +557,7 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
 
   const sender = useAuthor(senderPubkey);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || senderMeta?.display_name || genUserName(senderPubkey);
+  const senderName = senderMeta?.name || senderMeta?.display_name || 'Anonymous';
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
   const { format: formatMoney } = useFormatMoney();

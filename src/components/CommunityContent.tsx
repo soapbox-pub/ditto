@@ -14,7 +14,6 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
@@ -50,7 +49,7 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const name = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
@@ -89,7 +88,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   const ownerAuthor = useAuthor(event.pubkey);
   const ownerMetadata = ownerAuthor.data?.metadata;
   const ownerAvatarShape = getAvatarShape(ownerMetadata);
-  const ownerName = ownerMetadata?.name || ownerMetadata?.display_name || genUserName(event.pubkey);
+  const ownerName = ownerMetadata?.name || ownerMetadata?.display_name || 'Anonymous';
   const ownerProfileUrl = useProfileUrl(event.pubkey, ownerMetadata);
 
   // Extract website URL from description if present

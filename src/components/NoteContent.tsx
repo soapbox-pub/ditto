@@ -3,7 +3,6 @@ import { type NostrEvent } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -538,7 +537,7 @@ export function NoteContent({
   const author = useAuthor(hasMedia ? event.pubkey : undefined);
   const authorMetadata = author.data?.metadata;
   const authorDisplayName = useMemo(
-    () => getDisplayName(authorMetadata, event.pubkey) ?? genUserName(event.pubkey),
+    () => getDisplayName(authorMetadata, event.pubkey) ?? 'Anonymous',
     [authorMetadata, event.pubkey],
   );
 
@@ -849,7 +848,7 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
 function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
-  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey);
+  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (

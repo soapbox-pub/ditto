@@ -29,7 +29,6 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useWeather } from '@/hooks/useWeather';
 import { useToast } from '@/hooks/useToast';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
-import { genUserName } from '@/lib/genUserName';
 import { getCountryInfo, getWikipediaTitle } from '@/lib/countries';
 import { useWikipediaSummary } from '@/hooks/useWikipediaSummary';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
@@ -1177,7 +1176,7 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {
@@ -1267,7 +1266,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
   const { data: event, isLoading } = useAddrEvent(addr);
   const author = useAuthor(addr.pubkey);
   const authorMeta = author.data?.metadata;
-  const authorName = authorMeta?.name ?? authorMeta?.display_name ?? genUserName(addr.pubkey);
+  const authorName = authorMeta?.name ?? authorMeta?.display_name ?? 'Anonymous';
 
   const kindDef = useMemo(
     () => EXTRA_KINDS.find((d) => d.kind === addr.kind || d.subKinds?.some((s) => s.kind === addr.kind)),

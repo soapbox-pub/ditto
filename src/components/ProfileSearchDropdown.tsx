@@ -7,7 +7,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
-import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { isFullUrl, detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -581,7 +580,7 @@ function Nip05IdentifierItem({
   const { data: pubkey, isLoading } = useNip05Resolve(identifier);
   const author = useAuthor(pubkey ?? undefined);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (pubkey ? genUserName(pubkey) : identifier);
+  const displayName = metadata?.name || metadata?.display_name || (pubkey ? 'Anonymous' : identifier);
   const tags = author.data?.event?.tags ?? [];
 
   if (isLoading) {
@@ -642,7 +641,7 @@ function PubkeyIdentifierItem({
 }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const tags = author.data?.event?.tags ?? [];
 
   return (
@@ -697,7 +696,7 @@ function EventIdentifierItem({
   const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (event ? genUserName(event.pubkey) : undefined);
+  const displayName = metadata?.name || metadata?.display_name || (event ? 'Anonymous' : undefined);
 
   return (
     <button
@@ -753,7 +752,7 @@ function AddrIdentifierItem({
   const { data: event, isLoading } = useAddrEvent(addr, relays);
   const author = useAuthor(event?.pubkey ?? addr.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || genUserName(addr.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
   // Try to get a title from tags
   const title = event?.tags.find(([t]) => t === 'title')?.[1];
@@ -927,7 +926,7 @@ function ProfileItem({
   onClick: (profile: SearchProfile, profileUrl: string) => void;
 }) {
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);

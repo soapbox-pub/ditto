@@ -13,7 +13,6 @@ import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { extractOnchainZapRecipients, useVerifiedOnchainZap } from '@/hooks/useOnchainZaps';
 import { extractZapAmount, extractZapMessage } from '@/hooks/useEventInteractions';
 
-import { genUserName } from '@/lib/genUserName';
 import { isNostrId } from '@/lib/nostrId';
 
 interface ZapContentProps {
@@ -108,7 +107,7 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
 function ZapRecipientLine({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (

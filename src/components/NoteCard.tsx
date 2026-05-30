@@ -121,7 +121,6 @@ import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
 import { extractOnchainZapRecipients } from "@/hooks/useOnchainZaps";
 import { getContentWarning } from "@/lib/contentWarning";
-import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
@@ -2272,7 +2271,7 @@ export function EventActionHeader({
   extra,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const url = useProfileUrl(pubkey, author.data?.metadata);
   const actionHref = useMemo(
     () => (actionEvent ? `/${encodeEventAddress(actionEvent)}` : undefined),

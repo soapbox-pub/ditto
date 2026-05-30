@@ -52,7 +52,6 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
-import { genUserName } from '@/lib/genUserName';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
@@ -328,7 +327,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
   const isOwnPost = user?.pubkey === event.pubkey;
   const isRestorable = isOwnPost && isReplaceableLikeKind(event.kind);
   const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(event.pubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();

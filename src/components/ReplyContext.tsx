@@ -5,7 +5,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 interface ReplyContextProps {
@@ -75,7 +74,7 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
 
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {

@@ -5,7 +5,6 @@ import { formatTime } from '@/lib/formatTime';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 
 /** Parse NIP-A0 imeta fields from an event's tags. */
@@ -51,7 +50,7 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
   // Author data only needed for the AudioVisualizer fallback
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(event.pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const avatarUrl = metadata?.picture;
 
   // If no waveform data, fall back to the existing AudioVisualizer

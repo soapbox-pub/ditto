@@ -10,7 +10,6 @@ import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 
 /** Minimal imeta fields needed for pre-load sizing. */
@@ -910,7 +909,7 @@ function LightboxSlot({
 }) {
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
-  const fallback = meta?.pubkey ? genUserName(meta.pubkey) : '?';
+  const fallback = meta?.pubkey ? 'Anonymous' : '?';
 
   if (url === LOADING_SENTINEL) {
     return <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />;

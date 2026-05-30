@@ -14,7 +14,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx'
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
-import { genUserName } from '@/lib/genUserName';
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
@@ -36,7 +35,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   };
 
   const getDisplayName = (account: Account): string => {
-    return account.metadata.name || account.metadata.display_name || genUserName(account.pubkey);
+    return account.metadata.name || account.metadata.display_name || 'Anonymous';
   }
 
   return (

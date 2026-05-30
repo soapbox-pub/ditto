@@ -15,7 +15,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -110,7 +109,7 @@ function VoterAvatarsButton({
           const authorData = authorsMap?.get(vote.pubkey);
           const metadata = authorData?.metadata;
           const avatarShape = getAvatarShape(metadata);
-          const name = metadata?.name || metadata?.display_name || genUserName(vote.pubkey);
+          const name = metadata?.name || metadata?.display_name || 'Anonymous';
           return (
             <Avatar key={vote.pubkey} shape={avatarShape} className="size-5 ring-1 ring-background">
               <AvatarImage src={metadata?.picture} alt={name} />
@@ -485,7 +484,7 @@ function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps)
   const authorData = authorsMap?.get(vote.pubkey) ?? individualAuthor.data;
   const metadata = authorData?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(vote.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
   const nevent = useMemo(
     () => nip19.neventEncode({ id: vote.id, author: vote.pubkey }),

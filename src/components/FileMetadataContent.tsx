@@ -8,7 +8,6 @@ import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { genUserName } from '@/lib/genUserName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -56,7 +55,7 @@ function AudioFileContent({
 }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = getDisplayName(metadata, event.pubkey) ?? genUserName(event.pubkey);
+  const displayName = getDisplayName(metadata, event.pubkey) ?? 'Anonymous';
 
   return (
     <div className="mt-3">

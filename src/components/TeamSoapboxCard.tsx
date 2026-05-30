@@ -12,7 +12,6 @@ import { useNostr } from '@nostrify/react';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
-import { genUserName } from '@/lib/genUserName';
 import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
 
 /**
@@ -101,7 +100,7 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
               <div className="flex -space-x-2">
                 {previewPubkeys.map((pk) => {
                   const member = membersMap?.get(pk);
-                  const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
+                  const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
                   const shape = getAvatarShape(member?.metadata);
                   return (
                     <Avatar key={pk} shape={shape} className="size-8 ring-2 ring-background">

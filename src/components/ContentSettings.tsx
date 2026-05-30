@@ -26,7 +26,6 @@ import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
 import { useAuthor } from '@/hooks/useAuthor';
 import { FeedEditModal } from '@/components/FeedEditModal';
 import { buildKindOptions } from '@/lib/feedFilterUtils';
-import { genUserName } from '@/lib/genUserName';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
 import { getStorageKey } from '@/lib/storageKey';
@@ -1148,7 +1147,7 @@ function MutedUserProfile({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
 
   if (author.isLoading) {
     return (

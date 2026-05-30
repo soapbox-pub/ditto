@@ -34,7 +34,6 @@ import { usePublishRSVP } from '@/hooks/usePublishRSVP';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useToast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -124,7 +123,7 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const name = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
   const avatarCls = size === 'sm' ? 'size-8' : 'size-11';
   const fallbackCls = size === 'sm' ? 'text-xs' : '';

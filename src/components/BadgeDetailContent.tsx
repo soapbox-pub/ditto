@@ -26,7 +26,6 @@ import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
 import { useCardTilt } from '@/hooks/useCardTilt';
@@ -58,7 +57,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Follow list (for "already following all" state on the Follow All split button)
@@ -471,7 +470,7 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
 // ─── Shared components ─────────────────────────────────────────────────────────
 
 function AwardeeCard({ pubkey, metadata }: { pubkey: string; metadata?: NostrMetadata }) {
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const profileUrl = useProfileUrl(pubkey, metadata);

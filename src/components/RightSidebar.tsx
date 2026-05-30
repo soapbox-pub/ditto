@@ -10,7 +10,6 @@ import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } 
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
@@ -188,7 +187,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
 
@@ -233,7 +232,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
     // Invalid metadata
   }
 
-  const displayName = metadata.name || metadata.display_name || genUserName(event.pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const latestAvatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 

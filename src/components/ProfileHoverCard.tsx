@@ -10,7 +10,6 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useUserStatus } from '@/hooks/useUserStatus';
-import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -36,7 +35,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;
   const nip05Domain = getNip05Domain(nip05);

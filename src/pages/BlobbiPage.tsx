@@ -43,7 +43,6 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
-import { genUserName } from '@/lib/genUserName';
 import { getProfileUrl } from '@/lib/profileUrl';
 
 import {
@@ -3172,7 +3171,7 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
 /** Small inline component to resolve + link a caretaker's display name. */
 function CaretakerLink({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const displayName = author.data?.metadata?.name ?? 'Anonymous';
   const profilePath = getProfileUrl(pubkey, author.data?.metadata);
 
   return (
