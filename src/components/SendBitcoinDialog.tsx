@@ -996,12 +996,12 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
   const identifierMatch = useMemo(() => {
     const m = detectIdentifier(query);
     if (!m) return null;
-    // Only pubkey-resolvable identifiers belong in this picker.
+    // Only pubkey-resolvable identifiers belong in this picker. Bare hex is
+    // deliberately excluded — it's ambiguous and not a user-facing format.
     switch (m.type) {
       case 'npub':
       case 'nprofile':
       case 'nip05':
-      case 'hex':
         return m;
       default:
         return null;
@@ -1027,7 +1027,6 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
   const identifierPubkey = useMemo(() => {
     if (!identifierMatch) return undefined;
     if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') return identifierMatch.pubkey;
-    if (identifierMatch.type === 'hex') return identifierMatch.hex;
     return undefined; // nip05 resolves async; handled by IdentifierRow
   }, [identifierMatch]);
 
@@ -1093,6 +1092,31 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
     setOpen(false);
     inputRef.current?.blur();
   }, [onChange]);
+
+  // Auto-select when the input resolves to a single unambiguous recipient and
+  // nothing else is in play:
+  //   - a bare npub / nprofile / hex pubkey resolves synchronously to a Nostr
+  //     account, so we create the account chip immediately;
+  //   - a bare address or single-endpoint `bitcoin:` URI creates the chip too.
+  // Typing/pasting any of these skips the one-item dropdown. A dual-endpoint
+  // URI (both `btcCandidate` and `spCandidate` valid) keeps the dropdown so
+  // the user picks the privacy/compatibility trade-off, and a `nip05`
+  // identifier stays in its row because resolution is async.
+  useEffect(() => {
+    if (identifierMatch) {
+      if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') {
+        selectPubkey(identifierMatch.pubkey, identifierMatch.raw);
+      }
+      // nip05 resolves asynchronously — leave it to IdentifierRow.
+      return;
+    }
+    if (btcCandidate && spCandidate) return; // dual-endpoint → let user pick
+    if (btcCandidate) {
+      selectBtcAddress(btcCandidate);
+    } else if (spCandidate) {
+      selectSpAddress(spCandidate);
+    }
+  }, [btcCandidate, spCandidate, identifierMatch, selectPubkey, selectBtcAddress, selectSpAddress]);
 
   const handleScan = useCallback((scanned: string) => {
     setScannerOpen(false);
