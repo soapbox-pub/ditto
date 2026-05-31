@@ -1193,13 +1193,13 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
           return;
         }
         idx -= profileCount;
-        if (hasSpAddress && idx === 0) {
-          selectSpAddress(spCandidate);
-          return;
-        }
-        if (hasSpAddress) idx -= 1;
         if (hasBtcAddress && idx === 0) {
           selectBtcAddress(btcCandidate);
+          return;
+        }
+        if (hasBtcAddress) idx -= 1;
+        if (hasSpAddress && idx === 0) {
+          selectSpAddress(spCandidate);
           return;
         }
       }
@@ -1307,18 +1307,18 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
                 onClick={selectProfile}
               />
             ))}
-            {hasSpAddress && (
-              <SpAddressRow
-                address={spCandidate}
-                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
-                onClick={selectSpAddress}
-              />
-            )}
             {hasBtcAddress && (
               <BtcAddressRow
                 address={btcCandidate}
-                isSelected={selectedIndex === totalItems - 1}
+                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
                 onClick={selectBtcAddress}
+              />
+            )}
+            {hasSpAddress && (
+              <SpAddressRow
+                address={spCandidate}
+                isSelected={selectedIndex === totalItems - 1}
+                onClick={selectSpAddress}
               />
             )}
           </div>
