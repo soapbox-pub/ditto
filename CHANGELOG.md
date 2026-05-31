@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.4] - 2026-05-31
+
+A maintenance release that makes loading your feed and other content more reliable.
+
+### Changed
+- Content now loads more reliably thanks to improvements in how Ditto fetches data from the network
+
 ## [2.18.3] - 2026-05-30
 
 Tap a Nostr link anywhere on your phone and Ditto now opens straight to the right profile, post, or page. The wallet's Send dialog gains a Custom fee option so you can always set your own rate -- and fees that used to fail to load on mobile data now load reliably. People without a name now simply show as "Anonymous" instead of a random made-up handle.
