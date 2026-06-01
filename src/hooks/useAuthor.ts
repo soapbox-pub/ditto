@@ -39,6 +39,17 @@ export function useAuthor(pubkey: string | undefined) {
       );
 
       if (!event) {
+        // Relay returned nothing — a kind-0 miss is almost always transient
+        // (the relay didn't have it, or the query timed out). Never discard a
+        // profile we already have: returning {} here would overwrite the data
+        // seeded from the IndexedDB cache, blanking out names/avatars that were
+        // already on screen ("profile flashes then disappears"). Re-read the
+        // cache inside the queryFn so we pick up the freshest entry (e.g. one a
+        // feed query seeded via setProfileCached after this hook first ran).
+        const fallback = getProfileCached(pubkey);
+        if (fallback) {
+          return { event: fallback.event, metadata: fallback.metadata };
+        }
         return {};
       }
 
