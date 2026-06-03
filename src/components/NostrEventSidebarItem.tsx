@@ -12,7 +12,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { getKindIcon } from '@/lib/extraKinds';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { genUserName } from '@/lib/genUserName';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNostrEventSidebar } from '@/hooks/useNostrEventSidebar';
 
@@ -64,7 +63,7 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 
   return (
     <span className="truncate">
-      {metadata?.name || metadata?.display_name || genUserName(pubkey)}
+      {metadata?.name || metadata?.display_name || 'Anonymous'}
     </span>
   );
 }

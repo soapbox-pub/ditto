@@ -16,7 +16,7 @@ import { nostrPubkeyToBitcoinAddress, fetchAddressData, fetchBtcPrice, fetchTran
 export function useBitcoinWallet() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
 
   const bitcoinAddress = useMemo(() => {
     if (!user) return '';
@@ -29,25 +29,29 @@ export function useBitcoinWallet() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['bitcoin-balance', esploraBaseUrl, bitcoinAddress],
-    queryFn: () => fetchAddressData(bitcoinAddress, esploraBaseUrl),
+    queryKey: ['bitcoin-balance', esploraApis, bitcoinAddress],
+    queryFn: ({ signal }) => fetchAddressData(bitcoinAddress, esploraApis, signal),
     enabled: !!bitcoinAddress,
     refetchInterval: 30_000,
   });
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price', esploraBaseUrl],
-    queryFn: () => fetchBtcPrice(esploraBaseUrl),
+    queryKey: ['btc-price', esploraApis],
+    queryFn: ({ signal }) => fetchBtcPrice(esploraApis, signal),
+    // Mempool.space refreshes its price feed roughly once a minute; there's
+    // no reason to refetch faster than that, and treating the value as fresh
+    // for the same window stops us from firing off a new request every time
+    // the wallet page mounts.
     refetchInterval: 60_000,
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const {
     data: transactions,
     isLoading: isLoadingTxs,
   } = useQuery({
-    queryKey: ['bitcoin-txs', esploraBaseUrl, bitcoinAddress],
-    queryFn: () => fetchTransactions(bitcoinAddress, esploraBaseUrl),
+    queryKey: ['bitcoin-txs', esploraApis, bitcoinAddress],
+    queryFn: ({ signal }) => fetchTransactions(bitcoinAddress, esploraApis, signal),
     enabled: !!bitcoinAddress,
     refetchInterval: 30_000,
   });

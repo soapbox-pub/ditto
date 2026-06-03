@@ -54,7 +54,6 @@ import { useUserLists } from '@/hooks/useUserLists';
 
 import { isEventMuted } from '@/lib/muteHelpers';
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
-import { genUserName } from '@/lib/genUserName';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -302,7 +301,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const authorMetadata = author.data?.metadata;
   const authorAvatarShape = getAvatarShape(authorMetadata);
-  const authorName = authorMetadata?.name || authorMetadata?.display_name || genUserName(event.pubkey);
+  const authorName = authorMetadata?.name || authorMetadata?.display_name || 'Anonymous';
   const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Parsed list (for kind 3 uses author metadata as fallback)
@@ -597,7 +596,7 @@ export function MemberCard({
 }: MemberCardProps) {
   const navigate = useNavigate();
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();

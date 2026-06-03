@@ -20,7 +20,6 @@ import {
   parseBadgeATag,
   unslugify,
 } from '@/lib/badgeUtils';
-import { genUserName } from '@/lib/genUserName';
 
 interface BadgeAwardCardProps {
   /** The kind 8 badge award event. */
@@ -117,7 +116,7 @@ export function BadgeAwardCard({ event }: BadgeAwardCardProps) {
 function RecipientName({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const url = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {

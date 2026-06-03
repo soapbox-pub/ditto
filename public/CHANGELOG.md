@@ -1,5 +1,79 @@
 # Changelog
 
+## [2.18.4] - 2026-05-31
+
+A maintenance release that makes loading your feed and other content more reliable.
+
+### Changed
+- Content now loads more reliably thanks to improvements in how Ditto fetches data from the network
+
+## [2.18.3] - 2026-05-30
+
+Tap a Nostr link anywhere on your phone and Ditto now opens straight to the right profile, post, or page. The wallet's Send dialog gains a Custom fee option so you can always set your own rate -- and fees that used to fail to load on mobile data now load reliably. People without a name now simply show as "Anonymous" instead of a random made-up handle.
+
+### Added
+- Tapping a `nostr:` link on iOS or Android opens it directly in Ditto, jumping to the matching profile, post, or page
+- The wallet's Send dialog now has a "Custom" fee tier with an inline rate input, so you can always pick your own fee -- even when the network estimate is unavailable
+
+### Changed
+- People with no name set now appear as "Anonymous" instead of a randomly generated handle
+- The Send dialog's fee picker now shows a clear loading or error state (with a Retry) instead of displaying a misleading "0 sat/vB", and blocks sending until a valid fee rate is available
+
+### Fixed
+- Wallet fees now load reliably on mobile data. They previously failed to appear on some cellular connections, leaving the Send dialog with no fee rates
+
+## [2.18.2] - 2026-05-28
+
+A small fix for tapping `bitcoin:` links. When a link offers both a private silent-payment address and a regular on-chain one, the Send dialog now lets you choose between privacy and compatibility instead of silently picking for you -- matching what pasting or scanning the same code already did.
+
+### Fixed
+- Tapping a `bitcoin:` link that carries both a silent-payment and an on-chain address now opens the recipient chooser so you can pick privacy vs. compatibility, instead of always defaulting to the silent-payment address
+
+## [2.18.1] - 2026-05-28
+
+Tap a `bitcoin:` link anywhere on your phone and Ditto opens its Send dialog with the payment pre-filled. The Send dialog also accepts BIP-21 URIs pasted into the recipient field, offers a chooser when a code carries both a silent-payment and on-chain address, and leads with the amount first. Quote-embedded polls, short videos, voice messages, and a dozen other content types now show proper preview cards instead of "not supported." Adding a second account also actually switches to it now.
+
+### Added
+- Tap a `bitcoin:` link on iOS or Android and Ditto opens its Send dialog with the address, silent-payment code, and amount pre-filled, ready to confirm
+
+### Changed
+- The Send dialog now accepts BIP-21 URIs (`bitcoin:bc1...?sp=sp1...`) pasted into the recipient field, matching what its QR scanner already understood. When the URI carries both a silent-payment address and an on-chain fallback, you get a chooser instead of being silently routed one way
+- Send dialog reordered to lead with the amount, then the recipient -- matching how you actually think about a payment. The recipient input's icon switched from a camera to a QR-code mark, and the recipient dropdown now reopens on re-tap and floats above the dialog instead of getting clipped
+- Profile-search suggestions no longer flash under the recipient field when you've pasted a raw Bitcoin address or BIP-21 URI, and the privacy notice for raw on-chain sends now reads as a friendly warning rather than a scolding
+- Quote-embedded polls, poll votes, short videos, voice messages, color moments, found logs, reactions, reposts, nsites, Zapstore assets, and other known content types now render as compact kind-labeled cards instead of falling back to "This event kind is not supported"
+
+### Fixed
+- Logging into a second account from "Add another account" now actually switches to that account. Previously the new account silently landed at the back of the queue while the prior account stayed current, which on the signup flow caused the new account's profile and follow list to overwrite the previous user's
+
+## [2.18.0] - 2026-05-23
+
+Agora Fundraisers now show up across Ditto -- in your feed, on profile pages, as quote embeds, and in comment threads. Open one to see the campaign story, a live "raised of goal" bar pulled straight from Bitcoin, and a Donate button that hands you a QR plus an "Open in Wallet" link, or lets you zap from Ditto's built-in wallet in one tap. The Send dialog's QR scanner also learned BIP-21's `sp=` parameter, so scanning a payment code that offers a silent-payment address will use it automatically.
+
+### Added
+- Agora Fundraisers in your feed and on profiles -- self-authored Bitcoin fundraising campaigns now render wherever Ditto shows Nostr content, including home and profile feeds, quote embeds, and comment threads. The campaign detail page shows the full markdown story, a "raised of goal" progress bar pulled live from the campaign's on-chain address (so donations count even when the donor doesn't publish a receipt), and a Donate button that opens a dialog with a QR code, an "Open in Wallet" link, and a "Zap" option that pays the campaign instantly from your Ditto wallet
+
+### Changed
+- The wallet's QR scanner now honors BIP-21's `sp=` silent-payment parameter -- scanning a `bitcoin:` URI that advertises a silent-payment address uses it automatically, giving you the private, reusable recipient instead of the raw on-chain address
+
+## [2.17.0] - 2026-05-23
+
+Tip a whole follow list in one Bitcoin transaction with "Zap all members" -- one signature, one fee, every member paid. Send Bitcoin to silent-payment (sp1...) addresses for a private, reusable recipient. Scan a QR code from the Send dialog to grab a Bitcoin address or Nostr identifier instantly. Highlights now flow into your home feed alongside posts and articles. And the wallet stays alive when mempool.space rate-limits you -- automatic failover across endpoints, configurable in settings.
+
+### Added
+- "Zap all members" on people-list events -- the lightning button on follow lists, follow sets, and follow packs now opens a small menu with "Zap author" and "Zap all members". The all-members option pays every member in a single Bitcoin transaction with one fee and one signature, splits the USD total evenly per recipient, and shows up in each recipient's notifications as their per-recipient share ("$X and N others") instead of the full batch total
+- Send Bitcoin to silent-payment (BIP-352) addresses -- a reusable single-string `sp1...` recipient that derives a fresh on-chain output for every payment, so your wallet activity isn't trivially linkable on-chain. Works alongside the existing recipient picker for raw addresses and Nostr identities
+- QR scan button in the wallet's Send dialog -- tap the camera icon next to the recipient field to scan an on-chain address, a `bitcoin:` payment URI, or a Nostr identifier (npub, nprofile, nip05, or hex). Bitcoin addresses fill in directly; Nostr identifiers route through the recipient picker for one-tap confirmation
+- Bitcoin APIs editor in Wallet settings -- view, reorder, add, and remove the Esplora endpoints your wallet uses, with a "Restore defaults" button. Removal is blocked when only one endpoint is left
+- "View" action on the post success toast -- after publishing, tap "View" in the toast to jump straight to your new post
+
+### Changed
+- Highlights from highlighting apps now appear in your home feed (Follows, Global, and Communities) and on profile feeds by default, alongside posts and articles. The toggle is still in Feed Settings if you'd rather hide them. Highlights render with a rich link preview of the source URL, a typographic quote icon, and replies to a highlight now read "Commenting on @author's highlight" with a hover preview
+- The wallet automatically fails over between Esplora endpoints (mempool.space → mempool.emzy.de → blockstream.info by default), so a rate-limited or unreachable host no longer freezes balance, fee, address, or zap-verification calls. Failed endpoints cool down with exponential backoff and rejoin rotation as soon as they recover
+- The wallet's Send dialog now shows a privacy warning whenever the recipient is a raw `bc1...` address with no Nostr identity attached -- Bitcoin's public ledger means an on-chain send is traceable forever. Tick "I understand" and tap Send twice to confirm
+
+### Fixed
+- Visiting another user's profile by their raw hex pubkey URL now shows the profile correctly instead of "Please log in to view your profile"
+
 ## [2.16.0] - 2026-05-16
 
 Send Bitcoin straight to anyone on Nostr from a redesigned wallet Send dialog -- start typing a name, pick from the suggestions, set the amount in dollars, and go. Tipping a person now shows up in feeds and notifications as a first-class zap with their avatar and name, the same shape as a note zap. After you send, "View transaction" opens the in-app Bitcoin page instead of bouncing out to mempool.space, so the on-chain zap, the sender, and any comments all stay one tap away.

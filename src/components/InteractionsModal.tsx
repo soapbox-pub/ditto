@@ -20,7 +20,6 @@ import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionE
 import { useOnchainZaps, type OnchainZapEntry } from '@/hooks/useOnchainZaps';
 import { useAuthor } from '@/hooks/useAuthor';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { formatNumber } from '@/lib/formatNumber';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
@@ -283,7 +282,7 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(entry.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
   return (
@@ -321,7 +320,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(entry.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
   const customName = isCustomEmoji(entry.emoji) ? entry.emoji.slice(1, -1) : undefined;
 
@@ -370,7 +369,7 @@ function ZapRow({ zap }: { zap: UnifiedZap }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(zap.senderPubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const nevent = useMemo(
     () => nip19.neventEncode({ id: zap.linkEventId, author: zap.linkPubkey }),
     [zap.linkEventId, zap.linkPubkey],
@@ -449,7 +448,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(quote.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
   return (

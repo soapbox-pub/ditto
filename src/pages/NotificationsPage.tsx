@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageCircle, Highlighter, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -20,7 +20,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { genUserName } from '@/lib/genUserName';
 import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -384,7 +383,7 @@ function ActorAvatars({ actors }: { actors: NotificationItem[] }) {
 function ActorAvatar({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const name = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const name = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, metadata);
   const shape = getAvatarShape(metadata);
   const isEmojiShape = !!shape;
@@ -463,7 +462,7 @@ function GroupHeader({
 /** Helper hook to get a display name for a pubkey. */
 function useActorName(pubkey: string): string {
   const author = useAuthor(pubkey || 'dummy');
-  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? genUserName(pubkey || 'dummy');
+  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
 }
 
 function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
@@ -607,7 +606,7 @@ function ZapRecipientCard({
   const recipientShape = getAvatarShape(recipientMeta);
   const recipientName = recipientMeta?.name
     ?? recipientMeta?.display_name
-    ?? genUserName(recipientPubkey);
+    ?? 'Anonymous';
   const recipientUrl = useProfileUrl(recipientPubkey, recipientMeta);
   const recipientNip05 = recipientMeta?.nip05;
   const { data: recipientNip05Verified, isPending: recipientNip05Pending } = useNip05Verify(
@@ -917,7 +916,7 @@ function HighlightNotification({ item, isNew }: { item: NotificationItem; isNew:
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<Highlighter className="size-4 text-primary" />}
+          icon={<Quote className="size-4 text-primary" />}
           action={`highlighted your ${noun}`}
         />
       </div>
@@ -937,7 +936,7 @@ function HighlightNotificationGroup({ group }: { group: GroupedNotificationItem 
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
         actors={group.actors}
-        icon={<Highlighter className="size-4 text-primary" />}
+        icon={<Quote className="size-4 text-primary" />}
         action={`highlighted your ${noun}`}
       />
       {first && <HighlightExcerpt event={first.event} />}
@@ -1075,7 +1074,7 @@ function NotificationHeader({
 }) {
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || genUserName(actorPubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileUrl = useProfileUrl(actorPubkey, metadata);
 
   if (author.isLoading) {

@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useUserLists } from '@/hooks/useUserLists';
 import { toast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 
 interface AddMembersDialogProps {
@@ -66,7 +65,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
     try {
       await addToList.mutateAsync({ listId, pubkey: profile.pubkey });
       setAddedPubkeys((prev) => new Set(prev).add(profile.pubkey));
-              const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
+              const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
       toast({ title: `Added ${name} to list` });
     } catch {
       toast({ title: 'Failed to add member', variant: 'destructive' });
@@ -142,7 +141,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
             </div>
           ) : (
             filteredResults.map((profile, idx) => {
-      const name = profile.metadata.name || profile.metadata.display_name || genUserName(profile.pubkey);
+      const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
               const isAdding = addingPubkeys.has(profile.pubkey);
               const isAdded = addedPubkeys.has(profile.pubkey);
               const isSelected = idx === selectedIdx;

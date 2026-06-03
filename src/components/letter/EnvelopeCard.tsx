@@ -24,7 +24,6 @@ import { useMemo, useState } from 'react';
 import { Clock, MoreHorizontal } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useDecryptLetter } from '@/hooks/useLetters';
-import { genUserName } from '@/lib/genUserName';
 import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/letterTypes';
 import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
@@ -91,7 +90,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
   const { data: decrypted } = useDecryptLetter(letter);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(otherPubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const avatar = author.data?.metadata?.picture;
   const timeStr = shortTimeAgo(letter.timestamp);
 

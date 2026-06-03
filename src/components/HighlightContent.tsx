@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Highlighter, ExternalLink, Quote } from 'lucide-react';
+import { ExternalLink, Quote } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { LinkEmbed } from '@/components/LinkEmbed';
 import { isNostrId } from '@/lib/nostrId';
 import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -33,20 +34,26 @@ function hostnameOf(url: string): string | undefined {
  * Renders a NIP-84 Highlight event (kind 9802).
  *
  * - `content` is the highlighted excerpt — displayed as a blockquote-style pull
- *   quote with an accent border and the Highlighter icon.
- * - A `context` tag (if present and longer than `content`) wraps the highlight
- *   in its surrounding paragraph with the highlighted portion emphasized.
+ *   quote with an accent border.
+ * - A `context` tag (if present and containing the highlight verbatim) wraps
+ *   the highlight in its surrounding paragraph with the highlighted portion
+ *   visually emphasized. If the context does not contain the highlight, the
+ *   tag is treated as malformed and ignored.
  * - The source is shown as either an embedded Nostr event card (`a` tag for
  *   addressable events like wiki/articles, `e` tag for regular events) or, for
- *   non-Nostr sources, a clickable URL chip (`r` tag).
+ *   non-Nostr sources, a rich link preview (`r` tag).
  */
 export function HighlightContent({ event, expanded = false, className, disableSourceEmbed = false }: HighlightContentProps) {
   const { highlight, context, source } = useMemo(() => {
     const rawHighlight = event.content.trim();
 
     // NIP-84 `context` tag: surrounding prose that contains the highlight.
+    // Only treat it as valid if the highlight appears verbatim inside it —
+    // otherwise the tag is malformed and we ignore it.
     const contextTag = event.tags.find(([n]) => n === 'context')?.[1]?.trim();
-    const contextText = contextTag && contextTag.length > rawHighlight.length ? contextTag : undefined;
+    const contextText = contextTag && rawHighlight && contextTag.includes(rawHighlight)
+      ? contextTag
+      : undefined;
 
     // Source precedence: `a` (addressable event) > `e` (regular event) > `r` (URL).
     // Skip tags marked `mention` (NIP-84 quote-highlight attribution).
@@ -121,7 +128,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
               className="my-0"
             />
           ) : (
-            <SourceUrlChip url={source.url} />
+            <LinkEmbed url={source.url} showActions={false} />
           )}
         </div>
       )}
@@ -151,21 +158,13 @@ function Blockquote({ text, expanded }: { text: string; expanded: boolean }) {
   return (
     <blockquote
       className={cn(
-        'relative rounded-r-xl border-l-4 border-primary/70 bg-primary/5 pl-4 pr-4 py-3',
+        'rounded-r-xl border-l-4 border-primary/70 bg-primary/5 px-4 py-3',
       )}
     >
-      <Highlighter
-        className={cn(
-          'absolute right-3 top-3 text-primary/60',
-          expanded ? 'size-4' : 'size-3.5',
-        )}
-        aria-hidden
-      />
       <p
         className={cn(
           'whitespace-pre-wrap break-words font-serif text-foreground',
           expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
-          'pr-6',
         )}
       >
         {text}
@@ -177,9 +176,8 @@ function Blockquote({ text, expanded }: { text: string; expanded: boolean }) {
 /**
  * Render the `context` paragraph with the highlighted portion emphasized.
  *
- * If the highlight can be located verbatim inside the context, the matching
- * span is wrapped in `<mark>`. Otherwise the context is shown as-is followed
- * by the highlight as a pull-quote (fallback, shouldn't happen per spec).
+ * The caller guarantees the highlight is present verbatim in the context,
+ * so we always wrap the matching span in `<mark>`.
  */
 function ContextualHighlight({
   context,
@@ -190,44 +188,19 @@ function ContextualHighlight({
   highlight: string;
   expanded: boolean;
 }) {
-  const matchIndex = highlight ? context.indexOf(highlight) : -1;
-
-  if (matchIndex < 0 || !highlight) {
-    // Fallback: show context above, then the highlight as a quote.
-    return (
-      <div className="space-y-2">
-        <p
-          className={cn(
-            'whitespace-pre-wrap break-words text-muted-foreground',
-            expanded ? 'text-[15px] leading-relaxed' : 'text-sm leading-relaxed',
-          )}
-        >
-          {context}
-        </p>
-        <Blockquote text={highlight} expanded={expanded} />
-      </div>
-    );
-  }
-
+  const matchIndex = context.indexOf(highlight);
   const before = context.slice(0, matchIndex);
   const after = context.slice(matchIndex + highlight.length);
 
   return (
     <blockquote
       className={cn(
-        'relative rounded-r-xl border-l-4 border-primary/70 bg-primary/5 pl-4 pr-4 py-3',
+        'rounded-r-xl border-l-4 border-primary/70 bg-primary/5 px-4 py-3',
       )}
     >
-      <Highlighter
-        className={cn(
-          'absolute right-3 top-3 text-primary/60',
-          expanded ? 'size-4' : 'size-3.5',
-        )}
-        aria-hidden
-      />
       <p
         className={cn(
-          'whitespace-pre-wrap break-words font-serif pr-6',
+          'whitespace-pre-wrap break-words font-serif',
           expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
         )}
       >
@@ -236,27 +209,6 @@ function ContextualHighlight({
         <span className="text-muted-foreground">{after}</span>
       </p>
     </blockquote>
-  );
-}
-
-/** External-URL source chip (rendered when the highlight came from a plain web page). */
-function SourceUrlChip({ url }: { url: string }) {
-  const host = hostnameOf(url);
-
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer nofollow ugc"
-      className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm transition-colors hover:bg-secondary/60"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0 flex-1">
-        {host && <div className="truncate text-xs font-medium text-muted-foreground">{host}</div>}
-        <div className="truncate text-[13px] text-foreground">{url}</div>
-      </div>
-    </a>
   );
 }
 

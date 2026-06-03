@@ -34,7 +34,7 @@ export interface FormatMoneyResult {
  * failed, the function falls back to the sats representation so we never block
  * the UI on a network round-trip.
  *
- * The BTC price is fetched via TanStack Query with a `['btc-price', esploraBaseUrl]`
+ * The BTC price is fetched via TanStack Query with a `['btc-price', esploraApis]`
  * key — the same key used by the wallet, zap dialogs, and on-chain zap flows — so
  * a single request is deduped across the whole app.
  */
@@ -44,8 +44,8 @@ export function useFormatMoney(): FormatMoneyResult {
 
   // Reuse the shared price query so all callers share one cached fetch.
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price', config.esploraBaseUrl],
-    queryFn: () => fetchBtcPrice(config.esploraBaseUrl),
+    queryKey: ['btc-price', config.esploraApis],
+    queryFn: ({ signal }) => fetchBtcPrice(config.esploraApis, signal),
     // Prices move; 60 s is fine for display formatting.
     staleTime: 60_000,
     // Don't pop a UI error if the price endpoint is down; we just fall back to sats.

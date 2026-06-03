@@ -519,6 +519,23 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     blurb: "Highlights are excerpts people find valuable — a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
   },
+  // Fundraisers — kind 33863 (addressable). Feed-only: opening a
+  // campaign's naddr lands on PostDetailPage, which knows how to render
+  // kind 33863 via CampaignContent. We don't host campaign creation or
+  // donation flows in Ditto — those belong to Agora — but we surface
+  // campaigns in feeds and threads.
+  {
+    kind: 33863,
+    id: 'campaigns',
+    feedKey: 'feedIncludeCampaigns',
+    label: 'Fundraisers',
+    description: 'Self-authored Bitcoin fundraising campaigns (Agora kind 33863)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Fundraisers from across Nostr. Authored on Agora; readable from anywhere. Each campaign is self-hosted by its creator, with a Bitcoin wallet endpoint for donations.',
+    sites: [{ url: 'https://agora.spot', name: 'Agora' }],
+  },
   // Birdstar (feed-only — external app, no Ditto page)
   {
     kind: 2473,

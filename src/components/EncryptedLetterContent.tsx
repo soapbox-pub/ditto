@@ -29,7 +29,6 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { genUserName } from '@/lib/genUserName';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -457,7 +456,7 @@ export function EncryptedLetterCompact({ event, className }: EncryptedLetterComp
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
   const recipientAuthor = useAuthor(recipientPubkey ?? '');
   const recipientName = recipientPubkey

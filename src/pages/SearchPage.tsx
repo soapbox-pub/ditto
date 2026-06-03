@@ -48,7 +48,6 @@ import { useFollowPacks } from '@/hooks/useFollowPacks';
 
 import { ListPackPicker } from '@/components/SavedFeedFiltersEditor';
 
-import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
@@ -893,7 +892,7 @@ export function SearchPage() {
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; display_name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
-  const displayName = metadata?.name || metadata?.display_name || genUserName(profile.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
@@ -980,7 +979,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const tags = author.data?.event?.tags ?? [];
 
   if (author.isLoading) {

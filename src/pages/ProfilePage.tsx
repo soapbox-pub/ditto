@@ -44,7 +44,6 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
-import { genUserName } from '@/lib/genUserName';
 
 import { openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -414,7 +413,7 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -1342,7 +1341,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     }
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
-  const displayName = metadata?.name || metadata?.display_name || (pubkey ? genUserName(pubkey) : 'Anonymous');
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.

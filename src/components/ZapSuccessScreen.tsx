@@ -6,11 +6,18 @@ import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
 import { satsToUSD } from '@/lib/bitcoin';
-import { genUserName } from '@/lib/genUserName';
 
 interface ZapSuccessScreenProps {
-  /** Recipient pubkey (hex). Used to resolve the author avatar + name. */
+  /** Recipient pubkey (hex). Used to resolve the author avatar + name
+   *  when `recipientLabel` is omitted. */
   recipientPubkey: string;
+  /**
+   * Optional explicit recipient label. When set, the success screen
+   * uses this string in place of the author lookup — used by campaign
+   * donations, where the recipient is the campaign (not a Nostr identity)
+   * and the campaign title carries more meaning than the author's name.
+   */
+  recipientLabel?: string;
   /** Amount sent in satoshis. */
   amountSats: number;
   /** Current BTC/USD price for display; optional, falls back to sats only. */
@@ -33,6 +40,7 @@ interface ZapSuccessScreenProps {
  */
 export function ZapSuccessScreen({
   recipientPubkey,
+  recipientLabel,
   amountSats,
   btcPrice,
   txid,
@@ -40,7 +48,8 @@ export function ZapSuccessScreen({
 }: ZapSuccessScreenProps) {
   const { data: author } = useAuthor(recipientPubkey);
   const metadata = author?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || genUserName(recipientPubkey);
+  const fallbackName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = recipientLabel ?? fallbackName;
   const avatarShape = getAvatarShape(metadata);
 
   const usdDisplay = useMemo(
@@ -121,7 +130,7 @@ export function ZapSuccessScreen({
       {/* Headline + amount */}
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold tracking-tight">
-          Bitcoin sent
+          {recipientLabel ? 'Donation sent' : 'Bitcoin sent'}
         </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
           {usdDisplay || `${amountSats.toLocaleString()} sats`}

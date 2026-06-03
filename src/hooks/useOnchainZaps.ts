@@ -101,11 +101,13 @@ export function extractOnchainZapRecipients(event: NostrEvent): string[] {
  * fetched, or none of the listed recipients received anything on-chain.
  *
  * @param event       The kind 8333 event to verify.
- * @param esploraBaseUrl  Esplora REST root used to fetch the tx detail.
+ * @param esploraApis Ordered list of Esplora REST roots used to fetch the tx detail.
+ * @param signal      Optional abort signal (e.g. from TanStack Query).
  */
 export async function verifyOnchainZap(
   event: NostrEvent,
-  esploraBaseUrl: string,
+  esploraApis: string[],
+  signal?: AbortSignal,
 ): Promise<OnchainZapEntry | null> {
   const txid = extractOnchainZapTxid(event);
   const recipientPubkeys = extractOnchainZapRecipients(event);
@@ -128,7 +130,7 @@ export async function verifyOnchainZap(
 
   let detail;
   try {
-    detail = await fetchTxDetail(txid, esploraBaseUrl);
+    detail = await fetchTxDetail(txid, esploraApis, signal);
   } catch {
     return null;
   }
@@ -168,7 +170,7 @@ export async function verifyOnchainZap(
 export function useOnchainZaps(target: NostrEvent | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const isAddressable = target && target.kind >= 30000 && target.kind < 40000;
   const dTag = isAddressable
     ? target.tags.find(([n]) => n === 'd')?.[1] ?? ''
@@ -220,14 +222,14 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
       queryKey: [
         'onchain-zaps',
         'verify',
-        esploraBaseUrl,
+        esploraApis,
         extractOnchainZapTxid(event),
         // Include the full sorted recipient list so a multi-recipient event
         // doesn't collide with a single-recipient event that happens to
         // share the first `p`. Sorted because order doesn't affect verification.
         extractOnchainZapRecipients(event).slice().sort().join(','),
       ],
-      queryFn: () => verifyOnchainZap(event, esploraBaseUrl),
+      queryFn: ({ signal }) => verifyOnchainZap(event, esploraApis, signal),
       staleTime: 60_000,
     })),
   });
@@ -261,14 +263,14 @@ export function useOnchainZaps(target: NostrEvent | undefined) {
  */
 export function useVerifiedOnchainZap(event: NostrEvent | undefined): OnchainZapEntry | null | undefined {
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const txid = event ? extractOnchainZapTxid(event) : null;
   const recipients = event ? extractOnchainZapRecipients(event) : [];
   const recipientsKey = recipients.slice().sort().join(',');
 
   const { data } = useQuery({
-    queryKey: ['onchain-zaps', 'verify', esploraBaseUrl, txid, recipientsKey],
-    queryFn: () => verifyOnchainZap(event!, esploraBaseUrl),
+    queryKey: ['onchain-zaps', 'verify', esploraApis, txid, recipientsKey],
+    queryFn: ({ signal }) => verifyOnchainZap(event!, esploraApis, signal),
     enabled: !!event && !!txid && recipients.length > 0,
     staleTime: 60_000,
   });

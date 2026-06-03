@@ -8,11 +8,12 @@ import {
   FileText,
   GitBranch,
   GitPullRequest,
-  Highlighter,
+  HandHeart,
   ListMusic,
   Mail,
   MessageCircle,
   Music,
+  Quote,
   Rocket,
   MoreHorizontal,
   Package,
@@ -69,6 +70,7 @@ import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -119,7 +121,6 @@ import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
 import { extractOnchainZapRecipients } from "@/hooks/useOnchainZaps";
 import { getContentWarning } from "@/lib/contentWarning";
-import { genUserName } from "@/lib/genUserName";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
@@ -491,6 +492,7 @@ export const NoteCard = memo(function NoteCard({
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isHighlight = event.kind === 9802;
+  const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
   // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
@@ -543,6 +545,7 @@ export const NoteCard = memo(function NoteCard({
     !isEncryptedDM &&
     !isLetter &&
     !isHighlight &&
+    !isCampaign &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -760,6 +763,8 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedLetterContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isCampaign ? (
+          <CampaignContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
@@ -2192,10 +2197,15 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "zapped",
   },
   9802: {
-    icon: Highlighter,
+    icon: Quote,
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  33863: {
+    icon: HandHeart,
+    action: (event) => publishedAtAction(event, { created: "started a", updated: "updated their", fallback: "shared a" }),
+    noun: "fundraiser",
   },
   8333: {
     icon: Zap,
@@ -2261,7 +2271,7 @@ export function EventActionHeader({
   extra,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(pubkey);
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const url = useProfileUrl(pubkey, author.data?.metadata);
   const actionHref = useMemo(
     () => (actionEvent ? `/${encodeEventAddress(actionEvent)}` : undefined),

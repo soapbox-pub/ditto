@@ -10,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { genUserName } from '@/lib/genUserName';
 import { parseThemeDefinition } from '@/lib/themeEvent';
 import { hslStringToHex } from '@/lib/colorUtils';
 import { timeAgo } from '@/lib/timeAgo';
@@ -31,7 +30,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const authorEvent = author.data?.event;
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(event.pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const theme = useMemo(() => parseThemeDefinition(event), [event]);

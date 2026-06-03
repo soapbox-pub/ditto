@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
-import { genUserName } from '@/lib/genUserName';
 import { getThemedQRColors } from '@/lib/qrColors';
 
 interface FollowQRDialogProps {
@@ -25,7 +24,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   const [copied, setCopied] = useState(false);
 
   const metadata = author.data?.metadata;
-  const displayName = user ? metadata?.name || metadata?.display_name || genUserName(user.pubkey) : '';
+  const displayName = user ? metadata?.name || metadata?.display_name || 'Anonymous' : '';
 
   const npub = user ? nip19.npubEncode(user.pubkey) : '';
   const followUrl = npub ? `${shareOrigin}/follow/${npub}` : '';

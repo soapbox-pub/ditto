@@ -143,6 +143,7 @@ export const FeedSettingsSchema = z.looseObject({
   showArticles: z.boolean().optional(),
   showHighlights: z.boolean().optional(),
   feedIncludeHighlights: z.boolean().optional(),
+  feedIncludeCampaigns: z.boolean().optional(),
   showEvents: z.boolean().optional(),
   feedIncludeEvents: z.boolean().optional(),
   showVines: z.boolean().optional(),
@@ -263,7 +264,7 @@ export const AppConfigSchema = z.object({
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   sandboxDomain: z.string().optional(),
-  esploraBaseUrl: z.string().url(),
+  esploraApis: z.array(z.string().url()).min(1),
   currencyDisplay: z.enum(['usd', 'sats']).optional(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),

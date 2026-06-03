@@ -198,6 +198,17 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // Fundraisers (kind 33863) without a title, `d`, or any `w` wallet
+  // tag have nothing to render and nothing to donate to. We skip the
+  // full bech32(m) check here (parseCampaign does that at the render
+  // site) — a quick tag-presence gate is enough to keep blank cards
+  // out of the feed without paying for address validation per event.
+  if (event.kind === 33863) {
+    const hasTitle = event.tags.some(([n, v]) => n === 'title' && typeof v === 'string' && v.trim().length > 0);
+    const hasD = event.tags.some(([n, v]) => n === 'd' && typeof v === 'string' && v.length > 0);
+    const hasWallet = event.tags.some(([n, v]) => n === 'w' && typeof v === 'string' && v.length > 0);
+    if (!hasTitle || !hasD || !hasWallet) return true;
+  }
   return false;
 }
 

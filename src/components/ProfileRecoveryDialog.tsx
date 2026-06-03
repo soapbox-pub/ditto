@@ -15,7 +15,6 @@ import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import { coreToTokens } from '@/themes';
 import { cn } from '@/lib/utils';
@@ -92,7 +91,7 @@ function ProfileSnapshotCard({
   isRestoring: boolean;
 }) {
   const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
-  const displayName = metadata?.name || metadata?.display_name || genUserName(event.pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const avatarShape = getAvatarShape(metadata);
 
   return (

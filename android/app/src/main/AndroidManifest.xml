@@ -32,6 +32,24 @@
                 <data android:scheme="https" android:host="ditto.pub" />
             </intent-filter>
 
+            <!-- BIP-21 bitcoin: payment URIs. Ditto appears in the system
+                 chooser alongside other installed Bitcoin wallets. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="bitcoin" />
+            </intent-filter>
+
+            <!-- NIP-21 nostr: URIs. Ditto appears in the system chooser
+                 alongside other installed Nostr clients. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nostr" />
+            </intent-filter>
+
         </activity>
 
         <service
@@ -60,4 +78,5 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.CAMERA" />
 </manifest>

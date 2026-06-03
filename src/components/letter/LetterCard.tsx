@@ -9,7 +9,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/useToast';
-import { genUserName } from '@/lib/genUserName';
 import { FONT_OPTIONS, LETTER_KIND, LINE_HEIGHT_RATIO, type Letter } from '@/lib/letterTypes';
 import { ensureLetterFonts } from '@/lib/letterUtils';
 import { sanitizeCssString } from '@/lib/fontLoader';
@@ -54,7 +53,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || genUserName(otherPubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 

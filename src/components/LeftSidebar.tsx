@@ -24,7 +24,6 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
-import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isItemActive } from '@/lib/sidebarItems';
@@ -76,7 +75,7 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || genUserName(account.pubkey);
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || 'Anonymous';
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
@@ -151,7 +150,7 @@ export function LeftSidebar() {
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
                     <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {(metadata?.name || metadata?.display_name || genUserName(user.pubkey))[0]?.toUpperCase() ?? '?'}
+                      {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -163,7 +162,7 @@ export function LeftSidebar() {
                       <span className="font-semibold text-sm truncate">
                         {currentUserEvent && (metadata?.name || metadata?.display_name)
                           ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
-                          : (metadata?.name || metadata?.display_name || genUserName(user.pubkey))}
+                          : (metadata?.name || metadata?.display_name || 'Anonymous')}
                       </span>
                       {metadata?.nip05 && (
                         <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
@@ -305,7 +304,7 @@ export function LeftSidebar() {
                 </button>
                 <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
                   <LogOut className="size-4" />
-                  <span>Log out @{metadata?.name || metadata?.display_name || genUserName(user.pubkey)}</span>
+                  <span>Log out @{metadata?.name || metadata?.display_name || 'Anonymous'}</span>
                 </button>
               </div>
             </PopoverContent>

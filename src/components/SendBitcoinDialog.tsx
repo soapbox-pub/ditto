@@ -6,7 +6,9 @@ import {
   Bitcoin,
   Check,
   ExternalLink,
+  EyeOff,
   Loader2,
+  QrCode,
   UserRoundCheck,
   X,
 } from 'lucide-react';
@@ -22,16 +24,16 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { QrScannerDialog } from '@/components/QrScannerDialog';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -42,6 +44,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { isNostrId } from '@/lib/nostrId';
 import { notificationSuccess } from '@/lib/haptics';
@@ -51,13 +54,18 @@ import {
   fetchUTXOs,
   getFeeRates,
   buildUnsignedPsbt,
+  buildUnsignedSilentPaymentPsbt,
   finalizePsbt,
   broadcastTransaction,
   estimateFee,
   satsToUSD,
   isLargeAmount,
+  looksLikeSilentPaymentAddress,
+  parseBitcoinUri,
+  validateSilentPaymentAddress,
   type FeeRates,
 } from '@/lib/bitcoin';
+import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -65,18 +73,23 @@ import {
 
 const USD_PRESETS = [1, 5, 10, 25, 100];
 
-type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy';
+/** Preset confirmation-speed tiers, plus a user-entered `'custom'` rate. */
+type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy' | 'custom';
+
+/** The preset tiers (everything except `'custom'`), in display order. */
+type PresetFeeSpeed = Exclude<FeeSpeed, 'custom'>;
 
 const FEE_SPEED_LABELS: Record<FeeSpeed, string> = {
   fastest: '~10 min',
   halfHour: '~30 min',
   hour: '~1 hour',
   economy: '~1 day',
+  custom: 'Custom',
 };
 
-const FEE_SPEED_ORDER: FeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
+const FEE_SPEED_ORDER: PresetFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
 
-function getRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
+function getRateForSpeed(rates: FeeRates, speed: PresetFeeSpeed): number {
   switch (speed) {
     case 'fastest': return rates.fastestFee;
     case 'halfHour': return rates.halfHourFee;
@@ -86,10 +99,10 @@ function getRateForSpeed(rates: FeeRates, speed: FeeSpeed): number {
 }
 
 /** Deduplicate fee tiers that share the same sat/vB rate. */
-function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
+function getUniqueFeeSpeeds(rates: FeeRates | undefined): PresetFeeSpeed[] {
   if (!rates) return FEE_SPEED_ORDER;
   const seen = new Set<number>();
-  const result: FeeSpeed[] = [];
+  const result: PresetFeeSpeed[] = [];
   for (const speed of FEE_SPEED_ORDER) {
     const rate = getRateForSpeed(rates, speed);
     if (!seen.has(rate)) {
@@ -100,18 +113,45 @@ function getUniqueFeeSpeeds(rates: FeeRates | undefined): FeeSpeed[] {
   return result;
 }
 
+/**
+ * Resolve the effective sat/vB rate for the current selection. For `'custom'`
+ * the user-typed value wins (parsed, clamped to ≥ 1). For preset tiers we read
+ * the loaded rates; returns `0` when rates haven't loaded, which callers treat
+ * as "not ready" rather than a real rate.
+ */
+function resolveFeeRate(
+  speed: FeeSpeed,
+  rates: FeeRates | undefined,
+  customFeeRate: string,
+): number {
+  if (speed === 'custom') {
+    const parsed = Math.floor(Number(customFeeRate));
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed : 0;
+  }
+  if (!rates) return 0;
+  return getRateForSpeed(rates, speed);
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /**
- * A recipient resolved to send Bitcoin to. Always carries a Bitcoin address.
+ * A recipient resolved to send Bitcoin to. Always carries a destination
+ * address — either a regular on-chain Bitcoin address (`bc1…` / `1…` / `3…`)
+ * or a BIP-352 silent payment address (`sp1…`).
+ *
  * When `pubkey` is set, the recipient is also a Nostr identity — meaning we
  * can publish a kind 8333 profile-zap attesting the send.
  */
 interface ResolvedRecipient {
-  /** P2TR Bitcoin address to send to. */
+  /** Bitcoin address or silent payment address (`sp1…`) to send to. */
   address: string;
+  /**
+   * Address kind. `'onchain'` covers all standard scriptPubKey types; `'sp'`
+   * is BIP-352 silent payment and goes through {@link buildUnsignedSilentPaymentPsbt}.
+   */
+  kind: 'onchain' | 'sp';
   /** Hex Nostr pubkey, when the recipient is a Nostr user. */
   pubkey?: string;
   /** Optional profile metadata for display. */
@@ -125,6 +165,13 @@ interface SendBitcoinDialogProps {
   onClose: () => void;
   /** BTC/USD price — passed from the parent to avoid a duplicate fetch. */
   btcPrice?: number;
+  /**
+   * Optional BIP-21 `bitcoin:` URI to prefill the form with. When the dialog
+   * opens with this set, the recipient (and amount, if present and resolvable
+   * to USD) is seeded as if the user had pasted it. The user can still edit
+   * the amount before sending.
+   */
+  initialUri?: string;
 }
 
 interface SendResult {
@@ -153,19 +200,21 @@ interface SendResult {
  *  - When the recipient is a Nostr identity, publishes a kind 8333 onchain-zap
  *    event after broadcast (no `e`/`a` tag → profile-level zap, per NIP.md).
  */
-export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDialogProps) {
+export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: SendBitcoinDialogProps) {
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const queryClient = useQueryClient();
 
   // ── Form state ───────────────────────────────────────────────
   const [recipient, setRecipient] = useState<ResolvedRecipient | null>(null);
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
   const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>('halfHour');
+  /** Raw text for the custom sat/vB rate input (only used when feeSpeed === 'custom'). */
+  const [customFeeRate, setCustomFeeRate] = useState('');
   const [error, setError] = useState('');
   const [editingAmount, setEditingAmount] = useState(false);
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
@@ -173,31 +222,112 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   const feeSpeedUserChanged = useRef(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
+
+  // ── BIP-21 prefill ───────────────────────────────────────────
+  //
+  // When the dialog opens with an `initialUri` (e.g. from a `bitcoin:` deep
+  // link), seed the recipient and amount from it. The amount seed waits for
+  // `btcPrice` to load so we can convert sats → USD (the form's native unit).
+  // The user can edit either field before sending.
+  //
+  // Three cases for the recipient:
+  //
+  //   1. URI carries BOTH a valid on-chain address AND a valid `sp=` silent
+  //      payment address — push the raw URI into the recipient picker query
+  //      so the dropdown surfaces both rows (privacy vs. compatibility). This
+  //      matches the QR-scan dual-endpoint behavior; the user explicitly
+  //      picks. We deliberately do NOT auto-select sp here.
+  //   2. URI carries exactly one valid endpoint — auto-select it as a chip.
+  //   3. Nothing validates — surface an error.
+  //
+  // `initialUriHandled` prevents the URI from re-applying after the user
+  // edits or clears the prefill within the same open cycle. It resets when
+  // the dialog closes (see `handleClose`).
+  const initialUriHandled = useRef(false);
+  const pendingAmountSats = useRef<number | null>(null);
+  const [pickerInitialQuery, setPickerInitialQuery] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialUriHandled.current) return;
+    if (!initialUri) return;
+
+    const parsed = parseBitcoinUri(initialUri);
+    if (!parsed) {
+      initialUriHandled.current = true;
+      return;
+    }
+
+    const spCandidate = parsed.sp;
+    const hasValidSp = !!spCandidate
+      && looksLikeSilentPaymentAddress(spCandidate)
+      && validateSilentPaymentAddress(spCandidate);
+    const hasValidBtc = !!parsed.address && validateBitcoinAddress(parsed.address);
+
+    if (hasValidSp && hasValidBtc) {
+      // Dual-endpoint URI — let the user pick.
+      setPickerInitialQuery(initialUri.trim());
+    } else if (hasValidSp) {
+      setRecipient({ address: spCandidate!, kind: 'sp', raw: spCandidate! });
+    } else if (hasValidBtc) {
+      setRecipient({ address: parsed.address, kind: 'onchain', raw: parsed.address });
+    } else {
+      setError("Couldn't read the payment address from that link.");
+    }
+
+    pendingAmountSats.current = parsed.amountSats ?? null;
+    initialUriHandled.current = true;
+  }, [isOpen, initialUri]);
+
+  // Apply the pending amount once `btcPrice` is available. The form stores
+  // a USD value; we round to cents for a clean display, but the actual send
+  // amount comes from `amountSats` recomputed from the USD value, so tiny
+  // rounding differences (< $0.005) get smoothed out at send time.
+  useEffect(() => {
+    if (!isOpen) return;
+    const sats = pendingAmountSats.current;
+    if (sats == null || !btcPrice) return;
+
+    const usd = (sats / 100_000_000) * btcPrice;
+    if (Number.isFinite(usd) && usd > 0) {
+      setUsdAmount(Math.round(usd * 100) / 100);
+    }
+    pendingAmountSats.current = null;
+  }, [isOpen, btcPrice]);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
 
   // ── Data fetching ────────────────────────────────────────────
 
   const { data: utxos } = useQuery({
-    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
+    queryKey: ['bitcoin-utxos', esploraApis, senderAddress],
+    queryFn: ({ signal }) => fetchUTXOs(senderAddress, esploraApis, signal),
     enabled: !!senderAddress && isOpen && canSignPsbt,
     staleTime: 30_000,
   });
 
-  const { data: feeRates } = useQuery({
-    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
-    queryFn: () => getFeeRates(esploraBaseUrl),
+  const {
+    data: feeRates,
+    isLoading: feeRatesLoading,
+    isError: feeRatesError,
+    refetch: refetchFeeRates,
+  } = useQuery({
+    queryKey: ['bitcoin-fee-rates', esploraApis],
+    queryFn: ({ signal }) => getFeeRates(esploraApis, signal),
     enabled: isOpen && canSignPsbt,
     staleTime: 30_000,
   });
 
   const totalBalance = useMemo(() => utxos?.reduce((s, u) => s + u.value, 0) ?? 0, [utxos]);
 
-  const currentFeeRate = useMemo(() => {
-    if (!feeRates) return 0;
-    return getRateForSpeed(feeRates, feeSpeed);
-  }, [feeRates, feeSpeed]);
+  const currentFeeRate = useMemo(
+    () => resolveFeeRate(feeSpeed, feeRates, customFeeRate),
+    [feeSpeed, feeRates, customFeeRate],
+  );
 
   // ── USD → sats conversion ────────────────────────────────────
 
@@ -231,7 +361,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     const uniqueSpeeds = getUniqueFeeSpeeds(feeRates);
     const threshold = amountSats * 0.4;
 
-    let target: FeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
+    let target: PresetFeeSpeed = uniqueSpeeds[uniqueSpeeds.length - 1];
     for (const speed of uniqueSpeeds) {
       const rate = getRateForSpeed(feeRates, speed);
       const fee2 = estimateFee(utxos.length, 2, rate);
@@ -250,7 +380,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const handleFeeSpeedChange = useCallback((speed: FeeSpeed) => {
     feeSpeedUserChanged.current = true;
     setFeeSpeed(speed);
-    setFeePopoverOpen(false);
+    // Keep the popover open for 'custom' so the user can type a rate; close it
+    // for preset tiers since the choice is complete.
+    if (speed !== 'custom') setFeePopoverOpen(false);
   }, []);
 
   // ── Two-tap "arm" for large amounts ──────────────────────────
@@ -258,23 +390,27 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
   const isLarge = isLargeAmount(totalSats, btcPrice);
   const [confirmArmed, setConfirmArmed] = useState(false);
 
-  // ── Raw Bitcoin address privacy acknowledgement ─────────────
+  // ── Raw Bitcoin address privacy notice ──────────────────────
   //
   // When the recipient is a raw on-chain address (no Nostr pubkey attached),
   // Bitcoin's public ledger means the send can be linked back to the sender's
-  // wallet forever. Require an explicit checkbox before unlocking the Send
-  // button, and force the two-tap arm regardless of amount.
+  // wallet forever. We show a soft amber notice so the user understands the
+  // trade-off, but don't gate the send on it — the warning is informational.
+  //
+  // Silent payment recipients (BIP-352) do not have this problem — the
+  // on-chain output is derived per-transaction and is indistinguishable
+  // from any other P2TR output, so the recipient's identity isn't exposed
+  // on chain. We skip the notice for SP sends.
 
-  const isRawAddress = !!recipient && !recipient.pubkey;
-  const [acknowledgedPublic, setAcknowledgedPublic] = useState(false);
+  const isRawAddress = !!recipient && !recipient.pubkey && recipient.kind !== 'sp';
 
   useEffect(() => {
     setConfirmArmed(false);
-    setAcknowledgedPublic(false);
   }, [amountSats, currentFeeRate, btcPrice, recipient?.address]);
 
-  // For raw addresses we always require the two-tap arm, not just for large sends.
-  const requiresArm = isLarge || isRawAddress;
+  // The two-tap arm is reserved for large amounts; raw on-chain sends no
+  // longer trigger it on their own.
+  const requiresArm = isLarge;
 
   // ── Big amount focus management ──────────────────────────────
 
@@ -302,27 +438,50 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
       if (!recipient) throw new Error('Choose a recipient.');
       if (!canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
       if (!utxos?.length) throw new Error('No spendable Bitcoin available.');
-      if (!feeRates) throw new Error('Fee rates not loaded.');
+      if (feeSpeed !== 'custom' && !feeRates) throw new Error('Fee rates not loaded.');
       if (recipient.pubkey === user.pubkey) throw new Error("You can't send to yourself.");
       if (amountSats <= 0) throw new Error('Enter an amount.');
       if (insufficient) throw new Error('Not enough Bitcoin for this amount + network fee.');
 
       setProgress('building');
-      const rate = getRateForSpeed(feeRates, feeSpeed);
-      const { psbtHex, fee } = buildUnsignedPsbt(
-        user.pubkey,
-        recipient.address,
-        amountSats,
-        utxos,
-        rate,
-      );
+      const rate = resolveFeeRate(feeSpeed, feeRates, customFeeRate);
+      if (rate < 1) throw new Error('Enter a fee rate of at least 1 sat/vB.');
+
+      let psbtHex: string;
+      let fee: number;
+      if (recipient.kind === 'sp') {
+        // BIP-375 silent payment: build a PSBT v2 with PSBT_OUT_SP_V0_INFO,
+        // hand it to the signer (NIP-07 / NIP-46 / local nsec — all assumed
+        // to understand BIP-375 PSBTs, per the wallet's signer contract),
+        // and extract a finalized raw transaction from the response.
+        ({ psbtHex, fee } = buildUnsignedSilentPaymentPsbt(
+          user.pubkey,
+          recipient.address,
+          amountSats,
+          utxos,
+          rate,
+        ));
+      } else {
+        ({ psbtHex, fee } = buildUnsignedPsbt(
+          user.pubkey,
+          recipient.address,
+          amountSats,
+          utxos,
+          rate,
+        ));
+      }
 
       setProgress('signing');
       const signedHex = await signPsbt(psbtHex);
-      const txHex = finalizePsbt(signedHex);
+      // BIP-375 signers return a finalized PSBT v2; the legacy signer path
+      // returns a PSBT v0 we hand to `finalizePsbt`. We pick by the input
+      // PSBT shape we sent.
+      const txHex = recipient.kind === 'sp'
+        ? extractTxFromSignedPsbtV2(signedHex)
+        : finalizePsbt(signedHex);
 
       setProgress('broadcasting');
-      const txid = await broadcastTransaction(txHex, esploraBaseUrl);
+      const txid = await broadcastTransaction(txHex, esploraApis);
 
       // When the recipient is a Nostr identity, publish a kind 8333 profile zap
       // attesting the send. Per NIP.md, omitting `e`/`a` targets the recipient's
@@ -384,12 +543,15 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     if (!btcPrice) { setError('Waiting for BTC price…'); return; }
     if (amountSats <= 0) { setError('Enter an amount.'); return; }
     if (!utxos?.length) { setError("You don't have any Bitcoin yet."); return; }
-    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
-
-    if (isRawAddress && !acknowledgedPublic) {
-      setError('Acknowledge the privacy warning before sending.');
+    if (currentFeeRate < 1) {
+      setError(
+        feeSpeed === 'custom'
+          ? 'Enter a fee rate of at least 1 sat/vB.'
+          : "Fee rates haven't loaded yet.",
+      );
       return;
     }
+    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
 
     if (requiresArm && !confirmArmed) {
       setConfirmArmed(true);
@@ -401,7 +563,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     } catch {
       // Toast handled in onError; nothing further to do here.
     }
-  }, [user, recipient, btcPrice, amountSats, utxos, insufficient, isRawAddress, acknowledgedPublic, requiresArm, confirmArmed, sendMutation]);
+  }, [user, recipient, btcPrice, amountSats, utxos, currentFeeRate, feeSpeed, insufficient, requiresArm, confirmArmed, sendMutation]);
 
   // ── Reset on close ───────────────────────────────────────────
 
@@ -410,11 +572,14 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
     setUsdAmount(5);
     setError('');
     setFeeSpeed('halfHour');
+    setCustomFeeRate('');
     setSuccess(null);
     setConfirmArmed(false);
-    setAcknowledgedPublic(false);
     setEditingAmount(false);
     feeSpeedUserChanged.current = false;
+    initialUriHandled.current = false;
+    pendingAmountSats.current = null;
+    setPickerInitialQuery(undefined);
     onClose();
   }, [onClose]);
 
@@ -450,7 +615,11 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden">
+      <DialogContent
+        ref={dialogContentRef}
+        className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-visible max-h-[95vh] [&>button]:hidden"
+      >
+        <PortalContainerProvider value={portalContainer}>
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
             {success ? 'Success' : 'Send Bitcoin'}
@@ -464,7 +633,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
           </button>
         </div>
 
-        <div className="overflow-y-auto">
+        <div className="overflow-y-auto max-h-[calc(95vh-3rem)]">
           {success ? (
             success.recipientPubkey ? (
               <ZapSuccessScreen
@@ -484,12 +653,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
             )
           ) : (
             <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
-              {/* Recipient picker */}
-              <RecipientPicker
-                value={recipient}
-                onChange={(v) => { setRecipient(v); setError(''); }}
-              />
-
               {/* Big editable USD amount */}
               <div className="flex flex-col items-center pt-2">
                 {editingAmount ? (
@@ -545,50 +708,43 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                 ))}
               </ToggleGroup>
 
+              {/* Recipient picker */}
+              <RecipientPicker
+                value={recipient}
+                onChange={(v) => { setRecipient(v); setError(''); }}
+                initialQuery={pickerInitialQuery}
+                onInitialQueryConsumed={() => setPickerInitialQuery(undefined)}
+              />
+
               {/* Error */}
               {error && (
                 <p className="text-xs text-destructive">{error}</p>
               )}
 
-              {/* Privacy warning for raw Bitcoin addresses */}
+              {/* Privacy notice for raw Bitcoin addresses. Informational
+                  only — we no longer gate the send on an acknowledgement. */}
               {isRawAddress && (
-                <Alert variant="destructive" className="bg-destructive/5">
+                <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
                   <AlertTriangle className="size-4" />
                   <AlertDescription className="text-xs">
-                    <p>
-                      Money you send is public and can be traced back to you.{' '}
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                          >
-                            Learn more
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
-                          Bitcoin is a public ledger. Transactions you send can
-                          be traced back to you forever, even after being
-                          exchanged by multiple people. Send it only to those
-                          you wish to support publicly, or cash out at an
-                          exchange.
-                        </PopoverContent>
-                      </Popover>
-                    </p>
-                    <label className="mt-2 flex items-start gap-2 cursor-pointer select-none">
-                      <Checkbox
-                        checked={acknowledgedPublic}
-                        onCheckedChange={(checked) => {
-                          setAcknowledgedPublic(checked === true);
-                          setError('');
-                          // Re-arming required after toggling the acknowledgement.
-                          setConfirmArmed(false);
-                        }}
-                        className="mt-0.5 border-destructive data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
-                        aria-label="I understand this transaction is public"
-                      />
-                      <span>I understand this transaction is public.</span>
-                    </label>
+                    Money you send is public and can be traced back to you.{' '}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                        >
+                          Learn more
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
+                        Bitcoin is a public ledger. Transactions you send can
+                        be traced back to you forever, even after being
+                        exchanged by multiple people. Send it only to those
+                        you wish to support publicly, or cash out at an
+                        exchange.
+                      </PopoverContent>
+                    </Popover>
                   </AlertDescription>
                 </Alert>
               )}
@@ -602,7 +758,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                   || isPending
                   || insufficient
                   || !recipient
-                  || (isRawAddress && !acknowledgedPublic)
+                  || currentFeeRate < 1
                 }
                 variant={(insufficient || requiresArm) && !isPending ? 'destructive' : 'default'}
                 className="w-full"
@@ -634,15 +790,43 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                           Fee{' '}
                           {estimatedFeeSats > 0 && btcPrice
                             ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
-                            : '…'}
-                          <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
+                            : feeRatesLoading && feeSpeed !== 'custom'
+                              ? 'loading…'
+                              : feeRatesError && feeSpeed !== 'custom'
+                                ? 'unavailable'
+                                : '…'}
+                          <span className="opacity-60">
+                            {' · '}
+                            {feeSpeed === 'custom' && currentFeeRate >= 1
+                              ? `${currentFeeRate} sat/vB`
+                              : FEE_SPEED_LABELS[feeSpeed]}
+                          </span>
                         </span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="center" sideOffset={6} className="w-56 p-1">
                       <div className="flex flex-col">
-                        {uniqueFeeSpeeds.map((speed) => {
-                          const rate = feeRates ? getRateForSpeed(feeRates, speed) : 0;
+                        {feeRatesError && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            <p className="text-destructive">Couldn't load fee rates.</p>
+                            <button
+                              type="button"
+                              onClick={() => refetchFeeRates()}
+                              className="mt-1 underline hover:text-foreground transition-colors"
+                            >
+                              Retry
+                            </button>
+                            <p className="mt-1">Or enter a custom rate below.</p>
+                          </div>
+                        )}
+                        {feeRatesLoading && !feeRatesError && (
+                          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" />
+                            Loading fee rates…
+                          </div>
+                        )}
+                        {feeRates && uniqueFeeSpeeds.map((speed) => {
+                          const rate = getRateForSpeed(feeRates, speed);
                           const selected = speed === feeSpeed;
                           return (
                             <button
@@ -659,6 +843,34 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
                             </button>
                           );
                         })}
+                        {/* Custom fee rate */}
+                        <button
+                          type="button"
+                          onClick={() => handleFeeSpeedChange('custom')}
+                          className={cn(
+                            'flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors',
+                            feeSpeed === 'custom' && 'bg-muted font-medium',
+                          )}
+                        >
+                          <span>{FEE_SPEED_LABELS.custom}</span>
+                        </button>
+                        {feeSpeed === 'custom' && (
+                          <div className="flex items-center gap-1.5 px-2 py-1.5">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min={1}
+                              step={1}
+                              autoFocus
+                              value={customFeeRate}
+                              onChange={(e) => setCustomFeeRate(e.target.value)}
+                              placeholder="e.g. 5"
+                              className="h-7 text-xs"
+                              aria-label="Custom fee rate in sat/vB"
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">sat/vB</span>
+                          </div>
+                        )}
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -673,6 +885,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice }: SendBitcoinDial
             </div>
           )}
         </div>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );
@@ -695,6 +908,16 @@ function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting
 interface RecipientPickerProps {
   value: ResolvedRecipient | null;
   onChange: (value: ResolvedRecipient | null) => void;
+  /**
+   * Optional initial query to seed the input with — used by the BIP-21
+   * dual-endpoint flow so the dropdown surfaces both the on-chain and
+   * silent-payment rows for the user to pick from. Treated as one-shot:
+   * applied once when it becomes non-undefined, then the parent should
+   * clear it via `onInitialQueryConsumed`.
+   */
+  initialQuery?: string;
+  /** Called after `initialQuery` has been applied so the parent can clear it. */
+  onInitialQueryConsumed?: () => void;
 }
 
 /**
@@ -705,43 +928,105 @@ interface RecipientPickerProps {
  * Wikipedia / Internet Archive / country / nav-item rows. That keeps the
  * picker focused: every selection is something the user can actually be paid.
  */
-function RecipientPicker({ value, onChange }: RecipientPickerProps) {
+function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed }: RecipientPickerProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const popoverContentRef = useRef<HTMLDivElement>(null);
 
-  const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
+  // One-shot seeding from the parent (BIP-21 deep link dual-endpoint flow).
+  // We mirror `initialQuery` into the internal `query` state once, then ask
+  // the parent to clear it so the user's subsequent edits aren't overwritten
+  // by re-renders. Opening the dropdown is handled by the existing
+  // query-watcher effect further down.
+  useEffect(() => {
+    if (!initialQuery) return;
+    setQuery(initialQuery);
+    setOpen(true);
+    onInitialQueryConsumed?.();
+  }, [initialQuery, onInitialQueryConsumed]);
+
+
+  // BIP-21 `bitcoin:` URI handling. If the user pastes one, we route the
+  // same way the QR scanner does (sp first, on-chain fallback), but when the
+  // URI carries *both* a valid on-chain address and a valid `sp=` parameter
+  // we surface both rows so the user can pick the privacy/compatibility
+  // trade-off. A raw bc1…/sp1… input falls through here unchanged: `bip21`
+  // is null and the candidate is just the trimmed query.
+  const trimmedRaw = query.trim();
+  const bip21 = useMemo(() => parseBitcoinUri(trimmedRaw), [trimmedRaw]);
+
+  const btcCandidate = useMemo(() => {
+    const c = bip21 ? bip21.address : trimmedRaw;
+    if (!c) return '';
+    if (looksLikeSilentPaymentAddress(c)) return ''; // sp addresses live in spCandidate
+    return validateBitcoinAddress(c) ? c : '';
+  }, [bip21, trimmedRaw]);
+
+  const spCandidate = useMemo(() => {
+    // From the URI: prefer `sp=` if valid; otherwise the path may itself be
+    // an sp1 address (rare but legal — `bitcoin:sp1…` is just a URI without
+    // an on-chain fallback).
+    const c = bip21 ? (bip21.sp ?? bip21.address) : trimmedRaw;
+    if (!c) return '';
+    if (!looksLikeSilentPaymentAddress(c)) return '';
+    return validateSilentPaymentAddress(c) ? c : '';
+  }, [bip21, trimmedRaw]);
+
+  // Suppress profile search when the input already resolves to a Bitcoin
+  // address, silent payment address, or `bitcoin:` URI. Without this, the
+  // NIP-50 relay search runs against the URI / address string and the
+  // (usually empty, but sometimes substring-matching) results race against
+  // the local address-recognition path — flashing a "Send to silent payment
+  // address" row that gets flooded out by stragglers a moment later. It also
+  // avoids leaking the recipient address to the search relay.
+  const isAddressLike = !!btcCandidate || !!spCandidate;
+  const searchQuery = isAddressLike ? '' : query;
+
+  const { data: rawProfiles, isFetching: rawIsFetching, followedPubkeys } = useSearchProfiles(searchQuery);
+  // Drop any stale profile data once the input becomes address-like, so the
+  // dropdown doesn't briefly show a "Silent payment" row alongside leftover
+  // search results from a previous query.
+  const profiles = isAddressLike ? undefined : rawProfiles;
+  const isFetching = isAddressLike ? false : rawIsFetching;
 
   const identifierMatch = useMemo(() => {
     const m = detectIdentifier(query);
     if (!m) return null;
-    // Only pubkey-resolvable identifiers belong in this picker.
+    // Only pubkey-resolvable identifiers belong in this picker. Bare hex is
+    // deliberately excluded — it's ambiguous and not a user-facing format.
     switch (m.type) {
       case 'npub':
       case 'nprofile':
       case 'nip05':
-      case 'hex':
         return m;
       default:
         return null;
     }
   }, [query]);
 
-  // Raw bitcoin address fallback — only when nothing else matches.
-  const trimmed = query.trim();
-  const looksLikeBtcAddress = !identifierMatch
-    && trimmed.length > 0
-    && !profiles?.length
-    && validateBitcoinAddress(trimmed);
+  // Raw on-chain bitcoin address fallback — only when nothing else matches.
+  const hasBtcAddress = !identifierMatch
+    && !!btcCandidate
+    && !profiles?.length;
+
+  // BIP-352 silent payment address fallback — recognised independently of
+  // on-chain addresses so the dropdown can show a distinct "Silent payment"
+  // row with the right privacy framing. When the input is a BIP-21 URI
+  // carrying both, this and `hasBtcAddress` are both true and the user
+  // picks which payment path to use.
+  const hasSpAddress = !identifierMatch
+    && !!spCandidate
+    && !profiles?.length;
 
   // Deduplicate: if the identifier resolves to a pubkey that's also in the
   // profile results, drop it from the profile list.
   const identifierPubkey = useMemo(() => {
     if (!identifierMatch) return undefined;
     if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') return identifierMatch.pubkey;
-    if (identifierMatch.type === 'hex') return identifierMatch.hex;
     return undefined; // nip05 resolves async; handled by IdentifierRow
   }, [identifierMatch]);
 
@@ -751,41 +1036,30 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
   }, [profiles, identifierPubkey]);
 
   const hasIdentifier = !!identifierMatch;
-  const hasBtcAddress = !!looksLikeBtcAddress;
   const profileCount = filteredProfiles.length;
-  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasBtcAddress ? 1 : 0);
+  const totalItems = (hasIdentifier ? 1 : 0) + profileCount + (hasSpAddress ? 1 : 0) + (hasBtcAddress ? 1 : 0);
 
   // Open the dropdown whenever we have any suggestion or a non-empty query.
   useEffect(() => {
-    if (trimmed.length === 0) {
+    if (trimmedRaw.length === 0) {
       setOpen(false);
       return;
     }
-    if (hasIdentifier || hasBtcAddress || profileCount > 0 || isFetching) {
+    if (hasIdentifier || hasBtcAddress || hasSpAddress || profileCount > 0 || isFetching) {
       setOpen(true);
     }
-  }, [trimmed, hasIdentifier, hasBtcAddress, profileCount, isFetching]);
+  }, [trimmedRaw, hasIdentifier, hasBtcAddress, hasSpAddress, profileCount, isFetching]);
 
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [profiles, identifierMatch, looksLikeBtcAddress]);
-
-  // Close on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [profiles, identifierMatch, hasBtcAddress, hasSpAddress]);
 
   const selectProfile = useCallback((profile: SearchProfile) => {
     const address = nostrPubkeyToBitcoinAddress(profile.pubkey);
     if (!address) return;
     onChange({
       address,
+      kind: 'onchain',
       pubkey: profile.pubkey,
       profile,
       raw: query,
@@ -799,18 +1073,121 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     if (!isNostrId(pubkey)) return;
     const address = nostrPubkeyToBitcoinAddress(pubkey);
     if (!address) return;
-    onChange({ address, pubkey, raw });
+    onChange({ address, kind: 'onchain', pubkey, raw });
     setQuery('');
     setOpen(false);
     inputRef.current?.blur();
   }, [onChange]);
 
   const selectBtcAddress = useCallback((address: string) => {
-    onChange({ address, raw: address });
+    onChange({ address, kind: 'onchain', raw: address });
     setQuery('');
     setOpen(false);
     inputRef.current?.blur();
   }, [onChange]);
+
+  const selectSpAddress = useCallback((address: string) => {
+    onChange({ address, kind: 'sp', raw: address });
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
+  // Auto-select when the input resolves to a single unambiguous recipient and
+  // nothing else is in play:
+  //   - a bare npub / nprofile / hex pubkey resolves synchronously to a Nostr
+  //     account, so we create the account chip immediately;
+  //   - a bare address or single-endpoint `bitcoin:` URI creates the chip too.
+  // Typing/pasting any of these skips the one-item dropdown. A dual-endpoint
+  // URI (both `btcCandidate` and `spCandidate` valid) keeps the dropdown so
+  // the user picks the privacy/compatibility trade-off, and a `nip05`
+  // identifier stays in its row because resolution is async.
+  useEffect(() => {
+    if (identifierMatch) {
+      if (identifierMatch.type === 'npub' || identifierMatch.type === 'nprofile') {
+        selectPubkey(identifierMatch.pubkey, identifierMatch.raw);
+      }
+      // nip05 resolves asynchronously — leave it to IdentifierRow.
+      return;
+    }
+    if (btcCandidate && spCandidate) return; // dual-endpoint → let user pick
+    if (btcCandidate) {
+      selectBtcAddress(btcCandidate);
+    } else if (spCandidate) {
+      selectSpAddress(spCandidate);
+    }
+  }, [btcCandidate, spCandidate, identifierMatch, selectPubkey, selectBtcAddress, selectSpAddress]);
+
+  const handleScan = useCallback((scanned: string) => {
+    setScannerOpen(false);
+
+    // Strip optional `nostr:` / `bitcoin:` URI prefixes. For `bitcoin:` the
+    // BIP-21 payload is `bitcoin:<address>[?params]`. We honor the BIP-352
+    // `sp=` parameter (silent payment recipient) when present and valid,
+    // preferring it over the on-chain fallback address. Other params
+    // (`amount`, `label`, `message`, `lightning`, …) are ignored; the user
+    // picks the amount in the dialog.
+    const scannedTrimmed = scanned.trim();
+    const bip21 = parseBitcoinUri(scannedTrimmed);
+    const candidate = bip21 ? bip21.address : scannedTrimmed;
+    const spParam = bip21?.sp;
+
+    // When a `bitcoin:` URI carries BOTH a valid on-chain address AND a valid
+    // `sp=` silent payment address, surface both choices in the dropdown
+    // instead of auto-routing — matches the paste/type behavior so the user
+    // explicitly picks privacy (sp) vs. compatibility (on-chain). Pushing the
+    // raw URI into the query input lets the existing `btcCandidate` and
+    // `spCandidate` memos render both `BtcAddressRow` and `SpAddressRow`.
+    if (bip21) {
+      const hasValidBtc = !!candidate && validateBitcoinAddress(candidate);
+      const hasValidSp = !!spParam
+        && looksLikeSilentPaymentAddress(spParam)
+        && validateSilentPaymentAddress(spParam);
+      if (hasValidBtc && hasValidSp) {
+        setQuery(scannedTrimmed);
+        setOpen(true);
+        inputRef.current?.focus();
+        return;
+      }
+    }
+
+    // BIP-352 silent payment via `bitcoin:…?sp=sp1…` takes priority over the
+    // on-chain fallback. A scanned URI like `bitcoin:bc1q…?sp=sp1q…` means
+    // "send via silent payment if you can; otherwise fall back to bc1q…".
+    // We can, so we do.
+    if (spParam && looksLikeSilentPaymentAddress(spParam) && validateSilentPaymentAddress(spParam)) {
+      selectSpAddress(spParam);
+      return;
+    }
+
+    // Direct on-chain address → resolve immediately.
+    if (validateBitcoinAddress(candidate)) {
+      selectBtcAddress(candidate);
+      return;
+    }
+
+    // BIP-352 silent payment address → resolve immediately.
+    if (looksLikeSilentPaymentAddress(candidate) && validateSilentPaymentAddress(candidate)) {
+      selectSpAddress(candidate);
+      return;
+    }
+
+    // Anything else (npub/nprofile/nip05/hex, with or without `nostr:` prefix)
+    // gets fed into the query so the existing identifier-detection + dropdown
+    // logic picks it up. The user taps the resulting row to confirm.
+    if (detectIdentifier(candidate)) {
+      setQuery(candidate);
+      setOpen(true);
+      inputRef.current?.focus();
+      return;
+    }
+
+    toast({
+      title: "Couldn't read that QR code",
+      description: 'Expected a Bitcoin address, a silent payment address (sp1…), or a Nostr identifier (npub, nprofile, NIP-05).',
+      variant: 'destructive',
+    });
+  }, [selectBtcAddress, selectSpAddress, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -823,13 +1200,13 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (open && selectedIndex >= 0 && selectedIndex < totalItems) {
-        // Order: [identifier?, ...profiles, btcAddress?]
+        // Order: [identifier?, ...profiles, btcAddress?, spAddress?]
         let idx = selectedIndex;
         if (hasIdentifier) {
           if (idx === 0) {
             // IdentifierRow handles its own selection via DOM click — the
             // selectedPubkey may need NIP-05 resolution.
-            const items = containerRef.current?.querySelectorAll('[data-recipient-item]');
+            const items = popoverContentRef.current?.querySelectorAll('[data-recipient-item]');
             (items?.[selectedIndex] as HTMLElement | undefined)?.click();
             return;
           }
@@ -841,7 +1218,12 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
         }
         idx -= profileCount;
         if (hasBtcAddress && idx === 0) {
-          selectBtcAddress(trimmed);
+          selectBtcAddress(btcCandidate);
+          return;
+        }
+        if (hasBtcAddress) idx -= 1;
+        if (hasSpAddress && idx === 0) {
+          selectSpAddress(spCandidate);
           return;
         }
       }
@@ -869,29 +1251,70 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
 
   // ── Input + dropdown ───────────────────────────────────────
 
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        ref={inputRef}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => { if (trimmed.length > 0) setOpen(true); }}
-        onKeyDown={handleKeyDown}
-        placeholder="Search people, paste npub, or enter a Bitcoin address"
-        autoComplete="off"
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-autocomplete="list"
-        className="rounded-full"
-      />
+  // The dropdown is a Radix Popover anchored to the input. It portals into
+  // the Send Bitcoin DialogContent (which is itself overflow-visible) via
+  // PortalContainerProvider so it can extend past the dialog's body while
+  // remaining inside the dialog's RemoveScroll boundary — touch-scroll
+  // inside the results list still works on mobile.
+  const showEmptyState = trimmedRaw.length > 0 && !isFetching && totalItems === 0;
+  const popoverOpen = open && (totalItems > 0 || showEmptyState);
 
-      {open && totalItems > 0 && (
-        <div
-          role="listbox"
-          className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
-        >
-          <div className="max-h-[280px] overflow-y-auto py-1">
+  return (
+    <Popover open={popoverOpen} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div className="relative">
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => { if (trimmedRaw.length > 0) setOpen(true); }}
+            // Tapping the input reopens the dropdown after an outside-click
+            // dismiss. `onFocus` only fires on the first tap; subsequent taps
+            // while the input is still focused need their own opener so the
+            // user can recover the choice list without un-focusing first.
+            onClick={() => { if (trimmedRaw.length > 0) setOpen(true); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={popoverOpen}
+            aria-haspopup="listbox"
+            aria-autocomplete="list"
+            className="rounded-full pr-11"
+          />
+
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            aria-label="Scan QR code"
+            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <QrCode className="size-4" />
+          </button>
+
+          <QrScannerDialog
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={handleScan}
+            title="Scan recipient QR"
+          />
+        </div>
+      </PopoverAnchor>
+
+      <PopoverContent
+        ref={popoverContentRef}
+        align="start"
+        sideOffset={6}
+        // Keep typing focus in the input on open/close — Radix's default is
+        // to focus the popover content, which would steal focus from the
+        // input and dismiss the mobile keyboard mid-type.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        style={{ width: 'var(--radix-popover-trigger-width)' }}
+        className="p-0 w-[--radix-popover-trigger-width] rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
+      >
+        {totalItems > 0 ? (
+          <div role="listbox" className="max-h-[280px] overflow-y-auto py-1">
             {hasIdentifier && (
               <IdentifierRow
                 match={identifierMatch!}
@@ -910,24 +1333,26 @@ function RecipientPicker({ value, onChange }: RecipientPickerProps) {
             ))}
             {hasBtcAddress && (
               <BtcAddressRow
-                address={trimmed}
-                isSelected={selectedIndex === totalItems - 1}
+                address={btcCandidate}
+                isSelected={selectedIndex === (hasIdentifier ? 1 : 0) + profileCount}
                 onClick={selectBtcAddress}
               />
             )}
+            {hasSpAddress && (
+              <SpAddressRow
+                address={spCandidate}
+                isSelected={selectedIndex === totalItems - 1}
+                onClick={selectSpAddress}
+              />
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {open && trimmed.length > 0 && !isFetching && totalItems === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+        ) : (
           <div className="py-6 text-center text-sm text-muted-foreground">
-            No matches. Paste an npub or a Bitcoin address.
+            No matches. Paste an npub, a Bitcoin address, or a silent payment address.
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -940,15 +1365,17 @@ function SelectedRecipientChip({
   value: ResolvedRecipient;
   onClear: () => void;
 }) {
-  const { pubkey, profile, address } = value;
+  const { pubkey, profile, address, kind } = value;
   // Author lookup only when we have a pubkey but no inline profile.
   const author = useAuthor(profile ? undefined : pubkey);
   const metadata = profile?.metadata ?? author.data?.metadata;
   const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
-    : 'Bitcoin address';
+    ? metadata?.name || metadata?.display_name || 'Anonymous'
+    : kind === 'sp'
+      ? 'Silent payment address'
+      : 'Bitcoin address';
 
   const subtitle = pubkey
     ? metadata?.nip05 ?? nip19.npubEncode(pubkey)
@@ -963,6 +1390,10 @@ function SelectedRecipientChip({
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
         </Avatar>
+      ) : kind === 'sp' ? (
+        <div className="size-9 shrink-0 rounded-full bg-violet-500/10 flex items-center justify-center">
+          <EyeOff className="size-4 text-violet-500" />
+        </div>
       ) : (
         <div className="size-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center">
           <Bitcoin className="size-4 text-orange-500" />
@@ -1003,7 +1434,7 @@ function ProfileRow({
   onClick: (profile: SearchProfile) => void;
 }) {
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const subtitle = metadata.nip05 ?? nip19.npubEncode(pubkey);
 
   return (
@@ -1072,7 +1503,7 @@ function IdentifierRow({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || genUserName(pubkey)
+    ? metadata?.name || metadata?.display_name || 'Anonymous'
     : match.type === 'nip05' ? match.identifier : '';
 
   const subtitle = match.type === 'nip05'
@@ -1176,6 +1607,49 @@ function BtcAddressRow({
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm truncate">Send to Bitcoin address</div>
+        <div className="text-xs text-muted-foreground truncate font-mono">
+          {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Silent payment address (sp1…) dropdown row ────────────────
+
+/**
+ * Dropdown row for BIP-352 silent payment addresses. We give it a distinct
+ * label and icon (privacy eye-off) so the user can tell at a glance that
+ * this is a static, unlinkable address rather than a regular Bitcoin
+ * scriptPubKey — the privacy story is materially different.
+ */
+function SpAddressRow({
+  address,
+  isSelected,
+  onClick,
+}: {
+  address: string;
+  isSelected: boolean;
+  onClick: (address: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-recipient-item
+      role="option"
+      aria-selected={isSelected}
+      onClick={() => onClick(address)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+    >
+      <div className="size-9 shrink-0 rounded-full bg-violet-500/10 flex items-center justify-center">
+        <EyeOff className="size-4 text-violet-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate">Send to silent payment address</div>
         <div className="text-xs text-muted-foreground truncate font-mono">
           {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
         </div>

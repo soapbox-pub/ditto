@@ -4,7 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
 type AvatarSize = 'sm' | 'md';
@@ -25,7 +24,7 @@ function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
 
-  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const initial = displayName.charAt(0).toUpperCase();
 
   return (

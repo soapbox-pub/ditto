@@ -361,6 +361,8 @@ export const KIND_LABELS: Record<number, string> = {
   // Corny Chat
   32388: 'User room favorites',
   33388: 'High scores',
+  // Fundraisers
+  33863: 'Fundraiser',
   // NIP-71
   34235: 'Addressable video',
   34236: 'Addressable short video',

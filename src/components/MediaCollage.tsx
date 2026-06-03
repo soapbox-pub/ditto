@@ -17,7 +17,6 @@ import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
-import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { parseDimToAspectRatio, eventToMediaItem, type MediaType, type MediaItem } from '@/lib/mediaUtils';
@@ -107,7 +106,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const name = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
 
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background/40 to-primary/5">

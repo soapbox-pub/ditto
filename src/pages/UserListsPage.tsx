@@ -31,7 +31,6 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useAuthor } from '@/hooks/useAuthor';
-import { genUserName } from '@/lib/genUserName';
 import { toast } from '@/hooks/useToast';
 import type { UserList } from '@/hooks/useUserLists';
 
@@ -42,7 +41,7 @@ function MiniAvatar({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? genUserName(pubkey);
+  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   return (
     <Avatar shape={avatarShape} className="size-7 border-2 border-background shrink-0">
       <AvatarImage src={metadata?.picture} alt={displayName} />

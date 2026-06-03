@@ -3,7 +3,6 @@ import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
-import { genUserName } from '@/lib/genUserName';
 import { BioContent } from '@/components/BioContent';
 import { cn } from '@/lib/utils';
 import { getNip05Domain, formatNip05Display } from '@/lib/nip05';
@@ -126,7 +125,7 @@ export function ProfileCard({
   const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
   const { badgeMap, isLoading: defsLoading } = useBadgeDefinitions(badgeRefs);
 
-  const displayName = metadata.name || metadata.display_name || genUserName(pubkey);
+  const displayName = metadata.name || metadata.display_name || 'Anonymous';
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 

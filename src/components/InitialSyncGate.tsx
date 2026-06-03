@@ -44,7 +44,6 @@ import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
-import { genUserName } from "@/lib/genUserName";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
@@ -270,6 +269,22 @@ function SetupQuestionnaire({
   // Signup-specific state
   const [nsec, setNsec] = useState("");
 
+  // Derived pubkey for the just-generated nsec. Used as a defensive guard at
+  // every signup publish site to ensure we sign with the *new* account, not a
+  // previously logged-in one. Without this, a regression in useLoginActions's
+  // auto-switch (or any future re-ordering of logins) could overwrite the
+  // previous user's kind 0 metadata / kind 3 follow list during onboarding.
+  const expectedPubkey = useMemo(() => {
+    if (!nsec) return undefined;
+    try {
+      const decoded = nip19.decode(nsec);
+      if (decoded.type !== "nsec") return undefined;
+      return getPublicKey(decoded.data);
+    } catch {
+      return undefined;
+    }
+  }, [nsec]);
+
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
 
@@ -403,7 +418,11 @@ function SetupQuestionnaire({
           )}
 
           {step === "profile" && (
-            <ProfileStep onNext={handleSaveAndContinue} isSaving={isSaving} />
+            <ProfileStep
+              onNext={handleSaveAndContinue}
+              isSaving={isSaving}
+              expectedPubkey={expectedPubkey}
+            />
           )}
 
           {/* Settings steps */}
@@ -423,6 +442,7 @@ function SetupQuestionnaire({
                 goTo("outro");
               }}
               onBack={back}
+              expectedPubkey={expectedPubkey}
             />
           )}
 
@@ -565,9 +585,17 @@ function DownloadStep({
 function ProfileStep({
   onNext,
   isSaving = false,
+  expectedPubkey,
 }: {
   onNext: () => void;
   isSaving?: boolean;
+  /**
+   * Hex pubkey of the just-generated signup key. When set, the publish
+   * handler refuses to publish kind 0 unless the active signer matches —
+   * a defensive guard against signing with a previously logged-in user's
+   * key and overwriting their profile metadata.
+   */
+  expectedPubkey?: string;
 }) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -639,6 +667,22 @@ function ProfileStep({
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
+
+    // Defensive guard: when this is the signup flow, only publish kind 0 if
+    // the active signer matches the freshly generated key. If the
+    // auto-switch in useLoginActions ever fails to promote the new login,
+    // publishing here would sign with the *previous* user's signer and
+    // overwrite their kind 0 metadata. Refuse rather than risk it.
+    if (expectedPubkey && user.pubkey !== expectedPubkey) {
+      toast({
+        title: "Profile not saved",
+        description:
+          "The new account is not active yet, so your profile was not published (this prevents overwriting another account). You can update it later from settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
       try {
@@ -664,7 +708,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, publishEvent, queryClient, onNext]);
+  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -858,9 +902,17 @@ function parsePackEvent(event: NostrEvent) {
 function FollowsStep({
   onNext,
   onBack,
+  expectedPubkey,
 }: {
   onNext: (didFollow: boolean) => void;
   onBack: () => void;
+  /**
+   * Hex pubkey of the just-generated signup key. When set, the follow-all
+   * handler refuses to publish kind 3 unless the active signer matches —
+   * a defensive guard against merging a follow pack into a previously
+   * logged-in user's contact list.
+   */
+  expectedPubkey?: string;
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -907,6 +959,21 @@ function FollowsStep({
     async (pack: NostrEvent) => {
       if (!user) return;
 
+      // Defensive guard: when this is the signup flow, only publish kind 3
+      // if the active signer matches the freshly generated key. Without
+      // this, a regression in the auto-switch would merge the follow pack
+      // into the *previously logged-in user's* contact list — silently
+      // adding follows to the wrong account.
+      if (expectedPubkey && user.pubkey !== expectedPubkey) {
+        toast({
+          title: "Follows not saved",
+          description:
+            "The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const packId = pack.id;
       setFollowingPack(packId);
 
@@ -946,7 +1013,7 @@ function FollowsStep({
         setFollowingPack(null);
       }
     },
-    [user, nostr, publishEvent],
+    [user, nostr, publishEvent, expectedPubkey],
   );
 
   return (
@@ -1049,7 +1116,7 @@ function PackCard({
           <div className="flex -space-x-2">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || genUserName(pk);
+              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
               return (
                 <MiniAvatar
                   key={pk}
@@ -1103,7 +1170,7 @@ function PackCard({
 function AuthorAttribution({ pubkey }: { pubkey: string }) {
   const { data: authorData } = useAuthors([pubkey]);
   const metadata: NostrMetadata | undefined = authorData?.get(pubkey)?.metadata;
-  const name = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const name = metadata?.name || metadata?.display_name || 'Anonymous';
 
   return (
     <div className="px-4 py-2 bg-muted/30 border-t border-border flex items-center gap-2">

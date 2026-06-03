@@ -30,6 +30,7 @@ These event kinds were created by community contributors and are supported by Di
 | 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 16158 | Weather Station        | Weather station metadata (location, sensors, connectivity)       | [Draft NIP](https://github.com/nostr-protocol/nips/pull/2163)                            |
 | 31124 | Blobbi Pet State       | Current state of a virtual Blobbi pet (addressable)              | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 33863 | Fundraiser             | Self-authored Bitcoin fundraising campaign                       | See [Kind 33863: Fundraiser](#kind-33863-fundraiser) below                                |
 | 37516 | Geocache               | Geocache listing for real-world treasure hunting                 | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
@@ -579,6 +580,153 @@ The `pet` action is reserved for a future version.
 - Clients MUST apply a bounded recency window (6 hours) when querying kind 1124 events, regardless of checkpoint state. If a valid checkpoint `processed_until` is more recent than the window floor, clients use the checkpoint as the `since` bound instead. Interactions older than the recency window are considered stale and MUST NOT be projected onto current stats.
 - Owner consolidation writes processed stats back to kind 31124 and advances the checkpoint (stored in the event's `content` JSON). This happens automatically when the owner opens the dashboard.
 - After consolidation, kind 1124 events remain available as history but MUST NOT be re-applied to canonical stats. The checkpoint's `last_event_id` and `processed_until` fields delineate the boundary.
+
+---
+
+## Kind 33863: Fundraiser
+
+**Author:** Agora
+**App:** https://agora.spot
+
+### Summary
+
+Addressable event representing a **self-authored fundraising campaign**. A campaign carries marketing-style metadata (title, summary, banner image, markdown story, optional goal, optional deadline, optional country) and one or two Bitcoin wallet endpoints declared in `w` tags. Each wallet endpoint is either a public on-chain bech32(m) address (`bc1q…`, `bc1p…`) or a silent-payment code (`sp1…`, per BIP-352). The mode of each endpoint is inferred from the prefix — the client renders a QR code that combines the present endpoints and adjusts the donation-progress UI accordingly. A campaign MAY declare **at most one** endpoint per mode (at most one on-chain address and at most one silent-payment code).
+
+The author of the event is also the beneficiary. Campaigns are never authored on behalf of someone else; the event creator owns the wallet declared in `w` and receives the donations. To stop accepting donations, the creator publishes a NIP-09 kind 5 deletion request referencing the campaign's `a` coordinate.
+
+The kind is addressable so the creator can edit the story, banner, goal, deadline, and wallet over the life of the campaign without minting new identifiers. The `d` tag is the campaign's slug.
+
+### Event Structure
+
+```json
+{
+  "kind": 33863,
+  "pubkey": "<creator-pubkey>",
+  "content": "<markdown story>",
+  "tags": [
+    ["d", "save-the-last-bookstore"],
+
+    ["title", "Save the Last Bookstore"],
+    ["summary", "Help our 40-year-old neighborhood bookstore make rent through winter."],
+    ["banner", "https://blossom.example/abc123.jpg"],
+    ["imeta",
+      "url https://blossom.example/abc123.jpg",
+      "m image/jpeg",
+      "x abc123def456...",
+      "dim 1600x900",
+      "blurhash LKO2?U%2Tw=w]~RBVZRi};RPxuwH",
+      "alt Storefront of the Last Bookstore at dusk"
+    ],
+    ["alt", "Fundraising campaign: Save the Last Bookstore"],
+
+    ["w", "bc1p7w2k3xq9...xyz"],
+    ["w", "sp1qq...verylongsilentpaymentcode..."],
+
+    ["goal", "25000"],
+    ["deadline", "1735689600"],
+
+    ["i", "iso3166:US"],
+    ["k", "iso3166"],
+    ["t", "legal-defense"],
+    ["t", "mutual-aid"]
+  ]
+}
+```
+
+A silent-payment-only campaign omits the `bc1…` `w` tag and carries only the `sp1…`:
+
+```json
+["w", "sp1qq...verylongsilentpaymentcode..."]
+```
+
+An on-chain-only campaign omits the `sp1…` `w` tag and carries only the `bc1…`:
+
+```json
+["w", "bc1p7w2k3xq9...xyz"]
+```
+
+### Content
+
+The `content` field is the **campaign story**, formatted as Markdown. Clients SHOULD render it with the same Markdown renderer they use for NIP-23 long-form content. Empty content is permitted (e.g. for a campaign that lives entirely in its summary).
+
+### Tags
+
+| Tag       | Required | Description                                                                                                                                                                                                                  |
+|-----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `d`       | Yes      | Campaign slug, unique per author. Forms the addressable coordinate `33863:<pubkey>:<d>`.                                                                                                                                     |
+| `title`   | Yes      | Display title of the campaign (plain text, max ~200 chars).                                                                                                                                                                  |
+| `w`       | Yes      | Bitcoin wallet endpoint. The 2nd element is a single bech32(m) string: a mainnet on-chain address starting with `bc1q` (P2WPKH/P2WSH) or `bc1p` (P2TR), **or** a silent-payment code starting with `sp1` per BIP-352. A campaign MUST carry at least one `w` tag and MAY carry up to two — at most one per mode (on-chain and silent payment). |
+| `summary` | Recommended | Short one-paragraph tagline shown in feed cards and previews.                                                                                                                                                              |
+| `banner`  | Recommended | HTTPS URL of the wide banner image. Clients MUST sanitize the URL before rendering, and SHOULD pair the URL with a NIP-92 `imeta` tag for dimensions, blurhash, MIME type, and SHA-256.                                    |
+| `imeta`   | Recommended | NIP-92 media metadata for the banner. The first `url <value>` pair MUST match the `banner` URL; clients SHOULD ignore an `imeta` whose URL does not match.                                                                  |
+| `goal`    | Optional | Fundraising goal in **integer US Dollars** (no unit suffix, no decimals). Clients MAY display an estimated sat-equivalent at view time using a live exchange rate.                                                          |
+| `deadline`| Optional | Unix timestamp (seconds) at which the campaign closes for new donations. After the deadline, clients SHOULD show the campaign as ended but MAY still accept donations.                                                       |
+| `i`       | Recommended | NIP-73 country identifier. SHOULD be `iso3166:<code>` with an uppercase ISO 3166-1 alpha-2 country code (e.g. `iso3166:VE`).                                                                                          |
+| `k`       | Recommended if `i` is present | NIP-73 external content kind. For country identifiers this SHOULD be `iso3166`.                                                                                                              |
+| `t`       | Optional | User-entered discovery/category tags such as `legal-defense` or `mutual-aid`. Agora additionally tags every campaign with `t:agora` as its app marker. |
+| `alt`     | Recommended | NIP-31 human-readable fallback.                                                                                                                                                                                            |
+
+### Wallet Modes
+
+The prefix of each `w` value selects one of two donation modes. Clients MUST detect the mode from the prefix; the event carries no other mode discriminator.
+
+| Prefix              | Mode      | Description                                                                                                                              |
+|---------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `bc1q…` / `bc1p…`   | On-chain  | Public mainnet bech32(m) address. Donations are traceable; clients show a progress bar, total raised, and donation list.                |
+| `sp1…`              | Silent payment | BIP-352 silent-payment code. Donations are **unlinkable by design**. Clients MUST hide all aggregate totals and progress UI.          |
+
+Other prefixes (`tb1…`, `bcrt1…`, `tsp1…`, lightning invoices, etc.) MUST be rejected at parse time; the campaign does not render. A campaign carrying two `w` tags of the same mode (e.g., two `bc1…` addresses) is invalid and MUST NOT render — only one endpoint per mode is permitted.
+
+Clients SHOULD validate the bech32(m) checksum of each `w` value, not just its prefix.
+
+### Combined QR
+
+When a campaign declares both endpoints, clients SHOULD render a single BIP-21 URI that combines them:
+
+```
+bitcoin:<bc1-address>?sp=<sp1-code>
+```
+
+BIP-352-aware wallets pick the `sp=` parameter and use the silent-payment flow; legacy wallets fall back to the on-chain address. A single-endpoint campaign uses the standard form: `bitcoin:<bc1-address>` (on-chain only) or `bitcoin:?sp=<sp1-code>` (silent payment only).
+
+### Donation Receipts
+
+Donations to a campaign's on-chain endpoint MAY be acknowledged by publishing a kind 8333 receipt (see *Kind 8333: Onchain Zap* above) targeting the campaign's `a` coordinate. Receipts MUST NOT carry `p` tags — campaigns are not Nostr-identity recipients. The `amount` tag is the sum of tx outputs paying the campaign's `w` address (excluding the donor's change output).
+
+Silent-payment donations MUST NOT publish a Nostr receipt. Doing so would defeat the unlinkability that the silent-payment mode is designed to provide.
+
+### Querying
+
+**Fetch a specific campaign:**
+
+```json
+{ "kinds": [33863], "authors": ["<creator-pubkey>"], "#d": ["<slug>"], "limit": 1 }
+```
+
+**Aggregate donations for an on-chain campaign:**
+
+```json
+{ "kinds": [8333], "#a": ["33863:<creator-pubkey>:<slug>"], "limit": 500 }
+```
+
+Clients MUST verify each kind 8333 event on-chain before counting it toward the campaign total, per the verification rules in the Kind 8333 section above. The campaign-wallet verification mode matches tx outputs against the campaign's declared `w` address rather than against derived Taproot addresses.
+
+### Ditto Implementation Notes
+
+Ditto is not a campaign-management app — Agora is the canonical place to author campaigns. Ditto renders kind 33863 events:
+
+- in the home feed and profile feeds (toggle: `feedIncludeCampaigns`, default on);
+- on a campaign's `/:nip19` route (its `naddr1…` link) via the standard addressable-event detail page, which renders the markdown story through the same pipeline as NIP-23 articles;
+- as quote-embeds inside other notes, with banner + title + summary;
+- as `Commenting on @{author}'s fundraiser` in NIP-22 comment threads anchored to the campaign coordinate.
+
+Ditto **does** support donating to a campaign from inside the app:
+
+- The action-bar zap button on a campaign post and the in-dialog **Zap** button route through `useCampaignZap` to send Bitcoin to the campaign's declared `w` endpoint. On-chain donations publish a campaign-mode kind 8333 receipt (with `a` and `K` tags, no `p` tag). Silent-payment donations publish no Nostr event, preserving SP unlinkability.
+- The Donate dialog also exposes a BIP-21 QR + "Open native wallet" path for users without a PSBT-capable signer.
+- The "raised" headline on the campaign card is fetched directly from the on-chain `w` address (cumulative `funded_txo_sum` from the configured Esplora endpoint, default mempool.space). Donations count regardless of whether the donor published a Nostr receipt; the number does not regress when the beneficiary spends from the address. Silent-payment-only campaigns show no aggregate.
+
+Ditto does NOT consult `agora.moderation` labels for surfacing decisions — every parseable kind 33863 event renders.
 
 ---
 

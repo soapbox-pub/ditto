@@ -66,6 +66,8 @@ export interface FeedSettings {
   showHighlights: boolean;
   /** Include NIP-84 Highlights (kind 9802) in the follows/global feed */
   feedIncludeHighlights: boolean;
+  /** Include Agora Fundraisers (kind 33863) in the follows/global feed */
+  feedIncludeCampaigns: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */
@@ -293,12 +295,26 @@ export interface AppConfig {
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
   /**
-   * Base URL for the Esplora-compatible Bitcoin REST API. Used by the wallet,
-   * on-chain zap flows, and NIP-73 Bitcoin tx/address pages. The standard
-   * Esplora REST root (no version segment). The mempool.space `/v1/prices`
-   * extension is appended by the price call. Default: "https://mempool.space/api".
+   * Ordered list of base URLs for Esplora-compatible Bitcoin REST APIs.
+   * Used by the wallet, on-chain zap flows, and NIP-73 Bitcoin tx/address
+   * pages. Each URL is the standard Esplora REST root (no version segment,
+   * no trailing slash). The list is tried in order with exponential-backoff
+   * failover on `429` / `5xx` responses — see `src/lib/esplora.ts`.
+   *
+   * The first entry is treated as the primary. The mempool.space `/v1/prices`
+   * extension is appended by the price call; endpoints that don't speak it
+   * (e.g. Blockstream's Esplora) are silently skipped via a `404` soft-failover.
+   *
+   * Default:
+   * ```
+   * [
+   *   'https://mempool.space/api',
+   *   'https://mempool.emzy.de/api',
+   *   'https://blockstream.info/api',
+   * ]
+   * ```
    */
-  esploraBaseUrl: string;
+  esploraApis: string[];
   /**
    * How to display monetary amounts (zap totals, wallet balances, etc.).
    * "usd" converts sats to USD via the current BTC price; "sats" shows raw

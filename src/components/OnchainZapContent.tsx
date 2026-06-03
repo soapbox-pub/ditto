@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
 import { useOnchainZap, type OnchainFeeSpeed } from '@/hooks/useOnchainZap';
+import { useCampaignZap } from '@/hooks/useCampaignZap';
 import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNostrLogin } from '@nostrify/react/login';
@@ -30,6 +31,7 @@ import {
   formatSats,
 } from '@/lib/bitcoin';
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { ParsedCampaign } from '@/lib/campaign';
 
 const USD_PRESETS = [1, 5, 10, 25, 100];
 
@@ -76,6 +78,21 @@ function getUniqueFeeSpeeds(
 
 interface OnchainZapContentProps {
   target: NostrEvent;
+  /**
+   * Optional campaign override. When set, the zap flow sends to the
+   * campaign's declared `w` endpoint (on-chain or silent-payment) via
+   * {@link useCampaignZap} and publishes a campaign-mode kind 8333
+   * receipt (or no receipt at all, for SP-only campaigns). The self-zap
+   * guard is bypassed — a campaign creator donating to their own
+   * campaign is legitimate.
+   *
+   * Callers MUST gate this prop on `canSignPsbt === true` — the
+   * unsupported-signer QR fallback inside this component is keyed to a
+   * Nostr-identity derived address and isn't wired for campaigns. When
+   * the user lacks a PSBT signer, the parent dialog should hide the
+   * zap UI entirely and rely on its own QR / Open-native-wallet path.
+   */
+  campaign?: ParsedCampaign;
   /** Called with the tx result when a zap successfully broadcasts. */
   onSuccess?: (result: { txid: string; amountSats: number }) => void;
   /** Called when the user dismisses without a send (e.g. "Done" in the
@@ -91,12 +108,12 @@ interface OnchainZapContentProps {
  * UX mirrors the Lightning zap flow: one screen, one button, no review step.
  * Balance, fee breakdown, and confirmation are all hidden unless needed.
  */
-export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapContentProps) {
+export function OnchainZapContent({ target, campaign, onSuccess, onClose }: OnchainZapContentProps) {
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
   const { config } = useAppContext();
-  const { esploraBaseUrl } = config;
+  const { esploraApis } = config;
   const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
@@ -111,27 +128,37 @@ export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapCont
   const feeSpeedUserChanged = useRef(false);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
-  const recipientAddress = useMemo(() => nostrPubkeyToBitcoinAddress(target.pubkey), [target.pubkey]);
+  // Recipient address used for the unsupported-signer QR fallback and for
+  // the post-zap details row. Campaigns prefer the on-chain endpoint (the
+  // SP path can't be QR-fallback'd here — donor wallets must derive the
+  // output script themselves), falling back to the SP code if that's all
+  // the campaign declared.
+  const recipientAddress = useMemo(() => {
+    if (campaign) {
+      return campaign.wallets.onchain?.value ?? campaign.wallets.sp?.value ?? '';
+    }
+    return nostrPubkeyToBitcoinAddress(target.pubkey);
+  }, [campaign, target.pubkey]);
   const truncatedRecipient = recipientAddress
     ? `${recipientAddress.slice(0, 10)}…${recipientAddress.slice(-8)}`
     : '';
 
   const { data: btcPrice } = useQuery({
-    queryKey: ['btc-price', esploraBaseUrl],
-    queryFn: () => fetchBtcPrice(esploraBaseUrl),
+    queryKey: ['btc-price', esploraApis],
+    queryFn: ({ signal }) => fetchBtcPrice(esploraApis, signal),
     staleTime: 30_000,
   });
 
   const { data: utxos } = useQuery({
-    queryKey: ['bitcoin-utxos', esploraBaseUrl, senderAddress],
-    queryFn: () => fetchUTXOs(senderAddress, esploraBaseUrl),
+    queryKey: ['bitcoin-utxos', esploraApis, senderAddress],
+    queryFn: ({ signal }) => fetchUTXOs(senderAddress, esploraApis, signal),
     enabled: !!senderAddress && capability !== 'unsupported',
     staleTime: 30_000,
   });
 
   const { data: feeRates } = useQuery({
-    queryKey: ['bitcoin-fee-rates', esploraBaseUrl],
-    queryFn: () => getFeeRates(esploraBaseUrl),
+    queryKey: ['bitcoin-fee-rates', esploraApis],
+    queryFn: ({ signal }) => getFeeRates(esploraApis, signal),
     enabled: capability !== 'unsupported',
     staleTime: 30_000,
   });
@@ -209,15 +236,28 @@ export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapCont
     setConfirmArmed(false);
   }, [amountSats, currentFeeRate, btcPrice]);
 
-  const { zapAsync, isZapping, progress } = useOnchainZap(target, (result) => {
-    // Forward the txid + amount so the dialog can render its success screen.
+  // Always call both hooks (rules of hooks) — pass `null` to the
+  // campaign hook when not in campaign mode so its mutation throws if
+  // somehow invoked. We then route through the active one based on
+  // whether `campaign` is set.
+  const profileZap = useOnchainZap(target, (result) => {
     onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
   });
+  const campaignZap = useCampaignZap(campaign ?? null, (result) => {
+    onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
+  });
+  const { zapAsync, isZapping, progress } = campaign ? campaignZap : profileZap;
 
   const handleZap = useCallback(async () => {
     setError('');
     if (!user) { setError('You must be logged in.'); return; }
-    if (user.pubkey === target.pubkey) { setError("You can't zap yourself."); return; }
+    // Self-zap guard applies only to profile zaps. Campaign creators
+    // donating to their own campaign is legitimate (and harmless on
+    // chain — they're moving their own funds to their own address).
+    if (!campaign && user.pubkey === target.pubkey) {
+      setError("You can't zap yourself.");
+      return;
+    }
     // `capability === 'unsupported'` is already handled by the UI replacement
     // above; 'supported' and 'unknown' both proceed (the latter may fail at
     // sign time, which will then flip the UI to the unsupported state).
@@ -242,7 +282,7 @@ export function OnchainZapContent({ target, onSuccess, onClose }: OnchainZapCont
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, btcPrice, amountSats, utxos, insufficient, zapAsync, feeSpeed, isLarge, confirmArmed]);
+  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, feeSpeed, isLarge, confirmArmed]);
 
   // ── Signer not supported ──────────────────────────────────────
   // The user's signer can't sign PSBTs locally (extension without signPsbt,
