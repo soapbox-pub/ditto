@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import type { AppInfo } from 'nostr-signer-capacitor-plugin';
+import type { AppInfo } from 'capacitor-plugin-nostr-signer';
 import { Loader2 } from 'lucide-react';
 
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';

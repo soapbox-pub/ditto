@@ -1,15 +1,13 @@
 import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { getEventHash, verifyEvent } from 'nostr-tools/pure';
-import { decode, npubEncode } from 'nostr-tools/nip19';
-import { NostrSignerPlugin, type Permission } from 'nostr-signer-capacitor-plugin';
+import { NostrSignerPlugin } from 'capacitor-plugin-nostr-signer';
 
 // Modeled on noStrudel's AndroidNativeSigner, adapted to the @nostrify/types
 // NostrSigner shape used by the rest of the ditto signer pipeline.
 //
-// The plugin speaks npub at the boundary while the rest of the app uses hex
-// pubkeys, so this class encodes/decodes at every plugin call. Each crypto
-// call also wants a request id (echoed back so multiple in-flight requests
-// can be matched up); we generate a fresh UUID per call.
+// The plugin speaks lowercase hex pubkeys at the boundary, matching the rest
+// of the app. Each crypto call also wants a request id (echoed back so multiple
+// in-flight requests can be matched up); we generate a fresh UUID per call.
 export class AndroidNativeSigner implements NostrSigner {
   readonly packageName: string;
 
@@ -18,10 +16,6 @@ export class AndroidNativeSigner implements NostrSigner {
   // can be seeded via the constructor.
   private pubkey: string | null;
   private connected = false;
-
-  // Permissions requested at connect time. We start with the minimum set;
-  // Amber surfaces the same prompt for unrecognized methods on first use.
-  private permissions: Permission[] = [];
 
   readonly nip04: NonNullable<NostrSigner['nip04']>;
   readonly nip44: NonNullable<NostrSigner['nip44']>;
@@ -54,12 +48,8 @@ export class AndroidNativeSigner implements NostrSigner {
     await NostrSignerPlugin.setPackageName(this.packageName);
 
     if (!this.pubkey) {
-      const result = await NostrSignerPlugin.getPublicKey(this.packageName, this.permissions);
-      const decoded = decode(result.npub);
-      if (decoded.type !== 'npub') {
-        throw new Error(`Signer returned unexpected key type: ${decoded.type}`);
-      }
-      this.pubkey = decoded.data;
+      const result = await NostrSignerPlugin.getPublicKey();
+      this.pubkey = result.pubkey;
     }
 
     this.connected = true;
@@ -74,8 +64,7 @@ export class AndroidNativeSigner implements NostrSigner {
     const pubkey = await this.getPublicKey();
 
     // The plugin requires a fully-formed event payload including a precomputed
-    // id and a (placeholder) sig field. We compute the id locally, send the
-    // event, then drop in the returned signature.
+    // id and a placeholder sig field.
     const withPubkey = { ...template, pubkey } as Omit<NostrEvent, 'id' | 'sig'>;
     const id = getEventHash(withPubkey);
     const eventJson = JSON.stringify({ ...withPubkey, id, sig: '' });
@@ -84,10 +73,10 @@ export class AndroidNativeSigner implements NostrSigner {
       this.packageName,
       eventJson,
       id,
-      npubEncode(pubkey),
+      pubkey,
     );
 
-    const signed: NostrEvent = { ...withPubkey, id: result.id, sig: result.signature };
+    const signed = JSON.parse(result.event) as NostrEvent;
     if (!verifyEvent(signed)) {
       throw new Error('Android signer returned an invalid signature');
     }
@@ -101,7 +90,7 @@ export class AndroidNativeSigner implements NostrSigner {
       plaintext,
       crypto.randomUUID(),
       pubkey,
-      npubEncode(myPubkey),
+      myPubkey,
     );
     return result;
   }
@@ -113,7 +102,7 @@ export class AndroidNativeSigner implements NostrSigner {
       ciphertext,
       crypto.randomUUID(),
       pubkey,
-      npubEncode(myPubkey),
+      myPubkey,
     );
     return result;
   }
@@ -125,7 +114,7 @@ export class AndroidNativeSigner implements NostrSigner {
       plaintext,
       crypto.randomUUID(),
       pubkey,
-      npubEncode(myPubkey),
+      myPubkey,
     );
     return result;
   }
@@ -137,7 +126,7 @@ export class AndroidNativeSigner implements NostrSigner {
       ciphertext,
       crypto.randomUUID(),
       pubkey,
-      npubEncode(myPubkey),
+      myPubkey,
     );
     return result;
   }

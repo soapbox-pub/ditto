@@ -51,7 +51,7 @@ export function useCurrentUser() {
       case 'extension': // Nostr login with NIP-07 browser extension — use BTC-extended signer
         user = new NUser(login.type, login.pubkey, new NBrowserSignerBtc());
         break;
-      case 'x-android-signer': { // Native Android signer app (Amber, etc.) via nostr-signer-capacitor-plugin
+      case 'x-android-signer': { // Native Android signer app (Amber, etc.) via capacitor-plugin-nostr-signer
         const { packageName } = login.data as { packageName: string };
         user = new NUser(login.type, login.pubkey, new AndroidNativeSigner(packageName, login.pubkey));
         break;

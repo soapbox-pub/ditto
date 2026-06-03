@@ -47,7 +47,7 @@ export function useLoginActions() {
       addAndActivate(login);
     },
     // Login via an installed Android signer app (Amber, etc.) using the
-    // nostr-signer-capacitor-plugin. The first getPublicKey() call triggers
+    // capacitor-plugin-nostr-signer plugin. The first getPublicKey() call triggers
     // the signer's consent prompt; we cache the resulting pubkey on the login
     // so we don't re-prompt on every app launch.
     async androidSigner(packageName: string): Promise<void> {
