@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.19.0] - 2026-06-05
+
+Ditto now works offline. Your profile, who you follow, and your feed are saved on your device, so they pop up instantly the next time you open the app -- and stick around even when the network can't be reached. Feeds no longer flash empty while refreshing, and when there's genuinely nothing to show you get a clearer message with a Try again button. Following and unfollowing people is more dependable too.
+
+### Added
+- Ditto saves content on your device, so profiles, your follow list, and your feed load instantly and remain available offline
+- Empty feeds now explain why -- whether you're offline, following no one yet, or just waiting for posts -- with a Try again button to retry
+
+### Changed
+- Feeds stay on screen while refreshing instead of briefly flashing an empty state
+- When sending bitcoin, typing a single clear recipient now creates the chip immediately instead of showing a one-item list, and the on-chain address option appears above the silent-payment option
+
+### Fixed
+- Following or unfollowing someone no longer occasionally wipes your follow list when the network hiccups
+- Your profile and the profiles of others no longer briefly disappear when a relay returns nothing
+
 ## [2.18.4] - 2026-05-31
 
 A maintenance release that makes loading your feed and other content more reliable.
