@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { useEventStore } from './useEventStore';
+import { useCacheFirstSeed } from './useCacheFirstSeed';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -32,6 +33,17 @@ export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const eventStore = useEventStore();
+
+  // Seed from the locally cached kind 3 so the follow list (and therefore the
+  // home/follows feed, which gates on it) is available on first render without
+  // waiting for the relay round-trip. The network query below stays
+  // authoritative and overwrites this once it resolves.
+  useCacheFirstSeed<FollowListData>({
+    queryKey: user ? ['follow-list', user.pubkey] : undefined,
+    filter: { kinds: [3], authors: user ? [user.pubkey] : [] },
+    toData: (event) => ({ event, pubkeys: contactListPubkeys(event) }),
+    getEvent: (data) => data.event ?? undefined,
+  });
 
   return useQuery<FollowListData>({
     queryKey: ['follow-list', user?.pubkey ?? ''],

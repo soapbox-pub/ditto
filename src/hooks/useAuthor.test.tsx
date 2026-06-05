@@ -23,7 +23,7 @@ const PUBKEY = 'a'.repeat(64);
 
 function makeKind0(name: string, createdAt = 1000): NostrEvent {
   return {
-    id: 'b'.repeat(64),
+    id: createdAt.toString(16).padStart(64, '0'),
     pubkey: PUBKEY,
     kind: 0,
     created_at: createdAt,
@@ -40,7 +40,7 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-describe('useAuthor relay-miss handling', () => {
+describe('useAuthor cache-first behavior', () => {
   beforeEach(() => {
     query.mockReset();
     storeQuery.mockReset();
@@ -48,21 +48,54 @@ describe('useAuthor relay-miss handling', () => {
     storeEvent.mockClear();
   });
 
-  it('falls back to the cached profile when the relay returns no event', async () => {
-    const cachedEvent = makeKind0('Alice');
+  it('renders the cached profile immediately, before the network resolves', async () => {
+    const cachedEvent = makeKind0('Alice', 1000);
 
-    // The relay fails to return the kind 0 (transient miss)...
+    storeQuery.mockResolvedValue([cachedEvent]);
+    // Network never resolves during the test window.
+    query.mockReturnValue(new Promise<NostrEvent[]>(() => {}));
+
+    const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.metadata?.name).toBe('Alice'));
+    expect(result.current.data?.event).toEqual(cachedEvent);
+  });
+
+  it('overwrites the cached profile once the network returns a newer event', async () => {
+    const cachedEvent = makeKind0('Alice', 1000);
+    const newerEvent = makeKind0('Alice Updated', 2000);
+
+    storeQuery.mockResolvedValue([cachedEvent]);
+    query.mockResolvedValue([newerEvent]);
+
+    const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.metadata?.name).toBe('Alice Updated'));
+    expect(storeEvent).toHaveBeenCalledWith(newerEvent);
+  });
+
+  it('falls back to the cached profile when the relay returns no event', async () => {
+    const cachedEvent = makeKind0('Alice', 1000);
+
     query.mockResolvedValue([]);
-    // ...but the local event store still has it.
     storeQuery.mockResolvedValue([cachedEvent]);
 
     const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));
-
-    expect(query).toHaveBeenCalled();
     expect(result.current.data?.event).toEqual(cachedEvent);
     expect(result.current.data?.metadata?.name).toBe('Alice');
+  });
+
+  it('persists a fetched profile to the event store', async () => {
+    const event = makeKind0('Bob');
+    storeQuery.mockResolvedValue([]);
+    query.mockResolvedValue([event]);
+
+    const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.metadata?.name).toBe('Bob'));
+    expect(storeEvent).toHaveBeenCalledWith(event);
   });
 
   it('returns an empty result when the relay misses and nothing is cached', async () => {
@@ -74,16 +107,5 @@ describe('useAuthor relay-miss handling', () => {
     await waitFor(() => expect(result.current.isFetching).toBe(false));
 
     expect(result.current.data).toEqual({});
-  });
-
-  it('persists a fetched profile to the event store', async () => {
-    const event = makeKind0('Bob');
-    query.mockResolvedValue([event]);
-
-    const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
-
-    await waitFor(() => expect(result.current.data?.metadata?.name).toBe('Bob'));
-
-    expect(storeEvent).toHaveBeenCalledWith(event);
   });
 });

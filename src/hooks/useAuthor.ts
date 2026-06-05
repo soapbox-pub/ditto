@@ -1,8 +1,11 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useEventStore } from '@/hooks/useEventStore';
+
+export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
 
 /** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
 export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
@@ -16,9 +19,20 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   const eventStore = useEventStore();
 
-  return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
+  // Seed the query from the local event store so a known profile renders
+  // immediately, without waiting on the network. The network query below
+  // stays authoritative and overwrites this when it resolves.
+  useCacheFirstSeed<AuthorResult>({
+    queryKey: pubkey ? ['author', pubkey] : undefined,
+    filter: { kinds: [0], authors: pubkey ? [pubkey] : [] },
+    toData: parseAuthorEvent,
+    getEvent: (data) => data.event,
+  });
+
+  return useQuery<AuthorResult>({
     queryKey: ['author', pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!pubkey) {
@@ -36,8 +50,11 @@ export function useAuthor(pubkey: string | undefined) {
         // Relay returned nothing — a kind-0 miss is almost always transient
         // (the relay didn't have it, or the query timed out). Never discard a
         // profile we already have: fall back to the locally cached event so a
-        // name/avatar already on screen doesn't blank out ("profile flashes
-        // then disappears").
+        // name/avatar already on screen doesn't blank out.
+        const existing = queryClient.getQueryData<AuthorResult>(['author', pubkey]);
+        if (existing?.event) {
+          return existing;
+        }
         const [cached] = await store.query([{ kinds: [0], authors: [pubkey] }]);
         if (cached) {
           return parseAuthorEvent(cached);
@@ -45,12 +62,10 @@ export function useAuthor(pubkey: string | undefined) {
         return {};
       }
 
-      const parsed = parseAuthorEvent(event);
-
-      // Persist to IndexedDB (fire-and-forget).
+      // Persist the fresh event to the local store (fire-and-forget).
       void store.event(event);
 
-      return parsed;
+      return parseAuthorEvent(event);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,   // 5 minutes

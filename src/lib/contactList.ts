@@ -53,6 +53,20 @@ export async function fetchContactList(
   }
 
   // Relay miss — fall back to the cached kind 3 event.
+  return readCachedContactList(store, pubkey);
+}
+
+/**
+ * Read the locally cached kind 3 contact list for `pubkey` from the event
+ * store, without touching the network. Returns `null` when nothing is cached.
+ *
+ * Used to render a known follow list instantly on load, before the relay
+ * round-trip in `fetchContactList` completes.
+ */
+export async function readCachedContactList(
+  store: NIndexedDBStore,
+  pubkey: string,
+): Promise<NostrEvent | null> {
   const [cached] = await store.query([{ kinds: [3], authors: [pubkey] }]);
   return cached ?? null;
 }
