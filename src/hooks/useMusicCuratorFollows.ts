@@ -1,7 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
-import { isNostrId } from '@/lib/nostrId';
+import { useEventStore } from '@/hooks/useEventStore';
+import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 
 /**
  * Music curator pubkey (Heather / npub1nl8r463...).
@@ -18,26 +19,20 @@ const MUSIC_CURATOR_PUBKEY = '9fce3aea32b35637838fb45b75be32595742e16bb3e4742cc8
  * Returns the pubkeys that Heather (the music curator) follows.
  * Used to filter playlists on the Discover page so only playlists
  * from people she follows are shown.
+ *
+ * Reads via `fetchContactList`, which queries relays then falls back to the
+ * IndexedDB event store on a relay miss.
  */
 export function useMusicCuratorFollows() {
   const { nostr } = useNostr();
+  const eventStore = useEventStore();
 
   return useQuery<string[]>({
     queryKey: ['music-curator-follows', MUSIC_CURATOR_PUBKEY],
     queryFn: async ({ signal }) => {
-      const events = await nostr.query(
-        [{ kinds: [3], authors: [MUSIC_CURATOR_PUBKEY], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
-      );
-
-      if (events.length === 0) return [];
-
-      const pubkeys = events[0].tags
-        .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk)
-        .filter(isNostrId);
-
-      return pubkeys;
+      const store = await eventStore;
+      const event = await fetchContactList(nostr, store, MUSIC_CURATOR_PUBKEY, { signal });
+      return contactListPubkeys(event);
     },
     staleTime: 10 * 60 * 1000, // 10 min
     gcTime: 60 * 60 * 1000, // 1 hr

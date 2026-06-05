@@ -5,7 +5,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { ReactNode } from 'react';
 
 import { useAuthor } from './useAuthor';
-import type { ProfileCacheEntry } from '@/lib/profileCache';
 
 // Control the relay response per-test.
 const query = vi.fn<(...args: unknown[]) => Promise<NostrEvent[]>>();
@@ -13,12 +12,11 @@ vi.mock('@nostrify/react', () => ({
   useNostr: () => ({ nostr: { query } }),
 }));
 
-// Control the IndexedDB-backed cache per-test.
-const getProfileCached = vi.fn<(pubkey: string) => ProfileCacheEntry | undefined>();
-const setProfileCached = vi.fn<() => Promise<void>>(() => Promise.resolve());
-vi.mock('@/lib/profileCache', () => ({
-  getProfileCached: (pubkey: string) => getProfileCached(pubkey),
-  setProfileCached: () => setProfileCached(),
+// Control the IndexedDB-backed event store per-test.
+const storeQuery = vi.fn<(...args: unknown[]) => Promise<NostrEvent[]>>(() => Promise.resolve([]));
+const storeEvent = vi.fn<() => Promise<void>>(() => Promise.resolve());
+vi.mock('@/hooks/useEventStore', () => ({
+  useEventStore: () => Promise.resolve({ query: storeQuery, event: storeEvent }),
 }));
 
 const PUBKEY = 'a'.repeat(64);
@@ -45,33 +43,21 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('useAuthor relay-miss handling', () => {
   beforeEach(() => {
     query.mockReset();
-    getProfileCached.mockReset();
-    setProfileCached.mockClear();
+    storeQuery.mockReset();
+    storeQuery.mockResolvedValue([]);
+    storeEvent.mockClear();
   });
 
-  it('retains the cached profile when the relay returns no event', async () => {
-    // A profile we already have cached (e.g. seeded from IndexedDB on a prior
-    // visit). Age it past staleTime (5 min) but within MAX_CACHE_AGE (7 d) so
-    // it seeds initialData AND triggers a background refetch on mount.
+  it('falls back to the cached profile when the relay returns no event', async () => {
     const cachedEvent = makeKind0('Alice');
-    const cachedEntry: ProfileCacheEntry = {
-      pubkey: PUBKEY,
-      event: cachedEvent,
-      metadata: { name: 'Alice' },
-      lastFetched: Date.now() - 10 * 60 * 1000,
-    };
-    getProfileCached.mockReturnValue(cachedEntry);
 
-    // The relay fails to return the kind 0 (transient miss).
+    // The relay fails to return the kind 0 (transient miss)...
     query.mockResolvedValue([]);
+    // ...but the local event store still has it.
+    storeQuery.mockResolvedValue([cachedEvent]);
 
     const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
 
-    // Seeded from initialData immediately.
-    expect(result.current.data?.metadata?.name).toBe('Alice');
-
-    // Wait for the background refetch to settle, then assert the profile did
-    // NOT get blanked out by the empty relay response.
     await waitFor(() => expect(result.current.isFetching).toBe(false));
 
     expect(query).toHaveBeenCalled();
@@ -80,13 +66,24 @@ describe('useAuthor relay-miss handling', () => {
   });
 
   it('returns an empty result when the relay misses and nothing is cached', async () => {
-    getProfileCached.mockReturnValue(undefined);
     query.mockResolvedValue([]);
+    storeQuery.mockResolvedValue([]);
 
     const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));
 
     expect(result.current.data).toEqual({});
+  });
+
+  it('persists a fetched profile to the event store', async () => {
+    const event = makeKind0('Bob');
+    query.mockResolvedValue([event]);
+
+    const { result } = renderHook(() => useAuthor(PUBKEY), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.metadata?.name).toBe('Bob'));
+
+    expect(storeEvent).toHaveBeenCalledWith(event);
   });
 });

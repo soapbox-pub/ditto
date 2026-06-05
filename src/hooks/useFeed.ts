@@ -6,6 +6,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
+import { useEventStore } from './useEventStore';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import {
   getPaginationCursor,
@@ -17,7 +18,6 @@ import {
   type FeedItem,
 } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { setProfileCached } from '@/lib/profileCache';
 import { getStorageKey } from '@/lib/storageKey';
 
 const PAGE_SIZE = 15;
@@ -61,6 +61,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   // (e.g. posts authored by an unmuted user that embed/mention a muted one).
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
+  const eventStore = useEventStore();
 
   // Build the full kinds list from user settings, or use the override.
   const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
@@ -149,12 +150,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         // Seed the author query cache from the metadata we already fetched
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
+        const store = await eventStore;
         for (const meta of metadataEvents) {
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
             const parsed = parseAuthorEvent(meta);
             queryClient.setQueryData(['author', meta.pubkey], parsed);
-            // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
-            void setProfileCached(meta, parsed.metadata);
+            // Persist to IndexedDB (fire-and-forget)
+            void store.event(meta);
           }
         }
 

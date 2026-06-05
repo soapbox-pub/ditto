@@ -2,7 +2,7 @@ import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
-import { setProfileCached } from '@/lib/profileCache';
+import { useEventStore } from '@/hooks/useEventStore';
 
 export interface AuthorData {
   pubkey: string;
@@ -23,6 +23,7 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
+  const eventStore = useEventStore();
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
@@ -42,6 +43,8 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(pubkey, { pubkey });
       }
 
+      const store = await eventStore;
+
       // Query all profiles. The NostrBatcher proxy will automatically
       // combine this with any other concurrent kind:0 queries.
       const events = await nostr.query(
@@ -54,8 +57,8 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
-        // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
-        void setProfileCached(event, parsed.metadata);
+        // Persist to IndexedDB (fire-and-forget)
+        void store.event(event);
       }
 
       return authorMap;
