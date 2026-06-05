@@ -50,6 +50,17 @@ export interface NIndexedDBStoreOpts {
 }
 
 export class NIndexedDBStore implements NStore {
+  /**
+   * Events awaiting a batched write, accumulated across `event()` calls within
+   * a single burst (e.g. a feed page). Keyed by id so duplicate writes in the
+   * same burst collapse to one.
+   */
+  private pendingWrites = new Map<string, NostrEvent>();
+  /** Callers waiting for the current pending batch to commit. */
+  private pendingResolvers: Array<() => void> = [];
+  /** Handle for the scheduled flush, so we only schedule once per burst. */
+  private flushScheduled = false;
+
   private constructor(
     private readonly db: IDBPDatabase | null,
     private readonly eventsStore: string,
@@ -96,37 +107,107 @@ export class NIndexedDBStore implements NStore {
    *   this event when it is newer than the current pointer (newer = greater
    *   created_at, tie broken by lexicographically smaller id per NIP-01).
    * - Regular events have no addr pointer; they're only reachable by id.
+   *
+   * Writes are **batched**: rather than opening one IndexedDB transaction per
+   * event, calls are accumulated and flushed together in a single transaction
+   * shortly after the current burst settles. A feed page that caches dozens of
+   * events therefore commits in one transaction instead of dozens, keeping the
+   * write off the render-critical path. The returned promise resolves once the
+   * batch this event belongs to has committed (or failed harmlessly). The
+   * public contract is unchanged from a plain per-event `NStore.event()`.
    */
-  async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
-    if (!this.db) return;
+  event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
+    if (!this.db) return Promise.resolve();
 
-    const replaceable = NKinds.replaceable(event.kind);
-    const addressable = NKinds.addressable(event.kind);
+    // Dedupe within the burst; the latest copy of a given id wins.
+    this.pendingWrites.set(event.id, event);
+
+    const done = new Promise<void>((resolve) => {
+      this.pendingResolvers.push(resolve);
+    });
+
+    this.scheduleFlush();
+    return done;
+  }
+
+  /**
+   * Schedule a single batched flush for the current burst of `event()` calls.
+   * Deferred off the immediate critical path via `requestIdleCallback` (with a
+   * `setTimeout` fallback) so writes happen after rendering, not during it.
+   */
+  private scheduleFlush(): void {
+    if (this.flushScheduled) return;
+    this.flushScheduled = true;
+
+    const run = () => void this.flushWrites();
+
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(run, { timeout: 1000 });
+    } else {
+      setTimeout(run, 0);
+    }
+  }
+
+  /**
+   * Drain `pendingWrites` and commit them in a single transaction across the
+   * events and addr stores. Addr pointers are resolved within the batch — when
+   * several events share a coordinate only the newest moves the pointer, then
+   * compared against whatever pointer already exists in the store.
+   */
+  private async flushWrites(): Promise<void> {
+    this.flushScheduled = false;
+
+    const events = [...this.pendingWrites.values()];
+    const resolvers = this.pendingResolvers;
+    this.pendingWrites = new Map();
+    this.pendingResolvers = [];
+
+    if (!this.db || events.length === 0) {
+      for (const resolve of resolvers) resolve();
+      return;
+    }
 
     try {
-      if (!replaceable && !addressable) {
-        await this.db.put(this.eventsStore, event);
-        return;
-      }
-
-      const key = NIndexedDBStore.addrKey(
-        event.kind,
-        event.pubkey,
-        addressable ? NIndexedDBStore.getDTag(event) : '',
-      );
-
       const tx = this.db.transaction([this.eventsStore, this.addrStore], 'readwrite');
+      const eventsStore = tx.objectStore(this.eventsStore);
       const addrStore = tx.objectStore(this.addrStore);
-      const existing: AddrPointer | undefined = await addrStore.get(key);
 
-      if (!existing || NIndexedDBStore.isNewer(event, existing)) {
-        await addrStore.put({ id: event.id, created_at: event.created_at }, key);
+      // Collapse multiple events at the same addr coordinate to the newest one
+      // before touching the pointer store.
+      const newestByKey = new Map<string, NostrEvent>();
+
+      for (const event of events) {
+        void eventsStore.put(event);
+
+        const replaceable = NKinds.replaceable(event.kind);
+        const addressable = NKinds.addressable(event.kind);
+        if (!replaceable && !addressable) continue;
+
+        const key = NIndexedDBStore.addrKey(
+          event.kind,
+          event.pubkey,
+          addressable ? NIndexedDBStore.getDTag(event) : '',
+        );
+        const current = newestByKey.get(key);
+        if (!current || NIndexedDBStore.isNewerEvent(event, current)) {
+          newestByKey.set(key, event);
+        }
       }
 
-      await tx.objectStore(this.eventsStore).put(event);
+      // Move each addr pointer forward only when the batch's newest event for
+      // that coordinate beats the pointer already stored.
+      for (const [key, event] of newestByKey) {
+        const existing: AddrPointer | undefined = await addrStore.get(key);
+        if (!existing || NIndexedDBStore.isNewer(event, existing)) {
+          void addrStore.put({ id: event.id, created_at: event.created_at }, key);
+        }
+      }
+
       await tx.done;
     } catch {
-      // Write failure is non-critical — the cache just won't have this event.
+      // Write failure is non-critical — the cache just won't have these events.
+    } finally {
+      for (const resolve of resolvers) resolve();
     }
   }
 
@@ -137,6 +218,12 @@ export class NIndexedDBStore implements NStore {
    */
   async query(filters: NostrFilter[], _opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
     if (!this.db) return [];
+
+    // Commit any buffered writes first so a read never misses an event that
+    // was just `event()`-ed but is still waiting on the deferred flush.
+    if (this.pendingWrites.size > 0) {
+      await this.flushWrites();
+    }
 
     const byId = new Map<string, NostrEvent>();
 
@@ -280,5 +367,15 @@ export class NIndexedDBStore implements NStore {
     if (event.created_at > pointer.created_at) return true;
     if (event.created_at < pointer.created_at) return false;
     return event.id < pointer.id;
+  }
+
+  /**
+   * Like `isNewer`, but compares two events directly. Used while collapsing a
+   * write batch down to the newest event per addr coordinate.
+   */
+  private static isNewerEvent(event: NostrEvent, other: NostrEvent): boolean {
+    if (event.created_at > other.created_at) return true;
+    if (event.created_at < other.created_at) return false;
+    return event.id < other.id;
   }
 }
