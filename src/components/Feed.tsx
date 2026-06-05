@@ -14,6 +14,8 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
+import { useFollowList } from '@/hooks/useFollowActions';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { getStorageKey } from '@/lib/storageKey';
@@ -64,6 +66,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
+  const { data: followData } = useFollowList();
+  const isOnline = useIsOnline();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -161,6 +165,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     isPending,
     isLoading,
     isFetching,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -236,6 +241,54 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.
   const isKindSpecificPage = !!kinds;
   const showSavedFeedTabs = user && !isKindSpecificPage && !tagFilters;
+
+  // Distinguish the empty-state cases so the message + CTAs match the cause:
+  //   - Follows tab with zero follows → "follow some people" (no retry).
+  //   - Otherwise (follows-but-empty, global miss, or query error) → "couldn't
+  //     find posts" with a Try again button, plus an offline hint when the
+  //     device reports it's offline.
+  const followsEmpty = activeTab === 'follows' && followData?.pubkeys.length === 0;
+  const emptyProps = (() => {
+    // Caller-provided message (kind-specific pages) wins; keep it verbatim but
+    // still offer a retry so a transient miss is recoverable.
+    if (emptyMessage) {
+      return {
+        message: emptyMessage,
+        onRetry: handleRefresh,
+        isRetrying: isFetching,
+        isOffline: !isOnline,
+      };
+    }
+
+    if (followsEmpty) {
+      return {
+        message: 'Your feed is empty. Follow some people to see their posts here.',
+        showDiscover: true,
+        onSwitchToGlobal: showGlobalFeed ? () => handleSetActiveTab('global') : undefined,
+      };
+    }
+
+    const isFollows = activeTab === 'follows';
+    const baseMessage = !isOnline
+      ? isFollows
+        ? "We couldn't load posts from people you follow."
+        : "We couldn't load the feed."
+      : isError
+        ? isFollows
+          ? "Something went wrong loading posts from people you follow."
+          : 'Something went wrong loading the feed.'
+        : isFollows
+          ? "We couldn't find any recent posts from people you follow."
+          : 'No posts found. Check your relay connections or come back soon.';
+
+    return {
+      message: baseMessage,
+      onRetry: handleRefresh,
+      isRetrying: isFetching,
+      isOffline: !isOnline,
+      onSwitchToGlobal: isFollows && showGlobalFeed ? () => handleSetActiveTab('global') : undefined,
+    };
+  })();
 
   return (
     <main className="flex-1 min-w-0 min-h-dvh">
@@ -336,21 +389,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               ))}
             </div>
           ) : (
-            <FeedEmptyState
-              message={
-                emptyMessage ?? (
-                  activeTab === 'follows'
-                    ? 'Your feed is empty. Follow some people to see their posts here.'
-                    : 'No posts found. Check your relay connections or come back soon.'
-                )
-              }
-              showDiscover={!emptyMessage && activeTab === 'follows'}
-              onSwitchToGlobal={
-                activeTab === 'follows' && showGlobalFeed
-                  ? () => handleSetActiveTab('global')
-                  : undefined
-              }
-            />
+            <FeedEmptyState {...emptyProps} />
           )}
         </PullToRefresh>
       )}
