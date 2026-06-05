@@ -91,6 +91,7 @@ export function useFollowActions(): UseFollowActionsReturn {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const eventStore = useEventStore();
 
   const [isPending, setIsPending] = useState(false);
 
@@ -100,8 +101,10 @@ export function useFollowActions(): UseFollowActionsReturn {
       setIsPending(true);
 
       try {
-        // ① Fetch the freshest kind 3 event via pool
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+        // ① Fetch the freshest kind 3 event via pool, falling back to the
+        // locally cached copy so a relay miss can't wipe the follow list.
+        const store = await eventStore;
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate tags into `p` tags (follow entries) and everything else
         const existingTags = prev?.tags ?? [];
@@ -138,7 +141,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient],
+    [nostr, user, publishEvent, queryClient, eventStore],
   );
 
   const follow = useCallback(
@@ -157,8 +160,10 @@ export function useFollowActions(): UseFollowActionsReturn {
       setIsPending(true);
 
       try {
-        // ① Fetch the freshest kind 3 event via pool
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+        // ① Fetch the freshest kind 3 event via pool, falling back to the
+        // locally cached copy so a relay miss can't wipe the follow list.
+        const store = await eventStore;
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate p-tags from everything else (preserve relay hints, petnames, etc.)
         const existingTags = prev?.tags ?? [];
@@ -194,7 +199,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient],
+    [nostr, user, publishEvent, queryClient, eventStore],
   );
 
   return { isPending, follow, unfollow, followMany };
