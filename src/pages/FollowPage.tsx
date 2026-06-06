@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { nip19 } from 'nostr-tools';
-import { UserPlus, Loader2, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Loader2, CheckCircle2, Copy, Check } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -192,6 +192,19 @@ function FollowView({ pubkey }: { pubkey: string }) {
   const isAlreadyFollowing = followData?.pubkeys.includes(pubkey) ?? false;
   const isLoggedOut = !user;
 
+  const npub = nip19.npubEncode(pubkey);
+  const [npubCopied, setNpubCopied] = useState(false);
+
+  const handleCopyNpub = async () => {
+    try {
+      await navigator.clipboard.writeText(npub);
+      setNpubCopied(true);
+      setTimeout(() => setNpubCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   const [loginOpen, setLoginOpen] = useState(false);
 
   useApplyProfileTheme(pubkey);
@@ -275,6 +288,20 @@ function FollowView({ pubkey }: { pubkey: string }) {
             {metadata?.nip05 && (
               <Nip05Badge nip05={metadata.nip05} pubkey={pubkey} className="justify-center mt-1" />
             )}
+            {/* Npub with copy */}
+            <div className="flex items-center justify-center gap-1.5 mt-1.5 max-w-full px-4">
+              <span className="font-mono text-xs text-muted-foreground">
+                <span className="md:hidden">{npub.slice(0, 10)}...{npub.slice(-6)}</span>
+                <span className="hidden md:inline">{npub}</span>
+              </span>
+              <button
+                onClick={handleCopyNpub}
+                className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+                aria-label="Copy npub"
+              >
+                {npubCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+              </button>
+            </div>
           </div>
 
           {/* CTA — right under the name */}
