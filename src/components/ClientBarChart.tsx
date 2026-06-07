@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,15 +17,57 @@ interface ClientBarChartProps {
   isLoading?: boolean;
 }
 
+interface ClientBar {
+  name: string;
+  value: number;
+  fill: string;
+  /** The `#client` tag value to use for the /client/:name link. */
+  client: string;
+}
+
 /** Horizontal bar chart comparing a metric across NIP-89 clients. */
 export function ClientBarChart({ title, description, data, isLoading }: ClientBarChartProps) {
-  const chartData = (data ?? [])
+  const navigate = useNavigate();
+
+  const chartData: ClientBar[] = (data ?? [])
     .filter((d) => d.count > 0)
-    .map((d) => ({ name: d.client.label, value: d.count, fill: d.client.color }));
+    .map((d) => ({
+      name: d.client.label,
+      value: d.count,
+      fill: d.client.color,
+      // The client feed filters by a single exact `#client` value, so link to
+      // the client's primary tag rather than its display label.
+      client: d.client.tags[0],
+    }));
 
   const chartConfig: ChartConfig = Object.fromEntries(
     (data ?? []).map((d) => [d.client.label, { label: d.client.label, color: d.client.color }]),
   );
+
+  // Map display label -> primary `#client` tag for the axis-label links.
+  const clientByLabel = new Map(chartData.map((d) => [d.name, d.client]));
+
+  const renderTick = ({ x, y, payload }: {
+    x: number;
+    y: number;
+    payload: { value: string };
+  }) => {
+    const client = clientByLabel.get(payload.value);
+    return (
+      <text
+        x={x}
+        y={y}
+        dy={3}
+        textAnchor="end"
+        className="fill-muted-foreground text-xs cursor-pointer hover:fill-foreground"
+        onClick={() => {
+          if (client) navigate(`/client/${encodeURIComponent(client)}`);
+        }}
+      >
+        {payload.value}
+      </text>
+    );
+  };
 
   return (
     <Card>
@@ -56,9 +99,19 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
                 axisLine={false}
                 className="text-xs"
                 width={80}
+                tick={renderTick}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} />
+              <Bar
+                dataKey="value"
+                radius={[0, 4, 4, 0]}
+                className="cursor-pointer"
+                onClick={(entry: ClientBar) => {
+                  if (entry?.client) {
+                    navigate(`/client/${encodeURIComponent(entry.client)}`);
+                  }
+                }}
+              />
             </BarChart>
           </ChartContainer>
         )}
