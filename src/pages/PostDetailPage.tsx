@@ -100,6 +100,7 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
+import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
@@ -382,6 +383,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
           onEventFound={setRetryEvent}
         />
       </PostDetailShell>
+    );
+  }
+
+  // App handlers (kind 31990, NIP-89) get a tabbed Feed / Comments view
+  if (resolvedEvent.kind === 31990) {
+    return (
+      <MutedContentGuard event={resolvedEvent}>
+        <AppHandlerDetailPage event={resolvedEvent} />
+      </MutedContentGuard>
     );
   }
 
