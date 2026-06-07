@@ -143,9 +143,12 @@ function BuddyChatView({ buddy }: { buddy: BuddyIdentity }) {
           {(isStreaming || apiLoading) && (
             streamingText ? (
               <MessageBubble message={{ id: 'streaming', role: 'assistant', content: streamingText, timestamp: new Date() }} />
-            ) : messages[messages.length - 1]?.role === 'user' ? (
-              <BuddyThinking />
-            ) : null
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <BuddyThinking />
+                <span>{buddy.name} is thinking...</span>
+              </div>
+            )
           )}
 
           {/* Error display */}
