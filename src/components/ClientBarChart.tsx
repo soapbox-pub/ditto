@@ -8,6 +8,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { clientPath } from '@/lib/clients';
 import type { ClientCount } from '@/hooks/useClientCounts';
 
 interface ClientBarChartProps {
@@ -21,8 +22,8 @@ interface ClientBar {
   name: string;
   value: number;
   fill: string;
-  /** The `#client` tag value to use for the /client/:name link. */
-  client: string;
+  /** All `#client` tag values for the client, used to build the /client link. */
+  tags: string[];
 }
 
 /** Horizontal bar chart comparing a metric across NIP-89 clients. */
@@ -35,24 +36,24 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
       name: d.client.label,
       value: d.count,
       fill: d.client.color,
-      // The client feed filters by a single exact `#client` value, so link to
-      // the client's primary tag rather than its display label.
-      client: d.client.tags[0],
+      // Preserve every `#client` tag so the destination page's feed and stats
+      // match the aggregated count shown here, not just the primary tag.
+      tags: d.client.tags,
     }));
 
   const chartConfig: ChartConfig = Object.fromEntries(
     (data ?? []).map((d) => [d.client.label, { label: d.client.label, color: d.client.color }]),
   );
 
-  // Map display label -> primary `#client` tag for the axis-label links.
-  const clientByLabel = new Map(chartData.map((d) => [d.name, d.client]));
+  // Map display label -> all `#client` tags for the axis-label links.
+  const tagsByLabel = new Map(chartData.map((d) => [d.name, d.tags]));
 
   const renderTick = ({ x, y, payload }: {
     x: number;
     y: number;
     payload: { value: string };
   }) => {
-    const client = clientByLabel.get(payload.value);
+    const tags = tagsByLabel.get(payload.value);
     return (
       <text
         x={x}
@@ -61,7 +62,7 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
         textAnchor="end"
         className="fill-muted-foreground text-xs cursor-pointer hover:fill-foreground"
         onClick={() => {
-          if (client) navigate(`/client/${encodeURIComponent(client)}`);
+          if (tags?.length) navigate(clientPath(tags));
         }}
       >
         {payload.value}
@@ -108,8 +109,8 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
                 radius={[0, 4, 4, 0]}
                 className="cursor-pointer"
                 onClick={(entry: ClientBar) => {
-                  if (entry?.client) {
-                    navigate(`/client/${encodeURIComponent(entry.client)}`);
+                  if (entry?.tags?.length) {
+                    navigate(clientPath(entry.tags));
                   }
                 }}
               />

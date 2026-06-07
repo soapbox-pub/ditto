@@ -65,21 +65,25 @@ function dailyBuckets(days: number): Array<{ since: number; until: number; label
  * - **MAU** — distinct authors who published with this client in the last 30 days.
  * - **Unique Users (30d)** — a daily time series of distinct authors.
  *
+ * Accepts one or more `#client` tag values, all OR'd together in the COUNT
+ * filter, so a client with multiple tags (e.g. "Primal Web" + "Primal Android")
+ * is counted as a single client.
+ *
  * Returns `undefined` data (and never throws to the UI) when the relay does not
  * support NIP-45 COUNT or the `distinct:author` search extension.
  */
-export function useClientMetrics(clientName: string) {
+export function useClientMetrics(clientTags: string[]) {
   const { nostr } = useNostr();
 
   return useQuery({
-    queryKey: ['client-metrics', clientName],
+    queryKey: ['client-metrics', clientTags],
     queryFn: async (c): Promise<ClientMetrics> => {
       const relay = nostr.relay(DITTO_RELAY);
       if (!relay.count) {
         throw new Error('Relay does not support NIP-45 COUNT');
       }
 
-      const clientFilter: Partial<NostrFilter> = { '#client': [clientName] };
+      const clientFilter: Partial<NostrFilter> = { '#client': clientTags };
       const now = snapToHour(Math.floor(Date.now() / 1000));
       const buckets = dailyBuckets(30);
 
@@ -108,7 +112,7 @@ export function useClientMetrics(clientName: string) {
         uniqueUsersSeries: seriesResults,
       };
     },
-    enabled: !!clientName,
+    enabled: clientTags.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -28,3 +28,18 @@ export const CLIENTS: ClientDef[] = [
   { tags: ['Primal Web', 'Primal Android'], label: 'Primal', color: 'hsl(348, 83%, 47%)' },
   { tags: ['Wisp'], label: 'Wisp', color: 'hsl(170, 75%, 42%)' },
 ];
+
+/**
+ * Build the `/client/:name` link for a client, preserving all of its `#client`
+ * tags. The first tag becomes the path segment; any additional tags are
+ * appended as `client` query parameters, e.g.
+ * `/client/Primal%20Web?client=Primal%20Android`.
+ */
+export function clientPath(tags: string[]): string {
+  const [first, ...rest] = tags;
+  if (!first) return '/client';
+  const base = `/client/${encodeURIComponent(first)}`;
+  if (rest.length === 0) return base;
+  const params = rest.map((t) => `client=${encodeURIComponent(t)}`).join('&');
+  return `${base}?${params}`;
+}

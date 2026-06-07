@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Monitor } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { PageHeader } from '@/components/PageHeader';
 import { ClientMetrics } from '@/components/ClientMetrics';
@@ -14,9 +14,22 @@ import { isReactionKind, isRepostKind } from '@/lib/feedUtils';
 export function ClientFeedPage() {
   const { config } = useAppContext();
   const { name } = useParams<{ name: string }>();
+  const [searchParams] = useSearchParams();
   const { feedSettings } = useFeedSettings();
 
-  const clientName = (name ?? '').trim();
+  // The primary `#client` tag is the path segment; additional tags for the same
+  // client (e.g. "Primal Web" + "Primal Android") arrive as `client` query
+  // params so the feed and stats cover every tag the client publishes with.
+  const clientTags = useMemo(() => {
+    const tags = [name ?? '', ...searchParams.getAll('client')]
+      .map((t) => t.trim())
+      .filter(Boolean);
+    return Array.from(new Set(tags));
+  }, [name, searchParams]);
+
+  // The URL tags are the source of truth — show them as-is rather than mapping
+  // back to a known client's display label.
+  const title = useMemo(() => clientTags.join(' + '), [clientTags]);
 
   // Reposts (kind 6/16) and reactions (kind 7) directly reference another
   // event, which may have been published with a different client, so they
@@ -26,14 +39,14 @@ export function ClientFeedPage() {
     [feedSettings],
   );
 
-  const tagFilters = useMemo(() => ({ '#client': [clientName] }), [clientName]);
+  const tagFilters = useMemo(() => ({ '#client': clientTags }), [clientTags]);
 
   useSeoMeta({
-    title: clientName ? `${clientName} | ${config.appName}` : `Client Feed | ${config.appName}`,
-    description: clientName ? `Posts published with ${clientName}` : 'Client feed',
+    title: title ? `${title} | ${config.appName}` : `Client Feed | ${config.appName}`,
+    description: title ? `Posts published with ${title}` : 'Client feed',
   });
 
-  if (!clientName) return null;
+  if (!clientTags.length) return null;
 
   return (
     <Feed
@@ -41,16 +54,16 @@ export function ClientFeedPage() {
       tagFilters={tagFilters}
       hideCompose
       globalFirst
-      feedId={`client:${clientName}`}
-      emptyMessage={`No posts found published with ${clientName}.`}
+      feedId={`client:${clientTags.join(',')}`}
+      emptyMessage={`No posts found published with ${title}.`}
       header={
         <>
           <PageHeader
-            title={clientName}
+            title={title}
             icon={<span className="text-muted-foreground shrink-0"><Monitor className="size-5" /></span>}
             backTo="/"
           />
-          <ClientMetrics clientName={clientName} />
+          <ClientMetrics clientTags={clientTags} />
         </>
       }
     />

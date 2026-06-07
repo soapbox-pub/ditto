@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useClientMetrics } from '@/hooks/useClientMetrics';
 
 interface ClientMetricsProps {
-  /** The NIP-89 `client` tag value to fetch metrics for. */
-  clientName: string;
+  /** The NIP-89 `client` tag values to fetch metrics for (OR'd together). */
+  clientTags: string[];
 }
 
 function formatNumber(n: number): string {
@@ -37,8 +37,8 @@ const chartConfig: ChartConfig = {
  * Renders nothing if the relay can't provide the metrics, so the underlying
  * feed remains the focus when stats are unavailable.
  */
-export function ClientMetrics({ clientName }: ClientMetricsProps) {
-  const { data, isLoading, isError } = useClientMetrics(clientName);
+export function ClientMetrics({ clientTags }: ClientMetricsProps) {
+  const { data, isLoading, isError } = useClientMetrics(clientTags);
 
   if (isError) return null;
 
