@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography";
 
@@ -167,5 +168,12 @@ export default {
 			}
 		}
 	},
-	plugins: [tailwindcssAnimate, typography],
+	plugins: [
+		tailwindcssAnimate,
+		typography,
+		// `fullscreen:` variant — targets an element while it is the fullscreen element.
+		plugin(({ addVariant }) => {
+			addVariant('fullscreen', '&:fullscreen');
+		}),
+	],
 } satisfies Config;

@@ -262,6 +262,10 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
           aspectRatio
             ? 'absolute inset-0 h-full object-cover'
             : 'max-h-[70vh] object-cover',
+          // In fullscreen the video element fills the whole screen, so object-cover
+          // would crop it. Contain it instead, and reset the positioning/size
+          // constraints from normal layout so the frame centers within the viewport.
+          'fullscreen:object-contain fullscreen:static fullscreen:max-h-none fullscreen:h-full fullscreen:w-full',
         )}
         playsInline
         preload="metadata"
