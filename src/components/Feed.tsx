@@ -56,9 +56,14 @@ interface FeedProps {
   emptyMessage?: string;
   /** Unique identifier for this feed page, used to persist the active tab in sessionStorage. Defaults to 'home'. */
   feedId?: string;
+  /**
+   * On kind/tag-specific pages, default to the Global tab (labeled "All") and
+   * render it before Follows. Used by the client feed page.
+   */
+  globalFirst?: boolean;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { muteItems } = useMuteList();
@@ -98,7 +103,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return 'Community';
   })();
 
-  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
+  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId, undefined, globalFirst ? 'global' : undefined);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
@@ -109,6 +114,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     if (!kinds) return rawActiveTab; // Home feed: no clamping
     if (rawActiveTab === 'global') return 'global';
     if (rawActiveTab === 'follows' && user) return 'follows';
+    // `globalFirst` pages default to Global even when logged in.
+    if (globalFirst) return 'global';
     return user ? 'follows' : 'global';
   })();
 
@@ -307,6 +314,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) */}
       {user && (
         <SubHeaderBar>
+          {globalFirst && (
+            <TabButton label="All" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+          )}
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
             <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -314,7 +324,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
-          {(isKindSpecificPage || showGlobalFeed) && (
+          {!globalFirst && (isKindSpecificPage || showGlobalFeed) && (
             <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (

@@ -40,6 +40,7 @@ export function ClientFeedPage() {
       kinds={kinds}
       tagFilters={tagFilters}
       hideCompose
+      globalFirst
       feedId={`client:${clientName}`}
       emptyMessage={`No posts found published with ${clientName}.`}
       header={
