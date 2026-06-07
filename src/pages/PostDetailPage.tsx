@@ -1582,17 +1582,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       <span className="ml-auto shrink-0 flex items-center gap-1.5">
         {clientTag?.[1] && (
           <>
-            {clientNaddr ? (
-              <Link
-                to={`/${clientNaddr}`}
-                className="hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {clientTag[1]}
-              </Link>
-            ) : (
-              <span>{clientTag[1]}</span>
-            )}
+            <Link
+              to={
+                clientNaddr
+                  ? `/${clientNaddr}`
+                  : `/client/${encodeURIComponent(clientTag[1])}`
+              }
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {clientTag[1]}
+            </Link>
             <span>·</span>
           </>
         )}
@@ -1603,17 +1603,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
       {clientTag?.[1] && (
         <>
-          {clientNaddr ? (
-            <Link
-              to={`/${clientNaddr}`}
-              className="hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {clientTag[1]}
-            </Link>
-          ) : (
-            <span>{clientTag[1]}</span>
-          )}
+          <Link
+            to={
+              clientNaddr
+                ? `/${clientNaddr}`
+                : `/client/${encodeURIComponent(clientTag[1])}`
+            }
+            className="hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {clientTag[1]}
+          </Link>
           <span>·</span>
         </>
       )}
