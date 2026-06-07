@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.20.0] - 2026-06-06
+
+Every Nostr app now has its own page in Ditto -- see what it looks like, browse a live feed of everything posted through it, and join the conversation in a comments tab. Search got smarter too: the search box now turns up articles, lists, follow packs, and emoji packs alongside people. You can copy anyone's npub straight from their profile, and fullscreen videos finally fill the screen without getting cropped.
+
+### Added
+- App pages: every Nostr app now has its own showcase page with a live feed of posts made through it and a comments tab
+- Search now finds articles, lists, follow packs, and emoji packs -- not just people
+- Copy any user's npub directly from their profile with one tap
+
+### Fixed
+- Fullscreen videos now fit the whole screen instead of being cropped
+
 ## [2.19.0] - 2026-06-05
 
 Ditto now works offline. Your profile, who you follow, and your feed are saved on your device, so they pop up instantly the next time you open the app -- and stick around even when the network can't be reached. Feeds no longer flash empty while refreshing, and when there's genuinely nothing to show you get a clearer message with a Try again button. Following and unfollowing people is more dependable too.
