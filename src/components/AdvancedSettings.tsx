@@ -19,7 +19,7 @@ import { DEFAULT_SYSTEM_PROMPT_TEMPLATE } from '@/lib/aiChatSystemPrompt';
 
 /** Hardcoded default values for buddy provider fields. Used for "Reset" buttons. */
 const DEFAULT_AI_BASE_URL = 'https://ai.shakespeare.diy/v1';
-const DEFAULT_AI_MODEL = 'grok-4.1-fast';
+const DEFAULT_AI_MODEL = 'gemma-4-26b';
 
 /** The build-time default DSN from the environment variable. */
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
@@ -220,7 +220,7 @@ function BuddySettingsSection() {
             spellCheck={false}
           />
           <p className="text-xs text-muted-foreground">
-            Model ID sent to the provider (e.g. <code className="bg-muted px-1 rounded">grok-4.1-fast</code>, <code className="bg-muted px-1 rounded">claude-opus-4.6</code>, <code className="bg-muted px-1 rounded">gpt-4o</code>).
+            Model ID sent to the provider (e.g. <code className="bg-muted px-1 rounded">gemma-4-26b</code>, <code className="bg-muted px-1 rounded">claude-opus-4.6</code>, <code className="bg-muted px-1 rounded">gpt-4o</code>).
           </p>
           {!providerIsDefault && (
             <Button

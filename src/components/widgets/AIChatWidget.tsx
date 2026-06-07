@@ -24,7 +24,7 @@ export function AIChatWidget() {
   const hasCredits = useShakespeareCredits();
 
   // Use the configured model directly. `config.aiModel` always has a value
-  // (default: `grok-4.1-fast`, set in App.tsx).
+  // (default: `gemma-4-26b`, set in App.tsx).
   const modelId = config.aiModel;
 
   const cacheKey = user?.pubkey ?? '';

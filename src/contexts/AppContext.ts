@@ -327,7 +327,7 @@ export interface AppConfig {
   aiBaseURL: string;
   /** API key for the AI provider. Empty string = use NIP-98 auth (only valid for Shakespeare). */
   aiApiKey: string;
-  /** AI model identifier sent to the provider (e.g. "grok-4.1-fast", "claude-opus-4.6"). */
+  /** AI model identifier sent to the provider (e.g. "gemma-4-26b", "claude-opus-4.6"). */
   aiModel: string;
   /** Custom system prompt for the AI buddy. Empty string = use default template. */
   aiSystemPrompt: string;

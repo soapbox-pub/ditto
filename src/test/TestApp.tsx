@@ -132,7 +132,7 @@ export function TestApp({ children }: TestAppProps) {
     sidebarWidgets: [],
     aiBaseURL: 'https://ai.shakespeare.diy/v1',
     aiApiKey: '',
-    aiModel: 'grok-4.1-fast',
+    aiModel: 'gemma-4-26b',
     aiSystemPrompt: '',
   };
 

@@ -119,7 +119,7 @@ export function useAIChatSession(options: AIChatSessionOptions = {}) {
   const [streamingText, setStreamingText] = useState('');
 
   // The selected model comes directly from config. `config.aiModel` always has
-  // a value (default: `grok-4.1-fast`, hardcoded in App.tsx). The model may or
+  // a value (default: `gemma-4-26b`, hardcoded in App.tsx). The model may or
   // may not appear in `/v1/models` — that's fine; it's resolved server-side.
   const [models, setModels] = useState<Model[]>([]);
   const selectedModel = config.aiModel;
