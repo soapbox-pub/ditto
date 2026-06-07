@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.21.0] - 2026-06-07
+
+Share into Ditto from anywhere on Android: hit Share in any app and you can post the text straight to your feed, or jump into the conversation around a link. A new Nostr Clients widget in the sidebar lets you hop between the apps people are posting from, and every client page now shows how many people are active on it with a 30-day usage chart. The Trends page gains a Unique Users by Client chart so you can see which apps the community is posting from at a glance.
+
+### Added
+- Share text or links into Ditto from any Android app -- post it to your feed or join the comments on a shared link
+- New Nostr Clients widget in the sidebar for jumping between the apps people post from
+- Client pages now show active-user counts and a 30-day usage chart
+- New Unique Users by Client chart on the Trends page
+
+### Changed
+- Client feeds now open on the Global tab by default and hide reposts and reactions, so you see original posts made through that app
+
 ## [2.20.0] - 2026-06-06
 
 Every Nostr app now has its own page in Ditto -- see what it looks like, browse a live feed of everything posted through it, and join the conversation in a comments tab. Search got smarter too: the search box now turns up articles, lists, follow packs, and emoji packs alongside people. You can copy anyone's npub straight from their profile, and fullscreen videos finally fill the screen without getting cropped.
