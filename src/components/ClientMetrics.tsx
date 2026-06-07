@@ -1,4 +1,3 @@
-import { Users } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -23,7 +22,7 @@ function formatNumber(n: number): string {
 
 const chartConfig: ChartConfig = {
   count: {
-    label: 'Unique Users',
+    label: 'Users',
     color: 'hsl(var(--primary))',
   },
 };
@@ -46,31 +45,24 @@ export function ClientMetrics({ clientName }: ClientMetricsProps) {
       {/* MAU */}
       <Card className="md:col-span-1">
         <CardContent className="flex h-full flex-col justify-center p-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">
-                Monthly Active Users
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">MAU</p>
+            {isLoading || !data ? (
+              <Skeleton className="h-9 w-24" />
+            ) : (
+              <p className="text-3xl font-bold tracking-tight">
+                {formatNumber(data.mau)}
               </p>
-              {isLoading || !data ? (
-                <Skeleton className="h-9 w-24" />
-              ) : (
-                <p className="text-3xl font-bold tracking-tight">
-                  {formatNumber(data.mau)}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">Last 30 days</p>
-            </div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Users className="h-6 w-6" />
-            </div>
+            )}
+            <p className="text-xs text-muted-foreground">Last 30 days</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Unique Users time series */}
+      {/* Active users time series */}
       <Card className="md:col-span-2">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Unique Users (30d)</CardTitle>
+          <CardTitle className="text-sm font-medium">Active Users</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading || !data ? (
