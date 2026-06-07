@@ -4,6 +4,7 @@ import { useSeoMeta } from '@unhead/react';
 import { useParams } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { PageHeader } from '@/components/PageHeader';
+import { ClientMetrics } from '@/components/ClientMetrics';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -42,11 +43,14 @@ export function ClientFeedPage() {
       feedId={`client:${clientName}`}
       emptyMessage={`No posts found published with ${clientName}.`}
       header={
-        <PageHeader
-          title={clientName}
-          icon={<span className="text-muted-foreground shrink-0"><Monitor className="size-5" /></span>}
-          backTo="/"
-        />
+        <>
+          <PageHeader
+            title={clientName}
+            icon={<span className="text-muted-foreground shrink-0"><Monitor className="size-5" /></span>}
+            backTo="/"
+          />
+          <ClientMetrics clientName={clientName} />
+        </>
       }
     />
   );
