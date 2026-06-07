@@ -2,30 +2,17 @@ import { useSeoMeta } from "@unhead/react";
 import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { ClientBarChart } from "@/components/ClientBarChart";
+import { ClientUsersChart } from "@/components/ClientUsersChart";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
-import { useClientCounts } from "@/hooks/useClientCounts";
 import { useMuteList } from "@/hooks/useMuteList";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { type SortMode, useInfiniteSortedPosts } from "@/hooks/useTrending";
 import { isEventMuted } from "@/lib/muteHelpers";
 import { cn } from "@/lib/utils";
-
-const HOUR = 3600;
-const MONTH = 30 * 24 * HOUR;
-
-/** Distinct-author count via the Ditto relay's NIP-50 search extension. */
-const DISTINCT_AUTHOR = "distinct:author";
-
-/** Snap to the start of the hour so the query key is stable across renders. */
-function monthAgoSnapped(): number {
-  const since = Math.floor(Date.now() / 1000) - MONTH;
-  return Math.floor(since / HOUR) * HOUR;
-}
 
 export function TrendsPage() {
   const { config } = useAppContext();
@@ -43,8 +30,6 @@ export function TrendsPage() {
   );
   const handleRefresh = usePageRefresh(refreshQueryKey);
 
-  const since = useMemo(() => monthAgoSnapped(), []);
-  const clientUsers = useClientCounts({ since, search: DISTINCT_AUTHOR });
   const {
     data: sortedData,
     isPending: sortedPending,
@@ -88,12 +73,7 @@ export function TrendsPage() {
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Unique Users by Client */}
         <div className="p-4">
-          <ClientBarChart
-            title="Unique Users by Client"
-            description="Distinct authors per client (last 30 days)"
-            data={clientUsers.data}
-            isLoading={clientUsers.isLoading}
-          />
+          <ClientUsersChart />
         </div>
 
         {/* Sort sub-tabs */}

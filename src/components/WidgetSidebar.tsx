@@ -35,6 +35,7 @@ const StatusWidget = lazy(() => import('@/components/widgets/StatusWidget').then
 const AIChatWidget = lazy(() => import('@/components/widgets/AIChatWidget').then((m) => ({ default: m.AIChatWidget })));
 const WikipediaWidget = lazy(() => import('@/components/widgets/WikipediaWidget').then((m) => ({ default: m.WikipediaWidget })));
 const BlueskyWidget = lazy(() => import('@/components/widgets/BlueskyWidget').then((m) => ({ default: m.BlueskyWidget })));
+const NostrClientsWidget = lazy(() => import('@/components/widgets/NostrClientsWidget').then((m) => ({ default: m.NostrClientsWidget })));
 const PhotoWidget = lazy(() => import('@/components/widgets/PhotoWidget').then((m) => ({ default: m.PhotoWidget })));
 const MusicWidget = lazy(() => import('@/components/widgets/MusicWidget').then((m) => ({ default: m.MusicWidget })));
 const FeedWidget = lazy(() => import('@/components/widgets/FeedWidget').then((m) => ({ default: m.FeedWidget })));
@@ -59,6 +60,8 @@ function WidgetContent({ id }: { id: string }) {
       return <WikipediaWidget />;
     case 'bluesky':
       return <BlueskyWidget />;
+    case 'nostr-clients':
+      return <NostrClientsWidget />;
     case 'feed:photos':
       return <PhotoWidget />;
     case 'feed:music':

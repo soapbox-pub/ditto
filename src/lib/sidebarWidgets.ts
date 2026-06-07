@@ -9,6 +9,7 @@ import {
   Music,
   CalendarDays,
   ScrollText,
+  BarChart3,
 } from 'lucide-react';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
@@ -89,6 +90,17 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     maxHeight: 700,
     category: 'discovery',
     href: '/bluesky',
+  },
+  {
+    id: 'nostr-clients',
+    label: 'Nostr Clients',
+    description: 'Distinct authors per client over the last 30 days',
+    icon: BarChart3,
+    defaultHeight: 300,
+    minHeight: 200,
+    maxHeight: 500,
+    category: 'discovery',
+    href: '/trends',
   },
 
   // Personal

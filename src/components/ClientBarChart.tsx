@@ -16,6 +16,8 @@ interface ClientBarChartProps {
   description?: string;
   data: ClientCount[] | undefined;
   isLoading?: boolean;
+  /** Render just the chart without the surrounding Card chrome (e.g. inside a sidebar widget). */
+  bare?: boolean;
 }
 
 interface ClientBar {
@@ -27,7 +29,7 @@ interface ClientBar {
 }
 
 /** Horizontal bar chart comparing a metric across NIP-89 clients. */
-export function ClientBarChart({ title, description, data, isLoading }: ClientBarChartProps) {
+export function ClientBarChart({ title, description, data, isLoading, bare }: ClientBarChartProps) {
   const navigate = useNavigate();
 
   const chartData: ClientBar[] = (data ?? [])
@@ -70,54 +72,58 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
     );
   };
 
+  const chartBody = isLoading || chartData.length === 0 ? (
+    <Skeleton className="h-[200px] w-full" />
+  ) : (
+    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+      <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <XAxis
+          type="number"
+          tickLine={false}
+          axisLine={false}
+          className="text-xs"
+          tickFormatter={(v: number) => {
+            if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+            if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
+            return v.toString();
+          }}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tickLine={false}
+          axisLine={false}
+          className="text-xs"
+          width={80}
+          interval={0}
+          tick={renderTick}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar
+          dataKey="value"
+          radius={[0, 4, 4, 0]}
+          className="cursor-pointer"
+          onClick={(entry: ClientBar) => {
+            if (entry?.tags?.length) {
+              navigate(clientPath(entry.tags));
+            }
+          }}
+        />
+      </BarChart>
+    </ChartContainer>
+  );
+
+  if (bare) {
+    return chartBody;
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent>
-        {isLoading || chartData.length === 0 ? (
-          <Skeleton className="h-[200px] w-full" />
-        ) : (
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <XAxis
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                className="text-xs"
-                tickFormatter={(v: number) => {
-                  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-                  if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
-                  return v.toString();
-                }}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tickLine={false}
-                axisLine={false}
-                className="text-xs"
-                width={80}
-                interval={0}
-                tick={renderTick}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar
-                dataKey="value"
-                radius={[0, 4, 4, 0]}
-                className="cursor-pointer"
-                onClick={(entry: ClientBar) => {
-                  if (entry?.tags?.length) {
-                    navigate(clientPath(entry.tags));
-                  }
-                }}
-              />
-            </BarChart>
-          </ChartContainer>
-        )}
-      </CardContent>
+      <CardContent>{chartBody}</CardContent>
     </Card>
   );
 }
