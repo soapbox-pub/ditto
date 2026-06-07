@@ -99,6 +99,7 @@ export function ClientBarChart({ title, description, data, isLoading }: ClientBa
                 axisLine={false}
                 className="text-xs"
                 width={80}
+                interval={0}
                 tick={renderTick}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
