@@ -5,7 +5,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { encodeEventAddress, type NAddr, type NEvent } from '@/lib/encodeEvent';
 
 /** Result kinds searched alongside profiles in the global search dropdown. */
-export type SearchEventKind = 'article' | 'list' | 'follow-pack';
+export type SearchEventKind = 'article' | 'list' | 'follow-pack' | 'emoji-pack';
 
 export interface SearchEventResult {
   /** Classification used to pick an icon and label. */
@@ -22,16 +22,18 @@ export interface SearchEventResult {
   event: NostrEvent;
 }
 
-/** Article (NIP-23), NIP-51 follow set, and follow-pack kinds. */
+/** Article (NIP-23), NIP-51 follow set, emoji set, and follow-pack kinds. */
 const ARTICLE_KIND = 30023;
 const LIST_KIND = 30000;
+const EMOJI_PACK_KIND = 30030;
 const FOLLOW_PACK_KIND = 39089;
 
-const SEARCH_KINDS = [ARTICLE_KIND, LIST_KIND, FOLLOW_PACK_KIND];
+const SEARCH_KINDS = [ARTICLE_KIND, LIST_KIND, EMOJI_PACK_KIND, FOLLOW_PACK_KIND];
 
 function classify(kind: number): SearchEventKind | null {
   if (kind === ARTICLE_KIND) return 'article';
   if (kind === LIST_KIND) return 'list';
+  if (kind === EMOJI_PACK_KIND) return 'emoji-pack';
   if (kind === FOLLOW_PACK_KIND) return 'follow-pack';
   return null;
 }
@@ -48,7 +50,13 @@ function parseEvent(event: NostrEvent): SearchEventResult | null {
   const dTag = getTag(event, 'd');
   if (!dTag) return null;
 
-  const fallbackTitle = type === 'follow-pack' ? 'Untitled Pack' : type === 'list' ? dTag : 'Untitled';
+  const fallbackTitle = type === 'follow-pack'
+    ? 'Untitled Pack'
+    : type === 'emoji-pack'
+      ? dTag
+      : type === 'list'
+        ? dTag
+        : 'Untitled';
   const title = getTag(event, 'title') || getTag(event, 'name') || fallbackTitle;
   const description = getTag(event, 'summary') || getTag(event, 'description');
   const image = getTag(event, 'image') || getTag(event, 'thumb') || getTag(event, 'banner');
@@ -60,8 +68,9 @@ function parseEvent(event: NostrEvent): SearchEventResult | null {
 }
 
 /**
- * Search for articles (kind 30023), NIP-51 follow sets (kind 30000), and
- * follow packs (kind 39089) by title/name using NIP-50 search.
+ * Search for articles (kind 30023), NIP-51 follow sets (kind 30000), emoji
+ * sets/packs (kind 30030), and follow packs (kind 39089) by title/name using
+ * NIP-50 search.
  *
  * Mirrors {@link useSearchProfiles}: internal 300ms debounce, the same
  * `autocomplete:true` NIP-50 token to prefer name-shaped prefix matching,

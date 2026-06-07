@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users } from 'lucide-react';
+import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -1117,6 +1117,7 @@ const EVENT_TYPE_META: Record<SearchEventResult['type'], { icon: typeof Newspape
   'article': { icon: Newspaper, label: 'Article' },
   'list': { icon: ListIcon, label: 'List' },
   'follow-pack': { icon: Users, label: 'Follow pack' },
+  'emoji-pack': { icon: SmilePlus, label: 'Emoji pack' },
 };
 
 function EventResultItem({
