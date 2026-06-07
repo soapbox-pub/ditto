@@ -2,21 +2,30 @@ import { useSeoMeta } from "@unhead/react";
 import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { Link } from "react-router-dom";
+import { ClientBarChart } from "@/components/ClientBarChart";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useClientCounts } from "@/hooks/useClientCounts";
 import { useMuteList } from "@/hooks/useMuteList";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import {
-  type SortMode,
-  useInfiniteSortedPosts,
-  useTrendingTags,
-} from "@/hooks/useTrending";
+import { type SortMode, useInfiniteSortedPosts } from "@/hooks/useTrending";
 import { isEventMuted } from "@/lib/muteHelpers";
 import { cn } from "@/lib/utils";
+
+const HOUR = 3600;
+const WEEK = 7 * 24 * HOUR;
+
+/** Distinct-author count via the Ditto relay's NIP-50 search extension. */
+const DISTINCT_AUTHOR = "distinct:author";
+
+/** Snap to the start of the hour so the query key is stable across renders. */
+function weekAgoSnapped(): number {
+  const since = Math.floor(Date.now() / 1000) - WEEK;
+  return Math.floor(since / HOUR) * HOUR;
+}
 
 export function TrendsPage() {
   const { config } = useAppContext();
@@ -29,12 +38,13 @@ export function TrendsPage() {
   const [trendSort, setTrendSort] = useState<SortMode>("hot");
 
   const refreshQueryKey = useMemo(
-    () => [['trending-tags'], ['infinite-sorted-posts', trendSort]],
+    () => [['client-counts'], ['infinite-sorted-posts', trendSort]],
     [trendSort],
   );
   const handleRefresh = usePageRefresh(refreshQueryKey);
 
-  const { data: trends, isLoading: trendsLoading } = useTrendingTags(true);
+  const since = useMemo(() => weekAgoSnapped(), []);
+  const clientUsers = useClientCounts({ since, search: DISTINCT_AUTHOR });
   const {
     data: sortedData,
     isPending: sortedPending,
@@ -76,28 +86,15 @@ export function TrendsPage() {
       <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
 
       <PullToRefresh onRefresh={handleRefresh}>
-        {/* Trending Hashtags */}
-        <div className="px-4 pt-4 pb-2">
-          <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
+        {/* Unique Users by Client */}
+        <div className="p-4">
+          <ClientBarChart
+            title="Unique Users by Client"
+            description="Distinct authors per client (last 7 days)"
+            data={clientUsers.data}
+            isLoading={clientUsers.isLoading}
+          />
         </div>
-        {trendsLoading ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TrendSkeleton key={i} />
-            ))}
-          </div>
-        ) : trends && trends.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-2 px-4 pb-4">
-            {trends.tags.slice(0, 5).map((trend, index) => (
-              <TrendItem
-                key={index}
-                trend={{ tag: trend.tag, count: trend.accounts }}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState message="No trending hashtags right now." />
-        )}
 
         {/* Sort sub-tabs */}
         <div className="flex border-b border-border">
@@ -179,22 +176,6 @@ function SortTabButton({
   );
 }
 
-function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
-  return (
-    <Link
-      to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
-    >
-      #{trend.tag}
-      {trend.count > 0 && (
-        <span className="text-xs text-muted-foreground font-normal">
-          {trend.count}
-        </span>
-      )}
-    </Link>
-  );
-}
-
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="py-16 px-8 text-center">
@@ -222,16 +203,6 @@ function PostSkeleton() {
         <Skeleton className="h-4 w-8" />
         <Skeleton className="h-4 w-8" />
       </div>
-    </div>
-  );
-}
-
-function TrendSkeleton() {
-  return (
-    <div className="px-4 py-3.5">
-      <Skeleton className="h-3 w-14 mb-1.5" />
-      <Skeleton className="h-5 w-28 mb-1" />
-      <Skeleton className="h-3 w-16" />
     </div>
   );
 }
