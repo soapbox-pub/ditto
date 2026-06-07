@@ -23,6 +23,14 @@ import { publishedAtAction } from '@/lib/publishedAtAction';
 type Tab = 'feed' | 'comments';
 
 /**
+ * True if `event` carries a NIP-89 `client` tag whose handler-event-identifier
+ * (the tag's 3rd value, format `"31990:<pubkey>:<d>"`) matches `addr`.
+ */
+function hasMatchingClientTag(event: NostrEvent, addr: string): boolean {
+  return event.tags.some(([name, , identifier]) => name === 'client' && identifier === addr);
+}
+
+/**
  * Detail page for a kind 31990 NIP-89 application handler (naddr).
  *
  * Shows the app showcase card on top, then a tabbed UI:
@@ -110,6 +118,10 @@ function AppHandlerFeedTab({ addr }: { addr: string }) {
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (seen.has(key)) return false;
         seen.add(key);
+        // The relay `search` is best-effort, so confirm client-side that the
+        // event actually carries a NIP-89 `client` tag pointing at this handler
+        // (the handler-event-identifier sits in the tag's 3rd position).
+        if (!hasMatchingClientTag(item.event, addr)) return false;
         if (shouldHideFeedEvent(item.event)) return false;
         if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
         // Hide replies — show top-level posts only.
@@ -118,7 +130,7 @@ function AppHandlerFeedTab({ addr }: { addr: string }) {
         }
         return true;
       });
-  }, [data?.pages, muteItems]);
+  }, [data?.pages, muteItems, addr]);
 
   if (isLoading && feedItems.length === 0) {
     return <FeedSkeleton />;
