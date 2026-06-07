@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 
 import { AppHandlerContent } from '@/components/AppHandlerContent';
-import { ComposeBox } from '@/components/ComposeBox';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { EventActionHeader } from '@/components/NoteCard';
 import { NoteCard } from '@/components/NoteCard';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -68,6 +68,7 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
         <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
       </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       <div className="pb-16 sidebar:pb-0">
         {activeTab === 'feed' ? (
@@ -213,7 +214,6 @@ function AppHandlerCommentsTab({ event }: { event: NostrEvent }) {
 
   return (
     <div>
-      <ComposeBox compact replyTo={event} />
       {isLoading ? (
         <CommentsSkeleton />
       ) : orderedReplies.length > 0 ? (
