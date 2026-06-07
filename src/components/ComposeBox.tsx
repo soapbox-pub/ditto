@@ -615,12 +615,16 @@ export function ComposeBox({
         if (urlTag) urlTag[1] = url;
       }
 
-      // Compute dim + blurhash and inject into NIP-94 tags
+      // Compute dim + blurhash and inject into NIP-94 tags.
+      // Skip any the server already provided (Nostrify passes "dim" through).
       if (!isXdc && isImage) {
+        const hasTag = (name: string) => tags.some((t) => t[0] === name);
         // Use dimensions from resizeImage; compute blurhash from the resized file
-        if (resizedDim) tags.push(['dim', resizedDim]);
-        const { blurhash } = await getImageMeta(uploadableFile);
-        if (blurhash) tags.push(['blurhash', blurhash]);
+        if (resizedDim && !hasTag('dim')) tags.push(['dim', resizedDim]);
+        if (!hasTag('blurhash')) {
+          const { blurhash } = await getImageMeta(uploadableFile);
+          if (blurhash) tags.push(['blurhash', blurhash]);
+        }
       }
 
       // Store the full NIP-94 tags for later use in imeta
