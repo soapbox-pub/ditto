@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { isRepostKind } from '@/lib/feedUtils';
+import { isReactionKind, isRepostKind } from '@/lib/feedUtils';
 
 /** Feed of posts published by a given client application (NIP-89 `client` tag). */
 export function ClientFeedPage() {
@@ -17,8 +17,11 @@ export function ClientFeedPage() {
 
   const clientName = (name ?? '').trim();
 
+  // Reposts (kind 6/16) and reactions (kind 7) directly reference another
+  // event, which may have been published with a different client, so they
+  // don't belong on a client-specific feed.
   const kinds = useMemo(
-    () => getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k)),
+    () => getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k) && !isReactionKind(k)),
     [feedSettings],
   );
 
