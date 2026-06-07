@@ -63,7 +63,7 @@ export function ClientMetrics({ clientName }: ClientMetricsProps) {
                 <Info className="size-4" />
               </PopoverTrigger>
               <PopoverContent align="end" className="w-72 text-sm text-muted-foreground">
-                Count of distinct users in the past 30 days.
+                Count of distinct users who posted events in the past 30 days.
               </PopoverContent>
             </Popover>
           </div>
