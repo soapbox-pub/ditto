@@ -1,11 +1,13 @@
+import { Info } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClientMetrics } from '@/hooks/useClientMetrics';
 
@@ -28,9 +30,9 @@ const chartConfig: ChartConfig = {
 };
 
 /**
- * Usage metrics for a single client: Monthly Active Users and a 30-day
- * time-series of Unique Users. Data comes from NIP-45 COUNT queries against
- * the Ditto relay (see `useClientMetrics`).
+ * Usage metrics for a single client: Monthly Active Users headline plus a
+ * 30-day time-series of active users. Data comes from NIP-45 COUNT queries
+ * against the Ditto relay (see `useClientMetrics`).
  *
  * Renders nothing if the relay can't provide the metrics, so the underlying
  * feed remains the focus when stats are unavailable.
@@ -41,28 +43,30 @@ export function ClientMetrics({ clientName }: ClientMetricsProps) {
   if (isError) return null;
 
   return (
-    <div className="grid gap-4 px-4 pb-2 md:grid-cols-3">
-      {/* MAU */}
-      <Card className="md:col-span-1">
-        <CardContent className="flex h-full flex-col justify-center p-6">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">MAU</p>
-            {isLoading || !data ? (
-              <Skeleton className="h-9 w-24" />
-            ) : (
-              <p className="text-3xl font-bold tracking-tight">
-                {formatNumber(data.mau)}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">Last 30 days</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Active users time series */}
-      <Card className="md:col-span-2">
+    <div className="px-4 pb-2">
+      <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+          <div className="flex items-start justify-between gap-2">
+            {isLoading || !data ? (
+              <Skeleton className="h-8 w-48" />
+            ) : (
+              <h2 className="text-2xl font-bold tracking-tight">
+                {formatNumber(data.mau)}{' '}
+                <span className="text-muted-foreground font-medium">Active Users</span>
+              </h2>
+            )}
+            <Popover>
+              <PopoverTrigger
+                className="shrink-0 -mr-1 -mt-1 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="About this metric"
+              >
+                <Info className="size-4" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 text-sm text-muted-foreground">
+                Count of distinct users in the past 30 days.
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading || !data ? (
