@@ -10,6 +10,7 @@
 
 import type { ThemeFont } from '@/themes';
 import { findBundledFont, loadBundledFont, resolveCssFamily } from '@/lib/fonts';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // ─── CSS string sanitisation ──────────────────────────────────────────
 
@@ -40,6 +41,13 @@ const injectedUrls = new Set<string>();
 function injectFontFace(family: string, url: string): void {
   if (injectedUrls.has(url)) return;
 
+  // The URL is event-sourced (themes come from other users' Nostr events).
+  // Sanitize it to a well-formed https: href before interpolating into CSS —
+  // otherwise an embedded `"` could break out of the `url("...")` string and
+  // inject arbitrary CSS rules.
+  const safeUrl = sanitizeUrl(url);
+  if (!safeUrl) return;
+
   let style = document.getElementById(FONT_FACE_STYLE_ID) as HTMLStyleElement | null;
   if (!style) {
     style = document.createElement('style');
@@ -51,7 +59,7 @@ function injectFontFace(family: string, url: string): void {
   const rule = `
 @font-face {
   font-family: "${safeFamily}";
-  src: url("${url}");
+  src: url("${safeUrl}");
   font-display: swap;
 }`;
 
