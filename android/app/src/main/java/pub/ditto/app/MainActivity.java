@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.RouteProcessorInstaller;
 
 public class MainActivity extends BridgeActivity {
 
@@ -21,6 +22,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(DittoNotificationPlugin.class);
 
         super.onCreate(savedInstanceState);
+
+        // Route SPA paths (e.g. /alex@gleasonator.com) back to index.html. Without
+        // this, Capacitor treats any path with a dotted final segment as a static
+        // file request and the WebView fails with net::ERR_INVALID_RESPONSE instead
+        // of letting React Router render the page.
+        RouteProcessorInstaller.install(getBridge(), new SpaRouteProcessor(this));
 
         // Only start the foreground service if the user has opted into
         // "persistent" notification style. Default is "push" (no service).
