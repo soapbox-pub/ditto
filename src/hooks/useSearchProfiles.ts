@@ -72,9 +72,13 @@ export function useSearchProfiles(query: string) {
     queryFn: async ({ signal }) => {
       if (!debouncedQuery.trim()) return [];
 
-      // NIP-50 profile search (uses pool, reuses existing connections)
+      // NIP-50 profile search (uses pool, reuses existing connections).
+      // `autocomplete:true` asks relays to match the query as a prefix against
+      // short, name-shaped fields (name/display_name/nip05) instead of full-text
+      // content — exactly what a typeahead dropdown wants. Relays that don't
+      // support the extension simply ignore the token.
       const events = await nostr.query(
-        [{ kinds: [0], search: debouncedQuery.trim(), limit: 10 }],
+        [{ kinds: [0], search: `${debouncedQuery.trim()} autocomplete:true`, limit: 10 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 

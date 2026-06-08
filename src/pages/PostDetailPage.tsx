@@ -20,7 +20,6 @@ import {
   Stars,
   Zap,
 } from "lucide-react";
-import { nip19 } from "nostr-tools";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
@@ -100,6 +99,7 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
+import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
@@ -382,6 +382,15 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
           onEventFound={setRetryEvent}
         />
       </PostDetailShell>
+    );
+  }
+
+  // App handlers (kind 31990, NIP-89) get a tabbed Feed / Comments view
+  if (resolvedEvent.kind === 31990) {
+    return (
+      <MutedContentGuard event={resolvedEvent}>
+        <AppHandlerDetailPage event={resolvedEvent} />
+      </MutedContentGuard>
     );
   }
 
@@ -1474,24 +1483,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Extract client from tags
   const clientTag = event.tags.find(([name]) => name === "client");
 
-  // Parse NIP-89 client tag: ["client", name, "kind:pubkey:d-tag", relayHint?]
-  const clientNaddr = (() => {
-    const addr = clientTag?.[2];
-    if (!addr) return null;
-    const parts = addr.split(":");
-    if (parts.length < 3) return null;
-    const [kindStr, pubkey, ...rest] = parts;
-    const kind = parseInt(kindStr, 10);
-    if (isNaN(kind) || !pubkey) return null;
-    const identifier = rest.join(":");
-    const relays = clientTag?.[3] ? [clientTag[3]] : undefined;
-    try {
-      return nip19.naddrEncode({ kind, pubkey, identifier, relays });
-    } catch {
-      return null;
-    }
-  })();
-
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
     setInteractionsOpen(true);
@@ -1510,7 +1501,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Shared stats + date row used by the main post layout and the activity-style
   // detail cards (reactions, reposts, zaps, poll votes). Captures closures over
   // `stats`, `quoteCount`, `topEmojis`, `openInteractions`, `clientTag`,
-  // `clientNaddr`, and `event` so it can be dropped into any branch.
+  // and `event` so it can be dropped into any branch.
   const statsAndDateRow = hasStats ? (
     <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
       {stats?.reposts ? (
@@ -1572,17 +1563,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       <span className="ml-auto shrink-0 flex items-center gap-1.5">
         {clientTag?.[1] && (
           <>
-            {clientNaddr ? (
-              <Link
-                to={`/${clientNaddr}`}
-                className="hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {clientTag[1]}
-              </Link>
-            ) : (
-              <span>{clientTag[1]}</span>
-            )}
+            <Link
+              to={`/client/${encodeURIComponent(clientTag[1])}`}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {clientTag[1]}
+            </Link>
             <span>·</span>
           </>
         )}
@@ -1593,17 +1580,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
       {clientTag?.[1] && (
         <>
-          {clientNaddr ? (
-            <Link
-              to={`/${clientNaddr}`}
-              className="hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {clientTag[1]}
-            </Link>
-          ) : (
-            <span>{clientTag[1]}</span>
-          )}
+          <Link
+            to={`/client/${encodeURIComponent(clientTag[1])}`}
+            className="hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {clientTag[1]}
+          </Link>
           <span>·</span>
         </>
       )}

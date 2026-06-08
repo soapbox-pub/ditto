@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.18.4",
+  "version": "2.21.0",
   "type": "module",
   "scripts": {
     "dev": "npm i --silent && vite",
@@ -67,8 +67,8 @@
     "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
-    "@nostrify/nostrify": "^0.52.2",
-    "@nostrify/react": "^0.6.2",
+    "@nostrify/nostrify": "^0.53.0",
+    "@nostrify/react": "^0.6.3",
     "@nostrify/types": "^0.37.0",
     "@plausible-analytics/tracker": "^0.4.4",
     "@radix-ui/react-accordion": "^1.2.0",
@@ -176,7 +176,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^8.0.3",
-    "vitest": "^3.1.4"
+    "vitest": "^4.1.8"
   },
   "overrides": {
     "react": "$react",

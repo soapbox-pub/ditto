@@ -1,8 +1,11 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getProfileCached, setProfileCached } from '@/lib/profileCache';
+import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
+import { useEventStore } from '@/hooks/useEventStore';
+
+export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
 
 /** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
 export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
@@ -14,24 +17,29 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
   }
 }
 
-/** Entries older than this are not trusted at all — show a skeleton instead. */
-const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
-
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
+  const eventStore = useEventStore();
 
-  // Read cache synchronously so TanStack Query can skip the pending state.
-  const cached = pubkey ? getProfileCached(pubkey) : undefined;
+  // Seed the query from the local event store so a known profile renders
+  // immediately, without waiting on the network. The network query below
+  // stays authoritative and overwrites this when it resolves.
+  useCacheFirstSeed<AuthorResult>({
+    queryKey: pubkey ? ['author', pubkey] : undefined,
+    filter: { kinds: [0], authors: pubkey ? [pubkey] : [] },
+    toData: parseAuthorEvent,
+    getEvent: (data) => data.event,
+  });
 
-  // Discard entries that are too old to trust.
-  const usableCache = cached && (Date.now() - cached.lastFetched < MAX_CACHE_AGE) ? cached : undefined;
-
-  return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
+  return useQuery<AuthorResult>({
     queryKey: ['author', pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!pubkey) {
         return {};
       }
+
+      const store = await eventStore;
 
       const [event] = await nostr.query(
         [{ kinds: [0], authors: [pubkey], limit: 1 }],
@@ -41,42 +49,27 @@ export function useAuthor(pubkey: string | undefined) {
       if (!event) {
         // Relay returned nothing — a kind-0 miss is almost always transient
         // (the relay didn't have it, or the query timed out). Never discard a
-        // profile we already have: returning {} here would overwrite the data
-        // seeded from the IndexedDB cache, blanking out names/avatars that were
-        // already on screen ("profile flashes then disappears"). Re-read the
-        // cache inside the queryFn so we pick up the freshest entry (e.g. one a
-        // feed query seeded via setProfileCached after this hook first ran).
-        const fallback = getProfileCached(pubkey);
-        if (fallback) {
-          return { event: fallback.event, metadata: fallback.metadata };
+        // profile we already have: fall back to the locally cached event so a
+        // name/avatar already on screen doesn't blank out.
+        const existing = queryClient.getQueryData<AuthorResult>(['author', pubkey]);
+        if (existing?.event) {
+          return existing;
+        }
+        const [cached] = await store.query([{ kinds: [0], authors: [pubkey] }]);
+        if (cached) {
+          return parseAuthorEvent(cached);
         }
         return {};
       }
 
-      const parsed = parseAuthorEvent(event);
+      // Persist the fresh event to the local store (fire-and-forget).
+      void store.event(event);
 
-      // Persist to IndexedDB with pre-parsed metadata (fire-and-forget).
-      void setProfileCached(event, parsed.metadata);
-
-      return parsed;
+      return parseAuthorEvent(event);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,   // 5 minutes
     gcTime: 10 * 60 * 1000,     // 10 minutes
     retry: 1,
-
-    // Seed from IndexedDB cache so the first render already has data.
-    // Uses the pre-parsed metadata from the cache to avoid re-running
-    // Zod validation on every render.
-    // TanStack Query compares initialDataUpdatedAt against staleTime:
-    //   - < 5 min old → fresh, no network request
-    //   - 5 min – 7 d → renders cached value, background refetch
-    //   - > 7 d       → usableCache is undefined, normal pending/skeleton
-    ...(usableCache
-      ? {
-        initialData: { event: usableCache.event, metadata: usableCache.metadata },
-        initialDataUpdatedAt: usableCache.lastFetched,
-      }
-      : {}),
   });
 }

@@ -1,5 +1,5 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/types';
-import type { NPool } from '@nostrify/nostrify';
+import type { NPool, NStore } from '@nostrify/nostrify';
 
 /** Maximum number of items per batch to avoid hitting relay filter limits. */
 const MAX_BATCH_SIZE = 50;
@@ -437,7 +437,16 @@ export class NostrBatcher {
   /** Keyed by serialized filter shapes for multi-filter #e/#q batching. */
   private multiFilterCollectors = new Map<string, BatchCollector<NostrEvent[]>>();
 
-  constructor(private pool: NPool) {
+  /**
+   * Optional local cache. Every event that flows out of `.query()` / `.req()`
+   * is written here so the rest of the app can read it back cache-first. The
+   * store is a promise because IndexedDB opens asynchronously; we never block
+   * a relay read on it.
+   */
+  private store?: Promise<NStore>;
+
+  constructor(private pool: NPool, store?: Promise<NStore>) {
+    this.store = store;
     this.replaceableCollector = new ReplaceableCollector(pool);
     this.eventCollector = new BatchCollector((ids, signal) =>
       this.executeEventBatch(ids, signal),
@@ -445,10 +454,41 @@ export class NostrBatcher {
   }
 
   /**
+   * Persist events to the local cache (fire-and-forget). Called for every
+   * event that flows out of `.query()` and `.req()`, so the cache mirrors
+   * whatever the relays return without any caller having to opt in.
+   *
+   * Failures are swallowed: the cache is a best-effort mirror, never on the
+   * critical path of a relay read.
+   */
+  private cacheEvents(events: NostrEvent[]): void {
+    if (!this.store || events.length === 0) return;
+    void this.store
+      .then((store) => Promise.all(events.map((event) => store.event(event))))
+      .catch(() => {
+        // Best-effort cache; ignore write failures.
+      });
+  }
+
+  /**
    * Proxy for `pool.query()`. Detects batchable filter patterns and
-   * combines them; everything else passes through directly.
+   * combines them; everything else passes through directly. Every event
+   * returned (batched or not) is mirrored into the local cache.
    */
   async query(
+    filters: NostrFilter[],
+    opts?: { signal?: AbortSignal },
+  ): Promise<NostrEvent[]> {
+    const events = await this.queryInner(filters, opts);
+    this.cacheEvents(events);
+    return events;
+  }
+
+  /**
+   * The actual query logic. Detects batchable filter patterns and combines
+   * them; everything else passes through directly to the pool.
+   */
+  private async queryInner(
     filters: NostrFilter[],
     opts?: { signal?: AbortSignal },
   ): Promise<NostrEvent[]> {
@@ -568,7 +608,18 @@ export class NostrBatcher {
     filters: NostrFilter[],
     opts?: { signal?: AbortSignal },
   ): AsyncIterable<import('@nostrify/types').NostrRelayEVENT | import('@nostrify/types').NostrRelayEOSE | import('@nostrify/types').NostrRelayCLOSED> {
-    return this.pool.req(filters, opts);
+    const source = this.pool.req(filters, opts);
+    const cacheEvents = this.cacheEvents.bind(this);
+    // Wrap the stream so each EVENT message is mirrored into the cache as it
+    // streams past, without altering what the consumer sees.
+    return (async function* () {
+      for await (const msg of source) {
+        if (msg[0] === 'EVENT') {
+          cacheEvents([msg[2]]);
+        }
+        yield msg;
+      }
+    })();
   }
 
   relay(url: string) {

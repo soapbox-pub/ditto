@@ -52,6 +52,36 @@
 
         </activity>
 
+        <!-- Share target: "View in Ditto" — comment on a shared link (NIP-22).
+             Launches MainActivity, which forwards the shared text to
+             /share?mode=view so the web app can extract the URL and open the
+             external-content comment page (/i/<url>). -->
+        <activity-alias
+            android:name=".ShareViewAlias"
+            android:targetActivity=".MainActivity"
+            android:label="View in Ditto"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Share target: "Post on Ditto" — create a new note prefilled with
+             the shared text. Forwards to /share?mode=post. -->
+        <activity-alias
+            android:name=".SharePostAlias"
+            android:targetActivity=".MainActivity"
+            android:label="Post on Ditto"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
         <service
             android:name=".NotificationRelayService"
             android:exported="false"

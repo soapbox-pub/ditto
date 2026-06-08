@@ -12,17 +12,19 @@ import { getStorageKey } from '@/lib/storageKey';
  *
  * @param feedId  Unique identifier for this feed page.
  * @param validTabs  Optional list of valid tab values for validation. If omitted, any stored value is accepted.
+ * @param defaultTabOverride  Optional default tab to use when nothing is persisted (overrides the follows/ditto default).
  */
 export function useFeedTab<T extends string = string>(
   feedId: string,
   validTabs?: readonly T[],
+  defaultTabOverride?: T,
 ): [T, (tab: T) => void] {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const key = getStorageKey(config.appId, `feed-tab:${feedId}`);
 
   const [activeTab, setActiveTab] = useState<T>(() => {
-    const defaultTab = (user ? 'follows' : 'ditto') as T;
+    const defaultTab = (defaultTabOverride ?? (user ? 'follows' : 'ditto')) as T;
     try {
       const stored = sessionStorage.getItem(key);
       if (stored) {

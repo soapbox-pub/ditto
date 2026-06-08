@@ -41,6 +41,7 @@ const BlueskyPage = lazy(() => import("./pages/BlueskyPage").then(m => ({ defaul
 const BookmarksPage = lazy(() => import("./pages/BookmarksPage").then(m => ({ default: m.BookmarksPage })));
 const BooksPage = lazy(() => import("./pages/BooksPage").then(m => ({ default: m.BooksPage })));
 const ChangelogPage = lazy(() => import("./pages/ChangelogPage").then(m => ({ default: m.ChangelogPage })));
+const ClientFeedPage = lazy(() => import("./pages/ClientFeedPage").then(m => ({ default: m.ClientFeedPage })));
 const ContentPage = lazy(() => import("./pages/ContentPage").then(m => ({ default: m.ContentPage })));
 const ContentSettingsPage = lazy(() => import("./pages/ContentSettingsPage").then(m => ({ default: m.ContentSettingsPage })));
 const CSAEPolicyPage = lazy(() => import("./pages/CSAEPolicyPage").then(m => ({ default: m.CSAEPolicyPage })));
@@ -67,6 +68,7 @@ const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => (
 const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
@@ -167,6 +169,7 @@ export function AppRouter() {
              <Route path="/t/:tag" element={<HashtagPage />} />
              <Route path="/g/:geohash" element={<GeotagPage />} />
             <Route path="/feed/:domain" element={<DomainFeedPage />} />
+            <Route path="/client/:name" element={<ClientFeedPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/profile" element={<ProfileSettings />} />
             <Route path="/settings/feed" element={<ContentSettingsPage />} />
@@ -290,6 +293,10 @@ export function AppRouter() {
               element={<Navigate to="/lists" replace />}
             />
             <Route path="/i/*" element={<ExternalContentPage />} />
+
+            {/* Landing route for content shared into Ditto from another app's
+                Share button (Android share targets). */}
+            <Route path="/share" element={<SharePage />} />
 
             {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
             <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />

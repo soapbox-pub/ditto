@@ -3,10 +3,10 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { useAppContext } from './useAppContext';
+import { useEventStore } from './useEventStore';
+import { useCacheFirstSeed } from './useCacheFirstSeed';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import { isNostrId } from '@/lib/nostrId';
-import { getStorageKey } from '@/lib/storageKey';
+import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 // ---------------------------------------------------------------------------
@@ -20,64 +20,41 @@ export interface FollowListData {
   pubkeys: string[];
 }
 
-/** Read cached follow pubkeys from localStorage for a given user. */
-function getCachedFollowList(cacheKey: string, pubkey: string): FollowListData | undefined {
-  try {
-    const raw = localStorage.getItem(cacheKey);
-    if (!raw) return undefined;
-    const cached = JSON.parse(raw);
-    // Only use cache if it belongs to the same user
-    if (cached.pubkey !== pubkey || !Array.isArray(cached.pubkeys)) return undefined;
-    return { event: null, pubkeys: cached.pubkeys };
-  } catch {
-    return undefined;
-  }
-}
-
-/** Persist follow pubkeys to localStorage. */
-function setCachedFollowList(cacheKey: string, pubkey: string, pubkeys: string[]): void {
-  try {
-    localStorage.setItem(cacheKey, JSON.stringify({ pubkey, pubkeys }));
-  } catch {
-    // Storage full or unavailable — non-critical
-  }
-}
-
 /**
  * Cached hook to read the logged-in user's follow list.
  * Use this for **display only** (e.g. checking "is this person followed?").
  * For mutations, `useFollowActions` fetches fresh data before writing.
  *
- * Uses localStorage as a placeholder so the feed query can fire immediately
- * on returning visits without waiting for the relay round-trip.
+ * Reads via `fetchContactList`, which queries relays then falls back to the
+ * IndexedDB event store on a relay miss so an existing follow list isn't
+ * blanked out by a transient empty response.
  */
 export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
-  const cacheKey = getStorageKey(config.appId, 'followListCache');
+  const eventStore = useEventStore();
+
+  // Seed from the locally cached kind 3 so the follow list (and therefore the
+  // home/follows feed, which gates on it) is available on first render without
+  // waiting for the relay round-trip. The network query below stays
+  // authoritative and overwrites this once it resolves.
+  useCacheFirstSeed<FollowListData>({
+    queryKey: user ? ['follow-list', user.pubkey] : undefined,
+    filter: { kinds: [3], authors: user ? [user.pubkey] : [] },
+    toData: (event) => ({ event, pubkeys: contactListPubkeys(event) }),
+    getEvent: (data) => data.event ?? undefined,
+  });
 
   return useQuery<FollowListData>({
     queryKey: ['follow-list', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user) return { event: null, pubkeys: [] };
-      const [event] = await nostr.query(
-        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-      if (!event) return { event: null, pubkeys: [] };
-      // Drop malformed `p` tag pubkeys — anything but valid hex would crash
-      // nip19 encoders in the consumer UI (avatar stacks, follow lists).
-      const pubkeys = event.tags
-        .filter(([name]) => name === 'p')
-        .map(([, pk]) => pk)
-        .filter(isNostrId);
-      setCachedFollowList(cacheKey, user.pubkey, pubkeys);
-      return { event, pubkeys };
+      const store = await eventStore;
+      const event = await fetchContactList(nostr, store, user.pubkey, { signal, timeout: 5000 });
+      return { event, pubkeys: contactListPubkeys(event) };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
-    placeholderData: user ? getCachedFollowList(cacheKey, user.pubkey) : undefined,
   });
 }
 
@@ -114,6 +91,7 @@ export function useFollowActions(): UseFollowActionsReturn {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const eventStore = useEventStore();
 
   const [isPending, setIsPending] = useState(false);
 
@@ -123,8 +101,10 @@ export function useFollowActions(): UseFollowActionsReturn {
       setIsPending(true);
 
       try {
-        // ① Fetch the freshest kind 3 event via pool
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+        // ① Fetch the freshest kind 3 event via pool, falling back to the
+        // locally cached copy so a relay miss can't wipe the follow list.
+        const store = await eventStore;
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate tags into `p` tags (follow entries) and everything else
         const existingTags = prev?.tags ?? [];
@@ -161,7 +141,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient],
+    [nostr, user, publishEvent, queryClient, eventStore],
   );
 
   const follow = useCallback(
@@ -180,8 +160,10 @@ export function useFollowActions(): UseFollowActionsReturn {
       setIsPending(true);
 
       try {
-        // ① Fetch the freshest kind 3 event via pool
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+        // ① Fetch the freshest kind 3 event via pool, falling back to the
+        // locally cached copy so a relay miss can't wipe the follow list.
+        const store = await eventStore;
+        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate p-tags from everything else (preserve relay hints, petnames, etc.)
         const existingTags = prev?.tags ?? [];
@@ -217,7 +199,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient],
+    [nostr, user, publishEvent, queryClient, eventStore],
   );
 
   return { isPending, follow, unfollow, followMany };

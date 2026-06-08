@@ -14,6 +14,8 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
+import { useFollowList } from '@/hooks/useFollowActions';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { getStorageKey } from '@/lib/storageKey';
@@ -54,9 +56,14 @@ interface FeedProps {
   emptyMessage?: string;
   /** Unique identifier for this feed page, used to persist the active tab in sessionStorage. Defaults to 'home'. */
   feedId?: string;
+  /**
+   * On kind/tag-specific pages, default to the Global tab (labeled "All") and
+   * render it before Follows. Used by the client feed page.
+   */
+  globalFirst?: boolean;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home' }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { muteItems } = useMuteList();
@@ -64,6 +71,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
+  const { data: followData } = useFollowList();
+  const isOnline = useIsOnline();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -94,7 +103,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return 'Community';
   })();
 
-  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId);
+  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId, undefined, globalFirst ? 'global' : undefined);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
@@ -105,6 +114,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     if (!kinds) return rawActiveTab; // Home feed: no clamping
     if (rawActiveTab === 'global') return 'global';
     if (rawActiveTab === 'follows' && user) return 'follows';
+    // `globalFirst` pages default to Global even when logged in.
+    if (globalFirst) return 'global';
     return user ? 'follows' : 'global';
   })();
 
@@ -161,6 +172,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     isPending,
     isLoading,
     isFetching,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -237,6 +249,54 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const isKindSpecificPage = !!kinds;
   const showSavedFeedTabs = user && !isKindSpecificPage && !tagFilters;
 
+  // Distinguish the empty-state cases so the message + CTAs match the cause:
+  //   - Follows tab with zero follows → "follow some people" (no retry).
+  //   - Otherwise (follows-but-empty, global miss, or query error) → "couldn't
+  //     find posts" with a Try again button, plus an offline hint when the
+  //     device reports it's offline.
+  const followsEmpty = activeTab === 'follows' && followData?.pubkeys.length === 0;
+  const emptyProps = (() => {
+    // Caller-provided message (kind-specific pages) wins; keep it verbatim but
+    // still offer a retry so a transient miss is recoverable.
+    if (emptyMessage) {
+      return {
+        message: emptyMessage,
+        onRetry: handleRefresh,
+        isRetrying: isFetching,
+        isOffline: !isOnline,
+      };
+    }
+
+    if (followsEmpty) {
+      return {
+        message: 'Your feed is empty. Follow some people to see their posts here.',
+        showDiscover: true,
+        onSwitchToGlobal: showGlobalFeed ? () => handleSetActiveTab('global') : undefined,
+      };
+    }
+
+    const isFollows = activeTab === 'follows';
+    const baseMessage = !isOnline
+      ? isFollows
+        ? "We couldn't load posts from people you follow."
+        : "We couldn't load the feed."
+      : isError
+        ? isFollows
+          ? "Something went wrong loading posts from people you follow."
+          : 'Something went wrong loading the feed.'
+        : isFollows
+          ? "We couldn't find any recent posts from people you follow."
+          : 'No posts found. Check your relay connections or come back soon.';
+
+    return {
+      message: baseMessage,
+      onRetry: handleRefresh,
+      isRetrying: isFetching,
+      isOffline: !isOnline,
+      onSwitchToGlobal: isFollows && showGlobalFeed ? () => handleSetActiveTab('global') : undefined,
+    };
+  })();
+
   return (
     <main className="flex-1 min-w-0 min-h-dvh">
       {/* CTA (logged out, main feed only) */}
@@ -254,6 +314,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) */}
       {user && (
         <SubHeaderBar>
+          {globalFirst && (
+            <TabButton label="All" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+          )}
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
             <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
@@ -261,7 +324,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
-          {(isKindSpecificPage || showGlobalFeed) && (
+          {!globalFirst && (isKindSpecificPage || showGlobalFeed) && (
             <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
@@ -336,21 +399,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               ))}
             </div>
           ) : (
-            <FeedEmptyState
-              message={
-                emptyMessage ?? (
-                  activeTab === 'follows'
-                    ? 'Your feed is empty. Follow some people to see their posts here.'
-                    : 'No posts found. Check your relay connections or come back soon.'
-                )
-              }
-              showDiscover={!emptyMessage && activeTab === 'follows'}
-              onSwitchToGlobal={
-                activeTab === 'follows' && showGlobalFeed
-                  ? () => handleSetActiveTab('global')
-                  : undefined
-              }
-            />
+            <FeedEmptyState {...emptyProps} />
           )}
         </PullToRefresh>
       )}

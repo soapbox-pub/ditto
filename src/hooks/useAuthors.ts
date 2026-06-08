@@ -1,8 +1,9 @@
 import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
-import { setProfileCached } from '@/lib/profileCache';
+import { useEventStore } from '@/hooks/useEventStore';
 
 export interface AuthorData {
   pubkey: string;
@@ -23,10 +24,55 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
+  const eventStore = useEventStore();
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
   const pubkeysKey = uniquePubkeys.join(',');
+
+  // Seed from the local event store so known profiles render immediately,
+  // without waiting on the network. Runs in parallel with the query below;
+  // the network result (when it arrives) overwrites the Map authoritatively.
+  useEffect(() => {
+    if (uniquePubkeys.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const store = await eventStore;
+      const cachedEvents = await store.query([{ kinds: [0], authors: uniquePubkeys }]);
+      if (cancelled || cachedEvents.length === 0) {
+        return;
+      }
+
+      for (const event of cachedEvents) {
+        const current = queryClient.getQueryData<AuthorData>(['author', event.pubkey]);
+        if (current?.event && current.event.created_at >= event.created_at) {
+          continue;
+        }
+        queryClient.setQueryData(['author', event.pubkey], parseAuthorEvent(event));
+      }
+
+      // Seed/merge the batched Map result too.
+      queryClient.setQueryData<Map<string, AuthorData>>(['authors', pubkeysKey], (prev) => {
+        const next = new Map<string, AuthorData>(prev ?? uniquePubkeys.map((pubkey) => [pubkey, { pubkey }]));
+        for (const event of cachedEvents) {
+          const existing = next.get(event.pubkey);
+          if (existing?.event && existing.event.created_at >= event.created_at) {
+            continue;
+          }
+          next.set(event.pubkey, { pubkey: event.pubkey, ...parseAuthorEvent(event) });
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pubkeysKey, uniquePubkeys, eventStore, queryClient]);
 
   return useQuery<Map<string, AuthorData>>({
     queryKey: ['authors', pubkeysKey],
@@ -42,6 +88,8 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(pubkey, { pubkey });
       }
 
+      const store = await eventStore;
+
       // Query all profiles. The NostrBatcher proxy will automatically
       // combine this with any other concurrent kind:0 queries.
       const events = await nostr.query(
@@ -54,8 +102,20 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
-        // Persist to IndexedDB with pre-parsed metadata (fire-and-forget)
-        void setProfileCached(event, parsed.metadata);
+        // Persist to IndexedDB (fire-and-forget)
+        void store.event(event);
+      }
+
+      // For any pubkey the relay didn't return, keep a cached profile we
+      // already have rather than blanking it out.
+      for (const pubkey of uniquePubkeys) {
+        if (authorMap.get(pubkey)?.event) {
+          continue;
+        }
+        const [cached] = await store.query([{ kinds: [0], authors: [pubkey] }]);
+        if (cached) {
+          authorMap.set(pubkey, { pubkey, ...parseAuthorEvent(cached) });
+        }
       }
 
       return authorMap;

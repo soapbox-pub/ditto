@@ -6,6 +6,8 @@ import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
+import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
+import { EventStoreContext } from '@/contexts/EventStoreContext';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -18,6 +20,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
+
+  // Open the IndexedDB event store once. It's shared two ways: the batcher
+  // writes every relay result into it (cache-first reads elsewhere), and it's
+  // provided through EventStoreContext so hooks can read it directly. Opening
+  // it here (rather than in a child EventStoreProvider) lets the batcher and
+  // the rest of the app share a single connection.
+  const eventStore = useRef<Promise<NIndexedDBStore> | undefined>(undefined);
+  eventStore.current ??= NIndexedDBStore.open();
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
@@ -143,7 +153,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // All other methods pass through directly to the underlying pool.
   const batcher = useRef<NostrBatcher | undefined>(undefined);
   if (!batcher.current && pool.current) {
-    batcher.current = new NostrBatcher(pool.current);
+    batcher.current = new NostrBatcher(pool.current, eventStore.current);
   }
 
   // Cleanup: Close all relay connections when the provider unmounts
@@ -161,7 +171,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // all the same methods hooks use: query, event, req, relay, group, close.
   return (
     <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
-      {children}
+      <EventStoreContext.Provider value={eventStore.current}>
+        {children}
+      </EventStoreContext.Provider>
     </NostrContext.Provider>
   );
 };

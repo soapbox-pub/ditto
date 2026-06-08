@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.21.0] - 2026-06-07
+
+Share into Ditto from anywhere on Android: hit Share in any app and you can post the text straight to your feed, or jump into the conversation around a link. A new Nostr Clients widget in the sidebar lets you hop between the apps people are posting from, and every client page now shows how many people are active on it with a 30-day usage chart. The Trends page gains a Unique Users by Client chart so you can see which apps the community is posting from at a glance.
+
+### Added
+- Share text or links into Ditto from any Android app -- post it to your feed or join the comments on a shared link
+- New Nostr Clients widget in the sidebar for jumping between the apps people post from
+- Client pages now show active-user counts and a 30-day usage chart
+- New Unique Users by Client chart on the Trends page
+
+### Changed
+- Client feeds now open on the Global tab by default and hide reposts and reactions, so you see original posts made through that app
+
+## [2.20.0] - 2026-06-06
+
+Every Nostr app now has its own page in Ditto -- see what it looks like, browse a live feed of everything posted through it, and join the conversation in a comments tab. Search got smarter too: the search box now turns up articles, lists, follow packs, and emoji packs alongside people. You can copy anyone's npub straight from their profile, and fullscreen videos finally fill the screen without getting cropped.
+
+### Added
+- App pages: every Nostr app now has its own showcase page with a live feed of posts made through it and a comments tab
+- Search now finds articles, lists, follow packs, and emoji packs -- not just people
+- Copy any user's npub directly from their profile with one tap
+
+### Fixed
+- Fullscreen videos now fit the whole screen instead of being cropped
+
+## [2.19.0] - 2026-06-05
+
+Ditto now works offline. Your profile, who you follow, and your feed are saved on your device, so they pop up instantly the next time you open the app -- and stick around even when the network can't be reached. Feeds no longer flash empty while refreshing, and when there's genuinely nothing to show you get a clearer message with a Try again button. Following and unfollowing people is more dependable too.
+
+### Added
+- Ditto saves content on your device, so profiles, your follow list, and your feed load instantly and remain available offline
+- Empty feeds now explain why -- whether you're offline, following no one yet, or just waiting for posts -- with a Try again button to retry
+
+### Changed
+- Feeds stay on screen while refreshing instead of briefly flashing an empty state
+- When sending bitcoin, typing a single clear recipient now creates the chip immediately instead of showing a one-item list, and the on-chain address option appears above the silent-payment option
+
+### Fixed
+- Following or unfollowing someone no longer occasionally wipes your follow list when the network hiccups
+- Your profile and the profiles of others no longer briefly disappear when a relay returns nothing
+
 ## [2.18.4] - 2026-05-31
 
 A maintenance release that makes loading your feed and other content more reliable.

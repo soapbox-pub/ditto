@@ -354,7 +354,13 @@ publish-google-play:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
   script:
-    - gem install fastlane --no-document
+    # representable (loaded by fastlane's Google Play client) does a top-level
+    # `require "multi_json"` but never declares it as a dependency -- it relied
+    # on multi_json being pulled in transitively via the Google API auth stack.
+    # A recent upstream release dropped that path, so unpinned `gem install
+    # fastlane` now crashes `fastlane supply` with Gem::MissingSpecError.
+    # Install multi_json explicitly to restore it.
+    - gem install fastlane multi_json --no-document
 
     # Decode base64-encoded service account JSON to a temp file
     - echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" | base64 -d > /tmp/play-service-account.json

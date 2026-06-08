@@ -1,11 +1,13 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
 // ============================================================================
-// Unified IndexedDB database for Ditto.
+// Shared IndexedDB database for Ditto's small key/value caches.
 //
-// All persistent client-side data lives in a single "ditto" database with
-// one object store per data domain.  Callers should import `openDatabase()`
+// This "ditto" database holds simple per-domain key/value stores (currently
+// just the NIP-05 resolution cache). Callers should import `openDatabase()`
 // rather than managing their own `openDB` calls.
+//
+// Cached Nostr events live in a separate database — see `NIndexedDBStore`.
 //
 // When IndexedDB is unavailable (e.g. iOS Lockdown Mode, certain private-
 // browsing modes) every function in this module still works — callers get
@@ -18,8 +20,6 @@ const DB_VERSION = 1;
 /** Store names — keep in sync with the `upgrade` callback below. */
 export const STORE = {
   NIP05: 'nip05',
-  PROFILES: 'profiles',
-  MESSAGES: 'messages',
 } as const;
 
 let dbPromise: Promise<IDBPDatabase | null> | null = null;
@@ -39,12 +39,6 @@ export function openDatabase(): Promise<IDBPDatabase | null> {
           upgrade(db) {
             if (!db.objectStoreNames.contains(STORE.NIP05)) {
               db.createObjectStore(STORE.NIP05);
-            }
-            if (!db.objectStoreNames.contains(STORE.PROFILES)) {
-              db.createObjectStore(STORE.PROFILES);
-            }
-            if (!db.objectStoreNames.contains(STORE.MESSAGES)) {
-              db.createObjectStore(STORE.MESSAGES);
             }
           },
         });
