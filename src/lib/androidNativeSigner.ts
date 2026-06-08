@@ -2,13 +2,15 @@ import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { getEventHash, verifyEvent } from 'nostr-tools/pure';
 import { NostrSignerPlugin } from 'capacitor-plugin-nostr-signer';
 
+import type { BtcSigner } from '@/lib/bitcoin-signers';
+
 // Modeled on noStrudel's AndroidNativeSigner, adapted to the @nostrify/types
 // NostrSigner shape used by the rest of the ditto signer pipeline.
 //
 // The plugin speaks lowercase hex pubkeys at the boundary, matching the rest
 // of the app. Each crypto call also wants a request id (echoed back so multiple
 // in-flight requests can be matched up); we generate a fresh UUID per call.
-export class AndroidNativeSigner implements NostrSigner {
+export class AndroidNativeSigner implements BtcSigner {
   readonly packageName: string;
 
   // Cached on first getPublicKey() call so we don't re-prompt Amber every
@@ -81,6 +83,21 @@ export class AndroidNativeSigner implements NostrSigner {
       throw new Error('Android signer returned an invalid signature');
     }
     return signed;
+  }
+
+  // Bitcoin PSBT signing — hands the unsigned PSBT to the native signer app
+  // (Amber, etc.) which signs the user's Taproot inputs and returns the
+  // hex-encoded signed PSBT. Like the other crypto calls, this needs a fresh
+  // request id so concurrent requests can be matched up.
+  async signPsbt(psbtHex: string): Promise<string> {
+    const pubkey = await this.getPublicKey();
+    const { result } = await NostrSignerPlugin.signPsbt(
+      this.packageName,
+      psbtHex,
+      crypto.randomUUID(),
+      pubkey,
+    );
+    return result;
   }
 
   private async nip04Encrypt(pubkey: string, plaintext: string): Promise<string> {
