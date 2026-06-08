@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
+import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
@@ -150,6 +151,7 @@ export function AppRouter() {
         <AudioNavigationGuard />
         <DeepLinkHandler />
         <ScrollToTop />
+        <HighlightSelectionButton />
         <BlobbiActionsProvider>
           <Suspense fallback={null}>
             <BlobbiCompanionLayer />

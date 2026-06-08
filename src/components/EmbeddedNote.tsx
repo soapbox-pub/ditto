@@ -53,6 +53,9 @@ interface EmbeddedNoteProps {
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
+  /** When set, this excerpt is wrapped in `<mark>` inside the note's rendered
+   *  content (used to render a NIP-84 highlight as the marked source note). */
+  highlightText?: string;
 }
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
@@ -69,7 +72,7 @@ export function EmbeddedNote(props: EmbeddedNoteProps) {
   );
 }
 
-function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHoverCards }: EmbeddedNoteProps) {
+function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
   const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
 
   if (isLoading) {
@@ -151,7 +154,7 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
-  return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
 }
 
 /** Compact inline card for kind 9802 NIP-84 highlight events. */
@@ -658,10 +661,12 @@ function EmbeddedNoteCard({
   event,
   className,
   disableHoverCards,
+  highlightText,
 }: {
   event: NostrEvent;
   className?: string;
   disableHoverCards?: boolean;
+  highlightText?: string;
 }) {
   const { config } = useAppContext();
 
@@ -781,7 +786,7 @@ function EmbeddedNoteCard({
           This event kind is not supported
         </p>
       ) : (
-        <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} />
+        <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
       )}
 
       {/* Attachment / kind indicator chips + Read more toggle */}
@@ -847,10 +852,11 @@ function EmbeddedNoteCard({
 }
 
 /** Truncated content area with overflow detection. Toggle is rendered externally. */
-function EmbedTruncatedContent({ event, expanded, onOverflowChange }: {
+function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightText }: {
   event: NostrEvent;
   expanded: boolean;
   onOverflowChange: (overflows: boolean) => void;
+  highlightText?: string;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -885,7 +891,7 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange }: {
       className="relative overflow-hidden"
       style={!expanded && overflows ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
     >
-      <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds />
+      <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
       {!expanded && overflows && (
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       )}

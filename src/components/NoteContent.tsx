@@ -24,6 +24,7 @@ import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
+import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -44,6 +45,70 @@ interface NoteContentProps {
   /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
    *  inside an already-block container (e.g. inside a markdown `<p>`). */
   as?: 'div' | 'span';
+  /** When set, occurrences of this substring in plain-text tokens are wrapped
+   *  in `<mark>` (used to highlight a NIP-84 excerpt inside its source note). */
+  highlightText?: string;
+}
+
+/**
+ * Wrap occurrences of `highlight` within `nodes` (the emojified output of a
+ * text token) in `<mark>`. Only matches inside plain string segments —
+ * emoji/image nodes are passed through untouched. Matching tolerates
+ * whitespace differences (runs of whitespace match any whitespace run) so a
+ * highlight captured with normalized whitespace still matches the source's
+ * literal text, including across linebreaks.
+ */
+function markHighlight(nodes: ReactNode[], highlight: string): ReactNode[] {
+  const needle = highlight.replace(/\s+/g, ' ').trim();
+  if (!needle) return nodes;
+
+  // Tolerant pattern: escape each word, join with `\s+` so any whitespace run
+  // (including newlines) between words matches.
+  const pattern = needle
+    .split(' ')
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+  const re = new RegExp(pattern, 'gi');
+
+  const result: ReactNode[] = [];
+  let key = 0;
+
+  for (const node of nodes) {
+    if (typeof node !== 'string') {
+      result.push(node);
+      continue;
+    }
+
+    re.lastIndex = 0;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let matched = false;
+
+    while ((match = re.exec(node)) !== null) {
+      matched = true;
+      if (match.index > lastIndex) result.push(node.slice(lastIndex, match.index));
+      result.push(
+        <mark key={`mark-${key++}`} className="rounded bg-primary/25 text-foreground">
+          {match[0]}
+        </mark>,
+      );
+      lastIndex = match.index + match[0].length;
+      if (match[0].length === 0) re.lastIndex++; // guard against zero-width loops
+    }
+
+    if (!matched) {
+      result.push(node);
+    } else if (lastIndex < node.length) {
+      result.push(node.slice(lastIndex));
+    }
+  }
+
+  return result;
+}
+
+/** Apply {@link markHighlight} only when a highlight string is provided. */
+function maybeMark(nodes: ReactNode[], highlight: string | undefined): ReactNode[] {
+  return highlight ? markHighlight(nodes, highlight) : nodes;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -254,6 +319,7 @@ export function NoteContent({
   disableNoteEmbeds = false,
   disableMediaEmbeds = false,
   as: Wrapper = 'div',
+  highlightText,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -604,11 +670,11 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <Wrapper dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined))}</span>;
+            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
               // In preview contexts (e.g. triple-dot menu), replace image URLs

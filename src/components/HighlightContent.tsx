@@ -100,6 +100,47 @@ export function HighlightContent({ event, expanded = false, className, disableSo
     return { highlight: rawHighlight, context: contextText, source: src };
   }, [event.tags, event.content]);
 
+  // Optional NIP-84 `comment`: the highlighter's own commentary, shown above
+  // the quoted source like the text of a quote post.
+  const comment = event.tags.find(([n]) => n === 'comment')?.[1]?.trim() || undefined;
+
+  // When the source is a regular Nostr event we can render it as a quote card
+  // with the excerpt marked *inside* the original note — one cohesive element,
+  // just like a quote post. Articles (`a`) and URLs (`r`) don't render their
+  // full body in the embed, so they keep the blockquote + "Highlighted from"
+  // layout. The compact `disableSourceEmbed` path (inside other embeds) also
+  // keeps the blockquote.
+  const renderAsQuote = source?.kind === 'event' && !disableSourceEmbed;
+
+  const commentBlock = comment
+    ? (
+      <p
+        dir="auto"
+        className={cn(
+          'whitespace-pre-wrap break-words text-foreground',
+          expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
+        )}
+      >
+        {comment}
+      </p>
+    )
+    : null;
+
+  if (renderAsQuote && source?.kind === 'event') {
+    return (
+      <div className={cn(expanded ? 'mt-3 space-y-3' : 'mt-2 space-y-2.5', className)}>
+        {commentBlock}
+        <EmbeddedNote
+          eventId={source.id}
+          relays={source.relays}
+          authorHint={source.authorHint}
+          highlightText={highlight}
+          className="my-0"
+        />
+      </div>
+    );
+  }
+
   // The blockquote: highlight text with a prominent left accent border.
   // When `context` is present, render the context with the highlighted portion
   // wrapped in a `<mark>` so the reader sees the selection in situ.
@@ -109,6 +150,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
 
   return (
     <div className={cn(expanded ? 'mt-3 space-y-3' : 'mt-2 space-y-2.5', className)}>
+      {commentBlock}
       {quoteBlock}
 
       {/* Source attribution */}
