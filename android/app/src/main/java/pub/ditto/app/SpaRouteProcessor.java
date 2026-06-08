@@ -43,11 +43,20 @@ public class SpaRouteProcessor implements RouteProcessor {
 
         // The root and any path that resolves to a real bundled asset are served
         // as-is. Everything else is a client-side route → serve the SPA shell.
+        String resolved;
         if ("/".equals(normalized) || assetExists(normalized)) {
-            route.setPath(normalized);
+            resolved = normalized;
         } else {
-            route.setPath("/index.html");
+            resolved = "/index.html";
         }
+
+        // Capacitor consumes the returned path inconsistently: for normal asset
+        // requests it prepends the asset base itself (passing basePath="" here),
+        // but for the root "/" and html5mode fallbacks it opens getPath()
+        // directly (passing basePath="public"). Prepending the supplied basePath
+        // satisfies both — without it, the root load fails with
+        // net::ERR_CONNECTION_REFUSED ("localhost refused to connect").
+        route.setPath(basePath + resolved);
 
         return route;
     }
