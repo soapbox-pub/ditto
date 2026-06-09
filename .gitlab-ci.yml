@@ -34,7 +34,7 @@ deploy-nsite:
       when: never
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   variables:
-    NSYTE_VERSION: "v0.24.1"
+    NSYTE_VERSION: "v0.27.0"
   script:
     # Build the web app
     - npm ci
