@@ -7,6 +7,9 @@
  * - Blobbi name floats above the visual and bobs with the Blobbi.
  * - An animated shadow ellipse sits at the ground line below the Blobbi.
  *
+ * Sizing uses percentage-of-room-width so Blobbi scales proportionally with
+ * the room canvas (same coordinate system as furniture).
+ *
  * This component must be rendered inside an `absolute inset-0` wrapper that
  * shares the same positioning parent as the wall/floor background layers.
  *
@@ -75,46 +78,47 @@ export function BlobbiRoomStage({
 
   return (
     <div ref={stageRef} className="absolute inset-0 pointer-events-none">
-      {/* Blobbi anchor: positioned so the body bottom sits at the ground line.
-          Strategy:
-          1. Anchor div top = ground line.
-          2. Visual wrapper translateY(-100%) → wrapper bottom = ground line.
-          3. Then translateY(+bodyBottomInset%) → pushes the wrapper down
-             by its whitespace amount (% of own height), so the BODY bottom
-             (not container bottom) lands exactly at the ground line.
-          Combined: translateY(calc(-100% + bodyBottomInset%))
+      {/* Blobbi anchor: full-width at the ground line.
+          Uses inset-x-0 so descendant percentage widths resolve against
+          room canvas width — keeping Blobbi proportional with furniture.
+          Vertical alignment:
+          1. Body wrapper translateY(-100%) → wrapper bottom = ground line.
+          2. Then translateY(+bodyBottomInset%) → compensates for SVG whitespace
+             below the visible body, so the BODY bottom lands at the ground line.
        */}
       <div
-        className="absolute left-1/2"
+        className="absolute inset-x-0"
         style={{ top: `${GROUND_LINE_PCT}%` }}
       >
         {/* Ground shadow — radial-gradient ellipse at the ground line, behind the Blobbi.
             Breathes in sync with the bob: contracts when Blobbi is up, expands when down.
-            Positioned with left:0 + translateX(-50%) to center on the anchor's left edge (= stage center).
-            Uses radial-gradient for a true soft ellipse with natural falloff (no blur filter needed). */}
+            Centered at 50% of anchor (= room center) via left + translateX(-50%).
+            Uses aspect-ratio for height so it doesn't depend on anchor's auto height. */}
         <div
           className="absolute z-0 pointer-events-none"
           aria-hidden
           style={{
             top: 4,
-            left: 0,
+            left: '50%',
             transformOrigin: 'center center',
             background: 'radial-gradient(ellipse, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.13) 38%, transparent 68%)',
-            width: isEgg ? 'clamp(68px, 19dvh, 135px)' : 'clamp(66px, 18dvh, 144px)',
-            height: isEgg ? 'clamp(16px, 5dvh, 32px)' : 'clamp(16px, 4dvh, 30px)',
+            width: isEgg ? '22%' : '28%',
+            aspectRatio: isEgg ? '4' : '4.5',
             ...(!isSleeping
               ? { animation: `blobbi-shadow-breathe ${bobDuration} ease-in-out infinite` }
               : { transform: 'translateX(-50%)' }
             ),
           }}
         />
+        {/* Body alignment wrapper: block fills anchor width, shifted up vertically.
+            Children's % widths resolve against this (= room width). */}
         <div
           className="relative z-10"
-          style={{ transform: `translate(-50%, calc(-100% + ${bodyBottomInset}%))` }}
+          style={{ transform: `translateY(calc(-100% + ${bodyBottomInset}%))` }}
         >
-          {/* Bob wrapper (translateY animation) */}
+          {/* Bob wrapper: full-width flex container that centers the Blobbi horizontally */}
           <div
-            className="relative"
+            className="relative w-full flex justify-center"
             style={!isSleeping ? {
               animation: `blobbi-bob ${bobDuration} ease-in-out infinite`,
             } : undefined}
@@ -133,7 +137,9 @@ export function BlobbiRoomStage({
                 </span>
               </div>
             )}
-            {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict */}
+            {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict.
+                width: 30% resolves against the bob wrapper (w-full = canvas width),
+                so Blobbi scales proportionally with the room canvas. */}
             <div
               data-blobbi-visual
               className={cn(
@@ -141,10 +147,8 @@ export function BlobbiRoomStage({
                 interactionReaction?.bodyAnimation,
               )}
               style={{
-                ...(isEgg
-                  ? { width: 'clamp(90px, 25dvh, 180px)', height: 'clamp(90px, 25dvh, 180px)' }
-                  : { width: 'clamp(110px, 30dvh, 240px)', height: 'clamp(110px, 30dvh, 240px)' }
-                ),
+                width: isEgg ? '24%' : '30%',
+                aspectRatio: '1',
                 ...(!isSleeping ? {
                   animation: `blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
                 } : undefined),

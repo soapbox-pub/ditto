@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" fill="none">
+  <!-- Table digital clock - warm case, blue LED text -->
+  <rect x="4" y="8" width="112" height="44" rx="8" fill="#f5f0e8" stroke="#c0b090" stroke-width="2"/>
+  <rect x="12" y="14" width="96" height="32" rx="3" fill="#2a2a3a"/>
+  <!-- Time display 10:10 -->
+  <text x="60" y="38" text-anchor="middle" dominant-baseline="middle" fill="#66ccff" font-size="20" font-family="monospace" font-weight="bold">10:10</text>
+  <!-- LED indicator -->
+  <circle cx="100" cy="20" r="2" fill="#66ccff" opacity="0.6"/>
+</svg>

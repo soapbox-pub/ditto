@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" fill="none">
+  <!-- Long runner rug -->
+  <rect x="5" y="25" width="290" height="50" rx="4" fill="#4a7c6a"/>
+  <!-- Border stripe -->
+  <rect x="10" y="30" width="280" height="40" rx="2" fill="none" stroke="#7ab89a" stroke-width="2.5"/>
+  <!-- Repeating pattern -->
+  <circle cx="60" cy="50" r="8" fill="#7ab89a" opacity="0.5"/>
+  <circle cx="120" cy="50" r="8" fill="#7ab89a" opacity="0.5"/>
+  <circle cx="180" cy="50" r="8" fill="#7ab89a" opacity="0.5"/>
+  <circle cx="240" cy="50" r="8" fill="#7ab89a" opacity="0.5"/>
+</svg>

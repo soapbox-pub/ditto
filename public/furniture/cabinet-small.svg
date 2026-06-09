@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 90" fill="none">
+  <!-- Cabinet body -->
+  <rect x="5" y="10" width="60" height="70" rx="3" fill="#c4956a"/>
+  <!-- Top surface -->
+  <rect x="3" y="8" width="64" height="5" rx="2" fill="#a08060"/>
+  <!-- Doors -->
+  <rect x="10" y="16" width="22" height="58" rx="2" fill="#d4a87a" stroke="#a07040" stroke-width="1.5"/>
+  <rect x="38" y="16" width="22" height="58" rx="2" fill="#d4a87a" stroke="#a07040" stroke-width="1.5"/>
+  <!-- Door knobs -->
+  <circle cx="28" cy="46" r="2.5" fill="#8b7355"/>
+  <circle cx="42" cy="46" r="2.5" fill="#8b7355"/>
+  <!-- Legs -->
+  <rect x="10" y="80" width="5" height="10" rx="1" fill="#8b6f4e"/>
+  <rect x="55" y="80" width="5" height="10" rx="1" fill="#8b6f4e"/>
+</svg>

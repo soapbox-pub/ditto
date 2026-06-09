@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" fill="none">
+  <!-- Outer ornate frame -->
+  <rect x="2" y="2" width="76" height="96" rx="4" fill="#c9a84c" stroke="#a07e2c" stroke-width="2"/>
+  <!-- Inner bevel -->
+  <rect x="6" y="6" width="68" height="88" rx="3" fill="none" stroke="#e8d07a" stroke-width="1.5"/>
+  <!-- Thin mat -->
+  <rect x="10" y="10" width="60" height="80" rx="1" fill="#faf6ed"/>
+  <!-- Image area -->
+  <rect x="12" y="12" width="56" height="76" fill="#e8e2d8"/>
+  <!-- Placeholder landscape -->
+  <path d="M12 88 L28 54 L44 70 L56 44 L68 88 Z" fill="#a0c4a0" opacity="0.5"/>
+  <circle cx="56" cy="28" r="5" fill="#f5d678" opacity="0.6"/>
+</svg>

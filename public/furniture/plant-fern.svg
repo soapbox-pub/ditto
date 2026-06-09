@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" fill="none">
+  <!-- Pot -->
+  <path d="M25 100 L28 78 H52 L55 100 Z" fill="#6b5335"/>
+  <rect x="23" y="76" width="34" height="5" rx="2" fill="#8b6f4e"/>
+  <!-- Soil -->
+  <ellipse cx="40" cy="77" rx="14" ry="4" fill="#3d5c2e"/>
+  <!-- Fern fronds (arching leaves) -->
+  <path d="M40 75 Q30 50 15 30" stroke="#4a8c3f" stroke-width="2.5" fill="none"/>
+  <path d="M40 75 Q50 50 65 30" stroke="#4a8c3f" stroke-width="2.5" fill="none"/>
+  <path d="M40 75 Q35 45 25 20" stroke="#5a9e4b" stroke-width="2" fill="none"/>
+  <path d="M40 75 Q45 45 55 20" stroke="#5a9e4b" stroke-width="2" fill="none"/>
+  <path d="M40 75 Q40 40 40 10" stroke="#6ab55a" stroke-width="2" fill="none"/>
+  <!-- Leaflets along fronds -->
+  <g fill="#5a9e4b" opacity="0.8">
+    <ellipse cx="20" cy="40" rx="5" ry="2.5" transform="rotate(-30 20 40)"/>
+    <ellipse cx="26" cy="50" rx="5" ry="2.5" transform="rotate(-20 26 50)"/>
+    <ellipse cx="60" cy="40" rx="5" ry="2.5" transform="rotate(30 60 40)"/>
+    <ellipse cx="54" cy="50" rx="5" ry="2.5" transform="rotate(20 54 50)"/>
+    <ellipse cx="38" cy="30" rx="4" ry="2" transform="rotate(-10 38 30)"/>
+    <ellipse cx="42" cy="30" rx="4" ry="2" transform="rotate(10 42 30)"/>
+  </g>
+</svg>

@@ -9,7 +9,7 @@
  * fixed bottom navigation bar. On desktop (sidebar:), uses normal padding.
  */
 export const ROOM_BOTTOM_BAR_CLASS =
-  'relative z-10 px-3 sm:px-6 pt-1 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)]';
+  'relative z-10 px-3 sm:px-6 pt-2.5 pb-4 sm:pb-6 max-sidebar:pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+1rem)]';
 
 /**
  * Floating control surface — provides readable contrast over custom room backgrounds.
@@ -21,7 +21,7 @@ export const ROOM_CONTROL_SURFACE = 'bg-background/60 backdrop-blur-sm border bo
  * Minimal backing for small inline elements (arrows, labels).
  * Nearly invisible on neutral backgrounds, provides contrast on clashing ones.
  */
-export const ROOM_CONTROL_SURFACE_SUBTLE = 'bg-background/70 backdrop-blur-sm';
+export const ROOM_CONTROL_SURFACE_SUBTLE = 'bg-background/50 backdrop-blur-[2px]';
 
 /**
  * Guide highlight — applied to controls during the stat-guide flow.

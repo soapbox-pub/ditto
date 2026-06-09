@@ -7,6 +7,7 @@
  */
 
 import type { BlobbiRoomId } from './room-config';
+import { ROOM_FLOOR_RATIO } from './room-layout-schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,14 +28,21 @@ const HOURS_PER_POOP = 2;
 export const XP_PER_POOP = 5;
 const MAX_POOPS = 3;
 
+/** Poop `bottom` must stay within the canvas floor region: [POOP_BOTTOM_MIN, POOP_BOTTOM_MAX]. */
+const POOP_BOTTOM_MIN = 2;
+const POOP_BOTTOM_MAX = ROOM_FLOOR_RATIO * 100 - 2; // ≈ 26
+
 const SAFE_POSITIONS: Array<{ bottom: number; left: number }> = [
-  { bottom: 22, left: 8 },
-  { bottom: 18, left: 78 },
-  { bottom: 28, left: 14 },
-  { bottom: 25, left: 82 },
-  { bottom: 15, left: 20 },
-  { bottom: 20, left: 72 },
-];
+  { bottom: 10, left: 8 },
+  { bottom: 6, left: 78 },
+  { bottom: 16, left: 14 },
+  { bottom: 13, left: 82 },
+  { bottom: 4, left: 20 },
+  { bottom: 8, left: 72 },
+].map(({ bottom, left }) => ({
+  bottom: Math.max(POOP_BOTTOM_MIN, Math.min(bottom, POOP_BOTTOM_MAX)),
+  left,
+}));
 
 // ─── Generation ───────────────────────────────────────────────────────────────
 

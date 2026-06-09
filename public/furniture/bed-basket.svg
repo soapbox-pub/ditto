@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 100">
+  <!-- 1. Sombra no chão -->
+  <ellipse cx="65" cy="92" rx="45" ry="6" fill="#000" opacity="0.1" />
+
+  <!-- 2. Corpo do Cesto -->
+  <path d="M15 45 C15 85, 35 95, 65 95 C95 95, 115 85, 115 45" fill="#d4a87a" stroke="#a07040" stroke-width="2"/>
+  
+  <!-- 3. Detalhes de Vime (Textura lateral) -->
+  <g stroke="#a07040" stroke-width="1.2" opacity="0.4" fill="none">
+    <path d="M18 58 Q65 65, 112 58" />
+    <path d="M25 72 Q65 78, 105 72" />
+    <path d="M40 85 Q65 88, 90 85" />
+  </g>
+
+  <!-- 4. Borda do Cesto -->
+  <ellipse cx="65" cy="45" rx="52" ry="12" fill="#e5bc8f" stroke="#a07040" stroke-width="2.5"/>
+
+  <!-- 5. Elipse Branca Interna (Volume central) -->
+  <!-- Alargada: rx aumentado para 45 para preencher mais o cesto -->
+  <ellipse cx="65" cy="45" rx="45" ry="10" fill="#ffffff" opacity="0.8" />
+
+  <!-- 6. Patinhas Decorativas -->
+  <g fill="#a07040" opacity="0.6">
+    <circle cx="35" cy="75" r="3.5" /> 
+    <circle cx="30" cy="70" r="1.8" /> <circle cx="35" cy="67" r="1.8" /> <circle cx="40" cy="70" r="1.8" />
+    <circle cx="95" cy="75" r="3.5" /> 
+    <circle cx="90" cy="70" r="1.8" /> <circle cx="95" cy="67" r="1.8" /> <circle cx="100" cy="70" r="1.8" />
+  </g>
+</svg>
