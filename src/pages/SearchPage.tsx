@@ -29,7 +29,6 @@ import { HelpTip } from '@/components/HelpTip';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildKindOptions } from '@/lib/feedFilterUtils';
@@ -272,9 +271,6 @@ export function SearchPage() {
     [kindFilter, customKindText, allKindNumbers],
   );
 
-  // Detect kind + media type conflict: a specific kind is selected AND a media type is set
-  const hasKindMediaConflict = kindFilter !== 'all' && kindsOverride.length > 0 && mediaType !== 'all';
-
   // Determine if any filter differs from the default
   const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
     language !== DEFAULT_FILTERS.language || platform !== DEFAULT_FILTERS.platform ||
@@ -296,25 +292,6 @@ export function SearchPage() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
-
-  // Build the NIP-50 search string that will be sent to the relay (for display)
-  const nip50SearchString = useMemo(() => {
-    // Only bridged protocols add a protocol: term. Native Nostr is the default
-    // and needs no protocol: term, so we don't inject one into the query.
-    const bridged = protocols.filter(p => p !== 'nostr');
-    const parts: string[] = bridged.map(p => `protocol:${p}`);
-    if (debouncedSearchQuery.trim()) parts.push(debouncedSearchQuery.trim());
-    if (language !== 'global') parts.push(`language:${language}`);
-    const isDedicatedKindQuery = kindFilter === 'all' && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
-    if (!isDedicatedKindQuery && !hasKindMediaConflict) {
-      if (mediaType === 'images') { parts.push('media:true'); parts.push('video:false'); }
-      else if (mediaType === 'videos') parts.push('video:true');
-      else if (mediaType === 'none') parts.push('media:false');
-    }
-    if (sort === 'hot') parts.push('sort:hot');
-    else if (sort === 'trending') parts.push('sort:trending');
-    return parts.join(' ');
-  }, [debouncedSearchQuery, language, mediaType, protocols, hasKindMediaConflict, sort, kindFilter]);
 
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
@@ -764,25 +741,6 @@ export function SearchPage() {
               Clear
             </button>
           </div>
-        )}
-
-        {/* NIP-50 search query debug block (posts tab only) */}
-        {activeTab === 'posts' && debouncedSearchQuery.trim() && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="mt-2 px-3 py-2 rounded-md bg-secondary/40 border border-border cursor-default">
-                  <p className="text-xs text-muted-foreground font-mono truncate">
-                    <span className="text-muted-foreground/60 mr-1">search:</span>
-                    {nip50SearchString}
-                  </p>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs text-xs font-mono break-all">
-                {nip50SearchString}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         )}
       </div>
 
