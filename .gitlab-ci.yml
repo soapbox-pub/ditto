@@ -50,6 +50,7 @@ deploy-nsite:
       nsyte deploy ./dist
       -i
       --sec "$NSITE_NBUNKSEC"
+      --skip-secrets-scan
       --name ditto
       --relays "wss://relay.ditto.pub,wss://relay.nsite.lol,wss://relay.dreamith.to,wss://relay.primal.net"
       --servers "https://blossom.primal.net,https://blossom.ditto.pub,https://blossom.dreamith.to"
