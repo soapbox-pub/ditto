@@ -78,7 +78,7 @@ export function useSearchProfiles(query: string) {
       // content — exactly what a typeahead dropdown wants. Relays that don't
       // support the extension simply ignore the token.
       const events = await nostr.query(
-        [{ kinds: [0], search: `${debouncedQuery.trim()} autocomplete:true`, limit: 10 }],
+        [{ kinds: [0], search: `${debouncedQuery.trim()} autocomplete:true sort:top`, limit: 10 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
