@@ -136,7 +136,9 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     visualizer({
-      filename: "dist/bundle.html",
+      // Write the bundle-analysis report outside dist/ so it is not published
+      // to the public nsite and does not count toward the manifest file list.
+      filename: "bundle-report.html",
       template: "treemap",
       gzipSize: true,
     }),
@@ -168,6 +170,27 @@ export default defineConfig(({ mode }) => {
           // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
           if (id.includes('node_modules/lucide-react')) {
             return 'lucide-icons';
+          }
+          // Group third-party code into a few stable vendor chunks. This keeps
+          // the dist/ file count (and therefore the nsite manifest) small enough
+          // to sign through a NIP-46 bunker, whose sign_event request is
+          // NIP-44-encrypted and must stay under 65535 bytes. Splitting by
+          // library (rather than one giant vendor chunk) preserves lazy loading
+          // so routes only fetch the vendor code they need. Fonts are left alone
+          // so their per-weight lazy loading still works.
+          if (id.includes('node_modules') && !id.includes('@fontsource')) {
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/@nostrify') || id.includes('node_modules/nostr-tools') || id.includes('node_modules/@noble') || id.includes('node_modules/@scure') || id.includes('node_modules/applesauce')) {
+              return 'vendor-nostr';
+            }
+            if (id.includes('node_modules/@radix-ui')) {
+              return 'vendor-radix';
+            }
+            if (id.includes('node_modules/@tanstack')) {
+              return 'vendor-tanstack';
+            }
           }
         },
       },
