@@ -299,10 +299,10 @@ export function SearchPage() {
 
   // Build the NIP-50 search string that will be sent to the relay (for display)
   const nip50SearchString = useMemo(() => {
+    // Only bridged protocols add a protocol: term. Native Nostr is the default
+    // and needs no protocol: term, so we don't inject one into the query.
     const bridged = protocols.filter(p => p !== 'nostr');
-    const parts: string[] = bridged.length > 0
-      ? bridged.map(p => `protocol:${p}`)
-      : ['protocol:nostr'];
+    const parts: string[] = bridged.map(p => `protocol:${p}`);
     if (debouncedSearchQuery.trim()) parts.push(debouncedSearchQuery.trim());
     if (language !== 'global') parts.push(`language:${language}`);
     const isDedicatedKindQuery = kindFilter === 'all' && (mediaType === 'vines' || mediaType === 'images' || mediaType === 'videos');
@@ -437,6 +437,10 @@ export function SearchPage() {
     },
     enabled: posts.length > 0,
     staleTime: 60_000,
+    // Keep the previously-built items visible while the next batch resolves.
+    // Without this, the queryKey changing (on every streamed event / page) resets
+    // data to [] until buildFeedItems resolves, flashing the empty state.
+    placeholderData: (prev) => prev,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -843,6 +847,14 @@ export function SearchPage() {
                     )}
                   </div>
                 )}
+              </div>
+            ) : posts.length > 0 ? (
+              // Posts exist but feed items are still being assembled — show
+              // skeletons rather than the empty state to avoid flashing.
+              <div className="divide-y divide-border">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
               </div>
             ) : debouncedSearchQuery.trim() ? (
               <EmptyState
