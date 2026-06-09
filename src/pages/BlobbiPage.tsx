@@ -1653,7 +1653,7 @@ function BlobbiDashboard({
       setUsingItemId(null);
       actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
-  }, [isUsingItem, onUseItem]);
+  }, [isUsingItem, onUseItem, currentStats.hygiene, triggerInteractionReaction]);
 
   // ─── Food drag-to-feed ───────────────────────────────────────────────────
   //
@@ -1856,7 +1856,7 @@ function BlobbiDashboard({
         setUsingItemId(null);
       }
     }, 5000);
-  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger, poopStateRef]);
 
   const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
 
@@ -2563,7 +2563,7 @@ function KitchenBar({
       maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
     }
     handleUseItemFromTab(itemId);
-  }, [companion.stats.hunger, handleUseItemFromTab, foodIdSet]);
+  }, [companion.stats.hunger, handleUseItemFromTab, foodIdSet, poopStateRef]);
 
   // Build pointer-down handler for ingestible item drag-to-feed.
   // Engages for all ingestible kitchen items (food + energy drink).
