@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 import { isNostrId } from '@/lib/nostrId';
 
@@ -12,6 +14,7 @@ interface PostCommentParams {
 
 /** Post a NIP-22 (kind 1111) comment on an event. */
 export function usePostComment() {
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
@@ -42,6 +45,15 @@ export function usePostComment() {
         content,
         tags,
       });
+
+      // Rebroadcast the original event(s) alongside the comment (best-effort).
+      // Only Nostr events (not URLs or NIP-73 identifiers) can be rebroadcast.
+      if (reply && typeof reply !== 'string' && !(reply instanceof URL)) {
+        rebroadcastEvent(nostr, reply);
+      }
+      if (typeof root !== 'string' && !(root instanceof URL)) {
+        rebroadcastEvent(nostr, root);
+      }
 
       return event;
     },

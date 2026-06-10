@@ -250,6 +250,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
               eventId={event.id}
               eventPubkey={event.pubkey}
               eventKind={event.kind}
+              reactedEvent={event}
               reactionCount={stats?.reactions}
             />
 

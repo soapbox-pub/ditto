@@ -4,8 +4,10 @@ import { SmilePlus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
 import { Button } from '@/components/ui/button';
+import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useToast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
@@ -25,6 +27,7 @@ interface ProfileReactionButtonProps {
  */
 export function ProfileReactionButton({ profileEvent, className }: ProfileReactionButtonProps) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
   const { trackEmojiUsage } = useEmojiUsage();
   const { toast } = useToast();
@@ -55,11 +58,13 @@ export function ProfileReactionButton({ profileEvent, className }: ProfileReacti
       },
       {
         onSuccess: () => {
+          // Rebroadcast the original profile event alongside the reaction (best-effort).
+          rebroadcastEvent(nostr, profileEvent);
           toast({ title: 'Reaction sent!' });
         },
       },
     );
-  }, [user, profileEvent, publishEvent, trackEmojiUsage, toast]);
+  }, [user, nostr, profileEvent, publishEvent, trackEmojiUsage, toast]);
 
   if (!user) return null;
 

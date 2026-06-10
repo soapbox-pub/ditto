@@ -911,6 +911,7 @@ export const NoteCard = memo(function NoteCard({
           eventId={t.id}
           eventPubkey={t.pubkey}
           eventKind={t.kind}
+          reactedEvent={t}
           reactionCount={s?.reactions}
         />
 

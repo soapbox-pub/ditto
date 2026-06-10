@@ -9,10 +9,12 @@ import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { formatNumber } from '@/lib/formatNumber';
 import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 interface ReactionButtonProps {
   /** The event ID being reacted to. */
@@ -21,6 +23,11 @@ interface ReactionButtonProps {
   eventPubkey: string;
   /** The kind number of the event being reacted to. */
   eventKind: number;
+  /**
+   * The full event being reacted to. When provided, it is rebroadcast to relays
+   * alongside the reaction (best-effort).
+   */
+  reactedEvent?: NostrEvent;
   /** Current reaction count from stats. */
   reactionCount?: number;
   /** Optional extra class names. */
@@ -33,6 +40,7 @@ export function ReactionButton({
   eventId,
   eventPubkey,
   eventKind,
+  reactedEvent,
   reactionCount = 0,
   className,
   filledHeart = false,
@@ -168,6 +176,8 @@ export function ReactionButton({
               },
               {
                 onSuccess: () => {
+                  // Rebroadcast the original event alongside the reaction (best-effort).
+                  if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
                   setTimeout(() => {
                     queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
                     queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
@@ -211,6 +221,7 @@ export function ReactionButton({
           eventId={eventId}
           eventPubkey={eventPubkey}
           eventKind={eventKind}
+          reactedEvent={reactedEvent}
           onExpandChange={(expanded) => {
             pickerExpandedRef.current = expanded;
           }}

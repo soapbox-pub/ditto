@@ -90,6 +90,7 @@ export function PostActionBar({
         eventId={event.id}
         eventPubkey={event.pubkey}
         eventKind={event.kind}
+        reactedEvent={event}
         reactionCount={stats?.reactions}
       />
 

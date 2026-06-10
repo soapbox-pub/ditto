@@ -1987,6 +1987,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 eventId={event.id}
                 eventPubkey={event.pubkey}
                 eventKind={event.kind}
+                reactedEvent={event}
                 reactionCount={stats?.reactions}
               />
 
@@ -2060,6 +2061,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               eventId={event.id}
               eventPubkey={event.pubkey}
               eventKind={event.kind}
+              reactedEvent={event}
               reactionCount={stats?.reactions}
             />
 

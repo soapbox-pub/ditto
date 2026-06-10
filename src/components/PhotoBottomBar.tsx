@@ -75,6 +75,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               eventId={event.id}
               eventPubkey={event.pubkey}
               eventKind={event.kind}
+              reactedEvent={event}
               reactionCount={stats?.reactions}
               filledHeart
               className="text-white hover:text-pink-400 hover:bg-white/10 p-2.5 [&_svg]:size-5"

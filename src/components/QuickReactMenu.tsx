@@ -1,11 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
@@ -22,6 +25,11 @@ interface QuickReactMenuProps {
   eventPubkey: string;
   /** The kind number of the event being reacted to. */
   eventKind: number;
+  /**
+   * The full event being reacted to. When provided, it is rebroadcast to relays
+   * alongside the reaction (best-effort).
+   */
+  reactedEvent?: NostrEvent;
   /** Called after an emoji is selected so the parent can close the popover. */
   onClose?: () => void;
   /** Called when the full picker is opened/closed so the parent can lock the popover open. */
@@ -40,12 +48,14 @@ export function QuickReactMenu({
   eventId,
   eventPubkey,
   eventKind,
+  reactedEvent,
   onClose,
   onExpandChange,
   onReact,
   className,
 }: QuickReactMenuProps) {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
@@ -135,6 +145,8 @@ export function QuickReactMenu({
       },
       {
         onSuccess: () => {
+          // Rebroadcast the original event alongside the reaction (best-effort).
+          if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
@@ -149,7 +161,7 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
+  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
 
   /** Handle selection from the quick buttons (native or custom emoji). */
   const handleQuickSelect = useCallback((emoji: string) => {
