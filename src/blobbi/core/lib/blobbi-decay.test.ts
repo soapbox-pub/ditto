@@ -105,11 +105,11 @@ describe('baby health penalties aligned to segment boundaries', () => {
       stats: { hunger: 10, happiness: 10, health: 26, hygiene: 10, energy: 10 },
       elapsedSeconds: HOUR,
     });
-    // All four stats ≤ 25 → all mild + strong penalties fire.
+    // All four stats start ≤ 25, so each spends the full hour below 50 and 25.
     // healthDelta = -0.4 + 4×-0.5 + 4×-1.0 = -6.4
-    // health 26 > boundary 25, headroom = 1. drop 6.4 > 1:
-    //   softened = -(1 + (6.4-1)*0.35) = -(1 + 1.89) = -2.89, trunc = -2 → 24.
-    expect(r.stats.health).toBe(24);
+    // health 26 > boundary 25, headroom = 1. drop 6.4 > 1, health fraction 0.05:
+    //   softened = -(1 + (6.4-1)*0.05) = -(1 + 0.27) = -1.27, trunc = -1 → 25.
+    expect(r.stats.health).toBe(25);
   });
 });
 
@@ -201,25 +201,33 @@ describe('baby pacing (from full, awake)', () => {
     expect(r10.stats.hunger).toBeGreaterThan(25);
   });
 
-  it('12h: solidly in "attention" range, health still healthy', () => {
+  it('12h: solidly in "attention" range, health still mostly okay', () => {
     const r = decay({ stage: 'baby', elapsedSeconds: 12 * HOUR });
     // energy: 100 - 66 = 34, hunger: 100 - 60 = 40 — both attention.
     expect(r.stats.energy).toBe(34);
     expect(r.stats.hunger).toBe(40);
-    expect(r.stats.health).toBeGreaterThanOrEqual(75);
+    // Integrated penalties barely touch health this early.
+    expect(r.stats.health).toBeGreaterThanOrEqual(85);
   });
 
-  it('24h: needs care but still recoverable (health not floored)', () => {
+  it('24h: urgent, but health is NOT near collapse (target ~35-60)', () => {
     const r = decay({ stage: 'baby', elapsedSeconds: 24 * HOUR });
-    // Fastest stats in urgent range, but the soft-floor keeps health above 1.
-    expect(r.stats.health).toBeGreaterThan(1);
+    // Fastest stats in urgent range — clearly needs care.
     expect(r.stats.energy).toBeLessThanOrEqual(25);
+    // Health should land mid-range, not near the floor.
+    expect(r.stats.health).toBeGreaterThanOrEqual(35);
+    expect(r.stats.health).toBeLessThanOrEqual(60);
   });
 
-  it('48h is meaningfully worse than 24h (soft-floor still degrades over time)', () => {
+  it('48h: clearly worse than 24h but not collapsed, and distinct from multi-day', () => {
     const r24 = decay({ stage: 'baby', elapsedSeconds: 24 * HOUR });
     const r48 = decay({ stage: 'baby', elapsedSeconds: 48 * HOUR });
+    const r120 = decay({ stage: 'baby', elapsedSeconds: 120 * HOUR });
     expect(r48.stats.health).toBeLessThan(r24.stats.health);
+    // Not instantly floored at 48h.
+    expect(r48.stats.health).toBeGreaterThan(10);
+    // 48h and 5 days are not identical.
+    expect(r48.stats.health).toBeGreaterThan(r120.stats.health);
   });
 });
 
@@ -232,24 +240,28 @@ describe('adult pacing (from full, awake)', () => {
     expect(r.stats.health).toBeGreaterThanOrEqual(95);
   });
 
-  it('12h: enters "attention", health still healthy', () => {
+  it('12h: enters "attention", health still mostly okay', () => {
     const r = decay({ stage: 'adult', elapsedSeconds: 12 * HOUR });
     // energy: 100 - 60 = 40 (attention), hunger: 100 - 60 = 40 (attention)
     expect(r.stats.energy).toBe(40);
     expect(r.stats.hunger).toBe(40);
-    expect(r.stats.health).toBeGreaterThanOrEqual(75);
+    expect(r.stats.health).toBeGreaterThanOrEqual(85);
   });
 
-  it('24h: needs care but still recoverable (health not floored)', () => {
+  it('24h: needs care, health stays resilient (target ~50-75)', () => {
     const r = decay({ stage: 'adult', elapsedSeconds: 24 * HOUR });
-    expect(r.stats.health).toBeGreaterThan(1);
     expect(r.stats.energy).toBeLessThanOrEqual(30);
+    expect(r.stats.health).toBeGreaterThanOrEqual(50);
+    expect(r.stats.health).toBeLessThanOrEqual(75);
   });
 
-  it('48h is meaningfully worse than 24h', () => {
+  it('48h: clearly worse than 24h but not collapsed, and distinct from multi-day', () => {
     const r24 = decay({ stage: 'adult', elapsedSeconds: 24 * HOUR });
     const r48 = decay({ stage: 'adult', elapsedSeconds: 48 * HOUR });
+    const r120 = decay({ stage: 'adult', elapsedSeconds: 120 * HOUR });
     expect(r48.stats.health).toBeLessThan(r24.stats.health);
+    expect(r48.stats.health).toBeGreaterThan(10);
+    expect(r48.stats.health).toBeGreaterThan(r120.stats.health);
   });
 
   it('adult is more resilient than baby at the same elapsed time', () => {
@@ -301,6 +313,42 @@ describe('soft-floor (graceful decay slowdown)', () => {
     // 1h to boundary (30→25), then 19h soft: -5*0.35*19 = -33.25 → 25-33.25 floors at 1.
     // Confirm it's still strictly degrading but the engine clamps to 1.
     expect(r.stats.hunger).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Integrated health penalty (time-below-threshold) ─────────────────────────
+
+describe('health penalties are integrated over time below threshold', () => {
+  it('a stat that only dips low partway through is penalized less than one low the whole time', () => {
+    // Same elapsed window, same final stat tier, different *starting* values.
+    // Adult, hunger only (others kept high so they contribute nothing).
+    // Case A: hunger starts at 100 → spends only the later part of the window < 60.
+    const a = decay({
+      stage: 'adult',
+      stats: { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 },
+      elapsedSeconds: 18 * HOUR,
+    });
+    // Case B: hunger starts already low (40, < 60) → below threshold the whole window.
+    const b = decay({
+      stage: 'adult',
+      stats: { hunger: 40, happiness: 100, health: 100, hygiene: 100, energy: 100 },
+      elapsedSeconds: 18 * HOUR,
+    });
+    // B was below the penalty threshold for the entire window, so its health
+    // must be lower (more penalized) than A which only crossed partway.
+    expect(b.stats.health).toBeLessThan(a.stats.health);
+  });
+
+  it('penalty does not accrue while the stat is still above its threshold', () => {
+    // Adult hunger from 100 over 6h ends at 70 — never below the 60 penalty
+    // threshold, so no hunger penalty time accrues. Health stays near full
+    // (only minor base decay once regen stops as stats dip under 80/76).
+    const r = decay({
+      stage: 'adult',
+      stats: { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 },
+      elapsedSeconds: 6 * HOUR,
+    });
+    expect(r.stats.health).toBeGreaterThanOrEqual(99);
   });
 });
 

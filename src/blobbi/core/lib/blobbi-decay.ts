@@ -169,6 +169,22 @@ const ADULT_SLEEP_ENERGY_REGEN = 35.0;
  */
 const SOFT_FLOOR_RATE_FRACTION = 0.35;
 
+/**
+ * Health soft-floor fraction — applied to the net health *drop* once health is
+ * already at/below the urgent boundary.
+ *
+ * Health is special: its penalties grow super-linearly for long absences
+ * (more stats below more thresholds for more hours), so the standard 0.35
+ * soft-floor still let a 48h gap bottom health out at 1, making 24h / 48h /
+ * multi-day all look the same once neglected. A much gentler health-specific
+ * fraction lets health stay expressive down to the urgent zone and then nearly
+ * plateau, so:
+ *   - 24h still clearly "needs care" (mid-range),
+ *   - 48h is meaningfully lower but not collapsed,
+ *   - multi-day is distinct from 48h and only then approaches the floor.
+ */
+const HEALTH_SOFT_FLOOR_RATE_FRACTION = 0.05;
+
 /** Urgent-range boundary per stage — decay below this is softened. */
 const SOFT_FLOOR_BOUNDARY = {
   egg: 25,
@@ -337,14 +353,15 @@ function decayWithSoftFloor(
  * needs its own soft-floor application:
  *
  *   - Positive delta (net regen): applied directly.
- *   - Negative delta while health is above `boundary`: the portion of the
- *     drop that would carry health below the boundary is softened to
- *     SOFT_FLOOR_RATE_FRACTION strength.
+ *   - Negative delta while health is above `boundary`: full strength down to
+ *     the boundary, then HEALTH_SOFT_FLOOR_RATE_FRACTION strength for the
+ *     remainder of the drop.
  *   - Negative delta while health is already at/below `boundary`: the whole
- *     delta is softened.
+ *     delta is softened to HEALTH_SOFT_FLOOR_RATE_FRACTION.
  *
- * This mirrors decayWithSoftFloor() but operates on an already-aggregated
- * delta. Result is floored toward zero and clamped to [STAT_MIN, STAT_MAX].
+ * The health-specific (gentler) fraction prevents long absences from
+ * collapsing health to the floor, keeping 24h / 48h / multi-day visibly
+ * different. Result is floored toward zero and clamped to [STAT_MIN, STAT_MAX].
  */
 function applyHealthDelta(current: number, delta: number, boundary: number): number {
   if (delta >= 0) {
@@ -353,7 +370,7 @@ function applyHealthDelta(current: number, delta: number, boundary: number): num
 
   // Already in the urgent range: soften the entire drop.
   if (current <= boundary) {
-    return clamp(current + roundDelta(delta * SOFT_FLOOR_RATE_FRACTION));
+    return clamp(current + roundDelta(delta * HEALTH_SOFT_FLOOR_RATE_FRACTION));
   }
 
   // Above the boundary but the full drop would cross it: full strength down to
@@ -363,8 +380,69 @@ function applyHealthDelta(current: number, delta: number, boundary: number): num
     return clamp(current + roundDelta(delta));
   }
   const overflow = -delta - room; // amount that lands in the soft region
-  const softened = -(room + overflow * SOFT_FLOOR_RATE_FRACTION);
+  const softened = -(room + overflow * HEALTH_SOFT_FLOOR_RATE_FRACTION);
   return clamp(current + roundDelta(softened));
+}
+
+/**
+ * Compute how many hours a decaying stat spent strictly below `threshold`
+ * during a window of `elapsedHours`, given the soft-floor decay curve.
+ *
+ * Health penalties are charged per hour-spent-below-threshold. Charging them
+ * for the full window (using only the final value) over-penalizes long gaps:
+ * a stat that only dips under a threshold partway through the window would
+ * otherwise be billed as if it had been low the whole time. This helper
+ * integrates the *actual* time below the threshold along the known decay
+ * curve, so a 24h absence is penalized for the hours the stat was genuinely
+ * in trouble — not the entire day.
+ *
+ * The decay curve is piecewise-linear and matches decayWithSoftFloor():
+ *   - full `ratePerHour` while value > `boundary`
+ *   - `ratePerHour * SOFT_FLOOR_RATE_FRACTION` while value ≤ `boundary`
+ *
+ * Returns 0 for non-decaying rates (regen / zero) — penalties only accrue
+ * while a stat is actively dropping into trouble.
+ *
+ * Pure and analytic: no per-hour stepping.
+ *
+ * @param startValue   Stat value at the start of the window.
+ * @param ratePerHour  Full decay rate (negative for decay).
+ * @param elapsedHours Window length in hours.
+ * @param boundary     Soft-floor boundary where the rate slows.
+ * @param threshold    Threshold the penalty is gated on (e.g. 50 or 25).
+ */
+function hoursBelowThreshold(
+  startValue: number,
+  ratePerHour: number,
+  elapsedHours: number,
+  boundary: number,
+  threshold: number,
+): number {
+  // Only decay accrues "time below" — regen never pushes a stat under.
+  if (ratePerHour >= 0 || elapsedHours <= 0) return 0;
+
+  // Already below the threshold at t=0 → entire window counts.
+  if (startValue <= threshold) return elapsedHours;
+
+  // Time (hours) for the value to fall from startValue to `threshold`.
+  // Above the boundary the value moves at the full rate; below it, the soft
+  // rate. We find when value(t) === threshold.
+  const softRate = ratePerHour * SOFT_FLOOR_RATE_FRACTION;
+
+  let timeToThreshold: number;
+  if (threshold >= boundary) {
+    // Threshold sits in the full-rate region: linear at full rate.
+    timeToThreshold = (threshold - startValue) / ratePerHour;
+  } else {
+    // Threshold sits below the boundary. First fall to the boundary at full
+    // rate, then continue toward the threshold at the soft rate.
+    const hoursToBoundary = (boundary - startValue) / ratePerHour;
+    const hoursBoundaryToThreshold = (threshold - boundary) / softRate;
+    timeToThreshold = hoursToBoundary + hoursBoundaryToThreshold;
+  }
+
+  if (timeToThreshold >= elapsedHours) return 0; // never crossed in time
+  return elapsedHours - timeToThreshold;
 }
 
 // ─── Stage-Specific Decay Calculators ─────────────────────────────────────────
@@ -429,23 +507,46 @@ function calculateBabyDecay(
   // Calculate health (complex conditional decay + possible regen)
   // Base health decay is 0 while sleeping.
   let healthDelta = isSleeping ? 0 : BABY_DECAY.health.base * elapsedHours;
-  
+
+  // Penalties are charged per hour-spent-below-threshold (integrated along the
+  // decay curve), not for the whole window based on the final value. This
+  // prevents long gaps from over-penalizing health. Start values are the
+  // pre-decay stats; rates include the sleep multiplier so penalties shrink
+  // while sleeping. Energy while sleeping regenerates (positive rate) → 0 hours
+  // below, so no penalty accrues.
+  const hungerStart = getStat(stats, 'hunger');
+  const happinessStart = getStat(stats, 'happiness');
+  const hygieneStart = getStat(stats, 'hygiene');
+  const energyStart = getStat(stats, 'energy');
+  const hungerRate = BABY_DECAY.hunger * statMul;
+  const happinessRate = BABY_DECAY.happiness * statMul;
+  const hygieneRate = BABY_DECAY.hygiene * statMul;
+  const energyRate = isSleeping ? BABY_SLEEP_ENERGY_REGEN : BABY_DECAY.energy;
+
   // Hunger penalties (aligned to baby segment boundaries: attention ≤ 50, urgent ≤ 25)
-  if (hunger <= 50) healthDelta += BABY_DECAY.health.hungerBelow50 * penaltyMul * elapsedHours;
-  if (hunger <= 25) healthDelta += BABY_DECAY.health.hungerBelow25 * penaltyMul * elapsedHours;
-  
+  healthDelta += BABY_DECAY.health.hungerBelow50 * penaltyMul
+    * hoursBelowThreshold(hungerStart, hungerRate, elapsedHours, babyBoundary, 50);
+  healthDelta += BABY_DECAY.health.hungerBelow25 * penaltyMul
+    * hoursBelowThreshold(hungerStart, hungerRate, elapsedHours, babyBoundary, 25);
+
   // Hygiene penalties
-  if (hygiene <= 50) healthDelta += BABY_DECAY.health.hygieneBelow50 * penaltyMul * elapsedHours;
-  if (hygiene <= 25) healthDelta += BABY_DECAY.health.hygieneBelow25 * penaltyMul * elapsedHours;
-  
+  healthDelta += BABY_DECAY.health.hygieneBelow50 * penaltyMul
+    * hoursBelowThreshold(hygieneStart, hygieneRate, elapsedHours, babyBoundary, 50);
+  healthDelta += BABY_DECAY.health.hygieneBelow25 * penaltyMul
+    * hoursBelowThreshold(hygieneStart, hygieneRate, elapsedHours, babyBoundary, 25);
+
   // Energy penalties
-  if (energy <= 50) healthDelta += BABY_DECAY.health.energyBelow50 * penaltyMul * elapsedHours;
-  if (energy <= 25) healthDelta += BABY_DECAY.health.energyBelow25 * penaltyMul * elapsedHours;
-  
+  healthDelta += BABY_DECAY.health.energyBelow50 * penaltyMul
+    * hoursBelowThreshold(energyStart, energyRate, elapsedHours, babyBoundary, 50);
+  healthDelta += BABY_DECAY.health.energyBelow25 * penaltyMul
+    * hoursBelowThreshold(energyStart, energyRate, elapsedHours, babyBoundary, 25);
+
   // Happiness penalties
-  if (happiness <= 50) healthDelta += BABY_DECAY.health.happinessBelow50 * penaltyMul * elapsedHours;
-  if (happiness <= 25) healthDelta += BABY_DECAY.health.happinessBelow25 * penaltyMul * elapsedHours;
-  
+  healthDelta += BABY_DECAY.health.happinessBelow50 * penaltyMul
+    * hoursBelowThreshold(happinessStart, happinessRate, elapsedHours, babyBoundary, 50);
+  healthDelta += BABY_DECAY.health.happinessBelow25 * penaltyMul
+    * hoursBelowThreshold(happinessStart, happinessRate, elapsedHours, babyBoundary, 25);
+
   // Health regeneration (all stats in "good" range: 4/4 = value ≥ 76)
   const threshold = BABY_DECAY.health.regenThreshold;
   if (hunger >= threshold && happiness >= threshold && hygiene >= threshold && energy >= threshold) {
@@ -497,23 +598,43 @@ function calculateAdultDecay(
   // Calculate health (complex conditional decay + possible regen)
   // Base health decay is 0 while sleeping.
   let healthDelta = isSleeping ? 0 : ADULT_DECAY.health.base * elapsedHours;
-  
+
+  // Penalties are charged per hour-spent-below-threshold (integrated along the
+  // decay curve) rather than for the whole window based on the final value.
+  // See hoursBelowThreshold() for rationale.
+  const hungerStart = getStat(stats, 'hunger');
+  const happinessStart = getStat(stats, 'happiness');
+  const hygieneStart = getStat(stats, 'hygiene');
+  const energyStart = getStat(stats, 'energy');
+  const hungerRate = ADULT_DECAY.hunger * statMul;
+  const happinessRate = ADULT_DECAY.happiness * statMul;
+  const hygieneRate = ADULT_DECAY.hygiene * statMul;
+  const energyRate = isSleeping ? ADULT_SLEEP_ENERGY_REGEN : ADULT_DECAY.energy;
+
   // Hunger penalties
-  if (hunger < 60) healthDelta += ADULT_DECAY.health.hungerBelow60 * penaltyMul * elapsedHours;
-  if (hunger < 30) healthDelta += ADULT_DECAY.health.hungerBelow30 * penaltyMul * elapsedHours;
-  
+  healthDelta += ADULT_DECAY.health.hungerBelow60 * penaltyMul
+    * hoursBelowThreshold(hungerStart, hungerRate, elapsedHours, adultBoundary, 60);
+  healthDelta += ADULT_DECAY.health.hungerBelow30 * penaltyMul
+    * hoursBelowThreshold(hungerStart, hungerRate, elapsedHours, adultBoundary, 30);
+
   // Hygiene penalties
-  if (hygiene < 60) healthDelta += ADULT_DECAY.health.hygieneBelow60 * penaltyMul * elapsedHours;
-  if (hygiene < 30) healthDelta += ADULT_DECAY.health.hygieneBelow30 * penaltyMul * elapsedHours;
-  
+  healthDelta += ADULT_DECAY.health.hygieneBelow60 * penaltyMul
+    * hoursBelowThreshold(hygieneStart, hygieneRate, elapsedHours, adultBoundary, 60);
+  healthDelta += ADULT_DECAY.health.hygieneBelow30 * penaltyMul
+    * hoursBelowThreshold(hygieneStart, hygieneRate, elapsedHours, adultBoundary, 30);
+
   // Energy penalties
-  if (energy < 40) healthDelta += ADULT_DECAY.health.energyBelow40 * penaltyMul * elapsedHours;
-  if (energy < 20) healthDelta += ADULT_DECAY.health.energyBelow20 * penaltyMul * elapsedHours;
-  
+  healthDelta += ADULT_DECAY.health.energyBelow40 * penaltyMul
+    * hoursBelowThreshold(energyStart, energyRate, elapsedHours, adultBoundary, 40);
+  healthDelta += ADULT_DECAY.health.energyBelow20 * penaltyMul
+    * hoursBelowThreshold(energyStart, energyRate, elapsedHours, adultBoundary, 20);
+
   // Happiness penalties
-  if (happiness < 40) healthDelta += ADULT_DECAY.health.happinessBelow40 * penaltyMul * elapsedHours;
-  if (happiness < 20) healthDelta += ADULT_DECAY.health.happinessBelow20 * penaltyMul * elapsedHours;
-  
+  healthDelta += ADULT_DECAY.health.happinessBelow40 * penaltyMul
+    * hoursBelowThreshold(happinessStart, happinessRate, elapsedHours, adultBoundary, 40);
+  healthDelta += ADULT_DECAY.health.happinessBelow20 * penaltyMul
+    * hoursBelowThreshold(happinessStart, happinessRate, elapsedHours, adultBoundary, 20);
+
   // Health regeneration (all stats >= 80)
   const threshold = ADULT_DECAY.health.regenThreshold;
   if (hunger >= threshold && happiness >= threshold && hygiene >= threshold && energy >= threshold) {
