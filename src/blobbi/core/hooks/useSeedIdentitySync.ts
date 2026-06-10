@@ -19,6 +19,7 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
   KIND_BLOBBI_STATE,
+  isLegacyBlobbiEvent,
   updateBlobbiTags,
   type BlobbiCompanion,
 } from '../lib/blobbi';
@@ -29,8 +30,8 @@ import {
  * companion's (possibly adjusted) seed. The merge pipeline's
  * syncMirrorTagsToSeed will overwrite all stale mirror tags.
  *
- * Skips companions that are legacy (handled by migration) or have
- * no seed (nothing to sync to).
+ * Skips companions that are legacy/unsupported (old-app events are never
+ * synced or republished) or have no seed (nothing to sync to).
  */
 export function useSeedIdentitySync(
   companions: BlobbiCompanion[],
@@ -80,6 +81,20 @@ export function useSeedIdentitySync(
           if (!prev) {
             if (import.meta.env.DEV) {
               console.warn('[SeedSync] No fresh event found for', c.d.slice(0, 20) + '...');
+            }
+            continue;
+          }
+
+          // Defense-in-depth: fetchFreshEvent selects the newest event by
+          // (kind, author, d) and does NOT filter legacy events. If a relay
+          // holds a newer old-app event sharing this canonical-looking d-tag,
+          // it must never be cleaned/republished. Skip rather than migrate it.
+          if (isLegacyBlobbiEvent(prev)) {
+            if (import.meta.env.DEV) {
+              console.warn(
+                '[SeedSync] Fresh event is legacy/unsupported, skipping sync for',
+                c.d.slice(0, 20) + '...',
+              );
             }
             continue;
           }

@@ -6,6 +6,7 @@ import {
   KIND_BLOBBI_STATE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
   buildEggTags,
+  getCanonicalBlobbiD,
   parseBlobbiEvent,
   type BlobbiCompanion,
 } from '../lib/blobbi';
@@ -83,6 +84,36 @@ function makeCanonicalCompanionNeedingSync(): BlobbiCompanion {
   return parsed;
 }
 
+/**
+ * A raw old-app legacy event sharing the SAME canonical d-tag as the canonical
+ * companion. fetchFreshEvent returns the newest event for (kind, author, d)
+ * without filtering legacy events, so this simulates a relay holding a newer
+ * old-app event under a current Blobbi's d-tag.
+ */
+function makeOldAppEventSameD(createdAt: number): NostrEvent {
+  return {
+    id: 'a'.repeat(64),
+    pubkey: PUBKEY,
+    created_at: createdAt,
+    kind: KIND_BLOBBI_STATE,
+    tags: [
+      ['d', getCanonicalBlobbiD(PUBKEY, PET_ID)],
+      ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
+      ['name', 'Blobbi'],
+      ['stage', 'egg'],
+      ['state', 'active'],
+      ['seed', 'a'.repeat(64)],
+      ['last_interaction', createdAt.toString()],
+      // Old-app schema markers → unsupported:
+      ['incubation_time', '3600'],
+      ['t', 'blobbi'],
+      ['client', 'blobbi'],
+    ],
+    content: '',
+    sig: '0'.repeat(128),
+  };
+}
+
 describe('useSeedIdentitySync — skips unsupported old-app companions', () => {
   beforeEach(() => {
     query.mockReset();
@@ -120,5 +151,26 @@ describe('useSeedIdentitySync — skips unsupported old-app companions', () => {
 
     expect(query).toHaveBeenCalled();
     expect(publishEvent).toHaveBeenCalled();
+  });
+
+  it('does not publish when the freshest relay event for the d-tag is a legacy old-app event', async () => {
+    // The cached companion is a current canonical Blobbi that wants a sync, but
+    // the relay's freshest event for its d-tag is an old-app legacy event
+    // (newer created_at). The defense-in-depth guard must skip rather than
+    // clean/republish it.
+    const companion = makeCanonicalCompanionNeedingSync();
+    expect(companion.isLegacy).toBe(false);
+    expect(companion.needsSeedIdentitySync).toBe(true);
+
+    query.mockResolvedValue([makeOldAppEventSameD(CREATED_AT + 100)]);
+
+    renderHook(() => useSeedIdentitySync([companion], vi.fn()));
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    // It fetched fresh (companion is non-legacy) but refused to publish over
+    // the legacy event.
+    expect(query).toHaveBeenCalled();
+    expect(publishEvent).not.toHaveBeenCalled();
   });
 });

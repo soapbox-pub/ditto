@@ -47,8 +47,8 @@ function makeCanonicalEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
 
 /**
  * An old-app legacy Kind 31124 event: non-canonical d-tag, no seed, no name.
- * Shares the SAME d-tag as the canonical fixture is NOT possible (different
- * d-tag), so a legacy event always has its own legacy d.
+ * A legacy event always has its own non-canonical d-tag, so it can never
+ * collide with the canonical fixture's d-tag.
  */
 function makeLegacyEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
   const tags = buildEggTags(PUBKEY, PET_ID, CREATED_AT, 'Puck')

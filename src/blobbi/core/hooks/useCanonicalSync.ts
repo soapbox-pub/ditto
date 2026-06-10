@@ -147,7 +147,7 @@ export function useCanonicalSync({
 
       // ── Step 4: Fetch fresh canonical and publish ──
       // We must use ensureCanonicalBeforeAction to get the freshest tags
-      // (handles migration, multi-device staleness, etc.)
+      // (handles multi-device staleness; returns null for unsupported legacy events).
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) return;
 

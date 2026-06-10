@@ -294,7 +294,7 @@ describe('old-app Blobbi with canonical-looking d-tag (schema-marker detection)'
     return {
       id: 'c'.repeat(64),
       pubkey: PUBKEY,
-      created_at: CREATED_AT + 1, // older than... no: this is fine, filter excludes old-app regardless
+      created_at: CREATED_AT + 1, // newer; filter excludes old-app regardless of created_at
       kind: KIND_BLOBBI_STATE,
       tags,
       content: '',
