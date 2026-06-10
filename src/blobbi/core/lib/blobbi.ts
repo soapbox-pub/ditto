@@ -261,8 +261,6 @@ export interface BlobbiCompanion {
   visualTraits: BlobbiVisualTraits;
   /** Whether this is a legacy event that needs migration */
   isLegacy: boolean;
-  /** Whether stored mirror tags differ from seed-derived identity and need republishing */
-  needsSeedIdentitySync: boolean;
   /** Timestamp of last user interaction (unix seconds) */
   lastInteraction: number;
   /** Timestamp used for stat decay checkpoint (unix seconds) */
@@ -945,54 +943,6 @@ export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
   return companion.isLegacy;
 }
 
-/**
- * Check whether an event's stored color tags differ from its seed-derived colors.
- *
- * Returns true when the event has a seed but its base_color, secondary_color,
- * or eye_color tags do not match the canonical seed-derived values. This means
- * the event should be republished so the persisted tags mirror the seed.
- *
- * Checks all seed-derived mirror tags: base_color, secondary_color,
- * eye_color, pattern, special_mark, size, and adult_type (for adults).
- *
- * Returns false when:
- * - no seed exists (legacy event; tags are authoritative)
- * - all mirror tags already match the seed-derived values
- */
-export function eventNeedsSeedIdentitySync(tags: string[][]): boolean {
-  const seed = getTagValue(tags, 'seed');
-  if (!seed || seed.length !== 64) return false;
-
-  const canonical = deriveSeedIdentity(seed);
-
-  // Check color tags
-  const storedBase = normalizeHexColor(getTagValue(tags, 'base_color'));
-  const storedSec = normalizeHexColor(getTagValue(tags, 'secondary_color'));
-  const storedEye = normalizeHexColor(getTagValue(tags, 'eye_color'));
-  if (!storedBase || !storedSec || !storedEye) return true;
-  if (storedBase !== canonical.baseColor ||
-      storedSec !== canonical.secondaryColor ||
-      storedEye !== canonical.eyeColor) return true;
-
-  // Check non-color visual traits
-  const storedPattern = getTagValue(tags, 'pattern');
-  const storedMark = getTagValue(tags, 'special_mark');
-  const storedSize = getTagValue(tags, 'size');
-  if (storedPattern !== canonical.pattern ||
-      storedMark !== canonical.specialMark ||
-      storedSize !== canonical.size) return true;
-
-  // Check adult_type (only for adult stage)
-  const stage = getTagValue(tags, 'stage');
-  if (stage === 'adult') {
-    const storedAdultType = getTagValue(tags, 'adult_type');
-    const canonicalAdultType = deriveAdultFormFromSeed(seed);
-    if (storedAdultType !== canonicalAdultType) return true;
-  }
-
-  return false;
-}
-
 // ─── Event Validation ─────────────────────────────────────────────────────────
 
 /**
@@ -1187,20 +1137,11 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // Check if this is a legacy event that needs migration
   const isLegacy = isLegacyBlobbiEvent(event);
   
-  // Check if stored mirror tags need syncing with seed-derived values
-  // Uses the effective seed (which may be adjusted during compat window)
-  const needsSeedIdentitySync = eventNeedsSeedIdentitySync(
-    effectiveSeed !== seed
-      ? tags.map((t) => t[0] === 'seed' ? ['seed', effectiveSeed!] : t)
-      : tags,
-  );
-  
   if (import.meta.env.DEV) {
     console.log('[Blobbi]', {
       d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
       name,
       isLegacy,
-      needsSeedIdentitySync,
       hasSeed: !!seed,
       traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
     });
@@ -1238,7 +1179,6 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
     seed: effectiveSeed,
     visualTraits,
     isLegacy,
-    needsSeedIdentitySync,
     lastInteraction: parseNumericTag(tags, 'last_interaction')!,
     lastDecayAt: parseNumericTag(tags, 'last_decay_at'),
     stats: {
