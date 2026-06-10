@@ -75,3 +75,17 @@ global.ResizeObserver = vi.fn().mockImplementation((_callback) => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// jsdom's TextEncoder returns a Uint8Array from a different realm, which fails
+// `@noble/hashes`'s `instanceof Uint8Array` check ("expected Uint8Array, got
+// object") — breaking any code that hashes (e.g. Blobbi seed derivation).
+// Wrap `encode` so it yields a same-realm Uint8Array, matching real browsers.
+{
+  const OriginalTextEncoder = globalThis.TextEncoder;
+  class SameRealmTextEncoder extends OriginalTextEncoder {
+    encode(input?: string): Uint8Array {
+      return Uint8Array.from(super.encode(input));
+    }
+  }
+  globalThis.TextEncoder = SameRealmTextEncoder as typeof TextEncoder;
+}
