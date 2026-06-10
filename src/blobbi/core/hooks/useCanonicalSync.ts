@@ -71,7 +71,6 @@ interface UseCanonicalSyncParams {
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
   } | null>;
   /**
    * Optional callback fired after social interactions are successfully

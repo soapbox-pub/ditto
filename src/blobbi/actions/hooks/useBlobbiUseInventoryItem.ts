@@ -58,15 +58,14 @@ export interface UseItemResult {
 export interface UseBlobbiUseInventoryItemParams {
   companion: BlobbiCompanion | null;
   profile: BlobbonautProfile | null;
-  /** Called after ensuring companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting (read step of read-modify-write) */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
-    /** Latest profile tags after migration */
+    /** Latest profile tags */
     profileAllTags: string[][];
-    /** Latest profile storage after migration */
+    /** Latest profile storage */
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */

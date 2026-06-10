@@ -259,7 +259,14 @@ export interface BlobbiCompanion {
   seed: string | undefined;
   /** Visual traits (derived from seed or legacy tags) */
   visualTraits: BlobbiVisualTraits;
-  /** Whether this is a legacy event that needs migration */
+  /**
+   * Whether this event is in a legacy / non-canonical format (non-canonical
+   * d-tag, missing seed, or missing name).
+   *
+   * NOTE: Old-app legacy Blobbis are no longer automatically migrated. This
+   * flag is retained so the seed-identity sync can skip events that have no
+   * usable seed to sync to.
+   */
   isLegacy: boolean;
   /** Whether stored mirror tags differ from seed-derived identity and need republishing */
   needsSeedIdentitySync: boolean;
@@ -372,25 +379,6 @@ export function generatePetId10(): string {
   const bytes = new Uint8Array(5);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * Derive a deterministic 10-character lowercase hex petId for legacy migration.
- *
- * The same (pubkey, legacyD) pair always produces the same petId, which means
- * the resulting canonical d-tag is stable across devices and sessions. This
- * makes the entire migration chain deterministic: petId → canonicalD → seed →
- * visual traits.
- *
- * Formula: sha256("blobbi:migration:v1|" + pubkey + ":" + legacyD).slice(0, 10)
- *
- * Only used during legacy → canonical migration. New egg creation still uses
- * the random generatePetId10().
- */
-export function deriveMigrationPetId(pubkey: string, legacyD: string): string {
-  const input = `blobbi:migration:v1|${pubkey}:${legacyD}`;
-  const hashBytes = sha256(new TextEncoder().encode(input));
-  return bytesToHex(hashBytes).slice(0, 10);
 }
 
 /**
@@ -548,16 +536,6 @@ export function isLegacyBlobbonautD(d: string): boolean {
  */
 export function isCanonicalBlobbiD(d: string): boolean {
   return /^blobbi-[0-9a-f]{12}-[0-9a-f]{10}$/.test(d);
-}
-
-/**
- * Check if a Blobbi d-tag is a legacy format (e.g., blobbi-puck, blobbi-fluffy).
- */
-export function isLegacyBlobbiD(d: string): boolean {
-  // Legacy: blobbi-{name} where name is NOT the canonical format
-  if (!d.startsWith('blobbi-')) return false;
-  if (isCanonicalBlobbiD(d)) return false;
-  return true;
 }
 
 // ─── Visual Trait Derivation ──────────────────────────────────────────────────
@@ -883,14 +861,14 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
 
 /**
- * Check if a Blobbi event is a legacy event that needs migration.
- * 
+ * Check if a Blobbi event is in a legacy / non-canonical format.
+ *
  * A Blobbi is considered legacy if ANY of the following is true:
  * - the d tag is not in canonical format
  * - the seed tag is missing
  * - the name tag is missing and must be derived from d
  * - visual traits exist but seed does not
- * 
+ *
  * Canonical Blobbi events must always contain:
  * - canonical d
  * - seed
@@ -899,6 +877,11 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
  * - state
  * - stats
  * - ecosystem tag
+ *
+ * NOTE: Old-app legacy Blobbis are no longer automatically migrated to the
+ * canonical format. This predicate is retained only to populate the
+ * BlobbiCompanion.isLegacy flag, which the seed-identity sync uses to skip
+ * events with no usable seed.
  */
 export function isLegacyBlobbiEvent(event: NostrEvent): boolean {
   const tags = event.tags;
@@ -935,14 +918,6 @@ export function isLegacyBlobbiEvent(event: NostrEvent): boolean {
   }
   
   return false;
-}
-
-/**
- * Check if a parsed BlobbiCompanion needs migration.
- * This is a convenience wrapper around isLegacyBlobbiEvent.
- */
-export function companionNeedsMigration(companion: BlobbiCompanion): boolean {
-  return companion.isLegacy;
 }
 
 /**
@@ -1184,7 +1159,8 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // Derive visual traits (single source of truth)
   const visualTraits = deriveVisualTraits(tags, effectiveSeed);
   
-  // Check if this is a legacy event that needs migration
+  // Flag legacy / non-canonical format (no longer triggers migration; used to
+  // skip seed-identity sync for events without a usable seed).
   const isLegacy = isLegacyBlobbiEvent(event);
   
   // Check if stored mirror tags need syncing with seed-derived values
@@ -1818,172 +1794,6 @@ export function getBlobbonautQueryDValues(pubkey: string): string[] {
   ];
 }
 
-// ─── Legacy Migration Helpers ─────────────────────────────────────────────────
-
-/**
- * Build tags for migrating a legacy Blobbi pet to canonical format.
- * 
- * Migration preserves:
- * - seed (existing or derived once)
- * - name (tag > legacy d-tag derived > fallback)
- * - core state tags (stage, state, stats, etc.)
- * - legacy visual tags (explicitly preserved for backwards compatibility)
- * - unknown tags (for forward compatibility)
- * 
- * @param legacyEvent - The original legacy event
- * @param newPetId - The new 10-char hex petId for canonical format
- * @param pubkey - The owner's pubkey
- * @returns Tags for the new canonical event
- */
-export function buildMigrationTags(
-  legacyEvent: NostrEvent,
-  newPetId: string,
-  pubkey: string
-): string[][] {
-  const canonicalD = getCanonicalBlobbiD(pubkey, newPetId);
-  const legacyTags = legacyEvent.tags;
-  
-  // Get or derive seed - use legacy event's created_at for consistency
-  // IMPORTANT: If seed exists and is valid, preserve it. Only derive if missing.
-  const existingSeed = getTagValue(legacyTags, 'seed');
-  const seed = existingSeed && existingSeed.length === 64
-    ? existingSeed
-    : deriveBlobbiSeedV1(pubkey, canonicalD, legacyEvent.created_at);
-  
-  const now = Math.floor(Date.now() / 1000).toString();
-  
-  // Start with required tags
-  const legacyD = getTagValue(legacyTags, 'd');
-  const newTags: string[][] = [
-    ['d', canonicalD],
-    ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['seed', seed],
-  ];
-  
-  // Store a back-reference to the legacy d-tag for future equivalence lookups.
-  // This is additive — current dedup logic uses name-based matching, but future
-  // versions can use this tag for stronger deterministic equivalence.
-  if (legacyD) {
-    newTags.push(['migrated_from', legacyD]);
-  }
-  
-  // Preserve name with priority: name tag > legacy d-tag derived > fallback
-  const nameTag = getTagValue(legacyTags, 'name');
-  const resolvedName = nameTag ?? (legacyD ? deriveNameFromLegacyD(legacyD) : 'Unnamed Blobbi');
-  newTags.push(['name', resolvedName]);
-  
-  // Preserve all persistent tags from the legacy event
-  // This includes: state, stats, progression, social, personality, evolution, and extension tags
-  // Per blobbi-tag-schema.md: Do NOT invent values for tags that don't exist
-  const persistentTagNames = [
-    // State/lifecycle tags
-    'stage',
-    // Stat tags
-    'hunger', 'happiness', 'health', 'hygiene', 'energy',
-    // Progression tags
-    'experience', 'care_streak', 'care_streak_last_at', 'care_streak_last_day',
-    // Progression process tags
-    'progression_state', 'progression_started_at',
-    // Legacy progression timing (also preserve for fallback)
-    'state_started_at',
-    // Social/flag tags
-    'social', 'generation', 'breeding_ready',
-    // Personality tags (preserve if they exist, do NOT generate)
-    'personality', 'trait', 'favorite_food', 'voice_type', 'mood',
-    // Evolution tags
-    'adult_type',
-    // Extension tags
-    'theme', 'crossover_app',
-  ];
-  
-  for (const tagName of persistentTagNames) {
-    const value = getTagValue(legacyTags, tagName);
-    if (value !== undefined) {
-      newTags.push([tagName, value]);
-    }
-  }
-  
-  // ─── Normalise legacy state → progression_state ───
-  // If the legacy event has state='incubating' or state='evolving', migrate
-  // to the new split model during migration.
-  const legacyState = getTagValue(legacyTags, 'state');
-  if (legacyState === 'incubating' || legacyState === 'evolving') {
-    // Set activity state to 'active' (the progression process is tracked separately)
-    newTags.push(['state', 'active']);
-    // Only set progression_state if not already set from persistentTagNames
-    if (!getTagValue(legacyTags, 'progression_state')) {
-      newTags.push(['progression_state', legacyState]);
-      // Migrate state_started_at → progression_started_at if present
-      const startedAt = getTagValue(legacyTags, 'state_started_at');
-      if (startedAt && !getTagValue(legacyTags, 'progression_started_at')) {
-        newTags.push(['progression_started_at', startedAt]);
-      }
-    }
-  } else if (legacyState) {
-    newTags.push(['state', legacyState]);
-    // Ensure progression_state is set
-    if (!getTagValue(legacyTags, 'progression_state')) {
-      newTags.push(['progression_state', 'none']);
-    }
-  } else {
-    newTags.push(['state', 'active']);
-    newTags.push(['progression_state', 'none']);
-  }
-  
-  // ALWAYS include visual trait tags - derived from seed, with legacy tag fallbacks
-  // This ensures every migrated event has complete visual traits for consistent rendering
-  const visualTraits = deriveVisualTraits(legacyTags, seed);
-  newTags.push(['base_color', visualTraits.baseColor]);
-  newTags.push(['secondary_color', visualTraits.secondaryColor]);
-  newTags.push(['eye_color', visualTraits.eyeColor]);
-  newTags.push(['pattern', visualTraits.pattern]);
-  newTags.push(['special_mark', visualTraits.specialMark]);
-  newTags.push(['size', visualTraits.size]);
-  
-  // Update timestamps
-  newTags.push(['last_interaction', now]);
-  const lastDecay = getTagValue(legacyTags, 'last_decay_at');
-  if (lastDecay) {
-    newTags.push(['last_decay_at', lastDecay]);
-  } else {
-    newTags.push(['last_decay_at', now]);
-  }
-  
-  // Preserve truly unknown tags for forward compatibility
-  // (tags not in managed set AND not in visual trait set AND not deprecated)
-  const knownTagNames = new Set([
-    ...MANAGED_BLOBBI_STATE_TAG_NAMES,
-    ...VISUAL_TRAIT_TAG_NAMES,
-    ...DEPRECATED_BLOBBI_TAG_NAMES,
-  ]);
-  const unknownTags = legacyTags.filter(tag => !knownTagNames.has(tag[0]));
-  
-  const assembledTags = [...newTags, ...unknownTags];
-  
-  // ─── Validate and Repair Tags ───
-  // Use the tag integrity guard to ensure all required tags are present
-  // and deprecated tags are removed
-  const repairResult = validateAndRepairBlobbiTags(assembledTags, legacyTags);
-  
-  if (import.meta.env.DEV) {
-    if (repairResult.repaired) {
-      console.log('[Migration] Tag repairs applied:', repairResult.repairs);
-    }
-    if (repairResult.errors.length > 0) {
-      console.warn('[Migration] Tag validation errors:', repairResult.errors);
-    }
-  }
-  
-  return repairResult.tags;
-}
-
-/**
- * Check if a Blobbi needs migration to canonical format.
- */
-export function needsCanonicalMigration(d: string): boolean {
-  return isLegacyBlobbiD(d);
-}
-
 /**
  * Add a pet to the profile's 'has' list without duplicates.
  * Returns updated has array.
@@ -1994,237 +1804,6 @@ export function addPetToHas(currentHas: string[], newPetD: string): string[] {
   }
   return [...currentHas, newPetD];
 }
-
-/**
- * Remove a legacy pet ID from 'has' and replace with canonical.
- */
-export function migratePetInHas(
-  currentHas: string[],
-  legacyD: string,
-  canonicalD: string
-): string[] {
-  const filtered = currentHas.filter(d => d !== legacyD);
-  if (!filtered.includes(canonicalD)) {
-    filtered.push(canonicalD);
-  }
-  return filtered;
-}
-
-// ─── Legacy / Canonical Deduplication ──────────────────────────────────────────
-
-/**
- * Normalize a Blobbi name for equivalence comparison.
- * Lowercases and trims whitespace so "Jack", "jack", and " Jack " all match.
- */
-export function normalizeBlobbiName(name: string): string {
-  return name.trim().toLowerCase();
-}
-
-/**
- * Check whether a canonical companion is equivalent to a legacy companion.
- *
- * Equivalence priority (first match wins):
- * 1. **migrated_from exact match**: canonical has a `migrated_from` tag that
- *    equals the legacy d-tag. This is the strongest signal — it was written
- *    during migration and is preserved across all subsequent updates.
- * 2. **name + base_color match**: same normalized name AND same raw `base_color`
- *    tag value (both present and equal). Covers older canonical copies that
- *    were created before the `migrated_from` tag existed.
- * 3. **name-only fallback**: same normalized name when the legacy event has no
- *    explicit `base_color` tag (too bare to compare). This is the weakest tier
- *    and only applies to genuinely old legacy events with no visual tags.
- */
-function isCanonicalEquivalentToLegacy(
-  canonical: BlobbiCompanion,
-  legacyD: string,
-  legacyName: string,
-  legacyBaseColor: string | undefined,
-): boolean {
-  // Priority 1: migrated_from exact match
-  const migratedFrom = getTagValue(canonical.event.tags, 'migrated_from');
-  if (migratedFrom === legacyD) return true;
-
-  // Priority 2: name + base_color (both must be present and equal)
-  const canonicalBaseColor = getTagValue(canonical.event.tags, 'base_color');
-  if (
-    normalizeBlobbiName(canonical.name) === legacyName &&
-    legacyBaseColor !== undefined &&
-    canonicalBaseColor !== undefined &&
-    legacyBaseColor.toUpperCase() === canonicalBaseColor.toUpperCase()
-  ) {
-    return true;
-  }
-
-  // Priority 3: name-only when legacy has no base_color to compare
-  if (
-    normalizeBlobbiName(canonical.name) === legacyName &&
-    legacyBaseColor === undefined
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Filter out legacy companions that have been migrated to canonical format.
- *
- * A legacy companion is hidden when ALL of the following are true:
- * 1. It is a legacy event (companion.isLegacy === true)
- * 2. The legacy d-tag is NOT present in profile.has (confirming migration occurred)
- * 3. A canonical equivalent exists, determined by (first match wins):
- *    a. migrated_from exact match on the legacy d-tag
- *    b. same normalized name + same raw base_color tag
- *    c. same normalized name (fallback when legacy has no base_color tag)
- *
- * After legacy filtering, a second pass collapses canonical → canonical
- * duplicates that share the same `migrated_from` tag value (i.e. were both
- * migrated from the same legacy d-tag due to a race condition). For each
- * group the companion with the newest `created_at` is kept; the rest are
- * hidden. Canonical companions without a `migrated_from` tag are always
- * kept — no heuristic (name, color, etc.) grouping is applied.
- *
- * @param companions - All parsed companions (legacy + canonical)
- * @param profileHas - The profile.has array of owned Blobbi d-tags
- * @returns Filtered companions with migrated legacy entries and canonical
- *          duplicates removed
- */
-export function filterMigratedLegacyCompanions(
-  companions: BlobbiCompanion[],
-  profileHas: string[],
-): BlobbiCompanion[] {
-  // Collect canonical companions for equivalence checks
-  const canonicals = companions.filter((c) => !c.isLegacy);
-
-  // If there are no canonical companions, nothing to filter
-  if (canonicals.length === 0) return companions;
-
-  const hasSet = new Set(profileHas);
-
-  const afterLegacyFilter = companions.filter((c) => {
-    // Keep all canonical companions unconditionally (deduped in next pass)
-    if (!c.isLegacy) return true;
-
-    // Keep legacy companions that are still in profile.has (not yet migrated)
-    if (hasSet.has(c.d)) return true;
-
-    // Check if any canonical companion is equivalent to this legacy one
-    const legacyName = normalizeBlobbiName(c.name);
-    const legacyBaseColor = getTagValue(c.event.tags, 'base_color');
-
-    const hasEquivalent = canonicals.some((canonical) =>
-      isCanonicalEquivalentToLegacy(canonical, c.d, legacyName, legacyBaseColor),
-    );
-
-    // Hide if a canonical equivalent exists, keep otherwise
-    return !hasEquivalent;
-  });
-
-  // ── Canonical → canonical dedup ──────────────────────────────────────────
-  // Group canonical companions by `migrated_from` tag. Within each group,
-  // keep only the newest event (highest created_at). Canonicals without the
-  // tag are never grouped — they pass through untouched.
-  const canonicalWinners = collapseCanonicalDuplicates(
-    afterLegacyFilter.filter((c) => !c.isLegacy),
-  );
-  const winnerDs = new Set(canonicalWinners.map((c) => c.d));
-
-  return afterLegacyFilter.filter((c) => {
-    // Legacy companions already survived the first pass — keep them
-    if (c.isLegacy) return true;
-    // Canonical companions must be in the winner set
-    return winnerDs.has(c.d);
-  });
-}
-
-/**
- * Collapse canonical companions that were duplicated by a migration race.
- *
- * Two canonical companions are considered duplicates of the same logical
- * Blobbi if and only if both carry a `migrated_from` tag with the same
- * value. For each such group the companion with the newest `created_at`
- * is kept; ties are broken by d-tag lexicographic order (deterministic).
- *
- * Canonical companions *without* a `migrated_from` tag are always kept —
- * no heuristic grouping (name, color, etc.) is applied.
- */
-function collapseCanonicalDuplicates(
-  canonicals: BlobbiCompanion[],
-): BlobbiCompanion[] {
-  // Companions without migrated_from — always kept
-  const ungrouped: BlobbiCompanion[] = [];
-  // Group canonical companions by migrated_from value
-  const groups = new Map<string, BlobbiCompanion[]>();
-
-  for (const c of canonicals) {
-    const migratedFrom = getTagValue(c.event.tags, 'migrated_from');
-    if (!migratedFrom) {
-      ungrouped.push(c);
-      continue;
-    }
-    const group = groups.get(migratedFrom);
-    if (group) {
-      group.push(c);
-    } else {
-      groups.set(migratedFrom, [c]);
-    }
-  }
-
-  // Pick the winner from each group: newest created_at, tie-break on d-tag
-  const winners: BlobbiCompanion[] = [...ungrouped];
-  for (const group of groups.values()) {
-    let best = group[0];
-    for (let i = 1; i < group.length; i++) {
-      const c = group[i];
-      if (
-        c.event.created_at > best.event.created_at ||
-        (c.event.created_at === best.event.created_at && c.d > best.d)
-      ) {
-        best = c;
-      }
-    }
-    winners.push(best);
-  }
-
-  return winners;
-}
-
-/**
- * Find an existing canonical companion that is equivalent to a legacy companion.
- *
- * Used by the migration guard to avoid creating duplicate canonical events.
- * Uses the same equivalence priority as `filterMigratedLegacyCompanions`:
- * 1. migrated_from exact match (strongest)
- * 2. same normalized name + same raw base_color tag
- * 3. same normalized name when legacy has no base_color (weakest)
- *
- * When multiple canonical companions match, the one with the newest
- * created_at is returned (most up-to-date state).
- *
- * @param legacy - The legacy companion to find an equivalent for
- * @param companions - All parsed companions
- * @returns The best matching canonical companion, or undefined
- */
-export function findCanonicalEquivalent(
-  legacy: BlobbiCompanion,
-  companions: BlobbiCompanion[],
-): BlobbiCompanion | undefined {
-  const legacyName = normalizeBlobbiName(legacy.name);
-  const legacyBaseColor = getTagValue(legacy.event.tags, 'base_color');
-  let best: BlobbiCompanion | undefined;
-
-  for (const c of companions) {
-    if (c.isLegacy) continue;
-    if (!isCanonicalEquivalentToLegacy(c, legacy.d, legacyName, legacyBaseColor)) continue;
-    // Among multiple matches, prefer the newest (most up-to-date state)
-    if (!best || c.event.created_at > best.event.created_at) {
-      best = c;
-    }
-  }
-
-  return best;
-}
-
 // ─── LocalStorage Cache Types ─────────────────────────────────────────────────
 
 export interface BlobbiBootCache {

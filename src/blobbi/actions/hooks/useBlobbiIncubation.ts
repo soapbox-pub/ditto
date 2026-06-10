@@ -61,12 +61,11 @@ export interface StartIncubationRequest {
 export interface UseStartIncubationParams {
   companion: BlobbiCompanion | null;
   profile: BlobbonautProfile | null;
-  /** Called to ensure companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
@@ -327,12 +326,11 @@ export function useStartIncubation({
  */
 export interface UseStopIncubationParams {
   companion: BlobbiCompanion | null;
-  /** Called to ensure companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
@@ -461,12 +459,11 @@ export function useStopIncubation({
  */
 export interface UseStartEvolutionParams {
   companion: BlobbiCompanion | null;
-  /** Called to ensure companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
@@ -608,12 +605,11 @@ export function useStartEvolution({
  */
 export interface UseStopEvolutionParams {
   companion: BlobbiCompanion | null;
-  /** Called to ensure companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
