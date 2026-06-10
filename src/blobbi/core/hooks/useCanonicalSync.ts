@@ -65,7 +65,8 @@ interface UseCanonicalSyncParams {
   updateCompanionEvent: (event: NostrEvent) => void;
   /**
    * The ensureCanonicalBeforeAction helper that returns fresh canonical
-   * data (auto-migrating legacy pets if needed).
+   * data. Returns null for legacy/unsupported Blobbis, so no canonical event
+   * is ever published from a legacy event.
    */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
@@ -230,6 +231,11 @@ export function useCanonicalSync({
   useEffect(() => {
     if (!companion) return;
     if (interactionsLoading) return;
+
+    // Legacy / unsupported Blobbis are never synced or republished. They should
+    // not reach this hook (they are filtered out of the collection), but guard
+    // here too so a legacy event can never be migrated into canonical format.
+    if (companion.isLegacy) return;
 
     // Already synced this companion
     if (syncedDRef.current === companion.d) return;

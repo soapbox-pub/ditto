@@ -861,9 +861,74 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
 
 /**
- * Check if a Blobbi event is in a legacy / non-canonical format.
+ * Old-app schema markers that uniquely identify a Blobbi event produced by the
+ * legacy ("old app") client, *even when its d-tag looks canonical*.
+ *
+ * The current Ditto client never writes any of these tags into a Kind 31124
+ * event: the egg/incubation/fee fields were removed from the schema, and the
+ * `t`/`client` tags are stripped on republish (the NIP-89 client tag is added
+ * by useNostrPublish as `["client", "Ditto"]`, not stored in the event tags).
+ *
+ * Presence of ANY of these tag NAMES is therefore a strong, d-tag-independent
+ * signal that the event came from the old app and must be treated as
+ * unsupported (never migrated, normalized, or republished).
+ *
+ * NOTE: This intentionally does NOT include the new-app progression timing
+ * tags. `start_incubation` IS an old-app field (the new app uses
+ * `progression_started_at`), so it stays here.
+ */
+const OLD_APP_SCHEMA_TAG_NAMES = new Set<string>([
+  'incubation_time',
+  'incubation_progress',
+  'egg_temperature',
+  'egg_status',
+  'shell_integrity',
+  'fees',
+  'start_incubation',
+  'interact_6_progress',
+]);
+
+/**
+ * The `t` / `client` tag values the old app used. The current client never
+ * stores these in the event tags, but we match defensively on the old value.
+ */
+const OLD_APP_CLIENT_VALUE = 'blobbi';
+
+/**
+ * Detect a Blobbi event that originated from the old app / old schema, even
+ * when its d-tag is in the current canonical format and it carries a valid
+ * seed.
+ *
+ * Such events must be treated as **unsupported**: ignored everywhere, never
+ * shown/selected, never synced (canonical or seed/tag), and never republished
+ * into a cleaned/current format. Opening one must not produce a new 31124.
+ *
+ * Detection is based on old-app/deprecated schema markers, NOT the d-tag:
+ * - any old-app-only egg/incubation/fee schema tag (incubation_time,
+ *   incubation_progress, egg_temperature, egg_status, shell_integrity, fees,
+ *   start_incubation, interact_6_progress)
+ * - a `t` tag equal to the old-app value ("blobbi")
+ * - a `client` tag equal to the old-app value ("blobbi")
+ *
+ * Current Ditto-created canonical events (including freshly-created eggs) carry
+ * none of these, so they are never classified as unsupported. The mere
+ * presence of a `seed` is NOT a marker.
+ */
+export function isUnsupportedLegacyBlobbiEvent(event: NostrEvent): boolean {
+  for (const [name, value] of event.tags) {
+    if (OLD_APP_SCHEMA_TAG_NAMES.has(name)) return true;
+    if (name === 't' && value === OLD_APP_CLIENT_VALUE) return true;
+    if (name === 'client' && value === OLD_APP_CLIENT_VALUE) return true;
+  }
+  return false;
+}
+
+/**
+ * Check if a Blobbi event is in a legacy / unsupported format.
  *
  * A Blobbi is considered legacy if ANY of the following is true:
+ * - it carries old-app / old-schema markers (see isUnsupportedLegacyBlobbiEvent)
+ *   — this catches old-app events even when the d-tag looks canonical
  * - the d tag is not in canonical format
  * - the seed tag is missing
  * - the name tag is missing and must be derived from d
@@ -879,12 +944,19 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
  * - ecosystem tag
  *
  * NOTE: Old-app legacy Blobbis are no longer automatically migrated to the
- * canonical format. This predicate is retained only to populate the
- * BlobbiCompanion.isLegacy flag, which the seed-identity sync uses to skip
- * events with no usable seed.
+ * canonical format. This predicate populates the BlobbiCompanion.isLegacy
+ * flag, which the collection filter, fresh-fetch, canonical sync, and
+ * seed-identity sync all use to ignore unsupported events.
  */
 export function isLegacyBlobbiEvent(event: NostrEvent): boolean {
   const tags = event.tags;
+
+  // Old-app schema markers (d-tag-independent). Catches old-app events whose
+  // d-tag looks canonical and that carry a valid seed.
+  if (isUnsupportedLegacyBlobbiEvent(event)) {
+    return true;
+  }
+
   const d = getTagValue(tags, 'd');
   
   if (!d) return true;

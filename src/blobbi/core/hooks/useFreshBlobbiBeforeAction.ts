@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 import {
   KIND_BLOBBI_STATE,
+  isLegacyBlobbiEvent,
   isValidBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiCompanion,
@@ -66,6 +67,10 @@ export function useFreshBlobbiBeforeAction() {
 
   /**
    * Fetch the freshest companion event directly from relays, bypassing cache.
+   *
+   * Old-app legacy Blobbi events are excluded: they are unsupported and must
+   * never be returned as an actionable companion, so they can never become the
+   * base for a republish (no migration into the canonical format).
    */
   const fetchFreshCompanion = useCallback(async (
     pubkey: string,
@@ -78,7 +83,7 @@ export function useFreshBlobbiBeforeAction() {
     }]);
 
     const validEvents = events
-      .filter(isValidBlobbiEvent)
+      .filter((event) => isValidBlobbiEvent(event) && !isLegacyBlobbiEvent(event))
       .sort((a, b) => b.created_at - a.created_at);
 
     if (validEvents.length === 0) return null;
@@ -102,13 +107,33 @@ export function useFreshBlobbiBeforeAction() {
 
     const { companion: cachedCompanion, profile: cachedProfile } = options;
 
+    // Old-app legacy Blobbis are unsupported and must never become the base for
+    // a publish. If the cached companion is itself legacy, bail out *before*
+    // fetching — otherwise the `freshCompanion ?? cachedCompanion` fallback
+    // below could return the legacy cached companion when the fresh fetch
+    // (which filters out legacy events) returns null, reintroducing the legacy
+    // event into a publish path (e.g. useCanonicalSync's refresh sync).
+    if (cachedCompanion.isLegacy) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          '[FreshBlobbi] Refusing to act on legacy companion (unsupported):',
+          cachedCompanion.d.slice(0, 24),
+        );
+      }
+      return null;
+    }
+
     // Fetch fresh data from relays (read step of read-modify-write)
     const [freshCompanion, freshProfile] = await Promise.all([
       fetchFreshCompanion(user.pubkey, cachedCompanion.d),
       fetchFreshBlobbonautProfile(nostr, user.pubkey),
     ]);
 
-    // Use fresh data, falling back to cached only if relay fetch returned nothing
+    // Use fresh data, falling back to the cached companion only when the relay
+    // fetch returned nothing (transient miss, or a freshly-created canonical
+    // Blobbi not yet propagated). The cached companion is guaranteed non-legacy
+    // here (we bailed above if it was legacy), so this fallback can never
+    // reintroduce a legacy event into a publish path.
     const companion = freshCompanion ?? cachedCompanion;
     const profile = freshProfile ?? cachedProfile;
 
