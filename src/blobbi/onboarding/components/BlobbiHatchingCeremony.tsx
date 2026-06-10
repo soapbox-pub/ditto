@@ -30,11 +30,13 @@ import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbon
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
+  BLOBBI_ECOSYSTEM_NAMESPACE,
   INITIAL_BLOBBONAUT_COINS,
   STAT_MAX,
   buildBlobbonautTags,
   updateBlobbonautTags,
   updateBlobbiTags,
+  isValidBlobbiEvent,
   type BlobbonautProfile,
   type BlobbiCompanion,
 } from '@/blobbi/core/lib/blobbi';
@@ -218,6 +220,39 @@ export function BlobbiHatchingCeremony({
       setupStarted.current = true;
 
       try {
+        // ── Idempotency guard (authoritative pre-publish existence check) ──
+        // The decision to auto-create can fire on a transient empty/loading
+        // state (slow relay, missing boot cache, query settled before a slower
+        // relay answers). Before publishing anything, re-query the relays for
+        // ANY valid Blobbi owned by this user. If one already exists, abort the
+        // automatic creation and fall through to the existing-user/dashboard
+        // state instead of minting a duplicate (random-d) Blobbi.
+        //
+        // This does NOT block manual creation of additional Blobbis — that
+        // flow goes through adoption with explicit user action, not this
+        // silent auto-setup effect.
+        const existingEvents = await nostr.query(
+          [{
+            kinds: [KIND_BLOBBI_STATE],
+            authors: [user.pubkey],
+            '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
+          }],
+          { signal: AbortSignal.timeout(5000) },
+        );
+
+        if (existingEvents.some(isValidBlobbiEvent)) {
+          // User already has a Blobbi — do not auto-create. Route back to the
+          // normal page state, which will resolve to the dashboard / existing
+          // egg once fresh data is loaded.
+          console.warn(
+            '[HatchingCeremony] Existing Blobbi found pre-publish; aborting auto-create.',
+          );
+          invalidateProfile();
+          invalidateCompanion();
+          onCompleteRef.current?.();
+          return;
+        }
+
         const currentProfile = profileRef.current;
         let latestProfileTags: string[][] | null = currentProfile?.allTags ?? null;
 

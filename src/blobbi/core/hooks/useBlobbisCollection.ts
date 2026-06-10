@@ -220,6 +220,10 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
     isLoading: query.isLoading,
     /** True when actively fetching */
     isFetching: query.isFetching,
+    /** True once the query has successfully completed at least once */
+    isSuccess: query.isSuccess,
+    /** True once the query has fetched at least once (success or error) */
+    isFetched: query.isFetched,
     /** True when data is stale */
     isStale: query.isStale,
     /** Query error if any */

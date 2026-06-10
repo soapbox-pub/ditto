@@ -244,6 +244,10 @@ export function useBlobbonautProfile() {
     isLoading: query.isLoading && !cachedProfile,
     /** True when actively fetching (may have cached data displayed) */
     isFetching: query.isFetching,
+    /** True once the query has successfully completed at least once (settled with data or confirmed-empty null) */
+    isSuccess: query.isSuccess,
+    /** True once the query has fetched at least once (success or error), regardless of result */
+    isFetched: query.isFetched,
     /** True when displaying stale data */
     isStale: query.isStale,
     error: query.error,

@@ -227,6 +227,7 @@ function BlobbiContent() {
   const {
     profile,
     isLoading: profileLoading,
+    isSuccess: profileSettled,
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
@@ -245,6 +246,7 @@ function BlobbiContent() {
     companions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
+    isSuccess: collectionSettled,
     invalidate: invalidateCollection,
     updateCompanionEvent,
   } = useBlobbisCollection();
@@ -590,22 +592,32 @@ function BlobbiContent() {
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
   
-  // Cases that definitely need ceremony (no need to wait for companions)
-  const definitelyNeedsCeremony = !profile;
-  // Whether we've finished loading enough data to make the decision
-  const companionDataReady = !collectionLoading && (!collectionFetching || companions.length > 0);
+  // Cases that definitely need ceremony (no need to wait for companions).
+  // CRITICAL: Only treat a null profile as "needs ceremony" once the profile
+  // query has actually settled successfully (confirmed-empty), not merely when
+  // it has stopped loading. A null profile during an in-flight fetch, an error,
+  // or a transient empty relay response must NOT trigger auto-creation —
+  // otherwise a returning user with no boot cache gets a duplicate Blobbi.
+  const definitelyNeedsCeremony = !profile && profileSettled;
+  // Whether we've finished loading enough data to make the decision.
+  // Require the collection query to have settled successfully before trusting
+  // an empty result, so a slow/missing relay isn't read as "new user".
+  const companionDataReady =
+    !collectionLoading &&
+    collectionSettled &&
+    (!collectionFetching || companions.length > 0);
   // Cases where we must inspect actual companion stages before deciding.
   // This fires for ALL users with a profile — regardless of onboardingDone —
   // so that accounts with onboardingDone=true but only eggs still get
   // the ceremony.
   const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
   
-  // Auto-start ceremony for definite cases (no profile / no pets)
+  // Auto-start ceremony for definite cases (settled empty profile = brand new user)
   useEffect(() => {
-    if (definitelyNeedsCeremony && !profileLoading && !ceremonyInProgress) {
+    if (definitelyNeedsCeremony && !ceremonyInProgress) {
       setCeremonyInProgress(true);
     }
-  }, [definitelyNeedsCeremony, profileLoading, ceremonyInProgress]);
+  }, [definitelyNeedsCeremony, ceremonyInProgress]);
   
   // Resolve pending ceremony check once companions are loaded
   useEffect(() => {
@@ -651,7 +663,10 @@ function BlobbiContent() {
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
       setCeremonyInProgress(true);
     } else {
-      // No blobbi events found on relays — treat as new user
+      // Collection settled with zero companions — treat as new user.
+      // Backstop: the ceremony itself re-queries relays immediately before
+      // publishing (idempotency guard), so even if this empty result is wrong
+      // (e.g. a relay that answered empty here recovers), no duplicate is created.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
       setCeremonyInProgress(true);
     }
