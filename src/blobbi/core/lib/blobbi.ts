@@ -19,7 +19,11 @@ export const KIND_BLOBBONAUT_PROFILE = 11125;
 /** @deprecated Legacy kind for Blobbonaut profiles. Use KIND_BLOBBONAUT_PROFILE (11125) instead. */
 export const KIND_BLOBBONAUT_PROFILE_LEGACY = 31125;
 
-/** All Blobbonaut profile kinds to query (for migration support) */
+/**
+ * All Blobbonaut profile kinds to query for profile compatibility.
+ * Used by profile normalization/compatibility only; unrelated to old-app
+ * Blobbi migration.
+ */
 export const BLOBBONAUT_PROFILE_KINDS = [KIND_BLOBBONAUT_PROFILE, KIND_BLOBBONAUT_PROFILE_LEGACY] as const;
 
 // ─── Stat Bounds ──────────────────────────────────────────────────────────────
@@ -260,12 +264,20 @@ export interface BlobbiCompanion {
   /** Visual traits (derived from seed or legacy tags) */
   visualTraits: BlobbiVisualTraits;
   /**
-   * Whether this event is in a legacy / non-canonical format (non-canonical
-   * d-tag, missing seed, or missing name).
+   * Whether this event is in a legacy / unsupported format.
+   *
+   * This is true when EITHER:
+   * - the event carries old-app / old-schema markers (deprecated egg/incubation/
+   *   fee tags, or a `t`/`client` tag equal to the old-app value) — this catches
+   *   old-app events even when the d-tag looks canonical and a seed is present;
+   *   OR
+   * - the event has a non-canonical d-tag, a missing/short seed, or a missing
+   *   name.
    *
    * NOTE: Old-app legacy Blobbis are no longer automatically migrated. This
-   * flag is retained so the seed-identity sync can skip events that have no
-   * usable seed to sync to.
+   * flag is used by the collection filter, fresh-fetch, canonical sync, and
+   * seed-identity sync to ignore unsupported events (never shown, selected,
+   * synced, or republished).
    */
   isLegacy: boolean;
   /** Whether stored mirror tags differ from seed-derived identity and need republishing */
@@ -305,7 +317,8 @@ export interface BlobbiCompanion {
   /** 
    * @deprecated Use progressionStartedAt instead.
    * Timestamp when current state (incubating/evolving) started (unix seconds).
-   * Kept for migration compatibility.
+   * Kept only for read-time normalization of the legacy state→progression_state
+   * model; it does NOT drive any old-app event migration/republish.
    */
   stateStartedAt: number | undefined;
   /** Timestamp when current progression (incubating/evolving) started (unix seconds) */
@@ -797,8 +810,10 @@ function normalizeHexColor(value: string | undefined): string | undefined {
  * │ 2. Derive from seed if no tag present                                       │
  * │ 3. Safe defaults as final fallback                                          │
  * │                                                                              │
- * │ IMPORTANT: Legacy events may have explicit tags WITHOUT a seed.             │
- * │ These tags must be respected - do NOT discard them in favor of defaults.    │
+ * │ IMPORTANT: Some events may have explicit visual tags WITHOUT a seed         │
+ * │ (e.g. an event with a non-canonical d-tag). These tags must be respected    │
+ * │ for rendering — do NOT discard them in favor of defaults. This is a          │
+ * │ read-time fallback only; it does not trigger any republish/migration.       │
  * └─────────────────────────────────────────────────────────────────────────────┘
  * 
  * This function is the SINGLE SOURCE OF TRUTH for visual trait resolution.
@@ -861,16 +876,17 @@ export function deriveSeedIdentity(seed: string): BlobbiVisualTraits {
 // ─── Legacy Event Detection ───────────────────────────────────────────────────
 
 /**
- * Old-app schema markers that uniquely identify a Blobbi event produced by the
+ * Old-app schema markers that identify a Blobbi event produced by the
  * legacy ("old app") client, *even when its d-tag looks canonical*.
  *
- * The current Ditto client never writes any of these tags into a Kind 31124
- * event: the egg/incubation/fee fields were removed from the schema, and the
- * `t`/`client` tags are stripped on republish (the NIP-89 client tag is added
- * by useNostrPublish as `["client", "Ditto"]`, not stored in the event tags).
+ * Current Ditto-created canonical events are not expected to write any of
+ * these tags into a Kind 31124 event: the egg/incubation/fee fields were
+ * removed from the schema, and the `t`/`client` tags are stripped on republish
+ * (the NIP-89 client tag is added by useNostrPublish as `["client", "Ditto"]`,
+ * not stored in the event tags).
  *
  * Presence of ANY of these tag NAMES is therefore a strong, d-tag-independent
- * signal that the event came from the old app and must be treated as
+ * signal that the event came from the old app and should be treated as
  * unsupported (never migrated, normalized, or republished).
  *
  * NOTE: This intentionally does NOT include the new-app progression timing
@@ -889,8 +905,9 @@ const OLD_APP_SCHEMA_TAG_NAMES = new Set<string>([
 ]);
 
 /**
- * The `t` / `client` tag values the old app used. The current client never
- * stores these in the event tags, but we match defensively on the old value.
+ * The `t` / `client` tag values the old app used. Current Ditto-created
+ * canonical events are not expected to store these in the event tags, but we
+ * match defensively on the old value.
  */
 const OLD_APP_CLIENT_VALUE = 'blobbi';
 
@@ -899,7 +916,7 @@ const OLD_APP_CLIENT_VALUE = 'blobbi';
  * when its d-tag is in the current canonical format and it carries a valid
  * seed.
  *
- * Such events must be treated as **unsupported**: ignored everywhere, never
+ * Such events should be treated as **unsupported**: ignored everywhere, never
  * shown/selected, never synced (canonical or seed/tag), and never republished
  * into a cleaned/current format. Opening one must not produce a new 31124.
  *
@@ -910,9 +927,9 @@ const OLD_APP_CLIENT_VALUE = 'blobbi';
  * - a `t` tag equal to the old-app value ("blobbi")
  * - a `client` tag equal to the old-app value ("blobbi")
  *
- * Current Ditto-created canonical events (including freshly-created eggs) carry
- * none of these, so they are never classified as unsupported. The mere
- * presence of a `seed` is NOT a marker.
+ * Current Ditto-created canonical events (including freshly-created eggs) are
+ * not expected to carry any of these, so they are not classified as
+ * unsupported. The mere presence of a `seed` is NOT a marker.
  */
 export function isUnsupportedLegacyBlobbiEvent(event: NostrEvent): boolean {
   for (const [name, value] of event.tags) {
@@ -1088,7 +1105,8 @@ export function isValidBlobbonautEvent(event: NostrEvent): boolean {
 
 /**
  * Check if a Blobbonaut profile event is using the legacy kind (31125).
- * Used to determine if migration is needed.
+ * Used by profile normalization/compatibility only (kind 31125 → 11125);
+ * unrelated to old-app Blobbi migration.
  */
 export function isLegacyBlobbonautKind(event: NostrEvent): boolean {
   return event.kind === KIND_BLOBBONAUT_PROFILE_LEGACY;
@@ -1231,8 +1249,10 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // Derive visual traits (single source of truth)
   const visualTraits = deriveVisualTraits(tags, effectiveSeed);
   
-  // Flag legacy / non-canonical format (no longer triggers migration; used to
-  // skip seed-identity sync for events without a usable seed).
+  // Flag legacy / unsupported format (non-canonical d-tag, missing seed/name,
+  // OR old-app schema markers even when the d-tag looks canonical). Never
+  // triggers migration; the collection filter, fresh-fetch, canonical sync, and
+  // seed-identity sync all use it to ignore unsupported events.
   const isLegacy = isLegacyBlobbiEvent(event);
   
   // Check if stored mirror tags need syncing with seed-derived values
@@ -1319,7 +1339,8 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
 
 /**
  * Parse a Kind 11125 Blobbonaut Profile event into a structured object.
- * Also supports legacy kind 31125 profiles for migration purposes.
+ * Also supports legacy kind 31125 profiles for profile compatibility
+ * (unrelated to old-app Blobbi migration).
  * Returns undefined if the event is invalid.
  * 
  * Note: pettingLevel is parsed from both 'pettingLevel' and 'petting_level' tags
@@ -1847,7 +1868,8 @@ export function buildNormalizedProfileTags(profile: BlobbonautProfile): string[]
 
 /**
  * Get all possible d-tag values to query for a Blobbonaut profile.
- * Includes canonical and legacy formats for migration support.
+ * Includes canonical and legacy formats for profile compatibility (unrelated
+ * to old-app Blobbi migration).
  */
 export function getBlobbonautQueryDValues(pubkey: string): string[] {
   const prefix12 = getPubkeyPrefix12(pubkey);
