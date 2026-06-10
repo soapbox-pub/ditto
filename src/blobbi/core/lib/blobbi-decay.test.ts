@@ -350,6 +350,28 @@ describe('health penalties are integrated over time below threshold', () => {
     });
     expect(r.stats.health).toBeGreaterThanOrEqual(99);
   });
+
+  it('Regression: a stat starting below the soft-floor boundary but above the penalty threshold is integrated at the soft rate', () => {
+    // Adult boundary = 30. The energy/happiness "below 20" penalties take the
+    // threshold-below-boundary branch of hoursBelowThreshold(). When a stat
+    // *starts* between the penalty threshold (20) and the boundary (30) it is
+    // already in the soft-rate region, so the descent to 20 must be timed at
+    // the SOFT rate — not via a (negative) "fall to the boundary first" leg.
+    //
+    // The old code computed hoursToBoundary = (30 - start) / rate, which is
+    // negative for start < 30 with a negative rate, under-counting the hours
+    // below 20 and under-penalizing health by ~1 point here.
+    //
+    // Energy and happiness start at 29 (in (20, 30]); hunger/hygiene stay at
+    // 100 (their penalties are identical regardless of the fix, since they
+    // start above the boundary). Over 20h health lands at 40, not 41.
+    const r = decay({
+      stage: 'adult',
+      stats: { hunger: 100, happiness: 29, health: 100, hygiene: 100, energy: 29 },
+      elapsedSeconds: 20 * HOUR,
+    });
+    expect(r.stats.health).toBe(40);
+  });
 });
 
 // ─── Egg stays static ─────────────────────────────────────────────────────────

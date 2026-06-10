@@ -433,6 +433,14 @@ function hoursBelowThreshold(
   if (threshold >= boundary) {
     // Threshold sits in the full-rate region: linear at full rate.
     timeToThreshold = (threshold - startValue) / ratePerHour;
+  } else if (startValue <= boundary) {
+    // Threshold sits below the boundary AND the value already starts at/below
+    // the boundary, so the entire descent runs at the soft rate. (Without this
+    // guard the `else` branch below computes a *negative* hoursToBoundary —
+    // since startValue < boundary with a negative rate — which under-counts the
+    // time below the threshold and under-penalizes health. Mirrors the
+    // `current <= boundary` early branch in decayWithSoftFloor().)
+    timeToThreshold = (threshold - startValue) / softRate;
   } else {
     // Threshold sits below the boundary. First fall to the boundary at full
     // rate, then continue toward the threshold at the soft rate.
