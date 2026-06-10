@@ -591,6 +591,14 @@ function BlobbiContent() {
   // Locks the egg chosen for the ceremony so a page refresh mid-animation
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
+  // One-shot latch: the AUTOMATIC ceremony may start at most once per page
+  // mount. Without this, the no-profile auto-start gate
+  // (`definitelyNeedsCeremony = !profile && profileSettled`) can re-fire after
+  // the ceremony's pre-publish guard aborts and calls onComplete() while
+  // `profile` is still null — causing a remount loop that re-queries relays on
+  // every iteration. This latch does NOT gate explicit user actions like
+  // "Adopt another Blobbi" (that path uses setShowAdoptionFlow, not this).
+  const autoCeremonyStartedRef = useRef(false);
   
   // Cases that definitely need ceremony (no need to wait for companions).
   // CRITICAL: Only treat a null profile as "needs ceremony" once the profile
@@ -614,7 +622,8 @@ function BlobbiContent() {
   
   // Auto-start ceremony for definite cases (settled empty profile = brand new user)
   useEffect(() => {
-    if (definitelyNeedsCeremony && !ceremonyInProgress) {
+    if (definitelyNeedsCeremony && !ceremonyInProgress && !autoCeremonyStartedRef.current) {
+      autoCeremonyStartedRef.current = true;
       setCeremonyInProgress(true);
     }
   }, [definitelyNeedsCeremony, ceremonyInProgress]);
@@ -622,6 +631,7 @@ function BlobbiContent() {
   // Resolve pending ceremony check once companions are loaded
   useEffect(() => {
     if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
+    if (autoCeremonyStartedRef.current) return;
     
     const eggs = companions.filter(c => c.stage === 'egg');
     const hasHatchedBlobbi = companions.some(c => c.stage === 'baby' || c.stage === 'adult');
@@ -661,6 +671,7 @@ function BlobbiContent() {
       const egg = eggs.length === 1 ? eggs[0] : eggs[Math.floor(Math.random() * eggs.length)];
       ceremonyEggRef.current = egg;
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
+      autoCeremonyStartedRef.current = true;
       setCeremonyInProgress(true);
     } else {
       // Collection settled with zero companions — treat as new user.
@@ -668,6 +679,7 @@ function BlobbiContent() {
       // publishing (idempotency guard), so even if this empty result is wrong
       // (e.g. a relay that answered empty here recovers), no duplicate is created.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
+      autoCeremonyStartedRef.current = true;
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
