@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.22.0] - 2026-06-10
+
+Make your Blobbi's room your own: a new room editor lets you decorate the walls and floors with patterns, colors, and angles, then fill the space with furniture you've collected. You can also highlight your favorite lines now -- just select any text in a post or article and tap Highlight to share the passage. Search is sharper too, with a new sort:top option for surfacing the best results.
+
+### Added
+- Decorate your Blobbi's room with custom wall and floor patterns, colors, and angles, then arrange the furniture you've collected
+- Highlight a passage from any post or article by selecting the text and tapping Highlight to share it
+- Add sort:top to a search to surface the most popular results first
+
+### Changed
+- Search results are quicker and steadier, without the old flicker while loading
+
+### Fixed
+- Profile and post links shared as web addresses no longer 404 on Android
+
 ## [2.21.0] - 2026-06-07
 
 Share into Ditto from anywhere on Android: hit Share in any app and you can post the text straight to your feed, or jump into the conversation around a link. A new Nostr Clients widget in the sidebar lets you hop between the apps people are posting from, and every client page now shows how many people are active on it with a 30-day usage chart. The Trends page gains a Unique Users by Client chart so you can see which apps the community is posting from at a glance.
