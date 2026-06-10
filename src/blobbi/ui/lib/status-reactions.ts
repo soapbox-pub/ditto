@@ -136,6 +136,20 @@ export interface StatusRecipeResult {
 /**
  * Severity thresholds based on stat value.
  * Values are inclusive upper bounds.
+ *
+ * FOLLOW-UP (threshold alignment): these thresholds are **stage-independent**,
+ * while the care-state/badge thresholds in `blobbi-segments.ts` are
+ * stage-specific (baby: attention ≤ 50, urgent ≤ 25; adult: attention ≤ 60,
+ * urgent ≤ 30). As a result the face can read `warning` (value < 70) before
+ * the badge shows `attention` — most visible for adults around 60-69.
+ *
+ * Fully aligning the two (e.g. deriving severity per stage from the segment
+ * care-states) touches the visual recipe pipeline, BlobbiPage hygiene gating,
+ * and BlobbiSocialActions eligibility, so it is intentionally **out of scope**
+ * for the decay-rebalance MR and tracked as a dedicated follow-up. The
+ * `needDetection.ts` thresholds sit at/below the badge thresholds, so they do
+ * not introduce a "distressed face but needs say fine" inversion.
+ * See docs/blobbi/decay-system.md → "Threshold alignment (follow-up)".
  */
 export const SEVERITY_THRESHOLDS = {
   critical: 30,  // 0-29: critical

@@ -53,9 +53,13 @@ export interface DecayInput {
 /**
  * Baby stage decay rates (per hour).
  *
- * Design goal: First stat (energy) drops to "okay" (3/4) around 2.7 hours,
- * first "attention" (2/4) around 5-6 hours. Simpler than adult, needs care
- * sooner but not punitively.
+ * Design goal (rebalanced): babies remain more delicate than adults but are
+ * no longer punitive. From full stats the first stat (energy) reaches
+ * "attention" (2/4 = ≤ 50) around 8-9 hours, so one normal day away leaves a
+ * baby needing care rather than fully crashed. A soft-floor (see
+ * SOFT_FLOOR_* below) slows decay once a stat is already in the urgent range,
+ * so 24h / 48h / multi-day absences degrade gracefully instead of all
+ * collapsing to 1.
  *
  * Health penalty thresholds are aligned to baby segment boundaries:
  *   attention = value ≤ 50,  urgent = value ≤ 25.
@@ -63,10 +67,10 @@ export interface DecayInput {
  * still shows "okay".
  */
 const BABY_DECAY = {
-  hunger: -8.0,
-  happiness: -4.5,
-  hygiene: -6.0,
-  energy: -9.0,
+  hunger: -5.0,
+  happiness: -3.0,
+  hygiene: -4.0,
+  energy: -5.5,
   health: {
     base: -0.4,
     // Tier 1: mild — stat in attention range (≤ 50)
@@ -88,9 +92,12 @@ const BABY_DECAY = {
 /**
  * Adult stage decay rates (per hour).
  *
- * Design goal: First stat (energy) drops to "okay" (7/10) around 5-6 hours,
- * first "attention" (6/10) around 7-8 hours. More resilient than baby — growing
- * up should feel like a reward, not more annoyance.
+ * Design goal: First stat reaches "attention" (6/10 = ≤ 60) around 7-8 hours,
+ * "urgent" around 14+ hours. More resilient than baby — growing up should
+ * feel like a reward, not more annoyance. Energy was nudged from -5.5 to -5.0
+ * so it no longer decays faster than hunger and is no longer the constant
+ * first cause of sleepy visuals. The shared soft-floor (SOFT_FLOOR_*) applies
+ * here too so long absences degrade gracefully.
  *
  * Adult penalty thresholds were already close to segment boundaries and
  * are left unchanged.
@@ -99,7 +106,7 @@ const ADULT_DECAY = {
   hunger: -5.0,
   happiness: -2.5,
   hygiene: -4.0,
-  energy: -5.5,
+  energy: -5.0,
   health: {
     base: -0.25,
     hungerBelow60: -0.5,
@@ -136,6 +143,38 @@ const BABY_SLEEP_ENERGY_REGEN = 40.0;
 
 /** Adult energy regen rate while sleeping (per hour). */
 const ADULT_SLEEP_ENERGY_REGEN = 35.0;
+
+// ─── Constants: Soft-Floor (graceful decay slowdown) ──────────────────────────
+
+/**
+ * Graceful soft-floor for primary stats (hunger, happiness, hygiene, energy).
+ *
+ * Problem this solves: with a single linear rate, every long absence looks
+ * identical — 24h, 48h, and 5 days all bottom out at 1. That makes neglect
+ * binary (fine → fully crashed) and removes any difference between "a busy
+ * day" and "a week away".
+ *
+ * Behavior:
+ *   - **Above the urgent boundary:** stats decay at the full stage rate.
+ *   - **At or below the urgent boundary:** decay continues but at a reduced
+ *     fraction (SOFT_FLOOR_RATE_FRACTION), so a baby/adult that is already
+ *     hurting slides toward the floor much more slowly.
+ *
+ * The boundary is the stage's urgent care-state threshold (baby ≤ 25,
+ * adult ≤ 30) so it lines up with what the UI already calls "urgent".
+ *
+ * This only affects *negative* deltas (decay). Regeneration and item effects
+ * are unchanged. The split is computed analytically so the result stays a
+ * pure, deterministic function of elapsed time (no per-hour stepping).
+ */
+const SOFT_FLOOR_RATE_FRACTION = 0.35;
+
+/** Urgent-range boundary per stage — decay below this is softened. */
+const SOFT_FLOOR_BOUNDARY = {
+  egg: 25,
+  baby: 25,
+  adult: 30,
+} as const;
 
 // ─── Constants: Warning Thresholds ────────────────────────────────────────────
 
@@ -234,6 +273,100 @@ function roundDelta(delta: number): number {
   return Math.trunc(delta);
 }
 
+/**
+ * Apply a continuous per-hour decay rate to a stat with a graceful soft-floor.
+ *
+ * Decay is split into two regions, computed analytically (no stepping):
+ *   1. The portion of decay above `boundary` runs at the full `ratePerHour`.
+ *   2. Once the stat reaches `boundary`, the remaining elapsed time decays at
+ *      `ratePerHour * SOFT_FLOOR_RATE_FRACTION`.
+ *
+ * The result is floored toward zero with roundDelta() and clamped to
+ * [STAT_MIN, STAT_MAX].
+ *
+ * Only meaningful for decay (negative rate). For non-negative rates (or values
+ * already at/below the boundary that would otherwise round-trip), the function
+ * still produces correct results, so it is safe to call unconditionally.
+ *
+ * @param current     Current stat value.
+ * @param ratePerHour Full decay rate per hour (typically negative).
+ * @param elapsedHours Elapsed time in hours.
+ * @param boundary    Urgent boundary below which decay is softened.
+ */
+function decayWithSoftFloor(
+  current: number,
+  ratePerHour: number,
+  elapsedHours: number,
+  boundary: number,
+): number {
+  // Soft-floor only applies to decay (negative rate). Anything else (regen,
+  // zero) falls back to the simple linear application.
+  if (ratePerHour >= 0) {
+    return clamp(current + roundDelta(ratePerHour * elapsedHours));
+  }
+
+  // Already at/below the boundary: the entire window decays at the soft rate.
+  if (current <= boundary) {
+    const softDelta = ratePerHour * SOFT_FLOOR_RATE_FRACTION * elapsedHours;
+    return clamp(current + roundDelta(softDelta));
+  }
+
+  // Time (in hours) to fall from `current` down to the boundary at full rate.
+  // ratePerHour is negative, so (boundary - current) / ratePerHour is positive.
+  const hoursToBoundary = (boundary - current) / ratePerHour;
+
+  if (elapsedHours <= hoursToBoundary) {
+    // Never reaches the boundary within the window — full rate throughout.
+    return clamp(current + roundDelta(ratePerHour * elapsedHours));
+  }
+
+  // Crosses the boundary: full rate down to the boundary, then soft rate for
+  // the remaining time. We compute the exact (unfloored) intermediate value
+  // and only floor/clamp the final result so the two regions compose cleanly.
+  const remainingHours = elapsedHours - hoursToBoundary;
+  const fullPortion = ratePerHour * hoursToBoundary; // == boundary - current
+  const softPortion = ratePerHour * SOFT_FLOOR_RATE_FRACTION * remainingHours;
+  return clamp(current + roundDelta(fullPortion + softPortion));
+}
+
+/**
+ * Apply a precomputed health delta with a graceful soft-floor.
+ *
+ * Health is computed as a single net delta (base decay + conditional
+ * penalties + optional regen) rather than a simple per-hour rate, so it
+ * needs its own soft-floor application:
+ *
+ *   - Positive delta (net regen): applied directly.
+ *   - Negative delta while health is above `boundary`: the portion of the
+ *     drop that would carry health below the boundary is softened to
+ *     SOFT_FLOOR_RATE_FRACTION strength.
+ *   - Negative delta while health is already at/below `boundary`: the whole
+ *     delta is softened.
+ *
+ * This mirrors decayWithSoftFloor() but operates on an already-aggregated
+ * delta. Result is floored toward zero and clamped to [STAT_MIN, STAT_MAX].
+ */
+function applyHealthDelta(current: number, delta: number, boundary: number): number {
+  if (delta >= 0) {
+    return clamp(current + roundDelta(delta));
+  }
+
+  // Already in the urgent range: soften the entire drop.
+  if (current <= boundary) {
+    return clamp(current + roundDelta(delta * SOFT_FLOOR_RATE_FRACTION));
+  }
+
+  // Above the boundary but the full drop would cross it: full strength down to
+  // the boundary, softened strength for the remainder.
+  const room = current - boundary; // positive headroom before the soft region
+  if (-delta <= room) {
+    return clamp(current + roundDelta(delta));
+  }
+  const overflow = -delta - room; // amount that lands in the soft region
+  const softened = -(room + overflow * SOFT_FLOOR_RATE_FRACTION);
+  return clamp(current + roundDelta(softened));
+}
+
 // ─── Stage-Specific Decay Calculators ─────────────────────────────────────────
 
 /**
@@ -278,16 +411,20 @@ function calculateBabyDecay(
   let health = getStat(stats, 'health');
   
   // Calculate basic stat decay/regen
-  const hungerDelta = BABY_DECAY.hunger * statMul * elapsedHours;
-  const happinessDelta = BABY_DECAY.happiness * statMul * elapsedHours;
-  const hygieneDelta = BABY_DECAY.hygiene * statMul * elapsedHours;
-  const energyDelta = (isSleeping ? BABY_SLEEP_ENERGY_REGEN : BABY_DECAY.energy) * elapsedHours;
-  
-  // Apply basic deltas
-  hunger = clamp(hunger + roundDelta(hungerDelta));
-  happiness = clamp(happiness + roundDelta(happinessDelta));
-  hygiene = clamp(hygiene + roundDelta(hygieneDelta));
-  energy = clamp(energy + roundDelta(energyDelta));
+  // Decay stats use the soft-floor so long absences degrade gracefully.
+  // Sleeping reduces the rate to 20% before the soft-floor split is applied.
+  const babyBoundary = SOFT_FLOOR_BOUNDARY.baby;
+  hunger = decayWithSoftFloor(hunger, BABY_DECAY.hunger * statMul, elapsedHours, babyBoundary);
+  happiness = decayWithSoftFloor(happiness, BABY_DECAY.happiness * statMul, elapsedHours, babyBoundary);
+  hygiene = decayWithSoftFloor(hygiene, BABY_DECAY.hygiene * statMul, elapsedHours, babyBoundary);
+
+  // Energy: while sleeping it regenerates (positive rate, no soft-floor needed);
+  // while awake it decays with the soft-floor like other stats.
+  if (isSleeping) {
+    energy = clamp(energy + roundDelta(BABY_SLEEP_ENERGY_REGEN * elapsedHours));
+  } else {
+    energy = decayWithSoftFloor(energy, BABY_DECAY.energy, elapsedHours, babyBoundary);
+  }
   
   // Calculate health (complex conditional decay + possible regen)
   // Base health decay is 0 while sleeping.
@@ -315,7 +452,7 @@ function calculateBabyDecay(
     healthDelta += BABY_DECAY.health.regenRate * elapsedHours;
   }
   
-  health = clamp(health + roundDelta(healthDelta));
+  health = applyHealthDelta(health, healthDelta, babyBoundary);
   
   return { hunger, happiness, hygiene, energy, health };
 }
@@ -342,16 +479,20 @@ function calculateAdultDecay(
   let health = getStat(stats, 'health');
   
   // Calculate basic stat decay/regen
-  const hungerDelta = ADULT_DECAY.hunger * statMul * elapsedHours;
-  const happinessDelta = ADULT_DECAY.happiness * statMul * elapsedHours;
-  const hygieneDelta = ADULT_DECAY.hygiene * statMul * elapsedHours;
-  const energyDelta = (isSleeping ? ADULT_SLEEP_ENERGY_REGEN : ADULT_DECAY.energy) * elapsedHours;
-  
-  // Apply basic deltas
-  hunger = clamp(hunger + roundDelta(hungerDelta));
-  happiness = clamp(happiness + roundDelta(happinessDelta));
-  hygiene = clamp(hygiene + roundDelta(hygieneDelta));
-  energy = clamp(energy + roundDelta(energyDelta));
+  // Decay stats use the soft-floor so long absences degrade gracefully.
+  // Sleeping reduces the rate to 20% before the soft-floor split is applied.
+  const adultBoundary = SOFT_FLOOR_BOUNDARY.adult;
+  hunger = decayWithSoftFloor(hunger, ADULT_DECAY.hunger * statMul, elapsedHours, adultBoundary);
+  happiness = decayWithSoftFloor(happiness, ADULT_DECAY.happiness * statMul, elapsedHours, adultBoundary);
+  hygiene = decayWithSoftFloor(hygiene, ADULT_DECAY.hygiene * statMul, elapsedHours, adultBoundary);
+
+  // Energy: while sleeping it regenerates (positive rate, no soft-floor needed);
+  // while awake it decays with the soft-floor like other stats.
+  if (isSleeping) {
+    energy = clamp(energy + roundDelta(ADULT_SLEEP_ENERGY_REGEN * elapsedHours));
+  } else {
+    energy = decayWithSoftFloor(energy, ADULT_DECAY.energy, elapsedHours, adultBoundary);
+  }
   
   // Calculate health (complex conditional decay + possible regen)
   // Base health decay is 0 while sleeping.
@@ -379,7 +520,7 @@ function calculateAdultDecay(
     healthDelta += ADULT_DECAY.health.regenRate * elapsedHours;
   }
   
-  health = clamp(health + roundDelta(healthDelta));
+  health = applyHealthDelta(health, healthDelta, adultBoundary);
   
   return { hunger, happiness, hygiene, energy, health };
 }

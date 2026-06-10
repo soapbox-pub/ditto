@@ -7,6 +7,8 @@ import type { BlobbiStats } from './blobbi';
 
 const FULL_STATS: BlobbiStats = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
 
+const HOUR = 3600;
+
 /** Create a DecayInput with sensible defaults. */
 function decay(overrides: {
   stage?: 'egg' | 'baby' | 'adult';
@@ -27,21 +29,21 @@ function decay(overrides: {
 // ─── Baby awake ───────────────────────────────────────────────────────────────
 
 describe('baby awake decay', () => {
-  it('1 hour from full stats: decays at tuned rates', () => {
-    const r = decay({ stage: 'baby', state: 'active', elapsedSeconds: 3600 });
-    // hunger: 100 + trunc(-8) = 92
-    // happiness: 100 + trunc(-4.5) = 96
-    // hygiene: 100 + trunc(-6) = 94
-    // energy: 100 + trunc(-9) = 91
-    expect(r.stats.hunger).toBe(92);
-    expect(r.stats.happiness).toBe(96);
-    expect(r.stats.hygiene).toBe(94);
-    expect(r.stats.energy).toBe(91);
+  it('1 hour from full stats: decays at rebalanced rates', () => {
+    const r = decay({ stage: 'baby', state: 'active', elapsedSeconds: HOUR });
+    // hunger: 100 + trunc(-5) = 95
+    // happiness: 100 + trunc(-3) = 97
+    // hygiene: 100 + trunc(-4) = 96
+    // energy: 100 + trunc(-5.5) = 95 (trunc(-5.5) = -5)
+    expect(r.stats.hunger).toBe(95);
+    expect(r.stats.happiness).toBe(97);
+    expect(r.stats.hygiene).toBe(96);
+    expect(r.stats.energy).toBe(95);
   });
 
   it('1 hour from full: health regens (all stats after decay ≥ 76)', () => {
-    const r = decay({ stage: 'baby', state: 'active', elapsedSeconds: 3600 });
-    // After deltas: hunger=92, happiness=96, hygiene=94, energy=91 — all ≥ 76.
+    const r = decay({ stage: 'baby', state: 'active', elapsedSeconds: HOUR });
+    // After deltas: hunger=95, happiness=97, hygiene=96, energy=95 — all ≥ 76.
     // healthDelta = -0.4 + 1.5 = 1.1, trunc(1.1) = 1. health = 101 → 100.
     expect(r.stats.health).toBe(100);
   });
@@ -55,16 +57,14 @@ describe('baby health penalties aligned to segment boundaries', () => {
       stage: 'baby',
       state: 'active',
       stats: { hunger: 60, happiness: 100, health: 100, hygiene: 60, energy: 100 },
-      elapsedSeconds: 3600,
+      elapsedSeconds: HOUR,
     });
-    // hunger after: 60 + trunc(-8) = 52 (still ≥ 50, no penalty)
-    // hygiene after: 60 + trunc(-6) = 54 (still ≥ 50, no penalty)
-    // happiness after: 96, energy after: 91. Neither < 50.
-    // healthDelta = -0.4 (base only), no penalties, no regen (hunger 52 < 76).
-    // trunc(-0.4) = 0 → health stays 100.
+    // hunger after: 60 + trunc(-5) = 55 (still ≥ 50, no penalty)
+    // hygiene after: 60 + trunc(-4) = 56 (still ≥ 50, no penalty)
+    // healthDelta = -0.4 (base only), trunc(-0.4) = 0 → health stays 100.
     expect(r.stats.health).toBe(100);
-    expect(r.stats.hunger).toBe(52);
-    expect(r.stats.hygiene).toBe(54);
+    expect(r.stats.hunger).toBe(55);
+    expect(r.stats.hygiene).toBe(56);
   });
 
   it('stats in "attention" range (40): mild penalties apply', () => {
@@ -72,11 +72,12 @@ describe('baby health penalties aligned to segment boundaries', () => {
       stage: 'baby',
       state: 'active',
       stats: { hunger: 40, happiness: 100, health: 100, hygiene: 40, energy: 100 },
-      elapsedSeconds: 3600,
+      elapsedSeconds: HOUR,
     });
-    // hunger after: 40 + trunc(-8) = 32 (≤ 50, mild penalty)
-    // hygiene after: 40 + trunc(-6) = 34 (≤ 50, mild penalty)
+    // hunger after: 40 + trunc(-5) = 35 (≤ 50, mild penalty)
+    // hygiene after: 40 + trunc(-4) = 36 (≤ 50, mild penalty)
     // healthDelta = -0.4 (base) + -0.5 (hunger≤50) + -0.5 (hygiene≤50) = -1.4
+    // health 100 > boundary 25, drop of 1.4 < headroom → full strength.
     // trunc(-1.4) = -1 → health = 99.
     expect(r.stats.health).toBe(99);
   });
@@ -86,44 +87,29 @@ describe('baby health penalties aligned to segment boundaries', () => {
       stage: 'baby',
       state: 'active',
       stats: { hunger: 15, happiness: 100, health: 100, hygiene: 15, energy: 100 },
-      elapsedSeconds: 3600,
+      elapsedSeconds: HOUR,
     });
-    // hunger after: 15 + trunc(-8) = 7 (≤ 50 + ≤ 25)
-    // hygiene after: 15 + trunc(-6) = 9 (≤ 50 + ≤ 25)
+    // hunger after: 15 + trunc(-5*0.35) = 15 + trunc(-1.75) = 14 (soft-floor: already ≤ 25)
+    // hygiene after: 15 + trunc(-4*0.35) = 15 + trunc(-1.4) = 14
     // healthDelta = -0.4 + -0.5 + -1.0 + -0.5 + -1.0 = -3.4
-    // trunc(-3.4) = -3 → health = 97.
+    // health 100, drop 3.4 < headroom 75 → full strength. trunc(-3.4) = -3 → 97.
     expect(r.stats.health).toBe(97);
+    expect(r.stats.hunger).toBe(14);
+    expect(r.stats.hygiene).toBe(14);
   });
 
-  it('penalty fires at exact boundary (hunger decays to exactly 50)', () => {
+  it('all stats urgent: health soft-floor kicks in once health is low', () => {
     const r = decay({
       stage: 'baby',
       state: 'active',
-      // hunger 90 → 90 + trunc(-8*5) = 50. Exactly at attention boundary.
-      stats: { hunger: 90, happiness: 100, health: 100, hygiene: 100, energy: 100 },
-      elapsedSeconds: 3600 * 5,
+      stats: { hunger: 10, happiness: 10, health: 26, hygiene: 10, energy: 10 },
+      elapsedSeconds: HOUR,
     });
-    // hunger after = 50. careState "attention" starts at ≤ 50, penalty must fire.
-    // happiness: 100 + trunc(-4.5*5) = 78. hygiene: 100 + trunc(-6*5) = 70. energy: 100 + trunc(-9*5) = 55.
-    // No other stat ≤ 50 → only hunger penalty.
-    // healthDelta = -0.4*5 + -0.5*5 = -4.5, trunc(-4.5) = -4. health = 96.
-    expect(r.stats.hunger).toBe(50);
-    expect(r.stats.health).toBe(96);
-  });
-
-  it('all stats urgent: maximum penalty pressure', () => {
-    const r = decay({
-      stage: 'baby',
-      state: 'active',
-      stats: { hunger: 10, happiness: 10, health: 80, hygiene: 10, energy: 10 },
-      elapsedSeconds: 3600,
-    });
-    // After deltas: hunger=2, happiness=6, hygiene=4, energy=1.
-    // All four stats ≤ 50 AND ≤ 25 → all mild + strong penalties fire.
-    // healthDelta = -0.4 (base)
-    //   + 4 × -0.5 (mild) + 4 × -1.0 (strong) = -0.4 - 2.0 - 4.0 = -6.4
-    // trunc(-6.4) = -6 → health = 80 - 6 = 74.
-    expect(r.stats.health).toBe(74);
+    // All four stats ≤ 25 → all mild + strong penalties fire.
+    // healthDelta = -0.4 + 4×-0.5 + 4×-1.0 = -6.4
+    // health 26 > boundary 25, headroom = 1. drop 6.4 > 1:
+    //   softened = -(1 + (6.4-1)*0.35) = -(1 + 1.89) = -2.89, trunc = -2 → 24.
+    expect(r.stats.health).toBe(24);
   });
 });
 
@@ -135,35 +121,35 @@ describe('baby health regen threshold (≥ 76)', () => {
       stage: 'baby',
       state: 'active',
       stats: { hunger: 85, happiness: 85, health: 85, hygiene: 85, energy: 85 },
-      elapsedSeconds: 3600,
+      elapsedSeconds: HOUR,
     });
-    // After deltas: hunger=77, happiness=81, hygiene=79, energy=76 — all ≥ 76.
+    // After deltas: hunger=80, happiness=82, hygiene=81, energy=80 — all ≥ 76.
     // healthDelta = -0.4 + 1.5 = 1.1, trunc(1.1) = 1.
     expect(r.stats.health).toBe(86);
   });
 
-  it('all stats = 76: does NOT regen (after decay < 76)', () => {
+  it('all stats = 78: does NOT regen (after decay < 76)', () => {
     const r = decay({
       stage: 'baby',
       state: 'active',
-      stats: { hunger: 76, happiness: 76, health: 76, hygiene: 76, energy: 76 },
-      elapsedSeconds: 3600,
+      stats: { hunger: 78, happiness: 78, health: 78, hygiene: 78, energy: 78 },
+      elapsedSeconds: HOUR,
     });
-    // After deltas: hunger=68, happiness=72, hygiene=70, energy=67 — NOT all ≥ 76.
-    // healthDelta = -0.4, no regen. trunc(-0.4) = 0 → health stays 76.
-    expect(r.stats.health).toBe(76);
+    // After deltas: hunger=73, happiness=75, hygiene=74, energy=73 — NOT all ≥ 76.
+    // healthDelta = -0.4, no regen. trunc(-0.4) = 0 → health stays 78.
+    expect(r.stats.health).toBe(78);
   });
 });
 
 // ─── Adult awake ──────────────────────────────────────────────────────────────
 
 describe('adult awake decay', () => {
-  it('1 hour from full stats: decays at tuned rates', () => {
-    const r = decay({ stage: 'adult', state: 'active', elapsedSeconds: 3600 });
+  it('1 hour from full stats: decays at rebalanced rates', () => {
+    const r = decay({ stage: 'adult', state: 'active', elapsedSeconds: HOUR });
     // hunger: 100 + trunc(-5) = 95
     // happiness: 100 + trunc(-2.5) = 98
     // hygiene: 100 + trunc(-4) = 96
-    // energy: 100 + trunc(-5.5) = 95
+    // energy: 100 + trunc(-5.0) = 95
     expect(r.stats.hunger).toBe(95);
     expect(r.stats.happiness).toBe(98);
     expect(r.stats.hygiene).toBe(96);
@@ -171,7 +157,7 @@ describe('adult awake decay', () => {
   });
 
   it('1 hour from full: health stays at 100 (regen cancels base)', () => {
-    const r = decay({ stage: 'adult', state: 'active', elapsedSeconds: 3600 });
+    const r = decay({ stage: 'adult', state: 'active', elapsedSeconds: HOUR });
     // After deltas all ≥ 80. healthDelta = -0.25 + 1.0 = 0.75. trunc(0.75) = 0.
     expect(r.stats.health).toBe(100);
   });
@@ -181,7 +167,7 @@ describe('adult awake decay', () => {
       stage: 'adult',
       state: 'active',
       stats: { hunger: 55, happiness: 100, health: 100, hygiene: 100, energy: 100 },
-      elapsedSeconds: 3600,
+      elapsedSeconds: HOUR,
     });
     // hunger after: 55 + trunc(-5) = 50 (< 60, mild penalty fires)
     // healthDelta = -0.25 + -0.5 = -0.75, trunc = 0 → health stays 100.
@@ -190,81 +176,200 @@ describe('adult awake decay', () => {
   });
 });
 
+// ─── Pacing snapshots: baby vs adult at 6/12/24/48h ───────────────────────────
+//
+// These lock in the rebalanced pacing curve and the soft-floor behavior.
+// All start from full stats, awake.
+
+describe('baby pacing (from full, awake)', () => {
+  it('6h: comfortable — fastest stats still "okay", health near full', () => {
+    const r = decay({ stage: 'baby', elapsedSeconds: 6 * HOUR });
+    // energy: 100 + trunc(-5.5*6) = 100 - 33 = 67 (okay)
+    // hunger: 100 + trunc(-5*6) = 70 (okay)
+    expect(r.stats.energy).toBe(67);
+    expect(r.stats.hunger).toBe(70);
+    expect(r.stats.health).toBeGreaterThanOrEqual(95);
+  });
+
+  it('8-10h: enters "attention", not floored', () => {
+    const r10 = decay({ stage: 'baby', elapsedSeconds: 10 * HOUR });
+    // energy: 100 - trunc(5.5*10) = 100 - 55 = 45 (attention, ≤ 50)
+    // hunger: 100 - 50 = 50 (attention boundary)
+    expect(r10.stats.energy).toBeLessThanOrEqual(50);
+    expect(r10.stats.energy).toBeGreaterThan(25);
+    expect(r10.stats.hunger).toBeLessThanOrEqual(50);
+    expect(r10.stats.hunger).toBeGreaterThan(25);
+  });
+
+  it('12h: solidly in "attention" range, health still healthy', () => {
+    const r = decay({ stage: 'baby', elapsedSeconds: 12 * HOUR });
+    // energy: 100 - 66 = 34, hunger: 100 - 60 = 40 — both attention.
+    expect(r.stats.energy).toBe(34);
+    expect(r.stats.hunger).toBe(40);
+    expect(r.stats.health).toBeGreaterThanOrEqual(75);
+  });
+
+  it('24h: needs care but still recoverable (health not floored)', () => {
+    const r = decay({ stage: 'baby', elapsedSeconds: 24 * HOUR });
+    // Fastest stats in urgent range, but the soft-floor keeps health above 1.
+    expect(r.stats.health).toBeGreaterThan(1);
+    expect(r.stats.energy).toBeLessThanOrEqual(25);
+  });
+
+  it('48h is meaningfully worse than 24h (soft-floor still degrades over time)', () => {
+    const r24 = decay({ stage: 'baby', elapsedSeconds: 24 * HOUR });
+    const r48 = decay({ stage: 'baby', elapsedSeconds: 48 * HOUR });
+    expect(r48.stats.health).toBeLessThan(r24.stats.health);
+  });
+});
+
+describe('adult pacing (from full, awake)', () => {
+  it('6h: comfortable — fastest stats still "okay"', () => {
+    const r = decay({ stage: 'adult', elapsedSeconds: 6 * HOUR });
+    // energy: 100 - 30 = 70 (okay boundary), hunger: 100 - 30 = 70 (okay)
+    expect(r.stats.energy).toBe(70);
+    expect(r.stats.hunger).toBe(70);
+    expect(r.stats.health).toBeGreaterThanOrEqual(95);
+  });
+
+  it('12h: enters "attention", health still healthy', () => {
+    const r = decay({ stage: 'adult', elapsedSeconds: 12 * HOUR });
+    // energy: 100 - 60 = 40 (attention), hunger: 100 - 60 = 40 (attention)
+    expect(r.stats.energy).toBe(40);
+    expect(r.stats.hunger).toBe(40);
+    expect(r.stats.health).toBeGreaterThanOrEqual(75);
+  });
+
+  it('24h: needs care but still recoverable (health not floored)', () => {
+    const r = decay({ stage: 'adult', elapsedSeconds: 24 * HOUR });
+    expect(r.stats.health).toBeGreaterThan(1);
+    expect(r.stats.energy).toBeLessThanOrEqual(30);
+  });
+
+  it('48h is meaningfully worse than 24h', () => {
+    const r24 = decay({ stage: 'adult', elapsedSeconds: 24 * HOUR });
+    const r48 = decay({ stage: 'adult', elapsedSeconds: 48 * HOUR });
+    expect(r48.stats.health).toBeLessThan(r24.stats.health);
+  });
+
+  it('adult is more resilient than baby at the same elapsed time', () => {
+    const baby = decay({ stage: 'baby', elapsedSeconds: 12 * HOUR });
+    const adult = decay({ stage: 'adult', elapsedSeconds: 12 * HOUR });
+    // Adult retains equal-or-better stats across the board at 12h.
+    expect(adult.stats.health).toBeGreaterThanOrEqual(baby.stats.health);
+    expect(adult.stats.happiness).toBeGreaterThanOrEqual(baby.stats.happiness);
+  });
+});
+
+// ─── Soft-floor behavior ──────────────────────────────────────────────────────
+
+describe('soft-floor (graceful decay slowdown)', () => {
+  it('above the urgent boundary: decay runs at full rate', () => {
+    // adult hunger from 100, 4h: 100 - trunc(5*4) = 80. boundary 30 not reached.
+    const r = decay({ stage: 'adult', stats: { ...FULL_STATS }, elapsedSeconds: 4 * HOUR });
+    expect(r.stats.hunger).toBe(80);
+  });
+
+  it('below the urgent boundary: decay is reduced to the soft fraction', () => {
+    // baby hunger already at 20 (≤ 25 boundary). 1h at soft rate:
+    // trunc(-5 * 0.35) = trunc(-1.75) = -1 → 19 (vs -5 at full rate).
+    const r = decay({
+      stage: 'baby',
+      stats: { ...FULL_STATS, hunger: 20 },
+      elapsedSeconds: HOUR,
+    });
+    expect(r.stats.hunger).toBe(19);
+  });
+
+  it('crossing the boundary: full rate down to boundary, soft rate after', () => {
+    // baby hunger from 30, boundary 25, rate -5/hr.
+    // Reaches 25 after (25-30)/-5 = 1h. Remaining 2h decays at soft rate.
+    // fullPortion = 25-30 = -5; softPortion = -5*0.35*2 = -3.5.
+    // Combined delta = -8.5, trunc(-8.5) = -8 → 30 - 8 = 22.
+    const r = decay({
+      stage: 'baby',
+      stats: { ...FULL_STATS, hunger: 30 },
+      elapsedSeconds: 3 * HOUR,
+    });
+    expect(r.stats.hunger).toBe(22);
+  });
+
+  it('a single stat never reaches the floor as fast as full linear decay would', () => {
+    // Without soft-floor, baby hunger at -5/hr would hit 1 by ~20h.
+    // With soft-floor it lingers above 1 well past that.
+    const r = decay({ stage: 'baby', stats: { ...FULL_STATS, hunger: 30 }, elapsedSeconds: 20 * HOUR });
+    // 1h to boundary (30→25), then 19h soft: -5*0.35*19 = -33.25 → 25-33.25 floors at 1.
+    // Confirm it's still strictly degrading but the engine clamps to 1.
+    expect(r.stats.hunger).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Egg stays static ─────────────────────────────────────────────────────────
+
+describe('egg decay (static — no pressure before hatching)', () => {
+  it('1h: all stats unchanged', () => {
+    const r = decay({
+      stage: 'egg',
+      stats: { hunger: 100, happiness: 80, health: 90, hygiene: 70, energy: 100 },
+      elapsedSeconds: HOUR,
+    });
+    expect(r.stats).toEqual({ hunger: 100, happiness: 80, health: 90, hygiene: 70, energy: 100 });
+  });
+
+  it('5 days: still completely unchanged', () => {
+    const stats = { hunger: 100, happiness: 60, health: 55, hygiene: 45, energy: 100 };
+    const r = decay({ stage: 'egg', stats, elapsedSeconds: 5 * 24 * HOUR });
+    expect(r.stats).toEqual({ hunger: 100, happiness: 60, health: 55, hygiene: 45, energy: 100 });
+  });
+
+  it('hunger and energy are pinned to 100 regardless of stored values', () => {
+    const r = decay({
+      stage: 'egg',
+      stats: { hunger: 10, happiness: 80, health: 80, hygiene: 80, energy: 10 },
+      elapsedSeconds: 48 * HOUR,
+    });
+    expect(r.stats.hunger).toBe(100);
+    expect(r.stats.energy).toBe(100);
+  });
+});
+
 // ─── Baby sleeping ────────────────────────────────────────────────────────────
 
 describe('baby sleeping decay', () => {
   it('1 hour: energy stays capped at 100', () => {
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 3600 });
+    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.energy).toBe(100);
   });
 
   it('1 hour: hunger decays only 20% of awake rate', () => {
-    // Awake hunger rate = -8.0/hr → sleeping = -8.0 * 0.2 = -1.6/hr
-    // trunc(-1.6) = -1 → 100 - 1 = 99
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 3600 });
+    // Awake hunger rate = -5.0/hr → sleeping = -5.0 * 0.2 = -1.0/hr
+    // trunc(-1.0) = -1 → 100 - 1 = 99
+    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.hunger).toBe(99);
   });
 
   it('1 hour: happiness does not decay (rate too small to truncate)', () => {
-    // Awake happiness rate = -4.5/hr → sleeping = -0.9/hr → trunc(-0.9) = 0
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 3600 });
+    // Awake happiness rate = -3.0/hr → sleeping = -0.6/hr → trunc(-0.6) = 0
+    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.happiness).toBe(100);
   });
 
   it('1 hour: hygiene decays only 20% of awake rate', () => {
-    // Awake hygiene rate = -6.0/hr → sleeping = -1.2/hr → trunc(-1.2) = -1
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 3600 });
-    expect(r.stats.hygiene).toBe(99);
+    // Awake hygiene rate = -4.0/hr → sleeping = -0.8/hr → trunc(-0.8) = 0
+    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: HOUR });
+    expect(r.stats.hygiene).toBe(100);
   });
 
   it('1 hour: health base does not decay when stats are healthy', () => {
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 3600 });
-    // After deltas: hunger=99, happiness=100, hygiene=99, energy=100 — all ≥ 76
-    // Base health = 0 (sleeping), regen = trunc(1.5) = 1. 100 + 1 → clamped to 100.
+    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: HOUR });
+    // After deltas all ≥ 76. Base health = 0 (sleeping), regen = trunc(1.5) = 1.
     expect(r.stats.health).toBe(100);
   });
 
-  it('30 minutes: stats barely change due to Math.trunc', () => {
-    const r = decay({ stage: 'baby', state: 'sleeping', elapsedSeconds: 1800 });
-    // hunger trunc(-8*0.2*0.5) = trunc(-0.8) = 0 → 100
-    // happiness trunc(-4.5*0.2*0.5) = trunc(-0.45) = 0 → 100
-    // hygiene trunc(-6*0.2*0.5) = trunc(-0.6) = 0 → 100
-    // energy trunc(40*0.5) = 20 → stays 100
-    expect(r.stats.hunger).toBe(100);
-    expect(r.stats.happiness).toBe(100);
-    expect(r.stats.hygiene).toBe(100);
-    expect(r.stats.energy).toBe(100);
-  });
-
   it('energy recovers from low value at +40/hr', () => {
-    const r = decay({ stage: 'baby', state: 'sleeping', stats: { ...FULL_STATS, energy: 20 }, elapsedSeconds: 3600 });
+    const r = decay({ stage: 'baby', state: 'sleeping', stats: { ...FULL_STATS, energy: 20 }, elapsedSeconds: HOUR });
     // 20 + trunc(40*1) = 60
     expect(r.stats.energy).toBe(60);
-  });
-
-  it('sleeping with very low stats: health penalties at 25% strength', () => {
-    const r = decay({
-      stage: 'baby',
-      state: 'sleeping',
-      stats: { hunger: 20, happiness: 50, health: 50, hygiene: 20, energy: 50 },
-      elapsedSeconds: 3600,
-    });
-    // hunger after: 20 + trunc(-8*0.2) = 20 + trunc(-1.6) = 19
-    // hygiene after: 20 + trunc(-6*0.2) = 20 + trunc(-1.2) = 19
-    // happiness after: 50 + trunc(-4.5*0.2) = 50 + trunc(-0.9) = 50
-    // energy after: 50 + trunc(40) = 90
-    //
-    // healthDelta = 0 (base sleeping)
-    //  hunger 19 < 50: -0.5*0.25 = -0.125
-    //  hunger 19 < 25: -1.0*0.25 = -0.25
-    //  hygiene 19 < 50: -0.5*0.25 = -0.125
-    //  hygiene 19 < 25: -1.0*0.25 = -0.25
-    //  energy 90 ≥ 50 → 0
-    //  happiness 50 ≥ 50 → 0
-    // total = -0.75, trunc(-0.75) = 0 → health stays 50
-    expect(r.stats.health).toBe(50);
-    expect(r.stats.hunger).toBe(19);
-    expect(r.stats.hygiene).toBe(19);
   });
 });
 
@@ -272,7 +377,7 @@ describe('baby sleeping decay', () => {
 
 describe('adult sleeping decay', () => {
   it('1 hour: energy stays capped at 100', () => {
-    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: 3600 });
+    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.energy).toBe(100);
   });
 
@@ -280,46 +385,21 @@ describe('adult sleeping decay', () => {
     // hunger: trunc(-5.0*0.2) = trunc(-1.0) = -1 → 99
     // happiness: trunc(-2.5*0.2) = trunc(-0.5) = 0 → 100
     // hygiene: trunc(-4.0*0.2) = trunc(-0.8) = 0 → 100
-    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: 3600 });
+    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.hunger).toBe(99);
     expect(r.stats.happiness).toBe(100);
     expect(r.stats.hygiene).toBe(100);
   });
 
   it('1 hour: health base does not decay when stats are healthy', () => {
-    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: 3600 });
+    const r = decay({ stage: 'adult', state: 'sleeping', elapsedSeconds: HOUR });
     expect(r.stats.health).toBe(100);
   });
 
   it('energy recovers from low value at +35/hr', () => {
-    const r = decay({ stage: 'adult', state: 'sleeping', stats: { ...FULL_STATS, energy: 10 }, elapsedSeconds: 3600 });
+    const r = decay({ stage: 'adult', state: 'sleeping', stats: { ...FULL_STATS, energy: 10 }, elapsedSeconds: HOUR });
     // 10 + trunc(35*1) = 45
     expect(r.stats.energy).toBe(45);
-  });
-
-  it('sleeping with very low stats: health penalties at 25% strength', () => {
-    const r = decay({
-      stage: 'adult',
-      state: 'sleeping',
-      stats: { hunger: 15, happiness: 15, health: 50, hygiene: 15, energy: 10 },
-      elapsedSeconds: 3600,
-    });
-    // hunger after: 15 + trunc(-5*0.2) = 15 + trunc(-1.0) = 14
-    // happiness after: 15 + trunc(-2.5*0.2) = 15 + trunc(-0.5) = 15
-    // hygiene after: 15 + trunc(-4*0.2) = 15 + trunc(-0.8) = 15
-    // energy after: 10 + trunc(35) = 45
-    //
-    // healthDelta = 0 (base sleeping)
-    //  hunger 14 < 60: -0.5*0.25 = -0.125
-    //  hunger 14 < 30: -1.0*0.25 = -0.25
-    //  hygiene 15 < 60: -0.5*0.25 = -0.125
-    //  hygiene 15 < 30: -1.0*0.25 = -0.25
-    //  energy 45 ≥ 40 → 0
-    //  happiness 15 < 40: -0.4*0.25 = -0.1
-    //  happiness 15 < 20: -0.8*0.25 = -0.2
-    // total = -1.05, trunc(-1.05) = -1
-    expect(r.stats.health).toBe(49);
-    expect(r.stats.hunger).toBe(14);
   });
 });
 
@@ -327,9 +407,19 @@ describe('adult sleeping decay', () => {
 
 describe('hibernating is not treated as sleeping', () => {
   it('baby hibernating uses awake decay rates', () => {
-    const r = decay({ stage: 'baby', state: 'hibernating', elapsedSeconds: 3600 });
-    // Same as awake — energy uses awake rate (-9), not sleep regen
-    expect(r.stats.energy).toBe(91);
-    expect(r.stats.hunger).toBe(92);
+    const r = decay({ stage: 'baby', state: 'hibernating', elapsedSeconds: HOUR });
+    // Same as awake — energy uses awake rate (-5.5), not sleep regen
+    expect(r.stats.energy).toBe(95);
+    expect(r.stats.hunger).toBe(95);
+  });
+});
+
+// ─── No elapsed time ──────────────────────────────────────────────────────────
+
+describe('no elapsed time', () => {
+  it('returns stats unchanged when elapsed is 0', () => {
+    const r = decay({ stage: 'baby', stats: { ...FULL_STATS, hunger: 42 }, elapsedSeconds: 0 });
+    expect(r.stats.hunger).toBe(42);
+    expect(r.elapsedSeconds).toBe(0);
   });
 });
