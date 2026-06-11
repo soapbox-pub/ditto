@@ -132,7 +132,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
       {/* Messages area — scrollable, takes remaining space */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-1"
         onScroll={handleScroll}
       >
         {isLoading ? (
