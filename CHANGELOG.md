@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.1] - 2026-06-11
+
+A quick fix for Android: the app could fail to open on the latest version, getting stuck before it ever loaded. It now starts up reliably again.
+
+### Fixed
+- The Android app no longer fails to load on startup
+
 ## [2.22.0] - 2026-06-10
 
 Make your Blobbi's room your own: a new room editor lets you decorate the walls and floors with patterns, colors, and angles, then fill the space with furniture you've collected. You can also highlight your favorite lines now -- just select any text in a post or article and tap Highlight to share the passage. Search is sharper too, with a new sort:top option for surfacing the best results.
