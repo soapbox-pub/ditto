@@ -39,14 +39,29 @@ public class SpaRouteProcessor implements RouteProcessor {
         ProcessedRoute route = new ProcessedRoute();
         route.setAsset(true);
 
+        // Capacitor invokes this processor from two call sites with different
+        // contracts (WebViewLocalServer.java):
+        //
+        //  1. The "/" + html5mode branch calls process(basePath, "/index.html")
+        //     with basePath = "public" and opens the returned path VERBATIM via
+        //     AssetManager (the no-processor default is basePath + "/index.html").
+        //  2. The static-asset PathHandler calls process("", path) and prefixes
+        //     the asset base itself before opening.
+        //
+        // Either way, prepending the caller-supplied basePath yields the path the
+        // caller expects. Returning a root-relative path unconditionally (as a
+        // previous version did) breaks call site 1: assets.open("/index.html")
+        // throws, handleLocalRequest() returns null, and the WebView falls back
+        // to a real network request — ERR_CONNECTION_REFUSED on app start.
+        String prefix = (basePath == null) ? "" : basePath;
         String normalized = (path == null || path.isEmpty()) ? "/" : path;
 
-        // The root and any path that resolves to a real bundled asset are served
-        // as-is. Everything else is a client-side route → serve the SPA shell.
-        if ("/".equals(normalized) || assetExists(normalized)) {
-            route.setPath(normalized);
+        // Any path that resolves to a real bundled asset is served as-is.
+        // Everything else is a client-side route → serve the SPA shell.
+        if (assetExists(normalized)) {
+            route.setPath(prefix + normalized);
         } else {
-            route.setPath("/index.html");
+            route.setPath(prefix + "/index.html");
         }
 
         return route;
