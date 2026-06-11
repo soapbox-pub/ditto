@@ -13,11 +13,14 @@ import {
   fetchUTXOs,
   getFeeRates,
   buildUnsignedPsbt,
+  buildUnsignedSilentPaymentPsbt,
   finalizePsbt,
   broadcastTransaction,
   estimateFee,
+  validateBitcoinAddress,
 } from '@/lib/bitcoin';
 import type { FeeRates } from '@/lib/bitcoin';
+import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 
 export type OnchainFeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy';
 
@@ -49,8 +52,25 @@ interface OnchainZapResult {
   amountSats: number;
   /** Fee paid in satoshis. */
   fee: number;
-  /** The published kind 8333 event. */
-  event: NostrEvent;
+  /** The published kind 8333 event, when one was published (omitted for
+   *  silent-payment sends, which intentionally publish no Nostr event). */
+  event?: NostrEvent;
+}
+
+/**
+ * Recipient override for a NIP-A3 Bitcoin payment target. When present, the
+ * transaction pays this address/code instead of the recipient's derived
+ * Taproot address.
+ *
+ * - `mode: 'onchain'` — a `bc1q…`/`bc1p…` address. A kind 8333 attribution
+ *   event is still published (the payment is publicly traceable, like the
+ *   derived-address default).
+ * - `mode: 'sp'` — a BIP-352 `sp1…` silent-payment code. No kind 8333 event
+ *   is published, preserving the unlinkability silent payments provide.
+ */
+export interface BitcoinRecipientOverride {
+  value: string;
+  mode: 'onchain' | 'sp';
 }
 
 /**
@@ -68,6 +88,7 @@ interface OnchainZapResult {
 export function useOnchainZap(
   target: NostrEvent,
   onSuccess?: (result: OnchainZapResult) => void,
+  recipientOverride?: BitcoinRecipientOverride,
 ) {
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
@@ -96,10 +117,23 @@ export function useOnchainZap(
       setIsZapping(true);
       setProgress('building');
 
+      // Resolve the recipient. A NIP-A3 Bitcoin payment target (if present)
+      // overrides the derived Taproot address. A silent-payment (`sp1…`)
+      // override switches the send onto the BIP-375 SP rail and suppresses
+      // the kind 8333 attribution event.
+      const useSilentPayment = recipientOverride?.mode === 'sp';
+      const recipientAddress =
+        recipientOverride?.value ?? nostrPubkeyToBitcoinAddress(target.pubkey);
+
       const senderAddress = nostrPubkeyToBitcoinAddress(user.pubkey);
-      const recipientAddress = nostrPubkeyToBitcoinAddress(target.pubkey);
       if (!senderAddress || !recipientAddress) {
         throw new Error('Failed to derive Bitcoin address.');
+      }
+      // Re-validate on-chain addresses (derived or override). SP codes have no
+      // client-side checksum we verify here — the SP PSBT builder fails on a
+      // malformed code.
+      if (!useSilentPayment && !validateBitcoinAddress(recipientAddress)) {
+        throw new Error('Recipient Bitcoin address failed validation.');
       }
 
       // Fetch UTXOs and fee rates
@@ -121,23 +155,43 @@ export function useOnchainZap(
         );
       }
 
-      // Build unsigned PSBT
-      const { psbtHex, fee } = buildUnsignedPsbt(
-        user.pubkey,
-        recipientAddress,
-        amountSats,
-        utxos,
-        feeRate,
-      );
+      // Build unsigned PSBT (on-chain or silent-payment rail)
+      let psbtHex: string;
+      let fee: number;
+      if (useSilentPayment) {
+        ({ psbtHex, fee } = buildUnsignedSilentPaymentPsbt(
+          user.pubkey,
+          recipientAddress,
+          amountSats,
+          utxos,
+          feeRate,
+        ));
+      } else {
+        ({ psbtHex, fee } = buildUnsignedPsbt(
+          user.pubkey,
+          recipientAddress,
+          amountSats,
+          utxos,
+          feeRate,
+        ));
+      }
 
       // Sign
       setProgress('signing');
       const signedHex = await signPsbt(psbtHex);
-      const txHex = finalizePsbt(signedHex);
+      const txHex = useSilentPayment
+        ? extractTxFromSignedPsbtV2(signedHex)
+        : finalizePsbt(signedHex);
 
       // Broadcast
       setProgress('broadcasting');
       const txid = await broadcastTransaction(txHex, esploraApis);
+
+      // Silent-payment sends publish no Nostr event — doing so would defeat
+      // the unlinkability the rail provides.
+      if (useSilentPayment) {
+        return { txid, amountSats, fee };
+      }
 
       // Publish kind 8333 event
       setProgress('publishing');

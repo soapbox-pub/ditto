@@ -24,6 +24,7 @@ These event kinds were created by community contributors and are supported by Di
 | 7516  | Found Log              | Log entry recording a user finding a geocache                    | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
+| 10133 | Payment Targets        | Donation endpoints (Bitcoin, Lightning, Monero, …) per RFC-8905 | [NIP-A3](https://github.com/ATXMJ/nips/blob/main/A3.md); see [Kind 10133](#kind-10133-payment-targets-nip-a3) below |
 | 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -156,6 +157,68 @@ When a client needs to attribute a multi-recipient event to one specific recipie
 | Fees | Sub-satoshi typical | Significant at low amounts |
 
 The two zap kinds are complementary. Clients SHOULD sum verified amounts from both kinds when displaying total zap stats for a post or profile.
+
+---
+
+## Kind 10133: Payment Targets (NIP-A3)
+
+**Author:** ATXMJ
+**Spec:** https://github.com/ATXMJ/nips/blob/main/A3.md
+
+### Summary
+
+Replaceable event (one per user) that declares a user's donation endpoints — "payment targets" — as `(type, authority)` pairs in `payto` tags, following the [RFC-8905 `payto:` URI scheme](https://www.rfc-editor.org/rfc/rfc8905.html). In Ditto's UI this is surfaced as the **"Accept Donations"** section of the Edit Profile screen; the term *payment targets* is used only in code.
+
+### Event Structure
+
+```json
+{
+  "kind": 10133,
+  "pubkey": "<user-pubkey>",
+  "content": "",
+  "tags": [
+    ["payto", "bitcoin", "bc1qxq66e0t8d7ugdecwnmv58e90tpry23nc84pg9k"],
+    ["payto", "lightning", "user@walletofsatoshi.com"],
+    ["payto", "monero", "4..."],
+    ["alt", "Payment targets"]
+  ]
+}
+```
+
+### Tags
+
+| Tag     | Required | Description                                                                                  |
+|---------|----------|----------------------------------------------------------------------------------------------|
+| `payto` | Yes (≥1) | `["payto", "<type>", "<authority>", …]`. Element 1 is the lowercase payment type, element 2 the address/handle/lightning address. Elements beyond index 2 are reserved per RFC-8905 and ignored. |
+| `alt`   | Recommended | NIP-31 human-readable fallback.                                                           |
+
+`type` is case-insensitive and normalized to lowercase. `authority` format is payment-system-specific.
+
+### Ditto Implementation Notes
+
+Ditto restricts the **editable** set to a curated allowlist of recognized types and renders only those it recognizes (forward-compatible: unknown types in a fetched event are ignored, not rendered as garbage):
+
+| Type       | Label      | Kind in Ditto | Clickable URI                         |
+|------------|------------|---------------|----------------------------------------|
+| `bitcoin`  | Bitcoin    | native        | n/a (uses the built-in send flow)      |
+| `lightning`| Lightning  | native        | n/a (uses the built-in zap flow)       |
+| `monero`   | Monero     | generic       | `monero:<address>`                     |
+| `ethereum` | Ethereum   | generic       | `ethereum:<address>`                   |
+| `nano`     | Nano       | generic       | `nano:<address>`                       |
+| `cashme`   | Cash App   | generic       | `https://cash.app/$<handle>`           |
+| `venmo`    | Venmo      | generic       | `https://venmo.com/u/<handle>`         |
+| `revolut`  | Revolut    | generic       | `https://revolut.me/<handle>`          |
+
+Rules Ditto enforces:
+
+- **At most one target per type.** When parsing, the first valid target of each type wins; the editor enforces uniqueness on save.
+- **Validation per type** — each authority is validated (bech32(m)/SP checksum for Bitcoin, lightning-address/LNURL shape for Lightning, base58 for Monero, etc.). Invalid entries are dropped on parse and rejected in the editor.
+- **Precedence over derived/kind-0 values.** A `bitcoin` payment target overrides the recipient's pubkey-derived Taproot address in the zap flow; a `lightning` payment target takes precedence over the kind-0 `lud16`/`lud06`.
+- **Bitcoin target rail.** A `bc1q…`/`bc1p…` Bitcoin target sends on-chain and still publishes a kind 8333 attribution. An `sp1…` (BIP-352 silent payment) Bitcoin target sends on the silent-payment rail and publishes **no** kind 8333 event, preserving unlinkability.
+- **Native vs. generic rendering.** Bitcoin and Lightning reuse Ditto's existing purpose-built flows (no extra clickable button). Generic methods render a QR code, a copyable address, and a button that opens the **native URI** (preferred over `payto:` per the user's request) — falling back to the method's web payment page for custodial handles.
+- **Zap dialog switcher.** When a recipient has more than one available method, the zap dialog's title becomes a dropdown switcher (Bitcoin icon + down chevron) for choosing between Bitcoin, Lightning, and any declared payment targets.
+
+Ditto does **not** generate or render `payto://` URIs; it prefers each method's native scheme.
 
 ---
 

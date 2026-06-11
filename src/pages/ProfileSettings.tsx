@@ -8,7 +8,8 @@ import { nip19 } from 'nostr-tools';
 import { useNostrLogin } from '@nostrify/react/login';
 
 import { saveNsec } from '@/lib/credentialManager';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
+import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +25,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { SortableList, SortableItem } from '@/components/SortableList';
+import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -579,6 +581,7 @@ export function ProfileSettings() {
   // Image pick: open crop dialog
   const pickInputRef = useRef<HTMLInputElement>(null);
   const pendingField = useRef<'picture' | 'banner'>('picture');
+  const paymentTargetsRef = useRef<PaymentTargetsEditorHandle>(null);
 
   const handlePickImage = (field: 'picture' | 'banner') => {
     pendingField.current = field;
@@ -652,6 +655,13 @@ export function ProfileSettings() {
       await publishEvent({ kind: 0, content: JSON.stringify(data) });
       queryClient.invalidateQueries({ queryKey: ['logins'] });
       queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+
+      // Persist payment targets (kind 10133) alongside the profile. If it
+      // fails or doesn't validate, the editor surfaces its own error toast;
+      // skip the success confirmation so the user knows something was off.
+      const targetsSaved = (await paymentTargetsRef.current?.save()) ?? true;
+      if (!targetsSaved) return;
+
       toast({ title: 'Profile saved' });
     } catch {
       toast({ title: 'Error', description: 'Failed to save profile.', variant: 'destructive' });
@@ -662,6 +672,11 @@ export function ProfileSettings() {
   useLayoutOptions({
     rightSidebar: <ProfileRightSidebar fields={previewFields} pubkey={user?.pubkey} />,
   });
+
+  // Whether the mobile top bar has slid away (user scrolled down). The sticky
+  // page header follows it up to top-0 so no gap opens above it — the same
+  // "pinned" behavior SubHeaderBar implements for tab bars.
+  const navHidden = useNavHidden();
 
   if (!user) return <Navigate to="/settings" replace />;
 
@@ -698,15 +713,22 @@ export function ProfileSettings() {
         />
       )}
 
-      {/* Header */}
+      {/* Header — sticks to the top so Save stays reachable while scrolling.
+          When the mobile top bar hides on scroll, slide up to top-0 (with
+          safe-area padding) instead of leaving a gap, mirroring
+          SubHeaderBar's `pinned` mode. */}
       <PageHeader
         title="Profile"
         backTo="/settings"
         alwaysShowBack
+        className={cn(
+          'sticky top-mobile-bar sidebar:top-0 z-20 backdrop-blur-md border-b border-border',
+          'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out',
+          navHidden && 'header-pinned-top',
+        )}
         titleContent={
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold leading-tight">Profile</h1>
-            <p className="text-sm text-muted-foreground">Your Nostr identity is portable — it goes wherever you go.</p>
           </div>
         }
       >
@@ -860,6 +882,13 @@ export function ProfileSettings() {
                 </div>
               </CollapsibleContent>
             </Collapsible>
+          </div>
+
+          {/* Accept Donations — NIP-A3 payment targets (kind 10133). Self-
+              contained: publishes its own event with its own save button,
+              independent of the kind-0 profile form above. */}
+          <div className="border-t pt-5">
+            <PaymentTargetsEditor ref={paymentTargetsRef} />
           </div>
 
           {/* Advanced */}

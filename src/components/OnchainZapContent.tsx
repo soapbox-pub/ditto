@@ -32,6 +32,7 @@ import {
 } from '@/lib/bitcoin';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ParsedCampaign } from '@/lib/campaign';
+import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
 
 const USD_PRESETS = [1, 5, 10, 25, 100];
 
@@ -93,6 +94,13 @@ interface OnchainZapContentProps {
    * zap UI entirely and rely on its own QR / Open-native-wallet path.
    */
   campaign?: ParsedCampaign;
+  /**
+   * Optional NIP-A3 Bitcoin payment-target override. When set, the zap pays
+   * this address/code instead of the recipient's derived Taproot address.
+   * A `bc1…` override still publishes a kind 8333 attribution; an `sp1…`
+   * override routes onto the silent-payment rail and publishes no event.
+   */
+  bitcoinTarget?: BitcoinRecipientOverride;
   /** Called with the tx result when a zap successfully broadcasts. */
   onSuccess?: (result: { txid: string; amountSats: number }) => void;
   /** Called when the user dismisses without a send (e.g. "Done" in the
@@ -108,7 +116,7 @@ interface OnchainZapContentProps {
  * UX mirrors the Lightning zap flow: one screen, one button, no review step.
  * Balance, fee breakdown, and confirmation are all hidden unless needed.
  */
-export function OnchainZapContent({ target, campaign, onSuccess, onClose }: OnchainZapContentProps) {
+export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, onClose }: OnchainZapContentProps) {
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
@@ -137,8 +145,11 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
     if (campaign) {
       return campaign.wallets.onchain?.value ?? campaign.wallets.sp?.value ?? '';
     }
+    if (bitcoinTarget) {
+      return bitcoinTarget.value;
+    }
     return nostrPubkeyToBitcoinAddress(target.pubkey);
-  }, [campaign, target.pubkey]);
+  }, [campaign, bitcoinTarget, target.pubkey]);
   const truncatedRecipient = recipientAddress
     ? `${recipientAddress.slice(0, 10)}…${recipientAddress.slice(-8)}`
     : '';
@@ -242,7 +253,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
   // whether `campaign` is set.
   const profileZap = useOnchainZap(target, (result) => {
     onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
-  });
+  }, bitcoinTarget);
   const campaignZap = useCampaignZap(campaign ?? null, (result) => {
     onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
   });
@@ -318,6 +329,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
       <UnsupportedSignerQR
         recipientAddress={recipientAddress}
         truncatedRecipient={truncatedRecipient}
+        isSilentPayment={bitcoinTarget?.mode === 'sp'}
         amountSats={amountSats}
         btcPrice={btcPrice}
         usdAmount={usdAmount}
@@ -480,6 +492,8 @@ function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting
 interface UnsupportedSignerQRProps {
   recipientAddress: string;
   truncatedRecipient: string;
+  /** When true, `recipientAddress` is a BIP-352 silent-payment code. */
+  isSilentPayment?: boolean;
   amountSats: number;
   btcPrice: number | undefined;
   usdAmount: number | string;
@@ -497,6 +511,7 @@ interface UnsupportedSignerQRProps {
 function UnsupportedSignerQR({
   recipientAddress,
   truncatedRecipient,
+  isSilentPayment,
   amountSats,
   btcPrice,
   usdAmount,
@@ -508,13 +523,23 @@ function UnsupportedSignerQR({
   const [copied, setCopied] = useState<'address' | 'uri' | null>(null);
 
   // BIP-21 URI. Include `amount` (in BTC, 8 decimals) only when > 0 so an
-  // empty-amount placeholder QR doesn't include `?amount=0`.
+  // empty-amount placeholder QR doesn't include `?amount=0`. Silent-payment
+  // codes go in the `sp=` parameter (the URI has no on-chain path) so
+  // BIP-352-aware wallets pick them up.
   const bip21 = useMemo(() => {
     if (!recipientAddress) return '';
-    if (amountSats <= 0) return `bitcoin:${recipientAddress}`;
-    const btc = (amountSats / 100_000_000).toFixed(8);
-    return `bitcoin:${recipientAddress}?amount=${btc}`;
-  }, [recipientAddress, amountSats]);
+    const params = new URLSearchParams();
+    if (amountSats > 0) {
+      params.set('amount', (amountSats / 100_000_000).toFixed(8));
+    }
+    if (isSilentPayment) {
+      params.set('sp', recipientAddress);
+      const qs = params.toString();
+      return qs ? `bitcoin:?${qs}` : `bitcoin:?sp=${recipientAddress}`;
+    }
+    const qs = params.toString();
+    return qs ? `bitcoin:${recipientAddress}?${qs}` : `bitcoin:${recipientAddress}`;
+  }, [recipientAddress, amountSats, isSilentPayment]);
 
   const explanation =
     loginType === 'extension'

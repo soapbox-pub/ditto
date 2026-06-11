@@ -20,7 +20,13 @@ export function useZaps(
   target: Event,
   webln: WebLNProvider | null,
   _nwcConnection: NWCConnection | null,
-  onZapSuccess?: (result: { amountSats: number }) => void
+  onZapSuccess?: (result: { amountSats: number }) => void,
+  /**
+   * Optional Lightning address (lud16) or LNURL (lud06) that takes precedence
+   * over the recipient's kind-0 metadata. Used to honor a NIP-A3 `lightning`
+   * payment target, which the user prefers over the profile's `lud16`.
+   */
+  lnAddressOverride?: string,
 ) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
@@ -79,7 +85,11 @@ export function useZaps(
       }
 
       const { lud06, lud16 } = author.data.metadata;
-      if (!lud06 && !lud16) {
+      // A NIP-A3 lightning payment target takes precedence over the kind-0
+      // lud16/lud06. When present, resolve the zap endpoint from a synthetic
+      // metadata event carrying the override instead of the profile's own.
+      const overrideTrimmed = lnAddressOverride?.trim();
+      if (!lud06 && !lud16 && !overrideTrimmed) {
         toast({
           title: 'Lightning address not found',
           description: 'The author does not have a lightning address configured.',
@@ -89,8 +99,20 @@ export function useZaps(
         return;
       }
 
-      // Get zap endpoint using the old reliable method
-      const zapEndpoint = await nip57.getZapEndpoint(author.data.event);
+      // Get zap endpoint using the old reliable method. When an override is
+      // present, build a synthetic kind-0 event so getZapEndpoint resolves the
+      // override's LNURL instead of the profile's.
+      let endpointEvent = author.data.event;
+      if (overrideTrimmed) {
+        const isLnurl = /^lnurl1/i.test(overrideTrimmed);
+        endpointEvent = {
+          ...author.data.event,
+          content: JSON.stringify(
+            isLnurl ? { lud06: overrideTrimmed } : { lud16: overrideTrimmed },
+          ),
+        };
+      }
+      const zapEndpoint = await nip57.getZapEndpoint(endpointEvent);
       if (!zapEndpoint) {
         toast({
           title: 'Zap endpoint not found',

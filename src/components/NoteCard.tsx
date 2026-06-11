@@ -309,6 +309,13 @@ function isInteractiveTarget(e: React.MouseEvent): boolean {
     target.closest("[data-vaul-drawer]") ||
     target.closest("[data-vaul-drawer-overlay]") ||
     target.closest('[data-testid="zap-modal"]') ||
+    // Radix popper-based content (dropdowns, popovers, selects, tooltips) renders
+    // in a portal as a sibling of the card/dialog, so the click target isn't a DOM
+    // descendant of the dialog. Match it explicitly so selecting a menu item (e.g.
+    // a payment-method switcher option) doesn't bubble out and navigate to the post.
+    target.closest("[data-radix-popper-content-wrapper]") ||
+    target.closest('[role="menu"]') ||
+    target.closest('[role="menuitem"]') ||
     target.closest("button") ||
     target.closest("a")
   );

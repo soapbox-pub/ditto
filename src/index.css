@@ -135,6 +135,18 @@
     }
   }
 
+  /* Pinned sticky page header (counterpart of SubHeaderBar's pinned mode for
+     full PageHeader-style headers): when the mobile top bar slides away, move
+     from top-mobile-bar to the very top and absorb the device safe area into
+     the header's own padding (1rem = the header's py-4). Toggled alongside
+     a transition-[top,padding-top] for a smooth slide. */
+  @media (max-width: 899px) {
+    .header-pinned-top {
+      top: 0 !important;
+      padding-top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) !important;
+    }
+  }
+
   /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
      Padding-bottom keeps input above the nav. */
   .ai-chat-height {

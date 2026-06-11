@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, forwardRef } from 'react';
-import { Zap, Copy, Check, ExternalLink, X, Bitcoin, Loader2 } from 'lucide-react';
+import { Copy, Check, ExternalLink, X, Loader2, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { openUrl } from '@/lib/downloadFile';
 import { impactMedium } from '@/lib/haptics';
@@ -12,10 +12,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { OnchainZapContent } from '@/components/OnchainZapContent';
+import { GenericPaymentContent } from '@/components/GenericPaymentContent';
+import { PaymentMethodIcon } from '@/components/PaymentMethodIcon';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -24,8 +31,18 @@ import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useAppContext } from '@/hooks/useAppContext';
+import { usePaymentTargets } from '@/hooks/usePaymentTargets';
 import { canZap } from '@/lib/canZap';
 import { parseCampaign } from '@/lib/campaign';
+import {
+  PAYMENT_METHODS,
+  findBitcoinTarget,
+  findLightningTarget,
+  isSilentPaymentLike,
+  type PaymentMethodDef,
+  type PaymentTarget,
+} from '@/lib/paymentTargets';
+import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
 import {
   fetchBtcPrice,
   isLargeAmount,
@@ -58,6 +75,20 @@ interface ZapDialogProps {
 // much smaller than on-chain sends (which have a fixed per-tx fee floor),
 // so the presets stay in tip-jar territory.
 const LIGHTNING_USD_PRESETS = [0.1, 0.5, 1, 2, 5];
+
+/**
+ * Identifier for a selectable payment method in the dialog. Native methods use
+ * fixed ids; generic payment targets reuse their NIP-A3 type string.
+ */
+type DialogMethodId = string;
+
+/** A method shown in the dialog's title switcher. */
+interface DialogMethod {
+  id: DialogMethodId;
+  def: PaymentMethodDef;
+  /** The underlying payment target, for generic (non-native) methods. */
+  target?: PaymentTarget;
+}
 
 /** Format a preset button label without trailing zeros ($0.10 → $0.10, $1 → $1). */
 function formatPresetLabel(usd: number): string {
@@ -334,8 +365,17 @@ export function ZapDialog({
   const { config } = useAppContext();
   const { esploraApis } = config;
 
+  // NIP-A3 payment targets declared by the recipient. We don't fetch these
+  // for campaigns (campaigns route through their own `w` endpoint).
+  const { targets: paymentTargets } = usePaymentTargets(
+    campaign ? undefined : target.pubkey,
+  );
+
+  // A Lightning payment target is preferred over the kind-0 lud16 when zapping.
+  const lightningTarget = useMemo(() => findLightningTarget(paymentTargets), [paymentTargets]);
+
   // Success state: populated by either zap rail's onSuccess callback.
-  // When set, we replace the tab UI with <ZapSuccessScreen />.
+  // When set, we replace the method UI with <ZapSuccessScreen />.
   const [success, setSuccess] = useState<
     | { kind: 'onchain'; amountSats: number; txid: string }
     | { kind: 'lightning'; amountSats: number }
@@ -354,6 +394,7 @@ export function ZapDialog({
     webln,
     activeNWC,
     handleLightningSuccess,
+    lightningTarget?.authority,
   );
 
   // USD-denominated state (matches OnchainZapContent). The sats amount is
@@ -385,16 +426,58 @@ export function ZapDialog({
   // so `insufficient` stays false — kept for symmetry with the onchain props.
   const insufficient = false;
 
-  // Default tab: Bitcoin. Users can switch to Lightning if available.
-  // If the user's signer can't sign PSBTs AND Lightning is available, we
-  // transparently default to Lightning instead of showing an unusable
-  // Bitcoin tab as the primary option.
+  // Default method: Bitcoin. Users can switch to Lightning or any configured
+  // payment target via the title dropdown. If the user's signer can't sign
+  // PSBTs AND Lightning is available, we transparently default to Lightning
+  // instead of showing an unusable Bitcoin method as the primary option.
   const { capability: btcCapability } = useBitcoinSigner();
   const hasLightning = canZap(author?.metadata);
   const bitcoinUnsupported = btcCapability === 'unsupported';
-  const [activeTab, setActiveTab] = useState<'onchain' | 'lightning'>(
-    bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain',
+
+  // A Bitcoin payment target overrides the recipient's derived Taproot
+  // address. An `sp1…` code routes onto the silent-payment rail (no kind
+  // 8333); a `bc1…` address keeps the standard on-chain attribution.
+  const bitcoinTarget = useMemo(() => findBitcoinTarget(paymentTargets), [paymentTargets]);
+  const bitcoinOverride: BitcoinRecipientOverride | undefined = useMemo(() => {
+    if (!bitcoinTarget) return undefined;
+    return {
+      value: bitcoinTarget.authority,
+      mode: isSilentPaymentLike(bitcoinTarget.authority) ? 'sp' : 'onchain',
+    };
+  }, [bitcoinTarget]);
+
+  // Generic (non-native) payment targets — Monero, Ethereum, etc. These render
+  // a QR + native-URI button rather than a built-in send flow.
+  const genericTargets = useMemo(
+    () =>
+      paymentTargets.filter(
+        (t) => t.type !== 'bitcoin' && t.type !== 'lightning',
+      ),
+    [paymentTargets],
   );
+
+  // Build the ordered list of selectable methods for this dialog.
+  // Campaigns always render the single on-chain pane (no method switcher).
+  const methods = useMemo<DialogMethod[]>(() => {
+    if (campaign) return [];
+    const list: DialogMethod[] = [
+      { id: 'bitcoin', def: PAYMENT_METHODS.bitcoin },
+    ];
+    if (hasLightning || lightningTarget) {
+      list.push({ id: 'lightning', def: PAYMENT_METHODS.lightning });
+    }
+    for (const t of genericTargets) {
+      list.push({ id: t.type, def: PAYMENT_METHODS[t.type], target: t });
+    }
+    return list;
+  }, [campaign, hasLightning, lightningTarget, genericTargets]);
+
+  const defaultMethodId: DialogMethodId =
+    bitcoinUnsupported && (hasLightning || lightningTarget) ? 'lightning' : 'bitcoin';
+  const [activeMethod, setActiveMethod] = useState<DialogMethodId>(defaultMethodId);
+
+  const currentMethod =
+    methods.find((m) => m.id === activeMethod) ?? methods[0];
 
   // Re-arm (clear confirmation) whenever the amount moves — editing after
   // arming forces another deliberate click. Mirrors OnchainZapContent.
@@ -444,7 +527,7 @@ export function ZapDialog({
       setError('');
       setConfirmArmed(false);
       setSuccess(null);
-      setActiveTab(bitcoinUnsupported && hasLightning ? 'lightning' : 'onchain');
+      setActiveMethod(defaultMethodId);
     } else {
       setUsdAmount(0.5);
       setInvoice(null);
@@ -454,16 +537,15 @@ export function ZapDialog({
       setConfirmArmed(false);
       setSuccess(null);
     }
-    // `bitcoinUnsupported`/`hasLightning` deliberately excluded — we only
-    // want to reset the active tab on open/close, not on every capability
-    // re-render. The mid-session flip is handled by the effect below.
+    // `defaultMethodId` deliberately excluded — we only want to reset the
+    // active method on open/close, not on every capability re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, setInvoice]);
 
   // Previously, if Bitcoin capability flipped to `unsupported` mid-session we
-  // auto-switched to Lightning because the Bitcoin tab was a dead-end. The
-  // Bitcoin tab now shows a QR fallback for unsupported signers, so users
-  // should be free to click into it. We only bias the *initial* tab choice
+  // auto-switched to Lightning because the Bitcoin pane was a dead-end. The
+  // Bitcoin pane now shows a QR fallback for unsupported signers, so users
+  // should be free to switch into it. We only bias the *initial* method choice
   // toward Lightning (above, in the useState initializer and the open-reset
   // effect); manual navigation into Bitcoin is respected.
 
@@ -535,22 +617,51 @@ export function ZapDialog({
       )}
       <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
-            {success
-              ? 'Success'
-              : campaign
-                ? `Donate to ${campaign.title}`
-                : invoice
-                  ? 'Lightning Payment'
-                  : 'Send Bitcoin'}{' '}
-            {!success && !campaign && (
-              <HelpTip
-                faqId={
-                  invoice || activeTab === 'lightning'
-                    ? 'send-bitcoin-lightning'
-                    : 'send-bitcoin-onchain'
-                }
-              />
+          <DialogTitle className="text-base font-semibold flex items-center gap-1.5 min-w-0">
+            {success ? (
+              'Success'
+            ) : campaign ? (
+              `Donate to ${campaign.title}`
+            ) : invoice ? (
+              <>
+                Lightning Payment{' '}
+                <HelpTip faqId="send-bitcoin-lightning" />
+              </>
+            ) : methods.length > 1 ? (
+              // More than one payment method available (Lightning and/or
+              // declared NIP-A3 payment targets) → the title becomes a method
+              // switcher. The current method's icon + label + a down chevron
+              // open a dropdown of all available methods.
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 min-w-0 rounded-md px-1 -mx-1 hover:bg-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                    aria-label="Switch payment method"
+                  >
+                    <PaymentMethodIcon method={currentMethod?.def} />
+                    <span className="truncate">{methodTitle(currentMethod)}</span>
+                    <ChevronDown className="size-4 shrink-0 opacity-70" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-44" onClick={(e) => e.stopPropagation()}>
+                  {methods.map((m) => (
+                    <DropdownMenuItem
+                      key={m.id}
+                      onSelect={() => setActiveMethod(m.id)}
+                      className="gap-2"
+                    >
+                      <PaymentMethodIcon method={m.def} />
+                      <span>{m.def.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                Send Bitcoin{' '}
+                <HelpTip faqId="send-bitcoin-onchain" />
+              </>
             )}
           </DialogTitle>
           <button
@@ -570,41 +681,24 @@ export function ZapDialog({
               txid={success.kind === 'onchain' ? success.txid : undefined}
               onClose={() => setOpen(false)}
             />
-          ) : !campaign && hasLightning ? (
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'onchain' | 'lightning')} className="w-full">
-              <div className="px-4 pt-2">
-                <TabsList className="grid w-full grid-cols-2 h-9">
-                  <TabsTrigger value="onchain" className="gap-1.5 text-xs">
-                    <Bitcoin className="size-3.5" /> Bitcoin
-                  </TabsTrigger>
-                  <TabsTrigger value="lightning" className="gap-1.5 text-xs">
-                    <Zap className="size-3.5" /> Lightning
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="onchain" className="mt-0">
-                <OnchainZapContent
-                  target={target}
-                  onSuccess={({ txid, amountSats }) =>
-                    setSuccess({ kind: 'onchain', amountSats, txid })
-                  }
-                  onClose={() => setOpen(false)}
-                />
-              </TabsContent>
-              <TabsContent value="lightning" className="mt-0">
-                <LightningZapContent {...lightningContentProps} />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            // Campaign donations (kind 33863) and authors with no Lightning
-            // address share the same single-pane on-chain UI. Campaigns
-            // route the send through the campaign's `w` endpoint via the
-            // `campaign` prop; profile zaps fall back to the derived
-            // Taproot address of the target author.
+          ) : campaign ? (
+            // Campaign donations (kind 33863) use the single-pane on-chain UI,
+            // routing the send through the campaign's `w` endpoint.
             <OnchainZapContent
               target={target}
-              campaign={campaign ?? undefined}
+              campaign={campaign}
               onSuccess={({ txid, amountSats }) =>
+                setSuccess({ kind: 'onchain', amountSats, txid })
+              }
+              onClose={() => setOpen(false)}
+            />
+          ) : (
+            <ZapMethodPane
+              method={currentMethod}
+              target={target}
+              bitcoinOverride={bitcoinOverride}
+              lightningContentProps={lightningContentProps}
+              onOnchainSuccess={({ txid, amountSats }) =>
                 setSuccess({ kind: 'onchain', amountSats, txid })
               }
               onClose={() => setOpen(false)}
@@ -613,5 +707,48 @@ export function ZapDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Title label for the current method (native Bitcoin keeps "Send Bitcoin"). */
+function methodTitle(method: DialogMethod | undefined): string {
+  if (!method) return 'Send Bitcoin';
+  if (method.def.kind === 'bitcoin') return 'Send Bitcoin';
+  return method.def.label;
+}
+
+interface ZapMethodPaneProps {
+  method: DialogMethod | undefined;
+  target: Event;
+  bitcoinOverride: BitcoinRecipientOverride | undefined;
+  lightningContentProps: LightningZapContentProps;
+  onOnchainSuccess: (result: { txid: string; amountSats: number }) => void;
+  onClose: () => void;
+}
+
+/** Renders the body for the currently-selected payment method. */
+function ZapMethodPane({
+  method,
+  target,
+  bitcoinOverride,
+  lightningContentProps,
+  onOnchainSuccess,
+  onClose,
+}: ZapMethodPaneProps) {
+  if (method?.def.kind === 'lightning') {
+    return <LightningZapContent {...lightningContentProps} />;
+  }
+  if (method?.def.kind === 'generic' && method.target) {
+    return <GenericPaymentContent method={method.def} target={method.target} />;
+  }
+  // Default: native Bitcoin. Profile zaps use the derived Taproot address
+  // unless a Bitcoin payment target overrides it.
+  return (
+    <OnchainZapContent
+      target={target as NostrEvent}
+      bitcoinTarget={bitcoinOverride}
+      onSuccess={onOnchainSuccess}
+      onClose={onClose}
+    />
   );
 }
