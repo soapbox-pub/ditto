@@ -148,7 +148,11 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       
       for (const [dTag, event] of eventsByD) {
         const parsed = parseBlobbiEvent(event);
-        if (parsed) {
+        // Ignore old-format / unsupported Blobbi events entirely. They must not
+        // render, be selectable, or trigger migration. isValidBlobbiEvent above
+        // is schema-level validation; this drops legacy companions at the parsed
+        // layer so nothing downstream (page, widget, floating companion) sees them.
+        if (parsed && !parsed.isLegacy) {
           companionsByD[dTag] = parsed;
           companions.push(parsed);
         }
@@ -188,7 +192,10 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
   // and companion layer cache stay in sync (they use different query modes).
   const updateCompanionEvent = useCallback((event: NostrEvent) => {
     const parsed = parseBlobbiEvent(event);
-    if (!parsed || !user?.pubkey) return;
+    // Mirror the collection parse-loop guard: never let an old-format /
+    // unsupported Blobbi enter companionsByD via the optimistic cache path,
+    // even if a future caller accidentally passes one.
+    if (!parsed || parsed.isLegacy || !user?.pubkey) return;
     
     type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
     const matchingQueries = queryClient.getQueriesData<CollectionData>({

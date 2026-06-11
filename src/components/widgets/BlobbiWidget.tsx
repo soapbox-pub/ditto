@@ -69,7 +69,8 @@ export function BlobbiWidget() {
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   // Companions list (deduplicated by d-tag, newest wins, inside
-  // useBlobbisCollection). Legacy old-app migration/dedup is no longer applied.
+  // useBlobbisCollection). The collection is already legacy-free — old-format
+  // events are dropped at the parse layer — so no migration/dedup is applied here.
   const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
