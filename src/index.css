@@ -129,6 +129,14 @@
     height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   }
+  /* Above the sidebar breakpoint the mobile top bar and bottom nav are hidden,
+     so the locked layout gets the full viewport */
+  @media (min-width: 900px) {
+    .livestream-height {
+      height: 100dvh;
+      max-height: 100dvh;
+    }
+  }
 
   /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
      both hidden for an immersive experience). Tab bar floats over video. */

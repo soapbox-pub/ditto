@@ -105,9 +105,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   useSeoMeta({ title: `${title} - ${config.appName}` });
 
-  // Lock body scroll on mobile to prevent page scrolling past the viewport-locked layout
+  // Lock body scroll below lg (where the chat is inline in the viewport-locked layout)
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 899px)');
+    const mq = window.matchMedia('(max-width: 1023px)');
     const apply = (matches: boolean) => {
       document.body.style.overflow = matches ? 'hidden' : '';
     };
@@ -179,7 +179,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   return (
     <>
-      <main className="lg:max-sidebar:flex max-sidebar:flex max-sidebar:flex-col max-sidebar:livestream-height max-sidebar:overflow-hidden">
+      <main className="max-lg:flex max-lg:flex-col max-lg:livestream-height max-lg:overflow-hidden">
         {/* Header */}
         <PageHeader
           title="Live Stream"
