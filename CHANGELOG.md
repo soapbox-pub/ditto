@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.23.1] - 2026-06-12
+
+Profiles get more expressive. Your profile now shows how many people love you, linking straight to the list, and visitors can see at a glance when you follow them back or have them on your Love List. The Loved tab is tidier too, showing only original posts from the people you love. On Android, the back gesture on the home screen now minimizes the app like you'd expect, and a few rough edges in articles and feeds have been smoothed out.
+
+### Added
+- Profiles show a "Loves you" pill when that person has you on their Love List
+- Profiles show a "Follows you" pill when that person follows you
+
+### Changed
+- Profiles now show how many people love you, linking to the full list, in place of the old streak
+- The Loved tab shows only original posts, hiding reposts and reactions
+- Removed the reaction button from profile actions
+- On Android, the back gesture on the home screen now minimizes the app instead of doing nothing
+
+### Fixed
+- Feeds no longer briefly collapse to an empty state while refreshing
+- Article text spacing around links and list items now renders correctly
+
 ## [2.23.0] - 2026-06-11
 
 Ditto now has a Love List — a tier above following, for the people you truly love. Add them from any profile and a dedicated Loved tab at the front of your feed shows only their posts. Updates to your Love List go out as a beautiful handwritten love letter card. You can also set up multiple ways for people to support you: configure Lightning, on-chain Bitcoin, or any other payment method in your profile settings, and your fans can pick whichever works best for them.
