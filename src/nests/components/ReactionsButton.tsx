@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Smile } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,8 +7,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCustomEmojis, type CustomEmoji } from "@/hooks/useCustomEmojis";
+import { cn } from "@/lib/utils";
 import { useNestRoom } from "../nestRoomContextDef";
 import { useNests } from "@/contexts/nestsContextDef";
+import { NEST_BAR_ICON, NEST_BAR_ITEM, NEST_BAR_LABEL } from "./nestBarStyles";
 
 const EMOJI_CATEGORIES = {
   favorites: { label: "Favorites", icon: "⭐", emojis: ["🤙", "💯", "🔥", "💜", "❤️", "👏", "🙌", "✨", "🫶", "💪", "🎉", "🚀"] },
@@ -59,9 +60,10 @@ export function ReactionsButton({ roomATag }: ReactionsButtonProps) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full size-12" disabled>
-            <Smile className="size-7" />
-          </Button>
+          <button className={cn(NEST_BAR_ITEM, "opacity-50 cursor-not-allowed")} disabled>
+            <Smile className={NEST_BAR_ICON} />
+            <span className={NEST_BAR_LABEL}>React</span>
+          </button>
         </TooltipTrigger>
         <TooltipContent>Log in to react</TooltipContent>
       </Tooltip>
@@ -74,9 +76,10 @@ export function ReactionsButton({ roomATag }: ReactionsButtonProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full size-12">
-          <Smile className="size-7" />
-        </Button>
+        <button className={NEST_BAR_ITEM}>
+          <Smile className={NEST_BAR_ICON} />
+          <span className={NEST_BAR_LABEL}>React</span>
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-3" side="top" align="center">
         <Tabs defaultValue={defaultTab}>
