@@ -301,7 +301,7 @@ export function NestRoomPage() {
                   <div className="flex items-center gap-1 shrink-0 -mr-2 -mt-1">
                     <NestOptionsMenu
                       roomEvent={currentEvent}
-                      triggerClassName="size-9 text-white hover:text-white hover:bg-white/20"
+                      triggerClassName="size-11 text-white hover:text-white hover:bg-white/20"
                     />
                     {sessionMatches && (
                       <Tooltip>
@@ -309,13 +309,14 @@ export function NestRoomPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="rounded-full size-9 text-white hover:text-white hover:bg-white/20"
+                            className="rounded-full size-11 text-white hover:text-white hover:bg-white/20"
                             onClick={() => {
                               leaveNest();
                               navigate("/nests");
                             }}
                           >
-                            <DoorOpen className="size-5" />
+                            {/* size-6 matches the main nav icons (Feed/Search/Notifications) */}
+                            <DoorOpen className="size-6" />
                           </Button>
                         </TooltipTrigger>
                         {/* Open downward — the default top placement hides behind the sticky header */}

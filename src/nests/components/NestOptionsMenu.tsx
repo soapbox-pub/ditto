@@ -64,7 +64,8 @@ export function NestOptionsMenu({ roomEvent, triggerClassName }: NestOptionsMenu
             size="icon"
             className={cn("rounded-full size-12", triggerClassName)}
           >
-            <Settings className={triggerClassName ? "size-5" : "size-7"} />
+            {/* size-6 matches the main nav icons (Feed/Search/Notifications) */}
+            <Settings className={triggerClassName ? "size-6" : "size-7"} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
