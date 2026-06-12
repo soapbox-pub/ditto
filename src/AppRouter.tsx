@@ -5,6 +5,9 @@ import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { NestsProvider } from "@/contexts/NestsContext";
+import { MinimizedNestBar } from "@/nests/components/MinimizedNestBar";
+import { NestsNavigationGuard } from "@/nests/components/NestsNavigationGuard";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { Toaster } from "./components/ui/toaster";
@@ -148,10 +151,13 @@ export function AppRouter() {
   return (
     <AudioPlayerProvider>
       <BrowserRouter>
+        <NestsProvider>
         <Toaster />
         <VersionCheck />
         <MinimizedAudioBar />
         <AudioNavigationGuard />
+        <MinimizedNestBar />
+        <NestsNavigationGuard />
         <DeepLinkHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
@@ -315,6 +321,7 @@ export function AppRouter() {
           </Route>
         </Routes>
         </BlobbiActionsProvider>
+        </NestsProvider>
       </BrowserRouter>
     </AudioPlayerProvider>
   );

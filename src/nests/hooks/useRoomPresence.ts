@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNostr } from "@nostrify/react";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { NESTS_PRESENCE_KIND } from "../lib/const";
+import { useRoomNostr } from "./useRoomNostr";
 
 /**
  * Query kind:10312 presence events for a room.
  * Presence events expire after 5 minutes.
+ *
+ * Inside a `RoomRelaysProvider` the query is scoped to the room's relays;
+ * elsewhere (e.g. lobby cards) it uses the global pool.
  */
 export function useRoomPresence(roomATag: string | undefined) {
-  const { nostr } = useNostr();
+  const { nostr } = useRoomNostr();
 
   return useQuery({
     queryKey: ["nests", "room-presence", roomATag ?? ""],

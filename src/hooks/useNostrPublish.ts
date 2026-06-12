@@ -17,6 +17,12 @@ export type EventTemplate = Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> & {
    * equal to `created_at` so the two always match on first publish.
    */
   prev?: NostrEvent;
+  /**
+   * Route the publish through these relays instead of the pool's default
+   * eventRouter. Used by live rooms (Nests) so chat/presence/reactions land
+   * on every relay other participants are listening to.
+   */
+  relays?: string[];
 };
 
 /** Returns true if the kind falls in a replaceable or addressable range. */
@@ -63,8 +69,8 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
   return useMutation({
     mutationFn: async (t: EventTemplate) => {
       if (user) {
-        // Extract `prev` before building the event — it's not part of the Nostr event schema.
-        const { prev, ...template } = t;
+        // Extract `prev` and `relays` before building the event — they're not part of the Nostr event schema.
+        const { prev, relays, ...template } = t;
         const tags = [...(template.tags ?? [])];
 
         // Add the NIP-89 client tag if it doesn't exist
@@ -102,7 +108,12 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           );
         }
 
-        await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+        if (relays && relays.length > 0) {
+          // `.group()` returns a scoped pool sharing the parent's relay connections.
+          await nostr.group(relays).event(event, { signal: AbortSignal.timeout(5000) });
+        } else {
+          await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+        }
 
         // NIP-65: For reply events (kind 1 and 1111), also send to the
         // inbox (read) relays of tagged users so they receive the reply.

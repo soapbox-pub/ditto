@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, MessageCircle } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -21,6 +21,11 @@ interface LiveStreamChatProps {
   /** The `a` tag value: `30311:<pubkey>:<d-tag>` */
   aTag: string;
   className?: string;
+  /**
+   * Route queries/subscriptions/publishes through these relays instead of
+   * the global pool (used by Nests so chat reaches the room's relays).
+   */
+  relays?: string[];
 }
 
 /** Format seconds-ago into a short time string. */
@@ -32,7 +37,7 @@ function shortTimeAgo(timestamp: number): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
-export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
+export function LiveStreamChat({ aTag, className, relays }: LiveStreamChatProps) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -41,11 +46,19 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollRef = useRef(true);
 
+  // Optionally scope to specific relays (shares connections with the global pool)
+  const relaysKey = relays?.join('|') ?? '';
+  const pool = useMemo(
+    () => (relays && relays.length > 0 ? nostr.group(relays) : nostr),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nostr, relaysKey],
+  );
+
   // Fetch existing chat messages
   const { data: messages = [], isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['live-chat', aTag],
+    queryKey: ['live-chat', aTag, relaysKey],
     queryFn: async ({ signal }) => {
-      const events = await nostr.query(
+      const events = await pool.query(
         [{ kinds: [1311], '#a': [aTag], limit: 200 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
       );
@@ -61,13 +74,13 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
 
     (async () => {
       try {
-        for await (const msg of nostr.req(
+        for await (const msg of pool.req(
           [{ kinds: [1311], '#a': [aTag], since: Math.floor(Date.now() / 1000) }],
           { signal: controller.signal },
         )) {
           if (msg[0] === 'EVENT') {
             const event = msg[2] as NostrEvent;
-            queryClient.setQueryData<NostrEvent[]>(['live-chat', aTag], (old = []) => {
+            queryClient.setQueryData<NostrEvent[]>(['live-chat', aTag, relaysKey], (old = []) => {
               if (old.some(e => e.id === event.id)) return old;
               return [...old, event].sort((a, b) => a.created_at - b.created_at);
             });
@@ -79,7 +92,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
     })();
 
     return () => controller.abort();
-  }, [nostr, aTag, queryClient]);
+  }, [pool, aTag, relaysKey, queryClient]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -104,6 +117,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
         kind: 1311,
         content: text,
         tags: [['a', aTag, '', 'root']],
+        relays,
       });
       setMessage('');
     } catch {
