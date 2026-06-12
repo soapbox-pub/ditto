@@ -197,7 +197,7 @@ Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-enc
 
 ### Client Behavior
 
-- **Feed priority:** people on the viewer's Love List get a dedicated **Loved** feed tab, placed before the Follows tab. The tab shows posts (and reposts/reactions/zaps) from loved people only — including people the viewer doesn't follow.
+- **Feed priority:** people on the viewer's Love List get a dedicated **Loved** feed tab, placed before the Follows tab. The tab shows posts from loved people only — including people the viewer doesn't follow. Reposts and reactions are excluded: the tab surfaces what loved people post, not what they boost or react to.
 - **Updates as content:** a kind 15683 event itself renders in feeds as a "love letter" card listing the loved people (avatar + name per `p` tag).
 - **Mutations** MUST follow read-modify-write: fetch the freshest kind 15683 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
 - Clients SHOULD hide kind 15683 events with zero `p` tags (an emptied list has nothing to display).
