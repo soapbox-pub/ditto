@@ -5,9 +5,11 @@
  *   - Kind 3     (NIP-02 follow list)
  *   - Kind 30000 (NIP-51 follow set)
  *   - Kind 39089 (follow pack / starter pack)
+ *   - Kind 15683 (Love List — see NIP.md)
  *
  * Renders a hero image, author row, title + description, action row (Follow All,
- * Save, Share, Add-to-sidebar, etc.), and tabs for Feed and Members.
+ * Save, Share, Add-to-sidebar, etc.), and tabs for Feed and Members. Love lists
+ * swap the hero/title block for the love-letter card.
  *
  * Owner-mode features (remove members, add members) are enabled automatically
  * when the current user owns a kind 30000 list.
@@ -41,6 +43,7 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { PostActionBar } from '@/components/PostActionBar';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
+import { LoveListContent } from '@/components/LoveListContent';
 
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -48,6 +51,7 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
+import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useUserLists } from '@/hooks/useUserLists';
@@ -292,6 +296,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const isOwnList = user && event.pubkey === user.pubkey;
   const isFollowList = event.kind === 3;
   const isFollowSet = event.kind === 30000;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const dTag = useMemo(
     () => event.tags.find(([n]) => n === 'd')?.[1] ?? '',
     [event.tags],
@@ -304,14 +309,22 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const authorName = authorMetadata?.name || authorMetadata?.display_name || 'Anonymous';
   const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
-  // Parsed list (for kind 3 uses author metadata as fallback)
-  const { title, description, image, pubkeys } = useMemo(
-    () => parsePeopleList(event, {
+  // Parsed list (kind 3 uses author metadata as fallback; kind 15683 love
+  // lists carry no title/description/image, so synthesize from the author)
+  const { title, description, image, pubkeys } = useMemo(() => {
+    if (isLoveList) {
+      return {
+        title: authorName ? `${authorName}'s loved` : 'Love list',
+        description: '',
+        image: undefined,
+        pubkeys: loveListPubkeys(event),
+      };
+    }
+    return parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorName,
-    }),
-    [event, authorMetadata, authorName],
-  );
+    });
+  }, [event, isLoveList, authorMetadata, authorName]);
   // Reversed for kind 3 follow lists so newest follows show first; identity
   // for curated kinds. Used only for display — mutations and filters continue
   // to use the original `pubkeys` array.
@@ -360,16 +373,16 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
   // Stable cache-key for the feed tab — the naddr uniquely identifies this list.
   const shareNip19 = useMemo(() => {
-    if (isFollowList) {
-      // Kind 3 is replaceable, no d-tag
-      return nip19.naddrEncode({ kind: 3, pubkey: event.pubkey, identifier: '' });
+    if (isFollowList || isLoveList) {
+      // Kinds 3 and 15683 are replaceable, no d-tag
+      return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: '' });
     }
     return nip19.naddrEncode({
       kind: event.kind,
       pubkey: event.pubkey,
       identifier: dTag,
     });
-  }, [event, dTag, isFollowList]);
+  }, [event, dTag, isFollowList, isLoveList]);
 
   // ── Clone (save a copy of this list as my own kind 30000) ─────────────────
   const handleClone = useCallback(async () => {
@@ -389,11 +402,18 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }
   }, [user, cloning, createList, title, description, pubkeys, toast]);
 
-  // When the user is viewing their own kind 3, Follow All makes no sense.
-  const showFollowAllButton = !(isOwnList && isFollowList);
+  // When the user is viewing their own kind 3 / love list, Follow All makes no sense.
+  const showFollowAllButton = !(isOwnList && (isFollowList || isLoveList));
 
   return (
     <>
+      {/* Love lists lead with the love-letter card instead of a hero image */}
+      {isLoveList && (
+        <div className="px-4 pt-2">
+          <LoveListContent event={event} />
+        </div>
+      )}
+
       {/* Hero image */}
       {safeImage && (
         <div className="w-full overflow-hidden bg-muted border-b border-border">
@@ -438,8 +458,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           </div>
         </div>
 
-        {/* Title */}
-        <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>
+        {/* Title — love lists skip it (the card above carries the heading) */}
+        {!isLoveList && <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>}
 
         {/* Description */}
         {description && (
@@ -461,14 +481,20 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             <FollowAllSplitButton
               pubkeys={pubkeys}
               followedPubkeys={followedPubkeys}
-              listNoun={isFollowList ? "this person's follow list" : 'this list'}
+              listNoun={
+                isLoveList
+                  ? "this person's love list"
+                  : isFollowList
+                    ? "this person's follow list"
+                    : 'this list'
+              }
               includeAuthorPubkey={isFollowList ? event.pubkey : undefined}
               className="flex-1"
             />
           )}
 
-          {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 (that's your follow list, you don't clone it) */}
-          {user && !isOwnList && !isFollowList && (
+          {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 / love lists (those are personal lists, you don't clone them) */}
+          {user && !isOwnList && !isFollowList && !isLoveList && (
             <Button
               variant="outline"
               className={showFollowAllButton ? undefined : 'flex-1'}

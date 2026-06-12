@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -41,6 +41,7 @@ import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -113,32 +114,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
-
-const STREAK_WINDOW_HOURS = 24;
-const STREAK_DISPLAY_LIMIT = 99;
-
-/** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
-function calculateStreak(posts: NostrEvent[]): number {
-  if (!posts || posts.length === 0) return 0;
-
-  const kind1Posts = posts.filter((e) => e.kind === 1);
-  if (kind1Posts.length === 0) return 0;
-
-  const sorted = [...kind1Posts].sort((a, b) => b.created_at - a.created_at);
-  const windowSeconds = STREAK_WINDOW_HOURS * 3600;
-
-  let streak = 1;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gap = sorted[i].created_at - sorted[i + 1].created_at;
-    if (gap <= windowSeconds) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
 
 /** Parse the custom "fields" array from kind 0 metadata content. */
 function parseProfileFields(content: string): Array<{ label: string; value: string }> {
@@ -1419,6 +1394,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return { pubkeys, count: pubkeys.length };
   }, [supplementary?.following]);
 
+  // Profile's love list (kind 15683, derived from supplementary query)
+  const lovedCount = supplementary?.loved.length ?? 0;
+
   // NIP-85 user stats (followers count)
   const { data: userStats } = useNip85UserStats(pubkey);
   const followersCount = userStats?.followers ?? 0;
@@ -1778,17 +1756,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       firstSubReply: childrenByParent.get(comment.id)?.[0],
     }));
   }, [wallComments, pubkey]);
-
-  const streak = useMemo(() => {
-    if (!feedData?.pages) return 0;
-    const events: NostrEvent[] = [];
-    for (const page of feedData.pages) {
-      for (const item of page.items) {
-        events.push(item.event);
-      }
-    }
-    return calculateStreak(events);
-  }, [feedData?.pages]);
 
   // Infinite scroll sentinel
   const { ref: scrollRef, inView } = useInView({
@@ -2235,7 +2202,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-               {/* Followers / Following count + Streak indicator */}
+               {/* Followers / Following / Loved counts */}
                <div className="flex items-center gap-4 mt-2">
                 {followersCount > 0 && (
                   <button
@@ -2257,16 +2224,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">following</span>
                   </Link>
                 )}
-                {streak > 1 && (
-                  <div
-                    className="flex items-center gap-1 text-accent"
-                    title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+                {lovedCount > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: LOVE_LIST_KIND, pubkey, identifier: '' })}`}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    title={`${lovedCount} loved`}
                   >
-                    <Flame className="size-4 fill-accent" />
-                    <span className="text-sm font-bold tabular-nums">
-                      {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-                    </span>
-                  </div>
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(lovedCount)}</span>
+                    <span className="text-sm text-muted-foreground">loved</span>
+                  </Link>
                 )}
               </div>
 

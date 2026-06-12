@@ -108,8 +108,8 @@ import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
 import { KIND_LABELS } from "@/lib/kindLabels";
 
-/** Kinds that get the full people-list detail view (follow list / set / pack). */
-const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089]);
+/** Kinds that get the full people-list detail view (follow list / set / pack / love list). */
+const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
