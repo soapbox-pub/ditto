@@ -247,9 +247,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       });
   }, [rawData?.pages, muteItems, useDittoQuery]);
 
-  // Retain the last non-empty list so a key change / background refetch never
-  // flashes the empty state over a feed the user is actively reading.
-  const feedItems = useStickyFeedItems(derivedItems, isFetching);
+  // Retain the last non-empty list so a key change / background refetch /
+  // settled-empty relay miss never flashes the empty state over a feed the
+  // user is actively reading. Retention resets when the viewed feed identity
+  // (account or tab) changes.
+  const feedItems = useStickyFeedItems(
+    derivedItems,
+    `${user?.pubkey ?? ''}:${useDittoQuery ? 'ditto' : activeTab}`,
+  );
 
   // Show skeletons while loading, but not if the curator list query errored
   // (that would leave logged-out users staring at infinite skeletons).
@@ -473,7 +478,6 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const {
     data: rawData,
     isLoading: isFeedLoading,
-    isFetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -513,8 +517,9 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   }, [rawData?.pages, muteItems]);
 
   // Retain the last non-empty list so a key change / refetch never flashes the
-  // empty state over content the user is reading.
-  const feedItems = useStickyFeedItems(derivedItems, isResolving || isFetching);
+  // empty state over content the user is reading. Resets when the saved feed
+  // (or account) changes — this component is reused across saved feed tabs.
+  const feedItems = useStickyFeedItems(derivedItems, `${user?.pubkey ?? ''}:${feed.id}`);
 
   if (isLoading && feedItems.length === 0) {
     return (
@@ -574,7 +579,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey], [tag, kindsKey]);
   const handleRefresh = usePageRefresh(queryKey);
 
-  const { data: events, isLoading, isFetching } = useQuery<NostrEvent[]>({
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
@@ -591,8 +596,9 @@ function HashtagFeedContent({ tag }: { tag: string }) {
     return events.filter((e) => !isEventMuted(e, muteItems));
   }, [events, muteItems]);
 
-  // Retain the last non-empty list across key changes / refetches.
-  const filteredEvents = useStickyFeedItems(derivedEvents, isFetching);
+  // Retain the last non-empty list across key changes / refetches; resets when
+  // the viewed hashtag changes (this component is reused across hashtag tabs).
+  const filteredEvents = useStickyFeedItems(derivedEvents, tag);
 
   if (isLoading && filteredEvents.length === 0) {
     return (
@@ -634,7 +640,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey], [tag, kindsKey]);
   const handleRefresh = usePageRefresh(queryKey);
 
-  const { data: events, isLoading, isFetching } = useQuery<NostrEvent[]>({
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
@@ -652,8 +658,9 @@ function GeotagFeedContent({ tag }: { tag: string }) {
     return events.filter((e) => !isEventMuted(e, muteItems));
   }, [events, muteItems]);
 
-  // Retain the last non-empty list across key changes / refetches.
-  const filteredEvents = useStickyFeedItems(derivedEvents, isFetching);
+  // Retain the last non-empty list across key changes / refetches; resets when
+  // the viewed geotag changes (this component is reused across geotag tabs).
+  const filteredEvents = useStickyFeedItems(derivedEvents, tag);
 
   if (isLoading && filteredEvents.length === 0) {
     return (
