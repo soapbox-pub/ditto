@@ -133,6 +133,29 @@ function parseBackgroundTag(tags: string[][]): ThemeBackground | undefined {
   return bg;
 }
 
+// ─── Inline Theme (c/f/bg tags on arbitrary events) ───────────────────
+
+/** A theme parsed from inline c/f/bg tags on any event (e.g. Nests rooms). */
+export interface InlineTheme {
+  colors: CoreThemeColors;
+  font?: ThemeFont;
+  titleFont?: ThemeFont;
+  background?: ThemeBackground;
+}
+
+/**
+ * Parse inline theme tags (`c`, `f`, `bg`) from any event's tag list.
+ * Nests room events (kind 30312) carry these to theme the room for everyone.
+ * Returns null when the 3 required color roles aren't all present.
+ */
+export function parseInlineThemeTags(tags: string[][]): InlineTheme | null {
+  const colors = parseColorTags(tags);
+  if (!colors) return null;
+  const { font, titleFont } = parseFontTags(tags);
+  const background = parseBackgroundTag(tags);
+  return { colors, font, titleFont, background };
+}
+
 // ─── Theme Definition (Kind 36767) ────────────────────────────────────
 
 export interface ThemeDefinition {

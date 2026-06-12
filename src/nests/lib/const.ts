@@ -46,6 +46,15 @@ export const DefaultMoQServers: MoQServer[] = [
 /** Default MoQ auth service URL (fallback for rooms without an auth tag) */
 export const DefaultMoQAuthUrl = "https://moq-auth.nostrnests.com";
 
+/**
+ * Whether this browser can play nest audio. The MoQ transport falls back
+ * from WebTransport to WebSocket, but decoding OPUS requires WebCodecs.
+ * Without it the user can still see participants and chat.
+ */
+export function isNestAudioSupported(): boolean {
+  return typeof globalThis.AudioDecoder !== "undefined";
+}
+
 /** Color palette for nest cards (classes defined in index.css) */
 export const NestColorPalette = [
   "gradient-1",

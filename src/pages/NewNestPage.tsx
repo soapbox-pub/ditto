@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
+import { buildActiveThemeTags } from "@/lib/themeEvent";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -34,6 +36,9 @@ export function NewNestPage() {
   );
   const [scheduledTime, setScheduledTime] = useState("");
   const [selectedServer, setSelectedServer] = useState(servers[0] ?? null);
+  const [applyMyTheme, setApplyMyTheme] = useState(false);
+
+  const customTheme = config.theme === "custom" ? config.customTheme : undefined;
 
   useSeoMeta({
     title: `Start a Nest | ${config.appName}`,
@@ -70,6 +75,14 @@ export function NewNestPage() {
 
       if (summary.trim()) {
         tags.push(["summary", summary.trim()]);
+      }
+
+      // Theme the nest with the user's custom Ditto theme (inline c/f/bg tags)
+      if (applyMyTheme && customTheme) {
+        const themeTags = buildActiveThemeTags(customTheme).filter(
+          ([t]) => t === "c" || t === "f" || t === "bg",
+        );
+        tags.push(...themeTags);
       }
 
       const event = await createEvent({
@@ -165,6 +178,22 @@ export function NewNestPage() {
                 )}
               </div>
             </div>
+
+            {customTheme && (
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="apply-theme">Use my theme</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Everyone in the nest will see your custom Ditto theme
+                  </p>
+                </div>
+                <Switch
+                  id="apply-theme"
+                  checked={applyMyTheme}
+                  onCheckedChange={setApplyMyTheme}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Audio Server</Label>

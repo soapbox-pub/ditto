@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';
 import { BlossomSettings } from '@/components/BlossomSettings';
+import { MoqServerSettings } from '@/nests/components/MoqServerSettings';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { Label } from '@/components/ui/label';
@@ -70,6 +71,17 @@ export function NetworkSettingsPage() {
           </div>
           <div className="pt-2 pb-4">
             <BlossomSettings />
+          </div>
+        </div>
+
+        {/* MoQ Audio Servers (Nests) */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold">Audio Servers</h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+          <div className="pt-2 pb-4">
+            <MoqServerSettings />
           </div>
         </div>
 

@@ -24,13 +24,15 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { getEffectiveRelays } from "@/lib/appRelays";
 import { cn } from "@/lib/utils";
 
+import { ScopedTheme } from "@/components/ScopedTheme";
 import { useNests } from "@/contexts/nestsContextDef";
 import { NestRoomProvider } from "@/nests/NestRoomProvider";
+import { useRoomTheme } from "@/nests/hooks/useRoomTheme";
 import { RoomRelaysProvider } from "@/nests/RoomRelaysProvider";
 import { ParticipantsGrid } from "@/nests/components/ParticipantsGrid";
 import { NestMenuBar } from "@/nests/components/NestMenuBar";
 import { ReactionOverlay } from "@/nests/components/ReactionOverlay";
-import { NESTS_ROOM_KIND } from "@/nests/lib/const";
+import { NESTS_ROOM_KIND, isNestAudioSupported } from "@/nests/lib/const";
 import {
   getRoomATag,
   getRoomColor,
@@ -137,6 +139,48 @@ export function NestRoomPage() {
 
   const status = currentEvent ? getRoomStatus(currentEvent) : undefined;
 
+  // Room theme (inline c/f/bg tags or referenced kind 36767)
+  const roomTheme = useRoomTheme(currentEvent ?? undefined);
+
+  // Load the room theme's custom font (trusted CDNs only)
+  useEffect(() => {
+    const fontUrl = roomTheme?.font?.url;
+    if (!fontUrl) return;
+    const trustedHosts = ["fonts.googleapis.com", "fonts.bunny.net", "fonts.cdnfonts.com", "use.typekit.net"];
+    try {
+      const host = new URL(fontUrl).hostname;
+      if (!trustedHosts.some((h) => host === h || host.endsWith(`.${h}`))) return;
+    } catch {
+      return;
+    }
+    const id = "nest-room-theme-font";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = fontUrl;
+    document.head.appendChild(link);
+    return () => {
+      document.getElementById(id)?.remove();
+    };
+  }, [roomTheme?.font?.url]);
+
+  // Background image + font family applied to the themed wrapper
+  const themedStyle = useMemo(() => {
+    if (!roomTheme) return undefined;
+    const style: React.CSSProperties = {};
+    if (roomTheme.background?.url) {
+      style.backgroundImage = `url(${roomTheme.background.url})`;
+      style.backgroundSize = roomTheme.background.mode === "tile" ? "auto" : "cover";
+      style.backgroundRepeat = roomTheme.background.mode === "tile" ? "repeat" : "no-repeat";
+      style.backgroundPosition = "center";
+    }
+    if (roomTheme.font?.family) {
+      style.fontFamily = `'${roomTheme.font.family}', sans-serif`;
+    }
+    return style;
+  }, [roomTheme]);
+
   // --- Auto-join on first visit (like clicking into a Space) ---
   // The ref prevents re-joining after an explicit leave or kick.
   const autoJoinedRef = useRef<string | null>(null);
@@ -217,10 +261,11 @@ export function NestRoomPage() {
   const color = getRoomColor(currentEvent);
   const image = getRoomImage(currentEvent);
 
-  return (
-    <RoomRelaysProvider relays={roomRelays}>
-      <NestRoomProvider event={currentEvent}>
-        <main className="flex flex-col min-h-[calc(100dvh-3.5rem)] sidebar:min-h-screen">
+  const roomContent = (
+        <main
+          className="flex flex-col min-h-[calc(100dvh-3.5rem)] sidebar:min-h-screen bg-background text-foreground"
+          style={themedStyle}
+        >
           {/* Room banner */}
           <div className="shrink-0 p-2 md:p-4 pb-0 md:pb-0">
             <div className={cn("relative overflow-hidden rounded-xl shadow-lg", color)}>
@@ -257,6 +302,11 @@ export function NestRoomPage() {
           </div>
 
           {/* Connection status notices */}
+          {!isNestAudioSupported() && status === "live" && (
+            <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 text-xs px-4 py-1.5 text-center mt-2">
+              Live audio isn't supported in this browser. You can still see who's here and follow the chat.
+            </div>
+          )}
           {sessionMatches && authError && (
             <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 text-xs px-4 py-1.5 text-center mt-2">
               Audio connection issue: {authError}
@@ -330,6 +380,16 @@ export function NestRoomPage() {
             onOpenChange={setZapOpen}
           />
         </main>
+  );
+
+  return (
+    <RoomRelaysProvider relays={roomRelays}>
+      <NestRoomProvider event={currentEvent}>
+        {roomTheme ? (
+          <ScopedTheme colors={roomTheme.colors}>{roomContent}</ScopedTheme>
+        ) : (
+          roomContent
+        )}
       </NestRoomProvider>
     </RoomRelaysProvider>
   );
