@@ -23,7 +23,6 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ProfileReactionButton } from '@/components/ProfileReactionButton';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -2184,10 +2183,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     >
                       <QrCode className="size-5" />
                     </Button>
-                  )}
-                  {/* Profile reaction button */}
-                  {!isOwnProfile && authorEvent && (
-                    <ProfileReactionButton profileEvent={authorEvent} />
                   )}
                   {/* Love List toggle */}
                   {!isOwnProfile && (
