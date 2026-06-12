@@ -45,6 +45,11 @@ interface NoteContentProps {
   /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
    *  inside an already-block container (e.g. inside a markdown `<p>`). */
   as?: 'div' | 'span';
+  /** When true, leading/trailing whitespace on the edge text tokens is preserved
+   *  instead of trimmed. Use when this instance renders only a fragment of a larger
+   *  block (e.g. a single text leaf between markdown inline elements), so the spaces
+   *  separating it from sibling nodes (links, emphasis) survive. */
+  preserveEdgeWhitespace?: boolean;
   /** When set, occurrences of this substring in plain-text tokens are wrapped
    *  in `<mark>` (used to highlight a NIP-84 excerpt inside its source note). */
   highlightText?: string;
@@ -320,6 +325,7 @@ export function NoteContent({
   disableMediaEmbeds = false,
   as: Wrapper = 'div',
   highlightText,
+  preserveEdgeWhitespace = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -564,8 +570,11 @@ export function NoteContent({
       }
     }
 
-    // Trim leading/trailing whitespace from edge text tokens
-    if (result.length > 0) {
+    // Trim leading/trailing whitespace from edge text tokens.
+    // Skipped when this instance is only a fragment of a larger block (e.g. a
+    // markdown text leaf sitting between inline links/emphasis) — there the
+    // edge spaces are meaningful separators between sibling nodes.
+    if (!preserveEdgeWhitespace && result.length > 0) {
       const first = result[0];
       if (first.type === 'text') {
         first.value = first.value.replace(/^\s+/, '');
@@ -578,7 +587,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event]);
+  }, [event, preserveEdgeWhitespace]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection

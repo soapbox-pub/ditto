@@ -49,6 +49,7 @@ function enrichChildren(
           key={i}
           event={synthetic}
           as="span"
+          preserveEdgeWhitespace
           disableNoteEmbeds={opts.inlineOnly}
           disableMediaEmbeds={opts.inlineOnly}
         />
