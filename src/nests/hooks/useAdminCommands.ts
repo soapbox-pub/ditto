@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNostr } from "@nostrify/react";
-import { useMemo } from "react";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { NESTS_ADMIN_COMMAND_KIND } from "../lib/const";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -35,21 +34,31 @@ export function useAdminCommands({ roomEvent, onKick, relays }: UseAdminCommands
   );
 
   // Get list of admin pubkeys for validation
-  const adminPubkeys = roomEvent
-    ? [
+  const adminPubkeys = useMemo(() => {
+    if (!roomEvent) return [];
+    return [
       roomEvent.pubkey, // host is always admin
       ...roomEvent.tags
         .filter(([t, , , role]) => t === "p" && role === "admin")
         .map(([, pk]) => pk),
-    ]
-    : [];
+    ];
+  }, [roomEvent]);
+  const adminsKey = adminPubkeys.join(",");
 
   const roomATag = roomEvent
     ? `${roomEvent.kind}:${roomEvent.pubkey}:${roomEvent.tags.find(([t]) => t === "d")?.[1] ?? ""}`
     : undefined;
 
+  // Only honor kicks issued after we joined this room; the processed set
+  // is reset per room so ids never bleed between sessions.
+  const sessionStartRef = useRef(Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    sessionStartRef.current = Math.floor(Date.now() / 1000);
+    processedRef.current = new Set();
+  }, [roomATag]);
+
   const query = useQuery({
-    queryKey: ["nests", "admin-commands", roomATag ?? "", user?.pubkey ?? ""],
+    queryKey: ["nests", "admin-commands", roomATag ?? "", user?.pubkey ?? "", adminsKey],
     queryFn: async () => {
       if (!user || !roomATag || adminPubkeys.length === 0) return [];
 
@@ -59,7 +68,7 @@ export function useAdminCommands({ roomEvent, onKick, relays }: UseAdminCommands
           authors: adminPubkeys,
           "#p": [user.pubkey],
           "#a": [roomATag],
-          since: Math.floor(Date.now() / 1000) - 60,
+          since: sessionStartRef.current - 30,
           limit: 10,
         }],
         { signal: AbortSignal.timeout(3000) },

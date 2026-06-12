@@ -73,6 +73,41 @@ export function sanitizeUntrustedRelays(list: Iterable<unknown> | undefined | nu
 }
 
 /**
+ * Sanitize an untrusted HTTPS URL (room `streaming`/`auth` tags). These URLs
+ * drive fetch()/WebTransport connections and are embedded in signed NIP-98
+ * events, so reject non-https schemes and (in production) private/loopback
+ * hosts, exactly like relay URLs.
+ *
+ * Returns the normalized URL without a trailing root slash, or `null`.
+ */
+export function sanitizeUntrustedHttpsUrl(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "https:") return null;
+  if (!url.hostname) return null;
+
+  if (!import.meta.env.DEV) {
+    const hostname = url.hostname.toLowerCase();
+    if (PRIVATE_HOST_RE.test(hostname) || hostname.endsWith(".local")) return null;
+  }
+
+  let out = url.toString();
+  if (out.endsWith("/") && url.pathname === "/") {
+    out = out.slice(0, -1);
+  }
+  return out;
+}
+
+/**
  * Build a deduplicated list of normalized relay URLs from one or more inputs.
  * Invalid entries are silently dropped.
  */

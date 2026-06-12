@@ -25,7 +25,7 @@ import {
   getRoomStreamingUrl,
   getRoomTitle,
 } from "@/nests/lib/room";
-import { dedupeRelays, sanitizeUntrustedRelays } from "@/nests/lib/relays";
+import { dedupeRelays, sanitizeUntrustedRelays, sanitizeUntrustedHttpsUrl } from "@/nests/lib/relays";
 import { usePresence } from "@/nests/hooks/usePresence";
 import { useAdminCommands } from "@/nests/hooks/useAdminCommands";
 import { useIsAdmin } from "@/nests/hooks/useIsAdmin";
@@ -82,8 +82,11 @@ export function NestsProvider({ children }: PropsWithChildren) {
     // A live conversation takes priority over music/podcast playback.
     audioPlayer.pause();
 
-    // Tear down any previous connection (switching nests)
+    // Tear down any previous connection (switching nests). A fresh join also
+    // clears the sticky left-stage flag, so a speaker who left the stage in a
+    // previous session auto-publishes again when rejoining.
     transport?.disconnect();
+    transport?.resetDeclinedPublish();
 
     const relays = dedupeRelays(
       userRelayUrls,
@@ -151,9 +154,16 @@ export function NestsProvider({ children }: PropsWithChildren) {
   }, [transport]);
 
   // --- MoQ auth + connect (re-runs when promoted/demoted: isSpeaker changes) ---
+  // The streaming/auth URLs come from an untrusted room event: they drive
+  // fetch()/WebTransport and end up inside a signed NIP-98 event, so they
+  // must pass the same https/non-private-host validation as relay URLs.
   const { isSpeaker } = useIsAdmin(session?.roomEvent);
-  const streamingUrl = session ? getRoomStreamingUrl(session.roomEvent) : undefined;
-  const moqAuthUrl = session ? (getRoomAuthUrl(session.roomEvent) ?? DefaultMoQAuthUrl) : undefined;
+  const streamingUrl = session
+    ? sanitizeUntrustedHttpsUrl(getRoomStreamingUrl(session.roomEvent)) ?? undefined
+    : undefined;
+  const moqAuthUrl = session
+    ? sanitizeUntrustedHttpsUrl(getRoomAuthUrl(session.roomEvent)) ?? DefaultMoQAuthUrl
+    : undefined;
   const namespace = session ? getRoomNamespace(session.roomEvent) : undefined;
 
   useEffect(() => {
@@ -253,7 +263,6 @@ export function NestsProvider({ children }: PropsWithChildren) {
     isPublishing: localState.isPublishing,
     isMuted: !localState.isMicEnabled,
     onStage: isSpeaker && !localState.declinedPublish,
-    declinedPublish: localState.declinedPublish,
     relays: session?.relays,
   });
 

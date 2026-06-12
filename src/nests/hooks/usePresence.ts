@@ -12,10 +12,11 @@ interface PresenceOptions {
   isPublishing: boolean;
   /** Whether the user's mic is muted */
   isMuted: boolean;
-  /** Whether the user is on stage (speaker/admin/host) */
+  /**
+   * Whether the user is on stage. Callers compute this as
+   * `isSpeaker && !declinedPublish`, so a leave-stage is reflected here.
+   */
   onStage: boolean;
-  /** Whether the user declined to publish */
-  declinedPublish: boolean;
   /** Room relays to route the publish through (in addition to defaults). */
   relays?: string[];
 }
@@ -28,7 +29,7 @@ interface PresenceOptions {
  * so the heartbeat keeps running while the nest is minimized.
  */
 export function usePresence(options: PresenceOptions) {
-  const { roomATag, handRaised, isPublishing, isMuted, onStage, declinedPublish, relays } = options;
+  const { roomATag, handRaised, isPublishing, isMuted, onStage, relays } = options;
   const { user } = useCurrentUser();
   const { mutate: createEvent } = useNostrPublish();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -67,7 +68,7 @@ export function usePresence(options: PresenceOptions) {
   useEffect(() => {
     if (!user || !roomATag) return;
     publishPresence();
-  }, [publishPresence, user, roomATag, handRaised, isPublishing, isMuted, onStage, declinedPublish]);
+  }, [publishPresence, user, roomATag, handRaised, isPublishing, isMuted, onStage]);
 
   // Publish every 2 minutes as heartbeat
   useEffect(() => {

@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { nip19 } from "nostr-tools";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { NESTS_ROOM_KIND } from "./const";
 
 /** Ditto shareable theme kind (rooms may reference one via an a-tag) */
@@ -33,9 +34,12 @@ export function getRoomColor(event: NostrEvent): string {
   return event.tags.find(([t]) => t === "color")?.[1] ?? "gradient-1";
 }
 
-/** Get the room image URL */
+/**
+ * Get the room image URL. Sanitized (https-only, URL-normalized) because the
+ * value is interpolated into CSS `url(...)` by callers.
+ */
 export function getRoomImage(event: NostrEvent): string | undefined {
-  return event.tags.find(([t]) => t === "image")?.[1];
+  return sanitizeUrl(event.tags.find(([t]) => t === "image")?.[1]);
 }
 
 /** Get the room streaming URL (MoQ relay endpoint) */
