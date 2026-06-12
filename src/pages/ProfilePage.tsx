@@ -2190,12 +2190,16 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                   ) : displayName}
                 </h2>
-                {lovesYou && (
+                {lovesYou ? (
                   <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
                     <Heart className="size-3 fill-current" aria-hidden="true" />
                     Loves you
                   </span>
-                )}
+                ) : !isOwnProfile && profileFollowsMe ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Follows you
+                  </span>
+                ) : null}
               </div>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
