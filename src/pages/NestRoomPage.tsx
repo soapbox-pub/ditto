@@ -19,7 +19,6 @@ import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAddrEvent } from "@/hooks/useEvent";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { getEffectiveRelays } from "@/lib/appRelays";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +42,25 @@ import {
 } from "@/nests/lib/room";
 import { dedupeRelays, sanitizeUntrustedRelays } from "@/nests/lib/relays";
 import { useRoomPresence } from "@/nests/hooks/useRoomPresence";
+
+/**
+ * Whether the chat sidebar is visible. Matches Tailwind's `lg` breakpoint
+ * (the sidebar is `hidden lg:flex`); below it the chat opens in a drawer,
+ * so the menu bar must show the chat toggle — on narrow desktop windows
+ * too, not just phones.
+ */
+function useHasChatSidebar(): boolean {
+  const [isLg, setIsLg] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsLg(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isLg;
+}
 
 /** Decode a nest naddr into addr coordinates + relay hints. */
 function useNestAddr(naddr: string | undefined) {
@@ -205,7 +223,7 @@ export function NestRoomPage() {
   });
 
   // --- Chat layout: desktop right sidebar, mobile drawer ---
-  const isMobile = useIsMobile();
+  const hasChatSidebar = useHasChatSidebar();
   const [chatOpen, setChatOpen] = useState(false);
   const roomATag = currentEvent ? getRoomATag(currentEvent) : undefined;
 
@@ -382,12 +400,12 @@ export function NestRoomPage() {
 
           {/* Menu bar: mobile fixed bottom, desktop floating pill */}
           <NestMenuBar
-            onChatToggle={isMobile ? () => setChatOpen(!chatOpen) : undefined}
+            onChatToggle={!hasChatSidebar ? () => setChatOpen(!chatOpen) : undefined}
             chatOpen={chatOpen}
           />
 
-          {/* Mobile chat drawer */}
-          {isMobile && (
+          {/* Chat drawer — any width without the sidebar (phones + narrow desktop) */}
+          {!hasChatSidebar && (
             <Drawer open={chatOpen} onOpenChange={setChatOpen}>
               <DrawerContent className="h-[70dvh] max-h-[70dvh]">
                 <DrawerTitle className="sr-only">Chat</DrawerTitle>
