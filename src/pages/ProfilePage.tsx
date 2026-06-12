@@ -1696,7 +1696,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Profile badges for bio section
   const { refs: badgeRefs } = useProfileBadges(pubkey);
   const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
-  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
+  const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -2262,6 +2262,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {badgeRefs.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
                   {firstBadgeRefs.map((ref) => {
+                    if (badgeDefsLoading) {
+                      return <Skeleton key={ref.aTag} className="size-8 rounded-lg" />;
+                    }
                     const badge = badgeMap.get(ref.aTag);
                     if (!badge) return null;
                     return (
