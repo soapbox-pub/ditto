@@ -221,8 +221,10 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
       } else if (tab === 'loved' && user && lovedPubkeys !== undefined) {
-        // Loved feed — posts, reposts, and extra kinds from people on the
-        // user's Love List (kind 15683), minus anyone also muted (mute wins).
+        // Loved feed — posts and extra kinds from people on the user's Love
+        // List (kind 15683), minus anyone also muted (mute wins). Reposts and
+        // reactions are excluded: the Loved tab surfaces what loved people
+        // post, not what they boost or react to.
         const lovedAuthors = excludeMuted(lovedPubkeys);
 
         // Empty love list — never query with an empty authors array (that
@@ -231,8 +233,9 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
           return { items: [], oldestQueryTimestamp: now, rawCount: 0 };
         }
 
+        const lovedKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k));
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
-        const filter: Record<string, unknown> = { kinds: allKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
+        const filter: Record<string, unknown> = { kinds: lovedKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
         if (pageParam) {
           filter.until = pageParam;
         }
