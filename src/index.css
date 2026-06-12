@@ -1028,3 +1028,42 @@
   from { width: 0%; }
   to   { width: 100%; }
 }
+
+/* ============================================================
+   Nests: gradient backgrounds for room cards/banners
+   ============================================================ */
+@layer components {
+  .gradient-1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  .gradient-2 {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+  .gradient-3 {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+  .gradient-4 {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  }
+  .gradient-5 {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  }
+  .gradient-6 {
+    background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+  }
+  .gradient-7 {
+    background: linear-gradient(135deg, #fccb90 0%, #d57eeb 100%);
+  }
+  .gradient-8 {
+    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+  }
+  .gradient-9 {
+    background: linear-gradient(135deg, #f5576c 0%, #ff6f3c 100%);
+  }
+  .gradient-10 {
+    background: linear-gradient(135deg, #0250c5 0%, #d43f8d 100%);
+  }
+  .gradient-11 {
+    background: linear-gradient(135deg, #08203e 0%, #557c93 100%);
+  }
+}

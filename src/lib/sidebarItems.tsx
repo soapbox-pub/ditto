@@ -183,6 +183,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "vines", label: "Divines", path: "/vines", icon: Clapperboard },
   { id: "music", label: "Music", path: "/music", icon: Music },
   { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
+  { id: "nests", label: "Nests", path: "/nests", icon: Mic },
 
   { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks },
   { id: "themes", label: "Themes", path: "/themes", icon: Sparkles },

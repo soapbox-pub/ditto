@@ -58,7 +58,10 @@ const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage")
 const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
 const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
 const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
+const NestRoomPage = lazy(() => import("./pages/NestRoomPage").then(m => ({ default: m.NestRoomPage })));
+const NestsPage = lazy(() => import("./pages/NestsPage").then(m => ({ default: m.NestsPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
+const NewNestPage = lazy(() => import("./pages/NewNestPage").then(m => ({ default: m.NewNestPage })));
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings").then(m => ({ default: m.NotificationSettings })));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
@@ -199,6 +202,9 @@ export function AppRouter() {
             <Route path="/vines" element={<VinesFeedPage />} />
             <Route path="/music" element={<MusicPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
+            <Route path="/nests" element={<NestsPage />} />
+            <Route path="/nests/new" element={<NewNestPage />} />
+            <Route path="/nests/:naddr" element={<NestRoomPage />} />
             <Route path="/polls" element={<PollsFeedPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route

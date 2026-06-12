@@ -21,9 +21,10 @@ import {
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+import { buildRoomNaddr } from "@/nests/lib/room";
 import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
@@ -113,6 +114,9 @@ const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
+
+/** Kind 30312 = Nests live audio rooms. */
+const NESTS_ROOM_KIND = 30312;
 
 /** Music kinds that get a rich detail view. */
 const MUSIC_KINDS = new Set([36787, 34139]);
@@ -410,6 +414,18 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // Live streams (NIP-53) get their own immersive layout with player + chat
   if (resolvedEvent.kind === LIVE_STREAM_KIND) {
     return <LiveStreamPage event={resolvedEvent} />;
+  }
+
+  // Nests (live audio rooms) live at the canonical /nests/:naddr route so the
+  // join/minimize session logic stays in one page
+  if (resolvedEvent.kind === NESTS_ROOM_KIND) {
+    return (
+      <Navigate
+        to={`/nests/${buildRoomNaddr(resolvedEvent)}`}
+        state={{ event: resolvedEvent }}
+        replace
+      />
+    );
   }
 
   // Music tracks and playlists get a rich detail view
