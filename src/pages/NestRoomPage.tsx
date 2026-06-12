@@ -31,7 +31,6 @@ import { RoomRelaysProvider } from "@/nests/RoomRelaysProvider";
 import { ParticipantsGrid } from "@/nests/components/ParticipantsGrid";
 import { NestMenuBar } from "@/nests/components/NestMenuBar";
 import { NestOptionsMenu } from "@/nests/components/NestOptionsMenu";
-import { ReactionOverlay } from "@/nests/components/ReactionOverlay";
 import { NESTS_ROOM_KIND, isNestAudioSupported } from "@/nests/lib/const";
 import {
   getRoomATag,
@@ -397,8 +396,6 @@ export function NestRoomPage() {
             </Drawer>
           )}
 
-          {/* Flying emoji reactions */}
-          <ReactionOverlay />
         </main>
   );
 

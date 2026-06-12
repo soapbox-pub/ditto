@@ -1090,12 +1090,3 @@
   animation: nest-react-float 1.5s ease-out forwards;
   pointer-events: none;
 }
-
-@keyframes nest-float-up {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
-}
-.nest-float-reaction {
-  animation: nest-float-up 2s ease-out forwards;
-  pointer-events: none;
-}
