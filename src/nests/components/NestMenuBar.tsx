@@ -1,12 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { DoorOpen, Hand, Mic, MicOff, LogOut, MessageCircle, Minimize2 } from "lucide-react";
+import { Hand, Mic, MicOff, MessageCircle, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 
 import { ReactionsButton } from "./ReactionsButton";
-import { NestOptionsMenu } from "./NestOptionsMenu";
 import { useNestRoom } from "../nestRoomContextDef";
 import { useNests } from "@/contexts/nestsContextDef";
 import { useLocalParticipantSafe } from "../hooks/useTransportSafe";
@@ -23,12 +22,17 @@ interface NestMenuBarProps {
   chatOpen?: boolean;
 }
 
+/**
+ * In-room quick actions: minimize, hand raise, mic, chat, reactions.
+ * Room-level actions (leave, share, edit, leave stage, volume) live in
+ * the banner at the top of the page to keep this bar uncrowded.
+ */
 export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
-  const { event, roomATag } = useNestRoom();
-  const { session, handRaised, setHandRaised, leaveNest } = useNests();
-  const { isMicEnabled, isPublishing, setMicEnabled, unpublishMicrophone } = useLocalParticipantSafe();
+  const { roomATag } = useNestRoom();
+  const { session, handRaised, setHandRaised } = useNests();
+  const { isMicEnabled, isPublishing, setMicEnabled } = useLocalParticipantSafe();
 
   const inSession = !!session;
   // Hand raise is available for any logged-in user who has joined
@@ -48,26 +52,6 @@ export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
         "sidebar:bg-background/80 sidebar:backdrop-blur-sm sidebar:shadow-lg sidebar:shadow-black/20",
       )}
     >
-      {/* Leave nest */}
-      {inSession && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(BTN, "text-destructive hover:text-destructive hover:bg-destructive/10")}
-              onClick={() => {
-                leaveNest();
-                navigate("/nests");
-              }}
-            >
-              <DoorOpen className={ICON} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Leave Nest</TooltipContent>
-        </Tooltip>
-      )}
-
       {/* Minimize: browse the app while staying in the nest */}
       {inSession && (
         <Tooltip>
@@ -82,23 +66,6 @@ export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>Minimize</TooltipContent>
-        </Tooltip>
-      )}
-
-      {/* Leave stage */}
-      {isPublishing && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(BTN, "text-muted-foreground hover:text-foreground")}
-              onClick={() => unpublishMicrophone()}
-            >
-              <LogOut className={ICON} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Leave Stage</TooltipContent>
         </Tooltip>
       )}
 
@@ -161,9 +128,6 @@ export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
 
       {/* Reactions */}
       <ReactionsButton roomATag={roomATag} />
-
-      {/* Settings */}
-      <NestOptionsMenu roomEvent={event} />
     </div>
   );
 }

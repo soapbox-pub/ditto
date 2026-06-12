@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Share2, Settings, Pencil, Volume2 } from "lucide-react";
+import { Share2, Settings, Pencil, Volume2, LogOut } from "lucide-react";
 import type { NostrEvent } from "@nostrify/nostrify";
 
 import { Button } from "@/components/ui/button";
@@ -14,18 +14,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/useToast";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
+import { cn } from "@/lib/utils";
 import { useIsAdmin } from "../hooks/useIsAdmin";
 import { useNests } from "@/contexts/nestsContextDef";
+import { useLocalParticipantSafe } from "../hooks/useTransportSafe";
 import { buildRoomNaddr, getRoomTitle } from "../lib/room";
 import { EditNestDialog } from "./EditNestDialog";
 
 interface NestOptionsMenuProps {
   roomEvent: NostrEvent;
+  /** Override the trigger button styling (e.g. white-on-banner). */
+  triggerClassName?: string;
 }
 
-export function NestOptionsMenu({ roomEvent }: NestOptionsMenuProps) {
+export function NestOptionsMenu({ roomEvent, triggerClassName }: NestOptionsMenuProps) {
   const { isHostOrAdmin } = useIsAdmin(roomEvent);
   const { transport } = useNests();
+  const { isPublishing, unpublishMicrophone } = useLocalParticipantSafe();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
   const [editOpen, setEditOpen] = useState(false);
@@ -54,8 +59,12 @@ export function NestOptionsMenu({ roomEvent }: NestOptionsMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full size-12">
-            <Settings className="size-7" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("rounded-full size-12", triggerClassName)}
+          >
+            <Settings className={triggerClassName ? "size-5" : "size-7"} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -68,6 +77,13 @@ export function NestOptionsMenu({ roomEvent }: NestOptionsMenuProps) {
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Pencil className="size-4 mr-2" />
               Edit Nest
+            </DropdownMenuItem>
+          )}
+
+          {isPublishing && (
+            <DropdownMenuItem onClick={() => unpublishMicrophone()}>
+              <LogOut className="size-4 mr-2" />
+              Leave Stage
             </DropdownMenuItem>
           )}
 

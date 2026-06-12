@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useSeoMeta } from "@unhead/react";
-import { Mic, Users, WifiOff } from "lucide-react";
+import { DoorOpen, Mic, Users, WifiOff } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { useNostr } from "@nostrify/react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -29,6 +30,7 @@ import { useRoomTheme } from "@/nests/hooks/useRoomTheme";
 import { RoomRelaysProvider } from "@/nests/RoomRelaysProvider";
 import { ParticipantsGrid } from "@/nests/components/ParticipantsGrid";
 import { NestMenuBar } from "@/nests/components/NestMenuBar";
+import { NestOptionsMenu } from "@/nests/components/NestOptionsMenu";
 import { ReactionOverlay } from "@/nests/components/ReactionOverlay";
 import { NESTS_ROOM_KIND, isNestAudioSupported } from "@/nests/lib/const";
 import {
@@ -70,7 +72,8 @@ export function NestRoomPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const { session, joinNest, expand, connectionState, authError } = useNests();
+  const { session, joinNest, leaveNest, expand, connectionState, authError } = useNests();
+  const navigate = useNavigate();
 
   const addr = useNestAddr(naddr);
   const sessionMatches = !!session && !!naddr && session.naddr === naddr;
@@ -292,6 +295,32 @@ export function NestRoomPage() {
                       )}
                       <ListenerCount roomATag={status === "live" ? roomATag : undefined} />
                     </div>
+                  </div>
+
+                  {/* Room-level actions: options (share/edit/leave-stage/volume) + leave */}
+                  <div className="flex items-center gap-1 shrink-0 -mr-2 -mt-1">
+                    <NestOptionsMenu
+                      roomEvent={currentEvent}
+                      triggerClassName="size-9 text-white hover:text-white hover:bg-white/20"
+                    />
+                    {sessionMatches && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full size-9 text-white hover:text-white hover:bg-white/20"
+                            onClick={() => {
+                              leaveNest();
+                              navigate("/nests");
+                            }}
+                          >
+                            <DoorOpen className="size-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Leave Nest</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </div>
               </div>
