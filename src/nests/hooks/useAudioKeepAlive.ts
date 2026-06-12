@@ -17,7 +17,7 @@ export function useAudioKeepAlive(enabled: boolean) {
       ctxRef.current = ctx;
 
       // Play a very short silent buffer every 25 seconds to keep the audio context alive
-      const playSlience = () => {
+      const playSilence = () => {
         if (ctx.state === "suspended") {
           ctx.resume().catch(() => {});
         }
@@ -28,10 +28,8 @@ export function useAudioKeepAlive(enabled: boolean) {
         source.start();
       };
 
-      playSlience();
-      intervalRef.current = setInterval(playSlience, 25000);
-
-      console.log("[audio-keep-alive] started");
+      playSilence();
+      intervalRef.current = setInterval(playSilence, 25000);
     } catch (err) {
       console.warn("[audio-keep-alive] failed:", err);
     }
@@ -40,7 +38,6 @@ export function useAudioKeepAlive(enabled: boolean) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       ctxRef.current?.close().catch(() => {});
       ctxRef.current = null;
-      console.log("[audio-keep-alive] stopped");
     };
   }, [enabled]);
 }
