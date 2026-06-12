@@ -41,14 +41,16 @@ export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-1",
-        // Mobile: fixed full-width bar at bottom (above the bottom nav)
-        "fixed bottom-14 left-0 right-0 z-30 bg-background border-t border-border px-3 py-2",
+        // Mobile: fixed full-width bar at bottom (above the bottom nav),
+        // icons spread evenly across the width
+        "flex items-center justify-around",
+        "fixed bottom-14 left-0 right-0 z-30 bg-background border-t border-border px-6 py-2",
         "pb-[max(0.5rem,env(safe-area-inset-bottom))]",
-        // Desktop: floating pill centered
+        // Desktop: floating pill centered, comfortable gap between icons
         "sidebar:static sidebar:inset-auto sidebar:z-auto sidebar:bottom-auto",
+        "sidebar:justify-center sidebar:gap-4",
         "sidebar:mx-auto sidebar:mb-4 sidebar:max-w-lg sidebar:w-fit",
-        "sidebar:rounded-full sidebar:border sidebar:border-border/50 sidebar:px-4 sidebar:py-2",
+        "sidebar:rounded-full sidebar:border sidebar:border-border/50 sidebar:px-6 sidebar:py-2",
         "sidebar:bg-background/80 sidebar:backdrop-blur-sm sidebar:shadow-lg sidebar:shadow-black/20",
       )}
     >

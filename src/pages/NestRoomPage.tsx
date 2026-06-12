@@ -318,7 +318,8 @@ export function NestRoomPage() {
                             <DoorOpen className="size-5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Leave Nest</TooltipContent>
+                        {/* Open downward — the default top placement hides behind the sticky header */}
+                        <TooltipContent side="bottom">Leave Nest</TooltipContent>
                       </Tooltip>
                     )}
                   </div>
