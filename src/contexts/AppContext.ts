@@ -172,6 +172,8 @@ export interface FeedSettings {
   feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Include Love List updates (kind 15683, see NIP.md) in the follows/global feed */
+  feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
   /** Show Birdstar (kind 2473 bird detections + kind 30621 custom constellations) link in sidebar */

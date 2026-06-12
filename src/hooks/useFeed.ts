@@ -4,6 +4,7 @@ import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
+import { useLoveList } from './useLoveList';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { useEventStore } from './useEventStore';
@@ -48,14 +49,19 @@ interface UseFeedOptions {
   tagFilters?: Record<string, string[]>;
 }
 
-/** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
-export function useFeed(tab: 'follows' | 'global' | 'communities', options?: UseFeedOptions) {
+/** Hook to fetch the global, followed, loved, or communities feed with infinite scroll pagination. */
+export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', options?: UseFeedOptions) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  // Loved people (kind 15683 Love List) power the dedicated Loved tab.
+  // `lovedPubkeys` resolves to [] (never errors) on a relay miss, so it can't
+  // block the feed. Like the follow list, it's excluded from the query key —
+  // love mutations explicitly invalidate ['feed'].
+  const { lovedPubkeys } = useLoveList();
   // Subtract muted pubkeys from the `authors` filter so muted posts never
   // cross the wire. Render-layer mute filters remain as defense in depth
   // (e.g. posts authored by an unmuted user that embed/mention a muted one).
@@ -75,7 +81,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
   // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  // The loved tab gates on the love list the same way.
+  const followsReady =
+    tab === 'follows'
+      ? !!user && followList !== undefined
+      : tab === 'loved'
+        ? !!user && lovedPubkeys !== undefined
+        : true;
 
   // Load community pubkeys from localStorage
   const communityPubkeys = (() => {
@@ -208,6 +220,48 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         cacheEvents(dedupedItems);
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
+      } else if (tab === 'loved' && user && lovedPubkeys !== undefined) {
+        // Loved feed — posts, reposts, and extra kinds from people on the
+        // user's Love List (kind 15683), minus anyone also muted (mute wins).
+        const lovedAuthors = excludeMuted(lovedPubkeys);
+
+        // Empty love list — never query with an empty authors array (that
+        // would match everyone). Render the empty state instead.
+        if (lovedAuthors.length === 0) {
+          return { items: [], oldestQueryTimestamp: now, rawCount: 0 };
+        }
+
+        const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
+        const filter: Record<string, unknown> = { kinds: allKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
+        const rawEvents = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+          { signal },
+        );
+
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validEvents, nostr, signal);
+
+        let dedupedItems = dedupeFeedItems(items);
+
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          dedupedItems = dedupedItems.filter(
+            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
+          );
+        }
+
+        // Seed event cache so embedded note previews resolve instantly.
+        cacheEvents(dedupedItems);
+
+        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow,
         // minus anyone you've also muted (mute wins, no wasted bandwidth).

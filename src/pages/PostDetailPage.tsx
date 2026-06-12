@@ -92,6 +92,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
+import { LoveListContent } from "@/components/LoveListContent";
+import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
@@ -1089,6 +1091,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === VANISH_KIND;
@@ -1126,6 +1129,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isLoveList &&
     !isHighlight &&
     !isCampaign &&
     !isVanish &&
@@ -2313,6 +2317,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedMessageContent event={event} />
             ) : isLetter ? (
               <EncryptedLetterContent event={event} />
+            ) : isLoveList ? (
+              <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
             ) : isCampaign ? (

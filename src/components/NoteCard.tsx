@@ -9,6 +9,7 @@ import {
   GitBranch,
   GitPullRequest,
   HandHeart,
+  Heart,
   ListMusic,
   Mail,
   MessageCircle,
@@ -96,6 +97,7 @@ import { ThemeContent } from "@/components/ThemeContent";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
+import { LoveListContent } from "@/components/LoveListContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/ZapstoreReleaseContent";
@@ -111,6 +113,7 @@ import { ZapDialog } from "@/components/ZapDialog";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -354,6 +357,9 @@ export const NoteCard = memo(function NoteCard({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+  // Love List membership — shows a small heart next to loved authors' names.
+  const { isLoved } = useLoveList();
+  const authorIsLoved = isLoved(event.pubkey);
   // Sender of a zap event (kind 9735 or 8333). `getZapSenderPubkey` handles
   // both kinds — kind 9735 reads the P tag / description.pubkey because the
   // receipt is signed by the LNURL server, kind 8333 returns `event.pubkey`
@@ -498,6 +504,7 @@ export const NoteCard = memo(function NoteCard({
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
@@ -551,6 +558,7 @@ export const NoteCard = memo(function NoteCard({
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isLoveList &&
     !isHighlight &&
     !isCampaign &&
     !isVanish &&
@@ -768,6 +776,8 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
           <EncryptedLetterContent event={event} compact />
+        ) : isLoveList ? (
+          <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
         ) : isCampaign ? (
@@ -817,6 +827,13 @@ export const NoteCard = memo(function NoteCard({
             )}
           </Link>
         </ProfileHoverCard>
+        {authorIsLoved && (
+          <Heart
+            className="size-3.5 shrink-0 text-red-500 fill-red-500"
+            aria-label="On your Love List"
+            role="img"
+          />
+        )}
         {metadata?.bot && (
           <span className="text-xs text-primary shrink-0" title="Bot account">
             🤖
@@ -2067,6 +2084,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "sent a",
     noun: "letter",
     nounRoute: "/letters",
+  },
+  [LOVE_LIST_KIND]: {
+    icon: Heart,
+    iconClassName: "text-red-500",
+    action: (event) => publishedAtAction(event, { created: "wrote their", updated: "updated their", fallback: "updated their" }),
+    noun: "Love List",
   },
   37516: {
     icon: ChestIcon,

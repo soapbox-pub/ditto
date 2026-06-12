@@ -7,6 +7,7 @@
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
 | 8333  | Onchain Zap          | Attestation that an on-chain BTC tx paid a target     |
+| 15683 | Love List            | The people the user truly loves (one per user)        |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -157,6 +158,49 @@ When a client needs to attribute a multi-recipient event to one specific recipie
 | Fees | Sub-satoshi typical | Significant at low amounts |
 
 The two zap kinds are complementary. Clients SHOULD sum verified amounts from both kinds when displaying total zap stats for a post or profile.
+
+---
+
+## Kind 15683: Love List
+
+### Summary
+
+Replaceable event listing the people the user **truly loves** — a tier above an ordinary follow. Structured exactly like a NIP-51 standard people list (`p` tags), with one list per user (latest event wins).
+
+The kind number spells **"1·LOVE"**: on a phone keypad L=5, O=6, V=8, E=3 → `5683`, with a leading `1` to land in the replaceable range (10000–19999) — *One Love*.
+
+### Event Structure
+
+```json
+{
+  "kind": 15683,
+  "pubkey": "<author-pubkey>",
+  "content": "",
+  "tags": [
+    ["p", "<loved-pubkey-1>"],
+    ["p", "<loved-pubkey-2>"],
+    ["alt", "Love list: the people this user truly loves"]
+  ]
+}
+```
+
+### Tags
+
+| Tag   | Required | Description                                                          |
+|-------|----------|----------------------------------------------------------------------|
+| `p`   | Yes (≥0) | 32-byte hex pubkey of a loved person. Per NIP-51, new entries are appended to the end so the list stays in chronological order of being added. |
+| `alt` | Yes      | NIP-31 human-readable fallback.                                      |
+
+### Content
+
+Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-encrypted stringified tag array) for loves the user prefers to keep private; Ditto currently publishes public entries only and ignores ciphertext it cannot decrypt.
+
+### Client Behavior
+
+- **Feed priority:** people on the viewer's Love List get a dedicated **Loved** feed tab, placed before the Follows tab. The tab shows posts (and reposts/reactions/zaps) from loved people only — including people the viewer doesn't follow.
+- **Updates as content:** a kind 15683 event itself renders in feeds as a "love letter" card listing the loved people (avatar + name per `p` tag).
+- **Mutations** MUST follow read-modify-write: fetch the freshest kind 15683 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
+- Clients SHOULD hide kind 15683 events with zero `p` tags (an emptied list has nothing to display).
 
 ---
 

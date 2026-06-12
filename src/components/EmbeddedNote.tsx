@@ -11,6 +11,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
+import { LoveListCompact } from '@/components/LoveListContent';
+import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -96,6 +98,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // Kind 8211 encrypted letters get a compact card
   if (event.kind === 8211) {
     return <EncryptedLetterCompact event={event} className={className} />;
+  }
+
+  // Kind 15683 Love Lists (see NIP.md) get a compact paper card. All the
+  // data lives in `p` tags, so the generic fallback would render empty.
+  if (event.kind === LOVE_LIST_KIND) {
+    return <LoveListCompact event={event} className={className} />;
   }
 
   // Profile badges (kind 10008 / legacy 30008 with d=profile_badges) get a
