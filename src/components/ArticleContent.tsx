@@ -86,7 +86,20 @@ function buildComponents(event: NostrEvent): Components {
         },
         enrichChildren(children, event),
       ),
-    li: wrap('li'),
+    li: ({ children, node: _node, ...rest }: { children?: ReactNode } & Record<string, unknown>) =>
+      // In a "loose" list (blank lines between items) react-markdown wraps each
+      // item's content in a paragraph, which our `p` override renders as a `<div>`
+      // carrying `my-[1em]`. The `first:/last:` margin reset can't fire when remark
+      // emits whitespace text nodes around that div, so the marker floats far above
+      // the text. Force any direct child block back to zero vertical margin here.
+      createElement(
+        'li',
+        {
+          ...rest,
+          className: cn('[&>div]:my-0', rest.className as string | undefined),
+        },
+        enrichChildren(children, event),
+      ),
     // Headings: keep inline linkification (mentions, hashtags, URL links)
     // but suppress block embeds so a heading can't contain a giant quote card.
     h1: wrap('h1', { inlineOnly: true }),
