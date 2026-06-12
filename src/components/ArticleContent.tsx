@@ -43,6 +43,12 @@ function enrichChildren(
 ): ReactNode {
   return Children.map(children, (child, i) => {
     if (typeof child === 'string') {
+      // Whitespace-only leaves are insignificant inter-element whitespace from
+      // the markdown tree (e.g. the "\n" nodes around a paragraph inside a loose
+      // list item). Pass them through as plain text: wrapping them in NoteContent
+      // would render the newline literally (its wrapper is whitespace-pre-wrap)
+      // and the extra <span> element would defeat first:/last: margin resets.
+      if (!child.trim()) return child;
       const synthetic: NostrEvent = { ...event, content: child };
       return (
         <NoteContent
@@ -86,20 +92,7 @@ function buildComponents(event: NostrEvent): Components {
         },
         enrichChildren(children, event),
       ),
-    li: ({ children, node: _node, ...rest }: { children?: ReactNode } & Record<string, unknown>) =>
-      // In a "loose" list (blank lines between items) react-markdown wraps each
-      // item's content in a paragraph, which our `p` override renders as a `<div>`
-      // carrying `my-[1em]`. The `first:/last:` margin reset can't fire when remark
-      // emits whitespace text nodes around that div, so the marker floats far above
-      // the text. Force any direct child block back to zero vertical margin here.
-      createElement(
-        'li',
-        {
-          ...rest,
-          className: cn('[&>div]:my-0', rest.className as string | undefined),
-        },
-        enrichChildren(children, event),
-      ),
+    li: wrap('li'),
     // Headings: keep inline linkification (mentions, hashtags, URL links)
     // but suppress block embeds so a heading can't contain a giant quote card.
     h1: wrap('h1', { inlineOnly: true }),
