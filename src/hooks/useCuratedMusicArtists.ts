@@ -6,17 +6,16 @@ import { isNostrId } from '@/lib/nostrId';
 /**
  * Curated music artists list coordinates.
  *
- * Kind 30000 follow set maintained on Listr by npub1nl8r463...
- * @see https://listr.lol/npub1nl8r463jkdtr0qu0k3dht03jt9t59cttk0j8gtxg9wea2russlnq2zf9d0/30000/...
+ * Kind 30000 follow set maintained by Derek (npub18ams6e...).
  */
-const MUSIC_LIST_PUBKEY = '9fce3aea32b35637838fb45b75be32595742e16bb3e4742cc82bb3d50f9087e6';
-const MUSIC_LIST_D_TAG = 'listr-ed4846ac-45f7-4f7c-90f4-d55f8f1414fd';
+const MUSIC_LIST_PUBKEY = '3f770d65d3a764a9c5cb503ae123e62ec7598ad035d836e2a810f3877a745b24';
+const MUSIC_LIST_D_TAG = '195537a3-acca-4bbd-878a-4bf07a3896b6';
 
 /**
  * Hardcoded fallback artist pubkeys used when the curated list
  * cannot be fetched from relays.
  *
- * These are a subset of the artists from the Listr-maintained list.
+ * These are a subset of the artists from the curated list.
  */
 const FALLBACK_ARTIST_PUBKEYS: string[] = [
   '28ca019b78b494c25a9da2d645975a8501c7e99b11302e5cbe748ee593fcb2cc',
