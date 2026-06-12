@@ -30,7 +30,24 @@ export async function authenticateWithMoqRelay(
 
   const authHeader = `Nostr ${btoa(JSON.stringify(event))}`;
 
-  const response = await fetch(url, {
+  // In dev, route the default nostrnests auth server through the Vite proxy
+  // (see vite.config.ts) — its CORS policy only allows the nostrnests.com
+  // origin. The `u` tag above still signs the real URL; the server compares
+  // host+path from the proxied request, so validation passes. Other auth
+  // servers are fetched directly (self-hosted dev servers default to
+  // permissive CORS).
+  let fetchUrl = url;
+  if (import.meta.env.DEV) {
+    try {
+      if (new URL(authUrl).hostname === "moq-auth.nostrnests.com") {
+        fetchUrl = "/moq-auth/auth";
+      }
+    } catch {
+      // keep direct URL
+    }
+  }
+
+  const response = await fetch(fetchUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { DoorOpen, Hand, Mic, MicOff, LogOut, MessageCircle, Minimize2, Zap } from "lucide-react";
+import { DoorOpen, Hand, Mic, MicOff, LogOut, MessageCircle, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -21,10 +21,9 @@ const MIC_ICON = "size-8";
 interface NestMenuBarProps {
   onChatToggle?: () => void;
   chatOpen?: boolean;
-  onZap?: () => void;
 }
 
-export function NestMenuBar({ onChatToggle, chatOpen, onZap }: NestMenuBarProps) {
+export function NestMenuBar({ onChatToggle, chatOpen }: NestMenuBarProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { event, roomATag } = useNestRoom();
@@ -157,23 +156,6 @@ export function NestMenuBar({ onChatToggle, chatOpen, onZap }: NestMenuBarProps)
             </Button>
           </TooltipTrigger>
           <TooltipContent>{chatOpen ? "Hide Chat" : "Show Chat"}</TooltipContent>
-        </Tooltip>
-      )}
-
-      {/* Zap the nest */}
-      {onZap && user && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(BTN, "text-yellow-500 hover:text-yellow-500 hover:bg-yellow-500/10")}
-              onClick={onZap}
-            >
-              <Zap className={ICON} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Zap</TooltipContent>
         </Tooltip>
       )}
 

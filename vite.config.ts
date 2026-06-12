@@ -132,6 +132,18 @@ export default defineConfig(({ mode }) => {
     host: "::",
     port: 8080,
     allowedHosts: env.ALLOWED_HOSTS === "*" ? true : undefined,
+    proxy: {
+      // Dev-only CORS bypass for the default Nests MoQ auth service: the
+      // production server only allows the nostrnests.com origin, so local
+      // dev routes the request same-origin through this proxy. The NIP-98
+      // `u` tag still signs the real URL — the server validates host+path
+      // from the proxied Host header, which changeOrigin preserves.
+      "/moq-auth": {
+        target: "https://moq-auth.nostrnests.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/moq-auth/, ""),
+      },
+    },
   },
   plugins: [
     react(),

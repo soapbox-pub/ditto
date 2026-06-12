@@ -3,7 +3,6 @@ import { useLocation, useParams } from "react-router-dom";
 import { useSeoMeta } from "@unhead/react";
 import { Mic, Users, WifiOff } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import type { Event } from "nostr-tools";
 import { useNostr } from "@nostrify/react";
 import { useQuery } from "@tanstack/react-query";
 import type { NostrEvent } from "@nostrify/nostrify";
@@ -15,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { LiveStreamChat } from "@/components/LiveStreamChat";
-import { ZapDialog } from "@/components/ZapDialog";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAddrEvent } from "@/hooks/useEvent";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -207,7 +205,6 @@ export function NestRoomPage() {
   // --- Chat layout: desktop right sidebar, mobile drawer ---
   const isMobile = useIsMobile();
   const [chatOpen, setChatOpen] = useState(false);
-  const [zapOpen, setZapOpen] = useState(false);
   const roomATag = currentEvent ? getRoomATag(currentEvent) : undefined;
 
   const chatSidebar = currentEvent ? (
@@ -357,7 +354,6 @@ export function NestRoomPage() {
           <NestMenuBar
             onChatToggle={isMobile ? () => setChatOpen(!chatOpen) : undefined}
             chatOpen={chatOpen}
-            onZap={() => setZapOpen(true)}
           />
 
           {/* Mobile chat drawer */}
@@ -372,13 +368,6 @@ export function NestRoomPage() {
 
           {/* Flying emoji reactions */}
           <ReactionOverlay />
-
-          {/* Zap the nest (zaps go to the room host) */}
-          <ZapDialog
-            target={currentEvent as Event}
-            open={zapOpen}
-            onOpenChange={setZapOpen}
-          />
         </main>
   );
 
