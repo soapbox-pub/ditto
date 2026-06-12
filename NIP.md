@@ -37,6 +37,8 @@ These event kinds were created by community contributors and are supported by Di
 | 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 30621 | Custom Constellation   | User-drawn star figure with Hipparcos-numbered edges             | [NIP](https://gitlab.com/alexgleason/birdstar/-/blob/main/NIP.md)                         |
+| 4312  | Nest Admin Command     | Moderation command (kick) targeting a user in a live audio room  | See [Nests (Live Audio Rooms)](#nests-live-audio-rooms) below                              |
+| 10112 | MoQ Server List        | User's preferred MoQ audio relay servers for Nests               | See [Nests (Live Audio Rooms)](#nests-live-audio-rooms) below                              |
 
 ---
 
@@ -548,6 +550,104 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+
+---
+
+## Nests (Live Audio Rooms)
+
+Nests are live audio rooms (like Twitter Spaces) built on [NIP-53](https://github.com/nostr-protocol/nips/blob/master/53.md) Meeting Spaces, interoperable with [nostrnests.com](https://nostrnests.com). Audio is carried over MoQ (Media over QUIC) relays; everything else — discovery, presence, chat, reactions, zaps, moderation — is plain Nostr.
+
+### Standard kinds (NIP-53)
+
+| Kind  | Usage |
+|-------|-------|
+| 30312 | Room event (addressable). Defines the nest and its participant roles. |
+| 10312 | Room presence (replaceable). Heartbeat published every 2 minutes by everyone in the room. |
+| 1311  | Live chat message, with an `a` tag referencing the room. |
+
+Reactions (kind 7) and zap receipts (kind 9735) also reference the room's `a` tag (`30312:<pubkey>:<d>`).
+
+### Kind 30312 tags as used by Nests
+
+Nests predates the final NIP-53 Meeting Space wording and uses a variant tag set:
+
+```jsonc
+{
+  "kind": 30312,
+  "tags": [
+    ["d", "<uuid>"],
+    ["title", "<room name>"],                  // NIP-53 uses "room"; Nests uses "title"
+    ["summary", "<description>"],              // Optional
+    ["image", "<https url>"],                  // Optional banner image
+    ["status", "<live | planned | ended>"],    // Lifecycle (NIP-53 kind 30313 style)
+    ["starts", "<unix timestamp>"],
+    ["streaming", "<https url>"],              // MoQ relay endpoint carrying the audio
+    ["auth", "<https url>"],                   // NIP-98 auth service issuing MoQ JWTs
+    ["color", "<gradient-1 … gradient-11>"],   // Optional banner gradient
+    ["relays", "<wss url>", "<wss url>"],      // Relay hints for room-scoped events
+    ["p", "<pubkey>", "<relay>", "<host | admin | speaker>"],
+    // Optional Ditto theme: inline `c`/`f`/`bg` tags (see Shared Tag Definitions)
+    // and/or an `a` tag referencing a kind 36767 theme definition.
+  ],
+  "content": ""
+}
+```
+
+The event author is the room host. Roles in `p` tags are lowercase. Clients MUST validate `streaming`/`auth` URLs (https, non-private host) before connecting, and MUST fetch the room by `authors` + `#d` so a forged event from another pubkey cannot impersonate a room.
+
+### Kind 10312 presence tags
+
+Nests extends the NIP-53 presence event's `hand` flag with audio state:
+
+```jsonc
+{
+  "kind": 10312,
+  "tags": [
+    ["a", "30312:<pubkey>:<d>"],
+    ["hand", "<0 | 1>"],        // Hand raised
+    ["publishing", "<0 | 1>"],  // Currently publishing audio
+    ["muted", "<0 | 1>"],       // Mic muted
+    ["onstage", "<0 | 1>"]      // Holding a speaker role and not voluntarily off-stage
+  ],
+  "content": ""
+}
+```
+
+Clients SHOULD treat presence older than 5 minutes as stale, and SHOULD hide `status=live` rooms with no presence newer than 10 minutes.
+
+### Kind 4312: Nest Admin Command
+
+Regular event carrying a moderation command from the room host or an admin to a specific user.
+
+```jsonc
+{
+  "kind": 4312,
+  "tags": [
+    ["a", "30312:<pubkey>:<d>"],   // The room
+    ["p", "<target pubkey>"],      // The user the command applies to
+    ["action", "kick"]
+  ],
+  "content": ""
+}
+```
+
+Clients MUST only honor commands whose author is the room host or holds an `admin` role in the room's current `p` tags. A kicked client SHOULD leave the room immediately. (Stage promotion/demotion is not a command: the host edits the room event's `p` tags instead.)
+
+### Kind 10112: MoQ Server List
+
+Replaceable event listing the user's preferred MoQ audio servers, used when creating a nest.
+
+```jsonc
+{
+  "kind": 10112,
+  "tags": [
+    ["server", "<moq relay https url>", "<auth service https url>"]
+  ],
+  "content": ""
+}
+```
+
+When the auth URL is omitted, clients MAY derive it by convention (`moq.example.com` → `moq-auth.example.com`).
 
 ---
 

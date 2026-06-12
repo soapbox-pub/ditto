@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { nip19 } from "nostr-tools";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
+import { isNostrId } from "@/lib/nostrId";
 import { NESTS_ROOM_KIND } from "./const";
 
 /** Ditto shareable theme kind (rooms may reference one via an a-tag) */
@@ -69,14 +70,18 @@ export function getRoomRelays(event: NostrEvent): string[] {
   return relayTag ? relayTag.slice(1) : [];
 }
 
-/** Get participant p-tags with their roles */
+/**
+ * Get participant p-tags with their roles. Malformed pubkeys are dropped at
+ * this parse layer so downstream code (nip19 encoders, `authors` filters)
+ * can assume well-formed hex.
+ */
 export function getRoomParticipants(
   event: NostrEvent,
 ): Array<{ pubkey: string; relay: string; role: string }> {
   return event.tags
-    .filter(([t]) => t === "p")
+    .filter(([t, pubkey]) => t === "p" && isNostrId(pubkey))
     .map(([, pubkey, relay, role]) => ({
-      pubkey: pubkey ?? "",
+      pubkey,
       relay: relay ?? "",
       role: role ?? "",
     }));

@@ -4,6 +4,7 @@ import { useNostr } from "@nostrify/react";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { NESTS_ADMIN_COMMAND_KIND } from "../lib/const";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { isNostrId } from "@/lib/nostrId";
 
 interface UseAdminCommandsOptions {
   /** The room event to monitor commands for */
@@ -33,13 +34,14 @@ export function useAdminCommands({ roomEvent, onKick, relays }: UseAdminCommands
     [nostr, relaysKey],
   );
 
-  // Get list of admin pubkeys for validation
+  // Get list of admin pubkeys for validation (malformed p-tag pubkeys are
+  // dropped so they can't pollute the `authors` filter)
   const adminPubkeys = useMemo(() => {
     if (!roomEvent) return [];
     return [
       roomEvent.pubkey, // host is always admin
       ...roomEvent.tags
-        .filter(([t, , , role]) => t === "p" && role === "admin")
+        .filter(([t, pk, , role]) => t === "p" && role === "admin" && isNostrId(pk))
         .map(([, pk]) => pk),
     ];
   }, [roomEvent]);

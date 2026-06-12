@@ -70,17 +70,15 @@ export function ParticipantActions({ pubkey, children }: PropsWithChildren<Parti
   const isTargetAdmin = participantEntry?.role === "admin";
 
   const updateRoomParticipant = (targetPubkey: string, newRole: string | null) => {
-    const tags = roomEvent.tags.filter(
-      ([t, pk]) => !(t === "p" && pk === targetPubkey),
-    );
-    if (newRole) {
-      tags.push(["p", targetPubkey, "", newRole]);
-    }
     modifyEvent({
-      kind: roomEvent.kind,
-      content: roomEvent.content,
-      tags,
-      created_at: Math.floor(Date.now() / 1000),
+      baseEvent: roomEvent,
+      transformTags: (tags) => {
+        const next = tags.filter(([t, pk]) => !(t === "p" && pk === targetPubkey));
+        if (newRole) {
+          next.push(["p", targetPubkey, "", newRole]);
+        }
+        return next;
+      },
       relays: session?.relays,
     });
   };

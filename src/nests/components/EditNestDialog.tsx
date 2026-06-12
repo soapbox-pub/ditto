@@ -122,21 +122,19 @@ export function EditNestDialog({ open, onOpenChange, roomEvent }: EditNestDialog
 
   const onSubmit = async (data: NestFormData) => {
     try {
-      // Rebuild tags preserving existing ones, stripping editable fields
-      const tags = roomEvent.tags.filter(
-        ([t]) => !["title", "summary", "color", "image"].includes(t),
-      );
-
-      tags.push(["title", data.title]);
-      if (data.summary) tags.push(["summary", data.summary]);
-      tags.push(["color", data.color]);
-      if (data.image) tags.push(["image", data.image]);
-
       await modifyEvent({
-        kind: roomEvent.kind,
-        content: roomEvent.content,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
+        baseEvent: roomEvent,
+        transformTags: (tags) => {
+          // Rebuild tags preserving existing ones, stripping editable fields
+          const next = tags.filter(
+            ([t]) => !["title", "summary", "color", "image"].includes(t),
+          );
+          next.push(["title", data.title]);
+          if (data.summary) next.push(["summary", data.summary]);
+          next.push(["color", data.color]);
+          if (data.image) next.push(["image", data.image]);
+          return next;
+        },
         relays: session?.relays,
       });
 
@@ -149,14 +147,9 @@ export function EditNestDialog({ open, onOpenChange, roomEvent }: EditNestDialog
 
   const removeParticipant = async (pubkey: string) => {
     try {
-      const tags = roomEvent.tags.filter(
-        ([t, pk]) => !(t === "p" && pk === pubkey),
-      );
       await modifyEvent({
-        kind: roomEvent.kind,
-        content: roomEvent.content,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
+        baseEvent: roomEvent,
+        transformTags: (tags) => tags.filter(([t, pk]) => !(t === "p" && pk === pubkey)),
         relays: session?.relays,
       });
       toast({ title: "Participant removed" });
@@ -167,14 +160,10 @@ export function EditNestDialog({ open, onOpenChange, roomEvent }: EditNestDialog
 
   const handleCloseNest = async () => {
     try {
-      const tags = roomEvent.tags.map(([t, ...rest]) =>
-        t === "status" ? ["status", "ended"] : [t, ...rest],
-      );
       await modifyEvent({
-        kind: roomEvent.kind,
-        content: roomEvent.content,
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
+        baseEvent: roomEvent,
+        transformTags: (tags) =>
+          tags.map(([t, ...rest]) => (t === "status" ? ["status", "ended"] : [t, ...rest])),
         relays: session?.relays,
       });
       toast({ title: "Nest closed" });
