@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.23.0] - 2026-06-11
+
+Ditto now has a Love List — a tier above following, for the people you truly love. Add them from any profile and a dedicated Loved tab at the front of your feed shows only their posts. Updates to your Love List go out as a beautiful handwritten love letter card. You can also set up multiple ways for people to support you: configure Lightning, on-chain Bitcoin, or any other payment method in your profile settings, and your fans can pick whichever works best for them.
+
+### Added
+- Love List: mark the people you love from their profile, and a dedicated Loved tab on your home feed shows only their posts
+- Love List updates are posted as handwritten love letter cards with hearts and a wax seal
+- A heart badge appears next to loved authors' names in your feed
+- Set up multiple payment methods in profile settings so supporters can choose how they send you money
+- The send-money dialog now shows all of your payment methods with a switcher
+
+### Fixed
+- Live stream video no longer scrolls off-screen when scrolling through the chat
+
 ## [2.22.1] - 2026-06-11
 
 A quick fix for Android: the app could fail to open on the latest version, getting stuck before it ever loaded. It now starts up reliably again.
