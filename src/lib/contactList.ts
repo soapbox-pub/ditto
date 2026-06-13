@@ -1,6 +1,6 @@
 import type { NostrEvent, NostrFilter, NPool } from '@nostrify/nostrify';
 
-import type { NIndexedDBStore } from '@/lib/NIndexedDBStore';
+import type { NIndexedDB } from '@/lib/NIndexedDB';
 import { isNostrId } from '@/lib/nostrId';
 
 // ============================================================================
@@ -32,7 +32,7 @@ const DEFAULT_TIMEOUT = 8000;
  */
 export async function fetchContactList(
   nostr: NPool,
-  store: NIndexedDBStore,
+  store: NIndexedDB,
   pubkey: string,
   opts: { signal?: AbortSignal; timeout?: number } = {},
 ): Promise<NostrEvent | null> {
@@ -64,7 +64,7 @@ export async function fetchContactList(
  * round-trip in `fetchContactList` completes.
  */
 export async function readCachedContactList(
-  store: NIndexedDBStore,
+  store: NIndexedDB,
   pubkey: string,
 ): Promise<NostrEvent | null> {
   const [cached] = await store.query([{ kinds: [3], authors: [pubkey] }]);

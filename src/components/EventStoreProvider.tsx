@@ -1,9 +1,9 @@
 import { type ReactNode, useContext, useRef } from 'react';
 import { EventStoreContext } from '@/contexts/EventStoreContext';
-import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
+import { NIndexedDB } from '@/lib/NIndexedDB';
 
 /**
- * Provides the app-wide IndexedDB event store (see `NIndexedDBStore`).
+ * Provides the app-wide IndexedDB event store (see `NIndexedDB`).
  *
  * `NostrProvider` already opens the store and provides it through
  * `EventStoreContext` (the batcher needs it to mirror relay results). When
@@ -19,8 +19,8 @@ import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
 export function EventStoreProvider({ children }: { children: ReactNode }) {
   const parentStore = useContext(EventStoreContext);
 
-  const store = useRef<Promise<NIndexedDBStore>>(undefined);
-  store.current ??= NIndexedDBStore.open();
+  const store = useRef<Promise<NIndexedDB>>(undefined);
+  store.current ??= NIndexedDB.open();
 
   return (
     <EventStoreContext.Provider value={parentStore ?? store.current}>

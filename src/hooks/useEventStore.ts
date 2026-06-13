@@ -4,7 +4,7 @@ import { EventStoreContext, type EventStoreContextType } from '@/contexts/EventS
 /**
  * Access the app-wide IndexedDB event store.
  *
- * Returns a `Promise<NIndexedDBStore>`; `await` it inside a query function:
+ * Returns a `Promise<NIndexedDB>`; `await` it inside a query function:
  *
  * ```ts
  * const eventStore = useEventStore();

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { NIndexedDBStore, type NIndexedDBStoreOpts } from './NIndexedDBStore';
+import { NIndexedDB, type NIndexedDBOpts } from './NIndexedDB';
 
 // Each test gets a fresh, uniquely-named database so there's no cross-test
 // state. fake-indexeddb (loaded in src/test/setup.ts) provides the IndexedDB
 // implementation under jsdom.
 
-let store: NIndexedDBStore;
+let store: NIndexedDB;
 let dbName: string;
 let counter = 0;
 const openedDbNames: string[] = [];
@@ -16,7 +16,7 @@ beforeEach(async () => {
   dbName = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.length = 0;
   openedDbNames.push(dbName);
-  store = await NIndexedDBStore.open({ name: dbName });
+  store = await NIndexedDB.open({ name: dbName });
 });
 
 afterEach(async () => {
@@ -29,10 +29,10 @@ afterEach(async () => {
 });
 
 /** Open an additional store with custom options, tracked for cleanup. */
-async function openStore(opts: Omit<NIndexedDBStoreOpts, 'name'> = {}): Promise<NIndexedDBStore> {
+async function openStore(opts: Omit<NIndexedDBOpts, 'name'> = {}): Promise<NIndexedDB> {
   const name = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.push(name);
-  return NIndexedDBStore.open({ ...opts, name });
+  return NIndexedDB.open({ ...opts, name });
 }
 
 /** Build a minimal valid-shaped event. The id is deterministic-ish for tests. */
@@ -58,7 +58,7 @@ async function add(...events: NostrEvent[]): Promise<void> {
   await Promise.all(events.map((e) => store.event(e)));
 }
 
-describe('NIndexedDBStore', () => {
+describe('NIndexedDB', () => {
   describe('ids filter', () => {
     it('returns events by exact id', async () => {
       const a = makeEvent({ id: '1'.repeat(64) });

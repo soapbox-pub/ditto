@@ -8,7 +8,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 // be satisfied by an index alone (`indexOnly`) or needs a post-filter re-check.
 //
 // strfry's version exists to drive an LMDB scan; ours drives an IndexedDB scan
-// (see NIndexedDBStore). The matching semantics are identical to NIP-01:
+// (see NIndexedDB). The matching semantics are identical to NIP-01:
 //   - `ids`/`authors`/`kinds`: membership in the set.
 //   - `#x` tag filters: the event has at least one `x` tag whose value is in
 //     the set. The tag name may be single- or multi-letter (`#e`, `#proxy`).

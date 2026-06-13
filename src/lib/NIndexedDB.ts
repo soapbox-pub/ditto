@@ -4,7 +4,7 @@ import { type NostrEvent, type NostrFilter, NKinds, type NStore } from '@nostrif
 import { ParsedFilter } from './nostrFilter';
 
 // ============================================================================
-// NIndexedDBStore — a general-purpose `NStore` backed by IndexedDB.
+// NIndexedDB — a general-purpose `NStore` backed by IndexedDB.
 //
 // This is a TypeScript port of strfry's LMDB query engine (src/DBQuery.h,
 // src/filters.h) onto IndexedDB. It supports arbitrary Nostr filters: `ids`,
@@ -105,7 +105,7 @@ type EventsStore<M extends IDBTransactionMode> = IDBPObjectStore<
   M
 >;
 
-export interface NIndexedDBStoreOpts {
+export interface NIndexedDBOpts {
   /** Database name. Defaults to `ditto-events`. */
   name?: string;
   /** Schema version. Defaults to `2`. */
@@ -113,7 +113,7 @@ export interface NIndexedDBStoreOpts {
   /**
    * Returns which tags to index, as `[name, value]` pairs, so tag queries like
    * `{ "#p": [...] }` work. Defaults to all single-letter tags with a non-empty
-   * value under 200 chars (see {@link NIndexedDBStore.indexTags}). Only the
+   * value under 200 chars (see {@link NIndexedDB.indexTags}). Only the
    * tags returned here are queryable; a filter on any other tag matches
    * nothing.
    */
@@ -134,7 +134,7 @@ export interface NIndexedDBStoreOpts {
   evictionPolicy?(): { maxAge: number; protectedPubkeys: Iterable<string> };
 }
 
-export class NIndexedDBStore implements NStore {
+export class NIndexedDB implements NStore {
   /**
    * Minimum wall-clock gap between eviction passes. Pruning only matters as
    * events age past the cutoff (hours/days), so running it at most hourly is
@@ -156,7 +156,7 @@ export class NIndexedDBStore implements NStore {
   private flushScheduled = false;
   /**
    * `Date.now()` of the last eviction pass (0 = never). Eviction is throttled
-   * to at most once per {@link NIndexedDBStore.EVICT_INTERVAL_MS}, so the
+   * to at most once per {@link NIndexedDB.EVICT_INTERVAL_MS}, so the
    * common case — many write flushes during a browsing session — does at most
    * one prune per interval rather than one per flush. Initialized to 0 so the
    * first flush after page load always runs a pass.
@@ -182,9 +182,9 @@ export class NIndexedDBStore implements NStore {
    * database may be `null` if IndexedDB is unavailable — in that case every
    * method silently degrades.
    */
-  static async open(opts: NIndexedDBStoreOpts = {}): Promise<NIndexedDBStore> {
+  static async open(opts: NIndexedDBOpts = {}): Promise<NIndexedDB> {
     const { name = 'ditto-events', version = 2 } = opts;
-    const indexTags = opts.indexTags ?? NIndexedDBStore.indexTags;
+    const indexTags = opts.indexTags ?? NIndexedDB.indexTags;
 
     let db: IDBPDatabase<EventsDB> | null = null;
     try {
@@ -211,7 +211,7 @@ export class NIndexedDBStore implements NStore {
       // IndexedDB unavailable — degrade to a no-op store.
       db = null;
     }
-    return new NIndexedDBStore(db, indexTags, opts.evictionPolicy);
+    return new NIndexedDB(db, indexTags, opts.evictionPolicy);
   }
 
   // ── Write path ────────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ export class NIndexedDBStore implements NStore {
    * cache holds only recent or protected events.
    *
    * Passes are additionally throttled to once per
-   * {@link NIndexedDBStore.EVICT_INTERVAL_MS} so a burst of write flushes
+   * {@link NIndexedDB.EVICT_INTERVAL_MS} so a burst of write flushes
    * during normal browsing triggers at most one prune per interval.
    */
   private async maybeEvict(): Promise<void> {
@@ -334,7 +334,7 @@ export class NIndexedDBStore implements NStore {
     // Throttle: skip if we pruned recently. The first call (lastEvicted === 0)
     // always passes, so eviction runs once shortly after page load.
     const now = Date.now();
-    if (this.lastEvicted && now - this.lastEvicted < NIndexedDBStore.EVICT_INTERVAL_MS) return;
+    if (this.lastEvicted && now - this.lastEvicted < NIndexedDB.EVICT_INTERVAL_MS) return;
     // Stamp up front so overlapping flushes within the interval don't each
     // launch a pass while this one is still running.
     this.lastEvicted = now;
@@ -399,7 +399,7 @@ export class NIndexedDBStore implements NStore {
         result.set(event.id, undefined); // plain put, no supersession check
         continue;
       }
-      const dTag = NKinds.addressable(event.kind) ? NIndexedDBStore.getDTag(event) : '';
+      const dTag = NKinds.addressable(event.kind) ? NIndexedDB.getDTag(event) : '';
       const key = `${event.kind}:${event.pubkey}:${dTag}`;
       (coords.get(key) ?? coords.set(key, []).get(key)!).push(event);
     }
@@ -417,14 +417,14 @@ export class NIndexedDBStore implements NStore {
     );
 
     entries.forEach((batchForCoord, i) => {
-      const dTag = NKinds.addressable(batchForCoord[0].kind) ? NIndexedDBStore.getDTag(batchForCoord[0]) : '';
+      const dTag = NKinds.addressable(batchForCoord[0].kind) ? NIndexedDB.getDTag(batchForCoord[0]) : '';
       // Existing stored events at this exact coordinate (filter d for addressable).
       const existing = existingPerCoord[i].filter((other) =>
-        !NKinds.addressable(other.kind) || NIndexedDBStore.getDTag(other) === dTag
+        !NKinds.addressable(other.kind) || NIndexedDB.getDTag(other) === dTag
       );
 
       // The single batch winner for this coordinate: newest by NIP-01 ordering.
-      const winner = batchForCoord.reduce((a, b) => (NIndexedDBStore.isNewer(b, a) ? b : a));
+      const winner = batchForCoord.reduce((a, b) => (NIndexedDB.isNewer(b, a) ? b : a));
 
       for (const event of batchForCoord) {
         if (event !== winner) {
@@ -437,7 +437,7 @@ export class NIndexedDBStore implements NStore {
       let storedWins = false;
       for (const other of existing) {
         if (other.id === winner.id) continue; // identical event already stored
-        if (NIndexedDBStore.isNewer(other, winner)) {
+        if (NIndexedDB.isNewer(other, winner)) {
           storedWins = true;
           break;
         }
@@ -472,7 +472,7 @@ export class NIndexedDBStore implements NStore {
       for (const filter of filters) {
         const events = await this.queryFilter(store, new ParsedFilter(filter), opts?.signal);
         for (const event of events) {
-          byId.set(event.id, NIndexedDBStore.fromStored(event));
+          byId.set(event.id, NIndexedDB.fromStored(event));
         }
       }
     } catch {
@@ -480,7 +480,7 @@ export class NIndexedDBStore implements NStore {
     }
 
     // Sort the merged result set newest-first (ties: smaller id first).
-    return [...byId.values()].sort(NIndexedDBStore.compareNewest);
+    return [...byId.values()].sort(NIndexedDB.compareNewest);
   }
 
   /**
@@ -494,7 +494,7 @@ export class NIndexedDBStore implements NStore {
   ): Promise<StoredEvent[]> {
     if (filter.neverMatch) return [];
 
-    const plan = NIndexedDBStore.planScan(filter);
+    const plan = NIndexedDB.planScan(filter);
     const limit = filter.limit ?? Infinity;
 
     // Each cursor contributes candidates newest-first; we k-way merge them.
@@ -538,7 +538,7 @@ export class NIndexedDBStore implements NStore {
     }
 
     // Merge across cursors: sort newest-first and truncate to the limit.
-    collected.sort(NIndexedDBStore.compareNewest);
+    collected.sort(NIndexedDB.compareNewest);
     return Number.isFinite(limit) ? collected.slice(0, limit) : collected;
   }
 

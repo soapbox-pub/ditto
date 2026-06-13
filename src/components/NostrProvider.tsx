@@ -6,7 +6,7 @@ import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
-import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
+import { NIndexedDB } from '@/lib/NIndexedDB';
 import { EventStoreContext } from '@/contexts/EventStoreContext';
 
 interface NostrProviderProps {
@@ -39,8 +39,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // provided through EventStoreContext so hooks can read it directly. Opening
   // it here (rather than in a child EventStoreProvider) lets the batcher and
   // the rest of the app share a single connection.
-  const eventStore = useRef<Promise<NIndexedDBStore> | undefined>(undefined);
-  eventStore.current ??= NIndexedDBStore.open({
+  const eventStore = useRef<Promise<NIndexedDB> | undefined>(undefined);
+  eventStore.current ??= NIndexedDB.open({
     evictionPolicy: () => evictionRef.current,
   });
 

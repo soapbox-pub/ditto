@@ -1,6 +1,6 @@
 import type { NostrEvent, NostrFilter, NPool } from '@nostrify/nostrify';
 
-import type { NIndexedDBStore } from '@/lib/NIndexedDBStore';
+import type { NIndexedDB } from '@/lib/NIndexedDB';
 
 interface FetchFreshEventOptions {
   /**
@@ -14,7 +14,7 @@ interface FetchFreshEventOptions {
    * destructive (follow list, mute list, etc.). It does not replace the
    * relay read — the relay is still the primary source of truth.
    */
-  store?: NIndexedDBStore;
+  store?: NIndexedDB;
   /** Abort signal merged with the internal 10s timeout. */
   signal?: AbortSignal;
 }
