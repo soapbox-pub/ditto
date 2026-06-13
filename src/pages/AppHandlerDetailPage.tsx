@@ -5,6 +5,7 @@ import { useInView } from 'react-intersection-observer';
 
 import { AppHandlerContent } from '@/components/AppHandlerContent';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { ClientMetrics } from '@/components/ClientMetrics';
 import { EventActionHeader } from '@/components/NoteCard';
 import { NoteCard } from '@/components/NoteCard';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -15,6 +16,7 @@ import { useComments } from '@/hooks/useComments';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { PostDetailShell } from '@/pages/PostDetailPage';
+import { getClientMetricsTags } from '@/lib/appHandlerMetrics';
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { isReplyEvent } from '@/lib/nostrEvents';
@@ -48,6 +50,10 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
     return `${event.kind}:${event.pubkey}:${d}`;
   }, [event]);
 
+  // `#client` tag values to count active-users metrics by (name / lowercase
+  // name / website hostname), OR'd together — see `getClientMetricsTags`.
+  const clientTags = useMemo(() => getClientMetricsTags(event), [event]);
+
   return (
     <PostDetailShell title="App">
       <div className="px-4">
@@ -62,6 +68,12 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
         />
         <AppHandlerContent event={event} />
       </div>
+
+      {clientTags.length > 0 && (
+        <div className="mt-2">
+          <ClientMetrics clientTags={clientTags} />
+        </div>
+      )}
 
       {/* Tab bar */}
       <SubHeaderBar className="mt-4">
