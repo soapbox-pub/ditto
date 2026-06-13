@@ -47,17 +47,23 @@ import { ParsedFilter } from './nostrFilter';
 // relays enforce those; a lagging cache is harmless.)
 //
 // Eviction: the cache is otherwise append-only and would grow without bound.
-// After each write flush, **regular** events (NKinds.regular) older than a
-// configured maximum age that are NOT owned by a logged-in account are pruned.
-// The user's own events and all replaceable/addressable events (profiles,
-// lists, etc., which serve as the read-modify-write base for mutations) are
-// always preserved regardless of age. Pruning by age — rather than by total
-// count — means the work is a bounded range scan over the `by-created_at`
-// index up to the age cutoff: when nothing is old enough, the scan visits no
-// rows and costs nothing, so there is no repeated full-store scan when the
-// cache is full of recent or protected events. The eviction policy is supplied
-// as a getter so the live AppConfig max-age and the current login set are read
-// fresh on each pass.
+// After each write flush, events older than a configured maximum age are
+// pruned, subject to who authored them:
+//
+//   - Logged-in accounts' own events are never evicted (any kind, any age).
+//   - Followed accounts' **non-regular** events (replaceable/addressable —
+//     profiles, lists, etc., the read-modify-write base for mutations) are
+//     never evicted. Their **regular** events are evictable once old.
+//   - Everyone else's events are evictable once old, regardless of kind.
+//
+// "Followed" is the union of the contact lists of all logged-in accounts.
+// Pruning by age — rather than by total count — means the work is a bounded
+// range scan over the `by-created_at` index up to the age cutoff: when nothing
+// is old enough, the scan visits no rows and costs nothing, so there is no
+// repeated full-store scan when the cache is full of recent or protected
+// events. The eviction policy is supplied as a getter so the live AppConfig
+// max-age, the current login set, and the current follow set are read fresh on
+// each pass.
 //
 // When IndexedDB is unavailable (iOS Lockdown Mode, some private-browsing
 // contexts) the store degrades to a no-op: `event()` does nothing and
@@ -120,18 +126,27 @@ export interface NIndexedDBOpts {
   indexTags?(event: NostrEvent): string[][];
   /**
    * Returns the live eviction policy, read fresh after every write flush so
-   * that AppConfig changes and login changes take effect without reopening the
-   * store. When omitted, eviction never runs and the cache is append-only (its
-   * prior behavior).
+   * that AppConfig changes, login changes, and follow-list changes take effect
+   * without reopening the store. When omitted, eviction never runs and the
+   * cache is append-only (its prior behavior).
    *
-   * - `maxAge`: maximum event age in seconds. Regular events older than
-   *   `now - maxAge` and not in `protectedPubkeys` are deleted. A non-positive
-   *   value disables eviction.
-   * - `protectedPubkeys`: pubkeys whose events are never evicted (the
-   *   logged-in accounts). Events from any other pubkey are eligible, provided
-   *   they are also regular-kind and old enough.
+   * - `maxAge`: maximum event age in seconds. Events older than `now - maxAge`
+   *   are candidates for eviction (subject to the author rules below). A
+   *   non-positive value disables eviction.
+   * - `protectedPubkeys`: pubkeys whose events are never evicted, regardless of
+   *   kind or age (the logged-in accounts).
+   * - `followedPubkeys`: pubkeys whose **non-regular** (replaceable/addressable)
+   *   events are never evicted; their **regular** events are still evictable
+   *   once old. The union of the logged-in accounts' contact lists.
+   *
+   * An old event is deleted when its author is in neither set, OR its author is
+   * only in `followedPubkeys` and the event is regular-kind.
    */
-  evictionPolicy?(): { maxAge: number; protectedPubkeys: Iterable<string> };
+  evictionPolicy?(): {
+    maxAge: number;
+    protectedPubkeys: Iterable<string>;
+    followedPubkeys: Iterable<string>;
+  };
 }
 
 export class NIndexedDB implements NStore {
@@ -166,7 +181,11 @@ export class NIndexedDB implements NStore {
   private constructor(
     private readonly db: IDBPDatabase<EventsDB> | null,
     private readonly indexTags: (event: NostrEvent) => string[][],
-    private readonly evictionPolicy?: () => { maxAge: number; protectedPubkeys: Iterable<string> },
+    private readonly evictionPolicy?: () => {
+      maxAge: number;
+      protectedPubkeys: Iterable<string>;
+      followedPubkeys: Iterable<string>;
+    },
   ) {}
 
   /**
@@ -314,10 +333,13 @@ export class NIndexedDB implements NStore {
   }
 
   /**
-   * If an eviction policy is configured, delete **regular**-kind events
-   * (NKinds.regular) older than the policy's `maxAge` whose pubkey is NOT in
-   * `protectedPubkeys`. Replaceable/addressable events and the logged-in
-   * accounts' own events are always preserved, regardless of age.
+   * If an eviction policy is configured, delete events older than the policy's
+   * `maxAge`, subject to their author:
+   *
+   *   - `protectedPubkeys` (logged-in accounts): never deleted, any kind.
+   *   - `followedPubkeys`: their non-regular (replaceable/addressable) events
+   *     are kept; their regular events are deleted once old.
+   *   - everyone else: deleted once old, regardless of kind.
    *
    * The scan is bounded to the `by-created_at` index range below the age
    * cutoff (`[0, cutoff)`), so when no event is old enough the cursor visits
@@ -340,7 +362,7 @@ export class NIndexedDB implements NStore {
     this.lastEvicted = now;
 
     try {
-      const { maxAge, protectedPubkeys } = this.evictionPolicy();
+      const { maxAge, protectedPubkeys, followedPubkeys } = this.evictionPolicy();
       // A non-positive max age disables eviction.
       if (!(maxAge > 0)) return;
 
@@ -352,6 +374,9 @@ export class NIndexedDB implements NStore {
       const protectedSet = protectedPubkeys instanceof Set
         ? protectedPubkeys as Set<string>
         : new Set(protectedPubkeys);
+      const followedSet = followedPubkeys instanceof Set
+        ? followedPubkeys as Set<string>
+        : new Set(followedPubkeys);
 
       const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
       // Only walk the old tail of the index: created_at in [0, cutoff).
@@ -360,8 +385,14 @@ export class NIndexedDB implements NStore {
 
       while (cursor) {
         const value = cursor.value as StoredEvent;
-        if (NKinds.regular(value.kind) && !protectedSet.has(value.pubkey)) {
-          void cursor.delete();
+        // Logged-in accounts' events are never evicted, regardless of kind.
+        // Followed accounts keep their non-regular events but not their regular
+        // ones. Everyone else's events are evictable regardless of kind.
+        if (!protectedSet.has(value.pubkey)) {
+          const keptByFollow = followedSet.has(value.pubkey) && !NKinds.regular(value.kind);
+          if (!keptByFollow) {
+            void cursor.delete();
+          }
         }
         cursor = await cursor.continue();
       }

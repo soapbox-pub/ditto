@@ -327,11 +327,13 @@ export interface AppConfig {
   sidebarWidgets: WidgetConfig[];
   /**
    * Maximum age, in seconds, of events kept in the local IndexedDB event
-   * cache. After each write flush, **regular** events (kind 1, 2, 4-44 subset,
-   * 1000-9999) older than this that are NOT owned by any logged-in account are
-   * deleted. Replaceable/addressable events (profiles, lists, etc.) and the
-   * logged-in user's own events are never evicted regardless of age. A
-   * non-positive value disables age-based eviction. Default: 604800 (7 days).
+   * cache. After each write flush, events older than this are pruned based on
+   * their author: a logged-in account's own events are never evicted (any
+   * kind); a followed account's replaceable/addressable events are never
+   * evicted, but its regular events are; everyone else's events are evicted
+   * regardless of kind. "Followed" is the union of all logged-in accounts'
+   * contact lists. A non-positive value disables age-based eviction.
+   * Default: 604800 (7 days).
    */
   maxCachedEventAge: number;
 }
