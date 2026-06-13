@@ -338,4 +338,113 @@ describe('NIndexedDB', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('NIP-09 deletions (kind 5)', () => {
+    it('deletes own event referenced by an e tag', async () => {
+      const note = makeEvent({ id: '1'.repeat(64), pubkey: PK1, kind: 1 });
+      await add(note);
+
+      await add(makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['e', note.id], ['k', '1']],
+      }));
+
+      expect(await store.query([{ ids: [note.id] }])).toEqual([]);
+    });
+
+    it('does not delete another author\'s event referenced by an e tag', async () => {
+      const note = makeEvent({ id: '1'.repeat(64), pubkey: PK2, kind: 1 });
+      await add(note);
+
+      // PK1 maliciously requests deletion of PK2's note.
+      await add(makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['e', note.id]],
+      }));
+
+      expect((await store.query([{ ids: [note.id] }])).map((e) => e.id)).toEqual([note.id]);
+    });
+
+    it('deletes own addressable event referenced by an a tag', async () => {
+      const article = makeEvent({
+        id: '1'.repeat(64),
+        pubkey: PK1,
+        kind: 30023,
+        created_at: 1000,
+        tags: [['d', 'hello']],
+      });
+      await add(article);
+
+      await add(makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['a', `30023:${PK1}:hello`], ['k', '30023']],
+      }));
+
+      expect(await store.query([{ kinds: [30023], authors: [PK1] }])).toEqual([]);
+    });
+
+    it('does not delete a different d-tag at the same coordinate', async () => {
+      const keep = makeEvent({
+        id: '2'.repeat(64),
+        pubkey: PK1,
+        kind: 30023,
+        created_at: 1000,
+        tags: [['d', 'keep']],
+      });
+      await add(keep);
+
+      await add(makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['a', `30023:${PK1}:other`]],
+      }));
+
+      expect((await store.query([{ kinds: [30023] }])).map((e) => e.id)).toEqual([keep.id]);
+    });
+
+    it('keeps a replacement newer than the deletion request (a tag)', async () => {
+      const newer = makeEvent({
+        id: '3'.repeat(64),
+        pubkey: PK1,
+        kind: 30023,
+        created_at: 3000,
+        tags: [['d', 'hello']],
+      });
+      await add(newer);
+
+      await add(makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['a', `30023:${PK1}:hello`]],
+      }));
+
+      expect((await store.query([{ kinds: [30023] }])).map((e) => e.id)).toEqual([newer.id]);
+    });
+
+    it('retains the deletion request event itself', async () => {
+      const del = makeEvent({
+        id: '5'.repeat(64),
+        pubkey: PK1,
+        kind: 5,
+        created_at: 2000,
+        tags: [['e', '1'.repeat(64)]],
+      });
+      await add(del);
+
+      expect((await store.query([{ kinds: [5] }])).map((e) => e.id)).toEqual([del.id]);
+    });
+  });
 });

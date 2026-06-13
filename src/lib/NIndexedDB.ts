@@ -43,8 +43,11 @@ import { ParsedFilter } from './nostrFilter';
 //
 // Replaceable/addressable supersession: on write, older versions at the same
 // (kind, pubkey, d) coordinate are deleted, so queries never surface a stale
-// profile or list. (NIP-09 deletions and NIP-40 expiration are NOT handled —
-// relays enforce those; a lagging cache is harmless.)
+// profile or list. NIP-09 deletion requests (kind 5) are also applied on write:
+// the events they target (`e` by id, `a` by coordinate) are removed from the
+// cache, but only when authored by the requester — anyone can publish a kind 5,
+// but it can only delete its own author's events. (NIP-40 expiration is still
+// NOT handled — relays enforce it; a lagging cache is harmless.)
 //
 // Eviction: the cache is otherwise append-only and would grow without bound.
 // After each write flush, events older than a configured maximum age are
@@ -318,6 +321,12 @@ export class NIndexedDB implements NStore {
         void store.put(this.toStored(event));
       }
 
+      // NIP-09: apply any deletion requests in this batch, removing the events
+      // they target from the cache. Done after the puts above so a kind 5 and
+      // its targets arriving together are still resolved, and so the deletion
+      // request event itself is retained (clients may need to re-broadcast it).
+      await this.applyDeletions(store, events);
+
       await tx.done;
     } catch {
       // Write failure is non-critical — the cache just won't have these events.
@@ -478,6 +487,64 @@ export class NIndexedDB implements NStore {
     });
 
     return result;
+  }
+
+  /**
+   * NIP-09: process every kind 5 deletion request in the batch, deleting the
+   * events it targets from the cache.
+   *
+   * A deletion request can only delete the requester's own events, so each
+   * target is matched against the request's `pubkey`:
+   *
+   *   - `e` tags reference a target event by id. The stored event is deleted
+   *     only if its `pubkey` equals the request's pubkey.
+   *   - `a` tags reference an addressable/replaceable coordinate
+   *     `kind:pubkey:d`. Only coordinates owned by the requester are honored,
+   *     and (per NIP-09) only versions at or before the request's `created_at`
+   *     are deleted, so a newer replacement survives.
+   *
+   * The deletion request (kind 5) event itself is never deleted here — clients
+   * may still need it to re-broadcast the deletion to other relays.
+   */
+  private async applyDeletions(
+    store: EventsStore<'readwrite'>,
+    events: NostrEvent[],
+  ): Promise<void> {
+    const requests = events.filter((event) => event.kind === 5);
+    if (requests.length === 0) return;
+
+    for (const request of requests) {
+      for (const [name, value] of request.tags) {
+        if (name === 'e') {
+          if (!value) continue;
+          const target = await store.get(value) as StoredEvent | undefined;
+          // Only the author of the target may delete it.
+          if (target && target.pubkey === request.pubkey) {
+            void store.delete(value);
+          }
+        } else if (name === 'a') {
+          if (!value) continue;
+          const [kindStr, pubkey, ...rest] = value.split(':');
+          const kind = Number(kindStr);
+          // A coordinate not owned by the requester can't be deleted by them.
+          if (!Number.isInteger(kind) || pubkey !== request.pubkey) continue;
+          const dTag = rest.join(':');
+
+          // All stored versions at this (pubkey, kind) coordinate.
+          const stored = await store
+            .index(INDEX.pubkeyKind)
+            .getAll(IDBKeyRange.bound([pubkey, kind, 0], [pubkey, kind, Infinity])) as StoredEvent[];
+
+          for (const event of stored) {
+            // Match the d-tag for addressable coordinates.
+            if (NKinds.addressable(event.kind) && NIndexedDB.getDTag(event) !== dTag) continue;
+            // NIP-09: only delete versions up to the request's created_at.
+            if (event.created_at > request.created_at) continue;
+            void store.delete(event.id);
+          }
+        }
+      }
+    }
   }
 
   // ── Read path ───────────────────────────────────────────────────────────
