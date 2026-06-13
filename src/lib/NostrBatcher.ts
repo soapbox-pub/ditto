@@ -600,8 +600,13 @@ export class NostrBatcher {
 
   // --- Pass-through methods ---
 
-  event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
-    return this.pool.event(event, opts);
+  async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
+    await this.pool.event(event, opts);
+    // Only mirror into the cache once the network publish succeeds, so the app
+    // never reads back a locally-published event the relays rejected. This also
+    // lets a successfully-published kind 5 deletion request prune its targets
+    // from the cache (see NIndexedDB's NIP-09 handling).
+    this.cacheEvents([event]);
   }
 
   req(
