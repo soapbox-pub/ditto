@@ -21,13 +21,28 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
+  // Live eviction inputs for the IndexedDB cache, read fresh on each prune pass
+  // (after a write flush). Kept in a ref so the store — opened once below —
+  // sees the current login set and the current AppConfig max age without being
+  // recreated.
+  const evictionRef = useRef<{ maxAge: number; protectedPubkeys: Set<string> }>({
+    maxAge: config.maxCachedEventAge,
+    protectedPubkeys: new Set(logins.map((l) => l.pubkey)),
+  });
+  evictionRef.current = {
+    maxAge: config.maxCachedEventAge,
+    protectedPubkeys: new Set(logins.map((l) => l.pubkey)),
+  };
+
   // Open the IndexedDB event store once. It's shared two ways: the batcher
   // writes every relay result into it (cache-first reads elsewhere), and it's
   // provided through EventStoreContext so hooks can read it directly. Opening
   // it here (rather than in a child EventStoreProvider) lets the batcher and
   // the rest of the app share a single connection.
   const eventStore = useRef<Promise<NIndexedDBStore> | undefined>(undefined);
-  eventStore.current ??= NIndexedDBStore.open();
+  eventStore.current ??= NIndexedDBStore.open({
+    evictionPolicy: () => evictionRef.current,
+  });
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));

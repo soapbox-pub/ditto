@@ -46,6 +46,19 @@ import { ParsedFilter } from './nostrFilter';
 // profile or list. (NIP-09 deletions and NIP-40 expiration are NOT handled —
 // relays enforce those; a lagging cache is harmless.)
 //
+// Eviction: the cache is otherwise append-only and would grow without bound.
+// After each write flush, **regular** events (NKinds.regular) older than a
+// configured maximum age that are NOT owned by a logged-in account are pruned.
+// The user's own events and all replaceable/addressable events (profiles,
+// lists, etc., which serve as the read-modify-write base for mutations) are
+// always preserved regardless of age. Pruning by age — rather than by total
+// count — means the work is a bounded range scan over the `by-created_at`
+// index up to the age cutoff: when nothing is old enough, the scan visits no
+// rows and costs nothing, so there is no repeated full-store scan when the
+// cache is full of recent or protected events. The eviction policy is supplied
+// as a getter so the live AppConfig max-age and the current login set are read
+// fresh on each pass.
+//
 // When IndexedDB is unavailable (iOS Lockdown Mode, some private-browsing
 // contexts) the store degrades to a no-op: `event()` does nothing and
 // `query()` returns `[]`.
@@ -105,9 +118,32 @@ export interface NIndexedDBStoreOpts {
    * nothing.
    */
   indexTags?(event: NostrEvent): string[][];
+  /**
+   * Returns the live eviction policy, read fresh after every write flush so
+   * that AppConfig changes and login changes take effect without reopening the
+   * store. When omitted, eviction never runs and the cache is append-only (its
+   * prior behavior).
+   *
+   * - `maxAge`: maximum event age in seconds. Regular events older than
+   *   `now - maxAge` and not in `protectedPubkeys` are deleted. A non-positive
+   *   value disables eviction.
+   * - `protectedPubkeys`: pubkeys whose events are never evicted (the
+   *   logged-in accounts). Events from any other pubkey are eligible, provided
+   *   they are also regular-kind and old enough.
+   */
+  evictionPolicy?(): { maxAge: number; protectedPubkeys: Iterable<string> };
 }
 
 export class NIndexedDBStore implements NStore {
+  /**
+   * Minimum wall-clock gap between eviction passes. Pruning only matters as
+   * events age past the cutoff (hours/days), so running it at most hourly is
+   * plenty while keeping the cost off the hot write path. The first flush after
+   * page load isn't throttled (see `lastEvicted` init), so a session that
+   * doesn't last an hour still prunes once on startup.
+   */
+  private static readonly EVICT_INTERVAL_MS = 60 * 60 * 1000;
+
   /**
    * Events awaiting a batched write, accumulated across `event()` calls within
    * a single burst (e.g. a feed page). Keyed by id so duplicate writes in the
@@ -118,10 +154,19 @@ export class NIndexedDBStore implements NStore {
   private pendingResolvers: Array<() => void> = [];
   /** Whether a flush is already scheduled for the current burst. */
   private flushScheduled = false;
+  /**
+   * `Date.now()` of the last eviction pass (0 = never). Eviction is throttled
+   * to at most once per {@link NIndexedDBStore.EVICT_INTERVAL_MS}, so the
+   * common case — many write flushes during a browsing session — does at most
+   * one prune per interval rather than one per flush. Initialized to 0 so the
+   * first flush after page load always runs a pass.
+   */
+  private lastEvicted = 0;
 
   private constructor(
     private readonly db: IDBPDatabase<EventsDB> | null,
     private readonly indexTags: (event: NostrEvent) => string[][],
+    private readonly evictionPolicy?: () => { maxAge: number; protectedPubkeys: Iterable<string> },
   ) {}
 
   /**
@@ -166,7 +211,7 @@ export class NIndexedDBStore implements NStore {
       // IndexedDB unavailable — degrade to a no-op store.
       db = null;
     }
-    return new NIndexedDBStore(db, indexTags);
+    return new NIndexedDBStore(db, indexTags, opts.evictionPolicy);
   }
 
   // ── Write path ────────────────────────────────────────────────────────────
@@ -259,6 +304,71 @@ export class NIndexedDBStore implements NStore {
       // Write failure is non-critical — the cache just won't have these events.
     } finally {
       for (const resolve of resolvers) resolve();
+    }
+
+    // Prune the cache back under its cap after the batch has committed. This
+    // runs off the render-critical path (we're already in a deferred flush) and
+    // is best-effort: any failure is swallowed and simply leaves the cache
+    // larger than the target.
+    await this.maybeEvict();
+  }
+
+  /**
+   * If an eviction policy is configured, delete **regular**-kind events
+   * (NKinds.regular) older than the policy's `maxAge` whose pubkey is NOT in
+   * `protectedPubkeys`. Replaceable/addressable events and the logged-in
+   * accounts' own events are always preserved, regardless of age.
+   *
+   * The scan is bounded to the `by-created_at` index range below the age
+   * cutoff (`[0, cutoff)`), so when no event is old enough the cursor visits
+   * nothing — there is no full-store scan and no per-flush thrash when the
+   * cache holds only recent or protected events.
+   *
+   * Passes are additionally throttled to once per
+   * {@link NIndexedDBStore.EVICT_INTERVAL_MS} so a burst of write flushes
+   * during normal browsing triggers at most one prune per interval.
+   */
+  private async maybeEvict(): Promise<void> {
+    if (!this.db || !this.evictionPolicy) return;
+
+    // Throttle: skip if we pruned recently. The first call (lastEvicted === 0)
+    // always passes, so eviction runs once shortly after page load.
+    const now = Date.now();
+    if (this.lastEvicted && now - this.lastEvicted < NIndexedDBStore.EVICT_INTERVAL_MS) return;
+    // Stamp up front so overlapping flushes within the interval don't each
+    // launch a pass while this one is still running.
+    this.lastEvicted = now;
+
+    try {
+      const { maxAge, protectedPubkeys } = this.evictionPolicy();
+      // A non-positive max age disables eviction.
+      if (!(maxAge > 0)) return;
+
+      // Everything strictly older than this cutoff is a candidate. created_at
+      // is in seconds; `cutoff` is exclusive via the upper-bound `open` flag.
+      const cutoff = Math.floor(now / 1000) - maxAge;
+      if (cutoff <= 0) return;
+
+      const protectedSet = protectedPubkeys instanceof Set
+        ? protectedPubkeys as Set<string>
+        : new Set(protectedPubkeys);
+
+      const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
+      // Only walk the old tail of the index: created_at in [0, cutoff).
+      const range = IDBKeyRange.upperBound(cutoff, true);
+      let cursor = await tx.objectStore(EVENTS_STORE).index(INDEX.createdAt).openCursor(range, 'next');
+
+      while (cursor) {
+        const value = cursor.value as StoredEvent;
+        if (NKinds.regular(value.kind) && !protectedSet.has(value.pubkey)) {
+          void cursor.delete();
+        }
+        cursor = await cursor.continue();
+      }
+
+      await tx.done;
+    } catch {
+      // Eviction is best-effort; leave the cache oversized on failure.
     }
   }
 

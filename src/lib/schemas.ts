@@ -271,6 +271,7 @@ export const AppConfigSchema = z.object({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  maxCachedEventAge: z.number().int().nonnegative().optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

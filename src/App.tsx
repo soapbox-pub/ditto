@@ -166,6 +166,7 @@ const hardcodedConfig: AppConfig = {
     { id: 'hot-posts' },
     { id: 'wikipedia' },
   ],
+  maxCachedEventAge: 604800,
 };
 
 /**

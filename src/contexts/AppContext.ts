@@ -325,6 +325,15 @@ export interface AppConfig {
   currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /**
+   * Maximum age, in seconds, of events kept in the local IndexedDB event
+   * cache. After each write flush, **regular** events (kind 1, 2, 4-44 subset,
+   * 1000-9999) older than this that are NOT owned by any logged-in account are
+   * deleted. Replaceable/addressable events (profiles, lists, etc.) and the
+   * logged-in user's own events are never evicted regardless of age. A
+   * non-positive value disables age-based eviction. Default: 604800 (7 days).
+   */
+  maxCachedEventAge: number;
 }
 
 /** Configuration for a single widget in the right sidebar. */
