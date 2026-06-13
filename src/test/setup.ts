@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import 'fake-indexeddb/auto';
 import { vi } from 'vitest';
 
 // Node.js 22 has a built-in `localStorage` that lacks standard Web Storage API

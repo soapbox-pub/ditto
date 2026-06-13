@@ -1,52 +1,110 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { type DBSchema, type IDBPDatabase, type IDBPObjectStore, openDB } from 'idb';
 import { type NostrEvent, type NostrFilter, NKinds, type NStore } from '@nostrify/nostrify';
 
+import { ParsedFilter } from './nostrFilter';
+
 // ============================================================================
-// NIndexedDBStore — a deliberately minimal `NStore` backed by IndexedDB.
+// NIndexedDBStore — a general-purpose `NStore` backed by IndexedDB.
 //
-// This is NOT a general-purpose relay store. It implements the full `NStore`
-// interface, but only understands two filter shapes:
+// This is a TypeScript port of strfry's LMDB query engine (src/DBQuery.h,
+// src/filters.h) onto IndexedDB. It supports arbitrary Nostr filters: `ids`,
+// `authors`, `kinds`, single-letter tag filters (`#e`, `#p`, `#t`, …),
+// `since`/`until`, `limit`, `search`, and any combination thereof.
 //
-//   1. ID filters:    { "ids": [A, B, C] }
-//   2. Addr filters:  { "kinds": [0], "authors": [alex] }
-//                     { "kinds": [30000], "authors": [alex], "#d": ["my-list"] }
+// Indexing strategy (mirrors strfry):
+//   Every queryable index keys on its discriminator followed by `created_at`,
+//   so a reverse scan of an index prefix yields that prefix's events
+//   newest-first. strfry packs `created_at` into the trailing 8 bytes of an
+//   LMDB key and installs custom comparators to compare it numerically;
+//   IndexedDB compound *array* keys (`[pubkey, created_at]`) already sort by
+//   element with native numeric ordering, so we get the same semantics for
+//   free — no byte-fiddling, no endianness hazard.
 //
-// Anything else (tag filters, time ranges, search, kind-only, etc.) returns
-// no events. The point is a fast local cache for "give me this exact event"
-// and "give me alex's latest kind 0 / addressable event", not a full index.
+// Object store `events` (keyed by `id`) holds the raw event plus derived
+// index fields, with these indexes:
+//   - by-created_at   →  created_at
+//   - by-pubkey       →  [pubkey, created_at]
+//   - by-kind         →  [kind, created_at]
+//   - by-pubkey-kind  →  [pubkey, kind, created_at]
+//   - by-tag          →  multiEntry over _tagsCreated: Array<[name, value, created_at]>
 //
-// Storage layout:
-//   - `nostr_events`  object store, keyed by event id, holding the raw event.
-//   - `addr`          object store, keyed by an addr string (see `addrKey`),
-//                     holding { id, created_at }. This is the replaceable /
-//                     addressable pointer: the id of the newest event for a
-//                     given (kind, pubkey, d) coordinate, plus its created_at
-//                     so we know when an incoming event should move the pointer.
+// Which tags are indexed (and therefore queryable) is configurable via the
+// `indexTags` option, mirroring Nostrify's NPostgres. By default all
+// single-letter tags with a non-empty value under 200 chars are indexed. The
+// tag-index key carries the tag name and value as separate array elements, so
+// names of any length work and there is no name/value ambiguity. A filter on a
+// tag that isn't indexed simply matches nothing.
 //
-// We never delete superseded events from `nostr_events`; we only move the
-// `addr` pointer. Old rows are harmless and only reachable by their exact id.
+// Query planning (the `DBScan` priority cascade):
+//   ids → most-selective #tag → pubkey+kind (<1000 combos) → pubkey → kind →
+//   full created_at scan. One index is chosen; one cursor per discrete value.
+//   Cursors are merged newest-first; non-index-only scans re-check each
+//   candidate against the full filter in memory.
+//
+// Replaceable/addressable supersession: on write, older versions at the same
+// (kind, pubkey, d) coordinate are deleted, so queries never surface a stale
+// profile or list. (NIP-09 deletions and NIP-40 expiration are NOT handled —
+// relays enforce those; a lagging cache is harmless.)
 //
 // When IndexedDB is unavailable (iOS Lockdown Mode, some private-browsing
 // contexts) the store degrades to a no-op: `event()` does nothing and
 // `query()` returns `[]`.
 // ============================================================================
 
-interface AddrPointer {
-  /** Event id of the newest event at this addr coordinate. */
-  id: string;
-  /** created_at of that event, used to decide whether to move the pointer. */
-  created_at: number;
+/** The default events object store name. */
+const EVENTS_STORE = 'events';
+
+/** Index names on the events store. */
+const INDEX = {
+  createdAt: 'by-created_at',
+  pubkey: 'by-pubkey',
+  kind: 'by-kind',
+  pubkeyKind: 'by-pubkey-kind',
+  tag: 'by-tag',
+} as const;
+
+/** A stored row: the event plus derived fields used purely for indexing. */
+interface StoredEvent extends NostrEvent {
+  /** multiEntry tag index: one [name, value, created_at] tuple per indexed tag. */
+  _tagsCreated?: Array<[string, string, number]>;
 }
+
+/** Strongly-typed IndexedDB schema for the events store. */
+interface EventsDB extends DBSchema {
+  [EVENTS_STORE]: {
+    key: string;
+    value: StoredEvent;
+    indexes: {
+      [INDEX.createdAt]: number;
+      [INDEX.pubkey]: [string, number];
+      [INDEX.kind]: [number, number];
+      [INDEX.pubkeyKind]: [string, number, number];
+      [INDEX.tag]: [string, string, number];
+    };
+  };
+}
+
+/** A readwrite/readonly handle to the events object store. */
+type EventsStore<M extends IDBTransactionMode> = IDBPObjectStore<
+  EventsDB,
+  [typeof EVENTS_STORE],
+  typeof EVENTS_STORE,
+  M
+>;
 
 export interface NIndexedDBStoreOpts {
   /** Database name. Defaults to `ditto-events`. */
   name?: string;
-  /** Schema version. Defaults to `1`. */
+  /** Schema version. Defaults to `2`. */
   version?: number;
-  /** Object store holding raw events, keyed by id. Defaults to `nostr_events`. */
-  eventsStore?: string;
-  /** Object store holding addr pointers. Defaults to `addr`. */
-  addrStore?: string;
+  /**
+   * Returns which tags to index, as `[name, value]` pairs, so tag queries like
+   * `{ "#p": [...] }` work. Defaults to all single-letter tags with a non-empty
+   * value under 200 chars (see {@link NIndexedDBStore.indexTags}). Only the
+   * tags returned here are queryable; a filter on any other tag matches
+   * nothing.
+   */
+  indexTags?(event: NostrEvent): string[][];
 }
 
 export class NIndexedDBStore implements NStore {
@@ -58,14 +116,21 @@ export class NIndexedDBStore implements NStore {
   private pendingWrites = new Map<string, NostrEvent>();
   /** Callers waiting for the current pending batch to commit. */
   private pendingResolvers: Array<() => void> = [];
-  /** Handle for the scheduled flush, so we only schedule once per burst. */
+  /** Whether a flush is already scheduled for the current burst. */
   private flushScheduled = false;
 
   private constructor(
-    private readonly db: IDBPDatabase | null,
-    private readonly eventsStore: string,
-    private readonly addrStore: string,
+    private readonly db: IDBPDatabase<EventsDB> | null,
+    private readonly indexTags: (event: NostrEvent) => string[][],
   ) {}
+
+  /**
+   * Default tag index policy: index every single-letter tag with a non-empty
+   * value under 200 chars. Matches Nostrify's `NPostgres.indexTags`.
+   */
+  static indexTags(event: NostrEvent): string[][] {
+    return event.tags.filter(([name, value]) => name.length === 1 && !!value && value.length < 200);
+  }
 
   /**
    * Open (or create) the events database. Returns a store whose underlying
@@ -73,51 +138,50 @@ export class NIndexedDBStore implements NStore {
    * method silently degrades.
    */
   static async open(opts: NIndexedDBStoreOpts = {}): Promise<NIndexedDBStore> {
-    const {
-      name = 'ditto-events',
-      version = 1,
-      eventsStore = 'nostr_events',
-      addrStore = 'addr',
-    } = opts;
+    const { name = 'ditto-events', version = 2 } = opts;
+    const indexTags = opts.indexTags ?? NIndexedDBStore.indexTags;
 
-    let db: IDBPDatabase | null = null;
+    let db: IDBPDatabase<EventsDB> | null = null;
     try {
-      db = await openDB(name, version, {
+      db = await openDB<EventsDB>(name, version, {
         upgrade(db) {
-          if (!db.objectStoreNames.contains(eventsStore)) {
-            db.createObjectStore(eventsStore, { keyPath: 'id' });
+          // The schema is an incompatible rewrite of the old `nostr_events` /
+          // `addr` layout. The store is a disposable cache (everything
+          // re-fetches from relays), so we drop the old stores and start fresh
+          // rather than migrating. Old store names aren't in the typed schema,
+          // so iterate via the untyped name list.
+          for (const existing of Array.from(db.objectStoreNames) as string[]) {
+            db.deleteObjectStore(existing as typeof EVENTS_STORE);
           }
-          if (!db.objectStoreNames.contains(addrStore)) {
-            db.createObjectStore(addrStore);
-          }
+
+          const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
+          store.createIndex(INDEX.createdAt, 'created_at');
+          store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
+          store.createIndex(INDEX.kind, ['kind', 'created_at']);
+          store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
+          store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
         },
       });
     } catch {
       // IndexedDB unavailable — degrade to a no-op store.
       db = null;
     }
-    return new NIndexedDBStore(db, eventsStore, addrStore);
+    return new NIndexedDBStore(db, indexTags);
   }
 
+  // ── Write path ────────────────────────────────────────────────────────────
+
   /**
-   * Add an event to the store.
-   *
-   * - The raw event is always stored in `nostr_events`, keyed by id.
-   * - For replaceable / addressable events, the `addr` pointer is moved to
-   *   this event when it is newer than the current pointer (newer = greater
-   *   created_at, tie broken by lexicographically smaller id per NIP-01).
-   * - Regular events have no addr pointer; they're only reachable by id.
-   *
-   * Writes are **batched**: rather than opening one IndexedDB transaction per
-   * event, calls are accumulated and flushed together in a single transaction
-   * shortly after the current burst settles. A feed page that caches dozens of
-   * events therefore commits in one transaction instead of dozens, keeping the
-   * write off the render-critical path. The returned promise resolves once the
-   * batch this event belongs to has committed (or failed harmlessly). The
-   * public contract is unchanged from a plain per-event `NStore.event()`.
+   * Add an event to the store. Writes are **batched**: calls are accumulated
+   * and flushed together in a single transaction shortly after the current
+   * burst settles, keeping writes off the render-critical path. The returned
+   * promise resolves once the batch this event belongs to has committed.
    */
   event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     if (!this.db) return Promise.resolve();
+
+    // Ephemeral events are never stored.
+    if (NKinds.ephemeral(event.kind)) return Promise.resolve();
 
     // Dedupe within the burst; the latest copy of a given id wins.
     this.pendingWrites.set(event.id, event);
@@ -131,9 +195,9 @@ export class NIndexedDBStore implements NStore {
   }
 
   /**
-   * Schedule a single batched flush for the current burst of `event()` calls.
-   * Deferred off the immediate critical path via `requestIdleCallback` (with a
-   * `setTimeout` fallback) so writes happen after rendering, not during it.
+   * Schedule a single batched flush for the current burst of `event()` calls,
+   * deferred off the immediate critical path via `requestIdleCallback` (with a
+   * `setTimeout` fallback).
    */
   private scheduleFlush(): void {
     if (this.flushScheduled) return;
@@ -149,10 +213,9 @@ export class NIndexedDBStore implements NStore {
   }
 
   /**
-   * Drain `pendingWrites` and commit them in a single transaction across the
-   * events and addr stores. Addr pointers are resolved within the batch — when
-   * several events share a coordinate only the newest moves the pointer, then
-   * compared against whatever pointer already exists in the store.
+   * Drain `pendingWrites` and commit them in a single transaction. For each
+   * replaceable / addressable event, older versions at the same coordinate are
+   * resolved and deleted so queries never return a stale version.
    */
   private async flushWrites(): Promise<void> {
     this.flushScheduled = false;
@@ -168,39 +231,27 @@ export class NIndexedDBStore implements NStore {
     }
 
     try {
-      const tx = this.db.transaction([this.eventsStore, this.addrStore], 'readwrite');
-      const eventsStore = tx.objectStore(this.eventsStore);
-      const addrStore = tx.objectStore(this.addrStore);
+      const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
+      const store = tx.objectStore(EVENTS_STORE);
 
-      // Collapse multiple events at the same addr coordinate to the newest one
-      // before touching the pointer store.
-      const newestByKey = new Map<string, NostrEvent>();
+      // Resolve supersession for every replaceable/addressable event in the
+      // batch up front, with all the index reads issued in parallel. Reading
+      // them one-at-a-time (await per event) serialized the whole batch behind
+      // N round-trips and risked the transaction auto-committing between reads;
+      // `Promise.all` lets IndexedDB pipeline them within the single tx.
+      const supersession = await this.resolveSupersession(store, events);
 
       for (const event of events) {
-        void eventsStore.put(event);
-
-        const replaceable = NKinds.replaceable(event.kind);
-        const addressable = NKinds.addressable(event.kind);
-        if (!replaceable && !addressable) continue;
-
-        const key = NIndexedDBStore.addrKey(
-          event.kind,
-          event.pubkey,
-          addressable ? NIndexedDBStore.getDTag(event) : '',
-        );
-        const current = newestByKey.get(key);
-        if (!current || NIndexedDBStore.isNewerEvent(event, current)) {
-          newestByKey.set(key, event);
+        const superseded = supersession.get(event.id);
+        // `null` => an existing (or newer batch sibling) version wins; skip.
+        if (superseded === null) continue;
+        if (superseded) {
+          for (const id of superseded) {
+            void store.delete(id);
+          }
         }
-      }
 
-      // Move each addr pointer forward only when the batch's newest event for
-      // that coordinate beats the pointer already stored.
-      for (const [key, event] of newestByKey) {
-        const existing: AddrPointer | undefined = await addrStore.get(key);
-        if (!existing || NIndexedDBStore.isNewer(event, existing)) {
-          void addrStore.put({ id: event.id, created_at: event.created_at }, key);
-        }
+        void store.put(this.toStored(event));
       }
 
       await tx.done;
@@ -212,54 +263,272 @@ export class NIndexedDBStore implements NStore {
   }
 
   /**
-   * Query events matching the filters. Only `ids` filters and addr filters
-   * (kinds + authors [+ #d]) are understood; every other shape contributes
-   * no events. Results are de-duplicated by id.
+   * Resolve replaceable/addressable supersession for an entire write batch in
+   * one pass. For each replaceable/addressable event, computes the ids of
+   * existing stored events at the same (kind, pubkey, d) coordinate that it
+   * supersedes (to delete), `null` if a stored OR same-batch event at that
+   * coordinate is newer (so the event should be skipped), or `undefined` for
+   * non-replaceable events (no supersession — plain put).
+   *
+   * All the per-coordinate index reads are issued together via `Promise.all`,
+   * so the database pipelines them inside the single write transaction instead
+   * of paying for N serialized round-trips.
    */
-  async query(filters: NostrFilter[], _opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
-    if (!this.db) return [];
+  private async resolveSupersession(
+    store: EventsStore<'readwrite'>,
+    events: NostrEvent[],
+  ): Promise<Map<string, string[] | null | undefined>> {
+    const result = new Map<string, string[] | null | undefined>();
 
-    // Commit any buffered writes first so a read never misses an event that
-    // was just `event()`-ed but is still waiting on the deferred flush.
-    if (this.pendingWrites.size > 0) {
-      await this.flushWrites();
+    // Group replaceable/addressable events by coordinate so that, when the same
+    // batch carries several versions of one coordinate, only the newest wins
+    // (the old per-event loop could write a stale sibling).
+    const coords = new Map<string, NostrEvent[]>();
+    for (const event of events) {
+      if (!NKinds.replaceable(event.kind) && !NKinds.addressable(event.kind)) {
+        result.set(event.id, undefined); // plain put, no supersession check
+        continue;
+      }
+      const dTag = NKinds.addressable(event.kind) ? NIndexedDBStore.getDTag(event) : '';
+      const key = `${event.kind}:${event.pubkey}:${dTag}`;
+      (coords.get(key) ?? coords.set(key, []).get(key)!).push(event);
     }
+
+    // One index read per coordinate, all in flight at once.
+    const entries = [...coords.values()];
+    const existingPerCoord = await Promise.all(
+      entries.map(([sample]) =>
+        store
+          .index(INDEX.pubkeyKind)
+          .getAll(IDBKeyRange.bound([sample.pubkey, sample.kind, 0], [sample.pubkey, sample.kind, Infinity])) as Promise<
+            StoredEvent[]
+          >
+      ),
+    );
+
+    entries.forEach((batchForCoord, i) => {
+      const dTag = NKinds.addressable(batchForCoord[0].kind) ? NIndexedDBStore.getDTag(batchForCoord[0]) : '';
+      // Existing stored events at this exact coordinate (filter d for addressable).
+      const existing = existingPerCoord[i].filter((other) =>
+        !NKinds.addressable(other.kind) || NIndexedDBStore.getDTag(other) === dTag
+      );
+
+      // The single batch winner for this coordinate: newest by NIP-01 ordering.
+      const winner = batchForCoord.reduce((a, b) => (NIndexedDBStore.isNewer(b, a) ? b : a));
+
+      for (const event of batchForCoord) {
+        if (event !== winner) {
+          result.set(event.id, null); // a newer sibling in this batch wins
+        }
+      }
+
+      // Does any stored event beat the batch winner? Then skip the winner too.
+      const toDelete: string[] = [];
+      let storedWins = false;
+      for (const other of existing) {
+        if (other.id === winner.id) continue; // identical event already stored
+        if (NIndexedDBStore.isNewer(other, winner)) {
+          storedWins = true;
+          break;
+        }
+        toDelete.push(other.id);
+      }
+      result.set(winner.id, storedWins ? null : toDelete);
+    });
+
+    return result;
+  }
+
+  // ── Read path ───────────────────────────────────────────────────────────
+
+  /**
+   * Query events matching the filters (OR'd together), newest-first,
+   * de-duplicated by id, each filter's `limit` respected.
+   *
+   * Reads reflect only what has been committed to IndexedDB. An event that was
+   * just `event()`-ed but whose batch hasn't flushed yet is not visible — same
+   * as a relay that hasn't yet accepted an `EVENT`. Reads never wait on the
+   * write queue.
+   */
+  async query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
+    if (!this.db) return [];
 
     const byId = new Map<string, NostrEvent>();
 
     try {
+      const tx = this.db.transaction(EVENTS_STORE, 'readonly');
+      const store = tx.objectStore(EVENTS_STORE);
+
       for (const filter of filters) {
-        const events = await this.queryFilter(filter);
+        const events = await this.queryFilter(store, new ParsedFilter(filter), opts?.signal);
         for (const event of events) {
-          byId.set(event.id, event);
+          byId.set(event.id, NIndexedDBStore.fromStored(event));
         }
       }
     } catch {
       return [];
     }
 
-    return [...byId.values()];
+    // Sort the merged result set newest-first (ties: smaller id first).
+    return [...byId.values()].sort(NIndexedDBStore.compareNewest);
   }
 
   /**
-   * COUNT support: return the number of matching events. Implemented on top of
-   * `query()` since our supported shapes are cheap to resolve.
+   * Run a single parsed filter against the store using the strfry planner
+   * cascade, returning matching events newest-first up to the filter's limit.
    */
+  private async queryFilter(
+    store: EventsStore<'readonly'>,
+    filter: ParsedFilter,
+    signal?: AbortSignal,
+  ): Promise<StoredEvent[]> {
+    if (filter.neverMatch) return [];
+
+    const plan = NIndexedDBStore.planScan(filter);
+    const limit = filter.limit ?? Infinity;
+
+    // Each cursor contributes candidates newest-first; we k-way merge them.
+    const collected: StoredEvent[] = [];
+    const seen = new Set<string>();
+
+    for (const cursor of plan.cursors) {
+      signal?.throwIfAborted();
+
+      const index = cursor.indexName ? store.index(cursor.indexName) : store;
+      let idbCursor = await index.openCursor(cursor.range, 'prev');
+
+      // Each cursor walks its prefix newest-first, so its first `limit` matches
+      // are its `limit` best candidates — anything older can't beat them in the
+      // cross-cursor merge below. Stop early once we have that many; without
+      // this, a single prefix (e.g. one prolific author in a feed query) is
+      // walked to exhaustion no matter how small the limit, so scan cost grows
+      // with the cache instead of with the limit.
+      let matched = 0;
+
+      while (idbCursor) {
+        signal?.throwIfAborted();
+        const value = idbCursor.value as StoredEvent;
+
+        if (seen.has(value.id)) {
+          idbCursor = await idbCursor.continue();
+          continue;
+        }
+
+        // For index-only scans the index guarantees a structural match, so we
+        // only re-check the time window. Otherwise re-run the full filter.
+        const ok = plan.indexOnly ? filter.matchesTime(value.created_at) : filter.matches(value);
+        if (ok) {
+          seen.add(value.id);
+          collected.push(value);
+          if (++matched >= limit) break;
+        }
+
+        idbCursor = await idbCursor.continue();
+      }
+    }
+
+    // Merge across cursors: sort newest-first and truncate to the limit.
+    collected.sort(NIndexedDBStore.compareNewest);
+    return Number.isFinite(limit) ? collected.slice(0, limit) : collected;
+  }
+
+  /**
+   * The query planner — a direct port of strfry's `DBScan` constructor. Picks
+   * exactly one index by a fixed priority cascade and builds one cursor (an
+   * IndexedDB key range) per discrete value. `since`/`until` are folded into
+   * the range bounds; reverse iteration ('prev') yields newest-first.
+   */
+  private static planScan(filter: ParsedFilter): ScanPlan {
+    // created_at is a non-negative unix timestamp, so 0 / +Infinity are safe
+    // open bounds. (Both are valid IndexedDB numeric keys; only NaN is not.)
+    const since = filter.since ?? 0;
+    const until = filter.until ?? Infinity;
+
+    // 1. ids — primary key. The events store's keyPath is `id`, so we range
+    //    each id directly (no created_at component on the primary key).
+    if (filter.ids) {
+      return {
+        indexOnly: filter.indexOnly,
+        cursors: filter.ids.map((id) => ({
+          indexName: undefined,
+          range: IDBKeyRange.only(id),
+        })),
+      };
+    }
+
+    // 2. tags — pick the most selective tag filter (fewest values). The tag
+    //    name and value are separate key elements, so multi-letter names and
+    //    name/value boundaries are unambiguous.
+    if (filter.tags.length > 0) {
+      const tag = filter.tags.reduce((a, b) => (b.values.length < a.values.length ? b : a));
+      return {
+        indexOnly: filter.indexOnly,
+        cursors: tag.values.map((value) => ({
+          indexName: INDEX.tag,
+          range: IDBKeyRange.bound([tag.name, value, since], [tag.name, value, until]),
+        })),
+      };
+    }
+
+    // 3. authors + kinds (bounded combinatorial product) — pubkeyKind index.
+    if (filter.authors && filter.kinds && filter.authors.length * filter.kinds.length < 1000) {
+      const cursors: ScanCursor[] = [];
+      for (const author of filter.authors) {
+        for (const kind of filter.kinds) {
+          cursors.push({
+            indexName: INDEX.pubkeyKind,
+            range: IDBKeyRange.bound([author, kind, since], [author, kind, until]),
+          });
+        }
+      }
+      return { indexOnly: filter.indexOnly, cursors };
+    }
+
+    // 4. authors — pubkey index. If kinds is also present (product too large),
+    //    kinds gets enforced by the post-filter, so this can't be index-only.
+    if (filter.authors) {
+      return {
+        indexOnly: filter.indexOnly && !filter.kinds,
+        cursors: filter.authors.map((author) => ({
+          indexName: INDEX.pubkey,
+          range: IDBKeyRange.bound([author, since], [author, until]),
+        })),
+      };
+    }
+
+    // 5. kinds — kind index.
+    if (filter.kinds) {
+      return {
+        indexOnly: filter.indexOnly,
+        cursors: filter.kinds.map((kind) => ({
+          indexName: INDEX.kind,
+          range: IDBKeyRange.bound([kind, since], [kind, until]),
+        })),
+      };
+    }
+
+    // 6. fallback — full created_at scan over the whole store.
+    return {
+      indexOnly: filter.indexOnly,
+      cursors: [{
+        indexName: INDEX.createdAt,
+        range: IDBKeyRange.bound(since, until),
+      }],
+    };
+  }
+
+  /** COUNT support: number of matching events. */
   async count(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<{ count: number }> {
     const events = await this.query(filters, opts);
     return { count: events.length };
   }
 
-  /**
-   * Remove events matching the filters. Deletes from `nostr_events`; addr
-   * pointers to removed ids are left dangling but harmless (a `query()` for
-   * that addr will resolve the pointer to a missing event and drop it).
-   */
+  /** Remove events matching the filters. */
   async remove(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<void> {
     if (!this.db) return;
     const events = await this.query(filters, opts);
     try {
-      const tx = this.db.transaction(this.eventsStore, 'readwrite');
+      const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
       await Promise.all(events.map((e) => tx.store.delete(e.id)));
       await tx.done;
     } catch {
@@ -267,77 +536,29 @@ export class NIndexedDBStore implements NStore {
     }
   }
 
-  /** Resolve a single filter to its matching events, or `[]` if unsupported. */
-  private async queryFilter(filter: NostrFilter): Promise<NostrEvent[]> {
-    if (!this.db) return [];
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // ── ID filter: { ids: [...] } ──────────────────────────────────────────
-    if (NIndexedDBStore.isIdsFilter(filter)) {
-      const ids = (filter.ids ?? []).filter(NIndexedDBStore.isHex64);
-      return this.getEvents(ids);
+  /** Build the stored representation (event + derived index fields). */
+  private toStored(event: NostrEvent): StoredEvent {
+    const tagsCreated: Array<[string, string, number]> = [];
+    const seen = new Set<string>();
+    for (const [name, value] of this.indexTags(event)) {
+      if (typeof name !== 'string' || typeof value !== 'string') continue;
+      // Collapse duplicate (name, value) pairs. The NUL separator can't appear
+      // in the parts, so distinct pairs never collide in the dedupe set.
+      const dedupeKey = `${name}\u0000${value}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      tagsCreated.push([name, value, event.created_at]);
     }
-
-    // ── Addr filter: { kinds, authors, [#d] } ──────────────────────────────
-    if (NIndexedDBStore.isAddrFilter(filter)) {
-      const kinds = filter.kinds ?? [];
-      const authors = (filter.authors ?? []).filter(NIndexedDBStore.isHex64);
-      const dTags = filter['#d'];
-
-      const keys: string[] = [];
-      for (const kind of kinds) {
-        for (const author of authors) {
-          if (NKinds.addressable(kind)) {
-            // Addressable: a #d tag is required to identify the coordinate.
-            for (const d of dTags ?? []) {
-              keys.push(NIndexedDBStore.addrKey(kind, author, d));
-            }
-          } else {
-            // Replaceable (or legacy single-instance): the d slot is always "".
-            keys.push(NIndexedDBStore.addrKey(kind, author, ''));
-          }
-        }
-      }
-
-      const pointers = await Promise.all(
-        keys.map((key) => this.db!.get(this.addrStore, key) as Promise<AddrPointer | undefined>),
-      );
-
-      const ids = pointers.filter((p): p is AddrPointer => !!p).map((p) => p.id);
-      return this.getEvents(ids);
-    }
-
-    // Unsupported filter shape — contribute nothing.
-    return [];
+    return tagsCreated.length > 0 ? { ...event, _tagsCreated: tagsCreated } : { ...event };
   }
 
-  /** Fetch a set of events by id, dropping any that aren't present. */
-  private async getEvents(ids: string[]): Promise<NostrEvent[]> {
-    const events = await Promise.all(
-      ids.map((id) => this.db!.get(this.eventsStore, id) as Promise<NostrEvent | undefined>),
-    );
-    return events.filter((e): e is NostrEvent => !!e);
-  }
-
-  /**
-   * An ID filter is a filter whose ONLY constraint is `ids`. Adding kinds,
-   * authors, time ranges, etc. would require real indexing we don't have, so
-   * those fall through to "unsupported".
-   */
-  private static isIdsFilter(filter: NostrFilter): boolean {
-    if (!Array.isArray(filter.ids) || filter.ids.length === 0) return false;
-    return Object.keys(filter).every((k) => k === 'ids' || k === 'limit');
-  }
-
-  /**
-   * An addr filter constrains `kinds` and `authors` (and optionally `#d`).
-   * No other constraints are supported.
-   */
-  private static isAddrFilter(filter: NostrFilter): boolean {
-    if (!Array.isArray(filter.kinds) || filter.kinds.length === 0) return false;
-    if (!Array.isArray(filter.authors) || filter.authors.length === 0) return false;
-
-    const allowed = new Set(['kinds', 'authors', '#d', 'limit']);
-    return Object.keys(filter).every((k) => allowed.has(k));
+  /** Strip derived index fields, returning a clean NostrEvent. */
+  private static fromStored(stored: StoredEvent): NostrEvent {
+    if (!('_tagsCreated' in stored)) return stored;
+    const { _tagsCreated: _omit, ...event } = stored;
+    return event;
   }
 
   /** The `d` tag value of an event (defaults to ""). */
@@ -345,37 +566,35 @@ export class NIndexedDBStore implements NStore {
     return event.tags.find(([name]) => name === 'd')?.[1] ?? '';
   }
 
-  /** Build the addr index key for a (kind, pubkey, d) coordinate. */
-  private static addrKey(kind: number, pubkey: string, d: string): string {
-    return `${kind}:${pubkey}:${d}`;
+  /**
+   * Per NIP-01, `a` is "newer" than `b` (same coordinate) when its created_at
+   * is greater, or — on a tie — its id is lexicographically smaller.
+   */
+  private static isNewer(a: NostrEvent, b: NostrEvent): boolean {
+    if (a.created_at > b.created_at) return true;
+    if (a.created_at < b.created_at) return false;
+    return a.id < b.id;
   }
 
-  /**
-   * A NIP-01 `id` is 64 lowercase hex chars. We validate before using values
-   * as IndexedDB keys so a malformed filter can't poison the store or throw.
-   */
-  private static isHex64(value: unknown): value is string {
-    return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+  /** Comparator that orders events newest-first (ties: smaller id first). */
+  private static compareNewest(a: NostrEvent, b: NostrEvent): number {
+    if (a.created_at !== b.created_at) return b.created_at - a.created_at;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   }
+}
 
-  /**
-   * Per NIP-01, an event is "newer" than another with the same coordinate when
-   * its created_at is greater, or — on a tie — its id is lexicographically
-   * smaller. Compares an incoming event to the stored addr pointer.
-   */
-  private static isNewer(event: NostrEvent, pointer: AddrPointer): boolean {
-    if (event.created_at > pointer.created_at) return true;
-    if (event.created_at < pointer.created_at) return false;
-    return event.id < pointer.id;
-  }
+/** Names of the secondary indexes on the events store. */
+type IndexName = (typeof INDEX)[keyof typeof INDEX];
 
-  /**
-   * Like `isNewer`, but compares two events directly. Used while collapsing a
-   * write batch down to the newest event per addr coordinate.
-   */
-  private static isNewerEvent(event: NostrEvent, other: NostrEvent): boolean {
-    if (event.created_at > other.created_at) return true;
-    if (event.created_at < other.created_at) return false;
-    return event.id < other.id;
-  }
+/** One cursor in a scan: an index (or the primary store) plus a key range. */
+interface ScanCursor {
+  /** Index name, or `undefined` to scan the primary key (event id). */
+  indexName?: IndexName;
+  range: IDBKeyRange;
+}
+
+/** A planned scan: the chosen cursors and whether the index alone suffices. */
+interface ScanPlan {
+  indexOnly: boolean;
+  cursors: ScanCursor[];
 }
