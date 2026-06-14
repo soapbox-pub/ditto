@@ -16,7 +16,7 @@ vi.mock('@nostrify/react', () => ({
 const storeQuery = vi.fn<(...args: unknown[]) => Promise<NostrEvent[]>>(() => Promise.resolve([]));
 const storeEvent = vi.fn<() => Promise<void>>(() => Promise.resolve());
 vi.mock('@/hooks/useNostrStorage', () => ({
-  useNostrStorage: () => Promise.resolve({ query: storeQuery, event: storeEvent }),
+  useNostrStorage: () => ({ store: { query: storeQuery, event: storeEvent } }),
 }));
 
 const PUBKEY = 'a'.repeat(64);

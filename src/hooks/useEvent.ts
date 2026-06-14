@@ -64,7 +64,7 @@ async function queryAuthorRelays(
 /** Fetches a single Nostr event by its hex ID, optionally querying relay hints. */
 export function useEvent(eventId: string | undefined, relays?: string[], authorHint?: string) {
   const { nostr } = useNostr();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
 
   return useQuery<NostrEvent | null>({
     queryKey: ['event', eventId ?? '', relays ?? [], authorHint ?? ''],
@@ -74,7 +74,6 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
 
       // 0. Cache-first: an event is immutable for a given id, so a local cache
       //    hit is authoritative — return it and skip the network entirely.
-      const store = await eventStore;
       const [cached] = await store.query(filter);
       if (cached) return cached;
 
@@ -129,7 +128,7 @@ function isAddressableKind(kind: number): boolean {
 /** Fetches a single addressable Nostr event by kind + pubkey + d-tag, optionally querying relay hints. */
 export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
   const { nostr } = useNostr();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
 
   // Seed from the local event store so a known addressable/replaceable event
   // renders immediately. Unlike fetch-by-id, an addr coordinate points at a
@@ -162,7 +161,6 @@ export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
       }
       const filter: NostrFilter[] = [baseFilter];
 
-      const store = await eventStore;
       // The store query drops the `limit`, matching the addr-pointer shape.
       const cacheFilter: NostrFilter = isAddressable
         ? { kinds: [addr.kind], authors: [addr.pubkey], '#d': [addr.identifier] }

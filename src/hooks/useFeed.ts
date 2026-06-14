@@ -67,7 +67,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   // (e.g. posts authored by an unmuted user that embed/mention a muted one).
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
 
   // Build the full kinds list from user settings, or use the override.
   const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
@@ -162,7 +162,6 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Seed the author query cache from the metadata we already fetched
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
-        const store = await eventStore;
         for (const meta of metadataEvents) {
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
             const parsed = parseAuthorEvent(meta);

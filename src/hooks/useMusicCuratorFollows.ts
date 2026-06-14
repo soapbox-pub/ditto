@@ -25,12 +25,11 @@ const MUSIC_CURATOR_PUBKEY = '3f770d65d3a764a9c5cb503ae123e62ec7598ad035d836e2a8
  */
 export function useMusicCuratorFollows() {
   const { nostr } = useNostr();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
 
   return useQuery<string[]>({
     queryKey: ['music-curator-follows', MUSIC_CURATOR_PUBKEY],
     queryFn: async ({ signal }) => {
-      const store = await eventStore;
       const event = await fetchContactList(nostr, store, MUSIC_CURATOR_PUBKEY, { signal });
       return contactListPubkeys(event);
     },

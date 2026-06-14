@@ -24,7 +24,7 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
@@ -41,7 +41,6 @@ export function useAuthors(pubkeys: string[]) {
     let cancelled = false;
 
     void (async () => {
-      const store = await eventStore;
       const cachedEvents = await store.query([{ kinds: [0], authors: uniquePubkeys }]);
       if (cancelled || cachedEvents.length === 0) {
         return;
@@ -72,7 +71,7 @@ export function useAuthors(pubkeys: string[]) {
     return () => {
       cancelled = true;
     };
-  }, [pubkeysKey, uniquePubkeys, eventStore, queryClient]);
+  }, [pubkeysKey, uniquePubkeys, store, queryClient]);
 
   return useQuery<Map<string, AuthorData>>({
     queryKey: ['authors', pubkeysKey],
@@ -87,8 +86,6 @@ export function useAuthors(pubkeys: string[]) {
       for (const pubkey of uniquePubkeys) {
         authorMap.set(pubkey, { pubkey });
       }
-
-      const store = await eventStore;
 
       // Query all profiles. The NostrBatcher proxy will automatically
       // combine this with any other concurrent kind:0 queries.

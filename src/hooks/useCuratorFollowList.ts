@@ -18,7 +18,7 @@ import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 export function useCuratorFollowList() {
   const { nostr } = useNostr();
   const { config } = useAppContext();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
   const curatorPubkey = config.curatorPubkey;
 
   return useQuery<string[]>({
@@ -26,7 +26,6 @@ export function useCuratorFollowList() {
     queryFn: async ({ signal }) => {
       if (!curatorPubkey) return [];
 
-      const store = await eventStore;
       const event = await fetchContactList(nostr, store, curatorPubkey, { signal });
 
       // Include the curator themselves

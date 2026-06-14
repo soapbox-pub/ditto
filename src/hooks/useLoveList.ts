@@ -93,7 +93,7 @@ export function useLoveList() {
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const eventStore = useNostrStorage();
+  const { store } = useNostrStorage();
   const cacheKey = getLoveCacheKey(config.appId);
 
   // Placeholder from localStorage so the Loved tab (and heart markers) render
@@ -105,7 +105,6 @@ export function useLoveList() {
     queryFn: async () => {
       if (!user) return { event: null, pubkeys: [] };
       try {
-        const store = await eventStore;
         const event = await fetchFreshEvent(
           nostr,
           { kinds: [LOVE_LIST_KIND], authors: [user.pubkey] },
@@ -141,7 +140,6 @@ export function useLoveList() {
     if (!user) throw new Error('User is not logged in');
 
     // ① Fetch the freshest kind 15683 (local store acts as a data-loss floor).
-    const store = await eventStore;
     const prev = await fetchFreshEvent(
       nostr,
       { kinds: [LOVE_LIST_KIND], authors: [user.pubkey] },
