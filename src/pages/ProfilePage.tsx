@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -1403,6 +1403,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
   const isOwnProfile = user?.pubkey === pubkey;
 
+  // Whether this profile's Love List (kind 15683) includes the viewer.
+  // No extra query — the love list is already part of the supplementary fetch.
+  const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
+
   // Does the profile owner follow the current user?
   // Wall posts are only visible to people the profile owner follows,
   // so we hide the compose box if the profile owner doesn't follow us.
@@ -1692,7 +1696,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Profile badges for bio section
   const { refs: badgeRefs } = useProfileBadges(pubkey);
   const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
-  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
+  const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -2177,14 +2181,26 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               </div>
 
-              <h2
-                className="text-xl font-bold truncate"
-                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
-              >
-                {metadataEvent ? (
-                  <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
-                ) : displayName}
-              </h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <h2
+                  className="text-xl font-bold truncate"
+                  style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+                >
+                  {metadataEvent ? (
+                    <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
+                </h2>
+                {lovesYou ? (
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
+                    <Heart className="size-3 fill-current" aria-hidden="true" />
+                    Loves you
+                  </span>
+                ) : !isOwnProfile && profileFollowsMe ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Follows you
+                  </span>
+                ) : null}
+              </div>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
@@ -2246,6 +2262,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {badgeRefs.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
                   {firstBadgeRefs.map((ref) => {
+                    if (badgeDefsLoading) {
+                      return <Skeleton key={ref.aTag} className="size-8 rounded-lg" />;
+                    }
                     const badge = badgeMap.get(ref.aTag);
                     if (!badge) return null;
                     return (

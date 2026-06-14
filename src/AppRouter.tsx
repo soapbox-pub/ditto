@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
+import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
@@ -150,6 +151,7 @@ export function AppRouter() {
         <MinimizedAudioBar />
         <AudioNavigationGuard />
         <DeepLinkHandler />
+        <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
