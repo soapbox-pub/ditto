@@ -82,8 +82,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
-      open(url: string) {
-        return new NRelay1(url, {
+      open(relayUrl: string) {
+        const url = new URL(relayUrl);
+        return new NRelay1(url.href, {
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
           auth: async (challenge: string) => {
@@ -95,7 +96,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               kind: 22242,
               content: '',
               tags: [
-                ['relay', url],
+                ['relay', url.href],
                 ['challenge', challenge],
               ],
               created_at: Math.floor(Date.now() / 1000),

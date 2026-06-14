@@ -13,7 +13,7 @@ export const DITTO_RELAYS: string[] = [
 export const DIVINE_RELAY = 'wss://divine.video/';
 
 /** Relay used for Zapstore app metadata (kind 32267) and releases (kind 30063). */
-export const ZAPSTORE_RELAY = 'wss://relay.zapstore.dev';
+export const ZAPSTORE_RELAY = 'wss://relay.zapstore.dev/';
 
 /** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
 function normalizeUrl(url: string): string {
