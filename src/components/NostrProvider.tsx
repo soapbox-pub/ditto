@@ -156,7 +156,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const batcher = useRef<NostrBatcher | undefined>(undefined);
   if (!batcher.current && pool.current) {
     batcher.current = new NostrBatcher(pool.current, eventStore.current);
+    batcher.current.setLoggedInPubkeys(logins.map((l) => l.pubkey));
   }
+
+  // Keep the batcher's notion of "who is logged in" current. It uses this to
+  // decide which events are worth caching: everything from a logged-in account,
+  // plus replaceable events from people those accounts follow.
+  useEffect(() => {
+    batcher.current?.setLoggedInPubkeys(logins.map((l) => l.pubkey));
+  }, [logins]);
 
   // Cleanup: Close all relay connections when the provider unmounts
   useEffect(() => {
