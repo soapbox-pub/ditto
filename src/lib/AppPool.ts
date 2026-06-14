@@ -410,21 +410,29 @@ function isDTagFilter(filter: NostrFilter): boolean {
 }
 
 /**
- * Transparent batching proxy for NPool.
+ * Ditto's custom wrapper around Nostrify's {@link NPool}.
  *
- * Wraps an NPool and intercepts `.query()` calls. When a query uses a
- * recognizable single-item filter pattern (fetch by ID, profile by pubkey,
- * reaction check, d-tag lookup), the request is held for a microtask.
- * If more queries with the same pattern arrive in the same frame, they're
- * combined into one REQ.
+ * `AppPool` is the `nostr` object the whole app talks to via `useNostr()`. It
+ * exposes the same interface as `NPool` (`.query()`, `.event()`, `.req()`,
+ * `.relay()`, `.group()`, `.close()`) and delegates to an underlying pool, but
+ * layers on the app-specific behavior we want every Nostr read and write to go
+ * through. Today that means two things, and it's the natural home for more:
  *
- * All other methods (`.event()`, `.req()`, `.relay()`, `.group()`, `.close()`)
- * pass through directly to the underlying pool.
+ *   1. **Local caching.** Every event that flows out of `.query()`, `.req()`,
+ *      and `.event()` is selectively mirrored into an IndexedDB store (see
+ *      {@link shouldCache}) so subsequent reads can be served locally.
  *
- * Client code doesn't need to know batching exists — it calls
+ *   2. **Transparent request batching.** `.query()` calls that use a
+ *      recognizable single-item filter pattern (fetch by ID, profile by
+ *      pubkey, reaction check, d-tag lookup) are held for a microtask; if more
+ *      queries with the same pattern arrive in the same frame, they're combined
+ *      into a single REQ.
+ *
+ * Methods without app-specific behavior pass through directly to the underlying
+ * pool. Client code doesn't need to know any of this exists — it calls
  * `nostr.query([{ kinds: [0], authors: [pk], limit: 1 }])` as usual.
  */
-export class NostrBatcher {
+export class AppPool {
   /** Batches replaceable-kind queries by pubkey, merging kinds per pubkey into one REQ. */
   private replaceableCollector: ReplaceableCollector;
   private eventCollector: BatchCollector<NostrEvent | undefined>;

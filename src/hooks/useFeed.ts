@@ -214,7 +214,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         }
 
         // Seed event cache so embedded note previews resolve instantly.
-        // Authors, stats, and reactions are batched automatically by NostrBatcher
+        // Authors, stats, and reactions are batched automatically by AppPool
         // when NoteCard components mount.
         cacheEvents(dedupedItems);
 

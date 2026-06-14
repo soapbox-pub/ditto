@@ -78,7 +78,7 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
       if (cached) return cached;
 
       // 1. Query the user's configured relays first (batched automatically).
-      //    Batched results are mirrored into the cache by the NostrBatcher.
+      //    Batched results are mirrored into the cache by the AppPool.
       const events = await nostr.query(filter, { signal: AbortSignal.timeout(5000) });
       if (events.length > 0) return events[0];
 

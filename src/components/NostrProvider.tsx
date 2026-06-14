@@ -5,7 +5,7 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { NostrBatcher } from '@/lib/NostrBatcher';
+import { AppPool } from '@/lib/AppPool';
 import { type EventsDB, EVENTS_STORE, INDEX, NIndexedDB } from '@/lib/NIndexedDB';
 import { type IDBPDatabase, openDB } from 'idb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
@@ -22,10 +22,10 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Open the IndexedDB event store once. It's shared two ways: the batcher
+  // Open the IndexedDB event store once. It's shared two ways: the AppPool
   // writes every relay result into it (cache-first reads elsewhere), and it's
   // provided through NostrStorageContext so hooks can read it directly. Opening
-  // it here lets the batcher and
+  // it here lets the AppPool and
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
   const eventStore = useRef<NIndexedDB | undefined>(undefined);
@@ -151,21 +151,23 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     });
   }
 
-  // Wrap the pool in a batching proxy. The proxy intercepts `.query()`
-  // calls to automatically combine batchable filter patterns (profiles,
-  // events by ID, reactions, d-tag lookups) into single REQs.
-  // All other methods pass through directly to the underlying pool.
-  const batcher = useRef<NostrBatcher | undefined>(undefined);
-  if (!batcher.current && pool.current) {
-    batcher.current = new NostrBatcher(pool.current, eventStore.current);
-    batcher.current.setLoggedInPubkeys(logins.map((l) => l.pubkey));
+  // Wrap the pool in our app-specific AppPool. It has the same interface as
+  // NPool but layers on local caching and transparent request batching:
+  // `.query()` calls are intercepted to automatically combine batchable filter
+  // patterns (profiles, events by ID, reactions, d-tag lookups) into single
+  // REQs, and results are mirrored into the local cache. All other methods pass
+  // through directly to the underlying pool.
+  const appPool = useRef<AppPool | undefined>(undefined);
+  if (!appPool.current && pool.current) {
+    appPool.current = new AppPool(pool.current, eventStore.current);
+    appPool.current.setLoggedInPubkeys(logins.map((l) => l.pubkey));
   }
 
-  // Keep the batcher's notion of "who is logged in" current. It uses this to
+  // Keep the AppPool's notion of "who is logged in" current. It uses this to
   // decide which events are worth caching: everything from a logged-in account,
   // plus replaceable events from people those accounts follow.
   useEffect(() => {
-    batcher.current?.setLoggedInPubkeys(logins.map((l) => l.pubkey));
+    appPool.current?.setLoggedInPubkeys(logins.map((l) => l.pubkey));
   }, [logins]);
 
   // Cleanup: Close all relay connections when the provider unmounts
@@ -177,12 +179,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     };
   }, []);
 
-  // Provide the batcher as the `nostr` object. It has the same interface
-  // as NPool, so hooks using `useNostr()` get transparent batching.
-  // The `as unknown as NPool` cast is safe because NostrBatcher exposes
+  // Provide the AppPool as the `nostr` object. It has the same interface
+  // as NPool, so hooks using `useNostr()` get transparent caching and batching.
+  // The `as unknown as NPool` cast is safe because AppPool exposes
   // all the same methods hooks use: query, event, req, relay, group, close.
   return (
-    <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
+    <NostrContext.Provider value={{ nostr: (appPool.current ?? pool.current) as unknown as NPool }}>
       <NostrStorageContext.Provider value={eventStore.current}>
         {children}
       </NostrStorageContext.Provider>
