@@ -27,8 +27,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // it here lets the batcher and
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
-  const eventStore = useRef<Promise<NIndexedDB> | undefined>(undefined);
-  eventStore.current ??= NIndexedDB.open();
+  const eventStore = useRef<NIndexedDB | undefined>(undefined);
+  eventStore.current ??= new NIndexedDB(NIndexedDB.openDatabase());
 
 
   // Use refs so the pool always has the latest data

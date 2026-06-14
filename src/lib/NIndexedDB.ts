@@ -124,10 +124,46 @@ export class NIndexedDB implements NStore {
   /** Whether a flush is already scheduled for the current burst. */
   private flushScheduled = false;
 
-  private constructor(
-    private readonly db: IDBPDatabase<EventsDB> | null,
-    private readonly indexTags: (event: NostrEvent) => string[][],
-  ) {}
+  private readonly indexTags: (event: NostrEvent) => string[][];
+
+  /**
+   * The database connection, or a promise resolving to it. Every method awaits
+   * this via {@link getDB} before touching IndexedDB, so the caller can pass a
+   * still-opening connection straight into the constructor without a separate
+   * async factory. Resolves to `null` if IndexedDB is unavailable, in which
+   * case every method silently degrades.
+   */
+  private readonly db:
+    | IDBPDatabase<EventsDB>
+    | null
+    | Promise<IDBPDatabase<EventsDB> | null>;
+
+  /**
+   * Wrap a database connection (or a promise for one) in a store.
+   *
+   * The promise form means no async factory is needed: a caller can kick off
+   * {@link NIndexedDB.openDatabase} and hand the pending promise directly to
+   * this constructor, since every method awaits the connection before use.
+   * Pass `null` to get a no-op store (e.g. when IndexedDB is unavailable).
+   */
+  constructor(
+    db:
+      | IDBPDatabase<EventsDB>
+      | null
+      | Promise<IDBPDatabase<EventsDB> | null>,
+    opts: NIndexedDBOpts = {},
+  ) {
+    this.db = db;
+    this.indexTags = opts.indexTags ?? NIndexedDB.indexTags;
+  }
+
+  /**
+   * Await the database connection. Returns `null` when IndexedDB is
+   * unavailable (or the open failed), so callers can short-circuit to a no-op.
+   */
+  private async getDB(): Promise<IDBPDatabase<EventsDB> | null> {
+    return this.db;
+  }
 
   /**
    * Default tag index policy: index every single-letter tag with a non-empty
@@ -138,17 +174,15 @@ export class NIndexedDB implements NStore {
   }
 
   /**
-   * Open (or create) the events database. Returns a store whose underlying
-   * database may be `null` if IndexedDB is unavailable — in that case every
-   * method silently degrades.
+   * Open (or create) the events database. Resolves to the connection, or
+   * `null` if IndexedDB is unavailable. The result can be passed straight into
+   * the {@link NIndexedDB} constructor — including as the still-pending promise.
    */
-  static async open(opts: NIndexedDBOpts = {}): Promise<NIndexedDB> {
+  static async openDatabase(opts: NIndexedDBOpts = {}): Promise<IDBPDatabase<EventsDB> | null> {
     const { name = 'ditto-events', version = 2 } = opts;
-    const indexTags = opts.indexTags ?? NIndexedDB.indexTags;
 
-    let db: IDBPDatabase<EventsDB> | null = null;
     try {
-      db = await openDB<EventsDB>(name, version, {
+      return await openDB<EventsDB>(name, version, {
         upgrade(db) {
           // The schema is an incompatible rewrite of the old `nostr_events` /
           // `addr` layout. The store is a disposable cache (everything
@@ -169,9 +203,8 @@ export class NIndexedDB implements NStore {
       });
     } catch {
       // IndexedDB unavailable — degrade to a no-op store.
-      db = null;
+      return null;
     }
-    return new NIndexedDB(db, indexTags);
   }
 
   // ── Write path ────────────────────────────────────────────────────────────
@@ -183,7 +216,8 @@ export class NIndexedDB implements NStore {
    * promise resolves once the batch this event belongs to has committed.
    */
   event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
-    if (!this.db) return Promise.resolve();
+    // The connection may still be opening (or be `null` when IndexedDB is
+    // unavailable); `flushWrites` awaits and short-circuits on `null`.
 
     // Ephemeral events are never stored.
     if (NKinds.ephemeral(event.kind)) return Promise.resolve();
@@ -230,13 +264,14 @@ export class NIndexedDB implements NStore {
     this.pendingWrites = new Map();
     this.pendingResolvers = [];
 
-    if (!this.db || events.length === 0) {
+    const db = await this.getDB();
+    if (!db || events.length === 0) {
       for (const resolve of resolvers) resolve();
       return;
     }
 
     try {
-      const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
+      const tx = db.transaction(EVENTS_STORE, 'readwrite');
       const store = tx.objectStore(EVENTS_STORE);
 
       // Resolve supersession for every replaceable/addressable event in the
@@ -420,12 +455,13 @@ export class NIndexedDB implements NStore {
    * write queue.
    */
   async query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
-    if (!this.db) return [];
+    const db = await this.getDB();
+    if (!db) return [];
 
     const byId = new Map<string, NostrEvent>();
 
     try {
-      const tx = this.db.transaction(EVENTS_STORE, 'readonly');
+      const tx = db.transaction(EVENTS_STORE, 'readonly');
       const store = tx.objectStore(EVENTS_STORE);
 
       for (const filter of filters) {
@@ -594,10 +630,11 @@ export class NIndexedDB implements NStore {
 
   /** Remove events matching the filters. */
   async remove(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<void> {
-    if (!this.db) return;
+    const db = await this.getDB();
+    if (!db) return;
     const events = await this.query(filters, opts);
     try {
-      const tx = this.db.transaction(EVENTS_STORE, 'readwrite');
+      const tx = db.transaction(EVENTS_STORE, 'readwrite');
       await Promise.all(events.map((e) => tx.store.delete(e.id)));
       await tx.done;
     } catch {

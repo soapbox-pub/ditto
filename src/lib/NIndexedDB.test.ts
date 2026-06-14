@@ -16,7 +16,7 @@ beforeEach(async () => {
   dbName = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.length = 0;
   openedDbNames.push(dbName);
-  store = await NIndexedDB.open({ name: dbName });
+  store = new NIndexedDB(NIndexedDB.openDatabase({ name: dbName }));
 });
 
 afterEach(async () => {
@@ -29,10 +29,10 @@ afterEach(async () => {
 });
 
 /** Open an additional store with custom options, tracked for cleanup. */
-async function openStore(opts: Omit<NIndexedDBOpts, 'name'> = {}): Promise<NIndexedDB> {
+function openStore(opts: Omit<NIndexedDBOpts, 'name'> = {}): NIndexedDB {
   const name = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.push(name);
-  return NIndexedDB.open({ ...opts, name });
+  return new NIndexedDB(NIndexedDB.openDatabase({ ...opts, name }), opts);
 }
 
 /** Build a minimal valid-shaped event. The id is deterministic-ish for tests. */

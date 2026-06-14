@@ -4,12 +4,12 @@ import { NostrStorageContext, type NostrStorageContextType } from '@/contexts/No
 /**
  * Access the app-wide IndexedDB event store.
  *
- * Returns a `Promise<NIndexedDB>`; `await` it inside a query function:
+ * Returns an `NIndexedDB`. Its connection may still be opening, but every
+ * method awaits it internally, so you can call methods directly:
  *
  * ```ts
- * const eventStore = useNostrStorage();
+ * const store = useNostrStorage();
  * // …
- * const store = await eventStore;
  * await store.event(event);
  * ```
  */

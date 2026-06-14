@@ -448,7 +448,7 @@ export class NostrBatcher {
    * (see {@link shouldCache}): it keeps every event authored by a logged-in
    * account, plus replaceable events authored by anyone those accounts follow.
    */
-  private store?: Promise<NStore>;
+  private store?: NStore;
 
   /**
    * Pubkeys of the currently logged-in accounts. Kept in sync by
@@ -465,7 +465,7 @@ export class NostrBatcher {
    */
   private followedPubkeys?: Promise<Set<string>>;
 
-  constructor(private pool: NPool, store?: Promise<NStore>) {
+  constructor(private pool: NPool, store?: NStore) {
     this.store = store;
     this.replaceableCollector = new ReplaceableCollector(pool);
     this.eventCollector = new BatchCollector((ids, signal) =>
@@ -540,9 +540,10 @@ export class NostrBatcher {
    * critical path of a relay read.
    */
   private cacheEvents(events: NostrEvent[]): void {
-    if (!this.store || events.length === 0) return;
-    void this.store
-      .then(async (store) => {
+    const store = this.store;
+    if (!store || events.length === 0) return;
+    void (async () => {
+      try {
         const followed = await this.getFollowedPubkeys(store);
         const toCache = events.filter((event) => this.shouldCache(event, followed));
         if (toCache.length === 0) return;
@@ -552,10 +553,10 @@ export class NostrBatcher {
         if (toCache.some((event) => event.kind === 3 && this.loggedInPubkeys.has(event.pubkey))) {
           this.followedPubkeys = undefined;
         }
-      })
-      .catch(() => {
+      } catch {
         // Best-effort cache; ignore write failures.
-      });
+      }
+    })();
   }
 
   /**
