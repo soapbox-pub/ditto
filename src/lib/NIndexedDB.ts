@@ -1,4 +1,4 @@
-import { type DBSchema, type IDBPDatabase, type IDBPObjectStore, openDB } from 'idb';
+import { type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb';
 import { type NostrEvent, type NostrFilter, NKinds, type NStore } from '@nostrify/nostrify';
 
 // ============================================================================
@@ -57,10 +57,10 @@ import { type NostrEvent, type NostrFilter, NKinds, type NStore } from '@nostrif
 // ============================================================================
 
 /** The default events object store name. */
-const EVENTS_STORE = 'events';
+export const EVENTS_STORE = 'events';
 
 /** Index names on the events store. */
-const INDEX = {
+export const INDEX = {
   createdAt: 'by-created_at',
   pubkey: 'by-pubkey',
   kind: 'by-kind',
@@ -75,7 +75,7 @@ interface StoredEvent extends NostrEvent {
 }
 
 /** Strongly-typed IndexedDB schema for the events store. */
-interface EventsDB extends DBSchema {
+export interface EventsDB extends DBSchema {
   [EVENTS_STORE]: {
     key: string;
     value: StoredEvent;
@@ -98,10 +98,6 @@ type EventsStore<M extends IDBTransactionMode> = IDBPObjectStore<
 >;
 
 export interface NIndexedDBOpts {
-  /** Database name. Defaults to `ditto-events`. */
-  name?: string;
-  /** Schema version. Defaults to `2`. */
-  version?: number;
   /**
    * Returns which tags to index, as `[name, value]` pairs, so tag queries like
    * `{ "#p": [...] }` work. Defaults to all single-letter tags with a non-empty
@@ -141,9 +137,9 @@ export class NIndexedDB implements NStore {
   /**
    * Wrap a database connection (or a promise for one) in a store.
    *
-   * The promise form means no async factory is needed: a caller can kick off
-   * {@link NIndexedDB.openDatabase} and hand the pending promise directly to
-   * this constructor, since every method awaits the connection before use.
+   * The promise form means no async factory is needed: a caller can open the
+   * database with `idb`'s `openDB` and hand the still-pending promise directly
+   * to this constructor, since every method awaits the connection before use.
    * Pass `null` to get a no-op store (e.g. when IndexedDB is unavailable).
    */
   constructor(
@@ -171,40 +167,6 @@ export class NIndexedDB implements NStore {
    */
   static indexTags(event: NostrEvent): string[][] {
     return event.tags.filter(([name, value]) => name.length === 1 && !!value && value.length < 200);
-  }
-
-  /**
-   * Open (or create) the events database. Resolves to the connection, or
-   * `null` if IndexedDB is unavailable. The result can be passed straight into
-   * the {@link NIndexedDB} constructor — including as the still-pending promise.
-   */
-  static async openDatabase(opts: NIndexedDBOpts = {}): Promise<IDBPDatabase<EventsDB> | null> {
-    const { name = 'ditto-events', version = 2 } = opts;
-
-    try {
-      return await openDB<EventsDB>(name, version, {
-        upgrade(db) {
-          // The schema is an incompatible rewrite of the old `nostr_events` /
-          // `addr` layout. The store is a disposable cache (everything
-          // re-fetches from relays), so we drop the old stores and start fresh
-          // rather than migrating. Old store names aren't in the typed schema,
-          // so iterate via the untyped name list.
-          for (const existing of Array.from(db.objectStoreNames) as string[]) {
-            db.deleteObjectStore(existing as typeof EVENTS_STORE);
-          }
-
-          const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
-          store.createIndex(INDEX.createdAt, 'created_at');
-          store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
-          store.createIndex(INDEX.kind, ['kind', 'created_at']);
-          store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
-          store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
-        },
-      });
-    } catch {
-      // IndexedDB unavailable — degrade to a no-op store.
-      return null;
-    }
   }
 
   // ── Write path ────────────────────────────────────────────────────────────

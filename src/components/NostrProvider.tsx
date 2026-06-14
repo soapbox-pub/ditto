@@ -6,7 +6,8 @@ import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
-import { NIndexedDB } from '@/lib/NIndexedDB';
+import { type EventsDB, EVENTS_STORE, INDEX, NIndexedDB } from '@/lib/NIndexedDB';
+import { type IDBPDatabase, openDB } from 'idb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
 
 interface NostrProviderProps {
@@ -28,7 +29,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
   const eventStore = useRef<NIndexedDB | undefined>(undefined);
-  eventStore.current ??= new NIndexedDB(NIndexedDB.openDatabase());
+  eventStore.current ??= new NIndexedDB(openNostrStorage());
 
 
   // Use refs so the pool always has the latest data
@@ -190,3 +191,35 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 };
 
 export default NostrProvider;
+
+/**
+ * Open (or create) the events cache database. Resolves to the connection, or
+ * `null` if IndexedDB is unavailable — passed straight into the `NIndexedDB`
+ * constructor, which awaits it internally and degrades to a no-op on `null`.
+ */
+async function openNostrStorage(): Promise<IDBPDatabase<EventsDB> | null> {
+  try {
+    return await openDB<EventsDB>('ditto-events', 2, {
+      upgrade(db) {
+        // The schema is an incompatible rewrite of the old `nostr_events` /
+        // `addr` layout. The store is a disposable cache (everything
+        // re-fetches from relays), so we drop the old stores and start fresh
+        // rather than migrating. Old store names aren't in the typed schema,
+        // so iterate via the untyped name list.
+        for (const existing of Array.from(db.objectStoreNames) as string[]) {
+          db.deleteObjectStore(existing as typeof EVENTS_STORE);
+        }
+
+        const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
+        store.createIndex(INDEX.createdAt, 'created_at');
+        store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
+        store.createIndex(INDEX.kind, ['kind', 'created_at']);
+        store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
+        store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
+      },
+    });
+  } catch {
+    // IndexedDB unavailable — degrade to a no-op store.
+    return null;
+  }
+}

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { type IDBPDatabase, openDB } from 'idb';
 
-import { NIndexedDB, type NIndexedDBOpts } from './NIndexedDB';
+import { type EventsDB, EVENTS_STORE, INDEX, NIndexedDB, type NIndexedDBOpts } from './NIndexedDB';
 
 // Each test gets a fresh, uniquely-named database so there's no cross-test
 // state. fake-indexeddb (loaded in src/test/setup.ts) provides the IndexedDB
@@ -12,11 +13,28 @@ let dbName: string;
 let counter = 0;
 const openedDbNames: string[] = [];
 
+/** Open the events database with the same schema NostrProvider installs. */
+function openDatabase(name: string): Promise<IDBPDatabase<EventsDB>> {
+  return openDB<EventsDB>(name, 2, {
+    upgrade(db) {
+      for (const existing of Array.from(db.objectStoreNames) as string[]) {
+        db.deleteObjectStore(existing as typeof EVENTS_STORE);
+      }
+      const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
+      store.createIndex(INDEX.createdAt, 'created_at');
+      store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
+      store.createIndex(INDEX.kind, ['kind', 'created_at']);
+      store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
+      store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
+    },
+  });
+}
+
 beforeEach(async () => {
   dbName = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.length = 0;
   openedDbNames.push(dbName);
-  store = new NIndexedDB(NIndexedDB.openDatabase({ name: dbName }));
+  store = new NIndexedDB(openDatabase(dbName));
 });
 
 afterEach(async () => {
@@ -29,10 +47,10 @@ afterEach(async () => {
 });
 
 /** Open an additional store with custom options, tracked for cleanup. */
-function openStore(opts: Omit<NIndexedDBOpts, 'name'> = {}): NIndexedDB {
+function openStore(opts: NIndexedDBOpts = {}): NIndexedDB {
   const name = `test-events-${Date.now()}-${counter++}`;
   openedDbNames.push(name);
-  return new NIndexedDB(NIndexedDB.openDatabase({ ...opts, name }), opts);
+  return new NIndexedDB(openDatabase(name), opts);
 }
 
 /** Build a minimal valid-shaped event. The id is deterministic-ish for tests. */
