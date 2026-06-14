@@ -223,10 +223,6 @@ export function useOnchainZap(
     },
     onSuccess: (result) => {
       notificationSuccess();
-      // Optimistically mark the target as zapped-by-me so the action-bar
-      // bolt icon fills immediately, without waiting for the relay to echo
-      // the kind 8333 back through useUserZap's REQ.
-      queryClient.setQueryData(['user-zap', target.id], true);
       // Invalidate caches that track zaps / balances
       queryClient.invalidateQueries({ queryKey: ['onchain-zaps'] });
       queryClient.invalidateQueries({ queryKey: ['event-interactions'] });

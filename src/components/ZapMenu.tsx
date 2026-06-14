@@ -12,13 +12,10 @@ import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
 interface ZapMenuProps {
   event: NostrEvent;
   /**
-   * The lightning-icon button. Use a render-prop to receive the `isZapped`
-   * state (matches the pattern in {@link RepostMenu}). The button itself
-   * doesn't need an onClick — the menu wires it up.
+   * The lightning-icon button. The button itself doesn't need an onClick —
+   * the menu wires it up.
    */
-  children: React.ReactNode | ((isZapped: boolean) => React.ReactNode);
-  /** Whether the current user has already zapped this event (fills the icon). */
-  isZapped: boolean;
+  children: React.ReactNode;
 }
 
 /**
@@ -35,14 +32,14 @@ interface ZapMenuProps {
  * Mirrors the trigger render-prop pattern used by RepostMenu so PostActionBar
  * can supply its existing styled icon button as the trigger.
  */
-export function ZapMenu({ event, children, isZapped }: ZapMenuProps) {
+export function ZapMenu({ event, children }: ZapMenuProps) {
   const { user } = useCurrentUser();
   const { canSignPsbt } = useBitcoinSigner();
   const [menuOpen, setMenuOpen] = useState(false);
   const [zapAllOpen, setZapAllOpen] = useState(false);
   const [zapAuthorOpen, setZapAuthorOpen] = useState(false);
 
-  const trigger = typeof children === 'function' ? children(isZapped) : children;
+  const trigger = children;
 
   // Parse list members up-front so we know whether to render the "Zap all"
   // option at all. Filters the sender out (you can't zap yourself).

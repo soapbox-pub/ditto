@@ -7,7 +7,6 @@ import { RepostMenu } from '@/components/RepostMenu';
 import { ZapMenu } from '@/components/ZapMenu';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
-import { useUserZap } from '@/hooks/useUserZap';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { formatNumber } from '@/lib/formatNumber';
 import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
@@ -46,9 +45,6 @@ export function PostActionBar({
   const hasOtherMembers = isPeopleListKind(event.kind)
     && parsePeopleList(event).pubkeys.some((pk) => pk !== user?.pubkey);
   const canZapAuthor = !!user && (!isOwnEvent || hasOtherMembers);
-  // Fills the bolt icon after the user has zapped this event on either rail.
-  // Suppressed on the user's own list events (no self-zap to track).
-  const isZapped = useUserZap(canZapAuthor && !isOwnEvent ? event.id : undefined) === true;
 
   const { data: stats } = useEventStats(event.id, event);
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
@@ -98,21 +94,19 @@ export function PostActionBar({
 
       {/* Zap */}
       {canZapAuthor && (
-        <ZapMenu event={event} isZapped={isZapped}>
+        <ZapMenu event={event}>
           <button
             type="button"
             className={cn(
               'flex items-center gap-1.5 rounded-full transition-colors',
-              isZapped
-                ? 'text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10'
-                : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
+              'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
               compact ? "p-1.5 sm:p-2" : "p-2",
             )}
-            title={isZapped ? 'Zapped' : 'Zap'}
+            title="Zap"
           >
             <Zap
               className={compact ? "size-[18px] sm:size-5" : "size-5"}
-              fill={isZapped ? 'currentColor' : 'none'}
+              fill="none"
             />
             {stats?.zapAmount ? (
               <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>

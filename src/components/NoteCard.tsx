@@ -118,7 +118,6 @@ import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
-import { useUserZap } from "@/hooks/useUserZap";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
@@ -420,10 +419,6 @@ export const NoteCard = memo(function NoteCard({
   // On-chain zaps are always available; Lightning is offered inside the dialog
   // when the author has lud06/lud16.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
-  // Fills the bolt icon once the user has zapped this event on either rail.
-  // Optimistic cache is set by the send hooks, so the icon fills instantly
-  // on success without waiting for the relay echo.
-  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   // Profile-zap variants: when the card targets a recipient profile rather
   // than a specific note, the action bar attaches to the recipient's kind-0
@@ -432,7 +427,6 @@ export const NoteCard = memo(function NoteCard({
   const recipientEvent = recipient.data?.event;
   const { data: recipientStats } = useEventStats(recipientEvent?.id, recipientEvent);
   const canZapRecipient = !!user && !!profileZapRecipient && user.pubkey !== profileZapRecipient;
-  const isRecipientZapped = useUserZap(canZapRecipient ? recipientEvent?.id : undefined) === true;
 
   // Money formatter (USD by default, with sats fallback). Reused for the
   // "X zapped Y" wrapper header and the kind 9735 zap-receipt card below.
@@ -887,14 +881,12 @@ export const NoteCard = memo(function NoteCard({
     target?: NostrEvent;
     targetStats?: typeof stats;
     canZap?: boolean;
-    zapped?: boolean;
     onReply?: () => void;
     onMore?: () => void;
   }) => {
     const t = opts?.target ?? event;
     const s = opts?.targetStats ?? stats;
     const cz = opts?.canZap ?? canZapAuthor;
-    const zd = opts?.zapped ?? isZapped;
     const reply = opts?.onReply ?? (() => setReplyOpen(true));
     const more = opts?.onMore ?? (() => setMoreMenuOpen(true));
     return (
@@ -951,16 +943,14 @@ export const NoteCard = memo(function NoteCard({
               type="button"
               className={cn(
                 "flex items-center gap-1.5 rounded-full transition-colors",
-                zd
-                  ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
-                  : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+                "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
-              title={zd ? "Zapped" : "Zap"}
+              title="Zap"
             >
               <Zap
                 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
-                fill={zd ? "currentColor" : "none"}
+                fill="none"
               />
               {s?.zapAmount ? (
                 <span className="text-sm tabular-nums">
@@ -1211,7 +1201,6 @@ export const NoteCard = memo(function NoteCard({
               target: recipientEvent,
               targetStats: recipientStats,
               canZap: canZapRecipient,
-              zapped: isRecipientZapped,
               onReply: () => setRecipientReplyOpen(true),
               onMore: () => setRecipientMoreMenuOpen(true),
             })}
