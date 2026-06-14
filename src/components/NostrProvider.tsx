@@ -24,7 +24,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Open the IndexedDB event store once. It's shared two ways: the batcher
   // writes every relay result into it (cache-first reads elsewhere), and it's
   // provided through NostrStorageContext so hooks can read it directly. Opening
-  // it here (rather than in a child NostrStorageProvider) lets the batcher and
+  // it here lets the batcher and
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
   const eventStore = useRef<Promise<NIndexedDB> | undefined>(undefined);

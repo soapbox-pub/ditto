@@ -16,7 +16,7 @@ import { NostrStorageContext, type NostrStorageContextType } from '@/contexts/No
 export function useNostrStorage(): NostrStorageContextType {
   const context = useContext(NostrStorageContext);
   if (!context) {
-    throw new Error('useNostrStorage must be used within an NostrStorageProvider');
+    throw new Error('useNostrStorage must be used within a NostrProvider');
   }
   return context;
 }
