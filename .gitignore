@@ -39,9 +39,6 @@ deploy.sh
 # Build-time configuration
 ditto.json
 
-# Bundle-analysis report (rollup-plugin-visualizer)
-bundle-report.html
-
 # Android build outputs and sensitive files
 *.aab
 resources/

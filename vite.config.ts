@@ -127,6 +127,15 @@ function getCommitTag(): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
+  // The nsite build (`vite build --mode nsite`) emits a minimal number of files.
+  // nsite is published by signing a site *manifest* (the list of every file in
+  // dist/) through a NIP-46 bunker, which NIP-44-encrypts the whole sign_event
+  // request — and that must stay under 65535 bytes. The normal ~470-chunk build
+  // overflows it ("invalid plaintext size"). In nsite mode we disable code
+  // splitting so the app ships as one app.js + one app.css, dropping dist/ to
+  // ~one-third the files. Every other build keeps fine-grained lazy loading.
+  const isNsite = mode === 'nsite';
+
   return {
   server: {
     host: "::",
@@ -136,9 +145,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     visualizer({
-      // Write the bundle-analysis report outside dist/ so it is not published
-      // to the public nsite and does not count toward the manifest file list.
-      filename: "bundle-report.html",
+      filename: "dist/bundle.html",
       template: "treemap",
       gzipSize: true,
     }),
@@ -165,35 +172,27 @@ export default defineConfig(({ mode }) => {
   build: {
     target: 'esnext',
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
-          if (id.includes('node_modules/lucide-react')) {
-            return 'lucide-icons';
+      output: isNsite
+        ? {
+            // Disable code splitting so every dynamic import folds into the single
+            // entry chunk: the build emits exactly one JS file, and Vite emits one
+            // CSS file alongside it.
+            codeSplitting: false,
+            entryFileNames: 'assets/app-[hash].js',
+            assetFileNames: (assetInfo: { names?: string[] }) => {
+              const name = assetInfo.names?.[0] ?? '';
+              if (name.endsWith('.css')) return 'assets/app-[hash].css';
+              return 'assets/[name]-[hash][extname]';
+            },
           }
-          // Group third-party code into a few stable vendor chunks. This keeps
-          // the dist/ file count (and therefore the nsite manifest) small enough
-          // to sign through a NIP-46 bunker, whose sign_event request is
-          // NIP-44-encrypted and must stay under 65535 bytes. Splitting by
-          // library (rather than one giant vendor chunk) preserves lazy loading
-          // so routes only fetch the vendor code they need. Fonts are left alone
-          // so their per-weight lazy loading still works.
-          if (id.includes('node_modules') && !id.includes('@fontsource')) {
-            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
-              return 'vendor-react';
-            }
-            if (id.includes('node_modules/@nostrify') || id.includes('node_modules/nostr-tools') || id.includes('node_modules/@noble') || id.includes('node_modules/@scure') || id.includes('node_modules/applesauce')) {
-              return 'vendor-nostr';
-            }
-            if (id.includes('node_modules/@radix-ui')) {
-              return 'vendor-radix';
-            }
-            if (id.includes('node_modules/@tanstack')) {
-              return 'vendor-tanstack';
-            }
-          }
-        },
-      },
+        : {
+            manualChunks(id: string) {
+              // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+              if (id.includes('node_modules/lucide-react')) {
+                return 'lucide-icons';
+              }
+            },
+          },
     },
   },
   optimizeDeps: {
