@@ -7,7 +7,6 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 import { NIndexedDB } from '@/lib/NIndexedDB';
-import { contactListPubkeys, readCachedContactList } from '@/lib/contactList';
 import { EventStoreContext } from '@/contexts/EventStoreContext';
 
 interface NostrProviderProps {
@@ -22,74 +21,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Live eviction inputs for the IndexedDB cache, read fresh on each prune pass
-  // (after a write flush). Kept in a ref so the store — opened once below —
-  // sees the current login set, the current AppConfig max age, and the current
-  // follow set without being recreated.
-  //
-  // `followedPubkeys` is the union of the contact lists of all logged-in
-  // accounts. It's populated/refreshed from the cache by the effect below; it
-  // starts empty, which is safe — at worst an extra prune pass before the
-  // follow lists are read, and eviction is throttled and best-effort anyway.
-  const followedRef = useRef<Set<string>>(new Set());
-  const evictionRef = useRef<{
-    maxAge: number;
-    protectedPubkeys: Set<string>;
-    followedPubkeys: Set<string>;
-  }>({
-    maxAge: config.maxCachedEventAge,
-    protectedPubkeys: new Set(logins.map((l) => l.pubkey)),
-    followedPubkeys: followedRef.current,
-  });
-  evictionRef.current = {
-    maxAge: config.maxCachedEventAge,
-    protectedPubkeys: new Set(logins.map((l) => l.pubkey)),
-    followedPubkeys: followedRef.current,
-  };
-
   // Open the IndexedDB event store once. It's shared two ways: the batcher
   // writes every relay result into it (cache-first reads elsewhere), and it's
   // provided through EventStoreContext so hooks can read it directly. Opening
   // it here (rather than in a child EventStoreProvider) lets the batcher and
-  // the rest of the app share a single connection.
+  // the rest of the app share a single connection. The cache is append-only;
+  // it is never automatically pruned.
   const eventStore = useRef<Promise<NIndexedDB> | undefined>(undefined);
-  eventStore.current ??= NIndexedDB.open({
-    evictionPolicy: () => evictionRef.current,
-  });
-
-  // Refresh the follow set (union of all logins' cached contact lists) whenever
-  // the login set changes. Reads come from the local cache so this is cheap and
-  // off the network; the contact-list display hooks keep that cache warm. The
-  // resulting set is mutated in place on `followedRef.current` so the
-  // already-captured `evictionRef` reference stays valid.
-  const loginPubkeys = logins.map((l) => l.pubkey).join(',');
-  useEffect(() => {
-    let cancelled = false;
-    const pubkeys = loginPubkeys ? loginPubkeys.split(',') : [];
-
-    (async () => {
-      const store = await eventStore.current;
-      if (!store || cancelled) return;
-
-      const lists = await Promise.all(
-        pubkeys.map((pk) => readCachedContactList(store, pk).catch(() => null)),
-      );
-      if (cancelled) return;
-
-      const next = new Set<string>();
-      for (const list of lists) {
-        for (const pk of contactListPubkeys(list)) next.add(pk);
-      }
-      // Update the ref the next render reads, and patch the live policy object
-      // directly so the change takes effect without waiting for a re-render.
-      followedRef.current = next;
-      evictionRef.current.followedPubkeys = next;
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loginPubkeys]);
+  eventStore.current ??= NIndexedDB.open();
 
 
   // Use refs so the pool always has the latest data
