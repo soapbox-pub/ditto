@@ -9,4 +9,4 @@ import type { NIndexedDB } from '@/lib/NIndexedDB';
  */
 export type EventStoreContextType = Promise<NIndexedDB>;
 
-export const EventStoreContext = createContext<EventStoreContextType | null>(null);
+export const NostrStorageContext = createContext<EventStoreContextType | null>(null);

@@ -7,7 +7,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 import { NIndexedDB } from '@/lib/NIndexedDB';
-import { EventStoreContext } from '@/contexts/EventStoreContext';
+import { NostrStorageContext } from '@/contexts/NostrStorageContext';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -23,8 +23,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
   // Open the IndexedDB event store once. It's shared two ways: the batcher
   // writes every relay result into it (cache-first reads elsewhere), and it's
-  // provided through EventStoreContext so hooks can read it directly. Opening
-  // it here (rather than in a child EventStoreProvider) lets the batcher and
+  // provided through NostrStorageContext so hooks can read it directly. Opening
+  // it here (rather than in a child NostrStorageProvider) lets the batcher and
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
   const eventStore = useRef<Promise<NIndexedDB> | undefined>(undefined);
@@ -182,9 +182,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // all the same methods hooks use: query, event, req, relay, group, close.
   return (
     <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
-      <EventStoreContext.Provider value={eventStore.current}>
+      <NostrStorageContext.Provider value={eventStore.current}>
         {children}
-      </EventStoreContext.Provider>
+      </NostrStorageContext.Provider>
     </NostrContext.Provider>
   );
 };

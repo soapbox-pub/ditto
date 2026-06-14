@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { EventStoreContext, type EventStoreContextType } from '@/contexts/EventStoreContext';
+import { NostrStorageContext, type EventStoreContextType } from '@/contexts/NostrStorageContext';
 
 /**
  * Access the app-wide IndexedDB event store.
@@ -14,9 +14,9 @@ import { EventStoreContext, type EventStoreContextType } from '@/contexts/EventS
  * ```
  */
 export function useEventStore(): EventStoreContextType {
-  const context = useContext(EventStoreContext);
+  const context = useContext(NostrStorageContext);
   if (!context) {
-    throw new Error('useEventStore must be used within an EventStoreProvider');
+    throw new Error('useEventStore must be used within an NostrStorageProvider');
   }
   return context;
 }

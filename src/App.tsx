@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { AppProvider } from "@/components/AppProvider";
-import { EventStoreProvider } from "@/components/EventStoreProvider";
+import { NostrStorageProvider } from "@/components/NostrStorageProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -207,7 +207,7 @@ export function App() {
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
-                  <EventStoreProvider>
+                  <NostrStorageProvider>
                     <NostrSync />
                     <NativeNotifications />
 
@@ -220,7 +220,7 @@ export function App() {
                           </TooltipProvider>
                         </EmotionDevProvider>
                       </NWCProvider>
-                  </EventStoreProvider>
+                  </NostrStorageProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>
