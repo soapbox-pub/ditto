@@ -1,7 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 
 /**
@@ -18,7 +18,7 @@ import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 export function useCuratorFollowList() {
   const { nostr } = useNostr();
   const { config } = useAppContext();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
   const curatorPubkey = config.curatorPubkey;
 
   return useQuery<string[]>({

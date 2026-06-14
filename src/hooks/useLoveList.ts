@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { useEventStore } from './useEventStore';
+import { useNostrStorage } from './useNostrStorage';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
@@ -93,7 +93,7 @@ export function useLoveList() {
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
   const cacheKey = getLoveCacheKey(config.appId);
 
   // Placeholder from localStorage so the Loved tab (and heart markers) render

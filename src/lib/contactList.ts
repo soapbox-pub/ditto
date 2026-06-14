@@ -28,7 +28,7 @@ const DEFAULT_TIMEOUT = 8000;
  *
  * Returns the relay's copy when available (and caches it), otherwise the
  * locally cached copy, otherwise `null`. The `store` is the app-wide event
- * store, typically obtained from `useEventStore()`.
+ * store, typically obtained from `useNostrStorage()`.
  */
 export async function fetchContactList(
   nostr: NPool,

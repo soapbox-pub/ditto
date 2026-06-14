@@ -7,6 +7,6 @@ import type { NIndexedDB } from '@/lib/NIndexedDB';
  * it inside their query functions — the promise resolves once IndexedDB is
  * open (or immediately to a no-op store when IndexedDB is unavailable).
  */
-export type EventStoreContextType = Promise<NIndexedDB>;
+export type NostrStorageContextType = Promise<NIndexedDB>;
 
-export const NostrStorageContext = createContext<EventStoreContextType | null>(null);
+export const NostrStorageContext = createContext<NostrStorageContextType | null>(null);

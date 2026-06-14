@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 
 /** Kinds whose canonical home is the Zapstore relay. */
@@ -64,7 +64,7 @@ async function queryAuthorRelays(
 /** Fetches a single Nostr event by its hex ID, optionally querying relay hints. */
 export function useEvent(eventId: string | undefined, relays?: string[], authorHint?: string) {
   const { nostr } = useNostr();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   return useQuery<NostrEvent | null>({
     queryKey: ['event', eventId ?? '', relays ?? [], authorHint ?? ''],
@@ -129,7 +129,7 @@ function isAddressableKind(kind: number): boolean {
 /** Fetches a single addressable Nostr event by kind + pubkey + d-tag, optionally querying relay hints. */
 export function useAddrEvent(addr: AddrCoords | undefined, relays?: string[]) {
   const { nostr } = useNostr();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   // Seed from the local event store so a known addressable/replaceable event
   // renders immediately. Unlike fetch-by-id, an addr coordinate points at a

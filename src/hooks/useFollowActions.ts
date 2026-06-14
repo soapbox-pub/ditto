@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { useEventStore } from './useEventStore';
+import { useNostrStorage } from './useNostrStorage';
 import { useCacheFirstSeed } from './useCacheFirstSeed';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
@@ -32,7 +32,7 @@ export interface FollowListData {
 export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   // Seed from the locally cached kind 3 so the follow list (and therefore the
   // home/follows feed, which gates on it) is available on first render without
@@ -91,7 +91,7 @@ export function useFollowActions(): UseFollowActionsReturn {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   const [isPending, setIsPending] = useState(false);
 

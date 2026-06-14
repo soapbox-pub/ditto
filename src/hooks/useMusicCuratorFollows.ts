@@ -1,7 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
 
 /**
@@ -25,7 +25,7 @@ const MUSIC_CURATOR_PUBKEY = '3f770d65d3a764a9c5cb503ae123e62ec7598ad035d836e2a8
  */
 export function useMusicCuratorFollows() {
   const { nostr } = useNostr();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   return useQuery<string[]>({
     queryKey: ['music-curator-follows', MUSIC_CURATOR_PUBKEY],

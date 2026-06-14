@@ -7,7 +7,7 @@ import { useFollowList } from './useFollowActions';
 import { useLoveList } from './useLoveList';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
-import { useEventStore } from './useEventStore';
+import { useNostrStorage } from './useNostrStorage';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import {
   getPaginationCursor,
@@ -67,7 +67,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   // (e.g. posts authored by an unmuted user that embed/mention a muted one).
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   // Build the full kinds list from user settings, or use the override.
   const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);

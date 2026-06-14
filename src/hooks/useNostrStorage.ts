@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { NostrStorageContext, type EventStoreContextType } from '@/contexts/NostrStorageContext';
+import { NostrStorageContext, type NostrStorageContextType } from '@/contexts/NostrStorageContext';
 
 /**
  * Access the app-wide IndexedDB event store.
@@ -7,16 +7,16 @@ import { NostrStorageContext, type EventStoreContextType } from '@/contexts/Nost
  * Returns a `Promise<NIndexedDB>`; `await` it inside a query function:
  *
  * ```ts
- * const eventStore = useEventStore();
+ * const eventStore = useNostrStorage();
  * // …
  * const store = await eventStore;
  * await store.event(event);
  * ```
  */
-export function useEventStore(): EventStoreContextType {
+export function useNostrStorage(): NostrStorageContextType {
   const context = useContext(NostrStorageContext);
   if (!context) {
-    throw new Error('useEventStore must be used within an NostrStorageProvider');
+    throw new Error('useNostrStorage must be used within an NostrStorageProvider');
   }
   return context;
 }

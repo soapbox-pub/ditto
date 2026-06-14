@@ -2,7 +2,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { type QueryKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 interface CacheFirstSeedOptions<T> {
   /**
@@ -38,7 +38,7 @@ interface CacheFirstSeedOptions<T> {
 export function useCacheFirstSeed<T>(opts: CacheFirstSeedOptions<T>): void {
   const { queryKey, filter, toData, getEvent } = opts;
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   // Serialize the key so the effect re-runs when it changes by value.
   const queryKeyString = queryKey ? JSON.stringify(queryKey) : '';

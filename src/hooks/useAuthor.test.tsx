@@ -15,8 +15,8 @@ vi.mock('@nostrify/react', () => ({
 // Control the IndexedDB-backed event store per-test.
 const storeQuery = vi.fn<(...args: unknown[]) => Promise<NostrEvent[]>>(() => Promise.resolve([]));
 const storeEvent = vi.fn<() => Promise<void>>(() => Promise.resolve());
-vi.mock('@/hooks/useEventStore', () => ({
-  useEventStore: () => Promise.resolve({ query: storeQuery, event: storeEvent }),
+vi.mock('@/hooks/useNostrStorage', () => ({
+  useNostrStorage: () => Promise.resolve({ query: storeQuery, event: storeEvent }),
 }));
 
 const PUBKEY = 'a'.repeat(64);

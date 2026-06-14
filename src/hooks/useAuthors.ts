@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 export interface AuthorData {
   pubkey: string;
@@ -24,7 +24,7 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const eventStore = useNostrStorage();
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
