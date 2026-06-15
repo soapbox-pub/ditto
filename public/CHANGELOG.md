@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.23.2] - 2026-06-14
+
+Ditto feels faster. Posts and profiles you've already seen now load instantly from your device, your own posts show up the moment you publish them, and the app holds up better when your connection is spotty. App pages also gained an Active Users graph so you can see how busy an app is at a glance, and the music section has a fresh set of curated artists to discover.
+
+### Added
+- App pages now show an Active Users graph
+
+### Changed
+- The app now stores content on your device for instant loads, immediate display of your own posts, and smoother browsing on flaky connections
+- Refreshed the curated artists and follows powering the music Discover section
+
 ## [2.23.1] - 2026-06-12
 
 Profiles get more expressive. Your profile now shows how many people love you, linking straight to the list, and visitors can see at a glance when you follow them back or have them on your Love List. The Loved tab is tidier too, showing only original posts from the people you love. On Android, the back gesture on the home screen now minimizes the app like you'd expect, and a few rough edges in articles and feeds have been smoothed out.
