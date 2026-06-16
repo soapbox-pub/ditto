@@ -9,6 +9,8 @@ import {
   EyeOff,
   Heart,
   Loader2,
+  Plus,
+  ShieldCheck,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -16,6 +18,7 @@ import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
+import { getStorageKey } from "@/lib/storageKey";
 import {
   type ReactNode,
   useCallback,
@@ -28,7 +31,7 @@ import { DittoLogo } from "@/components/DittoLogo";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
-import { ThemeGrid } from "@/components/ThemeSelector";
+import { ThemeGrid, ThemeSelector } from "@/components/ThemeSelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +68,7 @@ interface InitialSyncGateProps {
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { phase, markComplete } = useInitialSync();
   const { isLoading: settingsLoading } = useEncryptedSettings();
   const [preloadApp, setPreloadApp] = useState(false);
@@ -76,9 +80,21 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const startSignup = useCallback(() => setSignupActive(true), []);
 
   const handleSignupComplete = useCallback(() => {
+    // Land brand-new users on the Ditto feed instead of their (empty)
+    // Following feed. useFeedTab reads this sessionStorage key on init, so
+    // seeding it here nudges only the just-onboarded user — existing users,
+    // who already have a value or default to Follows, are untouched.
+    try {
+      sessionStorage.setItem(
+        getStorageKey(config.appId, "feed-tab:home"),
+        "ditto",
+      );
+    } catch {
+      // sessionStorage unavailable — fall back to default tab behavior.
+    }
     setSignupActive(false);
     markComplete();
-  }, [markComplete]);
+  }, [markComplete, config.appId]);
 
   const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
 
@@ -221,13 +237,21 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Suggested follow packs shown to new users with empty follow lists. */
-const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
+const SUGGESTED_PACKS: {
+  kind: number;
+  pubkey: string;
+  identifier: string;
+  /** Optional friendlier description shown instead of the pack's own. */
+  description?: string;
+}[] =
   [
     {
       kind: 39089,
       pubkey:
         "932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d",
       identifier: "k4p5w0n22suf",
+      description:
+        "People building tools, communities, and strange new corners of the internet.",
     },
   ];
 
@@ -400,8 +424,16 @@ function SetupQuestionnaire({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Ambient warmth — a soft, static brand-tinted gradient so the flow
+          doesn't feel flat. Non-interactive and behind all content. The theme
+          step paints its own background above this (z-0 / z-10). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_-10%,hsl(var(--primary)/0.10),transparent_60%)]"
+      />
+
       {/* Progress bar */}
-      <div className="h-1 bg-muted">
+      <div className="relative h-1 bg-muted">
         <div
           className="h-full bg-primary transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
@@ -409,7 +441,7 @@ function SetupQuestionnaire({
       </div>
 
       {/* Content area */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="relative flex-1 flex flex-col overflow-y-auto">
         <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
           {step === "welcome" && <WelcomeStep onNext={next} />}
@@ -467,9 +499,9 @@ function SetupQuestionnaire({
  * intentional, warm tone before theme selection without affecting behavior.
  */
 const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
-  { id: "personal", emoji: "💛", label: "Feel more personal" },
-  { id: "customize", emoji: "🎨", label: "Let me customize more" },
-  { id: "conversations", emoji: "💬", label: "Show me better conversations" },
+  { id: "personal", emoji: "🪴", label: "Feel more like my space" },
+  { id: "control", emoji: "🎛️", label: "Give me more control" },
+  { id: "conversations", emoji: "💬", label: "Show better conversations" },
   { id: "freedom", emoji: "🕊️", label: "Feel less controlled" },
   { id: "fun", emoji: "✨", label: "Make posting fun again" },
   { id: "fresh", emoji: "🌱", label: "Give me a fresh start" },
@@ -491,16 +523,21 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col items-center text-center gap-4">
-        <DittoLogo size={64} />
+        <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+          {/* Soft glow behind the logo for a little warmth */}
+          <div className="absolute -inset-4 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+          <DittoLogo size={64} className="relative" />
+        </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Make Ditto feel like yours
+          <h1 className="text-2xl font-bold tracking-tight text-balance">
+            Let's make the internet feel like yours again
           </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Most social apps ask you to fit into their world. Ditto works a
-            little differently. Let's start by shaping it around you.
+          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
+            Most social apps make every account feel the same. Ditto gives you
+            more room to shape your space, your conversations, and how you show
+            up.
           </p>
         </div>
       </div>
@@ -511,7 +548,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         </legend>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {WELCOME_CHOICES.map((choice) => {
+          {WELCOME_CHOICES.map((choice, i) => {
             const isSelected = selected.has(choice.id);
             return (
               <button
@@ -519,16 +556,25 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
                 type="button"
                 aria-pressed={isSelected}
                 onClick={() => toggle(choice.id)}
+                style={{ animationDelay: `${i * 50}ms` }}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
+                  "group relative flex items-center gap-3 rounded-xl border p-3.5 text-left",
+                  "transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  "motion-safe:active:scale-[0.98]",
+                  "motion-safe:active:scale-[0.97] motion-safe:hover:-translate-y-0.5",
                   isSelected
-                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm shadow-primary/10"
                     : "border-border bg-card hover:border-primary/40 hover:bg-accent",
                 )}
               >
-                <span className="text-xl leading-none" aria-hidden="true">
+                <span
+                  className={cn(
+                    "text-xl leading-none transition-transform duration-200",
+                    "motion-safe:group-hover:scale-110",
+                    isSelected && "motion-safe:scale-110",
+                  )}
+                  aria-hidden="true"
+                >
                   {choice.emoji}
                 </span>
                 <span className="flex-1 text-sm font-medium">
@@ -536,9 +582,9 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
                 </span>
                 <span
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                    "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
                     isSelected
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-primary bg-primary text-primary-foreground motion-safe:zoom-in"
                       : "border-muted-foreground/30 text-transparent",
                   )}
                 >
@@ -552,7 +598,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
       <Button
         size="lg"
-        className="w-full gap-2 rounded-full h-12"
+        className="w-full gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
         onClick={onNext}
       >
         {selected.size > 0 ? "Continue" : "Skip for now"}
@@ -569,24 +615,34 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <DittoLogo size={80} />
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={80} className="relative" />
+      </div>
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
           Create your account
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key. We'll generate one
-          for you now.
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty">
+          Ditto works differently. In most apps, your account belongs to the
+          company, so they can reset it, lock it, or change the rules. Here,
+          your account belongs to you. That gives you more freedom — and a
+          little more responsibility. We'll create a private key for you and
+          help you keep it safe.
+        </p>
+        <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
+          Your private key is a cryptographic secret that proves this account
+          is yours.
         </p>
       </div>
 
       <Button
         size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
         onClick={onGenerate}
       >
-        Generate my key
+        Create my account key
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -622,10 +678,11 @@ function DownloadStep({
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Your secret key
+          Save your key
         </h2>
-        <p className="text-sm text-muted-foreground">
-          This secret key controls your account on {config.appName}. You'll need it to log in later. Without it, you'll lose your account.
+        <p className="text-sm text-muted-foreground text-pretty">
+          This key is how {config.appName} knows it's really you. Keep it
+          somewhere safe so you can come back later.
         </p>
       </div>
 
@@ -653,10 +710,19 @@ function DownloadStep({
         </Button>
       </div>
 
+      {/* Calm, always-visible safety note — "protect what's yours", not a scare. */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
+        <ShieldCheck className="size-4 mt-0.5 shrink-0 text-primary" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          If you lose it, you may lose access to this account. If someone else
+          gets it, they can use your account too.
+        </p>
+      </div>
+
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300">
-            NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account.{" "}
+            Keep your key private. Avoid screenshotting it or pasting it anywhere except a password manager — anyone who has it can use your account.{" "}
             <a
               href="https://soapbox.pub/blog/managing-nostr-keys/"
               onClick={(e) => {
@@ -825,10 +891,11 @@ function ProfileStep({
         <IntroImage src="/profile-intro.png" />
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">
-            Set up your profile
+            Make yourself recognizable
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Tell people a bit about yourself. You can always change this later.
+          <p className="text-sm text-muted-foreground text-pretty">
+            Add a name, photo, or short line so people know who they're
+            meeting. You can change this anytime.
           </p>
         </div>
       </div>
@@ -917,6 +984,29 @@ function ThemeStep({
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
   const bgUrl = activeConfig?.background?.url;
 
+  // Discovery: track how many *distinct* themes the user tries. Once they've
+  // explored 2+, we gently reveal the "create your own" affordance — it should
+  // feel like a discovery, not an extra required step. Selections apply
+  // locally via useTheme even when logged out, so a custom theme built here
+  // persists and can be published later from Settings once the key exists.
+  const [tried, setTried] = useState<Set<string>>(new Set());
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const themeKey = theme === "custom"
+    ? `custom:${JSON.stringify(customTheme?.colors)}`
+    : theme;
+  // Record each distinct theme the user lands on, including the initial one.
+  // Once the set reaches 2, the user has explored beyond their starting theme.
+  useEffect(() => {
+    setTried((prev) => {
+      if (prev.has(themeKey)) return prev;
+      const next = new Set(prev);
+      next.add(themeKey);
+      return next;
+    });
+  }, [themeKey]);
+
+  const showCustomReveal = tried.size >= 2;
+
   return (
     <>
       {/* Background image — full screen behind everything */}
@@ -941,14 +1031,49 @@ function ThemeStep({
           <h2 className="text-xl font-semibold tracking-tight">
             {fromWelcome ? "Good. Let's start with the look" : "Choose your look"}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {fromWelcome
-              ? "Let's make Ditto feel like yours. Pick a theme — you can change it anytime."
-              : "Pick a theme that feels right."}
+          <p className="text-sm text-muted-foreground transition-opacity duration-300">
+            {showCustomReveal
+              ? "Trying things out? Nice. You can also create your own look."
+              : "Pick a starting theme. You can change it anytime."}
           </p>
         </div>
 
         <ThemeGrid columns="scroll" limit={9} />
+
+        {/* Discovery reveal: a subtle "create your own" affordance that only
+            appears once the user has explored a couple of themes. */}
+        {showCustomReveal && (
+          <button
+            type="button"
+            onClick={() => setBuilderOpen(true)}
+            className={cn(
+              "group flex items-center gap-3 rounded-xl border-2 border-dashed border-border p-3.5 text-left",
+              "transition-all duration-200 hover:border-primary/50 hover:bg-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
+              "motion-safe:active:scale-[0.98]",
+            )}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              <Plus className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Create your own</span>
+              <span className="block text-xs text-muted-foreground">
+                Mix your own colors, font, and background.
+              </span>
+            </span>
+          </button>
+        )}
+
+        {/* The custom theme builder — reuses the existing ThemeSelector dialog.
+            Logged out, it's a purely local color/font/background editor (no
+            publish buttons), so it's safe to use before the account exists. */}
+        <ThemeSelector
+          builderOpen={builderOpen}
+          onBuilderOpenChange={setBuilderOpen}
+          builderMode="new"
+        />
 
         {isFirst ? (
           <Button
@@ -1013,6 +1138,17 @@ function parsePackEvent(event: NostrEvent) {
   return { title, description, image, pubkeys };
 }
 
+/** Look up a friendlier curated description for a known suggested pack. */
+function getPackDescriptionOverride(event: NostrEvent): string | undefined {
+  const identifier = event.tags.find(([n]) => n === "d")?.[1];
+  return SUGGESTED_PACKS.find(
+    (p) =>
+      p.kind === event.kind &&
+      p.pubkey === event.pubkey &&
+      p.identifier === identifier,
+  )?.description;
+}
+
 function FollowsStep({
   onNext,
   onBack,
@@ -1030,6 +1166,7 @@ function FollowsStep({
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   const [packs, setPacks] = useState<NostrEvent[]>([]);
@@ -1134,11 +1271,11 @@ function FollowsStep({
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Find your people
+          Start with a few interesting voices
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Your feed is empty! Follow some people to get started. Here are some
-          curated packs to help you find interesting voices.
+        <p className="text-sm text-muted-foreground text-pretty">
+          Your feed gets better when you follow people. Here's a small group to
+          help {config.appName} feel alive from the start.
         </p>
       </div>
 
@@ -1157,6 +1294,7 @@ function FollowsStep({
             <PackCard
               key={pack.id}
               event={pack}
+              descriptionOverride={getPackDescriptionOverride(pack)}
               isFollowed={followedPacks.has(pack.id)}
               isFollowing={followingPack === pack.id}
               onFollowAll={() => handleFollowAll(pack)}
@@ -1188,11 +1326,13 @@ function FollowsStep({
 /** Compact follow pack card for the onboarding flow. */
 function PackCard({
   event,
+  descriptionOverride,
   isFollowed,
   isFollowing,
   onFollowAll,
 }: {
   event: NostrEvent;
+  descriptionOverride?: string;
   isFollowed: boolean;
   isFollowing: boolean;
   onFollowAll: () => void;
@@ -1202,20 +1342,28 @@ function PackCard({
     [event],
   );
 
+  const displayDescription = descriptionOverride || description;
+
   // Show first 6 member avatars
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
   const { data: membersMap } = useAuthors(previewPubkeys);
 
   return (
-    <div className="rounded-xl ring-1 ring-border overflow-hidden">
+    <div
+      className={cn(
+        "rounded-xl ring-1 ring-border overflow-hidden bg-card/50",
+        "transition-all duration-200 hover:ring-primary/40 hover:shadow-sm",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
+      )}
+    >
       <div className="p-4 space-y-3">
         {/* Title + member count */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="font-semibold text-sm leading-snug">{title}</h3>
-            {description && (
+            {displayDescription && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {description}
+                {displayDescription}
               </p>
             )}
           </div>
@@ -1228,15 +1376,21 @@ function PackCard({
         {/* Member avatar stack */}
         <div className="flex items-center gap-1">
           <div className="flex -space-x-2">
-            {previewPubkeys.map((pk) => {
+            {previewPubkeys.map((pk, i) => {
               const member = membersMap?.get(pk);
               const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
               return (
-                <MiniAvatar
+                <div
                   key={pk}
-                  src={member?.metadata?.picture}
-                  name={name}
-                />
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  className="motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:fill-mode-both"
+                >
+                  <MiniAvatar
+                    src={member?.metadata?.picture}
+                    name={name}
+                    metadata={member?.metadata}
+                  />
+                </div>
               );
             })}
           </div>
@@ -1249,7 +1403,7 @@ function PackCard({
 
         {/* Follow All button */}
         <Button
-          className="w-full gap-2"
+          className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
           size="sm"
           variant={isFollowed ? "outline" : "default"}
           onClick={onFollowAll}
@@ -1338,27 +1492,28 @@ function PackCardSkeleton() {
 function OutroStep({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="relative">
-        <DittoLogo size={72} />
-        <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5">
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={72} className="relative" />
+        <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5 motion-safe:animate-in motion-safe:zoom-in motion-safe:duration-500 motion-safe:delay-200 motion-safe:fill-mode-both">
           <Heart className="w-5 h-5 text-primary fill-primary" />
         </div>
       </div>
 
       <div className="space-y-3 max-w-xs">
-        <h2 className="text-2xl font-bold tracking-tight">You're all set</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          That's it! Go find something wonderful, share something fun, and make
-          yourself at home.
+        <h2 className="text-2xl font-bold tracking-tight">You're in.</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+          Your space is ready. Go explore, follow a few interesting people, or
+          post something small to make it yours.
         </p>
       </div>
 
       <Button
         size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
         onClick={onComplete}
       >
-        Let's go
+        Start exploring
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
