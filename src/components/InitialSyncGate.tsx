@@ -393,6 +393,36 @@ function SetupQuestionnaire({
   // Signup-specific state
   const [nsec, setNsec] = useState("");
 
+  // Local-only background image chosen in the mini theme customizer. Kept here,
+  // at the top of the onboarding flow, so the picture the user chooses on the
+  // theme step stays softly visible behind every subsequent step — it should
+  // feel like they're shaping their Ditto space, not decorating one screen.
+  //
+  // This is an in-memory object URL and is NEVER written into `customTheme`
+  // (which would leak a `blob:` URL into localStorage, encrypted settings, and
+  // auto-published theme events), never uploaded to Blossom, and never
+  // persisted as base64. It lives only for the duration of this flow.
+  const [localBgUrl, setLocalBgUrl] = useState<string | undefined>(undefined);
+
+  // Replace/remove: revoke the previous object URL so we don't leak it.
+  const handleLocalBackground = useCallback((url: string | undefined) => {
+    setLocalBgUrl((prev) => {
+      if (prev && prev !== url) URL.revokeObjectURL(prev);
+      return url;
+    });
+  }, []);
+
+  // Final safety net: revoke whatever object URL is live when the whole
+  // onboarding flow unmounts (completed, cancelled, or logged out). We read it
+  // from a ref so this effect runs cleanup exactly once, on unmount.
+  const localBgUrlRef = useRef<string | undefined>(undefined);
+  localBgUrlRef.current = localBgUrl;
+  useEffect(() => {
+    return () => {
+      if (localBgUrlRef.current) URL.revokeObjectURL(localBgUrlRef.current);
+    };
+  }, []);
+
   // Derived pubkey for the just-generated nsec. Used as a defensive guard at
   // every signup publish site to ensure we sign with the *new* account, not a
   // previously logged-in one. Without this, a regression in useLoginActions's
@@ -528,12 +558,24 @@ function SetupQuestionnaire({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Ambient warmth — a soft, static brand-tinted gradient so the flow
-          doesn't feel flat. Non-interactive and behind all content. The theme
-          step paints its own background above this (z-0 / z-10). */}
+          doesn't feel flat. Non-interactive and behind all content. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_-10%,hsl(var(--primary)/0.10),transparent_60%)]"
       />
+
+      {/* Ambient local background image. Once the user picks a picture in the
+          mini customizer, it stays softly visible behind every onboarding step.
+          Kept low-opacity (and faintly blurred) so text stays readable; the
+          base `bg-background` above provides the readable surface, this layer
+          just adds personality. */}
+      {localBgUrl && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-40 blur-[1px] transition-opacity duration-700 motion-safe:animate-in motion-safe:fade-in"
+          style={{ backgroundImage: `url(${localBgUrl})` }}
+        />
+      )}
 
       {/* Progress bar */}
       <div className="relative h-1 bg-muted">
@@ -575,6 +617,8 @@ function SetupQuestionnaire({
               isFirst={steps.indexOf("theme") === 0}
               fromWelcome={isSignup}
               isSaving={!isSignup && isSaving}
+              localBgUrl={localBgUrl}
+              onLocalBackgroundChange={handleLocalBackground}
             />
           )}
 
@@ -1131,6 +1175,8 @@ function ThemeStep({
   isFirst = false,
   fromWelcome = false,
   isSaving = false,
+  localBgUrl,
+  onLocalBackgroundChange,
 }: {
   onNext: () => void;
   onBack: () => void;
@@ -1138,6 +1184,14 @@ function ThemeStep({
   /** Whether the user arrived here from the welcome step (signup flow). */
   fromWelcome?: boolean;
   isSaving?: boolean;
+  /**
+   * In-memory object URL for the locally-chosen background, owned by
+   * SetupQuestionnaire so it persists across all onboarding steps. Undefined
+   * when the user hasn't picked one.
+   */
+  localBgUrl?: string;
+  /** Set or clear the local background image (parent owns the URL lifecycle). */
+  onLocalBackgroundChange: (url: string | undefined) => void;
 }) {
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
@@ -1166,31 +1220,6 @@ function ThemeStep({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const hasInteracted = useRef(false);
 
-  // Local-only background image chosen in the mini customizer. This is kept
-  // as an in-memory object URL and NEVER written into `customTheme` — see the
-  // MiniThemeCustomizer comments for why. It drives the full-screen onboarding
-  // preview below so the user can see their picture applied, but it does not
-  // touch AppContext, localStorage, encrypted settings, or publish behavior.
-  const [localBgUrl, setLocalBgUrl] = useState<string | undefined>(undefined);
-
-  // Revoke the object URL when the step unmounts so we don't leak it.
-  useEffect(() => {
-    return () => {
-      if (localBgUrl) URL.revokeObjectURL(localBgUrl);
-    };
-    // We intentionally only run cleanup on unmount; replacement revocation is
-    // handled in handleLocalBackground so a re-render here wouldn't revoke a
-    // URL that's still in use.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleLocalBackground = useCallback((url: string | undefined) => {
-    setLocalBgUrl((prev) => {
-      if (prev && prev !== url) URL.revokeObjectURL(prev);
-      return url;
-    });
-  }, []);
-
   const themeKey = theme === "custom"
     ? `custom:${JSON.stringify(customTheme?.colors)}`
     : theme;
@@ -1213,26 +1242,35 @@ function ThemeStep({
 
   const showCustomReveal = picked.size >= 2;
 
-  // The full-screen preview prefers a locally-chosen image, falling back to the
-  // active theme's published background.
-  const previewBgUrl = localBgUrl ?? bgUrl;
+  // The theme-step content is laid over the ambient background painted by
+  // SetupQuestionnaire. We give it a readable semi-transparent surface whenever
+  // *any* background is visible — either a locally-chosen image (shown across
+  // all steps) or the active theme's own published background.
+  const hasBg = Boolean(localBgUrl ?? bgUrl);
 
   return (
     <>
-      {/* Background image — full screen behind everything */}
-      {previewBgUrl && (
+      {/* Theme-step-only background: when the user hasn't chosen a local image,
+          preview the *active theme's* own published background here so picking
+          a preset with art feels live. A locally-chosen image is handled one
+          level up by SetupQuestionnaire (so it spans every step), so we skip
+          this layer when one is set to avoid stacking two images. */}
+      {!localBgUrl && bgUrl && (
         <div
+          aria-hidden="true"
           className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
-          style={{ backgroundImage: `url(${previewBgUrl})` }}
+          style={{ backgroundImage: `url(${bgUrl})` }}
         />
       )}
 
-      {/* Center content — semi-transparent on desktop when bg is active */}
+      {/* Content — semi-transparent on desktop when a background is active so
+          the ambient image (rendered by SetupQuestionnaire) shows through
+          without hurting readability. */}
       <div
         className={cn(
           "relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400",
           "sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700",
-          previewBgUrl
+          hasBg
             ? "sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4"
             : "",
         )}
@@ -1252,21 +1290,31 @@ function ThemeStep({
 
         {/* Discovery reveal: a small, local-only "create your own" affordance
             that appears once the user has explored a couple of themes. Opens a
-            tiny color customizer — NOT the full ThemeSelector. */}
+            tiny color customizer — NOT the full ThemeSelector.
+
+            Entrance is a small "plim" discovery moment: a quick zoom-in + glow
+            pulse and a one-shot ring ping on the icon. All purely motion-safe —
+            reduced-motion users just get the card, no movement. No sound. */}
         {showCustomReveal && (
           <button
             type="button"
             onClick={() => setCustomizerOpen(true)}
             className={cn(
-              "group flex items-center gap-3 rounded-xl border-2 border-dashed border-border p-3.5 text-left",
+              "group relative flex items-center gap-3 rounded-xl border-2 border-dashed border-border p-3.5 text-left",
               "transition-all duration-200 hover:border-primary/50 hover:bg-accent",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
+              // "Plim": zoom + fade entrance, slightly springy easing.
+              "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 motion-safe:ease-out",
               "motion-safe:active:scale-[0.98]",
             )}
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
-              <Plus className="size-4" />
+            <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              {/* One-shot glow ring that pings outward on reveal, then settles. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-primary/40 motion-safe:animate-ping motion-safe:[animation-iteration-count:2] motion-reduce:hidden"
+              />
+              <Plus className="size-4 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-500" />
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-medium">Create your own</span>
@@ -1284,7 +1332,7 @@ function ThemeStep({
           open={customizerOpen}
           onOpenChange={setCustomizerOpen}
           localBgUrl={localBgUrl}
-          onLocalBackgroundChange={handleLocalBackground}
+          onLocalBackgroundChange={onLocalBackgroundChange}
         />
 
         {isFirst ? (
