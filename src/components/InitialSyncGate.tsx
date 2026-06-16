@@ -231,12 +231,13 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
     },
   ];
 
-// Steps for signup (includes keygen + profile) vs. settings-only (existing login)
-type SignupStep = "keygen" | "download" | "profile";
+// Steps for signup (includes welcome + keygen + profile) vs. settings-only (existing login)
+type SignupStep = "welcome" | "keygen" | "download" | "profile";
 type SettingsStep = "theme" | "follows" | "outro";
 type Step = SignupStep | SettingsStep;
 
 const SIGNUP_STEPS: Step[] = [
+  "welcome",
   "theme",
   "keygen",
   "download",
@@ -411,6 +412,8 @@ function SetupQuestionnaire({
       <div className="flex-1 flex flex-col overflow-y-auto">
         <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
+          {step === "welcome" && <WelcomeStep onNext={next} />}
+
           {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
@@ -430,7 +433,8 @@ function SetupQuestionnaire({
             <ThemeStep
               onNext={isSignup ? next : handleSaveAndContinue}
               onBack={back}
-              isFirst={isSignup && steps.indexOf("theme") === 0}
+              isFirst={steps.indexOf("theme") === 0}
+              fromWelcome={isSignup}
               isSaving={!isSignup && isSaving}
             />
           )}
@@ -449,6 +453,111 @@ function SetupQuestionnaire({
           {step === "outro" && <OutroStep onComplete={onComplete} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Welcome Step
+// ---------------------------------------------------------------------------
+
+/**
+ * Lightweight, non-technical choices that let a new user express what they
+ * want out of a social app. Selections are UI-only for now — they set an
+ * intentional, warm tone before theme selection without affecting behavior.
+ */
+const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
+  { id: "personal", emoji: "💛", label: "Feel more personal" },
+  { id: "customize", emoji: "🎨", label: "Let me customize more" },
+  { id: "conversations", emoji: "💬", label: "Show me better conversations" },
+  { id: "freedom", emoji: "🕊️", label: "Feel less controlled" },
+  { id: "fun", emoji: "✨", label: "Make posting fun again" },
+  { id: "fresh", emoji: "🌱", label: "Give me a fresh start" },
+];
+
+function WelcomeStep({ onNext }: { onNext: () => void }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggle = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col items-center text-center gap-4">
+        <DittoLogo size={64} />
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Make Ditto feel like yours
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Most social apps ask you to fit into their world. Ditto works a
+            little differently. Let's start by shaping it around you.
+          </p>
+        </div>
+      </div>
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium text-foreground">
+          What do you wish social apps did better?
+        </legend>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {WELCOME_CHOICES.map((choice) => {
+            const isSelected = selected.has(choice.id);
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => toggle(choice.id)}
+                className={cn(
+                  "group relative flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  "motion-safe:active:scale-[0.98]",
+                  isSelected
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                )}
+              >
+                <span className="text-xl leading-none" aria-hidden="true">
+                  {choice.emoji}
+                </span>
+                <span className="flex-1 text-sm font-medium">
+                  {choice.label}
+                </span>
+                <span
+                  className={cn(
+                    "flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted-foreground/30 text-transparent",
+                  )}
+                >
+                  <Check className="size-3" />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <Button
+        size="lg"
+        className="w-full gap-2 rounded-full h-12"
+        onClick={onNext}
+      >
+        {selected.size > 0 ? "Continue" : "Skip for now"}
+        <ChevronRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 }
@@ -793,11 +902,14 @@ function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
+  fromWelcome = false,
   isSaving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
   isFirst?: boolean;
+  /** Whether the user arrived here from the welcome step (signup flow). */
+  fromWelcome?: boolean;
   isSaving?: boolean;
 }) {
   const { theme, customTheme, themes } = useTheme();
@@ -827,10 +939,12 @@ function ThemeStep({
       >
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">
-            Choose your look
+            {fromWelcome ? "Good. Let's start with the look" : "Choose your look"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Pick a theme that feels right.
+            {fromWelcome
+              ? "Let's make Ditto feel like yours. Pick a theme — you can change it anytime."
+              : "Pick a theme that feels right."}
           </p>
         </div>
 
