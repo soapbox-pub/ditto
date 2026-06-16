@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Heart,
+  ImagePlus,
   Loader2,
   Plus,
   ShieldCheck,
@@ -438,11 +439,14 @@ function SetupQuestionnaire({
 
   // Continue handler for the download step — saves the key via the best
   // available method (native credential manager on iOS/Android, file download
-  // on web), logs in, and advances to the next step.
+  // on web) and logs in. It does NOT advance: the DownloadStep shows a small
+  // "saved somewhere safe?" confirmation ritual after this resolves, and only
+  // advances once the user explicitly confirms (via `next` passed separately).
   //
   // If the user dismisses the iOS credential prompt, `saveNsec` resolves to
-  // `'dismissed'` and we still advance — dismissal is a legitimate choice
-  // (e.g. the user is saving the key in their own password manager).
+  // `'dismissed'` and we still proceed to the confirmation — dismissal is a
+  // legitimate choice (e.g. the user is saving the key in their own password
+  // manager).
   //
   // On Android, if no credential provider is available (e.g. GrapheneOS or
   // other de-Googled devices), `saveNsec` falls back to writing the key to
@@ -450,7 +454,8 @@ function SetupQuestionnaire({
   // toast so the user knows where to find the backup file.
   //
   // Only unexpected errors (decode failure, filesystem write failure)
-  // surface as a destructive toast.
+  // surface as a destructive toast and re-throw so the DownloadStep keeps the
+  // user on the key view instead of advancing to the confirmation.
   const handleDownloadContinue = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
@@ -470,7 +475,6 @@ function SetupQuestionnaire({
       }
 
       login.nsec(nsec);
-      next();
     } catch {
       toast({
         title: "Save failed",
@@ -478,8 +482,9 @@ function SetupQuestionnaire({
           "Could not save the key. Please copy it manually.",
         variant: "destructive",
       });
+      throw new Error("save-failed");
     }
-  }, [nsec, login, next, config.appName]);
+  }, [nsec, login, config.appName]);
 
   // Check for existing follows and transition to the follows step (or outro if they have follows).
   //
@@ -547,7 +552,11 @@ function SetupQuestionnaire({
           {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
-            <DownloadStep nsec={nsec} onContinue={handleDownloadContinue} />
+            <DownloadStep
+              nsec={nsec}
+              onContinue={handleDownloadContinue}
+              onConfirm={next}
+            />
           )}
 
           {step === "profile" && (
@@ -722,12 +731,12 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
           Create your account
         </h1>
         <Typewriter
-          text="Most apps keep your account on their terms. Ditto works differently: this account belongs to you. We'll create a private key that proves it's yours, and we'll help you keep it safe."
+          text="Most apps keep your account on their terms. Ditto is different. This account belongs to you. We'll create a private key that proves it's yours and helps you come back safely."
           className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty"
         />
         <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
           Your private key is a cryptographic secret. You don't need to
-          understand the math, just keep it private.
+          understand the math. Just keep it private.
         </p>
       </div>
 
@@ -746,26 +755,84 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
 function DownloadStep({
   nsec,
   onContinue,
+  onConfirm,
 }: {
   nsec: string;
+  /** Saves the key and logs in. Resolves on success; throws on failure. */
   onContinue: () => Promise<void> | void;
+  /** Advances to the next step. Called only after the user confirms they saved it. */
+  onConfirm: () => void;
 }) {
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // After the key is saved we don't advance immediately. Instead we show a
+  // small, calm confirmation ritual ("saved somewhere safe?") so the user
+  // takes one more beat to make sure they can find the key later. They only
+  // continue once they explicitly confirm.
+  const [confirming, setConfirming] = useState(false);
 
   // Wrap the continue handler in an in-flight guard so rapid double-taps
   // don't trigger multiple credential prompts. `finally` guarantees the
   // button is re-enabled even if the handler throws, so users can never
-  // get stuck on a disabled button.
-  const handleClick = async () => {
+  // get stuck on a disabled button. On success we move to the confirmation
+  // step; on failure (handler throws) we stay on the key view.
+  const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
     try {
       await onContinue();
+      setConfirming(true);
+    } catch {
+      // onContinue already surfaced a toast; keep the user on the key view.
     } finally {
       setIsSaving(false);
     }
   };
+
+  // "Show key again" — return to the key view with the key revealed so the
+  // user can re-save it before confirming.
+  const handleShowAgain = () => {
+    setConfirming(false);
+    setShowKey(true);
+  };
+
+  if (confirming) {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+        <div className="flex flex-col items-center text-center gap-4">
+          <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="size-7" />
+          </span>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold tracking-tight">
+              Saved somewhere safe?
+            </h2>
+            <p className="text-sm text-muted-foreground text-pretty">
+              Take one more second to make sure you can find it later.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Button
+            size="lg"
+            className="w-full gap-2 rounded-full h-12"
+            onClick={onConfirm}
+          >
+            <Check className="w-4 h-4" /> Yes, I saved it
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="w-full gap-2 rounded-full h-12"
+            onClick={handleShowAgain}
+          >
+            <Eye className="w-4 h-4" /> Show key again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -833,7 +900,7 @@ function DownloadStep({
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12"
-        onClick={handleClick}
+        onClick={handleSave}
         disabled={isSaving}
       >
         {isSaving ? (
@@ -1077,23 +1144,66 @@ function ThemeStep({
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
   const bgUrl = activeConfig?.background?.url;
 
-  // Discovery: track how many *distinct* themes the user tries. Once they've
-  // explored 2+, we gently reveal a small "create your own" affordance — it
-  // should feel like a discovery, not an extra required step. The mini
-  // customizer below is local-only (applyCustomTheme writes to AppContext even
-  // when logged out), so a custom theme built here persists and can be
-  // published later from Settings once the account/key exists. We intentionally
-  // do NOT mount the full ThemeSelector here (presets, My Themes, publish/share)
-  // — that's too much surface for onboarding.
-  const [tried, setTried] = useState<Set<string>>(new Set());
+  // Discovery: count how many *distinct* themes the user manually selects.
+  // We only reveal a small "create your own" affordance once they've actively
+  // explored 2+ different themes — it should feel like a reward for tinkering,
+  // not an extra required step. Crucially, we do NOT count the theme the user
+  // arrived with. A user who picks a single theme and continues never sees the
+  // custom option. The mini customizer below is local-only (applyCustomTheme
+  // writes to AppContext even when logged out), so a custom theme built here
+  // persists and can be published later from Settings once the account/key
+  // exists. We intentionally do NOT mount the full ThemeSelector here (presets,
+  // My Themes, publish/share) — too much surface for onboarding.
+  //
+  // ThemeGrid applies a selection imperatively (setTheme / applyCustomTheme)
+  // and then calls `onSelect` synchronously — before AppContext (and therefore
+  // `theme` / `customTheme` here) has re-rendered with the new value. So we
+  // can't read the new theme inside the onSelect handler. Instead, onSelect
+  // flips a "the user has started picking" flag, and an effect keyed on the
+  // settled theme records each distinct theme *after* that first interaction.
+  // This is what keeps the initial theme out of the count.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const [customizerOpen, setCustomizerOpen] = useState(false);
+  const hasInteracted = useRef(false);
+
+  // Local-only background image chosen in the mini customizer. This is kept
+  // as an in-memory object URL and NEVER written into `customTheme` — see the
+  // MiniThemeCustomizer comments for why. It drives the full-screen onboarding
+  // preview below so the user can see their picture applied, but it does not
+  // touch AppContext, localStorage, encrypted settings, or publish behavior.
+  const [localBgUrl, setLocalBgUrl] = useState<string | undefined>(undefined);
+
+  // Revoke the object URL when the step unmounts so we don't leak it.
+  useEffect(() => {
+    return () => {
+      if (localBgUrl) URL.revokeObjectURL(localBgUrl);
+    };
+    // We intentionally only run cleanup on unmount; replacement revocation is
+    // handled in handleLocalBackground so a re-render here wouldn't revoke a
+    // URL that's still in use.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleLocalBackground = useCallback((url: string | undefined) => {
+    setLocalBgUrl((prev) => {
+      if (prev && prev !== url) URL.revokeObjectURL(prev);
+      return url;
+    });
+  }, []);
+
   const themeKey = theme === "custom"
     ? `custom:${JSON.stringify(customTheme?.colors)}`
     : theme;
-  // Record each distinct theme the user lands on, including the initial one.
-  // Once the set reaches 2, the user has explored beyond their starting theme.
+
+  const handleThemeSelected = useCallback(() => {
+    hasInteracted.current = true;
+  }, []);
+
   useEffect(() => {
-    setTried((prev) => {
+    // Only start counting once the user has manually picked at least once.
+    // This deliberately skips the theme the user landed on.
+    if (!hasInteracted.current) return;
+    setPicked((prev) => {
       if (prev.has(themeKey)) return prev;
       const next = new Set(prev);
       next.add(themeKey);
@@ -1101,15 +1211,19 @@ function ThemeStep({
     });
   }, [themeKey]);
 
-  const showCustomReveal = tried.size >= 2;
+  const showCustomReveal = picked.size >= 2;
+
+  // The full-screen preview prefers a locally-chosen image, falling back to the
+  // active theme's published background.
+  const previewBgUrl = localBgUrl ?? bgUrl;
 
   return (
     <>
       {/* Background image — full screen behind everything */}
-      {bgUrl && (
+      {previewBgUrl && (
         <div
           className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
-          style={{ backgroundImage: `url(${bgUrl})` }}
+          style={{ backgroundImage: `url(${previewBgUrl})` }}
         />
       )}
 
@@ -1118,7 +1232,7 @@ function ThemeStep({
         className={cn(
           "relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400",
           "sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700",
-          bgUrl
+          previewBgUrl
             ? "sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4"
             : "",
         )}
@@ -1134,7 +1248,7 @@ function ThemeStep({
           </p>
         </div>
 
-        <ThemeGrid columns="scroll" limit={9} />
+        <ThemeGrid columns="scroll" limit={9} onSelect={handleThemeSelected} />
 
         {/* Discovery reveal: a small, local-only "create your own" affordance
             that appears once the user has explored a couple of themes. Opens a
@@ -1163,10 +1277,14 @@ function ThemeStep({
           </button>
         )}
 
-        {/* Tiny local color customizer (Primary / Background / Text only). */}
+        {/* Tiny local color + background customizer. The background image is
+            preview-only (in-memory object URL) and never written to the theme
+            config — see MiniThemeCustomizer for the rationale. */}
         <MiniThemeCustomizer
           open={customizerOpen}
           onOpenChange={setCustomizerOpen}
+          localBgUrl={localBgUrl}
+          onLocalBackgroundChange={handleLocalBackground}
         />
 
         {isFirst ? (
@@ -1231,20 +1349,53 @@ const MINI_COLOR_KEYS: { key: keyof CoreThemeColors; label: string }[] = [
 /**
  * A deliberately tiny, local-only theme customizer for onboarding.
  *
- * Exposes only the three core colors (accent, background, text). It does NOT
- * pull in the full ThemeSelector (no presets, no My Themes, no publish/share).
- * Changes apply live via `applyCustomTheme`, which writes to AppContext even
+ * Exposes the three core colors (accent, background, text) and an optional
+ * local background image. It does NOT pull in the full ThemeSelector (no
+ * presets, no My Themes, no publish/share).
+ *
+ * Colors apply live via `applyCustomTheme`, which writes to AppContext even
  * when logged out, so the result persists into the app and can be refined or
  * published later from Settings.
+ *
+ * The background image is handled differently and deliberately so:
+ *
+ * - The chosen file is turned into an in-memory object URL (`URL.createObjectURL`)
+ *   and used ONLY for an onboarding preview. It is lifted to the parent
+ *   `ThemeStep` (via `onLocalBackgroundChange`) so the full-screen preview can
+ *   show it.
+ * - We do NOT write the object URL into `customTheme.background.url`. A `blob:`
+ *   URL is device- and session-scoped: it dies on reload (leaving a broken
+ *   background) and — more importantly — it would otherwise be serialized into
+ *   the kind 16767/36767 theme events that `useTheme` auto-publishes once the
+ *   user is logged in, shipping a meaningless URL to relays and other clients.
+ *   Keeping it out of the theme config is what makes this safe before an
+ *   account/key exists.
+ * - We also do NOT upload to Blossom here (no account/key yet) and we do not
+ *   persist a base64 copy anywhere. The preview lives purely in memory.
+ *
+ * Proper post-key handling (upload the file to Blossom, then store the returned
+ * https URL in `customTheme.background`) is a deliberate follow-up — see the
+ * summary in the task notes.
  */
 function MiniThemeCustomizer({
   open,
   onOpenChange,
+  localBgUrl,
+  onLocalBackgroundChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Current in-memory object URL for the locally-chosen background, if any. */
+  localBgUrl?: string;
+  /**
+   * Set or clear the local background image. Receives a fresh object URL when
+   * the user picks an image, or `undefined` when they remove it. The parent
+   * owns the URL's lifecycle (revocation).
+   */
+  onLocalBackgroundChange: (url: string | undefined) => void;
 }) {
   const { theme, customTheme, themes, applyCustomTheme } = useTheme();
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve the colors currently in effect so the pickers start from what the
   // user already sees.
@@ -1269,6 +1420,25 @@ function MiniThemeCustomizer({
     [effectiveColors, customTheme, applyCustomTheme],
   );
 
+  const handlePickBackground = useCallback(() => {
+    bgInputRef.current?.click();
+  }, []);
+
+  const handleBackgroundChosen = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // Reset the input so picking the same file again still fires onChange.
+      e.target.value = "";
+      if (!file) return;
+      onLocalBackgroundChange(URL.createObjectURL(file));
+    },
+    [onLocalBackgroundChange],
+  );
+
+  const handleRemoveBackground = useCallback(() => {
+    onLocalBackgroundChange(undefined);
+  }, [onLocalBackgroundChange]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-2rem)] max-w-xs rounded-2xl">
@@ -1289,6 +1459,63 @@ function MiniThemeCustomizer({
               onChange={(hex) => handleColorChange(key, hex)}
             />
           ))}
+        </div>
+
+        {/* Optional local background image. Preview-only for now — see the
+            component doc comment for why we don't write it into the theme. */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Background image</span>
+            {localBgUrl && (
+              <button
+                type="button"
+                onClick={handleRemoveBackground}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+
+          <input
+            ref={bgInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleBackgroundChosen}
+          />
+
+          <button
+            type="button"
+            onClick={handlePickBackground}
+            className={cn(
+              "group flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-2.5 text-left",
+              "transition-colors hover:border-primary/50 hover:bg-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            )}
+          >
+            {localBgUrl ? (
+              <img
+                src={localBgUrl}
+                alt="Background preview"
+                className="size-12 shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <ImagePlus className="size-5" />
+              </span>
+            )}
+            <span className="min-w-0 text-sm">
+              <span className="block font-medium">
+                {localBgUrl ? "Change image" : "Choose from your device"}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {localBgUrl
+                  ? "Shown here while you set things up."
+                  : "Optional. Stays on your device for now."}
+              </span>
+            </span>
+          </button>
         </div>
 
         <Button
