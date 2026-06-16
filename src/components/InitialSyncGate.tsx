@@ -31,7 +31,15 @@ import { DittoLogo } from "@/components/DittoLogo";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
-import { ThemeGrid, ThemeSelector } from "@/components/ThemeSelector";
+import { ThemeGrid } from "@/components/ThemeSelector";
+import { ColorPicker } from "@/components/ui/color-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,8 +56,98 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
-import { resolveTheme, resolveThemeConfig } from "@/themes";
+import { hexToHslString, hslStringToHex } from "@/lib/colorUtils";
+import {
+  type CoreThemeColors,
+  resolveTheme,
+  resolveThemeConfig,
+} from "@/themes";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Typewriter
+// ---------------------------------------------------------------------------
+
+/** True if the user has asked the OS to reduce motion. */
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Lightweight "being written" text effect for the main onboarding copy.
+ *
+ * This is intentionally simple — a foundation for a later pass where Blobbi
+ * will be the one "writing" these messages. It is NOT the magical glyph
+ * writing effect.
+ *
+ * - Fast by default (~18ms/char) and never blocks the user.
+ * - Click/tap anywhere on the text, or press any key, finishes it instantly.
+ * - Respects `prefers-reduced-motion`: the full text shows immediately.
+ * - Layout-stable: the full text is always present (transparent until typed)
+ *   so the container reserves its final height and nothing reflows.
+ */
+function Typewriter({
+  text,
+  className,
+  speed = 18,
+}: {
+  text: string;
+  className?: string;
+  /** Milliseconds per character. */
+  speed?: number;
+}) {
+  const reduce = useMemo(() => prefersReducedMotion(), []);
+  const [count, setCount] = useState(() => (reduce ? text.length : 0));
+  const done = count >= text.length;
+
+  // Restart typing whenever the text changes (e.g. step transitions reuse the
+  // component). Reduced-motion users always see the full string.
+  useEffect(() => {
+    if (reduce) {
+      setCount(text.length);
+      return;
+    }
+    setCount(0);
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setCount(i);
+      if (i >= text.length) window.clearInterval(id);
+    }, speed);
+    return () => window.clearInterval(id);
+  }, [text, speed, reduce]);
+
+  const finish = useCallback(() => setCount(text.length), [text.length]);
+
+  return (
+    <span
+      className={cn("relative inline-block cursor-default", className)}
+      onClick={done ? undefined : finish}
+      onKeyDown={done ? undefined : (e) => {
+        // Any key finishes the text instantly (without hijacking tab/modifier nav).
+        if (e.key === "Tab") return;
+        finish();
+      }}
+      // Only focusable (for key-to-skip) while still animating.
+      tabIndex={done ? undefined : -1}
+      role="presentation"
+    >
+      {/* Invisible full text reserves the final layout height. */}
+      <span aria-hidden="true" className="invisible">
+        {text}
+      </span>
+      {/* Visible typed slice, overlaid so it doesn't affect layout. */}
+      <span className="absolute inset-0">
+        {reduce ? text : text.slice(0, count)}
+      </span>
+    </span>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // InitialSyncGate
@@ -534,11 +632,10 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
           <h1 className="text-2xl font-bold tracking-tight text-balance">
             Let's make the internet feel like yours again
           </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-            Most social apps make every account feel the same. Ditto gives you
-            more room to shape your space, your conversations, and how you show
-            up.
-          </p>
+          <Typewriter
+            text="Most social apps make every account feel the same. Ditto gives you more room to shape your space, your conversations, and how you show up."
+            className="text-sm text-muted-foreground leading-relaxed text-pretty"
+          />
         </div>
       </div>
 
@@ -624,16 +721,13 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
         <h1 className="text-2xl font-bold tracking-tight">
           Create your account
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty">
-          Ditto works differently. In most apps, your account belongs to the
-          company, so they can reset it, lock it, or change the rules. Here,
-          your account belongs to you. That gives you more freedom — and a
-          little more responsibility. We'll create a private key for you and
-          help you keep it safe.
-        </p>
+        <Typewriter
+          text="Most apps keep your account on their terms. Ditto works differently: this account belongs to you. We'll create a private key that proves it's yours, and we'll help you keep it safe."
+          className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty"
+        />
         <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
-          Your private key is a cryptographic secret that proves this account
-          is yours.
+          Your private key is a cryptographic secret. You don't need to
+          understand the math, just keep it private.
         </p>
       </div>
 
@@ -656,7 +750,6 @@ function DownloadStep({
   nsec: string;
   onContinue: () => Promise<void> | void;
 }) {
-  const { config } = useAppContext();
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -680,10 +773,10 @@ function DownloadStep({
         <h2 className="text-xl font-semibold tracking-tight">
           Save your key
         </h2>
-        <p className="text-sm text-muted-foreground text-pretty">
-          This key is how {config.appName} knows it's really you. Keep it
-          somewhere safe so you can come back later.
-        </p>
+        <Typewriter
+          text="This key is yours. It lets Ditto know it's really you when you come back."
+          className="text-sm text-muted-foreground text-pretty"
+        />
       </div>
 
       <div className="relative">
@@ -714,8 +807,8 @@ function DownloadStep({
       <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
         <ShieldCheck className="size-4 mt-0.5 shrink-0 text-primary" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          If you lose it, you may lose access to this account. If someone else
-          gets it, they can use your account too.
+          Keep it private and store it somewhere safe. If you lose it, you may
+          lose access. If someone else gets it, they can use your account.
         </p>
       </div>
 
@@ -893,10 +986,10 @@ function ProfileStep({
           <h2 className="text-xl font-semibold tracking-tight">
             Make yourself recognizable
           </h2>
-          <p className="text-sm text-muted-foreground text-pretty">
-            Add a name, photo, or short line so people know who they're
-            meeting. You can change this anytime.
-          </p>
+          <Typewriter
+            text="Add a name, photo, or short line so people know who they're meeting. You can change this anytime."
+            className="text-sm text-muted-foreground text-pretty"
+          />
         </div>
       </div>
 
@@ -985,12 +1078,15 @@ function ThemeStep({
   const bgUrl = activeConfig?.background?.url;
 
   // Discovery: track how many *distinct* themes the user tries. Once they've
-  // explored 2+, we gently reveal the "create your own" affordance — it should
-  // feel like a discovery, not an extra required step. Selections apply
-  // locally via useTheme even when logged out, so a custom theme built here
-  // persists and can be published later from Settings once the key exists.
+  // explored 2+, we gently reveal a small "create your own" affordance — it
+  // should feel like a discovery, not an extra required step. The mini
+  // customizer below is local-only (applyCustomTheme writes to AppContext even
+  // when logged out), so a custom theme built here persists and can be
+  // published later from Settings once the account/key exists. We intentionally
+  // do NOT mount the full ThemeSelector here (presets, My Themes, publish/share)
+  // — that's too much surface for onboarding.
   const [tried, setTried] = useState<Set<string>>(new Set());
-  const [builderOpen, setBuilderOpen] = useState(false);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
   const themeKey = theme === "custom"
     ? `custom:${JSON.stringify(customTheme?.colors)}`
     : theme;
@@ -1040,12 +1136,13 @@ function ThemeStep({
 
         <ThemeGrid columns="scroll" limit={9} />
 
-        {/* Discovery reveal: a subtle "create your own" affordance that only
-            appears once the user has explored a couple of themes. */}
+        {/* Discovery reveal: a small, local-only "create your own" affordance
+            that appears once the user has explored a couple of themes. Opens a
+            tiny color customizer — NOT the full ThemeSelector. */}
         {showCustomReveal && (
           <button
             type="button"
-            onClick={() => setBuilderOpen(true)}
+            onClick={() => setCustomizerOpen(true)}
             className={cn(
               "group flex items-center gap-3 rounded-xl border-2 border-dashed border-border p-3.5 text-left",
               "transition-all duration-200 hover:border-primary/50 hover:bg-accent",
@@ -1060,19 +1157,16 @@ function ThemeStep({
             <span className="min-w-0">
               <span className="block text-sm font-medium">Create your own</span>
               <span className="block text-xs text-muted-foreground">
-                Mix your own colors, font, and background.
+                Pick a few colors and make it yours.
               </span>
             </span>
           </button>
         )}
 
-        {/* The custom theme builder — reuses the existing ThemeSelector dialog.
-            Logged out, it's a purely local color/font/background editor (no
-            publish buttons), so it's safe to use before the account exists. */}
-        <ThemeSelector
-          builderOpen={builderOpen}
-          onBuilderOpenChange={setBuilderOpen}
-          builderMode="new"
+        {/* Tiny local color customizer (Primary / Background / Text only). */}
+        <MiniThemeCustomizer
+          open={customizerOpen}
+          onOpenChange={setCustomizerOpen}
         />
 
         {isFirst ? (
@@ -1120,6 +1214,91 @@ function ThemeStep({
         )}
       </div>
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mini Theme Customizer (onboarding-only)
+// ---------------------------------------------------------------------------
+
+/** The three editable core colors, in display order. */
+const MINI_COLOR_KEYS: { key: keyof CoreThemeColors; label: string }[] = [
+  { key: "primary", label: "Accent" },
+  { key: "background", label: "Background" },
+  { key: "text", label: "Text" },
+];
+
+/**
+ * A deliberately tiny, local-only theme customizer for onboarding.
+ *
+ * Exposes only the three core colors (accent, background, text). It does NOT
+ * pull in the full ThemeSelector (no presets, no My Themes, no publish/share).
+ * Changes apply live via `applyCustomTheme`, which writes to AppContext even
+ * when logged out, so the result persists into the app and can be refined or
+ * published later from Settings.
+ */
+function MiniThemeCustomizer({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { theme, customTheme, themes, applyCustomTheme } = useTheme();
+
+  // Resolve the colors currently in effect so the pickers start from what the
+  // user already sees.
+  const effectiveColors = useMemo<CoreThemeColors>(() => {
+    if (theme === "custom" && customTheme) return customTheme.colors;
+    const resolved = resolveTheme(theme);
+    if (resolved === "custom") {
+      return customTheme?.colors ?? resolveThemeConfig("dark", themes).colors;
+    }
+    return resolveThemeConfig(resolved, themes).colors;
+  }, [theme, customTheme, themes]);
+
+  const handleColorChange = useCallback(
+    (key: keyof CoreThemeColors, hex: string) => {
+      const newColors: CoreThemeColors = {
+        ...effectiveColors,
+        [key]: hexToHslString(hex),
+      };
+      // Preserve any font/background the user already had on a custom theme.
+      applyCustomTheme({ ...customTheme, colors: newColors });
+    },
+    [effectiveColors, customTheme, applyCustomTheme],
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-xs rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-center">Create your own</DialogTitle>
+          <DialogDescription className="text-center">
+            Pick a few colors. Changes apply instantly — you can fine-tune more
+            later in Settings.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-start justify-center gap-6 py-2">
+          {MINI_COLOR_KEYS.map(({ key, label }) => (
+            <ColorPicker
+              key={key}
+              label={label}
+              value={hslStringToHex(effectiveColors[key])}
+              onChange={(hex) => handleColorChange(key, hex)}
+            />
+          ))}
+        </div>
+
+        <Button
+          className="w-full rounded-full h-11"
+          onClick={() => onOpenChange(false)}
+        >
+          Done
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1273,10 +1452,10 @@ function FollowsStep({
         <h2 className="text-xl font-semibold tracking-tight">
           Start with a few interesting voices
         </h2>
-        <p className="text-sm text-muted-foreground text-pretty">
-          Your feed gets better when you follow people. Here's a small group to
-          help {config.appName} feel alive from the start.
-        </p>
+        <Typewriter
+          text={`Your feed gets better when you follow people. Here's a small group to help ${config.appName} feel alive from the start.`}
+          className="text-sm text-muted-foreground text-pretty"
+        />
       </div>
 
       <div className="space-y-3">
@@ -1344,9 +1523,14 @@ function PackCard({
 
   const displayDescription = descriptionOverride || description;
 
-  // Show first 6 member avatars
+  // Fetch metadata for the first handful of members. We show a few of them in
+  // detail (avatar + name + one-line bio) so the user gets a small sense of
+  // "who are these people?" before tapping Follow All, plus a compact avatar
+  // stack for the rest. This is intentionally NOT a carousel.
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
   const { data: membersMap } = useAuthors(previewPubkeys);
+
+  const detailedPubkeys = useMemo(() => pubkeys.slice(0, 3), [pubkeys]);
 
   return (
     <div
@@ -1373,33 +1557,51 @@ function PackCard({
           </span>
         </div>
 
-        {/* Member avatar stack */}
-        <div className="flex items-center gap-1">
-          <div className="flex -space-x-2">
-            {previewPubkeys.map((pk, i) => {
+        {/* Small "who's in here" preview — up to 3 people in detail. Falls
+            back gracefully to avatar + name when bio/metadata is missing. */}
+        {detailedPubkeys.length > 0 && (
+          <div className="space-y-1.5">
+            {detailedPubkeys.map((pk, i) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
+              const meta = member?.metadata;
+              const name =
+                meta?.display_name || meta?.name || "Anonymous";
+              const bio = meta?.about?.replace(/\s+/g, " ").trim();
               return (
                 <div
                   key={pk}
                   style={{ animationDelay: `${i * 60}ms` }}
-                  className="motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:fade-in motion-safe:fill-mode-both"
+                  className="flex items-center gap-2.5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:fill-mode-both"
                 >
-                  <MiniAvatar
-                    src={member?.metadata?.picture}
-                    name={name}
-                    metadata={member?.metadata}
-                  />
+                  <Avatar
+                    className="size-8 shrink-0 ring-1 ring-border"
+                    shape={getAvatarShape(meta)}
+                  >
+                    <AvatarImage src={meta?.picture} alt={name} />
+                    <AvatarFallback className="bg-primary/15 text-primary text-[11px]">
+                      {name[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium leading-tight truncate">
+                      {name}
+                    </p>
+                    {bio && (
+                      <p className="text-[11px] text-muted-foreground leading-tight truncate">
+                        {bio}
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
+            {pubkeys.length > detailedPubkeys.length && (
+              <p className="text-[11px] text-muted-foreground pl-[2.625rem]">
+                and {pubkeys.length - detailedPubkeys.length} more
+              </p>
+            )}
           </div>
-          {pubkeys.length > previewPubkeys.length && (
-            <span className="text-xs text-muted-foreground ml-1">
-              +{pubkeys.length - previewPubkeys.length} more
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Follow All button */}
         <Button
@@ -1502,10 +1704,10 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
 
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-bold tracking-tight">You're in.</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-          Your space is ready. Go explore, follow a few interesting people, or
-          post something small to make it yours.
-        </p>
+        <Typewriter
+          text="Your space is ready. Go explore, follow a few interesting people, or post something small to make it yours."
+          className="text-muted-foreground text-sm leading-relaxed text-pretty"
+        />
       </div>
 
       <Button
