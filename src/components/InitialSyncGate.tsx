@@ -393,6 +393,15 @@ function SetupQuestionnaire({
   // Signup-specific state
   const [nsec, setNsec] = useState("");
 
+  // Welcome-card selections (signup only). Stored here so the user's chosen
+  // intent can lightly shape the copy/framing of later steps. This is
+  // onboarding-local state only — never persisted to local storage or Nostr.
+  const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
+  const intentCopy = useMemo(
+    () => resolveIntentCopy(selectedIntents),
+    [selectedIntents],
+  );
+
   // Local-only background image chosen in the mini theme customizer. Kept here,
   // at the top of the onboarding flow, so the picture the user chooses on the
   // theme step stays softly visible behind every subsequent step — it should
@@ -589,9 +598,21 @@ function SetupQuestionnaire({
       <div className="relative flex-1 flex flex-col overflow-y-auto">
         <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
           {/* Signup steps */}
-          {step === "welcome" && <WelcomeStep onNext={next} />}
+          {step === "welcome" && (
+            <WelcomeStep
+              onNext={(selected) => {
+                setSelectedIntents(selected);
+                next();
+              }}
+            />
+          )}
 
-          {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
+          {step === "keygen" && (
+            <KeygenStep
+              onGenerate={handleGenerate}
+              intentBody={intentCopy.keygenBody}
+            />
+          )}
 
           {step === "download" && (
             <DownloadStep
@@ -619,6 +640,7 @@ function SetupQuestionnaire({
               isSaving={!isSignup && isSaving}
               localBgUrl={localBgUrl}
               onLocalBackgroundChange={handleLocalBackground}
+              intentSubtitle={isSignup ? intentCopy.themeSubtitle : undefined}
             />
           )}
 
@@ -630,10 +652,13 @@ function SetupQuestionnaire({
               }}
               onBack={back}
               expectedPubkey={expectedPubkey}
+              intentIntro={isSignup ? intentCopy.followsIntro : undefined}
             />
           )}
 
-          {step === "outro" && <OutroStep onComplete={onComplete} />}
+          {step === "outro" && (
+            <OutroStep onComplete={onComplete} body={intentCopy.outro} />
+          )}
         </div>
       </div>
     </div>
@@ -646,8 +671,10 @@ function SetupQuestionnaire({
 
 /**
  * Lightweight, non-technical choices that let a new user express what they
- * want out of a social app. Selections are UI-only for now — they set an
- * intentional, warm tone before theme selection without affecting behavior.
+ * want out of a social app. The selected ids are lifted into
+ * SetupQuestionnaire and lightly shape the copy/framing of later steps (theme,
+ * keygen, follows, outro) via {@link resolveIntentCopy}. They are
+ * onboarding-local only — never persisted to local storage or Nostr.
  */
 const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
   { id: "personal", emoji: "🪴", label: "Feel more like my space" },
@@ -658,7 +685,101 @@ const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
   { id: "fresh", emoji: "🌱", label: "Give me a fresh start" },
 ];
 
-function WelcomeStep({ onNext }: { onNext: () => void }) {
+/**
+ * The id of a welcome card. The user can pick several; the rest of the flow
+ * only ever acts on a single *primary* intent, chosen by {@link resolveIntent}.
+ */
+type WelcomeIntent =
+  | "conversations"
+  | "fun"
+  | "personal"
+  | "control"
+  | "freedom"
+  | "fresh";
+
+/**
+ * Priority order for resolving a single "primary" intent when the user selects
+ * more than one welcome card. The earlier an intent appears here, the more it
+ * wins — conversation/posting energy leads, identity/control come next, and a
+ * fresh-start fallback sits last. Anything unrecognized (or no selection) falls
+ * through to the generic copy.
+ */
+const INTENT_PRIORITY: WelcomeIntent[] = [
+  "conversations",
+  "fun",
+  "personal",
+  "control",
+  "freedom",
+  "fresh",
+];
+
+/**
+ * Per-step copy that the selected welcome intent lightly shapes. Every field is
+ * optional: when an intent doesn't override a step, that step uses its own
+ * default copy (see the `?? ` fallbacks at each call site). This keeps the
+ * intent purely additive — onboarding-local framing, never persisted to Nostr.
+ */
+interface IntentCopy {
+  /** ThemeStep subtitle (signup only — replaces the default "Pick a starting theme…"). */
+  themeSubtitle?: string;
+  /** KeygenStep supporting line, appended below the standard key explanation. */
+  keygenBody?: string;
+  /** FollowsStep intro (replaces the default "Your feed gets better…"). */
+  followsIntro?: string;
+  /** OutroStep body. */
+  outro: string;
+}
+
+const GENERIC_OUTRO =
+  "Your space is ready. Go explore, follow a few interesting people, or post something small to make it yours.";
+
+const INTENT_COPY: Record<WelcomeIntent, IntentCopy> = {
+  conversations: {
+    followsIntro:
+      "Let's start with people who make the feed worth reading.",
+    outro:
+      "Your space is ready. Start by exploring conversations and following people who feel worth hearing from.",
+  },
+  fun: {
+    outro:
+      "Your space is ready. Start in the Ditto feed, explore what people are sharing, and post something small when you're ready.",
+  },
+  personal: {
+    themeSubtitle:
+      "Make it feel like yours. Pick a starting look — you can keep shaping it anytime.",
+    outro:
+      "Your space is ready. You can keep shaping your look, profile, and vibe as you explore.",
+  },
+  control: {
+    keygenBody:
+      "This account is yours to keep. No company owns it, and you can take it anywhere.",
+    outro:
+      "Your space is ready. Explore Ditto with an account that belongs to you.",
+  },
+  freedom: {
+    outro:
+      "Your space is ready. Explore on your terms, without being boxed into one company's feed.",
+  },
+  fresh: {
+    outro:
+      "Your space is ready. Take a look around first, then post when it feels right.",
+  },
+};
+
+/**
+ * Pick the single primary intent from the user's welcome-card selection using
+ * {@link INTENT_PRIORITY}, and return the copy overrides for it. Returns just
+ * the generic outro when nothing recognizable was selected.
+ */
+function resolveIntentCopy(selected: Iterable<string>): IntentCopy {
+  const set = new Set(selected);
+  for (const intent of INTENT_PRIORITY) {
+    if (set.has(intent)) return INTENT_COPY[intent];
+  }
+  return { outro: GENERIC_OUTRO };
+}
+
+function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = useCallback((id: string) => {
@@ -749,7 +870,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
-        onClick={onNext}
+        onClick={() => onNext([...selected])}
       >
         {selected.size > 0 ? "Continue" : "Skip for now"}
         <ChevronRight className="w-4 h-4" />
@@ -762,7 +883,14 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 // Signup steps: Keygen, Download, Profile
 // ---------------------------------------------------------------------------
 
-function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
+function KeygenStep({
+  onGenerate,
+  intentBody,
+}: {
+  onGenerate: () => void;
+  /** Optional intent-shaped line emphasizing ownership/control, shown below the standard copy. */
+  intentBody?: string;
+}) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
@@ -778,6 +906,11 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
           text="Most apps keep your account on their terms. Ditto is different. This account belongs to you. We'll create a private key that proves it's yours and helps you come back safely."
           className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty"
         />
+        {intentBody && (
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto text-pretty">
+            {intentBody}
+          </p>
+        )}
         <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
           Your private key is a cryptographic secret. You don't need to
           understand the math. Just keep it private.
@@ -1177,6 +1310,7 @@ function ThemeStep({
   isSaving = false,
   localBgUrl,
   onLocalBackgroundChange,
+  intentSubtitle,
 }: {
   onNext: () => void;
   onBack: () => void;
@@ -1192,6 +1326,11 @@ function ThemeStep({
   localBgUrl?: string;
   /** Set or clear the local background image (parent owns the URL lifecycle). */
   onLocalBackgroundChange: (url: string | undefined) => void;
+  /**
+   * Optional intent-shaped subtitle (signup only). Replaces the default
+   * "Pick a starting theme…" line until the user starts exploring themes.
+   */
+  intentSubtitle?: string;
 }) {
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
@@ -1282,7 +1421,7 @@ function ThemeStep({
           <p className="text-sm text-muted-foreground transition-opacity duration-300">
             {showCustomReveal
               ? "Trying things out? Nice. You can also create your own look."
-              : "Pick a starting theme. You can change it anytime."}
+              : (intentSubtitle ?? "Pick a starting theme. You can change it anytime.")}
           </p>
         </div>
 
@@ -1607,6 +1746,7 @@ function FollowsStep({
   onNext,
   onBack,
   expectedPubkey,
+  intentIntro,
 }: {
   onNext: (didFollow: boolean) => void;
   onBack: () => void;
@@ -1617,6 +1757,11 @@ function FollowsStep({
    * logged-in user's contact list.
    */
   expectedPubkey?: string;
+  /**
+   * Optional intent-shaped intro line (signup only). Replaces the default
+   * "Your feed gets better when you follow people…" framing.
+   */
+  intentIntro?: string;
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -1728,7 +1873,7 @@ function FollowsStep({
           Start with a few interesting voices
         </h2>
         <Typewriter
-          text={`Your feed gets better when you follow people. Here's a small group to help ${config.appName} feel alive from the start.`}
+          text={intentIntro ?? `Your feed gets better when you follow people. Here's a small group to help ${config.appName} feel alive from the start.`}
           className="text-sm text-muted-foreground text-pretty"
         />
       </div>
@@ -1966,7 +2111,14 @@ function PackCardSkeleton() {
 // Outro Step
 // ---------------------------------------------------------------------------
 
-function OutroStep({ onComplete }: { onComplete: () => void }) {
+function OutroStep({
+  onComplete,
+  body = GENERIC_OUTRO,
+}: {
+  onComplete: () => void;
+  /** Intent-shaped closing line. Defaults to the generic outro copy. */
+  body?: string;
+}) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
@@ -1980,7 +2132,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-bold tracking-tight">You're in.</h2>
         <Typewriter
-          text="Your space is ready. Go explore, follow a few interesting people, or post something small to make it yours."
+          text={body}
           className="text-muted-foreground text-sm leading-relaxed text-pretty"
         />
       </div>
