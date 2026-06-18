@@ -8,6 +8,7 @@ import {
   KIND_BLOBBI_STATE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
   isValidBlobbiEvent,
+  isLegacyBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiCompanion,
 } from '../lib/blobbi';
@@ -115,10 +116,18 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       
       console.log('[useBlobbisCollection] Total events received:', allEvents.length);
       
-      // Filter to valid events
-      const validEvents = allEvents.filter(isValidBlobbiEvent);
-      
-      console.log('[useBlobbisCollection] Valid events:', validEvents.length);
+      // Filter to valid events.
+      //
+      // Old-app legacy Blobbis are unsupported: they must never reach the UI,
+      // be selected, or be republished. Automatic migration into the canonical
+      // format was removed, so we exclude legacy-format events here at the
+      // single source of truth. A user with only legacy Blobbis is treated as
+      // having no current Blobbi (normal empty / new-user flow).
+      const validEvents = allEvents.filter(
+        (event) => isValidBlobbiEvent(event) && !isLegacyBlobbiEvent(event),
+      );
+
+      console.log('[useBlobbisCollection] Valid (canonical, non-legacy) events:', validEvents.length);
       
       // Group events by d-tag and keep only the newest per d
       const eventsByD = new Map<string, NostrEvent>();

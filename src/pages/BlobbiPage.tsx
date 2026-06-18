@@ -20,7 +20,7 @@ import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
@@ -51,7 +51,6 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   statsToTagUpdates,
-  filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbiStats,
   type BlobbonautProfile,
@@ -222,7 +221,7 @@ function BlobbiContent() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
-  const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
   
   const {
     profile,
@@ -249,13 +248,9 @@ function BlobbiContent() {
     updateCompanionEvent,
   } = useBlobbisCollection();
   
-  // STEP 2: Filter out legacy companions that have been migrated to canonical format.
-  // A legacy Blobbi is hidden when a canonical Blobbi with the same name exists AND
-  // the legacy d-tag is no longer in profile.has (confirming migration occurred).
-  const filteredCompanions = useMemo(() => {
-    if (!profile) return companions;
-    return filterMigratedLegacyCompanions(companions, profile.has);
-  }, [companions, profile]);
+  // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
+  // useBlobbisCollection). Legacy old-app migration/dedup is no longer applied.
+  const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
     const record: Record<string, BlobbiCompanion> = {};
@@ -364,21 +359,21 @@ function BlobbiContent() {
     setStoredSelectedD(d);
   }, [setStoredSelectedD, storedSelectedD]);
   
-  // ─── Helper: Ensure Canonical Before Action ───
-  // Centralized migration helper that auto-migrates legacy pets before any action
+  // ─── Helper: Fetch Fresh Before Action ───
+  // Read step of the read-modify-write pattern: fetch the freshest companion +
+  // profile from relays before any mutation so we never overwrite newer state.
   const ensureCanonicalBeforeAction = useCallback(async () => {
     if (!companion || !profile) return null;
     
-    return ensureCanonicalBlobbiBeforeAction({
+    return fetchFreshBlobbiBeforeAction({
       companion,
       profile,
       updateProfileEvent,
       updateCompanionEvent,
-      updateStoredSelectedD: setStoredSelectedD,
     });
-  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD]);
+  }, [companion, profile, fetchFreshBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent]);
   
-  // ─── Rest Action (with automatic legacy migration) ───
+  // ─── Rest Action ───
   // Operates on the page-selected `companion` (not profile.currentCompanion).
   // The companion floating button has its own independent sleep toggle.
   const handleRest = useCallback(async () => {
@@ -389,7 +384,7 @@ function BlobbiContent() {
 
     setActionInProgress('rest');
     try {
-      // Ensure canonical before action (auto-migrates legacy pets)
+      // Fetch fresh companion + profile before acting (read-modify-write)
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
         setActionInProgress(null);
@@ -885,7 +880,6 @@ interface BlobbiDashboardProps {
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
@@ -1890,15 +1884,6 @@ function BlobbiDashboard({
   
   return (
     <DashboardShell>
-      {/* Legacy Migration Notice */}
-      {companion.isLegacy && (
-        <div className="mx-4 mt-2 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            This pet uses an older format. It will be automatically upgraded on your next interaction.
-          </p>
-        </div>
-      )}
-      
       {/* Backdrop — tapping outside the drawer collapses it */}
       {activeDrawer !== 'none' && (
         <div
