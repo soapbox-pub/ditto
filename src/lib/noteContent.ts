@@ -26,18 +26,22 @@ function graphemeLength(text: string): number {
   return [...text].length;
 }
 
-/** Returns true if the event content consists of a single image embed and nothing else,
- *  or a single image with only a short accompanying caption. */
+/** Returns true if the event content is image-dominant: one or more image
+ *  embeds (a multi-image gallery collapses into a single grid block roughly
+ *  one image-element tall) with at most a short accompanying caption. Such
+ *  posts skip height-based truncation, since the height comes from media —
+ *  which has its own sizing — not from long-form text. */
 export function isSingleImagePost(event: NostrEvent): boolean {
   const text = event.content.trim();
   const imageMatches = text.match(new RegExp(IMAGE_URL_REGEX.source, 'gi'));
-  // Must contain exactly one image URL
-  if (!imageMatches || imageMatches.length !== 1) return false;
+  // Must contain at least one image URL
+  if (!imageMatches || imageMatches.length < 1) return false;
   // The non-image remainder must be short (pure-image posts have no remainder
-  // at all). Strip nostr: references first — they render as compact chips, so
-  // their long bech32 source strings would otherwise inflate the caption length.
+  // at all). Strip every image URL and nostr: reference first — nostr: refs
+  // render as compact chips, so their long bech32 source strings would
+  // otherwise inflate the caption length.
   const remainder = text
-    .replace(IMAGE_URL_REGEX, '')
+    .replace(new RegExp(IMAGE_URL_REGEX.source, 'gi'), '')
     .replace(NOSTR_URI_REGEX, '')
     .trim();
   return graphemeLength(remainder) <= MAX_CAPTION_GRAPHEMES;
