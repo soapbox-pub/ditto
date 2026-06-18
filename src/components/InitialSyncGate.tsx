@@ -2871,14 +2871,19 @@ function PackPeoplePreview({
               <p className="font-semibold text-sm leading-tight truncate text-card-foreground">
                 {name}
               </p>
-              {handle && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {handle}
-                </p>
-              )}
+              {/* Always reserve the handle line's height so the card doesn't
+                  shift when a person has no handle. */}
+              <p className="h-4 text-xs text-muted-foreground truncate">
+                {handle ?? "\u00A0"}
+              </p>
             </div>
 
-            <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[3rem]">
+            {/* Fixed-height bio area: exactly three text-xs/leading-relaxed
+                lines (~3.66rem). line-clamp-3 truncates long bios; short or
+                missing bios ("No bio yet.") still occupy the same height, so
+                the panel — and the controls below it — never shift between
+                people. */}
+            <p className="mt-2 h-[3.66rem] overflow-hidden text-xs text-muted-foreground leading-relaxed line-clamp-3">
               {bio || "No bio yet."}
             </p>
           </div>
