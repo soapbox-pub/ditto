@@ -81,91 +81,6 @@ import {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Typewriter
-// ---------------------------------------------------------------------------
-
-/** True if the user has asked the OS to reduce motion. */
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Lightweight "being written" text effect for the main onboarding copy.
- *
- * This is intentionally simple — a foundation for a later pass where Blobbi
- * will be the one "writing" these messages. It is NOT the magical glyph
- * writing effect.
- *
- * - Fast by default (~18ms/char) and never blocks the user.
- * - Click/tap anywhere on the text, or press any key, finishes it instantly.
- * - Respects `prefers-reduced-motion`: the full text shows immediately.
- * - Layout-stable: the full text is always present (transparent until typed)
- *   so the container reserves its final height and nothing reflows.
- */
-function Typewriter({
-  text,
-  className,
-  speed = 18,
-}: {
-  text: string;
-  className?: string;
-  /** Milliseconds per character. */
-  speed?: number;
-}) {
-  const reduce = useMemo(() => prefersReducedMotion(), []);
-  const [count, setCount] = useState(() => (reduce ? text.length : 0));
-  const done = count >= text.length;
-
-  // Restart typing whenever the text changes (e.g. step transitions reuse the
-  // component). Reduced-motion users always see the full string.
-  useEffect(() => {
-    if (reduce) {
-      setCount(text.length);
-      return;
-    }
-    setCount(0);
-    let i = 0;
-    const id = window.setInterval(() => {
-      i += 1;
-      setCount(i);
-      if (i >= text.length) window.clearInterval(id);
-    }, speed);
-    return () => window.clearInterval(id);
-  }, [text, speed, reduce]);
-
-  const finish = useCallback(() => setCount(text.length), [text.length]);
-
-  return (
-    <span
-      className={cn("relative inline-block cursor-default", className)}
-      onClick={done ? undefined : finish}
-      onKeyDown={done ? undefined : (e) => {
-        // Any key finishes the text instantly (without hijacking tab/modifier nav).
-        if (e.key === "Tab") return;
-        finish();
-      }}
-      // Only focusable (for key-to-skip) while still animating.
-      tabIndex={done ? undefined : -1}
-      role="presentation"
-    >
-      {/* Invisible full text reserves the final layout height. */}
-      <span aria-hidden="true" className="invisible">
-        {text}
-      </span>
-      {/* Visible typed slice, overlaid so it doesn't affect layout. */}
-      <span className="absolute inset-0">
-        {reduce ? text : text.slice(0, count)}
-      </span>
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // InitialSyncGate
 // ---------------------------------------------------------------------------
 
@@ -1039,13 +954,16 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
           <DittoLogo size={64} className="relative" />
         </div>
         <div className="space-y-2">
+          {/* Onboarding copy renders immediately — no typing effect for now.
+              TODO: Blobbi/magical writing can reintroduce a writing effect later. */}
           <h1 className="text-2xl font-bold tracking-tight text-balance">
             Let's make the internet feel like yours again
           </h1>
-          <Typewriter
-            text="Most social apps make every account feel the same. Ditto gives you more room to shape your space, your conversations, and how you show up."
-            className="text-sm text-muted-foreground leading-relaxed text-pretty"
-          />
+          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
+            Most social apps make every account feel the same. Ditto gives you
+            more room to shape your space, your conversations, and how you show
+            up.
+          </p>
         </div>
       </div>
 
@@ -1210,10 +1128,9 @@ function TopicsStep({
           <h2 className="text-2xl font-bold tracking-tight text-balance">
             What do you want to explore first?
           </h2>
-          <Typewriter
-            text="Pick a few topics, or add your own."
-            className="text-sm text-muted-foreground leading-relaxed text-pretty"
-          />
+          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
+            Pick a few topics, or add your own.
+          </p>
         </div>
       </div>
 
@@ -1381,10 +1298,11 @@ function KeygenStep({
         <h1 className="text-2xl font-bold tracking-tight">
           Create your account
         </h1>
-        <Typewriter
-          text="Most apps keep your account on their terms. Ditto is different. This account belongs to you. We'll create a private key that proves it's yours and helps you come back safely."
-          className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty"
-        />
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty">
+          Most apps keep your account on their terms. Ditto is different. This
+          account belongs to you. We'll create a private key that proves it's
+          yours and helps you come back safely.
+        </p>
         {intentBody && (
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto text-pretty">
             {intentBody}
@@ -1496,10 +1414,10 @@ function DownloadStep({
         <h2 className="text-xl font-semibold tracking-tight">
           Save your key
         </h2>
-        <Typewriter
-          text="This key is yours. It lets Ditto know it's really you when you come back."
-          className="text-sm text-muted-foreground text-pretty"
-        />
+        <p className="text-sm text-muted-foreground text-pretty">
+          This key is yours. It lets Ditto know it's really you when you come
+          back.
+        </p>
       </div>
 
       <div className="relative">
@@ -1734,10 +1652,10 @@ function ProfileStep({
           <h2 className="text-xl font-semibold tracking-tight">
             Make yourself recognizable
           </h2>
-          <Typewriter
-            text="Add a name, photo, or short line so people know who they're meeting. You can change this anytime."
-            className="text-sm text-muted-foreground text-pretty"
-          />
+          <p className="text-sm text-muted-foreground text-pretty">
+            Add a name, photo, or short line so people know who they're meeting.
+            You can change this anytime.
+          </p>
         </div>
       </div>
 
@@ -2399,10 +2317,10 @@ function FollowsStep({
         <h2 className="text-xl font-semibold tracking-tight">
           Start with a few interesting voices
         </h2>
-        <Typewriter
-          text={intentIntro ?? "Your first feed is better with people in it. Meet a few voices that can make Ditto feel alive from the start."}
-          className="text-sm text-muted-foreground text-pretty"
-        />
+        <p className="text-sm text-muted-foreground text-pretty">
+          {intentIntro ??
+            "Your first feed is better with people in it. Meet a few voices that can make Ditto feel alive from the start."}
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -2661,23 +2579,27 @@ function PackCard({
  * theme (kind 16767), we preview a SAFE SUBSET of it — only inside this card —
  * so the card briefly takes on that person's actual Ditto vibe. The subset is:
  *   - their theme background image (already https-sanitized at the parse layer),
- *     dimmed + blurred so text stays readable;
- *   - their accent/primary color, used only for accents (avatar ring, dots,
- *     the banner-tile gradient) via a card-scoped `--pack-accent` CSS variable.
- * We deliberately do NOT trust their theme's text/background colors for body
- * copy — all text stays inside the app's own readable `bg-card`/`bg-background`
- * panels so contrast is guaranteed even with busy themes. No theme font is
- * applied (avoids loading remote font files just for a preview).
+ *     used as a large *ambient* layer behind the whole preview, blurred + dimmed
+ *     under a scrim so text stays readable;
+ *   - their theme background COLOR, used as the ambient base tint (and to avoid
+ *     a white/black flash while the next image loads);
+ *   - their accent/primary color, used for accents (avatar ring, dots, badge,
+ *     decorative gradients) via a card-scoped `--pack-accent` CSS variable.
+ * We deliberately do NOT trust their theme's text color for body copy, and we
+ * never let the busy background sit directly behind text — all readable text
+ * lives inside a translucent `bg-card/…` + backdrop-blur panel, so contrast is
+ * guaranteed on both light and dark app themes. No theme font is applied (that
+ * would mean loading remote font assets and injecting them globally).
  *
- * If there is no published theme, we fall back to the person's kind-0 banner
- * (the original behavior). If there's no banner either, the soft primary
- * gradient shows through.
+ * If there is no published theme, we fall back to the person's kind-0 banner.
+ * If there's no banner either, the soft accent gradient shows through.
  *
  * This is strictly preview-only and LOCAL to this card. We never touch the
  * user's theme, never call applyCustomTheme, never inject global `<style>`
  * theme variables, never persist anything, and never write to Nostr. The theme
  * colors/background are applied only via inline `style` on this card's own
- * subtree, so nothing leaks to the rest of the app.
+ * subtree (the parent card is `overflow-hidden`, so the ambient layer is
+ * clipped to the card and nothing leaks to the rest of the app).
  *
  * Performance: the theme is fetched only for the CURRENT person via
  * useActiveProfileTheme (TanStack-cached, replaceable kind 16767, limit 1), so
@@ -2743,23 +2665,28 @@ function PackPeoplePreview({
   //  - background image: already https-sanitized at the parse layer
   //    (parseBackgroundTag -> sanitizeUrl), re-sanitized here as defense in
   //    depth before it touches a CSS `url()`.
-  //  - accent: their primary color (HSL triple like "228 20% 10%"), used only
-  //    for accents via a card-scoped CSS var. We do NOT adopt their text or
-  //    background colors for body copy — contrast stays guaranteed.
+  //  - background color + accent (primary): HSL triples like "228 20% 10%".
+  //    Used for the ambient layer + accents via card-scoped CSS vars. We do
+  //    NOT adopt their text color for body copy — contrast stays guaranteed.
   const themeBgUrl = sanitizeUrl(activeTheme?.background?.url);
   const themeAccent = activeTheme?.colors.primary;
-  const hasRealTheme = Boolean(themeBgUrl || themeAccent);
+  const themeBgColor = activeTheme?.colors.background;
+  const hasRealTheme = Boolean(themeBgUrl || themeAccent || themeBgColor);
 
   // The visual background source: prefer the real theme background, else the
   // person's kind-0 banner. Both are sanitized https URLs (or undefined).
   const vibeBgUrl = themeBgUrl ?? bannerUrl;
 
-  // Scope the accent to this card only. Setting `--pack-accent` via inline
-  // style cascades to descendants but never leaks globally. `--primary` stays
-  // the app's own value everywhere else.
-  const cardStyle = themeAccent
-    ? ({ "--pack-accent": themeAccent } as React.CSSProperties)
-    : undefined;
+  // Scope the theme to this card only. Setting CSS vars via inline style
+  // cascades to descendants but never leaks globally — the app's own
+  // `--primary`/`--background` stay untouched everywhere else.
+  const cardStyle: React.CSSProperties | undefined =
+    themeAccent || themeBgColor
+      ? ({
+          ...(themeAccent ? { "--pack-accent": themeAccent } : {}),
+          ...(themeBgColor ? { "--pack-bg": themeBgColor } : {}),
+        } as React.CSSProperties)
+      : undefined;
 
   // Prefer a friendly handle (NIP-05 / @name); fall back to a shortened npub
   // so the slide never looks empty even with no metadata at all.
@@ -2774,25 +2701,58 @@ function PackPeoplePreview({
 
   return (
     <div
-      className="relative motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+      className="relative overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
       style={cardStyle}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="group"
       aria-label="Meet the people in this pack"
     >
-      {/* Vibe preview: a soft, blurred wash of the person's theme background
-          (or their kind-0 banner) behind the whole card. Contained
-          (overflow-hidden on the parent), heavily dimmed + blurred so text
-          stays readable even with busy themes. Preview-only — applied only to
-          this card's subtree via inline style, never to the app. */}
-      {vibeBgUrl && (
+      {/* Ambient theme layer — a large preview of the person's actual Ditto
+          vibe behind the WHOLE inline preview (not just the banner tile).
+          Built in layers so it reads strongly while staying readable:
+            1. their theme background COLOR as a base tint (also prevents a
+               white/black flash while the next person's image loads);
+            2. their background IMAGE (or kind-0 banner), blurred and at modest
+               opacity so it's clearly present but never fights with text;
+            3. an accent-tinted decorative glow;
+            4. a scrim that fades from the card color at the bottom so the
+               readable content panel always has a calm backing.
+          Everything is contained by the parent's overflow-hidden + the card's
+          own overflow-hidden, and applied only via scoped CSS vars / inline
+          style — it never leaves this card. Keyed by pubkey so it cross-fades
+          smoothly when stepping between people. */}
+      <div
+        key={currentPubkey}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700"
+      >
+        {/* 1. Base color tint (graceful fallback while image loads). */}
+        {themeBgColor && (
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: "hsl(var(--pack-bg) / 0.6)" }}
+          />
+        )}
+        {/* 2. Background image / banner, blurred + dimmed. */}
+        {vibeBgUrl && (
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-40 blur-lg scale-110 transition-opacity duration-700"
+            style={{ backgroundImage: `url("${vibeBgUrl}")` }}
+          />
+        )}
+        {/* 3. Accent glow for warmth. */}
         <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-15 blur-xl transition-opacity duration-500"
-          style={{ backgroundImage: `url("${vibeBgUrl}")` }}
+          className="absolute inset-x-0 top-0 h-40 opacity-60"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 50% 0%, hsl(var(--pack-accent,var(--primary)) / 0.35), transparent 70%)",
+          }}
         />
-      )}
+        {/* 4. Readability scrim — keeps the top strip (back button / counter)
+            calm and fades to the card color toward the content. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-card/70 via-card/60 to-card/95" />
+      </div>
 
       <div className="relative">
         {/* Top bar: back to summary + position indicator. */}
@@ -2867,18 +2827,26 @@ function PackPeoplePreview({
             </AvatarFallback>
           </Avatar>
 
-          <div className="mt-2 space-y-0.5">
-            <p className="font-semibold text-sm leading-tight truncate">
-              {name}
-            </p>
-            {handle && (
-              <p className="text-xs text-muted-foreground truncate">{handle}</p>
-            )}
-          </div>
+          {/* Readable panel: name + handle + bio live on a translucent card
+              layer with backdrop blur so the body text keeps strong contrast
+              over the ambient theme, on both light and dark app themes. We
+              never use the person's theme text color here. */}
+          <div className="mt-2 rounded-xl bg-card/80 ring-1 ring-border/50 backdrop-blur-md px-3 py-2.5 shadow-sm">
+            <div className="space-y-0.5">
+              <p className="font-semibold text-sm leading-tight truncate text-card-foreground">
+                {name}
+              </p>
+              {handle && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {handle}
+                </p>
+              )}
+            </div>
 
-          <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[3rem]">
-            {bio || "No bio yet."}
-          </p>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[3rem]">
+              {bio || "No bio yet."}
+            </p>
+          </div>
         </div>
 
         {/* Stepper controls + Follow All. */}
@@ -3037,10 +3005,9 @@ function OutroStep({
 
       <div className="space-y-3 max-w-xs">
         <h2 className="text-2xl font-bold tracking-tight">You're in.</h2>
-        <Typewriter
-          text={body}
-          className="text-muted-foreground text-sm leading-relaxed text-pretty"
-        />
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+          {body}
+        </p>
       </div>
 
       <Button
