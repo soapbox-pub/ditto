@@ -643,7 +643,7 @@ export function SetupQuestionnaire({
   }, [showTopics, selectedTopics, config.appId, onComplete, isDevUiOnly]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background h-[100dvh]">
       {/* Ambient warmth — a soft, static brand-tinted gradient so the flow
           doesn't feel flat. Non-interactive and behind all content. */}
       <div
@@ -673,8 +673,8 @@ export function SetupQuestionnaire({
       </div>
 
       {/* Content area */}
-      <div className="relative flex-1 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
+      <div className="relative flex-1 flex flex-col overflow-y-auto overscroll-contain">
+        <div className="w-full max-w-md mx-auto my-auto px-6 py-6 sm:py-12">
           {/* Signup steps */}
           {step === "welcome" && (
             <WelcomeStep
@@ -803,38 +803,38 @@ interface IntentCopy {
 }
 
 const GENERIC_OUTRO =
-  "Your space is ready. Go explore, follow a few interesting people, or post something small to make it yours.";
+  "Your space is ready. Explore, follow a few people, or post something small.";
 
 const INTENT_COPY: Record<WelcomeIntent, IntentCopy> = {
   conversations: {
     followsIntro:
       "Let's start with people who make the feed worth reading.",
     outro:
-      "Your space is ready. Start by exploring conversations and following people who feel worth hearing from.",
+      "Your space is ready. Dive into conversations worth hearing.",
   },
   fun: {
     outro:
-      "Your space is ready. Start in the Ditto feed, explore what people are sharing, and post something small when you're ready.",
+      "Your space is ready. Explore the feed and post when you're ready.",
   },
   personal: {
     themeSubtitle:
       "Make it feel like yours. Pick a starting look — you can keep shaping it anytime.",
     outro:
-      "Your space is ready. You can keep shaping your look, profile, and vibe as you explore.",
+      "Your space is ready. Keep shaping your look and vibe as you explore.",
   },
   control: {
     keygenBody:
       "This account is yours to keep. No company owns it, and you can take it anywhere.",
     outro:
-      "Your space is ready. Explore Ditto with an account that belongs to you.",
+      "Your space is ready. It's an account that belongs to you.",
   },
   weird: {
     outro:
-      "Your space is ready. Start exploring the strange, playful corners of Ditto.",
+      "Your space is ready. Go find the strange, playful corners.",
   },
   fresh: {
     outro:
-      "Your space is ready. Take a look around first, then post when it feels right.",
+      "Your space is ready. Look around, then post when it feels right.",
   },
 };
 
@@ -925,7 +925,7 @@ function formatTopicList(topics: SelectedTopic[]): string {
  */
 function buildTopicsOutro(topics: SelectedTopic[], fallback: string): string {
   if (topics.length === 0) return fallback;
-  return `Your space is ready. We'll start by pointing you toward conversations around ${formatTopicList(
+  return `Your space is ready. We'll point you toward ${formatTopicList(
     topics,
   )}.`;
 }
@@ -946,33 +946,32 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col items-center text-center gap-4">
+    <div className="flex flex-col gap-5 sm:gap-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
         <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
           {/* Soft glow behind the logo for a little warmth */}
           <div className="absolute -inset-4 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-          <DittoLogo size={64} className="relative" />
+          <DittoLogo size={48} className="relative sm:hidden" />
+          <DittoLogo size={64} className="relative hidden sm:block" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
           {/* Onboarding copy renders immediately — no typing effect for now.
               TODO: Blobbi/magical writing can reintroduce a writing effect later. */}
-          <h1 className="text-2xl font-bold tracking-tight text-balance">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-balance">
             Let's make the internet feel like yours again
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-            Most social apps make every account feel the same. Ditto gives you
-            more room to shape your space, your conversations, and how you show
-            up.
+            Pick what you wish social apps did better.
           </p>
         </div>
       </div>
 
-      <fieldset className="space-y-3">
+      <fieldset className="space-y-2.5 sm:space-y-3">
         <legend className="text-sm font-medium text-foreground">
           What do you wish social apps did better?
         </legend>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
           {WELCOME_CHOICES.map((choice, i) => {
             const isSelected = selected.has(choice.id);
             return (
@@ -983,7 +982,7 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
                 onClick={() => toggle(choice.id)}
                 style={{ animationDelay: `${i * 50}ms` }}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-xl border p-3.5 text-left",
+                  "group relative flex items-center gap-2.5 sm:gap-3 rounded-xl border p-2.5 sm:p-3.5 text-left",
                   "transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "motion-safe:active:scale-[0.97] motion-safe:hover:-translate-y-0.5",
@@ -994,7 +993,7 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
               >
                 <span
                   className={cn(
-                    "text-xl leading-none transition-transform duration-200",
+                    "text-lg sm:text-xl leading-none transition-transform duration-200",
                     "motion-safe:group-hover:scale-110",
                     isSelected && "motion-safe:scale-110",
                   )}
@@ -1002,18 +1001,18 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
                 >
                   {choice.emoji}
                 </span>
-                <span className="flex-1 text-sm font-medium">
+                <span className="flex-1 text-xs sm:text-sm font-medium leading-snug">
                   {choice.label}
                 </span>
                 <span
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
+                    "flex size-4 sm:size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
                     isSelected
                       ? "border-primary bg-primary text-primary-foreground motion-safe:zoom-in"
                       : "border-muted-foreground/30 text-transparent",
                   )}
                 >
-                  <Check className="size-3" />
+                  <Check className="size-2.5 sm:size-3" />
                 </span>
               </button>
             );
@@ -1116,16 +1115,16 @@ function TopicsStep({
   }, [customValue, selected, selectedKeys, canAddCustom, onChange]);
 
   return (
-    <div className="flex flex-col gap-7 animate-in fade-in slide-in-from-right-4 duration-400">
+    <div className="flex flex-col gap-5 sm:gap-7 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="flex flex-col items-center text-center gap-3">
         <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-500">
           <div className="absolute -inset-4 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-          <div className="relative flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="size-7" />
+          <div className="relative flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Sparkles className="size-6 sm:size-7" />
           </div>
         </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight text-balance">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-balance">
             What do you want to explore first?
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
@@ -1288,20 +1287,20 @@ function KeygenStep({
   intentBody?: string;
 }) {
   return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
         <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-        <DittoLogo size={80} className="relative" />
+        <DittoLogo size={64} className="relative sm:hidden" />
+        <DittoLogo size={80} className="relative hidden sm:block" />
       </div>
 
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight">
+      <div className="space-y-2 sm:space-y-3">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
           Create your account
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty">
-          Most apps keep your account on their terms. Ditto is different. This
-          account belongs to you. We'll create a private key that proves it's
-          yours and helps you come back safely.
+          This account belongs to you. Ditto will create a private key so you
+          can come back safely.
         </p>
         {intentBody && (
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto text-pretty">
@@ -1309,8 +1308,7 @@ function KeygenStep({
           </p>
         )}
         <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
-          Your private key is a cryptographic secret. You don't need to
-          understand the math. Just keep it private.
+          Keep it private. You don't need to understand the math.
         </p>
       </div>
 
@@ -1415,8 +1413,7 @@ function DownloadStep({
           Save your key
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
-          This key is yours. It lets Ditto know it's really you when you come
-          back.
+          Save this key somewhere safe. It's how you get back in.
         </p>
       </div>
 
@@ -1448,8 +1445,8 @@ function DownloadStep({
       <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
         <ShieldCheck className="size-4 mt-0.5 shrink-0 text-primary" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Keep it private and store it somewhere safe. If you lose it, you may
-          lose access. If someone else gets it, they can use your account.
+          If you lose it, you may lose access. If someone else gets it, they can
+          use your account.
         </p>
       </div>
 
@@ -1653,8 +1650,7 @@ function ProfileStep({
             Make yourself recognizable
           </h2>
           <p className="text-sm text-muted-foreground text-pretty">
-            Add a name, photo, or short line so people know who they're meeting.
-            You can change this anytime.
+            Add a name or photo so people know who they're meeting.
           </p>
         </div>
       </div>
@@ -2319,7 +2315,7 @@ function FollowsStep({
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
           {intentIntro ??
-            "Your first feed is better with people in it. Meet a few voices that can make Ditto feel alive from the start."}
+            "Follow a few starter voices so your first feed feels alive."}
         </p>
       </div>
 
@@ -3042,17 +3038,18 @@ function OutroStep({
   body?: string;
 }) {
   return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
         <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-        <DittoLogo size={72} className="relative" />
+        <DittoLogo size={64} className="relative sm:hidden" />
+        <DittoLogo size={72} className="relative hidden sm:block" />
         <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5 motion-safe:animate-in motion-safe:zoom-in motion-safe:duration-500 motion-safe:delay-200 motion-safe:fill-mode-both">
           <Heart className="w-5 h-5 text-primary fill-primary" />
         </div>
       </div>
 
-      <div className="space-y-3 max-w-xs">
-        <h2 className="text-2xl font-bold tracking-tight">You're in.</h2>
+      <div className="space-y-2 sm:space-y-3 max-w-xs">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">You're in.</h2>
         <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
           {body}
         </p>
