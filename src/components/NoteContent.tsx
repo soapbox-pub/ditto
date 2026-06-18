@@ -548,7 +548,7 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
-        || (token.type === 'naddr-embed' && !token.url) || token.type === 'lightning-invoice';
+        || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
@@ -818,22 +818,11 @@ export function NoteContent({
                 </Link>
               );
             }
-            return (
-              <span key={i}>
-                {token.url && (
-                  <a
-                    href={token.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {token.url}
-                  </a>
-                )}
-                <EmbeddedNaddr addr={token.addr} className="my-2.5" />
-              </span>
-            );
+            // Both bare `nostr:naddr1…` references and `https://…/naddr1…`
+            // links render as the rich card. The raw URL is intentionally not
+            // shown above it — the card itself links to the content, matching
+            // how nevent/link embeds behave.
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
