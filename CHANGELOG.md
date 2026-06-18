@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.4] - 2026-06-18
+
+A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.
+
+### Changed
+- Profiles and feeds load faster with fewer wasteful network requests
+
 ## [2.23.3] - 2026-06-18
 
 A polish-focused update for how content shows up in your feed. Quoted posts now display their photos and videos inline, articles get rich preview cards, and short or media-heavy posts stop getting cut off early. Links to outside articles gain a one-tap "Open" button, Reddit embeds show at full height, and your home-screen widgets now stay in sync across all your devices. Plus assorted fixes to video previews, search, and embed spacing.
