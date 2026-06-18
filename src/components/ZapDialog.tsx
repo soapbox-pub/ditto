@@ -366,9 +366,11 @@ export function ZapDialog({
   const { esploraApis } = config;
 
   // NIP-A3 payment targets declared by the recipient. We don't fetch these
-  // for campaigns (campaigns route through their own `w` endpoint).
+  // for campaigns (campaigns route through their own `w` endpoint). Only
+  // fetch once the dialog is open — otherwise every ZapDialog rendered behind
+  // a feed's zap button would fire a kind 10133 REQ on mount while closed.
   const { targets: paymentTargets } = usePaymentTargets(
-    campaign ? undefined : target.pubkey,
+    campaign || !open ? undefined : target.pubkey,
   );
 
   // A Lightning payment target is preferred over the kind-0 lud16 when zapping.
