@@ -3,6 +3,7 @@ import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  ChevronLeft,
   ChevronRight,
   Download,
   Eye,
@@ -44,14 +45,6 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -2131,11 +2124,15 @@ function PackCard({
  * Richer, manual preview of the people inside a follow pack.
  *
  * Shown only when the user taps "Meet the people" on the pack card — it is NOT
- * part of the default onboarding screen, so the main step stays compact. The
- * carousel is fully manual (no autoplay), keyboard-navigable (the underlying
- * Carousel maps Arrow keys, and prev/next buttons are labelled), and degrades
- * gracefully: a member with missing metadata still shows an avatar + a
- * shortened npub instead of looking broken.
+ * part of the default onboarding screen, so the main step stays compact.
+ *
+ * This is a deliberately simple manual stepper rather than an Embla carousel:
+ * one person is rendered at a time from `currentIndex`, with compact arrow
+ * buttons that live *inside* the dialog (the Embla CarouselPrevious/Next
+ * position themselves absolutely outside the track, which overflowed the
+ * modal). It has no autoplay, is keyboard-navigable (Arrow keys while open),
+ * and degrades gracefully: a member with missing metadata still shows an
+ * avatar + a shortened npub instead of looking broken.
  */
 function PackPeopleDialog({
   open,
@@ -2157,57 +2154,97 @@ function PackPeopleDialog({
   // Only fetch metadata once the user actually opens the preview.
   const { data: membersMap } = useAuthors(open ? pubkeys : []);
 
-  const [api, setApi] = useState<CarouselApi>();
-  const [current, setCurrent] = useState(0);
+  const total = pubkeys.length;
+  const [index, setIndex] = useState(0);
 
+  // Reset to the first person whenever the dialog (re)opens, and keep the
+  // index in range if the pack ever changes underneath us.
   useEffect(() => {
-    if (!api) return;
-    setCurrent(api.selectedScrollSnap());
-    const onSelect = () => setCurrent(api.selectedScrollSnap());
-    api.on("select", onSelect);
-    return () => {
-      api.off("select", onSelect);
-    };
-  }, [api]);
+    if (open) setIndex(0);
+  }, [open]);
+  const safeIndex = total > 0 ? Math.min(index, total - 1) : 0;
+  const currentPubkey = pubkeys[safeIndex];
+
+  const goPrev = useCallback(
+    () => setIndex((i) => Math.max(0, i - 1)),
+    [],
+  );
+  const goNext = useCallback(
+    () => setIndex((i) => Math.min(total - 1, i + 1)),
+    [total],
+  );
+
+  const atStart = safeIndex === 0;
+  const atEnd = safeIndex >= total - 1;
+
+  // Keyboard support: Left/Right step between people while the dialog is open.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goPrev();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goNext();
+      }
+    },
+    [goPrev, goNext],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl">
+      <DialogContent
+        className="w-[calc(100%-2rem)] max-w-sm max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl"
+        onKeyDown={handleKeyDown}
+      >
         <DialogHeader>
           <DialogTitle className="text-center">{title}</DialogTitle>
           <DialogDescription className="text-center">
-            Real people who can make your first feed feel alive. Swipe through
+            Real people who can make your first feed feel alive. Step through
             and follow them all when you're ready.
           </DialogDescription>
         </DialogHeader>
 
-        <Carousel
-          opts={{ align: "center" }}
-          setApi={setApi}
-          className="px-8"
-          aria-label={`People in ${title}`}
-        >
-          <CarouselContent>
-            {pubkeys.map((pk) => (
-              <CarouselItem key={pk}>
-                <PackPersonSlide
-                  pubkey={pk}
-                  metadata={membersMap?.get(pk)?.metadata}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious aria-label="Previous person" />
-          <CarouselNext aria-label="Next person" />
-        </Carousel>
+        {currentPubkey && (
+          <PackPersonSlide
+            pubkey={currentPubkey}
+            metadata={membersMap?.get(currentPubkey)?.metadata}
+          />
+        )}
 
-        {/* Position indicator, e.g. "1 of 12". */}
-        <p
-          className="text-center text-xs text-muted-foreground"
-          aria-live="polite"
-        >
-          {Math.min(current + 1, pubkeys.length)} of {pubkeys.length}
-        </p>
+        {/* Compact stepper: arrows + "N of M" indicator, all inside the modal. */}
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            onClick={goPrev}
+            disabled={atStart}
+            aria-label="Previous person"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+
+          <p
+            className="text-xs font-medium text-muted-foreground tabular-nums"
+            aria-live="polite"
+          >
+            {safeIndex + 1} of {total}
+          </p>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            onClick={goNext}
+            disabled={atEnd}
+            aria-label="Next person"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
 
         <Button
           className="w-full gap-2 rounded-full h-11"
@@ -2228,7 +2265,7 @@ function PackPeopleDialog({
           ) : (
             <>
               <UserPlus className="w-4 h-4" />
-              Follow all ({pubkeys.length})
+              Follow all ({total})
             </>
           )}
         </Button>
@@ -2237,7 +2274,7 @@ function PackPeopleDialog({
   );
 }
 
-/** A single person card inside the {@link PackPeopleDialog} carousel. */
+/** A single person card inside the {@link PackPeopleDialog} stepper. */
 function PackPersonSlide({
   pubkey,
   metadata,
@@ -2263,10 +2300,11 @@ function PackPersonSlide({
         : undefined;
 
   return (
-    <div className="rounded-xl ring-1 ring-border overflow-hidden bg-card">
+    <div className="w-full rounded-xl ring-1 ring-border overflow-hidden bg-card">
       {/* Banner (optional) — sanitized, with a soft gradient fallback so a
-          missing banner still looks intentional, not broken. */}
-      <div className="relative h-20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.25),hsl(var(--primary)/0.05))]">
+          missing banner still looks intentional, not broken. Fixed height
+          keeps the card stable while metadata loads. */}
+      <div className="relative h-24 w-full bg-[linear-gradient(135deg,hsl(var(--primary)/0.25),hsl(var(--primary)/0.05))]">
         {bannerUrl && (
           <img
             src={bannerUrl}
