@@ -107,7 +107,11 @@ export function SearchPage() {
 
   // SearchPage only tracks the debounced value — raw keystroke state lives in
   // the SearchInput child component so typing doesn't re-render the whole page.
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('q') ?? '');
+  // The query is derived directly from the URL `q` param (single source of
+  // truth), so any navigation that changes it — sidebar search, the mobile
+  // search sheet doing navigate('/search?q=...'), or browser back/forward —
+  // is reflected immediately without a fragile URL↔state sync.
+  const debouncedSearchQuery = searchParams.get('q') ?? '';
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -209,24 +213,14 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Guard to prevent the URL→state sync from clobbering the input
-  // when we ourselves just wrote to the URL.
-  const internalUrlUpdate = useRef(false);
-
-  // Sync search query state → URL (debounced to avoid disrupting typing).
-  // Intentionally omits `searchParams` from deps — including it causes a
-  // feedback loop: writing to the URL updates searchParams, which re-triggers
-  // this effect, forcing extra renders on every keystroke.
-  // The functional updater form of setSearchParams already receives the latest
-  // params, so we don't need searchParams in scope here.
-  useEffect(() => {
-    const trimmed = debouncedSearchQuery.trim();
-    internalUrlUpdate.current = true;
+  // Write the debounced search input to the URL `q` param (the single source
+  // of truth). Debounced upstream by SearchInput so typing isn't disruptive.
+  const setSearchQuery = useCallback((value: string) => {
+    const trimmed = value.trim();
     setSearchParams((prev) => {
       const currentQ = prev.get('q') ?? '';
       if (trimmed === currentQ) {
         // No change — return the same object so React Router skips a history update.
-        internalUrlUpdate.current = false;
         return prev;
       }
       const next = new URLSearchParams(prev);
@@ -237,20 +231,7 @@ export function SearchPage() {
       }
       return next;
     }, { replace: true });
-  }, [debouncedSearchQuery, setSearchParams]);
-
-  // Sync URL → debounced query state (e.g., sidebar search or browser navigation)
-  useEffect(() => {
-    // Skip if we just wrote to the URL ourselves (avoids clobbering mid-typing input)
-    if (internalUrlUpdate.current) {
-      internalUrlUpdate.current = false;
-      return;
-    }
-    const q = searchParams.get('q') ?? '';
-    if (q !== debouncedSearchQuery.trim()) {
-      setDebouncedSearchQuery(q);
-    }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setSearchParams]);
 
   // NOTE: Previously this redirected NIP-19/NIP-05 identifiers away from the
   // search page. Now identifiers are handled as autocomplete suggestions in the
@@ -448,7 +429,7 @@ export function SearchPage() {
         <div className="flex items-center gap-2">
           <SearchInput
             initialValue={debouncedSearchQuery}
-            onDebouncedChange={setDebouncedSearchQuery}
+            onDebouncedChange={setSearchQuery}
           />
 
           {/* Add to feed button (posts tab only) */}
