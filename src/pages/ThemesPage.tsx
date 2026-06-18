@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@unhead/react";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -106,6 +107,9 @@ export function ThemesPage() {
           onClick={() => setActiveTab("global")}
         />
       </SubHeaderBar>
+
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Tab content */}
       {activeTab === "my-themes" ? (
