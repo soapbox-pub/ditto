@@ -57,6 +57,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useActiveProfileTheme } from "@/hooks/useActiveProfileTheme";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AuthorData, useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -2656,15 +2657,32 @@ function PackCard({
  * indicator sit inside the card, and Left/Right arrow keys step too. "Follow
  * all" stays visible.
  *
- * Vibe preview: the person's own banner (sanitized) becomes the card's banner,
- * and a soft tint of it bleeds behind the content so the card briefly takes on
- * that person's vibe. This is preview-only — we never touch the user's theme,
- * never call applyCustomTheme, and never persist anything. We deliberately do
- * NOT fetch kind 16767/36767 theme events here: the banner already in kind-0
- * metadata is the easy, safe signal, and that's all we use.
+ * Theme/vibe preview: when the current person has published an active profile
+ * theme (kind 16767), we preview a SAFE SUBSET of it — only inside this card —
+ * so the card briefly takes on that person's actual Ditto vibe. The subset is:
+ *   - their theme background image (already https-sanitized at the parse layer),
+ *     dimmed + blurred so text stays readable;
+ *   - their accent/primary color, used only for accents (avatar ring, dots,
+ *     the banner-tile gradient) via a card-scoped `--pack-accent` CSS variable.
+ * We deliberately do NOT trust their theme's text/background colors for body
+ * copy — all text stays inside the app's own readable `bg-card`/`bg-background`
+ * panels so contrast is guaranteed even with busy themes. No theme font is
+ * applied (avoids loading remote font files just for a preview).
  *
- * Metadata is passed in from the parent (already fetched for the preview), so
- * stepping through people never triggers extra round-trips.
+ * If there is no published theme, we fall back to the person's kind-0 banner
+ * (the original behavior). If there's no banner either, the soft primary
+ * gradient shows through.
+ *
+ * This is strictly preview-only and LOCAL to this card. We never touch the
+ * user's theme, never call applyCustomTheme, never inject global `<style>`
+ * theme variables, never persist anything, and never write to Nostr. The theme
+ * colors/background are applied only via inline `style` on this card's own
+ * subtree, so nothing leaks to the rest of the app.
+ *
+ * Performance: the theme is fetched only for the CURRENT person via
+ * useActiveProfileTheme (TanStack-cached, replaceable kind 16767, limit 1), so
+ * stepping reuses the cache and only the visible person triggers a query.
+ * Member kind-0 metadata is passed in from the parent (already fetched).
  */
 function PackPeoplePreview({
   pubkeys,
@@ -2716,6 +2734,33 @@ function PackPeoplePreview({
   const bannerUrl = sanitizeUrl(meta?.banner);
   const pictureUrl = sanitizeUrl(meta?.picture);
 
+  // Real theme preview: try the current person's published active profile
+  // theme (kind 16767). Fetched only for the visible person (TanStack-cached),
+  // so stepping reuses the cache. Strictly preview-only and local to this card.
+  const { data: activeTheme } = useActiveProfileTheme(currentPubkey);
+
+  // Safe preview subset:
+  //  - background image: already https-sanitized at the parse layer
+  //    (parseBackgroundTag -> sanitizeUrl), re-sanitized here as defense in
+  //    depth before it touches a CSS `url()`.
+  //  - accent: their primary color (HSL triple like "228 20% 10%"), used only
+  //    for accents via a card-scoped CSS var. We do NOT adopt their text or
+  //    background colors for body copy — contrast stays guaranteed.
+  const themeBgUrl = sanitizeUrl(activeTheme?.background?.url);
+  const themeAccent = activeTheme?.colors.primary;
+  const hasRealTheme = Boolean(themeBgUrl || themeAccent);
+
+  // The visual background source: prefer the real theme background, else the
+  // person's kind-0 banner. Both are sanitized https URLs (or undefined).
+  const vibeBgUrl = themeBgUrl ?? bannerUrl;
+
+  // Scope the accent to this card only. Setting `--pack-accent` via inline
+  // style cascades to descendants but never leaks globally. `--primary` stays
+  // the app's own value everywhere else.
+  const cardStyle = themeAccent
+    ? ({ "--pack-accent": themeAccent } as React.CSSProperties)
+    : undefined;
+
   // Prefer a friendly handle (NIP-05 / @name); fall back to a shortened npub
   // so the slide never looks empty even with no metadata at all.
   const npub = currentPubkey ? tryNpubEncode(currentPubkey) : undefined;
@@ -2730,19 +2775,22 @@ function PackPeoplePreview({
   return (
     <div
       className="relative motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+      style={cardStyle}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="group"
       aria-label="Meet the people in this pack"
     >
-      {/* Vibe preview: a soft, blurred wash of the person's banner behind the
-          whole card. Contained (overflow-hidden on the parent) and low-opacity
-          so text stays readable. Preview-only — never applied to the app. */}
-      {bannerUrl && (
+      {/* Vibe preview: a soft, blurred wash of the person's theme background
+          (or their kind-0 banner) behind the whole card. Contained
+          (overflow-hidden on the parent), heavily dimmed + blurred so text
+          stays readable even with busy themes. Preview-only — applied only to
+          this card's subtree via inline style, never to the app. */}
+      {vibeBgUrl && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-15 blur-xl transition-opacity duration-500"
-          style={{ backgroundImage: `url(${bannerUrl})` }}
+          style={{ backgroundImage: `url("${vibeBgUrl}")` }}
         />
       )}
 
@@ -2767,21 +2815,38 @@ function PackPeoplePreview({
           </span>
         </div>
 
-        {/* Person banner (vibe) — sanitized, gradient fallback when missing. */}
-        <div className="relative mx-4 h-24 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--primary)/0.25),hsl(var(--primary)/0.05))]">
-          {bannerUrl && (
+        {/* Vibe tile — their theme background (or kind-0 banner). Sanitized,
+            with an accent-tinted gradient fallback when neither exists. The
+            accent gradient uses the card-scoped --pack-accent if a real theme
+            provided one, else the app's own --primary. */}
+        <div
+          className="relative mx-4 h-24 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.25),hsl(var(--pack-accent,var(--primary))/0.05))]"
+        >
+          {vibeBgUrl && (
             <img
-              src={bannerUrl}
+              src={vibeBgUrl}
               alt=""
               className="absolute inset-0 size-full object-cover"
               loading="lazy"
             />
           )}
-          {/* "Their vibe preview" note — sits on the banner so the meaning is
-              obvious right where the preview happens. */}
+          {/* Readability scrim over the image so the badge stays legible
+              regardless of how busy the theme background is. */}
+          {vibeBgUrl && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"
+            />
+          )}
+          {/* Preview note — sits on the tile so the meaning is obvious right
+              where the preview happens. Copy changes to make clear whether
+              we're previewing a real theme or just a banner vibe, and either
+              way that the user's own theme is unaffected. */}
           <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
             <Sparkles className="size-2.5" />
-            Their vibe preview. Your theme stays yours.
+            {hasRealTheme
+              ? "Previewing their theme. Yours stays yours."
+              : "Their vibe preview. Your theme stays yours."}
           </span>
         </div>
 
@@ -2791,7 +2856,13 @@ function PackPeoplePreview({
             shape={getAvatarShape(meta)}
           >
             <AvatarImage src={pictureUrl} alt={name} />
-            <AvatarFallback className="bg-primary/15 text-primary text-lg">
+            <AvatarFallback
+              className="text-primary text-lg"
+              style={{
+                backgroundColor:
+                  "hsl(var(--pack-accent,var(--primary)) / 0.15)",
+              }}
+            >
               {name[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -2831,10 +2902,13 @@ function PackPeoplePreview({
                 pubkeys.map((pk, i) => (
                   <span
                     key={pk}
-                    className={cn(
-                      "size-1.5 rounded-full transition-colors",
-                      i === safeIndex ? "bg-primary" : "bg-muted-foreground/30",
-                    )}
+                    className="size-1.5 rounded-full transition-colors"
+                    style={{
+                      backgroundColor:
+                        i === safeIndex
+                          ? "hsl(var(--pack-accent,var(--primary)))"
+                          : "hsl(var(--muted-foreground) / 0.3)",
+                    }}
                   />
                 ))
               ) : (
