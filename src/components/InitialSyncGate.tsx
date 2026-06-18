@@ -372,6 +372,19 @@ const SUGGESTED_PACKS: {
 const SETTINGS_STEPS: Step[] = ["theme", "follows", "outro"];
 
 /**
+ * DEV-ONLY placeholder nsec used by the UI-only preview mode so the download
+ * step renders a realistic-looking key without ever generating real key
+ * material. Derived from a fixed, non-secret all-`0x01` byte array — it is a
+ * syntactically valid nsec but obviously not a real account, and it is never
+ * saved, logged in, or published. Referenced only behind `isDevUiOnly`
+ * (which is `false` in production), so it is dead-code-eliminated from
+ * production builds.
+ */
+const DEV_FAKE_NSEC = /* @__PURE__ */ nip19.nsecEncode(
+  new Uint8Array(32).fill(1),
+);
+
+/**
  * Build the ordered signup step list. The optional "topics" step is inserted
  * between profile setup and follow packs, but ONLY when the user's primary
  * welcome intent is "conversations" — every other intent keeps the original,
@@ -398,6 +411,8 @@ export function SetupQuestionnaire({
   devInitialStep,
   devInitialIntents,
   devInitialTopics,
+  devUiOnly = false,
+  devSimulateSaving = true,
 }: {
   onComplete: () => void;
   onPreload: () => void;
@@ -420,11 +435,33 @@ export function SetupQuestionnaire({
    * intent). Onboarding-local only — never persisted.
    */
   devInitialTopics?: SelectedTopic[];
+  /**
+   * DEV-ONLY: UI-only preview mode. When true (AND `import.meta.env.DEV`),
+   * every real side effect is intercepted and simulated — no key generation,
+   * no `saveNsec`, no login, no profile/follow publishing, no Nostr writes.
+   * Lets the onboarding screens be exercised for design/copy testing without
+   * creating real accounts. Production ignores this entirely (see
+   * `isDevUiOnly`), so it can never become a production auth bypass.
+   */
+  devUiOnly?: boolean;
+  /**
+   * DEV-ONLY: when in UI-only mode, briefly show the real "Saving…" spinners
+   * before advancing, so simulated steps feel like the real flow. Defaults to
+   * true. No effect outside UI-only mode.
+   */
+  devSimulateSaving?: boolean;
 }) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const login = useLoginActions();
+
+  // DEV-ONLY UI preview. Hard-gated by `import.meta.env.DEV` so that even if a
+  // `devUiOnly` prop somehow reached production, it would be ignored — there is
+  // no production code path that intercepts the real handlers. In a production
+  // build `import.meta.env.DEV` is statically false, so this constant folds to
+  // `false` and every `isDevUiOnly` branch below is dead-code-eliminated.
+  const isDevUiOnly = import.meta.env.DEV && devUiOnly;
 
   // Welcome-card selections (signup only). Stored here so the user's chosen
   // intent can lightly shape the copy/framing of later steps. This is
@@ -537,11 +574,19 @@ export function SetupQuestionnaire({
   // Keygen handler — generates the key and advances to the save step.
   // The credential manager prompt is deferred until the user clicks "Continue".
   const handleGenerate = useCallback(() => {
+    // UI-only preview: don't generate a real secret key. Use a clearly-fake
+    // placeholder nsec so the download step has something to render, but no
+    // real key material ever exists.
+    if (isDevUiOnly) {
+      setNsec(DEV_FAKE_NSEC);
+      next();
+      return;
+    }
     const sk = generateSecretKey();
     const encoded = nip19.nsecEncode(sk);
     setNsec(encoded);
     next();
-  }, [next]);
+  }, [next, isDevUiOnly]);
 
   // Continue handler for the download step — saves the key via the best
   // available method (native credential manager on iOS/Android, file download
@@ -563,6 +608,15 @@ export function SetupQuestionnaire({
   // surface as a destructive toast and re-throw so the DownloadStep keeps the
   // user on the key view instead of advancing to the confirmation.
   const handleDownloadContinue = useCallback(async () => {
+    // UI-only preview: simulate a successful save without touching the
+    // credential manager (saveNsec) or logging in (login.nsec). The DownloadStep
+    // proceeds to its confirmation ritual exactly as in the real flow.
+    if (isDevUiOnly) {
+      if (devSimulateSaving) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+      return;
+    }
     try {
       const decoded = nip19.decode(nsec);
       if (decoded.type !== "nsec") throw new Error("Invalid nsec");
@@ -590,7 +644,7 @@ export function SetupQuestionnaire({
       });
       throw new Error("save-failed");
     }
-  }, [nsec, login, config.appName]);
+  }, [nsec, login, config.appName, isDevUiOnly, devSimulateSaving]);
 
   // Check for existing follows and transition to the follows step (or outro if they have follows).
   //
@@ -603,6 +657,19 @@ export function SetupQuestionnaire({
   // `App.tsx`'s `defaultConfig` and cross-device sync handles the rest.
   const handleSaveAndContinue = useCallback(async () => {
     setIsSaving(true);
+
+    // UI-only preview: don't query Nostr for an existing follow list. Always
+    // route to the follows step so the follow-pack UI can be previewed, after
+    // an optional simulated delay so the spinner behaves like the real flow.
+    if (isDevUiOnly) {
+      if (devSimulateSaving) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+      setHasFollows(false);
+      setIsSaving(false);
+      goTo("follows");
+      return;
+    }
 
     // Check if the user already has a follow list
     let userHasFollows = false;
@@ -629,7 +696,7 @@ export function SetupQuestionnaire({
     } else {
       goTo("follows");
     }
-  }, [user, nostr, goTo]);
+  }, [user, nostr, goTo, isDevUiOnly, devSimulateSaving]);
 
   // Finish onboarding. If the conversations-intent topics step ran and the user
   // picked topics, seed a sessionStorage handoff so the app lands them on the
@@ -637,6 +704,12 @@ export function SetupQuestionnaire({
   // (OnboardingTopicsHandoff, rendered inside the router) consumes this key
   // once and clears it. Onboarding-local only — never written to Nostr.
   const handleComplete = useCallback(() => {
+    // UI-only preview: don't touch sessionStorage (no Search handoff seeding).
+    // Just report completion back to the playground.
+    if (isDevUiOnly) {
+      onComplete();
+      return;
+    }
     if (showTopics && selectedTopics.length > 0) {
       const query = buildTopicsSearchQuery(selectedTopics);
       if (query) {
@@ -651,7 +724,7 @@ export function SetupQuestionnaire({
       }
     }
     onComplete();
-  }, [showTopics, selectedTopics, config.appId, onComplete]);
+  }, [showTopics, selectedTopics, config.appId, onComplete, isDevUiOnly]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -716,6 +789,8 @@ export function SetupQuestionnaire({
               onNext={showTopics ? () => goTo("topics") : handleSaveAndContinue}
               isSaving={isSaving}
               expectedPubkey={expectedPubkey}
+              devUiOnly={isDevUiOnly}
+              devSimulateSaving={devSimulateSaving}
             />
           )}
 
@@ -746,12 +821,14 @@ export function SetupQuestionnaire({
           {step === "follows" && hasFollows === false && (
             <FollowsStep
               onNext={(didFollow) => {
-                if (didFollow) onPreload();
+                if (didFollow && !isDevUiOnly) onPreload();
                 goTo("outro");
               }}
               onBack={back}
               expectedPubkey={expectedPubkey}
               intentIntro={isSignup ? intentCopy.followsIntro : undefined}
+              devUiOnly={isDevUiOnly}
+              devSimulateSaving={devSimulateSaving}
             />
           )}
 
@@ -1499,6 +1576,8 @@ function ProfileStep({
   onNext,
   isSaving = false,
   expectedPubkey,
+  devUiOnly = false,
+  devSimulateSaving = true,
 }: {
   onNext: () => void;
   isSaving?: boolean;
@@ -1509,6 +1588,14 @@ function ProfileStep({
    * key and overwriting their profile metadata.
    */
   expectedPubkey?: string;
+  /**
+   * DEV-ONLY (already `import.meta.env.DEV`-gated by the parent): when true,
+   * the Continue handler simulates a successful save and advances WITHOUT
+   * publishing a kind 0 event.
+   */
+  devUiOnly?: boolean;
+  /** DEV-ONLY: briefly show the saving spinner before advancing in UI-only mode. */
+  devSimulateSaving?: boolean;
 }) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -1517,6 +1604,8 @@ function ProfileStep({
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const pickInputRef = useRef<HTMLInputElement>(null);
   const pendingField = useRef<"picture" | "banner">("picture");
+  // Local saving spinner for UI-only simulated publishes.
+  const [devSaving, setDevSaving] = useState(false);
 
   const [profileData, setProfileData] = useState<Partial<NostrMetadata>>({
     name: "",
@@ -1579,6 +1668,19 @@ function ProfileStep({
   }, [cropState]);
 
   const handlePublishProfile = useCallback(async () => {
+    // UI-only preview: simulate a successful save and advance WITHOUT
+    // publishing a kind 0 event or uploading anything. Works even with no
+    // logged-in user (the playground may have no account at all).
+    if (devUiOnly) {
+      if (devSimulateSaving) {
+        setDevSaving(true);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        setDevSaving(false);
+      }
+      onNext();
+      return;
+    }
+
     if (!user) return;
 
     // Defensive guard: when this is the signup flow, only publish kind 0 if
@@ -1621,7 +1723,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey]);
+  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey, devUiOnly, devSimulateSaving]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -1683,9 +1785,9 @@ function ProfileStep({
       <Button
         onClick={handlePublishProfile}
         className="w-full rounded-full h-11 gap-1.5"
-        disabled={isPublishing || isUploading || isSaving}
+        disabled={isPublishing || isUploading || isSaving || devSaving}
       >
-        {isPublishing || isSaving ? (
+        {isPublishing || isSaving || devSaving ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" /> Saving…
           </>
@@ -2148,6 +2250,8 @@ function FollowsStep({
   onBack,
   expectedPubkey,
   intentIntro,
+  devUiOnly = false,
+  devSimulateSaving = true,
 }: {
   onNext: (didFollow: boolean) => void;
   onBack: () => void;
@@ -2163,6 +2267,14 @@ function FollowsStep({
    * "Your feed gets better when you follow people…" framing.
    */
   intentIntro?: string;
+  /**
+   * DEV-ONLY (already `import.meta.env.DEV`-gated by the parent): when true,
+   * "Follow All" simulates success and marks the pack followed WITHOUT
+   * fetching the contact list or publishing a kind 3 event.
+   */
+  devUiOnly?: boolean;
+  /** DEV-ONLY: briefly show the per-pack following spinner in UI-only mode. */
+  devSimulateSaving?: boolean;
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -2207,6 +2319,20 @@ function FollowsStep({
 
   const handleFollowAll = useCallback(
     async (pack: NostrEvent) => {
+      // UI-only preview: simulate following the pack — mark it followed after
+      // an optional delay WITHOUT fetching the contact list or publishing a
+      // kind 3 event. Works even with no logged-in user.
+      if (devUiOnly) {
+        const packId = pack.id;
+        setFollowingPack(packId);
+        if (devSimulateSaving) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        setFollowedPacks((prev) => new Set([...prev, packId]));
+        setFollowingPack(null);
+        return;
+      }
+
       if (!user) return;
 
       // Defensive guard: when this is the signup flow, only publish kind 3
@@ -2263,7 +2389,7 @@ function FollowsStep({
         setFollowingPack(null);
       }
     },
-    [user, nostr, publishEvent, expectedPubkey],
+    [user, nostr, publishEvent, expectedPubkey, devUiOnly, devSimulateSaving],
   );
 
   return (

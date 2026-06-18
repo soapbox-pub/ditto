@@ -9,7 +9,14 @@
  * Purpose: preview and test onboarding states quickly — every welcome intent,
  * every step (including the conversations-only `topics` step), simulated topic
  * selections, and the sessionStorage Search handoff that `OnboardingTopicsHandoff`
- * consumes — without creating real accounts or publishing to Nostr.
+ * consumes.
+ *
+ * Two preview modes:
+ *  - UI-only (default): walks the real screens with every side effect simulated
+ *    (no key generation, saveNsec, login, profile/follow publishing, or Nostr
+ *    writes). Driven by `SetupQuestionnaire`'s `devUiOnly` prop, itself
+ *    hard-gated by `import.meta.env.DEV`.
+ *  - Real flow (clearly warned): runs the actual onboarding behavior.
  *
  * To remove later: delete this file, delete `src/dev/`, and remove the
  * `import.meta.env.DEV && (...)` dev route block in `AppRouter.tsx`.
@@ -69,6 +76,8 @@ export function DevOnboardingPlayground() {
   // remounts with the chosen initial intent/step/topics.
   const [previewKey, setPreviewKey] = useState(0);
   const [previewing, setPreviewing] = useState(false);
+  // Which mode the active/most-recent preview was launched in.
+  const [previewMode, setPreviewMode] = useState<"ui-only" | "real">("ui-only");
 
   const searchKey = getStorageKey(config.appId, ONBOARDING_SEARCH_KEY);
 
@@ -97,7 +106,8 @@ export function DevOnboardingPlayground() {
     });
   };
 
-  const startPreview = () => {
+  const startPreview = (mode: "ui-only" | "real") => {
+    setPreviewMode(mode);
     setPreviewKey((k) => k + 1);
     setPreviewing(true);
   };
@@ -129,6 +139,7 @@ export function DevOnboardingPlayground() {
   // Live onboarding preview, rendered full-screen (SetupQuestionnaire owns its
   // own fixed overlay). A small floating "Close preview" button sits on top.
   if (previewing) {
+    const uiOnly = previewMode === "ui-only";
     return (
       <>
         <SetupQuestionnaire
@@ -137,19 +148,36 @@ export function DevOnboardingPlayground() {
           devInitialStep={startStep}
           devInitialIntents={devInitialIntents}
           devInitialTopics={selectedTopics}
+          devUiOnly={uiOnly}
           onPreload={() => {}}
           onComplete={() => {
             setPreviewing(false);
-            setLastAction("Preview reached onComplete (Start exploring).");
+            setLastAction(
+              uiOnly
+                ? "UI-only preview completed."
+                : "Real flow preview reached onComplete (Start exploring).",
+            );
           }}
         />
-        <button
-          type="button"
-          onClick={() => setPreviewing(false)}
-          className="fixed top-3 right-3 z-[60] rounded-full bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-lg"
-        >
-          Close preview
-        </button>
+        <div className="fixed top-3 right-3 z-[60] flex items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full px-3 py-1.5 text-xs font-medium shadow-lg",
+              uiOnly
+                ? "bg-emerald-600 text-white"
+                : "bg-red-600 text-white",
+            )}
+          >
+            {uiOnly ? "UI-only preview" : "REAL flow"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPreviewing(false)}
+            className="rounded-full bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-lg"
+          >
+            Close preview
+          </button>
+        </div>
       </>
     );
   }
@@ -166,8 +194,9 @@ export function DevOnboardingPlayground() {
             Onboarding Playground
           </h1>
           <p className="text-sm text-muted-foreground">
-            Preview onboarding as a new signup without creating real accounts.
-            Nothing here publishes to Nostr unless you walk the real flow.
+            Preview onboarding as a new signup. The default UI-only mode
+            simulates all side effects — no real accounts, no Nostr writes. A
+            separate, clearly-warned real flow preview runs the actual behavior.
           </p>
         </div>
 
@@ -267,9 +296,41 @@ export function DevOnboardingPlayground() {
           </p>
         </section>
 
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={startPreview}>Launch onboarding preview</Button>
-        </div>
+        {/* Launch — UI-only is the default, visually-preferred action. */}
+        <section className="space-y-4 rounded-xl border bg-card p-4">
+          <Label className="text-sm font-semibold">Launch preview</Label>
+
+          <div className="space-y-2">
+            <Button
+              size="lg"
+              onClick={() => startPreview("ui-only")}
+              className="w-full"
+            >
+              Launch UI-only preview
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Default. Walks the real onboarding screens but simulates every
+              side effect: no key generation, no <code>saveNsec</code>, no
+              login, no profile/follow publishing, no Nostr or sessionStorage
+              writes.
+            </p>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-red-500/40 bg-red-500/5 p-3">
+            <p className="text-xs font-medium text-red-600 dark:text-red-400">
+              Real flow: may create keys, login, save profile, and publish to
+              Nostr.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => startPreview("real")}
+              className="border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
+            >
+              Launch real flow preview
+            </Button>
+          </div>
+        </section>
 
         {/* Reset / handoff tools */}
         <section className="space-y-4 rounded-xl border bg-card p-4">
