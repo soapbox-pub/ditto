@@ -86,6 +86,14 @@ const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m
 const FollowPage = lazy(() => import("./pages/FollowPage").then(m => ({ default: m.FollowPage })));
 const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
 
+// DEV-ONLY: onboarding playground. The lazy import is only referenced when
+// `import.meta.env.DEV` is true, so production builds tree-shake it away and
+// the module never ships. Remove this line + the dev route block below to drop
+// the playground entirely.
+const DevOnboardingPlayground = import.meta.env.DEV
+  ? lazy(() => import("./dev/DevOnboardingPlayground").then(m => ({ default: m.DevOnboardingPlayground })))
+  : null;
+
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
 const packsDef = getExtraKindDef("packs")!;
@@ -163,6 +171,20 @@ export function AppRouter() {
           <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
+
+          {/* DEV-ONLY onboarding playground. Registered only in `import.meta.env.DEV`,
+              so it does not exist in production builds. Remove this block + the
+              lazy import above to drop the playground. */}
+          {import.meta.env.DEV && DevOnboardingPlayground && (
+            <Route
+              path="/dev/onboarding"
+              element={
+                <Suspense fallback={null}>
+                  <DevOnboardingPlayground />
+                </Suspense>
+              }
+            />
+          )}
 
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>

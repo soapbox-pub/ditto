@@ -33,6 +33,14 @@ import {
   useState,
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
+import {
+  MAX_CUSTOM_TOPICS,
+  type SelectedTopic,
+  type Step,
+  TOPIC_CHOICES,
+  WELCOME_CHOICES,
+  type WelcomeIntent,
+} from "@/components/onboardingChoices";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -361,10 +369,6 @@ const SUGGESTED_PACKS: {
   ];
 
 // Steps for signup (includes welcome + keygen + profile) vs. settings-only (existing login)
-type SignupStep = "welcome" | "keygen" | "download" | "profile" | "topics";
-type SettingsStep = "theme" | "follows" | "outro";
-type Step = SignupStep | SettingsStep;
-
 const SETTINGS_STEPS: Step[] = ["theme", "follows", "outro"];
 
 /**
@@ -387,14 +391,35 @@ function buildSignupSteps(showTopics: boolean): Step[] {
   ];
 }
 
-function SetupQuestionnaire({
+export function SetupQuestionnaire({
   onComplete,
   onPreload,
   isSignup = false,
+  devInitialStep,
+  devInitialIntents,
+  devInitialTopics,
 }: {
   onComplete: () => void;
   onPreload: () => void;
   isSignup?: boolean;
+  /**
+   * DEV-ONLY: start the flow at a specific step instead of the natural first
+   * one. Used exclusively by the dev onboarding playground
+   * (`src/dev/DevOnboardingPlayground.tsx`) to preview a single step quickly.
+   * Has no effect on the real signup/settings flows, which never pass it.
+   */
+  devInitialStep?: Step;
+  /**
+   * DEV-ONLY: pre-seed the welcome-card intent selection so intent-shaped copy
+   * and the conversations-only topics step resolve without clicking through the
+   * welcome step. Onboarding-local only — never persisted.
+   */
+  devInitialIntents?: string[];
+  /**
+   * DEV-ONLY: pre-seed the first-explore topics selection (conversations
+   * intent). Onboarding-local only — never persisted.
+   */
+  devInitialTopics?: SelectedTopic[];
 }) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
@@ -404,7 +429,9 @@ function SetupQuestionnaire({
   // Welcome-card selections (signup only). Stored here so the user's chosen
   // intent can lightly shape the copy/framing of later steps. This is
   // onboarding-local state only — never persisted to local storage or Nostr.
-  const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
+  const [selectedIntents, setSelectedIntents] = useState<string[]>(
+    () => devInitialIntents ?? [],
+  );
   const intentCopy = useMemo(
     () => resolveIntentCopy(selectedIntents),
     [selectedIntents],
@@ -420,16 +447,24 @@ function SetupQuestionnaire({
   // First-explore topics (conversations intent only). Onboarding-local: used
   // to shape the outro copy and the post-onboarding Search handoff, never
   // persisted to Nostr.
-  const [selectedTopics, setSelectedTopics] = useState<SelectedTopic[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<SelectedTopic[]>(
+    () => devInitialTopics ?? [],
+  );
 
   const steps = useMemo(
     () => (isSignup ? buildSignupSteps(showTopics) : SETTINGS_STEPS),
     [isSignup, showTopics],
   );
 
-  const [step, setStep] = useState<Step>(isSignup ? "welcome" : "theme");
+  const [step, setStep] = useState<Step>(
+    () => devInitialStep ?? (isSignup ? "welcome" : "theme"),
+  );
   const [isSaving, setIsSaving] = useState(false);
-  const [hasFollows, setHasFollows] = useState<boolean | null>(null);
+  // The follows step only renders when hasFollows === false. When a dev preview
+  // jumps straight to it, seed that so the step shows immediately.
+  const [hasFollows, setHasFollows] = useState<boolean | null>(
+    () => (devInitialStep === "follows" ? false : null),
+  );
 
   // Signup-specific state
   const [nsec, setNsec] = useState("");
@@ -741,34 +776,6 @@ function SetupQuestionnaire({
 // ---------------------------------------------------------------------------
 
 /**
- * Lightweight, non-technical choices that let a new user express what they
- * want out of a social app. The selected ids are lifted into
- * SetupQuestionnaire and lightly shape the copy/framing of later steps (theme,
- * keygen, follows, outro) via {@link resolveIntentCopy}. They are
- * onboarding-local only — never persisted to local storage or Nostr.
- */
-const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
-  { id: "personal", emoji: "🪴", label: "Feel more like my space" },
-  { id: "control", emoji: "🎛️", label: "Give me more control" },
-  { id: "conversations", emoji: "💬", label: "Show better conversations" },
-  { id: "fun", emoji: "✨", label: "Make posting fun again" },
-  { id: "weird", emoji: "🧪", label: "Try weird internet things" },
-  { id: "fresh", emoji: "🌱", label: "Give me a fresh start" },
-];
-
-/**
- * The id of a welcome card. The user can pick several; the rest of the flow
- * only ever acts on a single *primary* intent, chosen by {@link resolveIntent}.
- */
-type WelcomeIntent =
-  | "conversations"
-  | "fun"
-  | "personal"
-  | "control"
-  | "weird"
-  | "fresh";
-
-/**
  * Priority order for resolving a single "primary" intent when the user selects
  * more than one welcome card. The earlier an intent appears here, the more it
  * wins — conversation/posting energy leads, identity/control come next, the
@@ -869,51 +876,6 @@ function resolvePrimaryIntent(
 // ---------------------------------------------------------------------------
 // Topics (conversations intent only)
 // ---------------------------------------------------------------------------
-
-/**
- * Suggested first-explore topics, shown only to users whose primary welcome
- * intent is "conversations". Ordering is intentional: more general/normal
- * interests lead, and the more Nostr/Bitcoin/Open-Source-specific topics sit
- * toward the end so the step feels welcoming rather than crypto-forward.
- *
- * Selections are onboarding-local only — never persisted to Nostr. They are
- * used to shape the outro copy and (if the Search handoff is available) the
- * initial Search query after onboarding completes.
- */
-const TOPIC_CHOICES: { id: string; label: string }[] = [
-  { id: "music", label: "Music" },
-  { id: "art", label: "Art" },
-  { id: "games", label: "Games" },
-  { id: "photography", label: "Photography" },
-  { id: "writing", label: "Writing" },
-  { id: "design", label: "Design" },
-  { id: "memes", label: "Memes" },
-  { id: "books", label: "Books" },
-  { id: "movies", label: "Movies" },
-  { id: "tech", label: "Tech" },
-  { id: "indieweb", label: "Indie Web" },
-  { id: "opensource", label: "Open Source" },
-  { id: "bitcoin", label: "Bitcoin" },
-  { id: "nostr", label: "Nostr" },
-];
-
-/** Maximum number of user-added custom topics. */
-const MAX_CUSTOM_TOPICS = 3;
-
-/**
- * A selected topic. Preset topics carry their stable id (so the chip toggles
- * correctly); custom topics are id-less and identified by their label. The
- * `label` is what the user sees and what feeds the Search query / outro copy.
- * `isHashtag` is true when a custom topic was typed with a leading `#`.
- */
-interface SelectedTopic {
-  /** Stable id for preset topics; absent for user-added custom topics. */
-  id?: string;
-  /** Display label (and the term used for search / outro copy). */
-  label: string;
-  /** Custom topics typed with a leading `#` are treated as hashtags. */
-  isHashtag?: boolean;
-}
 
 /** Case-insensitive comparison key for de-duplicating topics by label. */
 function topicKey(label: string): string {
