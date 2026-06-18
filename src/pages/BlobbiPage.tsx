@@ -249,7 +249,8 @@ function BlobbiContent() {
   } = useBlobbisCollection();
   
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
-  // useBlobbisCollection). Legacy old-app migration/dedup is no longer applied.
+  // useBlobbisCollection). The collection is already legacy-free — old-format
+  // events are dropped at the parse layer — so no migration/dedup is applied here.
   const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
@@ -339,7 +340,6 @@ function BlobbiContent() {
         name: companion.name,
         stage: companion.stage,
         state: companion.state,
-        isLegacy: companion.isLegacy,
       });
     }
   }, [selectedD, companion]);

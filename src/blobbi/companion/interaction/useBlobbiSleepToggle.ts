@@ -69,7 +69,10 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
   /** Optimistically update the TanStack cache so the companion reacts immediately. */
   const updateCache = useCallback((event: import('@nostrify/nostrify').NostrEvent, pubkey: string) => {
     const parsed = parseBlobbiEvent(event);
-    if (!parsed) return;
+    // Defense-in-depth: never let an old-format / unsupported Blobbi enter
+    // companionsByD via the optimistic cache path, mirroring the guard in
+    // useBlobbisCollection.updateCompanionEvent. Canonical events are unaffected.
+    if (!parsed || parsed.isLegacy) return;
 
     // Optimistically update ALL blobbi-collection queries for this user.
     // The cache key is ['blobbi-collection', pubkey, dListArray], so we use
