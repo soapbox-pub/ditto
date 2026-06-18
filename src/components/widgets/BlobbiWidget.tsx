@@ -9,12 +9,12 @@ import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiS
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
-import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
-import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, filterMigratedLegacyCompanions } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -65,14 +65,13 @@ export function BlobbiWidget() {
   const { user } = useCurrentUser();
   const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection();
   const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
-  const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
-  // Filter out legacy companions that have been migrated to canonical format
-  const filteredCompanions = useMemo(() => {
-    if (!profile) return companions;
-    return filterMigratedLegacyCompanions(companions, profile.has);
-  }, [companions, profile]);
+  // Companions list (deduplicated by d-tag, newest wins, inside
+  // useBlobbisCollection). The collection is already legacy-free — old-format
+  // events are dropped at the parse layer — so no migration/dedup is applied here.
+  const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
     const record: Record<string, BlobbiCompanion> = {};
@@ -97,17 +96,17 @@ export function BlobbiWidget() {
     return filteredCompanions[0];
   }, [filteredCompanions, filteredCompanionsByD, storedSelectedD, profile]);
 
-  // Zero-arg wrapper for ensureCanonical (same pattern as BlobbiPage)
+  // Zero-arg wrapper for fetching fresh data before an action (read step of
+  // the read-modify-write pattern, same as BlobbiPage)
   const ensureCanonicalBeforeAction = useCallback(async () => {
     if (!companion || !profile) return null;
-    return ensureCanonicalBlobbiBeforeAction({
+    return fetchFreshBlobbiBeforeAction({
       companion,
       profile,
       updateProfileEvent,
       updateCompanionEvent,
-      updateStoredSelectedD: setStoredSelectedD,
     });
-  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD]);
+  }, [companion, profile, fetchFreshBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent]);
 
   // Wire up item action hook
   const { mutateAsync: executeUseItem, isPending: isUsingItem } = useBlobbiUseInventoryItem({

@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InferSeoMetaPlugin } from "@unhead/addons";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { AppProvider } from "@/components/AppProvider";
-import { EventStoreProvider } from "@/components/EventStoreProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -22,6 +21,7 @@ import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
+import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -119,6 +119,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileBadges: true,
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
+    feedIncludeLoveLists: true,
     feedIncludeBlobbi: true,
     showBirdstar: true,
     feedIncludeBirdDetections: true,
@@ -160,11 +161,8 @@ const hardcodedConfig: AppConfig = {
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
-  sidebarWidgets: [
-    { id: 'trends' },
-    { id: 'hot-posts' },
-    { id: 'wikipedia' },
-  ],
+  sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
+  maxCachedEventAge: 604800,
 };
 
 /**
@@ -205,20 +203,18 @@ export function App() {
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
-                  <EventStoreProvider>
-                    <NostrSync />
-                    <NativeNotifications />
+                  <NostrSync />
+                  <NativeNotifications />
 
-                      <NWCProvider>
-                        <EmotionDevProvider>
-                          <TooltipProvider>
-                            <InitialSyncGate>
-                              <AppRouter />
-                            </InitialSyncGate>
-                          </TooltipProvider>
-                        </EmotionDevProvider>
-                      </NWCProvider>
-                  </EventStoreProvider>
+                    <NWCProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
+                    </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>

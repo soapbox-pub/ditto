@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, HandHeart, Mail, MapPin, MessageSquare, Mic, Music,
+  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
@@ -130,6 +130,7 @@ const KIND_LABELS: Record<number, string> = {
   1111: 'a comment',
   1222: 'a voice message',
   8211: 'a letter',
+  15683: 'a Love List',
   1617: 'a patch',
   1618: 'a pull request',
   2473: 'a bird detection',
@@ -192,6 +193,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1222: Mic,
   1617: FileText,
   8211: Mail,
+  15683: Heart,
   1618: GitPullRequest,
   15128: Rocket,
   35128: Rocket,

@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -23,7 +23,7 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ProfileReactionButton } from '@/components/ProfileReactionButton';
+import { ProfileLoveButton } from '@/components/ProfileLoveButton';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -41,6 +41,7 @@ import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -114,32 +115,6 @@ import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 
-const STREAK_WINDOW_HOURS = 24;
-const STREAK_DISPLAY_LIMIT = 99;
-
-/** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
-function calculateStreak(posts: NostrEvent[]): number {
-  if (!posts || posts.length === 0) return 0;
-
-  const kind1Posts = posts.filter((e) => e.kind === 1);
-  if (kind1Posts.length === 0) return 0;
-
-  const sorted = [...kind1Posts].sort((a, b) => b.created_at - a.created_at);
-  const windowSeconds = STREAK_WINDOW_HOURS * 3600;
-
-  let streak = 1;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gap = sorted[i].created_at - sorted[i + 1].created_at;
-    if (gap <= windowSeconds) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
-
 /** Parse the custom "fields" array from kind 0 metadata content. */
 function parseProfileFields(content: string): Array<{ label: string; value: string }> {
   try {
@@ -185,6 +160,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
+  // ZapDialog mounts its own payment-target query, so defer mounting it until
+  // the user actually invokes zap instead of on every profile load.
+  const [zapMounted, setZapMounted] = useState(false);
   // Show zap action for any non-self profile. Both on-chain and Lightning
   // zaps are offered inside the dialog (Lightning only when the author has
   // a lud06/lud16 configured).
@@ -246,6 +224,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   };
   const handleZap = () => {
     close();
+    setZapMounted(true);
     setTimeout(() => zapTriggerRef.current?.click(), 150);
   };
 
@@ -354,12 +333,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
 
-    <AddToListDialog
-      pubkey={pubkey}
-      displayName={displayName}
-      open={addToListOpen}
-      onOpenChange={setAddToListOpen}
-    />
+    {addToListOpen && (
+      <AddToListDialog
+        pubkey={pubkey}
+        displayName={displayName}
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+      />
+    )}
 
     {isOwnProfile && (
       <>
@@ -383,7 +364,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       />
     )}
 
-    {showZap && authorEvent && (
+    {showZap && authorEvent && zapMounted && (
       <ZapDialog target={authorEvent}>
         <span ref={zapTriggerRef} className="hidden" />
       </ZapDialog>
@@ -501,7 +482,7 @@ function SortableTabChip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="py-3.5 pr-1"
       >
-        {tab.label}
+        {tabDisplayLabel(tab.label)}
       </button>
 
       {/* Edit — only rendered for active custom (non-core) tabs */}
@@ -982,6 +963,15 @@ const CORE_TAB_IDS: Record<string, string> = {
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
+// Map a canonical tab label to its user-facing display text. The canonical
+// label (e.g. 'Posts') is kept for the internal tab id and the serialized
+// kind 16769 event (cross-client interop); only the rendered text differs.
+const TAB_DISPLAY_LABELS: Record<string, string> = {
+  'Posts': 'Feed',
+};
+
+const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
+
 export function ProfilePage() {
   const { config } = useAppContext();
   const params = useParams();
@@ -1364,7 +1354,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
-  } = useProfileMedia(pubkey, hasTabs);
+  } = useProfileMedia(pubkey, hasTabs && activeTab === 'media');
 
   // Infinite-scroll likes
   const {
@@ -1383,7 +1373,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextWallPage,
     hasNextPage: hasNextWallPage,
     isFetchingNextPage: isFetchingNextWallPage,
-  } = useWallComments(pubkey, hasTabs ? wallFollowList : undefined);
+  } = useWallComments(pubkey, hasTabs && activeTab === 'wall' ? wallFollowList : undefined);
 
   // Synthetic kind 0 event for the ComposeBox replyTo (NIP-22 comments on the profile)
   const wallReplyTarget = useMemo((): NostrEvent | undefined => {
@@ -1419,11 +1409,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return { pubkeys, count: pubkeys.length };
   }, [supplementary?.following]);
 
+  // Profile's love list (kind 15683, derived from supplementary query)
+  const lovedCount = supplementary?.loved.length ?? 0;
+
   // NIP-85 user stats (followers count)
   const { data: userStats } = useNip85UserStats(pubkey);
   const followersCount = userStats?.followers ?? 0;
 
   const isOwnProfile = user?.pubkey === pubkey;
+
+  // Whether this profile's Love List (kind 15683) includes the viewer.
+  // No extra query — the love list is already part of the supplementary fetch.
+  const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
 
   // Does the profile owner follow the current user?
   // Wall posts are only visible to people the profile owner follows,
@@ -1714,7 +1711,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Profile badges for bio section
   const { refs: badgeRefs } = useProfileBadges(pubkey);
   const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
-  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
+  const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -1778,17 +1775,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       firstSubReply: childrenByParent.get(comment.id)?.[0],
     }));
   }, [wallComments, pubkey]);
-
-  const streak = useMemo(() => {
-    if (!feedData?.pages) return 0;
-    const events: NostrEvent[] = [];
-    for (const page of feedData.pages) {
-      for (const item of page.items) {
-        events.push(item.event);
-      }
-    }
-    return calculateStreak(events);
-  }, [feedData?.pages]);
 
   // Infinite scroll sentinel
   const { ref: scrollRef, inView } = useInView({
@@ -2184,9 +2170,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <QrCode className="size-5" />
                     </Button>
                   )}
-                  {/* Profile reaction button */}
-                  {!isOwnProfile && authorEvent && (
-                    <ProfileReactionButton profileEvent={authorEvent} />
+                  {/* Love List toggle */}
+                  {!isOwnProfile && (
+                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} />
                   )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">
@@ -2210,14 +2196,26 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               </div>
 
-              <h2
-                className="text-xl font-bold truncate"
-                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
-              >
-                {metadataEvent ? (
-                  <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
-                ) : displayName}
-              </h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <h2
+                  className="text-xl font-bold truncate"
+                  style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+                >
+                  {metadataEvent ? (
+                    <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
+                </h2>
+                {lovesYou ? (
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
+                    <Heart className="size-3 fill-current" aria-hidden="true" />
+                    Loves you
+                  </span>
+                ) : !isOwnProfile && profileFollowsMe ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Follows you
+                  </span>
+                ) : null}
+              </div>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
@@ -2235,7 +2233,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-               {/* Followers / Following count + Streak indicator */}
+               {/* Followers / Following / Loved counts */}
                <div className="flex items-center gap-4 mt-2">
                 {followersCount > 0 && (
                   <button
@@ -2257,16 +2255,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">following</span>
                   </Link>
                 )}
-                {streak > 1 && (
-                  <div
-                    className="flex items-center gap-1 text-accent"
-                    title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+                {lovedCount > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: LOVE_LIST_KIND, pubkey, identifier: '' })}`}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    title={`${lovedCount} loved`}
                   >
-                    <Flame className="size-4 fill-accent" />
-                    <span className="text-sm font-bold tabular-nums">
-                      {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-                    </span>
-                  </div>
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(lovedCount)}</span>
+                    <span className="text-sm text-muted-foreground">loved</span>
+                  </Link>
                 )}
               </div>
 
@@ -2280,6 +2277,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {badgeRefs.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
                   {firstBadgeRefs.map((ref) => {
+                    if (badgeDefsLoading) {
+                      return <Skeleton key={ref.aTag} className="size-8 rounded-lg" />;
+                    }
                     const badge = badgeMap.get(ref.aTag);
                     if (!badge) return null;
                     return (
@@ -2327,7 +2327,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             return (
               <TabButton
                 key={tab.label}
-                label={tab.label}
+                label={tabDisplayLabel(tab.label)}
                 active={activeTab === tabId}
                 onClick={() => {
                   setActiveTab(tabId);
@@ -2385,7 +2385,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
                         <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
-                          {label}
+                          {tabDisplayLabel(label)}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2422,7 +2422,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           {present
                             ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
                             : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {name}
+                          {tabDisplayLabel(name)}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2455,7 +2455,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         <div style={{ height: ARC_OVERHANG_PX }} />
 
         {/* Add/edit single tab modal */}
-        {pubkey && (
+        {pubkey && tabModalOpen && (
           <ProfileTabEditModal
             open={tabModalOpen}
             onOpenChange={setTabModalOpen}

@@ -10,11 +10,20 @@
     /* Mobile chrome dimensions — referenced by layout utility classes below */
     --top-bar-height: 2.5rem;   /* MobileTopBar h-10 = 40px */
     --bottom-nav-height: 2.75rem; /* MobileBottomNav h-11 = 44px */
+    /* Blobbi room canvas: vertical space reserved for the bottom dock */
+    --blobbi-room-dock-height: 82px; /* Desktop: pt-2.5 + carousel(48) + pb-6(24) */
   }
 
   .dark {
     --success: 142 60% 22%;
     --success-foreground: 138 60% 94%;
+  }
+
+  /* Mobile: Blobbi room dock includes bottom-nav clearance + safe-area */
+  @media (max-width: 899px) {
+    :root {
+      --blobbi-room-dock-height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 74px);
+    }
   }
 }
 
@@ -26,6 +35,20 @@
 
   *::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Visible thin scrollbar inside the room editor modal */
+  .blobbi-room-editor-scroll {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+  .blobbi-room-editor-scroll::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+  .blobbi-room-editor-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 999px;
   }
 
   body {
@@ -112,6 +135,18 @@
     }
   }
 
+  /* Pinned sticky page header (counterpart of SubHeaderBar's pinned mode for
+     full PageHeader-style headers): when the mobile top bar slides away, move
+     from top-mobile-bar to the very top and absorb the device safe area into
+     the header's own padding (1rem = the header's py-4). Toggled alongside
+     a transition-[top,padding-top] for a smooth slide. */
+  @media (max-width: 899px) {
+    .header-pinned-top {
+      top: 0 !important;
+      padding-top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) !important;
+    }
+  }
+
   /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
      Padding-bottom keeps input above the nav. */
   .ai-chat-height {
@@ -128,6 +163,14 @@
   .livestream-height {
     height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  /* Above the sidebar breakpoint the mobile top bar and bottom nav are hidden,
+     so the locked layout gets the full viewport */
+  @media (min-width: 900px) {
+    .livestream-height {
+      height: 100dvh;
+      max-height: 100dvh;
+    }
   }
 
   /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
@@ -822,6 +865,11 @@
   50% { transform: translateY(-8px); }
 }
 
+@keyframes blobbi-shadow-breathe {
+  0%, 100% { transform: translateX(-50%) scaleX(1); }
+  50% { transform: translateX(-50%) scaleX(0.92); }
+}
+
 @keyframes blobbi-sway {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(1.5deg); }
@@ -906,6 +954,24 @@
   50% { box-shadow: 0 0 8px 3px currentColor; }
 }
 
+/* Guide pulse — gentle scale throb for guided controls */
+@keyframes guide-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Guide ring pulse — box-shadow glow for transform-positioned controls (no transform!) */
+@keyframes guide-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.28), 0 0 14px hsl(var(--primary) / 0.45);
+    filter: brightness(1.12);
+  }
+}
+
 /* Room navigation arrow nudge — subtle horizontal pulse */
 @keyframes room-arrow-nudge-left {
   0%, 100% { transform: translateX(0); }
@@ -956,3 +1022,29 @@
   background: transparent;
 }
 
+/* ── Furniture editor hold progress ───────────────────────────────────────── */
+
+@keyframes furniture-hold-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* ── Kill the native video placeholder/play-circle ────────────────────────────
+   Android WebView (Chromium) and iOS WKWebView paint a large stretched gray
+   play-circle over any poster-less <video> while it loads, drawn by the media
+   controls shadow DOM. We render our own posters and play buttons, so suppress
+   every flavour of the built-in overlay. Scoped to the app's custom players via
+   data-no-native-poster so we never break <video controls> elsewhere. */
+video[data-no-native-poster] {
+  background-color: transparent;
+}
+video[data-no-native-poster]::-webkit-media-controls,
+video[data-no-native-poster]::-webkit-media-controls-overlay-play-button,
+video[data-no-native-poster]::-webkit-media-controls-overlay-enclosure,
+video[data-no-native-poster]::-webkit-media-controls-start-playback-button,
+video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  opacity: 0 !important;
+}

@@ -1,5 +1,98 @@
 # Changelog
 
+## [2.23.4] - 2026-06-18
+
+A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.
+
+### Changed
+- Profiles and feeds load faster with fewer wasteful network requests
+
+## [2.23.3] - 2026-06-18
+
+A polish-focused update for how content shows up in your feed. Quoted posts now display their photos and videos inline, articles get rich preview cards, and short or media-heavy posts stop getting cut off early. Links to outside articles gain a one-tap "Open" button, Reddit embeds show at full height, and your home-screen widgets now stay in sync across all your devices. Plus assorted fixes to video previews, search, and embed spacing.
+
+### Added
+- Your sidebar widgets now sync across all your devices
+
+### Changed
+- Quoted posts now show their photos and videos inline, and articles render as rich preview cards
+- Articles linked from outside Ditto show an "Open" button and a source chip with the site's name and icon
+- Short posts, multi-image galleries, and video and audio posts are no longer cut off early in the feed
+- Reddit embeds now render at their full height
+- The profile "Posts" tab is now labeled "Feed"
+- External link discussions now appear inline on comment pages
+- The "Event not found" screen now has a "Try again" button
+- Old-format companion (Blobbi) items from other apps are now hidden instead of showing up broken
+
+### Fixed
+- Video previews now play correctly in the mobile app
+- Searching again while already on the search page now works
+
+## [2.23.2] - 2026-06-14
+
+Ditto feels faster. Posts and profiles you've already seen now load instantly from your device, your own posts show up the moment you publish them, and the app holds up better when your connection is spotty. App pages also gained an Active Users graph so you can see how busy an app is at a glance, and the music section has a fresh set of curated artists to discover.
+
+### Added
+- App pages now show an Active Users graph
+
+### Changed
+- The app now stores content on your device for instant loads, immediate display of your own posts, and smoother browsing on flaky connections
+- Refreshed the curated artists and follows powering the music Discover section
+
+## [2.23.1] - 2026-06-12
+
+Profiles get more expressive. Your profile now shows how many people love you, linking straight to the list, and visitors can see at a glance when you follow them back or have them on your Love List. The Loved tab is tidier too, showing only original posts from the people you love. On Android, the back gesture on the home screen now minimizes the app like you'd expect, and a few rough edges in articles and feeds have been smoothed out.
+
+### Added
+- Profiles show a "Loves you" pill when that person has you on their Love List
+- Profiles show a "Follows you" pill when that person follows you
+
+### Changed
+- Profiles now show how many people love you, linking to the full list, in place of the old streak
+- The Loved tab shows only original posts, hiding reposts and reactions
+- Removed the reaction button from profile actions
+- On Android, the back gesture on the home screen now minimizes the app instead of doing nothing
+
+### Fixed
+- Feeds no longer briefly collapse to an empty state while refreshing
+- Article text spacing around links and list items now renders correctly
+
+## [2.23.0] - 2026-06-11
+
+Ditto now has a Love List — a tier above following, for the people you truly love. Add them from any profile and a dedicated Loved tab at the front of your feed shows only their posts. Updates to your Love List go out as a beautiful handwritten love letter card. You can also set up multiple ways for people to support you: configure Lightning, on-chain Bitcoin, or any other payment method in your profile settings, and your fans can pick whichever works best for them.
+
+### Added
+- Love List: mark the people you love from their profile, and a dedicated Loved tab on your home feed shows only their posts
+- Love List updates are posted as handwritten love letter cards with hearts and a wax seal
+- A heart badge appears next to loved authors' names in your feed
+- Set up multiple payment methods in profile settings so supporters can choose how they send you money
+- The send-money dialog now shows all of your payment methods with a switcher
+
+### Fixed
+- Live stream video no longer scrolls off-screen when scrolling through the chat
+
+## [2.22.1] - 2026-06-11
+
+A quick fix for Android: the app could fail to open on the latest version, getting stuck before it ever loaded. It now starts up reliably again.
+
+### Fixed
+- The Android app no longer fails to load on startup
+
+## [2.22.0] - 2026-06-10
+
+Make your Blobbi's room your own: a new room editor lets you decorate the walls and floors with patterns, colors, and angles, then fill the space with furniture you've collected. You can also highlight your favorite lines now -- just select any text in a post or article and tap Highlight to share the passage. Search is sharper too, with a new sort:top option for surfacing the best results.
+
+### Added
+- Decorate your Blobbi's room with custom wall and floor patterns, colors, and angles, then arrange the furniture you've collected
+- Highlight a passage from any post or article by selecting the text and tapping Highlight to share it
+- Add sort:top to a search to surface the most popular results first
+
+### Changed
+- Search results are quicker and steadier, without the old flicker while loading
+
+### Fixed
+- Profile and post links shared as web addresses no longer 404 on Android
+
 ## [2.21.0] - 2026-06-07
 
 Share into Ditto from anywhere on Android: hit Share in any app and you can post the text straight to your feed, or jump into the conversation around a link. A new Nostr Clients widget in the sidebar lets you hop between the apps people are posting from, and every client page now shows how many people are active on it with a 30-day usage chart. The Trends page gains a Unique Users by Client chart so you can see which apps the community is posting from at a glance.

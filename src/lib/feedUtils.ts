@@ -209,6 +209,9 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasWallet = event.tags.some(([n, v]) => n === 'w' && typeof v === 'string' && v.length > 0);
     if (!hasTitle || !hasD || !hasWallet) return true;
   }
+  // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
+  // has no hearts to show on its paper card.
+  if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
   return false;
 }
 

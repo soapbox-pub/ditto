@@ -42,9 +42,9 @@ import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
 import { useStreamKind } from "@/hooks/useStreamKind";
 import { type EventStats, useEventStats } from "@/hooks/useTrending";
-import { useUserZap } from "@/hooks/useUserZap";
 import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
@@ -346,7 +346,6 @@ export function VineCard({
 	const { data: stats } = useEventStats(event.id, event);
 	const { format: formatMoney } = useFormatMoney();
 	const canZapAuthor = !!user && user.pubkey !== event.pubkey;
-	const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
 	const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -468,6 +467,8 @@ export function VineCard({
 					<video
 						ref={videoRef}
 						src={src}
+						data-no-native-poster=""
+						poster={BLANK_POSTER}
 						className="absolute inset-0 w-full h-full object-cover"
 						loop
 						playsInline
@@ -654,17 +655,13 @@ export function VineCard({
 								icon={
 									<Zap
 										className="size-6"
-										fill={isZapped ? "currentColor" : "none"}
+										fill="none"
 									/>
 								}
 								label={
 									stats?.zapAmount ? formatMoney(stats.zapAmount, { layout: 'compact' }) : undefined
 								}
-								className={
-									isZapped
-										? "text-amber-400 hover:text-amber-300"
-										: "text-white hover:text-amber-400"
-								}
+								className="text-white hover:text-amber-400"
 							/>
 						</ZapDialog>
 					)}

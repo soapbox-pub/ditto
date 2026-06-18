@@ -48,17 +48,16 @@ function generateBlobbiContent(_name: string, _stage: BlobbiStage): string {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
- * Result of ensuring canonical companion before action.
+ * Fresh companion + profile data to use as the base for an action.
  * This is the same interface used by useBlobbiUseInventoryItem.
  */
 export interface CanonicalActionResult {
   companion: BlobbiCompanion;
   content: string;
   allTags: string[][];
-  wasMigrated: boolean;
-  /** Latest profile tags after migration */
+  /** Latest profile tags */
   profileAllTags: string[][];
-  /** Latest profile storage after migration */
+  /** Latest profile storage */
   profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
 }
 
@@ -68,7 +67,7 @@ export interface CanonicalActionResult {
 export interface UseBlobbiStageTransitionParams {
   companion: BlobbiCompanion | null;
   profile: BlobbonautProfile | null;
-  /** Called to ensure companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

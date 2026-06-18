@@ -22,6 +22,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LinkFooter } from '@/components/LinkFooter';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { getWidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
@@ -153,6 +155,8 @@ const EMPTY_WIDGETS: WidgetConfig[] = [];
 
 export function WidgetSidebar() {
   const { config, updateConfig } = useAppContext();
+  const { user } = useCurrentUser();
+  const { updateSettings } = useEncryptedSettings();
   const widgets = config.sidebarWidgets ?? EMPTY_WIDGETS;
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -163,11 +167,16 @@ export function WidgetSidebar() {
   );
 
   const updateWidgets = useCallback((updater: (current: WidgetConfig[]) => WidgetConfig[]) => {
-    updateConfig((c) => ({
-      ...c,
-      sidebarWidgets: updater(c.sidebarWidgets ?? widgets),
-    }));
-  }, [updateConfig, widgets]);
+    updateConfig((c) => {
+      const next = updater(c.sidebarWidgets ?? widgets);
+      // Sync to NIP-78 encrypted settings (kind 30078) so widgets persist
+      // across devices, mirroring how sidebarOrder is handled.
+      if (user) {
+        updateSettings.mutateAsync({ sidebarWidgets: next }).catch(() => {});
+      }
+      return { ...c, sidebarWidgets: next };
+    });
+  }, [updateConfig, widgets, user, updateSettings]);
 
   const removeWidget = useCallback((id: string) => {
     updateWidgets((ws) => ws.filter((w) => w.id !== id));

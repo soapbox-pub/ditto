@@ -167,7 +167,6 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
 // ---------------------------------------------------------------------------
 
 export function ExternalContentPage() {
-  const { config } = useAppContext();
   const { '*': rawUri } = useParams();
   const location = useLocation();
 
@@ -183,6 +182,31 @@ export function ExternalContentPage() {
     // Otherwise it's a bare URL — reattach any query string the browser separated out.
     return rawUri + location.search;
   }, [rawUri, location.search]);
+
+  return <ExternalContentView uri={uri} />;
+}
+
+interface ExternalContentViewProps {
+  /** The external content identifier (URL, `isbn:...`, `iso3166:...`, etc.). */
+  uri: string;
+  /**
+   * Optional id of a comment to highlight and scroll to. Used when this view is
+   * rendered as the detail page for a specific kind 1111 comment, so the focused
+   * comment stands out within the full thread.
+   */
+  focusedEventId?: string;
+}
+
+/**
+ * Renders the external-content discussion page body: a content-specific header,
+ * action bar, and the full threaded comment list for the given identifier.
+ *
+ * Driven by a `uri` prop so it can be reused both by the `/i/*` route
+ * ({@link ExternalContentPage}) and by the kind 1111 comment detail page, which
+ * renders the same UI inline rather than forcing a second click into `/i/`.
+ */
+export function ExternalContentView({ uri, focusedEventId }: ExternalContentViewProps) {
+  const { config } = useAppContext();
 
   const content = useMemo(() => {
     if (!uri) return null;
@@ -339,12 +363,14 @@ export function ExternalContentPage() {
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       ) : (
         <ExternalCommentsSection
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       )}
     </main>
@@ -360,10 +386,12 @@ interface ExternalCommentsSectionProps {
   commentRoot: URL | `#${string}` | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
+  /** Highlight the comment matching this id within the thread, if present. */
+  focusedEventId?: string;
 }
 
 /** Inline compose box + threaded replies list (or loading/empty state). */
-function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading }: ExternalCommentsSectionProps) {
+function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading, focusedEventId }: ExternalCommentsSectionProps) {
   return (
     <>
       {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
@@ -371,7 +399,7 @@ function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading 
         {commentsLoading ? (
           <CommentsSkeleton />
         ) : orderedReplies.length > 0 ? (
-          <FlatThreadedReplyList replies={orderedReplies} />
+          <FlatThreadedReplyList replies={orderedReplies} focusedEventId={focusedEventId} />
         ) : (
           <CommentsEmptyState />
         )}
@@ -423,11 +451,12 @@ interface BookContentTabsProps {
   commentRoot: URL | `#${string}` | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
+  focusedEventId?: string;
 }
 
 type BookTab = 'comments' | 'reviews';
 
-function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }: BookContentTabsProps) {
+function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, focusedEventId }: BookContentTabsProps) {
   const { user } = useCurrentUser();
   const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
   const [activeTab, setActiveTab] = useState<BookTab>('comments');
@@ -456,6 +485,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }:
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       ) : (
         <>

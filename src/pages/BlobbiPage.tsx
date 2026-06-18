@@ -20,7 +20,7 @@ import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
@@ -51,7 +51,6 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   statsToTagUpdates,
-  filterMigratedLegacyCompanions,
   type BlobbiCompanion,
   type BlobbiStats,
   type BlobbonautProfile,
@@ -60,7 +59,6 @@ import {
 
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
-import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -108,15 +106,18 @@ import { playMunchSound } from '@/blobbi/ui/lib/munchSound';
 import {
   BlobbiRoomShell,
   BlobbiRoomHero,
+  BlobbiRoomStage,
+  BlobbiRoomStatusHud,
+  BlobbiRoomEditor,
+  BlobbiRoomEditorTrigger,
   ItemCarousel,
   RoomActionButton,
-  useShovelDrag,
-  PoopOverlay,
-  InteractivePoopOverlay,
   ShovelButton,
   type BlobbiRoomId,
   type CarouselEntry,
   type PoopState,
+  type ShovelDrag,
+  ROOM_META,
   isValidRoomId,
   DEFAULT_INITIAL_ROOM,
   DEFAULT_ROOM_ORDER,
@@ -124,6 +125,12 @@ import {
   OVERFEED_CHANCE,
 } from '@/blobbi/rooms';
 import { ROOM_BOTTOM_BAR_CLASS } from '@/blobbi/rooms/lib/room-layout';
+import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getEffectiveRoomLayout } from '@/blobbi/rooms/lib/room-layout-schema';
+import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
+import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
+import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
+import { serializeProfileContent } from '@/blobbi/core/lib/missions';
+import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
@@ -213,7 +220,7 @@ function BlobbiContent() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
-  const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
   
   const {
     profile,
@@ -240,13 +247,10 @@ function BlobbiContent() {
     updateCompanionEvent,
   } = useBlobbisCollection();
   
-  // STEP 2: Filter out legacy companions that have been migrated to canonical format.
-  // A legacy Blobbi is hidden when a canonical Blobbi with the same name exists AND
-  // the legacy d-tag is no longer in profile.has (confirming migration occurred).
-  const filteredCompanions = useMemo(() => {
-    if (!profile) return companions;
-    return filterMigratedLegacyCompanions(companions, profile.has);
-  }, [companions, profile]);
+  // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
+  // useBlobbisCollection). The collection is already legacy-free — old-format
+  // events are dropped at the parse layer — so no migration/dedup is applied here.
+  const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
     const record: Record<string, BlobbiCompanion> = {};
@@ -256,18 +260,14 @@ function BlobbiContent() {
     return record;
   }, [filteredCompanions]);
 
-  // STEP 3: Sync visible companions whose mirror tags are stale.
-  // Republishes only companions with actual mismatches (needsSeedIdentitySync flag).
-  useSeedIdentitySync(filteredCompanions, updateCompanionEvent);
-
-  // STEP 4: localStorage for UI selection (user-scoped key)
+  // STEP 3: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
   
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // STEP 5: Selection Priority
+  // STEP 4: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
   // 2) first item from profile.has that exists in companionsByD - preferred ordering
   // 3) first companion in the collection (covers blobbis missing from profile.has)
@@ -335,7 +335,6 @@ function BlobbiContent() {
         name: companion.name,
         stage: companion.stage,
         state: companion.state,
-        isLegacy: companion.isLegacy,
       });
     }
   }, [selectedD, companion]);
@@ -355,21 +354,21 @@ function BlobbiContent() {
     setStoredSelectedD(d);
   }, [setStoredSelectedD, storedSelectedD]);
   
-  // ─── Helper: Ensure Canonical Before Action ───
-  // Centralized migration helper that auto-migrates legacy pets before any action
+  // ─── Helper: Fetch Fresh Before Action ───
+  // Read step of the read-modify-write pattern: fetch the freshest companion +
+  // profile from relays before any mutation so we never overwrite newer state.
   const ensureCanonicalBeforeAction = useCallback(async () => {
     if (!companion || !profile) return null;
     
-    return ensureCanonicalBlobbiBeforeAction({
+    return fetchFreshBlobbiBeforeAction({
       companion,
       profile,
       updateProfileEvent,
       updateCompanionEvent,
-      updateStoredSelectedD: setStoredSelectedD,
     });
-  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD]);
+  }, [companion, profile, fetchFreshBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent]);
   
-  // ─── Rest Action (with automatic legacy migration) ───
+  // ─── Rest Action ───
   // Operates on the page-selected `companion` (not profile.currentCompanion).
   // The companion floating button has its own independent sleep toggle.
   const handleRest = useCallback(async () => {
@@ -380,7 +379,7 @@ function BlobbiContent() {
 
     setActionInProgress('rest');
     try {
-      // Ensure canonical before action (auto-migrates legacy pets)
+      // Fetch fresh companion + profile before acting (read-modify-write)
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
         setActionInProgress(null);
@@ -827,7 +826,7 @@ interface DashboardShellProps {
 function DashboardShell({ children }: DashboardShellProps) {
   return (
     <main className={cn(
-      'flex flex-col overflow-hidden bg-background/85',
+      'flex flex-col overflow-hidden bg-background',
       // Mobile: fixed to escape pb-overscroll on the parent
       'max-sidebar:fixed max-sidebar:inset-0 max-sidebar:top-mobile-bar max-sidebar:z-0',
       // Desktop: normal flow within the center column
@@ -876,7 +875,6 @@ interface BlobbiDashboardProps {
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileEvent: import('@nostrify/nostrify').NostrEvent;
     profileStorage: StorageItem[];
@@ -919,6 +917,7 @@ function BlobbiDashboard({
 }: BlobbiDashboardProps) {
   // Layout options (hasSubHeader, noOverscroll) set at BlobbiPage level
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   
   const isSleeping = companion.state === 'sleeping';
   const isEgg = companion.stage === 'egg';
@@ -1007,6 +1006,136 @@ function BlobbiDashboard({
     }
   }, [companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
 
+  // ─── Room Layout (read-only, decorative) ───
+  const parsedRoomLayouts = useMemo(() => parseRoomLayoutsContent(profile?.content), [profile?.content]);
+  const currentRoomLayout = useMemo(() => getEffectiveRoomLayout(currentRoom, parsedRoomLayouts), [currentRoom, parsedRoomLayouts]);
+
+  // ─── Room Furniture (read-only, decorative) ───
+  const parsedRoomFurniture = useMemo(() => parseRoomFurnitureContent(profile?.content), [profile?.content]);
+  const currentFurniturePlacements = useMemo(() => getEffectiveRoomFurniture(currentRoom, parsedRoomFurniture), [currentRoom, parsedRoomFurniture]);
+
+  // ─── Room Layout Editor (save/reset) ───
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [isRoomEditorOpen, setIsRoomEditorOpen] = useState(false);
+
+  // ─── Room Furniture Editor (draft with persistence) ───
+  const [isFurnitureEditorOpen, setIsFurnitureEditorOpen] = useState(false);
+  const [furnitureDraft, setFurnitureDraft] = useState<FurniturePlacement[] | null>(null);
+  const [furnitureSelectedIndex, setFurnitureSelectedIndex] = useState<number | null>(null);
+  const [isSavingFurniture, setIsSavingFurniture] = useState(false);
+  const roomContainerRef = useRef<HTMLDivElement>(null);
+
+  // Derived: active layer = selected item's layer (for visual emphasis)
+  const furnitureActiveLayer = furnitureSelectedIndex !== null && furnitureDraft
+    ? furnitureDraft[furnitureSelectedIndex]?.layer
+    : undefined;
+
+  // Derived: toolbar placement — opposite side of selected item to avoid covering it
+  const furnitureToolbarPlacement: 'top' | 'bottom' = useMemo(() => {
+    if (furnitureSelectedIndex === null || !furnitureDraft) return 'bottom';
+    const item = furnitureDraft[furnitureSelectedIndex];
+    if (!item) return 'bottom';
+    // Item in bottom half → toolbar at top; item in top half → toolbar at bottom
+    return item.y >= 0.5 ? 'top' : 'bottom';
+  }, [furnitureSelectedIndex, furnitureDraft]);
+
+  const handleOpenFurnitureEditor = useCallback(() => {
+    setIsRoomEditorOpen(false); // close style editor if open
+    setActiveDrawer('none'); // collapse any open drawer
+    setFurnitureDraft([...currentFurniturePlacements]);
+    setFurnitureSelectedIndex(null);
+    setIsFurnitureEditorOpen(true);
+  }, [currentFurniturePlacements]);
+
+  const handleCloseFurnitureEditor = useCallback(() => {
+    setIsFurnitureEditorOpen(false);
+    setFurnitureDraft(null);
+    setFurnitureSelectedIndex(null);
+  }, []);
+
+  const handleFurnitureBackgroundClick = useCallback(() => {
+    setFurnitureSelectedIndex(null);
+  }, []);
+
+  const handleSaveFurniture = useCallback(async () => {
+    if (!user?.pubkey || !furnitureDraft) return;
+    setIsSavingFurniture(true);
+    try {
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      if (!freshProfile) {
+        toast({ title: 'Error', description: 'Could not fetch profile. Try again.' });
+        return;
+      }
+      const prev = freshProfile.event;
+      const existingFurniture = parseRoomFurnitureContent(prev.content);
+      const updatedFurniture: RoomFurnitureContent = {
+        v: 1,
+        by_room: { ...existingFurniture?.by_room, [currentRoom]: furnitureDraft },
+      };
+      const content = serializeProfileContent(prev.content, { room_furniture: updatedFurniture });
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content,
+        tags: prev.tags,
+        prev,
+      });
+      updateProfileEvent(event);
+      toast({ title: 'Saved', description: `${ROOM_META[currentRoom].label} furniture updated.` });
+      setIsFurnitureEditorOpen(false);
+      setFurnitureDraft(null);
+      setFurnitureSelectedIndex(null);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save furniture.' });
+    } finally {
+      setIsSavingFurniture(false);
+    }
+  }, [user?.pubkey, nostr, furnitureDraft, currentRoom, publishEvent, updateProfileEvent]);
+
+  const handleFurnitureMove = useCallback((index: number, x: number, y: number) => {
+    setFurnitureDraft((prev) => {
+      if (!prev) return prev;
+      return prev.map((item, i) => (i === index ? { ...item, x, y } : item));
+    });
+  }, []);
+
+  // ─── Room Layout Editor (handlers) ───
+
+  const handleOpenRoomEditor = useCallback(() => {
+    handleCloseFurnitureEditor(); // close furniture editor if open
+    setIsRoomEditorOpen(true);
+  }, [handleCloseFurnitureEditor]);
+
+  const handleSaveRoomLayout = useCallback(async (roomId: BlobbiRoomId, layout: RoomLayout) => {
+    if (!user?.pubkey) return;
+    setIsSavingLayout(true);
+    try {
+      const freshProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+      if (!freshProfile) {
+        toast({ title: 'Error', description: 'Could not fetch profile. Try again.' });
+        return;
+      }
+      const prev = freshProfile.event;
+      const existingLayouts = parseRoomLayoutsContent(prev.content);
+      const updatedRoomLayouts: RoomLayoutsContent = {
+        v: 1,
+        by_room: { ...existingLayouts?.by_room, [roomId]: layout },
+      };
+      const content = serializeProfileContent(prev.content, { room_layouts: updatedRoomLayouts });
+      const event = await publishEvent({
+        kind: KIND_BLOBBONAUT_PROFILE,
+        content,
+        tags: prev.tags,
+        prev,
+      });
+      updateProfileEvent(event);
+      toast({ title: 'Saved', description: `${ROOM_META[roomId].label} style updated.` });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save room style.' });
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }, [user?.pubkey, nostr, publishEvent, updateProfileEvent]);
+
   // ─── Stat Guide Flow ───
   const [guideTarget, setGuideTarget] = useState<GuideTarget | null>(null);
 
@@ -1078,17 +1207,8 @@ function BlobbiDashboard({
     }
   }, [isSleeping, guideTarget]);
   
-  // Measure hero container width for responsive stat arc radius
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [heroWidth, setHeroWidth] = useState(375);
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setHeroWidth(entry.contentRect.width));
-    ro.observe(el);
-    setHeroWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
+  // Measure stage overlay for ref usage
+  const stageRef = useRef<HTMLDivElement>(null);
   
   // Modal states (only for things that genuinely need modals)
   const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -1467,12 +1587,16 @@ function BlobbiDashboard({
   // do not clear a newer visual state.
   const actionCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Handle using an item from the items tab
+  const guideTargetRef = useRef(guideTarget);
+  guideTargetRef.current = guideTarget;
+
   // Handle tap-based item use.
   // Non-food actions use this path from room bars, and the fridge still uses it for food for now.
   // Triggers a temporary interaction reaction based on the action type.
   // For 'clean' actions, detects whether the Blobbi was visibly dirty before
   // the action and uses 'clean_complete' if the dirt was fully removed.
-  const handleUseItemFromTab = (itemId: string) => {
+  const handleUseItemFromTab = useCallback((itemId: string) => {
     const action = getActionForItem(itemId);
     if (!action || isUsingItem) return;
     clearTimeout(actionCleanupRef.current);
@@ -1492,7 +1616,8 @@ function BlobbiDashboard({
     }
 
     onUseItem(itemId, action).then(() => {
-      if (guideTarget?.targetItemId === itemId) setGuideTarget(null);
+      // Clear guide only after the action succeeds
+      if (guideTargetRef.current?.targetItemId === itemId) setGuideTarget(null);
 
       // For clean actions, trigger after the action succeeds so we can
       // detect clean_complete from the updated projected stats.
@@ -1517,7 +1642,7 @@ function BlobbiDashboard({
       setUsingItemId(null);
       actionCleanupRef.current = setTimeout(() => setActionOverrideEmotion(null), 1500);
     });
-  };
+  }, [isUsingItem, onUseItem, currentStats.hygiene, triggerInteractionReaction]);
 
   // ─── Food drag-to-feed ───────────────────────────────────────────────────
   //
@@ -1720,31 +1845,53 @@ function BlobbiDashboard({
         setUsingItemId(null);
       }
     }, 5000);
-  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger]);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger, poopStateRef]);
 
   const foodDragHook = useFoodDrag(handleFeedFromDrag, handleNearMouthChange);
+
+  // ─── Kitchen fridge overlay (lifted here so it renders via roomOverlay, not inside the dock) ───
+  const [showFridge, setShowFridge] = useState(false);
+  // Close fridge when leaving the kitchen
+  useEffect(() => { if (currentRoom !== 'kitchen') setShowFridge(false); }, [currentRoom]);
+
+  const isKitchenDisabled = isPublishing || actionInProgress !== null || isUsingItem;
+
+  const foodItems = useMemo(() => {
+    const items = getLiveShopItems().filter(i => i.type === 'food');
+    return items.map(item => ({
+      ...item,
+      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
+    }));
+  }, [currentStats, companion.stage]);
+
+  const handleFeedItem = useCallback((itemId: string) => {
+    const action = getActionForItem(itemId);
+    const hungerBeforeFeed = companion.stats.hunger ?? 0;
+    handleUseItemFromTab(itemId);
+    if (action === 'feed' && hungerBeforeFeed >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
+      poopStateRef.current?.addPoop('overfeed');
+    }
+  }, [companion.stats.hunger, handleUseItemFromTab]);
+
+  // Ref for BlobbiRoomShell to expose its internal shovel-drag state.
+  // KitchenBar reads this to wire up the ShovelButton.
+  const shovelDragRef = useRef<ShovelDrag | null>(null);
   
   return (
     <DashboardShell>
-      {/* Legacy Migration Notice */}
-      {companion.isLegacy && (
-        <div className="mx-4 mt-2 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            This pet uses an older format. It will be automatically upgraded on your next interaction.
-          </p>
-        </div>
-      )}
-      
       {/* Backdrop — tapping outside the drawer collapses it */}
       {activeDrawer !== 'none' && (
         <div
-          className="fixed inset-0 z-10"
+          className="fixed inset-0 z-[60]"
           onClick={() => setActiveDrawer('none')}
         />
       )}
 
       {/* ─── Drawer + Tab Bar — overlays the room ─── */}
-      <div className="absolute top-0 left-0 right-0 z-20">
+      <div className={cn(
+        'absolute top-0 left-0 right-0 z-[70] transition-opacity duration-200',
+        isFurnitureEditorOpen && 'opacity-40 pointer-events-none',
+      )}>
         <div
           className="bg-background/90 backdrop-blur-sm overflow-hidden transition-[max-height] duration-250 ease-in-out"
           style={{ maxHeight: activeDrawer !== 'none' ? '256px' : '0' }}
@@ -1806,20 +1953,20 @@ function BlobbiDashboard({
           </ScrollArea>
         </div>
 
-        <SubHeaderBar pinned className="relative !top-0">
-          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
+        <SubHeaderBar className="relative !top-0" innerClassName="md:min-h-0 min-h-[50px]">
+          <TabButton label="Quests" active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')} className="translate-y-0">
             <span className="flex items-center gap-1.5">
               <Target className="size-4" />
               <span className="text-sm">Quests</span>
             </span>
           </TabButton>
-          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')}>
+          <TabButton label="Activity" active={activeDrawer === 'activity'} onClick={() => toggleDrawer('activity')} className="translate-y-2">
             <span className="flex items-center gap-1.5">
               <Activity className="size-4" />
               <span className="text-sm">Activity</span>
             </span>
           </TabButton>
-          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')}>
+          <TabButton label="Blobbis" active={activeDrawer === 'more'} onClick={() => toggleDrawer('more')} className="translate-y-0">
             <span className="flex items-center gap-1.5">
               <Egg className="size-4" />
               <span className="text-sm">Blobbis</span>
@@ -1844,26 +1991,139 @@ function BlobbiDashboard({
         poopStateRef={poopStateRef}
         onPoopCleaned={handlePoopCleaned}
         guideRoomDirection={guideRoomDirection}
+        hudVisible={activeDrawer === 'none'}
+        roomLayout={currentRoomLayout}
+        furniturePlacements={furnitureDraft ?? currentFurniturePlacements}
+        containerRef={roomContainerRef}
+        isFurnitureEditing={isFurnitureEditorOpen}
+        furnitureSelectedIndex={furnitureSelectedIndex}
+        onFurnitureSelect={setFurnitureSelectedIndex}
+        onFurnitureMove={handleFurnitureMove}
+        furnitureActiveLayer={furnitureActiveLayer}
+        onFurnitureBackgroundClick={handleFurnitureBackgroundClick}
+        editorSlot={
+          <BlobbiRoomEditorTrigger onClick={handleOpenRoomEditor} />
+        }
+        editorSlotLeft={
+          <RoomFurnitureEditorTrigger onClick={handleOpenFurnitureEditor} />
+        }
+        editorOverlay={isRoomEditorOpen ? (
+          <BlobbiRoomEditor
+            roomId={currentRoom}
+            currentLayout={currentRoomLayout}
+            onSave={handleSaveRoomLayout}
+            onClose={() => setIsRoomEditorOpen(false)}
+            isSaving={isSavingLayout}
+          />
+        ) : isFurnitureEditorOpen ? (
+          <RoomFurnitureEditor
+            roomId={currentRoom}
+            draft={furnitureDraft ?? []}
+            onDraftChange={setFurnitureDraft}
+            selectedIndex={furnitureSelectedIndex}
+            onSelectItem={setFurnitureSelectedIndex}
+            onClose={handleCloseFurnitureEditor}
+            onSave={handleSaveFurniture}
+            isSaving={isSavingFurniture}
+            placement={furnitureToolbarPlacement}
+          />
+        ) : undefined}
+        shovelDragRef={shovelDragRef}
+        roomOverlay={showFridge ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
+            <div className="w-full max-w-md px-4" onClick={(e) => e.stopPropagation()}>
+              <div className="relative flex items-center justify-center mb-4">
+                <div className="flex items-center gap-2">
+                  <Refrigerator className="size-5 text-orange-500" />
+                  <h3 className="text-sm font-semibold">Fridge</h3>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowFridge(false); }}
+                  className="absolute right-0 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Close fridge"
+                >
+                  <X className="size-5" strokeWidth={4} />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-1">
+                {foodItems.map(item => {
+                const isThisUsing = isUsingItem && usingItemId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleFeedItem(item.id)}
+                    disabled={isKitchenDisabled}
+                    className={cn(
+                      'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
+                      'hover:bg-foreground/5 active:scale-95',
+                      isThisUsing && 'bg-foreground/5',
+                      isKitchenDisabled && !isThisUsing && 'opacity-40',
+                    )}
+                  >
+                    <span className="text-4xl leading-none">{item.icon}</span>
+                    <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                      {item.statChanges.map((change) => {
+                        const Icon = STAT_ICON[change.stat];
+                        const positive = change.delta > 0;
+                        const segDelta = change.segmentDelta;
+                        return (
+                          <span key={change.stat} className="flex items-center gap-0.5">
+                            {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
+                            <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                              {positive ? '+' : ''}{change.delta}
+                            </span>
+                            {segDelta !== 0 && (
+                              <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                                {segDelta > 0 ? '+' : ''}{segDelta}▮
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
+                  </button>
+                );
+              })}
+              </div>
+            </div>
+          </div>
+        ) : undefined}
         hero={
           <BlobbiRoomHero
             companion={companion}
-            currentStats={currentStats}
-            isSleeping={isSleeping}
-            isEgg={isEgg}
-            statusRecipe={statusRecipe}
-            statusRecipeLabel={statusRecipeLabel}
-            effectiveEmotion={effectiveEmotion}
-            hasDevOverride={hasDevOverride}
-            blobbiReaction={blobbiReaction}
-            interactionReaction={isEgg ? undefined : interactionReaction}
             isActiveFloatingCompanion={isActiveFloatingCompanion}
             isUpdatingCompanion={isUpdatingCompanion}
             handleSetAsCompanion={handleSetAsCompanion}
-            heroRef={heroRef}
-            heroWidth={heroWidth}
-            roomId={currentRoom}
-            onGuide={handleGuide}
           />
+        }
+        stageOverlay={
+          !isActiveFloatingCompanion ? (
+            <BlobbiRoomStage
+              companion={companion}
+              currentStats={currentStats}
+              isSleeping={isSleeping}
+              isEgg={isEgg}
+              statusRecipe={statusRecipe}
+              statusRecipeLabel={statusRecipeLabel}
+              effectiveEmotion={effectiveEmotion}
+              hasDevOverride={hasDevOverride}
+              blobbiReaction={blobbiReaction}
+              interactionReaction={isEgg ? undefined : interactionReaction}
+              stageRef={stageRef}
+            />
+          ) : undefined
+        }
+        statusHud={
+          !isActiveFloatingCompanion ? (
+            <BlobbiRoomStatusHud
+              companion={companion}
+              currentStats={currentStats}
+              onGuide={handleGuide}
+            />
+          ) : undefined
         }
         middleSlot={
           <>
@@ -1922,6 +2182,10 @@ function BlobbiDashboard({
             guideActionGlow={guideActionGlow}
             foodDragHook={foodDragHook}
             carouselKeyPrefix={`blobbi:carousel:${user?.pubkey ?? 'anon'}:${companion.d}`}
+            setShowFridge={setShowFridge}
+            foodItems={foodItems}
+            handleFeedItem={handleFeedItem}
+            shovelDragRef={shovelDragRef}
           />
         )}
       </BlobbiRoomShell>
@@ -2076,6 +2340,15 @@ interface RoomBottomBarProps {
   foodDragHook?: UseFoodDragReturn;
   /** localStorage key prefix for carousel focus persistence (pubkey:blobbiD). */
   carouselKeyPrefix: string;
+  // ── Kitchen-specific (passed through to KitchenBar) ──
+  /** Open/close fridge overlay (rendered at shell level via roomOverlay). */
+  setShowFridge?: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Pre-computed food items with stat change previews. */
+  foodItems?: Array<ReturnType<typeof getLiveShopItems>[number] & { statChanges: ReturnType<typeof previewStatChangesWithSegments> }>;
+  /** Feed handler with overfeed-poop logic. */
+  handleFeedItem?: (itemId: string) => void;
+  /** Shovel drag ref exposed by BlobbiRoomShell. */
+  shovelDragRef?: React.MutableRefObject<ShovelDrag | null>;
 }
 
 function RoomBottomBar(props: RoomBottomBarProps) {
@@ -2102,7 +2375,6 @@ function HomeBar({
   handleUseItemFromTab,
   handleDirectAction,
   setShowPhotoModal,
-  poopStateRef,
   guideHighlightId,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
@@ -2139,7 +2411,6 @@ function HomeBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           <RoomActionButton
@@ -2228,21 +2499,14 @@ function KitchenBar({
   guideActionGlow,
   foodDragHook,
   carouselKeyPrefix,
+  setShowFridge,
+  foodItems,
+  handleFeedItem: _handleFeedItem,
+  shovelDragRef,
 }: RoomBottomBarProps) {
   const [storedFocusId, setStoredFocusId] = useLocalStorage<string | null>(`${carouselKeyPrefix}:kitchen`, null);
   const handleFocusChange = useCallback((entry: CarouselEntry) => setStoredFocusId(entry.id), [setStoredFocusId]);
-  const [showFridge, setShowFridge] = useState(false);
-  const poopState = poopStateRef.current;
-  const drag = useShovelDrag(poopState);
-
-  // Food items (for drag-to-feed and overfeed logic)
-  const foodItems = useMemo(() => {
-    const items = getLiveShopItems().filter(i => i.type === 'food');
-    return items.map(item => ({
-      ...item,
-      statChanges: previewStatChangesWithSegments(currentStats, item.effect, companion.stage),
-    }));
-  }, [currentStats, companion.stage]);
+  const drag = shovelDragRef?.current;
 
   // Energy drink item (tap-only, no drag, no overfeed)
   const energyDrinkItems = useMemo(() => {
@@ -2254,7 +2518,7 @@ function KitchenBar({
   }, [currentStats, companion.stage]);
 
   // Combined items for the fridge grid (food + energy drink)
-  const allKitchenItems = useMemo(() => [...foodItems, ...energyDrinkItems], [foodItems, energyDrinkItems]);
+  const allKitchenItems = useMemo(() => [...(foodItems ?? []), ...energyDrinkItems], [foodItems, energyDrinkItems]);
 
   // Combined carousel entries (food + energy drink)
   const kitchenEntries = useMemo<CarouselEntry[]>(() =>
@@ -2262,7 +2526,7 @@ function KitchenBar({
   [allKitchenItems]);
 
   // Set of food item IDs for quick lookup (overfeed only for these)
-  const foodIdSet = useMemo(() => new Set(foodItems.map(i => i.id)), [foodItems]);
+  const foodIdSet = useMemo(() => new Set((foodItems ?? []).map(i => i.id)), [foodItems]);
 
   // All draggable kitchen items (food + energy drink) — used for drag eligibility
   const ingestibleIdSet = useMemo(
@@ -2276,10 +2540,10 @@ function KitchenBar({
   const handleKitchenItem = useCallback((itemId: string) => {
     if (foodIdSet.has(itemId)) {
       const action = getActionForItem(itemId);
-      maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopState);
+      maybeOverfeedPoop(action, companion.stats.hunger ?? 0, poopStateRef.current);
     }
     handleUseItemFromTab(itemId);
-  }, [companion.stats.hunger, handleUseItemFromTab, poopState, foodIdSet]);
+  }, [companion.stats.hunger, handleUseItemFromTab, foodIdSet, poopStateRef]);
 
   // Build pointer-down handler for ingestible item drag-to-feed.
   // Engages for all ingestible kitchen items (food + energy drink).
@@ -2294,98 +2558,33 @@ function KitchenBar({
       },
     };
   }, [foodDragHook, kitchenEntries.length, allKitchenItems, ingestibleIdSet, isDisabled]);
+
   return (
-    <>
-      <InteractivePoopOverlay drag={drag} poopStateRef={poopStateRef} roomId="kitchen" />
-
-      {/* Fridge overlay — blurred grid covering the page, above arrows (z-50) */}
-      {showFridge && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowFridge(false)}>
-          <button
-            onClick={() => setShowFridge(false)}
-            className="absolute top-3 right-3 z-10 size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close fridge"
-          >
-            <X className="size-5" strokeWidth={4} />
-          </button>
-
-          <div className="flex items-center gap-2 mb-4">
-            <Refrigerator className="size-5 text-orange-500" />
-            <h3 className="text-sm font-semibold">Fridge</h3>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-1 px-4" onClick={(e) => e.stopPropagation()}>
-            {allKitchenItems.map(item => {
-              const isThisUsing = isUsingItem && usingItemId === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleKitchenItem(item.id)}
-                  disabled={isDisabled}
-                  className={cn(
-                    'relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-200',
-                    'hover:bg-foreground/5 active:scale-95',
-                    isThisUsing && 'bg-foreground/5',
-                    isDisabled && !isThisUsing && 'opacity-40',
-                  )}
-                >
-                  <span className="text-4xl leading-none">{item.icon}</span>
-                  <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    {item.statChanges.map((change) => {
-                      const Icon = STAT_ICON[change.stat];
-                      const positive = change.delta > 0;
-                      const segDelta = change.segmentDelta;
-                      return (
-                        <span key={change.stat} className="flex items-center gap-0.5">
-                          {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
-                          <span className={cn('text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-                            {positive ? '+' : ''}{change.delta}
-                          </span>
-                          {segDelta !== 0 && (
-                            <span className="text-[9px] text-muted-foreground/70 tabular-nums">
-                              {segDelta > 0 ? '+' : ''}{segDelta}▮
-                            </span>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {isThisUsing && <Loader2 className="size-3.5 animate-spin text-primary absolute top-2 right-2" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Normal bottom bar */}
-      <div className={ROOM_BOTTOM_BAR_CLASS}>
-        <div className="flex items-center justify-between gap-1 sm:gap-3">
-          <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />
-          <div className="flex-1 min-w-0 flex justify-center">
-            <ItemCarousel
-              items={kitchenEntries}
-              onUse={handleKitchenItem}
-              activeItemId={isUsingItem ? usingItemId : null}
-              disabled={isDisabled}
-              highlightId={guideHighlightId}
-              centerPointerHandlers={centerPointerHandlers}
-              initialItemId={storedFocusId ?? undefined}
-              onFocusChange={handleFocusChange}
-            />
-          </div>
-          <RoomActionButton
-            icon={<Refrigerator className="size-7 sm:size-9" />}
-            label="Fridge"
-            color="text-orange-500"
-            glowHex="#f97316"
-            onClick={() => setShowFridge(true)}
+    <div className={ROOM_BOTTOM_BAR_CLASS}>
+      <div className="flex items-center justify-between gap-1 sm:gap-3">
+        {drag && <ShovelButton drag={drag} guideActionGlow={guideActionGlow} />}
+        <div className="flex-1 min-w-0 flex justify-center">
+          <ItemCarousel
+            items={kitchenEntries}
+            onUse={handleKitchenItem}
+            activeItemId={isUsingItem ? usingItemId : null}
+            centerPointerHandlers={centerPointerHandlers}
             disabled={isDisabled}
+            highlightId={guideHighlightId}
+            initialItemId={storedFocusId ?? undefined}
+            onFocusChange={handleFocusChange}
           />
         </div>
+        <RoomActionButton
+          icon={<Refrigerator className="size-7 sm:size-9" />}
+          label="Fridge"
+          color="text-orange-500"
+          glowHex="#f97316"
+          onClick={() => setShowFridge?.(true)}
+          disabled={isDisabled}
+        />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -2397,7 +2596,6 @@ function CareBar({
   isPublishing,
   actionInProgress,
   handleUseItemFromTab,
-  poopStateRef,
   guideHighlightId,
   carouselKeyPrefix,
 }: RoomBottomBarProps) {
@@ -2468,7 +2666,6 @@ function CareBar({
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {leftButton}
@@ -2506,12 +2703,11 @@ function CareBar({
 
 // ── Rest: sleep/wake button centered ──
 
-function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, poopStateRef, guideActionGlow }: RoomBottomBarProps) {
+function RestBar({ isEgg, isSleeping, onRest, isPublishing, actionInProgress, isUsingItem, guideActionGlow }: RoomBottomBarProps) {
   const isDisabled = isPublishing || actionInProgress !== null || isUsingItem;
 
   return (
     <>
-      <PoopOverlay poopStateRef={poopStateRef} />
       <div className={ROOM_BOTTOM_BAR_CLASS}>
         <div className="flex items-center justify-between gap-1 sm:gap-3">
           {/* Left: spacer for visual balance */}

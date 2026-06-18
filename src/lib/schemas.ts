@@ -192,6 +192,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBirdDetections: z.boolean().optional(),
   feedIncludeBirdex: z.boolean().optional(),
   feedIncludeConstellations: z.boolean().optional(),
+  feedIncludeLoveLists: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -270,6 +271,7 @@ export const AppConfigSchema = z.object({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  maxCachedEventAge: z.number().int().nonnegative().optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

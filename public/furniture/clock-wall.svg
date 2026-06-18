@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Clock face -->
+  <circle cx="50" cy="50" r="45" fill="#f8f4ee" stroke="#706050" stroke-width="4"/>
+  <!-- Hour marks -->
+  <rect x="48" y="10" width="4" height="10" fill="#706050"/>
+  <rect x="48" y="80" width="4" height="10" fill="#706050"/>
+  <rect x="80" y="48" width="10" height="4" fill="#706050"/>
+  <rect x="10" y="48" width="10" height="4" fill="#706050"/>
+  <!-- Hands -->
+  <rect x="49" y="25" width="2" height="27" fill="#333" rx="1"/>
+  <rect x="49" y="35" width="2" height="17" fill="#333" rx="1" transform="rotate(90 50 50)"/>
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="3" fill="#333"/>
+</svg>

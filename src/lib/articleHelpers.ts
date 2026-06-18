@@ -1,5 +1,11 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+/**
+ * Addressable kinds that render with the long-form article preview layout:
+ * kind 30023 (published, NIP-23) and kind 30024 (draft).
+ */
+export const ARTICLE_KINDS = new Set([30023, 30024]);
+
 /** Fields shared by drafts and published articles. */
 export interface ArticleFields {
   title: string;

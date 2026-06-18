@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, Globe, GitPullRequestArrow, Heart, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -389,6 +389,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
   },
+  // Love Lists (feed-only — Ditto custom kind 15683, see NIP.md)
+  {
+    kind: 15683,
+    id: 'love-lists',
+    feedKey: 'feedIncludeLoveLists',
+    label: 'Love Lists',
+    description: 'Love List updates — the people someone truly loves (kind 15683)',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'A Love List names the people someone truly loves. The kind number spells "1·LOVE" on a phone keypad, and updates render as a paper love letter in the feed. Your own loved ones get a dedicated Loved tab at the front of your home feed.',
+  },
   // Whimsy
   {
     kind: 3367,
@@ -666,6 +678,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   1617: GitPullRequestArrow,
   1618: MessageSquareMore,
   15128: Globe,
+  15683: Heart,
   35128: Globe,
   30817: CircleAlert,
   2473: Bird,

@@ -243,6 +243,8 @@ export const KIND_LABELS: Record<number, string> = {
 
   // NIP-5A nsites
   15128: 'Nsite',
+  // Ditto custom — Love List ("1·LOVE" on a phone keypad)
+  15683: 'Love list',
   // Weather station
   16158: 'Weather station',
   // Theme

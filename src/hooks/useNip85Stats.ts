@@ -21,7 +21,7 @@ export interface Nip85UserStats {
  *
  * Stats lookups are batched automatically: 20 NoteCards mounting in the same
  * frame produce a single REQ with `#d: [id1, ..., id20]` instead of 20
- * separate REQs, thanks to the NostrBatcher proxy.
+ * separate REQs, thanks to the AppPool's request batching.
  */
 export function useNip85EventStats(eventId: string | undefined) {
   const { nostr } = useNostr();

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -45,6 +46,7 @@ import { useInsertText } from '@/hooks/useInsertText';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { formatTime } from '@/lib/formatTime';
 import { DITTO_RELAY } from '@/lib/appRelays';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { resizeImage } from '@/lib/resizeImage';
 import { extractHashtags } from '@/lib/hashtag';
 import { parseAddr } from '@/lib/parseAddr';
@@ -194,6 +196,7 @@ export function ComposeBox({
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+  const { nostr } = useNostr();
   const { mutateAsync: createEvent, isPending, isPending: isPollPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -794,6 +797,10 @@ export function ComposeBox({
       // Reset state
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
+        // Rebroadcast the original event alongside the voice reply (best-effort).
+        if (!isExternalRoot(replyTo)) {
+          rebroadcastEvent(nostr, replyTo);
+        }
         if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
         } else {
@@ -811,7 +818,7 @@ export function ComposeBox({
     } finally {
       setIsPublishingVoice(false);
     }
-  }, [user, voiceRecorder, uploadFile, createEvent, replyTo, queryClient, toast, onSuccess]);
+  }, [user, voiceRecorder, uploadFile, createEvent, nostr, replyTo, queryClient, toast, onSuccess]);
 
   const handleSubmit = async () => {
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
@@ -1040,6 +1047,15 @@ export function ComposeBox({
       }
 
       resetComposeState();
+      // Rebroadcast the original event(s) alongside the new reply/quote (best-effort).
+      // NIP-22 replies are rebroadcast inside usePostComment, so only handle the
+      // NIP-10 (kind 1) reply target here to avoid double broadcasting.
+      if (replyTo && !isExternalRoot(replyTo) && !isNip22Reply) {
+        rebroadcastEvent(nostr, replyTo);
+      }
+      if (showQuotedEvent && quotedEvent) {
+        rebroadcastEvent(nostr, quotedEvent);
+      }
       // Optimistically bump the reply count on the parent event
       if (replyTo && !isExternalRoot(replyTo)) {
         queryClient.setQueryData<EventStats>(['event-stats', replyTo.id], (prev) =>

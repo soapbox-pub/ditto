@@ -5,9 +5,10 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { NostrBatcher } from '@/lib/NostrBatcher';
-import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
-import { EventStoreContext } from '@/contexts/EventStoreContext';
+import { AppPool } from '@/lib/AppPool';
+import { type EventsDB, EVENTS_STORE, INDEX, NIndexedDB } from '@/lib/NIndexedDB';
+import { type IDBPDatabase, openDB } from 'idb';
+import { NostrStorageContext } from '@/contexts/NostrStorageContext';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -21,13 +22,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Open the IndexedDB event store once. It's shared two ways: the batcher
+  // Open the IndexedDB event store once. It's shared two ways: the AppPool
   // writes every relay result into it (cache-first reads elsewhere), and it's
-  // provided through EventStoreContext so hooks can read it directly. Opening
-  // it here (rather than in a child EventStoreProvider) lets the batcher and
-  // the rest of the app share a single connection.
-  const eventStore = useRef<Promise<NIndexedDBStore> | undefined>(undefined);
-  eventStore.current ??= NIndexedDBStore.open();
+  // provided through NostrStorageContext so hooks can read it directly. Opening
+  // it here lets the AppPool and
+  // the rest of the app share a single connection. The cache is append-only;
+  // it is never automatically pruned.
+  const eventStore = useRef<NIndexedDB | undefined>(undefined);
+  eventStore.current ??= new NIndexedDB(openNostrStorage());
+
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
@@ -80,8 +83,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
-      open(url: string) {
-        return new NRelay1(url, {
+      open(relayUrl: string) {
+        const url = new URL(relayUrl);
+        return new NRelay1(url.href, {
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
           auth: async (challenge: string) => {
@@ -93,7 +97,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               kind: 22242,
               content: '',
               tags: [
-                ['relay', url],
+                ['relay', url.href],
                 ['challenge', challenge],
               ],
               created_at: Math.floor(Date.now() / 1000),
@@ -147,14 +151,24 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     });
   }
 
-  // Wrap the pool in a batching proxy. The proxy intercepts `.query()`
-  // calls to automatically combine batchable filter patterns (profiles,
-  // events by ID, reactions, d-tag lookups) into single REQs.
-  // All other methods pass through directly to the underlying pool.
-  const batcher = useRef<NostrBatcher | undefined>(undefined);
-  if (!batcher.current && pool.current) {
-    batcher.current = new NostrBatcher(pool.current, eventStore.current);
+  // Wrap the pool in our app-specific AppPool. It has the same interface as
+  // NPool but layers on local caching and transparent request batching:
+  // `.query()` calls are intercepted to automatically combine batchable filter
+  // patterns (profiles, events by ID, reactions, d-tag lookups) into single
+  // REQs, and results are mirrored into the local cache. All other methods pass
+  // through directly to the underlying pool.
+  const appPool = useRef<AppPool | undefined>(undefined);
+  if (!appPool.current && pool.current) {
+    appPool.current = new AppPool(pool.current, eventStore.current);
+    appPool.current.setLoggedInPubkeys(logins.map((l) => l.pubkey));
   }
+
+  // Keep the AppPool's notion of "who is logged in" current. It uses this to
+  // decide which events are worth caching: everything from a logged-in account,
+  // plus replaceable events from people those accounts follow.
+  useEffect(() => {
+    appPool.current?.setLoggedInPubkeys(logins.map((l) => l.pubkey));
+  }, [logins]);
 
   // Cleanup: Close all relay connections when the provider unmounts
   useEffect(() => {
@@ -165,17 +179,49 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     };
   }, []);
 
-  // Provide the batcher as the `nostr` object. It has the same interface
-  // as NPool, so hooks using `useNostr()` get transparent batching.
-  // The `as unknown as NPool` cast is safe because NostrBatcher exposes
+  // Provide the AppPool as the `nostr` object. It has the same interface
+  // as NPool, so hooks using `useNostr()` get transparent caching and batching.
+  // The `as unknown as NPool` cast is safe because AppPool exposes
   // all the same methods hooks use: query, event, req, relay, group, close.
   return (
-    <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
-      <EventStoreContext.Provider value={eventStore.current}>
+    <NostrContext.Provider value={{ nostr: (appPool.current ?? pool.current) as unknown as NPool }}>
+      <NostrStorageContext.Provider value={eventStore.current}>
         {children}
-      </EventStoreContext.Provider>
+      </NostrStorageContext.Provider>
     </NostrContext.Provider>
   );
 };
 
 export default NostrProvider;
+
+/**
+ * Open (or create) the events cache database. Resolves to the connection, or
+ * `null` if IndexedDB is unavailable — passed straight into the `NIndexedDB`
+ * constructor, which awaits it internally and degrades to a no-op on `null`.
+ */
+async function openNostrStorage(): Promise<IDBPDatabase<EventsDB> | null> {
+  try {
+    return await openDB<EventsDB>('ditto-events', 2, {
+      upgrade(db) {
+        // The schema is an incompatible rewrite of the old `nostr_events` /
+        // `addr` layout. The store is a disposable cache (everything
+        // re-fetches from relays), so we drop the old stores and start fresh
+        // rather than migrating. Old store names aren't in the typed schema,
+        // so iterate via the untyped name list.
+        for (const existing of Array.from(db.objectStoreNames) as string[]) {
+          db.deleteObjectStore(existing as typeof EVENTS_STORE);
+        }
+
+        const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
+        store.createIndex(INDEX.createdAt, 'created_at');
+        store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
+        store.createIndex(INDEX.kind, ['kind', 'created_at']);
+        store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
+        store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
+      },
+    });
+  } catch {
+    // IndexedDB unavailable — degrade to a no-op store.
+    return null;
+  }
+}

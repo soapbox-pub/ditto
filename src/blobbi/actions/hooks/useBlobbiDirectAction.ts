@@ -59,12 +59,11 @@ export interface DirectActionResult {
  */
 export interface UseBlobbiDirectActionParams {
   companion: BlobbiCompanion | null;
-  /** Called after ensuring companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

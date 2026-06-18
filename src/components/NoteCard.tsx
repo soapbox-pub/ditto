@@ -9,6 +9,7 @@ import {
   GitBranch,
   GitPullRequest,
   HandHeart,
+  Heart,
   ListMusic,
   Mail,
   MessageCircle,
@@ -96,6 +97,7 @@ import { ThemeContent } from "@/components/ThemeContent";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
+import { LoveListContent } from "@/components/LoveListContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/ZapstoreReleaseContent";
@@ -111,11 +113,11 @@ import { ZapDialog } from "@/components/ZapDialog";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
-import { useUserZap } from "@/hooks/useUserZap";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
@@ -124,13 +126,14 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
-import { isSingleImagePost } from "@/lib/noteContent";
+import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
@@ -309,6 +312,13 @@ function isInteractiveTarget(e: React.MouseEvent): boolean {
     target.closest("[data-vaul-drawer]") ||
     target.closest("[data-vaul-drawer-overlay]") ||
     target.closest('[data-testid="zap-modal"]') ||
+    // Radix popper-based content (dropdowns, popovers, selects, tooltips) renders
+    // in a portal as a sibling of the card/dialog, so the click target isn't a DOM
+    // descendant of the dialog. Match it explicitly so selecting a menu item (e.g.
+    // a payment-method switcher option) doesn't bubble out and navigate to the post.
+    target.closest("[data-radix-popper-content-wrapper]") ||
+    target.closest('[role="menu"]') ||
+    target.closest('[role="menuitem"]') ||
     target.closest("button") ||
     target.closest("a")
   );
@@ -347,6 +357,9 @@ export const NoteCard = memo(function NoteCard({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+  // Love List membership — shows a small heart next to loved authors' names.
+  const { isLoved } = useLoveList();
+  const authorIsLoved = isLoved(event.pubkey);
   // Sender of a zap event (kind 9735 or 8333). `getZapSenderPubkey` handles
   // both kinds — kind 9735 reads the P tag / description.pubkey because the
   // receipt is signed by the LNURL server, kind 8333 returns `event.pubkey`
@@ -407,10 +420,6 @@ export const NoteCard = memo(function NoteCard({
   // On-chain zaps are always available; Lightning is offered inside the dialog
   // when the author has lud06/lud16.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
-  // Fills the bolt icon once the user has zapped this event on either rail.
-  // Optimistic cache is set by the send hooks, so the icon fills instantly
-  // on success without waiting for the relay echo.
-  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   // Profile-zap variants: when the card targets a recipient profile rather
   // than a specific note, the action bar attaches to the recipient's kind-0
@@ -419,7 +428,6 @@ export const NoteCard = memo(function NoteCard({
   const recipientEvent = recipient.data?.event;
   const { data: recipientStats } = useEventStats(recipientEvent?.id, recipientEvent);
   const canZapRecipient = !!user && !!profileZapRecipient && user.pubkey !== profileZapRecipient;
-  const isRecipientZapped = useUserZap(canZapRecipient ? recipientEvent?.id : undefined) === true;
 
   // Money formatter (USD by default, with sats fallback). Reused for the
   // "X zapped Y" wrapper header and the kind 9735 zap-receipt card below.
@@ -491,6 +499,7 @@ export const NoteCard = memo(function NoteCard({
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
@@ -544,6 +553,7 @@ export const NoteCard = memo(function NoteCard({
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isLoveList &&
     !isHighlight &&
     !isCampaign &&
     !isVanish &&
@@ -761,6 +771,8 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
           <EncryptedLetterContent event={event} compact />
+        ) : isLoveList ? (
+          <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
         ) : isCampaign ? (
@@ -810,6 +822,13 @@ export const NoteCard = memo(function NoteCard({
             )}
           </Link>
         </ProfileHoverCard>
+        {authorIsLoved && (
+          <Heart
+            className="size-3.5 shrink-0 text-red-500 fill-red-500"
+            aria-label="On your Love List"
+            role="img"
+          />
+        )}
         {metadata?.bot && (
           <span className="text-xs text-primary shrink-0" title="Bot account">
             🤖
@@ -863,14 +882,12 @@ export const NoteCard = memo(function NoteCard({
     target?: NostrEvent;
     targetStats?: typeof stats;
     canZap?: boolean;
-    zapped?: boolean;
     onReply?: () => void;
     onMore?: () => void;
   }) => {
     const t = opts?.target ?? event;
     const s = opts?.targetStats ?? stats;
     const cz = opts?.canZap ?? canZapAuthor;
-    const zd = opts?.zapped ?? isZapped;
     const reply = opts?.onReply ?? (() => setReplyOpen(true));
     const more = opts?.onMore ?? (() => setMoreMenuOpen(true));
     return (
@@ -911,6 +928,7 @@ export const NoteCard = memo(function NoteCard({
           eventId={t.id}
           eventPubkey={t.pubkey}
           eventKind={t.kind}
+          reactedEvent={t}
           reactionCount={s?.reactions}
         />
 
@@ -926,16 +944,14 @@ export const NoteCard = memo(function NoteCard({
               type="button"
               className={cn(
                 "flex items-center gap-1.5 rounded-full transition-colors",
-                zd
-                  ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
-                  : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+                "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
-              title={zd ? "Zapped" : "Zap"}
+              title="Zap"
             >
               <Zap
                 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
-                fill={zd ? "currentColor" : "none"}
+                fill="none"
               />
               {s?.zapAmount ? (
                 <span className="text-sm tabular-nums">
@@ -1186,7 +1202,6 @@ export const NoteCard = memo(function NoteCard({
               target: recipientEvent,
               targetStats: recipientStats,
               canZap: canZapRecipient,
-              zapped: isRecipientZapped,
               onReply: () => setRecipientReplyOpen(true),
               onMore: () => setRecipientMoreMenuOpen(true),
             })}
@@ -1482,12 +1497,12 @@ function TruncatedNoteContent({
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const singleImage = isSingleImagePost(event);
+  const mediaDominant = isMediaDominantPost(event);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
-  }, [singleImage]);
+    if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
+  }, [mediaDominant]);
 
   useEffect(() => {
     measure();
@@ -1785,14 +1800,37 @@ function VineMedia({
       {imeta?.url && (
         <div
           ref={containerRef}
-          className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
+          className={cn(
+            'relative mt-3 rounded-2xl overflow-hidden cursor-pointer bg-black',
+            // With preload="none" the <video> has no intrinsic height until it
+            // plays. With no thumbnail to set the box height, fall back to a 16:9
+            // box (most videos are landscape) instead of a square-ish sliver.
+            !imeta.thumbnail && !isPlaying && 'aspect-video',
+          )}
           onClick={handlePlayToggle}
         >
+          {/* When there's a thumbnail it drives the box size (the <video> below
+              is absolutely positioned on top); the plain <img> avoids WebView's
+              native gray play-circle that a poster-bearing <video> would draw. */}
+          {imeta.thumbnail && !isPlaying && (
+            <img
+              src={imeta.thumbnail}
+              alt=""
+              aria-hidden
+              className="w-full max-h-[70vh] object-cover"
+            />
+          )}
           <video
             ref={videoRef}
             src={imeta.url}
-            poster={imeta.thumbnail}
-            className="w-full max-h-[70vh] object-cover"
+            data-no-native-poster=""
+            poster={BLANK_POSTER}
+            className={cn(
+              'w-full max-h-[70vh] object-cover',
+              // Fill on top of the thumbnail (which sets the height) when one is
+              // present; otherwise lay out normally.
+              imeta.thumbnail && !isPlaying && 'absolute inset-0 h-full',
+            )}
             loop
             playsInline
             muted={isMuted}
@@ -2059,6 +2097,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "sent a",
     noun: "letter",
     nounRoute: "/letters",
+  },
+  [LOVE_LIST_KIND]: {
+    icon: Heart,
+    iconClassName: "text-red-500",
+    action: (event) => publishedAtAction(event, { created: "wrote their", updated: "updated their", fallback: "updated their" }),
+    noun: "Love List",
   },
   37516: {
     icon: ChestIcon,

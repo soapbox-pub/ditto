@@ -87,7 +87,7 @@ export function useSearchEvents(query: string) {
       if (!search) return [];
 
       const events = await nostr.query(
-        [{ kinds: SEARCH_KINDS, search: `${search} autocomplete:true`, limit: 12 }],
+        [{ kinds: SEARCH_KINDS, search: `${search} autocomplete:true sort:top`, limit: 12 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 

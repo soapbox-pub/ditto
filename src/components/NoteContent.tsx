@@ -24,6 +24,7 @@ import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
+import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -44,6 +45,75 @@ interface NoteContentProps {
   /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
    *  inside an already-block container (e.g. inside a markdown `<p>`). */
   as?: 'div' | 'span';
+  /** When true, leading/trailing whitespace on the edge text tokens is preserved
+   *  instead of trimmed. Use when this instance renders only a fragment of a larger
+   *  block (e.g. a single text leaf between markdown inline elements), so the spaces
+   *  separating it from sibling nodes (links, emphasis) survive. */
+  preserveEdgeWhitespace?: boolean;
+  /** When set, occurrences of this substring in plain-text tokens are wrapped
+   *  in `<mark>` (used to highlight a NIP-84 excerpt inside its source note). */
+  highlightText?: string;
+}
+
+/**
+ * Wrap occurrences of `highlight` within `nodes` (the emojified output of a
+ * text token) in `<mark>`. Only matches inside plain string segments —
+ * emoji/image nodes are passed through untouched. Matching tolerates
+ * whitespace differences (runs of whitespace match any whitespace run) so a
+ * highlight captured with normalized whitespace still matches the source's
+ * literal text, including across linebreaks.
+ */
+function markHighlight(nodes: ReactNode[], highlight: string): ReactNode[] {
+  const needle = highlight.replace(/\s+/g, ' ').trim();
+  if (!needle) return nodes;
+
+  // Tolerant pattern: escape each word, join with `\s+` so any whitespace run
+  // (including newlines) between words matches.
+  const pattern = needle
+    .split(' ')
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+  const re = new RegExp(pattern, 'gi');
+
+  const result: ReactNode[] = [];
+  let key = 0;
+
+  for (const node of nodes) {
+    if (typeof node !== 'string') {
+      result.push(node);
+      continue;
+    }
+
+    re.lastIndex = 0;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let matched = false;
+
+    while ((match = re.exec(node)) !== null) {
+      matched = true;
+      if (match.index > lastIndex) result.push(node.slice(lastIndex, match.index));
+      result.push(
+        <mark key={`mark-${key++}`} className="rounded bg-primary/25 text-foreground">
+          {match[0]}
+        </mark>,
+      );
+      lastIndex = match.index + match[0].length;
+      if (match[0].length === 0) re.lastIndex++; // guard against zero-width loops
+    }
+
+    if (!matched) {
+      result.push(node);
+    } else if (lastIndex < node.length) {
+      result.push(node.slice(lastIndex));
+    }
+  }
+
+  return result;
+}
+
+/** Apply {@link markHighlight} only when a highlight string is provided. */
+function maybeMark(nodes: ReactNode[], highlight: string | undefined): ReactNode[] {
+  return highlight ? markHighlight(nodes, highlight) : nodes;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */
@@ -254,6 +324,8 @@ export function NoteContent({
   disableNoteEmbeds = false,
   disableMediaEmbeds = false,
   as: Wrapper = 'div',
+  highlightText,
+  preserveEdgeWhitespace = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -476,7 +548,7 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
-        || (token.type === 'naddr-embed' && !token.url) || token.type === 'lightning-invoice';
+        || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
@@ -498,8 +570,11 @@ export function NoteContent({
       }
     }
 
-    // Trim leading/trailing whitespace from edge text tokens
-    if (result.length > 0) {
+    // Trim leading/trailing whitespace from edge text tokens.
+    // Skipped when this instance is only a fragment of a larger block (e.g. a
+    // markdown text leaf sitting between inline links/emphasis) — there the
+    // edge spaces are meaningful separators between sibling nodes.
+    if (!preserveEdgeWhitespace && result.length > 0) {
       const first = result[0];
       if (first.type === 'text') {
         first.value = first.value.replace(/^\s+/, '');
@@ -512,7 +587,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event]);
+  }, [event, preserveEdgeWhitespace]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
@@ -604,16 +679,18 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <Wrapper dir="auto" className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined))}</span>;
+            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              // In preview contexts (e.g. triple-dot menu), replace image URLs
-              // with a newline so text flow is preserved without showing raw URLs.
-              return <span key={i}>{'\n'}</span>;
+              // In preview contexts (triple-dot menu, quote cards) media is
+              // rendered elsewhere or omitted. Render nothing — surrounding
+              // text whitespace is already collapsed during tokenization, so
+              // emitting a newline here only adds a redundant blank line.
+              return null;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
@@ -626,7 +703,7 @@ export function NoteContent({
           }
           case 'image-gallery': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
+              return null;
             }
             const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
             const galleryLightboxIndex =
@@ -679,7 +756,7 @@ export function NoteContent({
             );
           case 'media-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{'\n'}</span>;
+              return null;
             }
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
@@ -741,22 +818,12 @@ export function NoteContent({
                 </Link>
               );
             }
-            return (
-              <span key={i}>
-                {token.url && (
-                  <a
-                    href={token.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {token.url}
-                  </a>
-                )}
-                <EmbeddedNaddr addr={token.addr} className="my-2.5" />
-              </span>
-            );
+            // Both bare `nostr:naddr1…` references and `https://…/naddr1…`
+            // links render as the rich card. The raw URL is intentionally not
+            // shown above it — the card itself links to the content, matching
+            // how nevent/link embeds behave. When the naddr came from a
+            // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':

@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -12,7 +11,6 @@ import {
 } from '@/lib/letterTypes';
 
 const PAGE_SIZE = 50;
-const EMPTY_DELETED = new Set<string>();
 
 /** Parse a letter event into a Letter object (without decrypting).
  *  All presentation data (stationery, frame, font) is inside the
@@ -34,34 +32,11 @@ function parseLetterEvent(event: NostrEvent): Letter | null {
   };
 }
 
-/** Collect event IDs targeted by the user's kind 5 deletion requests. */
-function getDeletedIds(deletionEvents: NostrEvent[]): Set<string> {
-  const ids = new Set<string>();
-  for (const event of deletionEvents) {
-    for (const [name, value] of event.tags) {
-      if (name === 'e' && value) ids.add(value);
-    }
-  }
-  return ids;
-}
-
 /** Fetch inbox letters (letters sent to the current user) with cursor-based pagination.
  *  When `friendPubkeys` is provided, only letters from those pubkeys are returned. */
 export function useInbox(friendPubkeys?: string[]) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-
-  // Fetch all deletion IDs once (not paginated — deletion events are small)
-  const deletionsQuery = useQuery({
-    queryKey: ['letters-deletions', user?.pubkey],
-    queryFn: async () => {
-      if (!user) return new Set<string>();
-      const deletions = await nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 500 }]);
-      return getDeletedIds(deletions);
-    },
-    enabled: !!user,
-  });
-  const deletedIds = deletionsQuery.data ?? EMPTY_DELETED;
 
   const infiniteQuery = useInfiniteQuery({
     queryKey: ['letters-inbox', user?.pubkey, friendPubkeys ?? null],
@@ -94,13 +69,7 @@ export function useInbox(friendPubkeys?: string[]) {
     enabled: !!user,
   });
 
-  // Flatten pages and filter out deleted letters
-  const data = useMemo(() => {
-    if (!infiniteQuery.data) return undefined;
-    return infiniteQuery.data.pages
-      .flat()
-      .filter((l) => !deletedIds.has(l.event.id));
-  }, [infiniteQuery.data, deletedIds]);
+  const data = infiniteQuery.data?.pages.flat();
 
   return {
     data,
@@ -115,18 +84,6 @@ export function useInbox(friendPubkeys?: string[]) {
 export function useSentLetters() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-
-  // Reuse the same deletion query (keyed by pubkey, shared across inbox/sent)
-  const deletionsQuery = useQuery({
-    queryKey: ['letters-deletions', user?.pubkey],
-    queryFn: async () => {
-      if (!user) return new Set<string>();
-      const deletions = await nostr.query([{ kinds: [5], authors: [user.pubkey], '#k': [String(LETTER_KIND)], limit: 500 }]);
-      return getDeletedIds(deletions);
-    },
-    enabled: !!user,
-  });
-  const deletedIds = deletionsQuery.data ?? EMPTY_DELETED;
 
   const infiniteQuery = useInfiniteQuery({
     queryKey: ['letters-sent', user?.pubkey],
@@ -155,12 +112,7 @@ export function useSentLetters() {
     enabled: !!user,
   });
 
-  const data = useMemo(() => {
-    if (!infiniteQuery.data) return undefined;
-    return infiniteQuery.data.pages
-      .flat()
-      .filter((l) => !deletedIds.has(l.event.id));
-  }, [infiniteQuery.data, deletedIds]);
+  const data = infiniteQuery.data?.pages.flat();
 
   return {
     data,

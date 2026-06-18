@@ -127,6 +127,15 @@ function getCommitTag(): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
+  // The nsite build (`vite build --mode nsite`) emits a minimal number of files.
+  // nsite is published by signing a site *manifest* (the list of every file in
+  // dist/) through a NIP-46 bunker, which NIP-44-encrypts the whole sign_event
+  // request — and that must stay under 65535 bytes. The normal ~470-chunk build
+  // overflows it ("invalid plaintext size"). In nsite mode we disable code
+  // splitting so the app ships as one app.js + one app.css, dropping dist/ to
+  // ~one-third the files. Every other build keeps fine-grained lazy loading.
+  const isNsite = mode === 'nsite';
+
   return {
   server: {
     host: "::",
@@ -163,14 +172,27 @@ export default defineConfig(({ mode }) => {
   build: {
     target: 'esnext',
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
-          if (id.includes('node_modules/lucide-react')) {
-            return 'lucide-icons';
+      output: isNsite
+        ? {
+            // Disable code splitting so every dynamic import folds into the single
+            // entry chunk: the build emits exactly one JS file, and Vite emits one
+            // CSS file alongside it.
+            codeSplitting: false,
+            entryFileNames: 'assets/app-[hash].js',
+            assetFileNames: (assetInfo: { names?: string[] }) => {
+              const name = assetInfo.names?.[0] ?? '';
+              if (name.endsWith('.css')) return 'assets/app-[hash].css';
+              return 'assets/[name]-[hash][extname]';
+            },
           }
-        },
-      },
+        : {
+            manualChunks(id: string) {
+              // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+              if (id.includes('node_modules/lucide-react')) {
+                return 'lucide-icons';
+              }
+            },
+          },
     },
   },
   optimizeDeps: {

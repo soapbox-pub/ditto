@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 100" fill="none">
+  <!-- Rug body (oval) -->
+  <ellipse cx="90" cy="50" rx="85" ry="45" fill="#c4956a"/>
+  <ellipse cx="90" cy="50" rx="70" ry="35" fill="#d4a87a"/>
+  <!-- Decorative inner ring -->
+  <ellipse cx="90" cy="50" rx="50" ry="25" fill="none" stroke="#b0784e" stroke-width="2"/>
+</svg>

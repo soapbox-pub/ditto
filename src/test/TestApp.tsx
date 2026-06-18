@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createHead, UnheadProvider } from "@unhead/react/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppProvider } from "@/components/AppProvider";
-import { EventStoreProvider } from "@/components/EventStoreProvider";
 import NostrProvider from "@/components/NostrProvider";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
@@ -98,6 +97,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeProfileBadges: false,
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
+      feedIncludeLoveLists: true,
       feedIncludeBlobbi: true,
       showBirdstar: false,
       feedIncludeBirdDetections: false,
@@ -129,6 +129,7 @@ export function TestApp({ children }: TestAppProps) {
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
     sidebarWidgets: [],
+    maxCachedEventAge: 604800,
   };
 
   return (
@@ -137,11 +138,9 @@ export function TestApp({ children }: TestAppProps) {
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey="test-login">
             <NostrProvider>
-              <EventStoreProvider>
-                <NWCProvider>
-                  <BrowserRouter>{children}</BrowserRouter>
-                </NWCProvider>
-              </EventStoreProvider>
+              <NWCProvider>
+                <BrowserRouter>{children}</BrowserRouter>
+              </NWCProvider>
             </NostrProvider>
           </NostrLoginProvider>
         </QueryClientProvider>

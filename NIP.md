@@ -7,6 +7,7 @@
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
 | 8333  | Onchain Zap          | Attestation that an on-chain BTC tx paid a target     |
+| 15683 | Love List            | The people the user truly loves (one per user)        |
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -24,6 +25,7 @@ These event kinds were created by community contributors and are supported by Di
 | 7516  | Found Log              | Log entry recording a user finding a geocache                    | [NIP-GC](https://gitlab.com/chad.curtis/treasures/-/blob/main/NIP-GC.md)                 |
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
+| 10133 | Payment Targets        | Donation endpoints (Bitcoin, Lightning, Monero, …) per RFC-8905 | [NIP-A3](https://github.com/ATXMJ/nips/blob/main/A3.md); see [Kind 10133](#kind-10133-payment-targets-nip-a3) below |
 | 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -156,6 +158,111 @@ When a client needs to attribute a multi-recipient event to one specific recipie
 | Fees | Sub-satoshi typical | Significant at low amounts |
 
 The two zap kinds are complementary. Clients SHOULD sum verified amounts from both kinds when displaying total zap stats for a post or profile.
+
+---
+
+## Kind 15683: Love List
+
+### Summary
+
+Replaceable event listing the people the user **truly loves** — a tier above an ordinary follow. Structured exactly like a NIP-51 standard people list (`p` tags), with one list per user (latest event wins).
+
+The kind number spells **"1·LOVE"**: on a phone keypad L=5, O=6, V=8, E=3 → `5683`, with a leading `1` to land in the replaceable range (10000–19999) — *One Love*.
+
+### Event Structure
+
+```json
+{
+  "kind": 15683,
+  "pubkey": "<author-pubkey>",
+  "content": "",
+  "tags": [
+    ["p", "<loved-pubkey-1>"],
+    ["p", "<loved-pubkey-2>"],
+    ["alt", "Love list: the people this user truly loves"]
+  ]
+}
+```
+
+### Tags
+
+| Tag   | Required | Description                                                          |
+|-------|----------|----------------------------------------------------------------------|
+| `p`   | Yes (≥0) | 32-byte hex pubkey of a loved person. Per NIP-51, new entries are appended to the end so the list stays in chronological order of being added. |
+| `alt` | Yes      | NIP-31 human-readable fallback.                                      |
+
+### Content
+
+Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-encrypted stringified tag array) for loves the user prefers to keep private; Ditto currently publishes public entries only and ignores ciphertext it cannot decrypt.
+
+### Client Behavior
+
+- **Feed priority:** people on the viewer's Love List get a dedicated **Loved** feed tab, placed before the Follows tab. The tab shows posts from loved people only — including people the viewer doesn't follow. Reposts and reactions are excluded: the tab surfaces what loved people post, not what they boost or react to.
+- **Updates as content:** a kind 15683 event itself renders in feeds as a "love letter" card listing the loved people (avatar + name per `p` tag).
+- **Mutations** MUST follow read-modify-write: fetch the freshest kind 15683 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
+- Clients SHOULD hide kind 15683 events with zero `p` tags (an emptied list has nothing to display).
+
+---
+
+## Kind 10133: Payment Targets (NIP-A3)
+
+**Author:** ATXMJ
+**Spec:** https://github.com/ATXMJ/nips/blob/main/A3.md
+
+### Summary
+
+Replaceable event (one per user) that declares a user's donation endpoints — "payment targets" — as `(type, authority)` pairs in `payto` tags, following the [RFC-8905 `payto:` URI scheme](https://www.rfc-editor.org/rfc/rfc8905.html). In Ditto's UI this is surfaced as the **"Accept Donations"** section of the Edit Profile screen; the term *payment targets* is used only in code.
+
+### Event Structure
+
+```json
+{
+  "kind": 10133,
+  "pubkey": "<user-pubkey>",
+  "content": "",
+  "tags": [
+    ["payto", "bitcoin", "bc1qxq66e0t8d7ugdecwnmv58e90tpry23nc84pg9k"],
+    ["payto", "lightning", "user@walletofsatoshi.com"],
+    ["payto", "monero", "4..."],
+    ["alt", "Payment targets"]
+  ]
+}
+```
+
+### Tags
+
+| Tag     | Required | Description                                                                                  |
+|---------|----------|----------------------------------------------------------------------------------------------|
+| `payto` | Yes (≥1) | `["payto", "<type>", "<authority>", …]`. Element 1 is the lowercase payment type, element 2 the address/handle/lightning address. Elements beyond index 2 are reserved per RFC-8905 and ignored. |
+| `alt`   | Recommended | NIP-31 human-readable fallback.                                                           |
+
+`type` is case-insensitive and normalized to lowercase. `authority` format is payment-system-specific.
+
+### Ditto Implementation Notes
+
+Ditto restricts the **editable** set to a curated allowlist of recognized types and renders only those it recognizes (forward-compatible: unknown types in a fetched event are ignored, not rendered as garbage):
+
+| Type       | Label      | Kind in Ditto | Clickable URI                         |
+|------------|------------|---------------|----------------------------------------|
+| `bitcoin`  | Bitcoin    | native        | n/a (uses the built-in send flow)      |
+| `lightning`| Lightning  | native        | n/a (uses the built-in zap flow)       |
+| `monero`   | Monero     | generic       | `monero:<address>`                     |
+| `ethereum` | Ethereum   | generic       | `ethereum:<address>`                   |
+| `nano`     | Nano       | generic       | `nano:<address>`                       |
+| `cashme`   | Cash App   | generic       | `https://cash.app/$<handle>`           |
+| `venmo`    | Venmo      | generic       | `https://venmo.com/u/<handle>`         |
+| `revolut`  | Revolut    | generic       | `https://revolut.me/<handle>`          |
+
+Rules Ditto enforces:
+
+- **At most one target per type.** When parsing, the first valid target of each type wins; the editor enforces uniqueness on save.
+- **Validation per type** — each authority is validated (bech32(m)/SP checksum for Bitcoin, lightning-address/LNURL shape for Lightning, base58 for Monero, etc.). Invalid entries are dropped on parse and rejected in the editor.
+- **Precedence over derived/kind-0 values.** A `bitcoin` payment target overrides the recipient's pubkey-derived Taproot address in the zap flow; a `lightning` payment target takes precedence over the kind-0 `lud16`/`lud06`.
+- **Bitcoin target rail.** A `bc1q…`/`bc1p…` Bitcoin target sends on-chain and still publishes a kind 8333 attribution. An `sp1…` (BIP-352 silent payment) Bitcoin target sends on the silent-payment rail and publishes **no** kind 8333 event, preserving unlinkability.
+- **Native vs. generic rendering.** Bitcoin and Lightning reuse Ditto's existing purpose-built flows (no extra clickable button). Generic methods render a QR code, a copyable address, and a button that opens the **native URI** (preferred over `payto:` per the user's request) — falling back to the method's web payment page for custodial handles.
+- **Zap dialog switcher.** When a recipient has more than one available method, the zap dialog's title becomes a dropdown switcher (Bitcoin icon + down chevron) for choosing between Bitcoin, Lightning, and any declared payment targets.
+
+Ditto does **not** generate or render `payto://` URIs; it prefers each method's native scheme.
 
 ---
 
@@ -519,6 +626,110 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
 ```
 
 Each `Mission` is either a **TallyMission** (`{ id, target, count }`) or an **EventMission** (`{ id, target, events: string[] }`) where `events` contains Nostr event IDs that satisfy the mission. Evolution missions are populated when incubation or evolution begins and cleared when the stage transition completes or is cancelled.
+
+#### Kind 11125 `content` JSON — `room_layouts` field
+
+The `content` of kind 11125 MAY include a `room_layouts` field for per-room visual customization:
+
+```json
+{
+  "room_layouts": {
+    "v": 1,
+    "by_room": {
+      "home": {
+        "wall": {
+          "style": "stripes",
+          "palette": ["#2a1f4e", "#3d2d6b"],
+          "variant": "narrow",
+          "angle": 45
+        },
+        "floor": {
+          "style": "wood",
+          "palette": ["#8b5e3c", "#6b4226"],
+          "variant": "medium"
+        }
+      }
+    }
+  }
+}
+```
+
+**Top-level shape:**
+
+| Field     | Type | Description |
+|-----------|------|-------------|
+| `v`       | `1`  | Schema version. MUST be `1`. |
+| `by_room` | `Partial<Record<BlobbiRoomId, RoomLayout>>` | Per-room layouts keyed by room ID. |
+
+**`RoomLayout` shape:** `{ wall: RoomSurfaceLayout, floor: RoomSurfaceLayout }`
+
+**`RoomSurfaceLayout` fields:**
+
+| Field     | Required | Description |
+|-----------|----------|-------------|
+| `style`   | Yes      | Surface style. Walls: `solid`, `stripes`, `dots`, `gradient`. Floors: `solid`, `wood`, `tile`, `carpet`. |
+| `palette` | Yes      | Array of 1–4 hex colors. |
+| `variant` | No       | One of: `soft`, `medium`, `bold`, `wide`, `narrow`. |
+| `angle`   | No       | Pattern rotation in degrees, normalized to 0–359. |
+
+**Hex color validation:** Colors MUST match `/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/` (3, 6, or 8 hex digits with a leading `#`).
+
+**Angle validation:** Angles MUST be finite numbers. Clients normalize by rounding and wrapping into 0–359: `((Math.round(angle) % 360) + 360) % 360`.
+
+**Parser behavior:** Unrecognized room IDs are skipped. Surfaces with an invalid `style` or `palette` cause the entire room entry to be discarded. Invalid `variant` or `angle` values are ignored (treated as absent). The parser never throws — malformed data falls back to defaults. If `v` is not `1`, the entire `room_layouts` object is ignored.
+
+Clients MUST fall back to built-in defaults for any room without a valid layout entry.
+
+#### Kind 11125 `content` JSON — `room_furniture` field
+
+The `content` of kind 11125 MAY include a `room_furniture` field for per-room decorative furniture placements:
+
+```json
+{
+  "room_furniture": {
+    "v": 1,
+    "by_room": {
+      "home": [
+        { "id": "official:plant-small", "x": 0.85, "y": 0.72, "layer": "front", "scale": 0.9 },
+        { "id": "official:clock-wall", "x": 0.5, "y": 0.18, "layer": "back" },
+        { "id": "official:picture-frame", "x": 0.3, "y": 0.3, "layer": "back", "content": { "imageUrl": "https://cdn.example.com/photo.jpg" } }
+      ]
+    }
+  }
+}
+```
+
+**Top-level shape:**
+
+| Field     | Type | Description |
+|-----------|------|-------------|
+| `v`       | `1`  | Schema version. MUST be `1`. |
+| `by_room` | `Partial<Record<BlobbiRoomId, FurniturePlacement[]>>` | Per-room placement arrays keyed by room ID. |
+
+**`FurniturePlacement` fields:**
+
+| Field     | Required | Description |
+|-----------|----------|-------------|
+| `id`      | Yes      | Namespaced furniture ID. MUST match `/^[a-z][a-z0-9]*:[a-z][a-z0-9-]*$/` (e.g. `official:plant-small`). |
+| `x`       | Yes      | Horizontal position, normalized 0–1 (0 = left edge, 1 = right edge). Clamped to [0, 1]. |
+| `y`       | Yes      | Vertical position, normalized 0–1 (0 = top of room, 1 = bottom). Clamped to [0, 1]. |
+| `layer`   | Yes      | Rendering layer: `back` (wall-mounted), `floor` (behind Blobbi), or `front` (in front of Blobbi). |
+| `scale`   | No       | Size multiplier. Clamped to [0.5, 2.0]. Default `1`. |
+| `flip`    | No       | Horizontal mirror. Boolean. Default `false`. |
+| `variant` | No       | Named variant string (1–32 chars), validated against the item's definition at render time. |
+| `content` | No       | Dynamic per-instance content. See below. |
+
+**`FurnitureContent` fields:**
+
+| Field      | Required | Description |
+|------------|----------|-------------|
+| `imageUrl` | No       | Image URL for picture frames. MUST be a valid `https:` URL; non-https URLs are rejected. |
+
+**Per-room cap:** A maximum of 20 placements per room is enforced. Excess items beyond the cap are dropped (first 20 kept).
+
+**Parser behavior:** Unrecognized room IDs are skipped. Items with an invalid `id`, non-finite `x`/`y`, or unrecognized `layer` are silently dropped. Invalid optional fields (`scale`, `flip`, `variant`, `content`) are ignored (treated as absent). `imageUrl` values that are not valid `https:` URLs are rejected. The parser never throws — malformed data falls back to defaults. If `v` is not `1`, the entire `room_furniture` object is ignored.
+
+Clients MUST fall back to built-in defaults for any room without a valid furniture entry.
 
 #### Kind 1124: Blobbi Social Interaction
 

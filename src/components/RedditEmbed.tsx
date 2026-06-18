@@ -12,7 +12,8 @@ interface RedditEmbedProps {
  * Renders a Reddit post embed using a direct iframe to `embed.reddit.com`.
  *
  * Reddit's embed sends `postMessage` events with `{ type: "resize.embed", data: height }`
- * from `https://embed.reddit.com` for auto-sizing.
+ * from `https://embed.reddit.com` for auto-sizing. We size the iframe to the
+ * reported height so the whole post shows without an inner scrollbar.
  */
 export function RedditEmbed({ url, className }: RedditEmbedProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -51,14 +52,13 @@ export function RedditEmbed({ url, className }: RedditEmbedProps) {
   }, []);
 
   return (
-    <div className={cn('overflow-hidden rounded-2xl', className)}>
+    <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
       <iframe
         ref={iframeRef}
         src={embedUrl}
         title="Reddit post"
-        className="w-full border-0 rounded-2xl"
+        className="w-full border-0"
         style={{ minHeight: 320 }}
-        scrolling="no"
         allowFullScreen
         loading="lazy"
         sandbox="allow-scripts allow-same-origin allow-popups allow-forms"

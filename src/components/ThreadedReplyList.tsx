@@ -103,13 +103,22 @@ export interface ThreadedReply {
 }
 
 /** Renders replies as a flat list, each with at most one sub-reply hint. */
-export function FlatThreadedReplyList({ replies }: { replies: ThreadedReply[] }) {
+export function FlatThreadedReplyList({
+  replies,
+  focusedEventId,
+}: {
+  replies: ThreadedReply[];
+  /** Highlight the reply (or sub-reply) matching this id, if present. */
+  focusedEventId?: string;
+}) {
   return (
     <div>
       {replies.map(({ reply, firstSubReply }) => (
         <div key={reply.id}>
-          <NoteCard event={reply} threaded={!!firstSubReply} />
-          {firstSubReply && <NoteCard event={firstSubReply} threadedLast />}
+          <NoteCard event={reply} threaded={!!firstSubReply} highlight={reply.id === focusedEventId} />
+          {firstSubReply && (
+            <NoteCard event={firstSubReply} threadedLast highlight={firstSubReply.id === focusedEventId} />
+          )}
         </div>
       ))}
     </div>

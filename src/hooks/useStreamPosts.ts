@@ -250,11 +250,11 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const streamFilter: NostrFilter = { kinds };
 
     // Search filter for queries (includes NIP-50 extensions)
+    // Only bridged protocols add a protocol: term. Native Nostr is the default,
+    // so we don't inject a protocol:nostr term into the user's query.
     const protocols = options.protocols ?? ['nostr'];
     const bridged = protocols.filter(p => p !== 'nostr');
-    const searchParts: string[] = bridged.length > 0
-      ? bridged.map(p => `protocol:${p}`)
-      : ['protocol:nostr'];
+    const searchParts: string[] = bridged.map(p => `protocol:${p}`);
 
     if (query.trim()) {
       searchParts.push(query.trim());

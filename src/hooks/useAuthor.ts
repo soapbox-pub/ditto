@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
 
@@ -20,7 +20,7 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Seed the query from the local event store so a known profile renders
   // immediately, without waiting on the network. The network query below
@@ -38,8 +38,6 @@ export function useAuthor(pubkey: string | undefined) {
       if (!pubkey) {
         return {};
       }
-
-      const store = await eventStore;
 
       const [event] = await nostr.query(
         [{ kinds: [0], authors: [pubkey], limit: 1 }],
