@@ -126,7 +126,7 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
-import { isSingleImagePost } from "@/lib/noteContent";
+import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
@@ -1496,12 +1496,12 @@ function TruncatedNoteContent({
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const singleImage = isSingleImagePost(event);
+  const mediaDominant = isMediaDominantPost(event);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
-  }, [singleImage]);
+    if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
+  }, [mediaDominant]);
 
   useEffect(() => {
     measure();
