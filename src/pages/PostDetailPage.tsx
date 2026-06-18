@@ -1538,7 +1538,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {stats?.reposts ? (
         <button
           onClick={() => openInteractions("reposts")}
-          className="hover:underline transition-colors"
+          className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
           <span className="font-bold text-foreground">
             {formatNumber(stats.reposts)}
@@ -1549,7 +1549,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {quoteCount ? (
         <button
           onClick={() => openInteractions("quotes")}
-          className="hover:underline transition-colors"
+          className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
           <span className="font-bold text-foreground">
             {formatNumber(quoteCount)}
@@ -1560,7 +1560,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {stats?.reactions ? (
         <button
           onClick={() => openInteractions("reactions")}
-          className="inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
+          className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
         >
           <span className="font-bold text-foreground">
             {formatNumber(stats.reactions)}
@@ -1583,7 +1583,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {stats?.zapCount ? (
         <button
           onClick={() => openInteractions("zaps")}
-          className="hover:underline transition-colors"
+          className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
           <span className="font-bold text-foreground">
             {formatNumber(stats.zapCount)}
@@ -1591,20 +1591,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           Zap{stats.zapCount !== 1 ? "s" : ""}
         </button>
       ) : null}
-      <span className="ml-auto shrink-0 flex items-center gap-1.5">
+      <span className="ml-auto min-w-0 flex items-center gap-1.5">
         {clientTag?.[1] && (
           <>
             <Link
               to={`/client/${encodeURIComponent(clientTag[1])}`}
-              className="hover:underline"
+              className="hover:underline truncate min-w-0"
               onClick={(e) => e.stopPropagation()}
             >
               {clientTag[1]}
             </Link>
-            <span>·</span>
+            <span className="shrink-0">·</span>
           </>
         )}
-        <span>{formatFullDate(event.created_at)}</span>
+        <span className="shrink-0">{formatFullDate(event.created_at)}</span>
       </span>
     </div>
   ) : (
@@ -1613,15 +1613,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <>
           <Link
             to={`/client/${encodeURIComponent(clientTag[1])}`}
-            className="hover:underline"
+            className="hover:underline truncate min-w-0"
             onClick={(e) => e.stopPropagation()}
           >
             {clientTag[1]}
           </Link>
-          <span>·</span>
+          <span className="shrink-0">·</span>
         </>
       )}
-      <span>{formatFullDate(event.created_at)}</span>
+      <span className="shrink-0">{formatFullDate(event.created_at)}</span>
     </div>
   );
 
