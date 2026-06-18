@@ -2673,9 +2673,15 @@ function PackPeoplePreview({
   const themeBgColor = activeTheme?.colors.background;
   const hasRealTheme = Boolean(themeBgUrl || themeAccent || themeBgColor);
 
-  // The visual background source: prefer the real theme background, else the
-  // person's kind-0 banner. Both are sanitized https URLs (or undefined).
-  const vibeBgUrl = themeBgUrl ?? bannerUrl;
+  // Two distinct visual roles, with cross-fallbacks:
+  //   - Banner tile = "their profile" → prefer the kind-0 profile banner,
+  //     fall back to the theme background image.
+  //   - Card ambient = "their theme/space" → prefer the kind 16767 theme
+  //     background image, fall back to the profile banner.
+  // If neither exists for a role, the accent/primary gradient shows through.
+  // All URLs are sanitized https (or undefined).
+  const tileBgUrl = bannerUrl ?? themeBgUrl;
+  const ambientBgUrl = themeBgUrl ?? bannerUrl;
 
   // Scope the theme to this card only. Setting CSS vars via inline style
   // cascades to descendants but never leaks globally — the app's own
@@ -2709,15 +2715,16 @@ function PackPeoplePreview({
       aria-label="Meet the people in this pack"
     >
       {/* Ambient theme layer — a large preview of the person's actual Ditto
-          vibe behind the WHOLE inline preview (not just the banner tile).
-          Built in layers so it reads strongly while staying readable:
+          SPACE behind the WHOLE inline preview. Prefers their kind 16767 theme
+          background image (falls back to their profile banner). Built in layers
+          so it reads strongly while staying readable:
             1. their theme background COLOR as a base tint (also prevents a
                white/black flash while the next person's image loads);
-            2. their background IMAGE (or kind-0 banner), blurred and at modest
-               opacity so it's clearly present but never fights with text;
+            2. their theme background IMAGE — only lightly blurred and fairly
+               opaque now, so it's clearly recognizable as their space;
             3. an accent-tinted decorative glow;
-            4. a scrim that fades from the card color at the bottom so the
-               readable content panel always has a calm backing.
+            4. a scrim that stays light over the banner/top but deepens toward
+               the readable content panel so body text always has a calm backing.
           Everything is contained by the parent's overflow-hidden + the card's
           own overflow-hidden, and applied only via scoped CSS vars / inline
           style — it never leaves this card. Keyed by pubkey so it cross-fades
@@ -2731,27 +2738,28 @@ function PackPeoplePreview({
         {themeBgColor && (
           <div
             className="absolute inset-0"
-            style={{ backgroundColor: "hsl(var(--pack-bg) / 0.6)" }}
+            style={{ backgroundColor: "hsl(var(--pack-bg) / 0.7)" }}
           />
         )}
-        {/* 2. Background image / banner, blurred + dimmed. */}
-        {vibeBgUrl && (
+        {/* 2. Theme background image — lightly blurred + fairly opaque so the
+            person's space is recognizable, not just a vague wash. */}
+        {ambientBgUrl && (
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-40 blur-lg scale-110 transition-opacity duration-700"
-            style={{ backgroundImage: `url("${vibeBgUrl}")` }}
+            className="absolute inset-0 bg-cover bg-center opacity-70 blur-[2px] scale-105 transition-opacity duration-700"
+            style={{ backgroundImage: `url("${ambientBgUrl}")` }}
           />
         )}
         {/* 3. Accent glow for warmth. */}
         <div
-          className="absolute inset-x-0 top-0 h-40 opacity-60"
+          className="absolute inset-x-0 top-0 h-48 opacity-70"
           style={{
             background:
-              "radial-gradient(120% 80% at 50% 0%, hsl(var(--pack-accent,var(--primary)) / 0.35), transparent 70%)",
+              "radial-gradient(120% 80% at 50% 0%, hsl(var(--pack-accent,var(--primary)) / 0.4), transparent 70%)",
           }}
         />
-        {/* 4. Readability scrim — keeps the top strip (back button / counter)
-            calm and fades to the card color toward the content. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-card/70 via-card/60 to-card/95" />
+        {/* 4. Readability scrim — light at the top (lets the banner/image read)
+            and deepening toward the content so the info panel stays legible. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-card/30 via-card/55 to-card/90" />
       </div>
 
       <div className="relative">
@@ -2775,24 +2783,25 @@ function PackPeoplePreview({
           </span>
         </div>
 
-        {/* Vibe tile — their theme background (or kind-0 banner). Sanitized,
-            with an accent-tinted gradient fallback when neither exists. The
-            accent gradient uses the card-scoped --pack-accent if a real theme
-            provided one, else the app's own --primary. */}
+        {/* Banner tile = "their profile" — prefers the kind-0 profile banner
+            (falls back to the theme background image). Accent-tinted gradient
+            fallback + accent ring tie it to their theme. */}
         <div
-          className="relative mx-4 h-24 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.25),hsl(var(--pack-accent,var(--primary))/0.05))]"
+          className="relative mx-4 h-24 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.3),hsl(var(--pack-accent,var(--primary))/0.06))] ring-1"
+          style={{ ["--tw-ring-color" as string]: "hsl(var(--pack-accent,var(--primary)) / 0.35)" }}
         >
-          {vibeBgUrl && (
+          {tileBgUrl && (
             <img
-              src={vibeBgUrl}
+              key={currentPubkey}
+              src={tileBgUrl}
               alt=""
-              className="absolute inset-0 size-full object-cover"
+              className="absolute inset-0 size-full object-cover motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
               loading="lazy"
             />
           )}
           {/* Readability scrim over the image so the badge stays legible
-              regardless of how busy the theme background is. */}
-          {vibeBgUrl && (
+              regardless of how busy the banner/theme background is. */}
+          {tileBgUrl && (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"
@@ -2802,8 +2811,14 @@ function PackPeoplePreview({
               where the preview happens. Copy changes to make clear whether
               we're previewing a real theme or just a banner vibe, and either
               way that the user's own theme is unaffected. */}
-          <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
-            <Sparkles className="size-2.5" />
+          <span
+            className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm ring-1"
+            style={{ ["--tw-ring-color" as string]: "hsl(var(--pack-accent,var(--primary)) / 0.35)" }}
+          >
+            <Sparkles
+              className="size-2.5"
+              style={{ color: "hsl(var(--pack-accent,var(--primary)))" }}
+            />
             {hasRealTheme
               ? "Previewing their theme. Yours stays yours."
               : "Their vibe preview. Your theme stays yours."}
@@ -2812,15 +2827,19 @@ function PackPeoplePreview({
 
         <div className="px-4 pb-3">
           <Avatar
-            className="size-16 -mt-8 ring-4 ring-card shadow-sm"
+            className="size-16 -mt-8 ring-4 shadow-sm"
             shape={getAvatarShape(meta)}
+            style={{
+              ["--tw-ring-color" as string]:
+                "hsl(var(--pack-accent,var(--primary)) / 0.55)",
+            }}
           >
             <AvatarImage src={pictureUrl} alt={name} />
             <AvatarFallback
-              className="text-primary text-lg"
+              className="text-lg"
               style={{
-                backgroundColor:
-                  "hsl(var(--pack-accent,var(--primary)) / 0.15)",
+                backgroundColor: "hsl(var(--pack-accent,var(--primary)) / 0.18)",
+                color: "hsl(var(--pack-accent,var(--primary)))",
               }}
             >
               {name[0]?.toUpperCase()}
@@ -2830,8 +2849,24 @@ function PackPeoplePreview({
           {/* Readable panel: name + handle + bio live on a translucent card
               layer with backdrop blur so the body text keeps strong contrast
               over the ambient theme, on both light and dark app themes. We
-              never use the person's theme text color here. */}
-          <div className="mt-2 rounded-xl bg-card/80 ring-1 ring-border/50 backdrop-blur-md px-3 py-2.5 shadow-sm">
+              never use the person's theme text color here — only an accent
+              ring + a thin accent top-line tie the panel to their theme. */}
+          <div
+            className="relative mt-2 overflow-hidden rounded-xl bg-card/80 ring-1 backdrop-blur-md px-3 py-2.5 shadow-sm"
+            style={{
+              ["--tw-ring-color" as string]:
+                "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+            }}
+          >
+            {/* Thin accent line along the top edge of the info panel. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-0.5"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, hsl(var(--pack-accent,var(--primary)) / 0.8), transparent)",
+              }}
+            />
             <div className="space-y-0.5">
               <p className="font-semibold text-sm leading-tight truncate text-card-foreground">
                 {name}
@@ -2856,7 +2891,11 @@ function PackPeoplePreview({
               type="button"
               variant="outline"
               size="icon"
-              className="size-9 shrink-0 rounded-full"
+              className="size-9 shrink-0 rounded-full ring-1 hover:bg-[hsl(var(--pack-accent,var(--primary))/0.12)]"
+              style={{
+                ["--tw-ring-color" as string]:
+                  "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+              }}
               onClick={goPrev}
               disabled={atStart}
               aria-label="Previous person"
@@ -2890,7 +2929,11 @@ function PackPeoplePreview({
               type="button"
               variant="outline"
               size="icon"
-              className="size-9 shrink-0 rounded-full"
+              className="size-9 shrink-0 rounded-full ring-1 hover:bg-[hsl(var(--pack-accent,var(--primary))/0.12)]"
+              style={{
+                ["--tw-ring-color" as string]:
+                  "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+              }}
               onClick={goNext}
               disabled={atEnd}
               aria-label="Next person"
