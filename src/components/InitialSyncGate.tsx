@@ -12,6 +12,7 @@ import {
   Loader2,
   Plus,
   ShieldCheck,
+  Sparkles,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -43,6 +44,14 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -58,6 +67,8 @@ import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { hexToHslString, hslStringToHex } from "@/lib/colorUtils";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
+import { tryNpubEncode } from "@/lib/safeNip19";
 import {
   type CoreThemeColors,
   resolveTheme,
@@ -350,7 +361,7 @@ const SUGGESTED_PACKS: {
         "932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d",
       identifier: "k4p5w0n22suf",
       description:
-        "People building tools, communities, and strange new corners of the internet.",
+        "Builders, writers, and curious internet people shaping strange new corners of the web.",
     },
   ];
 
@@ -680,8 +691,8 @@ const WELCOME_CHOICES: { id: string; emoji: string; label: string }[] = [
   { id: "personal", emoji: "🪴", label: "Feel more like my space" },
   { id: "control", emoji: "🎛️", label: "Give me more control" },
   { id: "conversations", emoji: "💬", label: "Show better conversations" },
-  { id: "freedom", emoji: "🕊️", label: "Feel less controlled" },
   { id: "fun", emoji: "✨", label: "Make posting fun again" },
+  { id: "weird", emoji: "🧪", label: "Try weird internet things" },
   { id: "fresh", emoji: "🌱", label: "Give me a fresh start" },
 ];
 
@@ -694,22 +705,23 @@ type WelcomeIntent =
   | "fun"
   | "personal"
   | "control"
-  | "freedom"
+  | "weird"
   | "fresh";
 
 /**
  * Priority order for resolving a single "primary" intent when the user selects
  * more than one welcome card. The earlier an intent appears here, the more it
- * wins — conversation/posting energy leads, identity/control come next, and a
- * fresh-start fallback sits last. Anything unrecognized (or no selection) falls
- * through to the generic copy.
+ * wins — conversation/posting energy leads, identity/control come next, the
+ * playful "weird internet things" intent sits just before the fresh-start
+ * fallback. Anything unrecognized (or no selection) falls through to the
+ * generic copy.
  */
 const INTENT_PRIORITY: WelcomeIntent[] = [
   "conversations",
   "fun",
   "personal",
   "control",
-  "freedom",
+  "weird",
   "fresh",
 ];
 
@@ -756,9 +768,9 @@ const INTENT_COPY: Record<WelcomeIntent, IntentCopy> = {
     outro:
       "Your space is ready. Explore Ditto with an account that belongs to you.",
   },
-  freedom: {
+  weird: {
     outro:
-      "Your space is ready. Explore on your terms, without being boxed into one company's feed.",
+      "Your space is ready. Start exploring the strange, playful corners of Ditto.",
   },
   fresh: {
     outro:
@@ -1765,7 +1777,6 @@ function FollowsStep({
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   const [packs, setPacks] = useState<NostrEvent[]>([]);
@@ -1873,7 +1884,7 @@ function FollowsStep({
           Start with a few interesting voices
         </h2>
         <Typewriter
-          text={intentIntro ?? `Your feed gets better when you follow people. Here's a small group to help ${config.appName} feel alive from the start.`}
+          text={intentIntro ?? "Your first feed is better with people in it. Meet a few voices that can make Ditto feel alive from the start."}
           className="text-sm text-muted-foreground text-pretty"
         />
       </div>
@@ -1943,47 +1954,86 @@ function PackCard({
 
   const displayDescription = descriptionOverride || description;
 
-  // Fetch metadata for the first handful of members. We show a few of them in
-  // detail (avatar + name + one-line bio) so the user gets a small sense of
-  // "who are these people?" before tapping Follow All, plus a compact avatar
-  // stack for the rest. This is intentionally NOT a carousel.
-  const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
-  const { data: membersMap } = useAuthors(previewPubkeys);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const detailedPubkeys = useMemo(() => pubkeys.slice(0, 3), [pubkeys]);
+  // Fetch metadata for the first handful of members. The card itself stays
+  // small: an avatar cluster + two detailed rows give a quick "who's in here?"
+  // taste; the full, richer preview lives behind "Meet the people". This is
+  // intentionally NOT a carousel on the card.
+  const clusterPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
+  const { data: membersMap } = useAuthors(clusterPubkeys);
+
+  // A couple of named people right on the card make the pack feel curated
+  // rather than a faceless count. Falls back to avatar + name when metadata
+  // is missing.
+  const detailedPubkeys = useMemo(() => pubkeys.slice(0, 2), [pubkeys]);
 
   return (
     <div
       className={cn(
-        "rounded-xl ring-1 ring-border overflow-hidden bg-card/50",
-        "transition-all duration-200 hover:ring-primary/40 hover:shadow-sm",
+        "group rounded-2xl ring-1 ring-border overflow-hidden bg-card/60",
+        "transition-all duration-200 hover:ring-primary/50 hover:shadow-md hover:shadow-primary/5",
         "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
       )}
     >
-      <div className="p-4 space-y-3">
-        {/* Title + member count */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-sm leading-snug">{title}</h3>
-            {displayDescription && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {displayDescription}
-              </p>
-            )}
-          </div>
-          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0 mt-0.5">
+      {/* Warm gradient header band to make the card feel inviting, not flat. */}
+      <div className="relative bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),transparent_70%)] px-4 pt-4 pb-3 space-y-3">
+        {/* "Starter voices" badge + member count */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-medium text-primary">
+            <Sparkles className="size-3" />
+            Starter voices
+          </span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
             <Users className="w-3.5 h-3.5" />
-            {pubkeys.length}
+            {pubkeys.length} people
           </span>
         </div>
 
-        {/* Small "who's in here" preview — up to 3 people in detail. Falls
-            back gracefully to avatar + name when bio/metadata is missing. */}
+        {/* Title + description */}
+        <div className="min-w-0 space-y-1">
+          <h3 className="font-semibold text-base leading-snug">{title}</h3>
+          {displayDescription && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {displayDescription}
+            </p>
+          )}
+        </div>
+
+        {/* Avatar cluster — a quick visual that real people are inside. */}
+        {clusterPubkeys.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {clusterPubkeys.map((pk) => {
+                const meta = membersMap?.get(pk)?.metadata;
+                const name =
+                  meta?.display_name || meta?.name || "Anonymous";
+                return (
+                  <MiniAvatar
+                    key={pk}
+                    src={meta?.picture}
+                    name={name}
+                    metadata={meta}
+                  />
+                );
+              })}
+            </div>
+            {pubkeys.length > clusterPubkeys.length && (
+              <span className="text-[11px] text-muted-foreground">
+                +{pubkeys.length - clusterPubkeys.length} more
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 pb-4 pt-1 space-y-3">
+        {/* A couple of named people in detail — falls back gracefully when
+            metadata/bio is missing. */}
         {detailedPubkeys.length > 0 && (
           <div className="space-y-1.5">
             {detailedPubkeys.map((pk, i) => {
-              const member = membersMap?.get(pk);
-              const meta = member?.metadata;
+              const meta = membersMap?.get(pk)?.metadata;
               const name =
                 meta?.display_name || meta?.name || "Anonymous";
               const bio = meta?.about?.replace(/\s+/g, " ").trim();
@@ -1997,7 +2047,7 @@ function PackCard({
                     className="size-8 shrink-0 ring-1 ring-border"
                     shape={getAvatarShape(meta)}
                   >
-                    <AvatarImage src={meta?.picture} alt={name} />
+                    <AvatarImage src={sanitizeUrl(meta?.picture)} alt={name} />
                     <AvatarFallback className="bg-primary/15 text-primary text-[11px]">
                       {name[0]?.toUpperCase()}
                     </AvatarFallback>
@@ -2015,48 +2065,250 @@ function PackCard({
                 </div>
               );
             })}
-            {pubkeys.length > detailedPubkeys.length && (
-              <p className="text-[11px] text-muted-foreground pl-[2.625rem]">
-                and {pubkeys.length - detailedPubkeys.length} more
-              </p>
-            )}
           </div>
         )}
 
-        {/* Follow All button */}
+        {/* Actions: Follow All stays primary and easy; "Meet the people"
+            opens the richer manual preview only on demand. */}
+        <div className="space-y-2">
+          <Button
+            className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+            size="sm"
+            variant={isFollowed ? "outline" : "default"}
+            onClick={onFollowAll}
+            disabled={isFollowed || isFollowing}
+          >
+            {isFollowing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Following...
+              </>
+            ) : isFollowed ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Added to your follows
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-3.5 h-3.5" />
+                Follow All ({pubkeys.length})
+              </>
+            )}
+          </Button>
+
+          {pubkeys.length > 0 && (
+            <Button
+              className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+              size="sm"
+              variant="ghost"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Meet the people
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Author attribution */}
+      <AuthorAttribution pubkey={event.pubkey} />
+
+      {/* Richer, manual preview — only mounted/opened on demand. */}
+      <PackPeopleDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title={title}
+        pubkeys={pubkeys}
+        isFollowed={isFollowed}
+        isFollowing={isFollowing}
+        onFollowAll={onFollowAll}
+      />
+    </div>
+  );
+}
+
+/**
+ * Richer, manual preview of the people inside a follow pack.
+ *
+ * Shown only when the user taps "Meet the people" on the pack card — it is NOT
+ * part of the default onboarding screen, so the main step stays compact. The
+ * carousel is fully manual (no autoplay), keyboard-navigable (the underlying
+ * Carousel maps Arrow keys, and prev/next buttons are labelled), and degrades
+ * gracefully: a member with missing metadata still shows an avatar + a
+ * shortened npub instead of looking broken.
+ */
+function PackPeopleDialog({
+  open,
+  onOpenChange,
+  title,
+  pubkeys,
+  isFollowed,
+  isFollowing,
+  onFollowAll,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  pubkeys: string[];
+  isFollowed: boolean;
+  isFollowing: boolean;
+  onFollowAll: () => void;
+}) {
+  // Only fetch metadata once the user actually opens the preview.
+  const { data: membersMap } = useAuthors(open ? pubkeys : []);
+
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+    const onSelect = () => setCurrent(api.selectedScrollSnap());
+    api.on("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-center">{title}</DialogTitle>
+          <DialogDescription className="text-center">
+            Real people who can make your first feed feel alive. Swipe through
+            and follow them all when you're ready.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Carousel
+          opts={{ align: "center" }}
+          setApi={setApi}
+          className="px-8"
+          aria-label={`People in ${title}`}
+        >
+          <CarouselContent>
+            {pubkeys.map((pk) => (
+              <CarouselItem key={pk}>
+                <PackPersonSlide
+                  pubkey={pk}
+                  metadata={membersMap?.get(pk)?.metadata}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious aria-label="Previous person" />
+          <CarouselNext aria-label="Next person" />
+        </Carousel>
+
+        {/* Position indicator, e.g. "1 of 12". */}
+        <p
+          className="text-center text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          {Math.min(current + 1, pubkeys.length)} of {pubkeys.length}
+        </p>
+
         <Button
-          className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
-          size="sm"
+          className="w-full gap-2 rounded-full h-11"
           variant={isFollowed ? "outline" : "default"}
           onClick={onFollowAll}
           disabled={isFollowed || isFollowing}
         >
           {isFollowing ? (
             <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
               Following...
             </>
           ) : isFollowed ? (
             <>
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-4 h-4" />
               Added to your follows
             </>
           ) : (
             <>
-              <UserPlus className="w-3.5 h-3.5" />
-              Follow All ({pubkeys.length})
+              <UserPlus className="w-4 h-4" />
+              Follow all ({pubkeys.length})
             </>
           )}
         </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** A single person card inside the {@link PackPeopleDialog} carousel. */
+function PackPersonSlide({
+  pubkey,
+  metadata,
+}: {
+  pubkey: string;
+  metadata?: NostrMetadata;
+}) {
+  const name =
+    metadata?.display_name || metadata?.name || "Anonymous";
+  const bio = metadata?.about?.replace(/\s+/g, " ").trim();
+  const bannerUrl = sanitizeUrl(metadata?.banner);
+  const pictureUrl = sanitizeUrl(metadata?.picture);
+
+  // Prefer a friendly handle (NIP-05 / @name); fall back to a shortened npub
+  // so the slide never looks empty even with no metadata at all.
+  const npub = tryNpubEncode(pubkey);
+  const handle = metadata?.nip05
+    ? metadata.nip05.replace(/^_@/, "")
+    : metadata?.name
+      ? `@${metadata.name}`
+      : npub
+        ? `${npub.slice(0, 12)}…${npub.slice(-6)}`
+        : undefined;
+
+  return (
+    <div className="rounded-xl ring-1 ring-border overflow-hidden bg-card">
+      {/* Banner (optional) — sanitized, with a soft gradient fallback so a
+          missing banner still looks intentional, not broken. */}
+      <div className="relative h-20 bg-[linear-gradient(135deg,hsl(var(--primary)/0.25),hsl(var(--primary)/0.05))]">
+        {bannerUrl && (
+          <img
+            src={bannerUrl}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+            loading="lazy"
+          />
+        )}
       </div>
 
-      {/* Author attribution */}
-      <AuthorAttribution pubkey={event.pubkey} />
+      <div className="px-4 pb-4">
+        <Avatar
+          className="size-16 -mt-8 ring-4 ring-card shadow-sm"
+          shape={getAvatarShape(metadata)}
+        >
+          <AvatarImage src={pictureUrl} alt={name} />
+          <AvatarFallback className="bg-primary/15 text-primary text-lg">
+            {name[0]?.toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="mt-2 space-y-0.5">
+          <p className="font-semibold text-sm leading-tight truncate">
+            {name}
+          </p>
+          {handle && (
+            <p className="text-xs text-muted-foreground truncate">{handle}</p>
+          )}
+        </div>
+
+        {bio && (
+          <p className="mt-2 text-xs text-muted-foreground leading-relaxed line-clamp-3">
+            {bio}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
 /** Small author attribution bar at the bottom of a pack card. */
+
 function AuthorAttribution({ pubkey }: { pubkey: string }) {
   const { data: authorData } = useAuthors([pubkey]);
   const metadata: NostrMetadata | undefined = authorData?.get(pubkey)?.metadata;
@@ -2076,7 +2328,7 @@ function AuthorAttribution({ pubkey }: { pubkey: string }) {
 function MiniAvatar({ src, name, metadata }: { src?: string; name: string; metadata?: NostrMetadata }) {
   return (
     <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
-      <AvatarImage src={src} alt={name} />
+      <AvatarImage src={sanitizeUrl(src)} alt={name} />
       <AvatarFallback className="bg-primary/15 text-primary text-[10px]">
         {name[0]?.toUpperCase()}
       </AvatarFallback>
