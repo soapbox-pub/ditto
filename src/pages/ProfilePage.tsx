@@ -476,7 +476,7 @@ function SortableTabChip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="py-3.5 pr-1"
       >
-        {tab.label}
+        {tabDisplayLabel(tab.label)}
       </button>
 
       {/* Edit — only rendered for active custom (non-core) tabs */}
@@ -956,6 +956,15 @@ const CORE_TAB_IDS: Record<string, string> = {
   'Posts': 'posts', 'Posts & replies': 'replies',
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
+
+// Map a canonical tab label to its user-facing display text. The canonical
+// label (e.g. 'Posts') is kept for the internal tab id and the serialized
+// kind 16769 event (cross-client interop); only the rendered text differs.
+const TAB_DISPLAY_LABELS: Record<string, string> = {
+  'Posts': 'Feed',
+};
+
+const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
 
 export function ProfilePage() {
   const { config } = useAppContext();
@@ -2312,7 +2321,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             return (
               <TabButton
                 key={tab.label}
-                label={tab.label}
+                label={tabDisplayLabel(tab.label)}
                 active={activeTab === tabId}
                 onClick={() => {
                   setActiveTab(tabId);
@@ -2370,7 +2379,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
                         <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
-                          {label}
+                          {tabDisplayLabel(label)}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2407,7 +2416,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           {present
                             ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
                             : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {name}
+                          {tabDisplayLabel(name)}
                         </DropdownMenuItem>
                       );
                     })}
