@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, HandHeart, Image, MessageSquareOff } from 'lucide-react';
+import { Award, HandHeart, MessageSquareOff } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -19,6 +19,8 @@ import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
+import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -141,6 +143,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNadd
   // dedicated card showing title + avatar stack + member count.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Long-form articles (NIP-23) get a rich link-preview-style card: cover
+  // image on top, title + summary, author byline at the bottom.
+  if (ARTICLE_KINDS.has(event.kind)) {
+    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
@@ -394,8 +402,8 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
   const kindLabel = getKindLabel(event.kind);
   const isKnownKind = kindLabel !== undefined;
 
-  const { title, description, image } = useMemo(
-    () => (isKnownKind ? extractMetadata(event) : { title: undefined, description: undefined, image: undefined }),
+  const { title, description } = useMemo(
+    () => (isKnownKind ? extractMetadata(event) : { title: undefined, description: undefined }),
     [isKnownKind, event],
   );
 
@@ -439,21 +447,15 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
         <UnknownKindContent event={event} className="mt-0" />
       )}
 
-      {/* Kind label and attachment indicators */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {kindMeta && (
+      {/* Kind label */}
+      {kindMeta && (
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
             {kindMeta.label}
           </span>
-        )}
-        {image && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Image className="size-3" />
-            Image
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </EmbeddedCardShell>
   );
 }

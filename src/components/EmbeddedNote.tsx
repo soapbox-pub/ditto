@@ -14,6 +14,8 @@ import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { LoveListCompact } from '@/components/LoveListContent';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
@@ -34,6 +36,10 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { parseImetaMap } from '@/lib/imeta';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { ImageGallery } from '@/components/ImageGallery';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 
@@ -160,6 +166,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // because all the data lives in `p` tags, not content or title tags.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Long-form articles (NIP-23) quoted via nevent get the same rich
+  // link-preview-style card as naddr embeds: cover image, title, summary,
+  // author byline.
+  if (ARTICLE_KINDS.has(event.kind)) {
+    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
@@ -712,6 +725,40 @@ function EmbeddedNoteCard({
     return { imgs, vids, auds, apps, links, photos: 0 };
   }, [event.content, event.tags, isPhoto, isBlobbiState]);
 
+  // imeta map (dim/blurhash/poster) for sizing media previews
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
+
+  // Extract media to preview inline (images + first video). Photo events (kind
+  // 20) carry their media in imeta `url` fields; content kinds carry URLs in
+  // the body. We show the actual media instead of only a "Photo"/"Video" chip.
+  const previewMedia = useMemo((): { images: string[]; video?: string } => {
+    if (isBlobbiState) return { images: [] };
+    // Collect ordered image + first video URLs.
+    if (isPhoto) {
+      const images: string[] = [];
+      for (const tag of event.tags) {
+        if (tag[0] !== 'imeta') continue;
+        const urlPart = tag.find((p) => p.startsWith('url '));
+        const url = urlPart ? sanitizeUrl(urlPart.slice(4)) : undefined;
+        if (url) images.push(url);
+      }
+      return { images };
+    }
+    const imageMatches = event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || [];
+    const images = imageMatches
+      .map((u) => sanitizeUrl(u))
+      .filter((u): u is string => !!u);
+    // First non-image embeddable media (video/webxdc) — prefer video preview.
+    const videoUrls = extractVideoUrls(event.content)
+      .map((u) => sanitizeUrl(u))
+      .filter((u): u is string => !!u);
+    const video = images.length === 0 ? videoUrls[0] : undefined;
+    return { images, video };
+  }, [event.content, event.tags, isPhoto, isBlobbiState]);
+
+  const hasMediaPreview = previewMedia.images.length > 0 || !!previewMedia.video;
+
+
   // Kind label for non-text-note kinds
   const kindMeta = useMemo(() => {
     const label = getKindLabel(event.kind);
@@ -725,13 +772,15 @@ function EmbeddedNoteCard({
   const tagMeta = useMemo(() => {
     // Content kinds with real content always render that content below.
     if (isContentKind && hasContent) return undefined;
+    // Photo events render their images inline — never fall back to alt text.
+    if (isPhoto && hasMediaPreview) return undefined;
     // NIP-31 `alt` is the author's own fallback for clients that can't
     // render the kind. Other tags (title, name, d, …) have kind-specific
     // semantics and are not reliably safe as user-facing preview text.
     const altText = getEventFallbackText(event);
     if (!altText) return undefined;
     return { title: altText, description: undefined as string | undefined };
-  }, [isContentKind, hasContent, event]);
+  }, [isContentKind, hasContent, isPhoto, hasMediaPreview, event]);
 
   // Truly unknown kind: not a content kind, no Blobbi inline visual, no `alt`
   // fallback text, AND we don't recognize the kind via `getKindLabel`. Only
@@ -750,6 +799,11 @@ function EmbeddedNoteCard({
   if (hasCW && config.contentWarningPolicy === 'hide') {
     return null;
   }
+
+  // Media preview is shown for content kinds (and photos) when not blurred.
+  const showMediaPreview =
+    hasMediaPreview && !isBlobbiState && !tagMeta && !isUnknownKind && !isKnownKindWithoutPreview &&
+    !(hasCW && config.contentWarningPolicy === 'blur');
 
   const hasChips = !hasCW && (
     attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 ||
@@ -794,7 +848,33 @@ function EmbeddedNoteCard({
           This event kind is not supported
         </p>
       ) : (
-        <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
+        <>
+          {/* Text body (media URLs are stripped here and rendered as a
+              gallery/player below). Empty content renders nothing. */}
+          <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
+          {showMediaPreview && (
+            <div onClick={(e) => e.stopPropagation()}>
+              {previewMedia.images.length > 0 ? (
+                <ImageGallery
+                  images={previewMedia.images}
+                  maxVisible={4}
+                  maxGridHeight="320px"
+                  imetaMap={imetaMap}
+                  className="mt-1.5"
+                />
+              ) : previewMedia.video ? (
+                <div className="mt-1.5 overflow-hidden rounded-2xl">
+                  <VideoPlayer
+                    src={previewMedia.video}
+                    poster={imetaMap.get(previewMedia.video)?.thumbnail}
+                    dim={imetaMap.get(previewMedia.video)?.dim}
+                    blurhash={imetaMap.get(previewMedia.video)?.blurhash}
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </>
       )}
 
       {/* Attachment / kind indicator chips + Read more toggle */}

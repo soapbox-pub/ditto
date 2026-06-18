@@ -686,9 +686,11 @@ export function NoteContent({
             return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              // In preview contexts (e.g. triple-dot menu), replace image URLs
-              // with a newline so text flow is preserved without showing raw URLs.
-              return <span key={i}>{'\n'}</span>;
+              // In preview contexts (triple-dot menu, quote cards) media is
+              // rendered elsewhere or omitted. Render nothing — surrounding
+              // text whitespace is already collapsed during tokenization, so
+              // emitting a newline here only adds a redundant blank line.
+              return null;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
@@ -701,7 +703,7 @@ export function NoteContent({
           }
           case 'image-gallery': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
+              return null;
             }
             const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
             const galleryLightboxIndex =
@@ -754,7 +756,7 @@ export function NoteContent({
             );
           case 'media-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{'\n'}</span>;
+              return null;
             }
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
