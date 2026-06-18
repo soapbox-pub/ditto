@@ -821,8 +821,9 @@ export function NoteContent({
             // Both bare `nostr:naddr1…` references and `https://…/naddr1…`
             // links render as the rich card. The raw URL is intentionally not
             // shown above it — the card itself links to the content, matching
-            // how nevent/link embeds behave.
-            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" />;
+            // how nevent/link embeds behave. When the naddr came from a
+            // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':

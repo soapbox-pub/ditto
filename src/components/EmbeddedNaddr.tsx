@@ -38,6 +38,10 @@ interface EmbeddedNaddrProps {
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
+  /** Original URL the naddr was extracted from (e.g. a non-Ditto article link).
+   *  When it points to a different host than the current app, the card offers
+   *  an "Open" button so the source is still reachable. */
+  sourceUrl?: string;
 }
 
 /** Maximum characters of content to show in the embedded preview. */
@@ -101,7 +105,7 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
   );
 }
 
-function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNaddrProps) {
+function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
   if (isLoading) {
@@ -148,7 +152,7 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNadd
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover
   // image on top, title + summary, author byline at the bottom.
   if (ARTICLE_KINDS.has(event.kind)) {
-    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
