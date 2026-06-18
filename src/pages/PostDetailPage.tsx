@@ -103,6 +103,7 @@ import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
+import { ExternalContentView } from "@/pages/ExternalContentPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
@@ -256,6 +257,25 @@ function formatFullDate(timestamp: number): string {
   });
 }
 
+/**
+ * If the given event is a kind 1111 NIP-22 comment rooted directly on an
+ * external content identifier (URL, `isbn:`, `iso3166:`, etc.), return that
+ * identifier. Returns `undefined` for comments rooted on Nostr events, replies
+ * to other comments (`K` === `"1111"`), or any non-comment event.
+ *
+ * Used to render the rich external-content discussion page inline on the
+ * comment's own detail route, so opening a comment doesn't require a second
+ * click into `/i/<url>` to see the surrounding thread.
+ */
+function externalCommentUri(event: NostrEvent): string | undefined {
+  if (event.kind !== 1111) return undefined;
+  const I = event.tags.find(([n]) => n === "I")?.[1];
+  const K = event.tags.find(([n]) => n === "K")?.[1];
+  // Replies to other comments should keep the standard comment detail view.
+  if (!I || K === "1111") return undefined;
+  return I;
+}
+
 export function PostDetailPage({
   eventId,
   relays,
@@ -298,6 +318,22 @@ export function PostDetailPage({
           onRetry={() => refetch()}
           isRetrying={isFetching}
         />
+      </PostDetailShell>
+    );
+  }
+
+  // Kind 1111 comments rooted directly on external content (a web URL, ISBN,
+  // country, etc.) render the full external-content discussion page inline —
+  // the same UI as /i/<identifier> — with this comment highlighted in the
+  // thread. This avoids forcing a second click through the preview card to
+  // reach the surrounding conversation.
+  const extUri = externalCommentUri(resolvedEvent);
+  if (extUri) {
+    return (
+      <PostDetailShell title={detailTitle}>
+        <MutedContentGuard event={resolvedEvent}>
+          <ExternalContentView uri={extUri} focusedEventId={resolvedEvent.id} />
+        </MutedContentGuard>
       </PostDetailShell>
     );
   }
