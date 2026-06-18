@@ -20,13 +20,14 @@ import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl, externalUrl } from '@/lib/sanitizeUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
@@ -155,7 +156,7 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
     return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
   }
 
-  return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
 }
 
 /** Compact badge showcase for kind 30009 embeds — smaller version of the feed BadgeContent. */
@@ -393,11 +394,13 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   );
 }
 
-function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+function EmbeddedNaddrCard({ event, className, disableHoverCards, sourceUrl }: { event: NostrEvent; className?: string; disableHoverCards?: boolean; sourceUrl?: string }) {
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
+
+  const openExternalUrl = useMemo(() => externalUrl(sourceUrl), [sourceUrl]);
 
   // Known kinds (articles, streams, themes, etc.) get rich title/description/
   // content rendering. Unknown kinds never do — we can't assume arbitrary
@@ -451,13 +454,16 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
         <UnknownKindContent event={event} className="mt-0" />
       )}
 
-      {/* Kind label */}
-      {kindMeta && (
+      {/* Kind label + external-source link */}
+      {(kindMeta || openExternalUrl) && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
-            {kindMeta.label}
-          </span>
+          {kindMeta && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
+              {kindMeta.label}
+            </span>
+          )}
+          <ExternalSourceLink url={sourceUrl} className="ml-auto" />
         </div>
       )}
     </EmbeddedCardShell>

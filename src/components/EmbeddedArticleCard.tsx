@@ -2,15 +2,15 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { FileText, ExternalLink } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
-import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
 /** Extract title / summary / cover image from a long-form article event. */
@@ -27,26 +27,13 @@ function extractArticleMeta(event: NostrEvent): {
   };
 }
 
-/** Returns a safe https URL only when it points to a host other than the app's
- *  own (so we don't offer to "open externally" a link back into Ditto). */
-function externalSourceUrl(url: string | undefined): string | undefined {
-  const safe = sanitizeUrl(url);
-  if (!safe) return undefined;
-  try {
-    if (new URL(safe).host === window.location.host) return undefined;
-  } catch {
-    return undefined;
-  }
-  return safe;
-}
-
 interface EmbeddedArticleCardProps {
   event: NostrEvent;
   className?: string;
   /** When true, the author ProfileHoverCard is disabled (avoids nesting). */
   disableHoverCards?: boolean;
   /** Original URL the article was linked from. When it points to a non-Ditto
-   *  host, the card shows an "Open" button to reach the source directly. */
+   *  host, the card shows the source's favicon + hostname as an open link. */
   sourceUrl?: string;
 }
 
@@ -64,8 +51,6 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
   const avatarShape = getAvatarShape(metadata);
 
   const { title, summary, image } = useMemo(() => extractArticleMeta(event), [event]);
-
-  const externalUrl = useMemo(() => externalSourceUrl(sourceUrl), [sourceUrl]);
 
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -110,29 +95,11 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
       )}
 
       <div className="px-3.5 py-2.5 space-y-1">
-        {/* Article label + external-source button */}
+        {/* Article label + external-source link */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <FileText className="size-3.5 shrink-0" />
           <span>Article</span>
-
-          {externalUrl && (
-            <button
-              type="button"
-              className={cn(
-                'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
-                'text-xs text-muted-foreground',
-                'hover:bg-primary/10 hover:text-primary transition-colors',
-              )}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openUrl(externalUrl);
-              }}
-            >
-              <ExternalLink className="size-3" />
-              <span>Open</span>
-            </button>
-          )}
+          <ExternalSourceLink url={sourceUrl} className="ml-auto" />
         </div>
 
         {/* Title */}
