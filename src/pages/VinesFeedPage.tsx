@@ -44,6 +44,7 @@ import { useStreamKind } from "@/hooks/useStreamKind";
 import { type EventStats, useEventStats } from "@/hooks/useTrending";
 import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
@@ -466,6 +467,8 @@ export function VineCard({
 					<video
 						ref={videoRef}
 						src={src}
+						data-no-native-poster=""
+						poster={BLANK_POSTER}
 						className="absolute inset-0 w-full h-full object-cover"
 						loop
 						playsInline

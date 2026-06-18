@@ -133,6 +133,7 @@ import { publishedAtAction } from "@/lib/publishedAtAction";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
@@ -1799,14 +1800,37 @@ function VineMedia({
       {imeta?.url && (
         <div
           ref={containerRef}
-          className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
+          className={cn(
+            'relative mt-3 rounded-2xl overflow-hidden cursor-pointer bg-black',
+            // With preload="none" the <video> has no intrinsic height until it
+            // plays. With no thumbnail to set the box height, fall back to a 16:9
+            // box (most videos are landscape) instead of a square-ish sliver.
+            !imeta.thumbnail && !isPlaying && 'aspect-video',
+          )}
           onClick={handlePlayToggle}
         >
+          {/* When there's a thumbnail it drives the box size (the <video> below
+              is absolutely positioned on top); the plain <img> avoids WebView's
+              native gray play-circle that a poster-bearing <video> would draw. */}
+          {imeta.thumbnail && !isPlaying && (
+            <img
+              src={imeta.thumbnail}
+              alt=""
+              aria-hidden
+              className="w-full max-h-[70vh] object-cover"
+            />
+          )}
           <video
             ref={videoRef}
             src={imeta.url}
-            poster={imeta.thumbnail}
-            className="w-full max-h-[70vh] object-cover"
+            data-no-native-poster=""
+            poster={BLANK_POSTER}
+            className={cn(
+              'w-full max-h-[70vh] object-cover',
+              // Fill on top of the thumbnail (which sets the height) when one is
+              // present; otherwise lay out normally.
+              imeta.thumbnail && !isPlaying && 'absolute inset-0 h-full',
+            )}
             loop
             playsInline
             muted={isMuted}
