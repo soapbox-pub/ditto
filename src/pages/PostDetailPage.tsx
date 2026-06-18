@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Radio,
   Package,
+  RefreshCw,
   Rocket,
   Share2,
   Star,
@@ -265,6 +266,8 @@ export function PostDetailPage({
     data: event,
     isLoading,
     isError,
+    refetch,
+    isFetching,
   } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
@@ -292,6 +295,8 @@ export function PostDetailPage({
         <EventNotFound
           context={{ type: "event", eventId, relays, authorHint }}
           onEventFound={setRetryEvent}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
         />
       </PostDetailShell>
     );
@@ -354,7 +359,7 @@ export function PostDetailPage({
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   const { config } = useAppContext();
-  const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
+  const { data: event, isLoading, isError, refetch, isFetching } = useAddrEvent(addr, relays);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   const resolvedEvent = event || retryEvent;
@@ -382,6 +387,8 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
         <EventNotFound
           context={{ type: "addr", addr, relays }}
           onEventFound={setRetryEvent}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
         />
       </PostDetailShell>
     );
@@ -644,9 +651,13 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
 function EventNotFound({
   context,
   onEventFound,
+  onRetry,
+  isRetrying: isRetryingProp = false,
 }: {
   context: EventNotFoundContext;
   onEventFound: (event: NostrEvent) => void;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 }) {
   const { nostr } = useNostr();
   const [relayUrl, setRelayUrl] = useState("");
@@ -721,6 +732,22 @@ function EventNotFound({
           </p>
         </div>
 
+        {/* Primary retry action */}
+        {onRetry && (
+          <Button
+            className="rounded-full w-full"
+            onClick={onRetry}
+            disabled={isRetryingProp}
+          >
+            {isRetryingProp ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            Try again
+          </Button>
+        )}
+
         {/* Context details */}
         <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-sm">
           <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">
@@ -784,7 +811,7 @@ function EventNotFound({
                 value={relayUrl}
                 onChange={(e) => setRelayUrl(e.target.value)}
                 placeholder="wss://relay.example.com"
-                className="flex-1 font-mono text-base md:text-xs h-9"
+                className="flex-1 font-mono text-base md:text-xs h-9 rounded-full"
                 disabled={isRetrying}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleRetry(relayUrl);
@@ -794,7 +821,7 @@ function EventNotFound({
                 size="sm"
                 onClick={() => handleRetry(relayUrl)}
                 disabled={isRetrying || !relayUrl.trim()}
-                className="shrink-0 h-9"
+                className="shrink-0 h-9 rounded-full"
               >
                 {isRetrying ? (
                   <Loader2 className="size-4 animate-spin" />
