@@ -160,6 +160,7 @@ export function ThemeGrid({
   onEditingThemeChange,
   columns = 'responsive',
   limit,
+  onCarouselNavigate,
 }: {
   /** Called after any theme is selected. */
   onSelect?: () => void;
@@ -177,6 +178,13 @@ export function ThemeGrid({
   columns?: 'responsive' | 'sm' | '2' | 'scroll';
   /** Maximum number of themes to display. When set, the list is truncated after this many items. */
   limit?: number;
+  /**
+   * Fires on each mobile-carousel page change (scroll mode only). Reports
+   * whether the new page is the last one and whether the move was backward, so
+   * parents (e.g. onboarding) can gate mobile-specific affordances on real
+   * exploration rather than a couple of forward swipes. No-op on desktop.
+   */
+  onCarouselNavigate?: (info: { reachedLast: boolean; wentBackward: boolean }) => void;
 }) {
   const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
@@ -318,6 +326,10 @@ export function ThemeGrid({
       if (!el) return;
       const page = Math.round(el.scrollLeft / el.clientWidth);
       if (page !== activePage) {
+        onCarouselNavigate?.({
+          reachedLast: page >= allItems.length - 1,
+          wentBackward: page < activePage,
+        });
         setActivePage(page);
         allItems[page]?.onSelect();
       }
