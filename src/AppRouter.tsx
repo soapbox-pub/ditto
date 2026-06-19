@@ -5,7 +5,6 @@ import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
-import { OnboardingTopicsHandoff } from "@/components/OnboardingTopicsHandoff";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
@@ -162,7 +161,6 @@ export function AppRouter() {
         <DeepLinkHandler />
         <BackButtonHandler />
         <ScrollToTop />
-        <OnboardingTopicsHandoff />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
           <Suspense fallback={null}>

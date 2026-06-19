@@ -16,14 +16,12 @@ import {
   Sparkles,
   UserPlus,
   Users,
-  X,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import { getStorageKey } from "@/lib/storageKey";
-import { buildHandoffPayload, ONBOARDING_SEARCH_KEY } from "@/lib/onboardingHandoff";
 import {
   type ReactNode,
   useCallback,
@@ -33,13 +31,7 @@ import {
   useState,
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
-import {
-  type SelectedTopic,
-  type Step,
-  TOPIC_CHOICES,
-  WELCOME_CHOICES,
-  type WelcomeIntent,
-} from "@/components/onboardingChoices";
+import { type Step } from "@/components/onboardingChoices";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -300,15 +292,12 @@ const DEV_FAKE_NSEC = /* @__PURE__ */ nip19.nsecEncode(
 );
 
 /**
- * Build the ordered signup step list. The optional "topics" step is inserted
- * late — right before the outro confirmation — but ONLY when the user's primary
- * welcome intent is "conversations". Every other intent keeps the original,
- * shorter flow. Placing it after follows makes the topic choice feel like
- * "where do you want to go first?" rather than an early abstract preference.
- * The step is index-driven, so the progress bar and next/back navigation pick
- * it up automatically.
+ * Build the ordered signup step list. A single, unified setup path — no intent
+ * selection, no topics, no Search handoff. Deeper product education lives in the
+ * separate post-onboarding tour. The step order is index-driven, so the
+ * progress bar and next/back navigation pick it up automatically.
  */
-function buildSignupSteps(showTopics: boolean): Step[] {
+function buildSignupSteps(): Step[] {
   return [
     "welcome",
     "theme",
@@ -316,7 +305,6 @@ function buildSignupSteps(showTopics: boolean): Step[] {
     "download",
     "profile",
     "follows",
-    ...(showTopics ? (["topics"] as const) : []),
     "outro",
   ];
 }
@@ -326,8 +314,6 @@ export function SetupQuestionnaire({
   onPreload,
   isSignup = false,
   devInitialStep,
-  devInitialIntents,
-  devInitialTopics,
   devUiOnly = false,
   devSimulateSaving = true,
 }: {
@@ -341,17 +327,6 @@ export function SetupQuestionnaire({
    * Has no effect on the real signup/settings flows, which never pass it.
    */
   devInitialStep?: Step;
-  /**
-   * DEV-ONLY: pre-seed the welcome-card intent selection so intent-shaped copy
-   * and the conversations-only topics step resolve without clicking through the
-   * welcome step. Onboarding-local only — never persisted.
-   */
-  devInitialIntents?: string[];
-  /**
-   * DEV-ONLY: pre-seed the first-explore topics selection (conversations
-   * intent). Onboarding-local only — never persisted.
-   */
-  devInitialTopics?: SelectedTopic[];
   /**
    * DEV-ONLY: UI-only preview mode. When true (AND `import.meta.env.DEV`),
    * every real side effect is intercepted and simulated — no key generation,
@@ -380,34 +355,9 @@ export function SetupQuestionnaire({
   // `false` and every `isDevUiOnly` branch below is dead-code-eliminated.
   const isDevUiOnly = import.meta.env.DEV && devUiOnly;
 
-  // Welcome-card selections (signup only). Stored here so the user's chosen
-  // intent can lightly shape the copy/framing of later steps. This is
-  // onboarding-local state only — never persisted to local storage or Nostr.
-  const [selectedIntents, setSelectedIntents] = useState<string[]>(
-    () => devInitialIntents ?? [],
-  );
-  const intentCopy = useMemo(
-    () => resolveIntentCopy(selectedIntents),
-    [selectedIntents],
-  );
-  const primaryIntent = useMemo(
-    () => resolvePrimaryIntent(selectedIntents),
-    [selectedIntents],
-  );
-
-  // The optional "topics" step runs only for the conversations intent.
-  const showTopics = isSignup && primaryIntent === "conversations";
-
-  // First-explore topics (conversations intent only). Onboarding-local: used
-  // to shape the outro copy and the post-onboarding Search handoff, never
-  // persisted to Nostr.
-  const [selectedTopics, setSelectedTopics] = useState<SelectedTopic[]>(
-    () => devInitialTopics ?? [],
-  );
-
   const steps = useMemo(
-    () => (isSignup ? buildSignupSteps(showTopics) : SETTINGS_STEPS),
-    [isSignup, showTopics],
+    () => (isSignup ? buildSignupSteps() : SETTINGS_STEPS),
+    [isSignup],
   );
 
   const [step, setStep] = useState<Step>(
@@ -628,35 +578,12 @@ export function SetupQuestionnaire({
     advance(step, 1, userHasFollows);
   }, [user, nostr, advance, step, isDevUiOnly, devSimulateSaving]);
 
-  // Finish onboarding. If the conversations-intent topics step ran and the user
-  // picked topics, seed a sessionStorage handoff so the app lands them on the
-  // Search experience for those topics instead of the default feed. The reader
-  // (OnboardingTopicsHandoff, rendered inside the router) consumes this key
-  // once and clears it. Onboarding-local only — never written to Nostr.
+  // Finish onboarding. After the outro, the app continues to its normal default
+  // landing behavior — no Search/topic handoff. Deeper product education is
+  // handled later by the separate post-onboarding tour.
   const handleComplete = useCallback(() => {
-    // UI-only preview: don't touch sessionStorage (no Search handoff seeding).
-    // Just report completion back to the playground.
-    if (isDevUiOnly) {
-      onComplete();
-      return;
-    }
-    if (showTopics && selectedTopics.length > 0) {
-      // Single-topic handoff: write at most the first selected topic, since
-      // Search can only route the user to one place.
-      const payload = buildHandoffPayload(selectedTopics.slice(0, 1));
-      if (payload) {
-        try {
-          sessionStorage.setItem(
-            getStorageKey(config.appId, ONBOARDING_SEARCH_KEY),
-            payload,
-          );
-        } catch {
-          // sessionStorage unavailable — fall back to the default feed landing.
-        }
-      }
-    }
     onComplete();
-  }, [showTopics, selectedTopics, config.appId, onComplete, isDevUiOnly]);
+  }, [onComplete]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background h-[100dvh]">
@@ -692,21 +619,9 @@ export function SetupQuestionnaire({
       <div className="relative flex-1 flex flex-col overflow-y-auto overscroll-contain">
         <div className="w-full max-w-md mx-auto my-auto px-6 py-6 sm:py-12">
           {/* Signup steps */}
-          {step === "welcome" && (
-            <WelcomeStep
-              onNext={(selected) => {
-                setSelectedIntents(selected);
-                next();
-              }}
-            />
-          )}
+          {step === "welcome" && <WelcomeStep onNext={next} />}
 
-          {step === "keygen" && (
-            <KeygenStep
-              onGenerate={handleGenerate}
-              intentBody={intentCopy.keygenBody}
-            />
-          )}
+          {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
             <DownloadStep
@@ -726,16 +641,6 @@ export function SetupQuestionnaire({
             />
           )}
 
-          {step === "topics" && (
-            <TopicsStep
-              selected={selectedTopics}
-              onChange={setSelectedTopics}
-              onNext={next}
-              onBack={back}
-              isSaving={isSaving}
-            />
-          )}
-
           {/* Settings steps */}
           {step === "theme" && (
             <ThemeStep
@@ -746,7 +651,6 @@ export function SetupQuestionnaire({
               isSaving={!isSignup && isSaving}
               localBgUrl={localBgUrl}
               onLocalBackgroundChange={handleLocalBackground}
-              intentSubtitle={isSignup ? intentCopy.themeSubtitle : undefined}
             />
           )}
 
@@ -758,22 +662,12 @@ export function SetupQuestionnaire({
               }}
               onBack={back}
               expectedPubkey={expectedPubkey}
-              intentIntro={isSignup ? intentCopy.followsIntro : undefined}
               devUiOnly={isDevUiOnly}
               devSimulateSaving={devSimulateSaving}
             />
           )}
 
-          {step === "outro" && (
-            <OutroStep
-              onComplete={handleComplete}
-              body={
-                showTopics
-                  ? buildTopicsOutro(selectedTopics, intentCopy.outro)
-                  : intentCopy.outro
-              }
-            />
-          )}
+          {step === "outro" && <OutroStep onComplete={handleComplete} />}
         </div>
       </div>
     </div>
@@ -784,484 +678,39 @@ export function SetupQuestionnaire({
 // Welcome Step
 // ---------------------------------------------------------------------------
 
-/**
- * Priority order for resolving a single "primary" intent when the user selects
- * more than one welcome card. The earlier an intent appears here, the more it
- * wins — conversation/posting energy leads, identity/control come next, the
- * playful "weird internet things" intent sits just before the fresh-start
- * fallback. Anything unrecognized (or no selection) falls through to the
- * generic copy.
- */
-const INTENT_PRIORITY: WelcomeIntent[] = [
-  "conversations",
-  "fun",
-  "personal",
-  "control",
-  "weird",
-  "fresh",
-];
-
-/**
- * Per-step copy that the selected welcome intent lightly shapes. Every field is
- * optional: when an intent doesn't override a step, that step uses its own
- * default copy (see the `?? ` fallbacks at each call site). This keeps the
- * intent purely additive — onboarding-local framing, never persisted to Nostr.
- */
-interface IntentCopy {
-  /** ThemeStep subtitle (signup only — replaces the default "Pick a starting theme…"). */
-  themeSubtitle?: string;
-  /** KeygenStep supporting line, appended below the standard key explanation. */
-  keygenBody?: string;
-  /** FollowsStep intro (replaces the default "Your feed gets better…"). */
-  followsIntro?: string;
-  /** OutroStep body. */
-  outro: string;
-}
-
 const GENERIC_OUTRO =
   "Your space is ready. Explore, follow a few people, or post something small.";
 
-const INTENT_COPY: Record<WelcomeIntent, IntentCopy> = {
-  conversations: {
-    followsIntro:
-      "Let's start with people who make the feed worth reading.",
-    outro:
-      "Your space is ready. Dive into conversations worth hearing.",
-  },
-  fun: {
-    outro:
-      "Your space is ready. Explore the feed and post when you're ready.",
-  },
-  personal: {
-    themeSubtitle:
-      "Make it feel like yours. Pick a starting look — you can keep shaping it anytime.",
-    outro:
-      "Your space is ready. Keep shaping your look and vibe as you explore.",
-  },
-  control: {
-    keygenBody:
-      "This account is yours to keep. No company owns it, and you can take it anywhere.",
-    outro:
-      "Your space is ready. It's an account that belongs to you.",
-  },
-  weird: {
-    outro:
-      "Your space is ready. Go find the strange, playful corners.",
-  },
-  fresh: {
-    outro:
-      "Your space is ready. Look around, then post when it feels right.",
-  },
-};
-
-/**
- * Pick the single primary intent from the user's welcome-card selection using
- * {@link INTENT_PRIORITY}, and return the copy overrides for it. Returns just
- * the generic outro when nothing recognizable was selected.
- */
-function resolveIntentCopy(selected: Iterable<string>): IntentCopy {
-  const set = new Set(selected);
-  for (const intent of INTENT_PRIORITY) {
-    if (set.has(intent)) return INTENT_COPY[intent];
-  }
-  return { outro: GENERIC_OUTRO };
-}
-
-/**
- * Resolve the single primary intent from the user's welcome-card selection
- * using {@link INTENT_PRIORITY}. Returns `undefined` when nothing recognizable
- * was selected. Used to decide whether the conversations-only topics step runs.
- */
-function resolvePrimaryIntent(
-  selected: Iterable<string>,
-): WelcomeIntent | undefined {
-  const set = new Set(selected);
-  for (const intent of INTENT_PRIORITY) {
-    if (set.has(intent)) return intent;
-  }
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Topics (conversations intent only)
-// ---------------------------------------------------------------------------
-
-/** Case-insensitive comparison key for de-duplicating topics by label. */
-function topicKey(label: string): string {
-  return label.trim().toLowerCase().replace(/^#/, "");
-}
-
-/**
- * Normalize a free-typed custom topic into a {@link SelectedTopic}, or return
- * `null` for empty input. A leading `#` marks it as a hashtag (and is stripped
- * from the stored label so we don't double up `#` when rendering / querying).
- */
-function parseCustomTopic(raw: string): SelectedTopic | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("#")) {
-    const body = trimmed.slice(1).trim();
-    if (!body) return null;
-    return { label: body, isHashtag: true };
-  }
-  return { label: trimmed };
-}
-
-// The handoff query is built via `buildHandoffPayload` from
-// `@/lib/onboardingHandoff`, which serializes the selected topics into a
-// structured payload. `OnboardingTopicsHandoff` then routes each topic to the
-// best existing experience (the indexed `/t/:tag` hashtag feed for hashtags, or
-// single-term `/search?q=` for plain topics) instead of a broken space-joined
-// phrase query.
-
-/**
- * Display label for a selected topic — hashtags keep their `#`.
- */
-function formatTopicLabel(topic: SelectedTopic): string {
-  return topic.isHashtag ? `#${topic.label}` : topic.label;
-}
-
-/**
- * Outro body for the conversations intent when the user picked a topic. Names
- * the single chosen topic so the close feels personalized and points clearly at
- * where we're about to take them. Falls back to the regular intent outro when
- * no topic was selected.
- */
-function buildTopicsOutro(topics: SelectedTopic[], fallback: string): string {
-  const topic = topics[0];
-  if (!topic) return fallback;
-  return `Your space is ready. We'll take you to ${formatTopicLabel(topic)}.`;
-}
-
-function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const toggle = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
+function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <div className="flex flex-col gap-5 sm:gap-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
-        <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
-          {/* Soft glow behind the logo for a little warmth */}
-          <div className="absolute -inset-4 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-          <DittoLogo size={48} className="relative sm:hidden" />
-          <DittoLogo size={64} className="relative hidden sm:block" />
-        </div>
-        <div className="space-y-1.5 sm:space-y-2">
-          {/* Onboarding copy renders immediately — no typing effect for now.
-              TODO: Blobbi/magical writing can reintroduce a writing effect later. */}
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-balance">
-            Let's make the internet feel like yours again
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-            Pick what you wish social apps did better.
-          </p>
-        </div>
+    <div className="flex flex-col items-center text-center gap-7 sm:gap-9 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        {/* Soft glow behind the logo for a little warmth */}
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={56} className="relative sm:hidden" />
+        <DittoLogo size={72} className="relative hidden sm:block" />
       </div>
 
-      <fieldset className="space-y-2.5 sm:space-y-3">
-        <legend className="text-sm font-medium text-foreground">
-          What do you wish social apps did better?
-        </legend>
-
-        <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-          {WELCOME_CHOICES.map((choice, i) => {
-            const isSelected = selected.has(choice.id);
-            return (
-              <button
-                key={choice.id}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => toggle(choice.id)}
-                style={{ animationDelay: `${i * 50}ms` }}
-                className={cn(
-                  "group relative flex items-center gap-2.5 sm:gap-3 rounded-xl border p-2.5 sm:p-3.5 text-left",
-                  "transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  "motion-safe:active:scale-[0.97] motion-safe:hover:-translate-y-0.5",
-                  isSelected
-                    ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm shadow-primary/10"
-                    : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-lg sm:text-xl leading-none transition-transform duration-200",
-                    "motion-safe:group-hover:scale-110",
-                    isSelected && "motion-safe:scale-110",
-                  )}
-                  aria-hidden="true"
-                >
-                  {choice.emoji}
-                </span>
-                <span className="flex-1 text-xs sm:text-sm font-medium leading-snug">
-                  {choice.label}
-                </span>
-                <span
-                  className={cn(
-                    "flex size-4 sm:size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
-                    isSelected
-                      ? "border-primary bg-primary text-primary-foreground motion-safe:zoom-in"
-                      : "border-muted-foreground/30 text-transparent",
-                  )}
-                >
-                  <Check className="size-2.5 sm:size-3" />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+      <div className="space-y-3 sm:space-y-4 max-w-sm">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
+          Ever wished social apps felt more… yours?
+        </h1>
+        <p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-pretty">
+          More personal. More playful. More alive. More under your control.
+        </p>
+        <p className="text-sm text-muted-foreground/80 leading-relaxed">
+          Let's set up your space.
+        </p>
+      </div>
 
       <Button
         size="lg"
-        className="w-full gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
-        onClick={() => onNext([...selected])}
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+        onClick={onNext}
       >
-        {selected.size > 0 ? "Continue" : "Skip for now"}
+        Start
         <ChevronRight className="w-4 h-4" />
       </Button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Topics Step (conversations intent only)
-// ---------------------------------------------------------------------------
-
-/**
- * Optional, fully-skippable step shown only when the primary welcome intent is
- * "conversations". Lets the user pick ONE first-explore topic (preset or their
- * own) so we can route them straight there after setup. Single-topic by design:
- * Ditto's Search handoff can only take the user to one place, so the UI asks for
- * one choice instead of promising a multi-topic experience it can't deliver.
- * Selection is onboarding-local — never persisted to Nostr.
- *
- * `selected` is modelled as an array (0 or 1 item) to stay compatible with the
- * handoff payload builder and dev playground, but the UI enforces a single pick.
- */
-function TopicsStep({
-  selected,
-  onChange,
-  onNext,
-  onBack,
-  isSaving = false,
-}: {
-  selected: SelectedTopic[];
-  onChange: (topics: SelectedTopic[]) => void;
-  onNext: () => void;
-  onBack: () => void;
-  isSaving?: boolean;
-}) {
-  const [showCustom, setShowCustom] = useState(false);
-  const [customValue, setCustomValue] = useState("");
-  // After a few idle seconds with nothing picked, gently nudge "Add your own".
-  const [nudge, setNudge] = useState(false);
-
-  // Single-topic model: at most one selection. Track its comparison key so the
-  // matching preset chip renders as selected.
-  const current = selected[0];
-  const currentKey = current ? topicKey(current.label) : null;
-  const customSelected = !!current && !current.id;
-
-  useEffect(() => {
-    if (selected.length > 0) {
-      setNudge(false);
-      return;
-    }
-    const timer = setTimeout(() => setNudge(true), 5000);
-    return () => clearTimeout(timer);
-  }, [selected.length]);
-
-  const selectPreset = useCallback(
-    (choice: { id: string; label: string }) => {
-      const key = topicKey(choice.label);
-      // Tapping the active topic clears it; otherwise replace the selection.
-      if (currentKey === key) {
-        onChange([]);
-      } else {
-        onChange([{ id: choice.id, label: choice.label }]);
-        setShowCustom(false);
-        setCustomValue("");
-      }
-    },
-    [currentKey, onChange],
-  );
-
-  const clearSelection = useCallback(() => {
-    onChange([]);
-  }, [onChange]);
-
-  const addCustom = useCallback(() => {
-    const parsed = parseCustomTopic(customValue);
-    if (!parsed) {
-      setCustomValue("");
-      return;
-    }
-    // Replace whatever was selected — single-topic only.
-    onChange([parsed]);
-    setCustomValue("");
-  }, [customValue, onChange]);
-
-  return (
-    <div className="flex flex-col gap-5 sm:gap-7 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="flex flex-col items-center text-center gap-3">
-        <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-500">
-          <div className="absolute -inset-4 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
-          <div className="relative flex size-12 sm:size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="size-6 sm:size-7" />
-          </div>
-        </div>
-        <div className="space-y-1.5 sm:space-y-2">
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-balance">
-            What do you want to explore first?
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-            Pick one topic. We'll take you there after setup.
-          </p>
-        </div>
-      </div>
-
-      {/* Preset topics — single choice. Selecting one replaces the previous. */}
-      <div
-        role="radiogroup"
-        aria-label="Choose one topic to explore first"
-        className="flex flex-wrap justify-center gap-2"
-      >
-        {TOPIC_CHOICES.map((choice, i) => {
-          const isSelected = currentKey === topicKey(choice.label);
-          return (
-            <button
-              key={choice.id}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              onClick={() => selectPreset(choice)}
-              style={{ animationDelay: `${i * 30}ms` }}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium",
-                "transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:fill-mode-both",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                "motion-safe:active:scale-[0.96]",
-                isSelected
-                  ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary shadow-md shadow-primary/20 scale-[1.03]"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-              )}
-            >
-              {isSelected && <Check className="size-3.5" />}
-              {choice.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Custom topic shown as the active selection (replaceable, removable). */}
-      {customSelected && current && (
-        <div className="flex flex-wrap justify-center gap-2 -mt-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground ring-2 ring-primary shadow-md shadow-primary/20 motion-safe:animate-in motion-safe:zoom-in-95">
-            <Check className="size-3.5" />
-            {current.isHashtag ? `#${current.label}` : current.label}
-            <button
-              type="button"
-              aria-label="Remove topic"
-              onClick={clearSelection}
-              className="-mr-1 ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-primary-foreground/70 transition-colors hover:bg-primary-foreground/20 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X className="size-3" />
-            </button>
-          </span>
-        </div>
-      )}
-
-      {/* Add your own — secondary, discreet, but visible from the start */}
-      <div className="flex flex-col items-center gap-2">
-        {!showCustom ? (
-          <button
-            type="button"
-            onClick={() => setShowCustom(true)}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-muted-foreground",
-              "transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              nudge && "text-primary motion-safe:animate-pulse",
-            )}
-          >
-            <Plus className="size-3.5" />
-            {nudge ? "Not seeing yours? Add your own." : "Add your own"}
-          </button>
-        ) : (
-          <div className="w-full space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Input
-                autoFocus
-                value={customValue}
-                onChange={(e) => setCustomValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCustom();
-                  }
-                }}
-                placeholder="Type a topic, hashtag, or interest"
-                className="h-10 rounded-full"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={addCustom}
-                disabled={!customValue.trim()}
-                className="h-10 shrink-0 rounded-full"
-              >
-                Use this
-              </Button>
-            </div>
-            <p className="px-3 text-xs text-muted-foreground">
-              Try “3D printing”, “indie games”, “AI tools”, or “#nostr”. This
-              replaces your current pick.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          onClick={onBack}
-          disabled={isSaving}
-          className="rounded-full h-12 px-4"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </Button>
-        <Button
-          size="lg"
-          onClick={onNext}
-          disabled={isSaving}
-          className="flex-1 gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Saving…
-            </>
-          ) : (
-            <>
-              {selected.length > 0 ? "Continue" : "Skip for now"}
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -1270,14 +719,7 @@ function TopicsStep({
 // Signup steps: Keygen, Download, Profile
 // ---------------------------------------------------------------------------
 
-function KeygenStep({
-  onGenerate,
-  intentBody,
-}: {
-  onGenerate: () => void;
-  /** Optional intent-shaped line emphasizing ownership/control, shown below the standard copy. */
-  intentBody?: string;
-}) {
+function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
@@ -1294,11 +736,6 @@ function KeygenStep({
           This account belongs to you. Ditto will create a private key so you
           can come back safely.
         </p>
-        {intentBody && (
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto text-pretty">
-            {intentBody}
-          </p>
-        )}
         <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
           Keep it private. You don't need to understand the math.
         </p>
@@ -1720,7 +1157,6 @@ function ThemeStep({
   isSaving = false,
   localBgUrl,
   onLocalBackgroundChange,
-  intentSubtitle,
 }: {
   onNext: () => void;
   onBack: () => void;
@@ -1736,11 +1172,6 @@ function ThemeStep({
   localBgUrl?: string;
   /** Set or clear the local background image (parent owns the URL lifecycle). */
   onLocalBackgroundChange: (url: string | undefined) => void;
-  /**
-   * Optional intent-shaped subtitle (signup only). Replaces the default
-   * "Pick a starting theme…" line until the user starts exploring themes.
-   */
-  intentSubtitle?: string;
 }) {
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
@@ -1864,7 +1295,7 @@ function ThemeStep({
           <p className="text-sm text-muted-foreground transition-opacity duration-300">
             {showCustomReveal
               ? "Trying things out? Nice. You can also create your own look."
-              : (intentSubtitle ?? "Pick a starting theme. You can change it anytime.")}
+              : "Pick a starting look. You can change it anytime."}
           </p>
         </div>
 
@@ -2189,7 +1620,6 @@ function FollowsStep({
   onNext,
   onBack,
   expectedPubkey,
-  intentIntro,
   devUiOnly = false,
   devSimulateSaving = true,
 }: {
@@ -2202,11 +1632,6 @@ function FollowsStep({
    * logged-in user's contact list.
    */
   expectedPubkey?: string;
-  /**
-   * Optional intent-shaped intro line (signup only). Replaces the default
-   * "Your feed gets better when you follow people…" framing.
-   */
-  intentIntro?: string;
   /**
    * DEV-ONLY (already `import.meta.env.DEV`-gated by the parent): when true,
    * "Follow All" simulates success and marks the pack followed WITHOUT
@@ -2339,8 +1764,7 @@ function FollowsStep({
           Start with a few interesting voices
         </h2>
         <p className="text-sm text-muted-foreground text-pretty">
-          {intentIntro ??
-            "Follow a few starter voices so your first feed feels alive."}
+          Follow a few starter voices so your first feed feels alive.
         </p>
       </div>
 
@@ -3054,14 +2478,7 @@ function PackCardSkeleton() {
 // Outro Step
 // ---------------------------------------------------------------------------
 
-function OutroStep({
-  onComplete,
-  body = GENERIC_OUTRO,
-}: {
-  onComplete: () => void;
-  /** Intent-shaped closing line. Defaults to the generic outro copy. */
-  body?: string;
-}) {
+function OutroStep({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
@@ -3076,7 +2493,7 @@ function OutroStep({
       <div className="space-y-2 sm:space-y-3 max-w-xs">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight">You're in.</h2>
         <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-          {body}
+          {GENERIC_OUTRO}
         </p>
       </div>
 

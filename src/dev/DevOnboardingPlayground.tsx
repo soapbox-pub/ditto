@@ -6,10 +6,11 @@
  * statically false, so Vite tree-shakes the lazy import and this entire module
  * (and its `SetupQuestionnaire` preview wiring) is excluded from the bundle.
  *
- * Purpose: preview and test onboarding states quickly — every welcome intent,
- * every step (including the conversations-only `topics` step), simulated topic
- * selections, and the sessionStorage Search handoff that `OnboardingTopicsHandoff`
- * consumes.
+ * Purpose: preview and test the unified signup onboarding quickly — jump to any
+ * real signup step and walk the screens. The flow is a single path now (no
+ * intent selection, no topics step, no Search handoff); deeper product
+ * education lives in the separate post-onboarding tour, which will ship its own
+ * playground/handoff architecture when it's built.
  *
  * Two preview modes:
  *  - UI-only (default): walks the real screens with every side effect simulated
@@ -21,28 +22,12 @@
  * To remove later: delete this file, delete `src/dev/`, and remove the
  * `import.meta.env.DEV && (...)` dev route block in `AppRouter.tsx`.
  */
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 import { SetupQuestionnaire } from "@/components/InitialSyncGate";
-import {
-  TOPIC_CHOICES,
-  WELCOME_CHOICES,
-  type SelectedTopic,
-  type Step,
-  type WelcomeIntent,
-} from "@/components/onboardingChoices";
+import { type Step } from "@/components/onboardingChoices";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAppContext } from "@/hooks/useAppContext";
-import {
-  buildHandoffPayload,
-  type HandoffTopic,
-  ONBOARDING_SEARCH_KEY,
-  resolveHandoffDestination,
-} from "@/lib/onboardingHandoff";
-import { getStorageKey } from "@/lib/storageKey";
 import { cn } from "@/lib/utils";
 
 /** The signup steps a dev can jump straight into, in flow order. */
@@ -52,7 +37,6 @@ const PREVIEWABLE_STEPS: Step[] = [
   "keygen",
   "download",
   "profile",
-  "topics",
   "follows",
   "outro",
 ];
@@ -68,122 +52,23 @@ function notDev(): boolean {
 }
 
 export function DevOnboardingPlayground() {
-  const navigate = useNavigate();
-  const { config } = useAppContext();
-
-  const [intent, setIntent] = useState<WelcomeIntent | "none">("conversations");
   const [startStep, setStartStep] = useState<Step>("welcome");
-  const [topicIds, setTopicIds] = useState<Set<string>>(new Set());
-  const [seedQuery, setSeedQuery] = useState("Music Games #nostr");
   const [lastAction, setLastAction] = useState<string | null>(null);
 
   // A fresh key each time we (re)launch a preview so SetupQuestionnaire fully
-  // remounts with the chosen initial intent/step/topics.
+  // remounts with the chosen initial step.
   const [previewKey, setPreviewKey] = useState(0);
   const [previewing, setPreviewing] = useState(false);
   // Which mode the active/most-recent preview was launched in.
   const [previewMode, setPreviewMode] = useState<"ui-only" | "real">("ui-only");
 
-  const searchKey = getStorageKey(config.appId, ONBOARDING_SEARCH_KEY);
-
-  const selectedTopics = useMemo<SelectedTopic[]>(
-    () =>
-      TOPIC_CHOICES.filter((t) => topicIds.has(t.id)).map((t) => ({
-        id: t.id,
-        label: t.label,
-      })),
-    [topicIds],
-  );
-
-  const devInitialIntents = useMemo(
-    () => (intent === "none" ? [] : [intent]),
-    [intent],
-  );
-
   if (notDev()) return null;
-
-  // Single-topic model: selecting a topic replaces the previous one; tapping
-  // the active topic clears it. Mirrors the real conversations topics step.
-  const toggleTopic = (id: string) => {
-    setTopicIds((prev) => (prev.has(id) ? new Set() : new Set([id])));
-  };
 
   const startPreview = (mode: "ui-only" | "real") => {
     setPreviewMode(mode);
     setPreviewKey((k) => k + 1);
     setPreviewing(true);
   };
-
-  const seedHandoff = () => {
-    const trimmed = seedQuery.trim();
-    try {
-      if (trimmed) {
-        sessionStorage.setItem(searchKey, trimmed);
-        const dest = resolveHandoffDestination(trimmed);
-        setLastAction(
-          `Seeded handoff key "${searchKey}" = "${trimmed}" → ${dest?.path ?? "(no destination)"}.`,
-        );
-      } else {
-        sessionStorage.removeItem(searchKey);
-        setLastAction(`Cleared handoff key "${searchKey}" (empty input).`);
-      }
-    } catch {
-      setLastAction("sessionStorage unavailable — could not seed handoff.");
-    }
-  };
-
-  const clearHandoff = () => {
-    try {
-      sessionStorage.removeItem(searchKey);
-      setLastAction(`Cleared handoff key "${searchKey}".`);
-    } catch {
-      setLastAction("sessionStorage unavailable — nothing to clear.");
-    }
-  };
-
-  /**
-   * Seed the *structured* handoff payload (exactly what real onboarding writes)
-   * for a space-separated list of topics, then navigate to the app root so
-   * `OnboardingTopicsHandoff` consumes it. A leading `#` marks a hashtag topic.
-   */
-  const seedQuickTest = (topicString: string) => {
-    const topics: HandoffTopic[] = topicString
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((token) =>
-        token.startsWith("#")
-          ? { label: token.slice(1), isHashtag: true }
-          : { label: token },
-      );
-    const payload = buildHandoffPayload(topics);
-    try {
-      if (payload) {
-        sessionStorage.setItem(searchKey, payload);
-        const dest = resolveHandoffDestination(payload);
-        setLastAction(
-          `Seeded "${topicString}" → ${dest?.path ?? "(no destination)"}. Navigating…`,
-        );
-      } else {
-        sessionStorage.removeItem(searchKey);
-        setLastAction(`"${topicString}" produced no routable topics.`);
-      }
-    } catch {
-      setLastAction("sessionStorage unavailable — could not seed handoff.");
-      return;
-    }
-    navigate("/");
-  };
-
-  // Dev-only quick tests. The step is single-topic now, so the canonical cases
-  // are one plain topic (→ /search?q=) and one hashtag (→ /t/:tag). The
-  // multi-token cases also verify that legacy/space-joined values collapse to
-  // the first topic instead of becoming a broken phrase search.
-  const QUICK_TESTS = [
-    "Music",
-    "#nostr",
-    "Music Games #nostr",
-    "Bitcoin Open Source",
-  ] as const;
 
   // Live onboarding preview, rendered full-screen (SetupQuestionnaire owns its
   // own fixed overlay). A small floating "Close preview" button sits on top.
@@ -195,8 +80,6 @@ export function DevOnboardingPlayground() {
           key={previewKey}
           isSignup
           devInitialStep={startStep}
-          devInitialIntents={devInitialIntents}
-          devInitialTopics={selectedTopics}
           devUiOnly={uiOnly}
           onPreload={() => {}}
           onComplete={() => {
@@ -243,50 +126,11 @@ export function DevOnboardingPlayground() {
             Onboarding Playground
           </h1>
           <p className="text-sm text-muted-foreground">
-            Preview onboarding as a new signup. The default UI-only mode
+            Preview the unified signup onboarding. The default UI-only mode
             simulates all side effects — no real accounts, no Nostr writes. A
             separate, clearly-warned real flow preview runs the actual behavior.
           </p>
         </div>
-
-        {/* Intent */}
-        <section className="space-y-3 rounded-xl border bg-card p-4">
-          <Label className="text-sm font-semibold">Welcome intent</Label>
-          <div className="flex flex-wrap gap-2">
-            {WELCOME_CHOICES.map((choice) => (
-              <button
-                key={choice.id}
-                type="button"
-                onClick={() => setIntent(choice.id as WelcomeIntent)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm",
-                  intent === choice.id
-                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                    : "border-border bg-background hover:bg-accent",
-                )}
-              >
-                <span aria-hidden>{choice.emoji}</span>
-                {choice.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setIntent("none")}
-              className={cn(
-                "inline-flex items-center rounded-full border px-3 py-1.5 text-sm",
-                intent === "none"
-                  ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                  : "border-border bg-background hover:bg-accent",
-              )}
-            >
-              No intent (skip)
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            The <code>topics</code> step only appears when the resolved primary
-            intent is <strong>Show better conversations</strong>.
-          </p>
-        </section>
 
         {/* Start step */}
         <section className="space-y-3 rounded-xl border bg-card p-4">
@@ -308,40 +152,9 @@ export function DevOnboardingPlayground() {
               </button>
             ))}
           </div>
-          {startStep === "topics" && intent !== "conversations" && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Heads up: the <code>topics</code> step previews in isolation, but
-              in the real flow it only appears for the conversations intent.
-            </p>
-          )}
-        </section>
-
-        {/* Simulated topic (single choice) */}
-        <section className="space-y-3 rounded-xl border bg-card p-4">
-          <Label className="text-sm font-semibold">
-            Simulated topic (conversations intent)
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            {TOPIC_CHOICES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => toggleTopic(t.id)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm",
-                  topicIds.has(t.id)
-                    ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                    : "border-border bg-background hover:bg-accent",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
           <p className="text-xs text-muted-foreground">
-            {selectedTopics.length > 0
-              ? `Pre-selects "${selectedTopics[0].label}". Single-topic step — picking another replaces it. Shapes the outro copy and the Search handoff written on completion.`
-              : "No topic selected — the topics step opens empty."}
+            The signup flow is a single path:{" "}
+            <code>welcome → theme → keygen → download → profile → follows → outro</code>.
           </p>
         </section>
 
@@ -360,8 +173,7 @@ export function DevOnboardingPlayground() {
             <p className="text-xs text-muted-foreground">
               Default. Walks the real onboarding screens but simulates every
               side effect: no key generation, no <code>saveNsec</code>, no
-              login, no profile/follow publishing, no Nostr or sessionStorage
-              writes.
+              login, no profile/follow publishing, no Nostr writes.
             </p>
           </div>
 
@@ -381,69 +193,24 @@ export function DevOnboardingPlayground() {
           </div>
         </section>
 
-        {/* Reset / handoff tools */}
-        <section className="space-y-4 rounded-xl border bg-card p-4">
-          <Label className="text-sm font-semibold">
-            Search handoff &amp; reset tools
-          </Label>
+        {/*
+          Legacy / future tour handoff:
 
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">
-              Manually seed the onboarding Search handoff
-            </Label>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                value={seedQuery}
-                onChange={(e) => setSeedQuery(e.target.value)}
-                placeholder="Music Games #nostr"
-                className="max-w-xs"
-              />
-              <Button variant="secondary" onClick={seedHandoff}>
-                Seed Search handoff
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/")}>
-                Go to app root
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Seeds <code>{searchKey}</code> in sessionStorage, then "Go to app
-              root" lets <code>OnboardingTopicsHandoff</code> consume it and
-              route to the best existing experience: <code>/t/:tag</code> for a
-              hashtag topic, single-term <code>/search?q=</code> for a plain
-              topic. Multiple topics collapse to the first one.
-            </p>
-          </div>
+          The old signup "topics" step seeded a sessionStorage Search handoff
+          (onboardingHandoff.ts + OnboardingTopicsHandoff) that routed the
+          just-onboarded user to /t/:tag or /search?q=. That experiment has been
+          removed — signup is now a single, unified setup path with no topic
+          selection and no Search redirect. The post-onboarding product tour
+          will reintroduce its own routing/handoff architecture (with names and
+          behavior that match the tour) when it's built, so there is
+          intentionally nothing to test here for now.
+        */}
 
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">
-              Quick tests (seed the real structured payload, then navigate)
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_TESTS.map((test) => (
-                <Button
-                  key={test}
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => seedQuickTest(test)}
-                >
-                  {test}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={clearHandoff}>
-              Clear Search handoff key
-            </Button>
-          </div>
-
-          {lastAction && (
-            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-              {lastAction}
-            </p>
-          )}
-        </section>
+        {lastAction && (
+          <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            {lastAction}
+          </p>
+        )}
       </div>
     </div>
   );
