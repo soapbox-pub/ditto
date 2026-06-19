@@ -948,6 +948,9 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
+  // When clipped, how far the inner content is shifted up so the highlighted
+  // excerpt stays inside the visible window. 0 means "anchored at the top".
+  const [highlightOffset, setHighlightOffset] = useState(0);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
@@ -955,7 +958,42 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     const doesOverflow = el.scrollHeight > EMBED_MAX_HEIGHT;
     setOverflows(doesOverflow);
     onOverflowChange(doesOverflow);
-  }, [onOverflowChange]);
+
+    // For NIP-84 highlights, the marked excerpt may sit far below the top of a
+    // long source note. Clipping rigidly from the top would hide the entire
+    // point of the embed behind "Read more". Instead, shift the content up so
+    // the first `<mark>` lands inside the visible window.
+    if (!doesOverflow || !highlightText) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    const mark = el.querySelector('mark');
+    if (!mark) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    const contentTop = el.getBoundingClientRect().top;
+    const markRect = mark.getBoundingClientRect();
+    const markTop = markRect.top - contentTop;
+    const markBottom = markRect.bottom - contentTop;
+
+    // If the mark already fits inside the first window, leave it anchored.
+    if (markBottom <= EMBED_MAX_HEIGHT) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    // Center the highlight in the window where possible, clamped so we never
+    // scroll past the end of the content (which would reveal empty space).
+    const markHeight = markBottom - markTop;
+    const desired = markHeight >= EMBED_MAX_HEIGHT
+      ? markTop // taller-than-window highlight: pin its start to the top
+      : markTop - (EMBED_MAX_HEIGHT - markHeight) / 2;
+    const maxOffset = el.scrollHeight - EMBED_MAX_HEIGHT;
+    setHighlightOffset(Math.max(0, Math.min(desired, maxOffset)));
+  }, [onOverflowChange, highlightText]);
 
   useEffect(() => {
     measure();
@@ -973,14 +1011,26 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     return () => imgs.forEach((img) => img.removeEventListener('load', measure));
   }, [measure]);
 
+  const clipped = !expanded && overflows;
+  // Reset the offset to 0 when the user expands so all content is reachable.
+  const offset = clipped ? highlightOffset : 0;
+
   return (
     <div
-      ref={contentRef}
       className="relative overflow-hidden"
-      style={!expanded && overflows ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
+      style={clipped ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
     >
-      <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
-      {!expanded && overflows && (
+      <div style={offset > 0 ? { marginTop: -offset } : undefined}>
+        <div ref={contentRef}>
+          <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
+        </div>
+      </div>
+      {/* Top fade — only shown when content is clipped above the window. */}
+      {clipped && offset > 0 && (
+        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent pointer-events-none" />
+      )}
+      {/* Bottom fade — shown when there is still content below the window. */}
+      {clipped && (
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       )}
     </div>
