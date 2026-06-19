@@ -19,6 +19,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { NewPostsPill } from '@/components/NewPostsPill';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +54,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
-import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
 import { DittoLogo } from '@/components/DittoLogo';
 import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
@@ -100,7 +101,6 @@ export function SearchPage() {
   });
 
   useLayoutOptions({ hasSubHeader: true });
-  const navHidden = useNavHidden();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -752,29 +752,14 @@ export function SearchPage() {
         {/* ─── Posts Tab ─── */}
         {activeTab === 'posts' && (
           <>
-            {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
-                Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
-                Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
-            {newPostCount > 0 && (
-              <div
-                className={cn(
-                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-                )}
-                style={{ marginBottom: '-3rem' }}
-              >
-                <button
-                  onClick={() => {
-                    flushStreamBuffer();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
+            {/* New posts pill — live stream. */}
+            <NewPostsPill
+              count={newPostCount}
+              onClick={() => {
+                flushStreamBuffer();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
             {/* Post results — stream */}
             {postsLoading && posts.length === 0 ? (
               <div className="divide-y divide-border">
