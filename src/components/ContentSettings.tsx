@@ -1275,6 +1275,12 @@ export function VideoAutoplaySection() {
 }
 
 export function ThemePreferencesSection() {
+  // TODO: Background-image customization was intentionally removed from signup
+  // onboarding (the signup mini-customizer is colors-only). Reintroduce it
+  // here / in the post-onboarding tour / profile theme editor, where — with an
+  // account and key available — the image can be uploaded to Blossom and the
+  // returned https URL persisted into the theme config (kind 16767/36767),
+  // rather than living as a session-only blob: object URL.
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();

@@ -9,7 +9,6 @@ import {
   Eye,
   EyeOff,
   Heart,
-  ImagePlus,
   Loader2,
   Plus,
   ShieldCheck,
@@ -373,36 +372,6 @@ export function SetupQuestionnaire({
   // Signup-specific state
   const [nsec, setNsec] = useState("");
 
-  // Local-only background image chosen in the mini theme customizer. Kept here,
-  // at the top of the onboarding flow, so the picture the user chooses on the
-  // theme step stays softly visible behind every subsequent step — it should
-  // feel like they're shaping their Ditto space, not decorating one screen.
-  //
-  // This is an in-memory object URL and is NEVER written into `customTheme`
-  // (which would leak a `blob:` URL into localStorage, encrypted settings, and
-  // auto-published theme events), never uploaded to Blossom, and never
-  // persisted as base64. It lives only for the duration of this flow.
-  const [localBgUrl, setLocalBgUrl] = useState<string | undefined>(undefined);
-
-  // Replace/remove: revoke the previous object URL so we don't leak it.
-  const handleLocalBackground = useCallback((url: string | undefined) => {
-    setLocalBgUrl((prev) => {
-      if (prev && prev !== url) URL.revokeObjectURL(prev);
-      return url;
-    });
-  }, []);
-
-  // Final safety net: revoke whatever object URL is live when the whole
-  // onboarding flow unmounts (completed, cancelled, or logged out). We read it
-  // from a ref so this effect runs cleanup exactly once, on unmount.
-  const localBgUrlRef = useRef<string | undefined>(undefined);
-  localBgUrlRef.current = localBgUrl;
-  useEffect(() => {
-    return () => {
-      if (localBgUrlRef.current) URL.revokeObjectURL(localBgUrlRef.current);
-    };
-  }, []);
-
   // Derived pubkey for the just-generated nsec. Used as a defensive guard at
   // every signup publish site to ensure we sign with the *new* account, not a
   // previously logged-in one. Without this, a regression in useLoginActions's
@@ -594,19 +563,6 @@ export function SetupQuestionnaire({
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_-10%,hsl(var(--primary)/0.10),transparent_60%)]"
       />
 
-      {/* Ambient local background image. Once the user picks a picture in the
-          mini customizer, it stays softly visible behind every onboarding step.
-          Kept low-opacity (and faintly blurred) so text stays readable; the
-          base `bg-background` above provides the readable surface, this layer
-          just adds personality. */}
-      {localBgUrl && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-40 blur-[1px] transition-opacity duration-700 motion-safe:animate-in motion-safe:fade-in"
-          style={{ backgroundImage: `url(${localBgUrl})` }}
-        />
-      )}
-
       {/* Progress bar */}
       <div className="relative h-1 bg-muted">
         <div
@@ -649,8 +605,6 @@ export function SetupQuestionnaire({
               isFirst={steps.indexOf("theme") === 0}
               fromWelcome={isSignup}
               isSaving={!isSignup && isSaving}
-              localBgUrl={localBgUrl}
-              onLocalBackgroundChange={handleLocalBackground}
             />
           )}
 
@@ -1153,8 +1107,6 @@ function ThemeStep({
   isFirst = false,
   fromWelcome = false,
   isSaving = false,
-  localBgUrl,
-  onLocalBackgroundChange,
 }: {
   onNext: () => void;
   onBack: () => void;
@@ -1162,14 +1114,6 @@ function ThemeStep({
   /** Whether the user arrived here from the welcome step (signup flow). */
   fromWelcome?: boolean;
   isSaving?: boolean;
-  /**
-   * In-memory object URL for the locally-chosen background, owned by
-   * SetupQuestionnaire so it persists across all onboarding steps. Undefined
-   * when the user hasn't picked one.
-   */
-  localBgUrl?: string;
-  /** Set or clear the local background image (parent owns the URL lifecycle). */
-  onLocalBackgroundChange: (url: string | undefined) => void;
 }) {
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
@@ -1185,7 +1129,10 @@ function ThemeStep({
   // writes to AppContext even when logged out), so a custom theme built here
   // persists and can be published later from Settings once the account/key
   // exists. We intentionally do NOT mount the full ThemeSelector here (presets,
-  // My Themes, publish/share) — too much surface for onboarding.
+  // My Themes, publish/share) — too much surface for onboarding. The mini
+  // customizer is colors-only during signup: background-image customization is
+  // deferred until after account creation, where it can be uploaded to Blossom
+  // and persisted properly (see TODO in src/pages/SettingsPage.tsx).
   //
   // ThemeGrid applies a selection imperatively (setTheme / applyCustomTheme)
   // and then calls `onSelect` synchronously — before AppContext (and therefore
@@ -1255,18 +1202,14 @@ function ThemeStep({
 
   // The theme-step content is laid over the ambient background painted by
   // SetupQuestionnaire. We give it a readable semi-transparent surface whenever
-  // *any* background is visible — either a locally-chosen image (shown across
-  // all steps) or the active theme's own published background.
-  const hasBg = Boolean(localBgUrl ?? bgUrl);
+  // the active theme's own published background is visible.
+  const hasBg = Boolean(bgUrl);
 
   return (
     <>
-      {/* Theme-step-only background: when the user hasn't chosen a local image,
-          preview the *active theme's* own published background here so picking
-          a preset with art feels live. A locally-chosen image is handled one
-          level up by SetupQuestionnaire (so it spans every step), so we skip
-          this layer when one is set to avoid stacking two images. */}
-      {!localBgUrl && bgUrl && (
+      {/* Theme-step-only background: preview the *active theme's* own published
+          background here so picking a preset with art feels live. */}
+      {bgUrl && (
         <div
           aria-hidden="true"
           className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
@@ -1336,14 +1279,10 @@ function ThemeStep({
           </button>
         )}
 
-        {/* Tiny local color + background customizer. The background image is
-            preview-only (in-memory object URL) and never written to the theme
-            config — see MiniThemeCustomizer for the rationale. */}
+        {/* Tiny local color customizer (colors only during signup). */}
         <MiniThemeCustomizer
           open={customizerOpen}
           onOpenChange={setCustomizerOpen}
-          localBgUrl={localBgUrl}
-          onLocalBackgroundChange={onLocalBackgroundChange}
         />
 
         {isFirst ? (
@@ -1408,53 +1347,25 @@ const MINI_COLOR_KEYS: { key: keyof CoreThemeColors; label: string }[] = [
 /**
  * A deliberately tiny, local-only theme customizer for onboarding.
  *
- * Exposes the three core colors (accent, background, text) and an optional
- * local background image. It does NOT pull in the full ThemeSelector (no
- * presets, no My Themes, no publish/share).
+ * Exposes only the three core colors (accent, background, text). It does NOT
+ * pull in the full ThemeSelector (no presets, no My Themes, no publish/share),
+ * and it does NOT offer a background image during signup — background-image
+ * customization is deferred until after account creation, where it can be
+ * uploaded to Blossom and persisted properly (see TODO in
+ * src/pages/SettingsPage.tsx).
  *
  * Colors apply live via `applyCustomTheme`, which writes to AppContext even
  * when logged out, so the result persists into the app and can be refined or
  * published later from Settings.
- *
- * The background image is handled differently and deliberately so:
- *
- * - The chosen file is turned into an in-memory object URL (`URL.createObjectURL`)
- *   and used ONLY for an onboarding preview. It is lifted to the parent
- *   `ThemeStep` (via `onLocalBackgroundChange`) so the full-screen preview can
- *   show it.
- * - We do NOT write the object URL into `customTheme.background.url`. A `blob:`
- *   URL is device- and session-scoped: it dies on reload (leaving a broken
- *   background) and — more importantly — it would otherwise be serialized into
- *   the kind 16767/36767 theme events that `useTheme` auto-publishes once the
- *   user is logged in, shipping a meaningless URL to relays and other clients.
- *   Keeping it out of the theme config is what makes this safe before an
- *   account/key exists.
- * - We also do NOT upload to Blossom here (no account/key yet) and we do not
- *   persist a base64 copy anywhere. The preview lives purely in memory.
- *
- * Proper post-key handling (upload the file to Blossom, then store the returned
- * https URL in `customTheme.background`) is a deliberate follow-up — see the
- * summary in the task notes.
  */
 function MiniThemeCustomizer({
   open,
   onOpenChange,
-  localBgUrl,
-  onLocalBackgroundChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current in-memory object URL for the locally-chosen background, if any. */
-  localBgUrl?: string;
-  /**
-   * Set or clear the local background image. Receives a fresh object URL when
-   * the user picks an image, or `undefined` when they remove it. The parent
-   * owns the URL's lifecycle (revocation).
-   */
-  onLocalBackgroundChange: (url: string | undefined) => void;
 }) {
   const { theme, customTheme, themes, applyCustomTheme } = useTheme();
-  const bgInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve the colors currently in effect so the pickers start from what the
   // user already sees.
@@ -1479,25 +1390,6 @@ function MiniThemeCustomizer({
     [effectiveColors, customTheme, applyCustomTheme],
   );
 
-  const handlePickBackground = useCallback(() => {
-    bgInputRef.current?.click();
-  }, []);
-
-  const handleBackgroundChosen = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      // Reset the input so picking the same file again still fires onChange.
-      e.target.value = "";
-      if (!file) return;
-      onLocalBackgroundChange(URL.createObjectURL(file));
-    },
-    [onLocalBackgroundChange],
-  );
-
-  const handleRemoveBackground = useCallback(() => {
-    onLocalBackgroundChange(undefined);
-  }, [onLocalBackgroundChange]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-2rem)] max-w-xs rounded-2xl">
@@ -1518,63 +1410,6 @@ function MiniThemeCustomizer({
               onChange={(hex) => handleColorChange(key, hex)}
             />
           ))}
-        </div>
-
-        {/* Optional local background image. Preview-only for now — see the
-            component doc comment for why we don't write it into the theme. */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Background image</span>
-            {localBgUrl && (
-              <button
-                type="button"
-                onClick={handleRemoveBackground}
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-
-          <input
-            ref={bgInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleBackgroundChosen}
-          />
-
-          <button
-            type="button"
-            onClick={handlePickBackground}
-            className={cn(
-              "group flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-2.5 text-left",
-              "transition-colors hover:border-primary/50 hover:bg-accent",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            )}
-          >
-            {localBgUrl ? (
-              <img
-                src={localBgUrl}
-                alt="Background preview"
-                className="size-12 shrink-0 rounded-lg object-cover"
-              />
-            ) : (
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <ImagePlus className="size-5" />
-              </span>
-            )}
-            <span className="min-w-0 text-sm">
-              <span className="block font-medium">
-                {localBgUrl ? "Change image" : "Choose from your device"}
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                {localBgUrl
-                  ? "Shown here while you set things up."
-                  : "Optional. Stays on your device for now."}
-              </span>
-            </span>
-          </button>
         </div>
 
         <Button
