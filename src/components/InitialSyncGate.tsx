@@ -1392,20 +1392,21 @@ function MiniThemeCustomizer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-xs rounded-2xl">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-center">Create your own</DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogDescription className="text-center text-pretty">
             Pick a few colors. Changes apply instantly — you can fine-tune more
             later in Settings.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-start justify-center gap-6 py-2">
+        <div className="grid grid-cols-3 gap-2 py-2">
           {MINI_COLOR_KEYS.map(({ key, label }) => (
             <ColorPicker
               key={key}
               label={label}
+              className="min-w-0"
               value={hslStringToHex(effectiveColors[key])}
               onChange={(hex) => handleColorChange(key, hex)}
             />
