@@ -102,13 +102,10 @@ export function DevOnboardingPlayground() {
 
   if (notDev()) return null;
 
+  // Single-topic model: selecting a topic replaces the previous one; tapping
+  // the active topic clears it. Mirrors the real conversations topics step.
   const toggleTopic = (id: string) => {
-    setTopicIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setTopicIds((prev) => (prev.has(id) ? new Set() : new Set([id])));
   };
 
   const startPreview = (mode: "ui-only" | "real") => {
@@ -177,12 +174,14 @@ export function DevOnboardingPlayground() {
     navigate("/");
   };
 
-  // Dev-only quick tests covering the handoff's branches: multi-topic with a
-  // mixed hashtag, two plain topics, a single hashtag, and multi-word plain.
+  // Dev-only quick tests. The step is single-topic now, so the canonical cases
+  // are one plain topic (→ /search?q=) and one hashtag (→ /t/:tag). The
+  // multi-token cases also verify that legacy/space-joined values collapse to
+  // the first topic instead of becoming a broken phrase search.
   const QUICK_TESTS = [
-    "Music Games #nostr",
-    "Design Art",
+    "Music",
     "#nostr",
+    "Music Games #nostr",
     "Bitcoin Open Source",
   ] as const;
 
@@ -317,10 +316,10 @@ export function DevOnboardingPlayground() {
           )}
         </section>
 
-        {/* Simulated topics */}
+        {/* Simulated topic (single choice) */}
         <section className="space-y-3 rounded-xl border bg-card p-4">
           <Label className="text-sm font-semibold">
-            Simulated topics (conversations intent)
+            Simulated topic (conversations intent)
           </Label>
           <div className="flex flex-wrap gap-2">
             {TOPIC_CHOICES.map((t) => (
@@ -341,8 +340,8 @@ export function DevOnboardingPlayground() {
           </div>
           <p className="text-xs text-muted-foreground">
             {selectedTopics.length > 0
-              ? `${selectedTopics.length} topic(s) pre-selected. They shape the outro copy and the Search handoff written on completion.`
-              : "No topics selected — the topics step opens empty."}
+              ? `Pre-selects "${selectedTopics[0].label}". Single-topic step — picking another replaces it. Shapes the outro copy and the Search handoff written on completion.`
+              : "No topic selected — the topics step opens empty."}
           </p>
         </section>
 

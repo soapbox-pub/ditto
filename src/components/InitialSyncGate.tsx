@@ -34,7 +34,6 @@ import {
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
 import {
-  MAX_CUSTOM_TOPICS,
   type SelectedTopic,
   type Step,
   TOPIC_CHOICES,
@@ -302,10 +301,12 @@ const DEV_FAKE_NSEC = /* @__PURE__ */ nip19.nsecEncode(
 
 /**
  * Build the ordered signup step list. The optional "topics" step is inserted
- * between profile setup and follow packs, but ONLY when the user's primary
- * welcome intent is "conversations" — every other intent keeps the original,
- * shorter flow. The step is index-driven, so the progress bar and next/back
- * navigation pick it up automatically.
+ * late — right before the outro confirmation — but ONLY when the user's primary
+ * welcome intent is "conversations". Every other intent keeps the original,
+ * shorter flow. Placing it after follows makes the topic choice feel like
+ * "where do you want to go first?" rather than an early abstract preference.
+ * The step is index-driven, so the progress bar and next/back navigation pick
+ * it up automatically.
  */
 function buildSignupSteps(showTopics: boolean): Step[] {
   return [
@@ -314,8 +315,8 @@ function buildSignupSteps(showTopics: boolean): Step[] {
     "keygen",
     "download",
     "profile",
-    ...(showTopics ? (["topics"] as const) : []),
     "follows",
+    ...(showTopics ? (["topics"] as const) : []),
     "outro",
   ];
 }
@@ -627,7 +628,9 @@ export function SetupQuestionnaire({
       return;
     }
     if (showTopics && selectedTopics.length > 0) {
-      const payload = buildHandoffPayload(selectedTopics);
+      // Single-topic handoff: write at most the first selected topic, since
+      // Search can only route the user to one place.
+      const payload = buildHandoffPayload(selectedTopics.slice(0, 1));
       if (payload) {
         try {
           sessionStorage.setItem(
@@ -899,29 +902,22 @@ function parseCustomTopic(raw: string): SelectedTopic | null {
 // phrase query.
 
 /**
- * Human-readable list of the first few topic labels, e.g. "Music, Games, and
- * Design". Caps at the first three so the outro line stays short.
+ * Display label for a selected topic — hashtags keep their `#`.
  */
-function formatTopicList(topics: SelectedTopic[]): string {
-  const labels = topics
-    .slice(0, 3)
-    .map((t) => (t.isHashtag ? `#${t.label}` : t.label));
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return labels[0];
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  return `${labels[0]}, ${labels[1]}, and ${labels[2]}`;
+function formatTopicLabel(topic: SelectedTopic): string {
+  return topic.isHashtag ? `#${topic.label}` : topic.label;
 }
 
 /**
- * Outro body for the conversations intent when the user picked topics. Mentions
- * the first few so the close feels personalized. Falls back to the regular
- * intent outro when no topics were selected.
+ * Outro body for the conversations intent when the user picked a topic. Names
+ * the single chosen topic so the close feels personalized and points clearly at
+ * where we're about to take them. Falls back to the regular intent outro when
+ * no topic was selected.
  */
 function buildTopicsOutro(topics: SelectedTopic[], fallback: string): string {
-  if (topics.length === 0) return fallback;
-  return `Your space is ready. We'll point you toward ${formatTopicList(
-    topics,
-  )}.`;
+  const topic = topics[0];
+  if (!topic) return fallback;
+  return `Your space is ready. We'll take you to ${formatTopicLabel(topic)}.`;
 }
 
 function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
@@ -1032,9 +1028,14 @@ function WelcomeStep({ onNext }: { onNext: (selected: string[]) => void }) {
 
 /**
  * Optional, fully-skippable step shown only when the primary welcome intent is
- * "conversations". Lets the user pick a few first-explore topics (and add their
- * own) so the outro and post-onboarding Search handoff can be personalized.
+ * "conversations". Lets the user pick ONE first-explore topic (preset or their
+ * own) so we can route them straight there after setup. Single-topic by design:
+ * Ditto's Search handoff can only take the user to one place, so the UI asks for
+ * one choice instead of promising a multi-topic experience it can't deliver.
  * Selection is onboarding-local — never persisted to Nostr.
+ *
+ * `selected` is modelled as an array (0 or 1 item) to stay compatible with the
+ * handoff payload builder and dev playground, but the UI enforces a single pick.
  */
 function TopicsStep({
   selected,
@@ -1054,15 +1055,11 @@ function TopicsStep({
   // After a few idle seconds with nothing picked, gently nudge "Add your own".
   const [nudge, setNudge] = useState(false);
 
-  const selectedKeys = useMemo(
-    () => new Set(selected.map((t) => topicKey(t.label))),
-    [selected],
-  );
-  const customCount = useMemo(
-    () => selected.filter((t) => !t.id).length,
-    [selected],
-  );
-  const canAddCustom = customCount < MAX_CUSTOM_TOPICS;
+  // Single-topic model: at most one selection. Track its comparison key so the
+  // matching preset chip renders as selected.
+  const current = selected[0];
+  const currentKey = current ? topicKey(current.label) : null;
+  const customSelected = !!current && !current.id;
 
   useEffect(() => {
     if (selected.length > 0) {
@@ -1073,25 +1070,24 @@ function TopicsStep({
     return () => clearTimeout(timer);
   }, [selected.length]);
 
-  const togglePreset = useCallback(
+  const selectPreset = useCallback(
     (choice: { id: string; label: string }) => {
       const key = topicKey(choice.label);
-      if (selectedKeys.has(key)) {
-        onChange(selected.filter((t) => topicKey(t.label) !== key));
+      // Tapping the active topic clears it; otherwise replace the selection.
+      if (currentKey === key) {
+        onChange([]);
       } else {
-        onChange([...selected, { id: choice.id, label: choice.label }]);
+        onChange([{ id: choice.id, label: choice.label }]);
+        setShowCustom(false);
+        setCustomValue("");
       }
     },
-    [selected, selectedKeys, onChange],
+    [currentKey, onChange],
   );
 
-  const removeTopic = useCallback(
-    (label: string) => {
-      const key = topicKey(label);
-      onChange(selected.filter((t) => topicKey(t.label) !== key));
-    },
-    [selected, onChange],
-  );
+  const clearSelection = useCallback(() => {
+    onChange([]);
+  }, [onChange]);
 
   const addCustom = useCallback(() => {
     const parsed = parseCustomTopic(customValue);
@@ -1099,14 +1095,10 @@ function TopicsStep({
       setCustomValue("");
       return;
     }
-    // Avoid duplicates case-insensitively (across presets + customs).
-    if (selectedKeys.has(topicKey(parsed.label)) || !canAddCustom) {
-      setCustomValue("");
-      return;
-    }
-    onChange([...selected, parsed]);
+    // Replace whatever was selected — single-topic only.
+    onChange([parsed]);
     setCustomValue("");
-  }, [customValue, selected, selectedKeys, canAddCustom, onChange]);
+  }, [customValue, onChange]);
 
   return (
     <div className="flex flex-col gap-5 sm:gap-7 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -1122,21 +1114,26 @@ function TopicsStep({
             What do you want to explore first?
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed text-pretty">
-            Pick a few topics, or add your own.
+            Pick one topic. We'll take you there after setup.
           </p>
         </div>
       </div>
 
-      {/* Preset topic chips */}
-      <div className="flex flex-wrap justify-center gap-2">
+      {/* Preset topics — single choice. Selecting one replaces the previous. */}
+      <div
+        role="radiogroup"
+        aria-label="Choose one topic to explore first"
+        className="flex flex-wrap justify-center gap-2"
+      >
         {TOPIC_CHOICES.map((choice, i) => {
-          const isSelected = selectedKeys.has(topicKey(choice.label));
+          const isSelected = currentKey === topicKey(choice.label);
           return (
             <button
               key={choice.id}
               type="button"
-              aria-pressed={isSelected}
-              onClick={() => togglePreset(choice)}
+              role="radio"
+              aria-checked={isSelected}
+              onClick={() => selectPreset(choice)}
               style={{ animationDelay: `${i * 30}ms` }}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium",
@@ -1144,7 +1141,7 @@ function TopicsStep({
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 "motion-safe:active:scale-[0.96]",
                 isSelected
-                  ? "border-primary bg-primary/10 text-primary ring-1 ring-primary shadow-sm shadow-primary/10"
+                  ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary shadow-md shadow-primary/20 scale-[1.03]"
                   : "border-border bg-card hover:border-primary/40 hover:bg-accent",
               )}
             >
@@ -1155,31 +1152,21 @@ function TopicsStep({
         })}
       </div>
 
-      {/* User-added custom topic chips (rendered as selected, removable) */}
-      {selected.some((t) => !t.id) && (
+      {/* Custom topic shown as the active selection (replaceable, removable). */}
+      {customSelected && current && (
         <div className="flex flex-wrap justify-center gap-2 -mt-2">
-          {selected
-            .filter((t) => !t.id)
-            .map((topic) => {
-              const display = topic.isHashtag ? `#${topic.label}` : topic.label;
-              return (
-                <span
-                  key={topicKey(topic.label)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary/10 px-3.5 py-2 text-sm font-medium text-primary ring-1 ring-primary shadow-sm shadow-primary/10 motion-safe:animate-in motion-safe:zoom-in-95"
-                >
-                  <Check className="size-3.5" />
-                  {display}
-                  <button
-                    type="button"
-                    aria-label={`Remove ${display}`}
-                    onClick={() => removeTopic(topic.label)}
-                    className="-mr-1 ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-primary/70 transition-colors hover:bg-primary/20 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              );
-            })}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground ring-2 ring-primary shadow-md shadow-primary/20 motion-safe:animate-in motion-safe:zoom-in-95">
+            <Check className="size-3.5" />
+            {current.isHashtag ? `#${current.label}` : current.label}
+            <button
+              type="button"
+              aria-label="Remove topic"
+              onClick={clearSelection}
+              className="-mr-1 ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-primary-foreground/70 transition-colors hover:bg-primary-foreground/20 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="size-3" />
+            </button>
+          </span>
         </div>
       )}
 
@@ -1211,7 +1198,6 @@ function TopicsStep({
                     addCustom();
                   }
                 }}
-                disabled={!canAddCustom}
                 placeholder="Type a topic, hashtag, or interest"
                 className="h-10 rounded-full"
               />
@@ -1219,16 +1205,15 @@ function TopicsStep({
                 type="button"
                 variant="secondary"
                 onClick={addCustom}
-                disabled={!canAddCustom || !customValue.trim()}
+                disabled={!customValue.trim()}
                 className="h-10 shrink-0 rounded-full"
               >
-                Add
+                Use this
               </Button>
             </div>
             <p className="px-3 text-xs text-muted-foreground">
-              {canAddCustom
-                ? "Try “3D printing”, “indie games”, “AI tools”, or “#nostr”."
-                : `You've added the max of ${MAX_CUSTOM_TOPICS} custom topics.`}
+              Try “3D printing”, “indie games”, “AI tools”, or “#nostr”. This
+              replaces your current pick.
             </p>
           </div>
         )}
@@ -1771,6 +1756,36 @@ function ThemeStep({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const hasInteracted = useRef(false);
 
+  // Mobile carousel reveal gate. On mobile the themes are a one-at-a-time
+  // carousel, so simply swiping forward through 2 themes shouldn't reveal
+  // "create your own" the way trying 2 themes on the desktop grid does. Instead
+  // we reveal once the user has actually explored the set: they reached the last
+  // theme, OR they navigated backward at least once (comparing options). This
+  // is mobile-only and never persisted beyond onboarding. The desktop grid
+  // never fires `onCarouselNavigate`, so its behavior is untouched.
+  const [mobileExplored, setMobileExplored] = useState(false);
+  const handleCarouselNavigate = useCallback(
+    ({ reachedLast, wentBackward }: { reachedLast: boolean; wentBackward: boolean }) => {
+      if (reachedLast || wentBackward) setMobileExplored(true);
+    },
+    [],
+  );
+
+  // Which reveal rule applies depends on the layout, which is breakpoint-driven.
+  // ThemeGrid switches between the mobile carousel and the desktop grid at
+  // Tailwind's `sm` (640px), so we match that exact breakpoint here rather than
+  // the app-wide `useIsMobile` (768px) to avoid a 640–767px mismatch.
+  const [isDesktopLayout, setIsDesktopLayout] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 640px)");
+    const onChange = () => setIsDesktopLayout(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
   const themeKey = theme === "custom"
     ? `custom:${JSON.stringify(customTheme?.colors)}`
     : theme;
@@ -1791,7 +1806,10 @@ function ThemeStep({
     });
   }, [themeKey]);
 
-  const showCustomReveal = picked.size >= 2;
+  // Desktop: reward tinkering across 2+ distinct themes (unchanged).
+  // Mobile: only after the user explored the carousel (last theme or a
+  // backward move), so a couple of forward swipes don't reveal it early.
+  const showCustomReveal = isDesktopLayout ? picked.size >= 2 : mobileExplored;
 
   // The theme-step content is laid over the ambient background painted by
   // SetupQuestionnaire. We give it a readable semi-transparent surface whenever
@@ -1837,7 +1855,7 @@ function ThemeStep({
           </p>
         </div>
 
-        <ThemeGrid columns="scroll" limit={9} onSelect={handleThemeSelected} />
+        <ThemeGrid columns="scroll" limit={9} onSelect={handleThemeSelected} onCarouselNavigate={handleCarouselNavigate} />
 
         {/* Discovery reveal: a small, local-only "create your own" affordance
             that appears once the user has explored a couple of themes. Opens a

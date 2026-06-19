@@ -45,7 +45,8 @@ export type WelcomeIntent =
 
 /**
  * Suggested first-explore topics, shown only to users whose primary welcome
- * intent is "conversations". Ordering is intentional: more general/normal
+ * intent is "conversations". The step is single-select: the user picks one of
+ * these (or types their own). Ordering is intentional: more general/normal
  * interests lead, and the more Nostr/Bitcoin/Open-Source-specific topics sit
  * toward the end so the step feels welcoming rather than crypto-forward.
  *
@@ -68,14 +69,14 @@ export const TOPIC_CHOICES: { id: string; label: string }[] = [
   { id: "nostr", label: "Nostr" },
 ];
 
-/** Maximum number of user-added custom topics. */
-export const MAX_CUSTOM_TOPICS = 3;
-
 /**
  * A selected topic. Preset topics carry their stable id (so the chip toggles
  * correctly); custom topics are id-less and identified by their label. The
  * `label` is what the user sees and what feeds the Search query / outro copy.
  * `isHashtag` is true when a custom topic was typed with a leading `#`.
+ *
+ * The conversations-intent topics step is single-select — at most one topic is
+ * ever chosen — because the post-onboarding handoff can only route to one place.
  */
 export interface SelectedTopic {
   /** Stable id for preset topics; absent for user-added custom topics. */
