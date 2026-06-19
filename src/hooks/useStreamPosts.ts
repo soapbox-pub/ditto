@@ -406,8 +406,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           const oldest = Math.min(...events.map((e) => e.created_at));
           oldestTimestampRef.current = oldest;
         }
-        // If we got fewer events than PAGE_SIZE, there's no more to fetch
-        if (events.length < PAGE_SIZE) {
+        // Only stop when the relay returns no events at all. We can't use
+        // `events.length < PAGE_SIZE` here: NIP-50 search relays routinely
+        // return fewer than the requested limit per page even when older
+        // results exist, and many of these raw events get dropped by
+        // client-side filtering (mute/content/search/media), so the raw count
+        // is not a reliable signal that we've reached the end.
+        if (events.length === 0) {
           setHasNextPage(false);
         }
       } catch {
@@ -463,8 +468,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setIsFetchingNextPage(true);
     try {
       const { searchFilter } = paginationFilter;
+      const prevOldest = oldestTimestampRef.current;
       const events = await nostr.query(
-        [{ ...searchFilter, until: oldestTimestampRef.current - 1, limit: PAGE_SIZE }],
+        [{ ...searchFilter, until: prevOldest - 1, limit: PAGE_SIZE }],
       );
       for (const event of events) {
         ingestEvent(event, false);
@@ -474,10 +480,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         const oldest = Math.min(...events.map((e) => e.created_at));
         oldestTimestampRef.current = oldest;
       }
-      if (events.length < PAGE_SIZE) {
+      // Stop only when the relay returns nothing, or when the cursor can't
+      // advance past the previous oldest timestamp (the relay ignored `until`
+      // or returned the same tail) — otherwise we'd loop re-fetching the same
+      // page forever. We deliberately do NOT stop on `events.length < PAGE_SIZE`
+      // because search relays under-fill pages while older results remain.
+      if (events.length === 0 || oldestTimestampRef.current >= prevOldest) {
         setHasNextPage(false);
-      }
-    } catch {
+      }    } catch {
       // Transient failure — leave hasNextPage true so the user can retry
     } finally {
       isFetchingRef.current = false;
