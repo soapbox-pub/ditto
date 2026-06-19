@@ -472,21 +472,35 @@ export function SetupQuestionnaire({
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
 
-  const goTo = useCallback((target: Step) => setStep(target), []);
+  // Single source of truth for forward/back navigation: walk the active step
+  // list (`steps`) and skip any step that isn't currently renderable. This is
+  // the ONLY place step order is enforced — no step hardcodes its successor.
+  //
+  // `hasFollowsOverride` lets callers that *just* computed the follow-list
+  // state (handleSaveAndContinue) advance with the fresh value before the
+  // `hasFollows` state update has flushed.
+  const stepRenderable = useCallback(
+    (s: Step, hasFollowsValue: boolean | null) =>
+      s === "follows" ? hasFollowsValue === false : true,
+    [],
+  );
 
-  const next = useCallback(() => {
-    const i = steps.indexOf(step);
-    if (i < steps.length - 1) {
-      setStep(steps[i + 1]);
-    }
-  }, [step, steps]);
+  const advance = useCallback(
+    (from: Step, direction: 1 | -1, hasFollowsOverride?: boolean | null) => {
+      const effectiveHasFollows = hasFollowsOverride ?? hasFollows;
+      const i = steps.indexOf(from);
+      for (let j = i + direction; j >= 0 && j < steps.length; j += direction) {
+        if (stepRenderable(steps[j], effectiveHasFollows)) {
+          setStep(steps[j]);
+          return;
+        }
+      }
+    },
+    [steps, hasFollows, stepRenderable],
+  );
 
-  const back = useCallback(() => {
-    const i = steps.indexOf(step);
-    if (i > 0) {
-      setStep(steps[i - 1]);
-    }
-  }, [step, steps]);
+  const next = useCallback(() => advance(step, 1), [advance, step]);
+  const back = useCallback(() => advance(step, -1), [advance, step]);
 
   // Keygen handler — generates the key and advances to the save step.
   // The credential manager prompt is deferred until the user clicks "Continue".
@@ -584,7 +598,7 @@ export function SetupQuestionnaire({
       }
       setHasFollows(false);
       setIsSaving(false);
-      goTo("follows");
+      advance(step, 1, false);
       return;
     }
 
@@ -608,12 +622,11 @@ export function SetupQuestionnaire({
     setHasFollows(userHasFollows);
     setIsSaving(false);
 
-    if (userHasFollows) {
-      goTo("outro");
-    } else {
-      goTo("follows");
-    }
-  }, [user, nostr, goTo, isDevUiOnly, devSimulateSaving]);
+    // Advance through the active step list from the current step, skipping the
+    // follows step when the user already has a follow list. The freshly-computed
+    // value is passed as an override so we don't read stale `hasFollows` state.
+    advance(step, 1, userHasFollows);
+  }, [user, nostr, advance, step, isDevUiOnly, devSimulateSaving]);
 
   // Finish onboarding. If the conversations-intent topics step ran and the user
   // picked topics, seed a sessionStorage handoff so the app lands them on the
@@ -705,7 +718,7 @@ export function SetupQuestionnaire({
 
           {step === "profile" && (
             <ProfileStep
-              onNext={showTopics ? () => goTo("topics") : handleSaveAndContinue}
+              onNext={handleSaveAndContinue}
               isSaving={isSaving}
               expectedPubkey={expectedPubkey}
               devUiOnly={isDevUiOnly}
@@ -717,7 +730,7 @@ export function SetupQuestionnaire({
             <TopicsStep
               selected={selectedTopics}
               onChange={setSelectedTopics}
-              onNext={handleSaveAndContinue}
+              onNext={next}
               onBack={back}
               isSaving={isSaving}
             />
@@ -741,7 +754,7 @@ export function SetupQuestionnaire({
             <FollowsStep
               onNext={(didFollow) => {
                 if (didFollow && !isDevUiOnly) onPreload();
-                goTo("outro");
+                next();
               }}
               onBack={back}
               expectedPubkey={expectedPubkey}
