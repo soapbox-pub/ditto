@@ -34,7 +34,7 @@ import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
-const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
@@ -701,7 +701,7 @@ export const NoteCard = memo(function NoteCard({
           <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <ArticleContent event={event} preview className="mt-2" />
+            <EmbeddedArticleCard event={event} className="mt-2" />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />

@@ -2,6 +2,7 @@ import { Children, createElement, type ReactNode } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { Clock } from 'lucide-react';
 
 import { NoteContent } from '@/components/NoteContent';
 import { formatReadingTime } from '@/lib/articleHelpers';
@@ -170,7 +171,10 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           {readingTime && (
             <>
               <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
-              <span className="text-xs text-muted-foreground">{readingTime}</span>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3 shrink-0" aria-hidden="true" />
+                {readingTime}
+              </span>
             </>
           )}
         </div>
@@ -186,7 +190,10 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
         <h1 dir="auto" className="text-2xl font-bold leading-tight mb-4">{title}</h1>
       )}
       {readingTime && (
-        <p className="text-sm text-muted-foreground -mt-2 mb-4">{readingTime}</p>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground -mt-2 mb-4">
+          <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+          {readingTime}
+        </p>
       )}
       {image && (
         <img

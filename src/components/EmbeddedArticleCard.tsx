@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { FileText } from 'lucide-react';
+import { FileText, Clock } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -33,6 +33,10 @@ interface EmbeddedArticleCardProps {
   className?: string;
   /** When true, the author ProfileHoverCard is disabled (avoids nesting). */
   disableHoverCards?: boolean;
+  /** When true, the author byline at the bottom is hidden. Used when the card
+   *  is shown inside a context that already displays the author (e.g. a feed
+   *  NoteCard with its own author header). */
+  hideAuthor?: boolean;
   /** Original URL the article was linked from. When it points to a non-Ditto
    *  host, the card shows the source's favicon + hostname as an open link. */
   sourceUrl?: string;
@@ -43,7 +47,7 @@ interface EmbeddedArticleCardProps {
  * a cover image on top, the title + summary below, and a small author byline
  * at the bottom. Used for both naddr embeds and nevent quotes of kind 30023.
  */
-export function EmbeddedArticleCard({ event, className, disableHoverCards, sourceUrl }: EmbeddedArticleCardProps) {
+export function EmbeddedArticleCard({ event, className, disableHoverCards, hideAuthor, sourceUrl }: EmbeddedArticleCardProps) {
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -97,19 +101,6 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
       )}
 
       <div className="px-3.5 py-2.5 space-y-1">
-        {/* Article label + external-source link */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <FileText className="size-3.5 shrink-0" />
-          <span>Article</span>
-          {readingTime && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{readingTime}</span>
-            </>
-          )}
-          <ExternalSourceLink url={sourceUrl} className="ml-auto" />
-        </div>
-
         {/* Title */}
         {title && (
           <p className="text-base font-semibold leading-snug line-clamp-2">
@@ -124,26 +115,46 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
           </p>
         )}
 
-        {/* Author byline */}
-        <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-          <Link
-            to={profileUrl}
-            className="flex items-center gap-1.5 pt-0.5 min-w-0 w-fit hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Avatar shape={avatarShape} className="size-5 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs font-medium text-muted-foreground truncate">
-              {author.data?.event ? (
-                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-              ) : displayName}
-            </span>
-          </Link>
-        </MaybeProfileHoverCard>
+        {/* Footer: author byline + article label + reading time */}
+        <div className="flex items-center gap-1.5 pt-0.5 text-xs text-muted-foreground">
+          {/* Author byline */}
+          {!hideAuthor && (
+            <>
+              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
+                <Link
+                  to={profileUrl}
+                  className="flex items-center gap-1.5 min-w-0 w-fit hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Avatar shape={avatarShape} className="size-5 shrink-0">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {displayName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium text-muted-foreground truncate">
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
+                  </span>
+                </Link>
+              </MaybeProfileHoverCard>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
+
+          <FileText className="size-3.5 shrink-0" />
+          <span>Article</span>
+          {readingTime && (
+            <>
+              <span aria-hidden="true">·</span>
+              <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{readingTime}</span>
+            </>
+          )}
+
+          <ExternalSourceLink url={sourceUrl} className="ml-auto" />
+        </div>
       </div>
     </div>
   );
