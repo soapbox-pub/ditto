@@ -693,13 +693,11 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
       <div className="space-y-3 sm:space-y-4 max-w-sm">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
-          Ever wished social apps felt more… yours?
+          A social app that starts with you.
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-pretty">
-          More personal. More playful. More alive. More under your control.
-        </p>
-        <p className="text-sm text-muted-foreground/80 leading-relaxed">
-          Let's set up your space.
+          Pick your look, set up your account, and fill your first feed with
+          people worth hearing from.
         </p>
       </div>
 
