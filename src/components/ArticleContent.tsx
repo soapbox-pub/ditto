@@ -4,6 +4,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { NoteContent } from '@/components/NoteContent';
+import { formatReadingTime } from '@/lib/articleHelpers';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -142,6 +143,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
   const summary = getTag(event.tags, 'summary');
   const image = getTag(event.tags, 'image');
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+  const readingTime = formatReadingTime(event.content);
 
   if (preview) {
     return (
@@ -163,7 +165,15 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
             {event.content.slice(0, 280)}{event.content.length > 280 ? '...' : ''}
           </p>
         )}
-        <span className="inline-block text-xs font-medium text-primary mt-2">Read article</span>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="inline-block text-xs font-medium text-primary">Read article</span>
+          {readingTime && (
+            <>
+              <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
+              <span className="text-xs text-muted-foreground">{readingTime}</span>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -174,6 +184,9 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
     <div className={className}>
       {title && (
         <h1 dir="auto" className="text-2xl font-bold leading-tight mb-4">{title}</h1>
+      )}
+      {readingTime && (
+        <p className="text-sm text-muted-foreground -mt-2 mb-4">{readingTime}</p>
       )}
       {image && (
         <img

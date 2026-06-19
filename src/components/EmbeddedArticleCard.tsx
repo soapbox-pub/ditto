@@ -9,6 +9,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { formatReadingTime } from '@/lib/articleHelpers';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
   const avatarShape = getAvatarShape(metadata);
 
   const { title, summary, image } = useMemo(() => extractArticleMeta(event), [event]);
+  const readingTime = useMemo(() => formatReadingTime(event.content), [event]);
 
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -99,6 +101,12 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, sourc
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <FileText className="size-3.5 shrink-0" />
           <span>Article</span>
+          {readingTime && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{readingTime}</span>
+            </>
+          )}
           <ExternalSourceLink url={sourceUrl} className="ml-auto" />
         </div>
 
