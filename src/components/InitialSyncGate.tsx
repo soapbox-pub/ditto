@@ -647,7 +647,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 
       <div className="space-y-3 sm:space-y-4 max-w-sm">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
-          A social app that starts with you.
+          A social app that starts with you
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-pretty">
           Pick your look, set up your account, and fill your first feed with
@@ -1646,112 +1646,6 @@ function FollowsStep({
   );
 }
 
-/**
- * Collect the real, human-set display names for a set of pubkeys, in order,
- * skipping anyone whose metadata hasn't loaded or who has no name set. Used to
- * build the summary card's "Featuring …" line; an empty result triggers the
- * graceful generic fallback.
- */
-function useFeaturedNames(
-  pubkeys: string[],
-  membersMap: Map<string, AuthorData> | undefined,
-): string[] {
-  return useMemo(() => {
-    const names: string[] = [];
-    for (const pk of pubkeys) {
-      const meta = membersMap?.get(pk)?.metadata;
-      const name = (meta?.display_name || meta?.name || "").trim();
-      if (name) names.push(name);
-    }
-    return names;
-  }, [pubkeys, membersMap]);
-}
-
-/**
- * A compact, single-line "Featuring …" summary for a pack. It communicates
- * "a group of real people" without the two-person bio block that made the card
- * feel over-focused on a couple of individuals.
- *
- * Height-stable by construction: it is always a single clamped line, so it
- * never grows the card or causes layout jump as metadata streams in. When no
- * names are available yet (or none are set) it shows a warm generic fallback.
- *
- * Subtle motion: when 2+ names are available AND the user hasn't requested
- * reduced motion, the single highlighted name gently cross-fades between the
- * featured people every few seconds. Only the one name swaps — the prefix,
- * the "and N more" suffix, the buttons, and the card itself never move. With
- * reduced motion (or a single name) it's fully static.
- */
-function FeaturingLine({
-  names,
-  totalCount,
-}: {
-  names: string[];
-  totalCount: number;
-}) {
-  // Up to three names are eligible for the rotating highlight slot.
-  const rotation = useMemo(() => names.slice(0, 3), [names]);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  // Respect reduced-motion: only rotate when the user allows motion and there
-  // is more than one name to rotate between. matchMedia is read in an effect so
-  // SSR/tests stay safe, and the interval is cleaned up on unmount/changes.
-  useEffect(() => {
-    setActiveIndex(0);
-    if (rotation.length < 2) return;
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduced.matches) return;
-
-    const timer = setInterval(() => {
-      setActiveIndex((i) => (i + 1) % rotation.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [rotation.length]);
-
-  // Graceful fallback: no real names available — keep it warm and group-y.
-  if (names.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-        A few starter voices to make your first feed feel alive.
-      </p>
-    );
-  }
-
-  // "and N more" counts everyone not represented by the highlighted name.
-  const remaining = Math.max(totalCount - 1, 0);
-
-  return (
-    <p className="text-xs text-muted-foreground leading-relaxed truncate">
-      Featuring{" "}
-      {/* Fixed-height inline slot: only the name inside cross-fades, so the
-          line's baseline and the card height never shift. */}
-      <span className="relative inline-grid align-baseline">
-        {rotation.map((name, i) => (
-          <span
-            key={`${name}-${i}`}
-            aria-hidden={i !== activeIndex}
-            className={cn(
-              "col-start-1 row-start-1 font-medium text-foreground whitespace-nowrap",
-              "transition-opacity duration-500 motion-reduce:transition-none",
-              i === activeIndex ? "opacity-100" : "opacity-0",
-            )}
-          >
-            {name}
-          </span>
-        ))}
-      </span>
-      {remaining > 0 && (
-        <>
-          {" "}
-          and {remaining} more.
-        </>
-      )}
-      {remaining === 0 && "."}
-    </p>
-  );
-}
-
 /** Compact follow pack card for the onboarding flow. */
 function PackCard({
   event,
@@ -1784,10 +1678,6 @@ function PackCard({
   const clusterPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
   const previewPubkeys = mode === "people" ? pubkeys : clusterPubkeys;
   const { data: membersMap } = useAuthors(previewPubkeys);
-
-  // Real display names from the cluster, used for the compact "Featuring …"
-  // line. Falls back gracefully (inside FeaturingLine) when none are set.
-  const featuredNames = useFeaturedNames(clusterPubkeys, membersMap);
 
   return (
     <div
@@ -1859,13 +1749,7 @@ function PackCard({
             )}
           </div>
 
-          <div className="px-4 pb-4 pt-1 space-y-3">
-            {/* Compact "Featuring …" line — communicates a group of real
-                people without over-focusing on two individuals. Always a single
-                clamped line, so the card height stays stable as metadata loads;
-                falls back to a warm generic line when no names are available. */}
-            <FeaturingLine names={featuredNames} totalCount={pubkeys.length} />
-
+          <div className="px-4 pb-4 pt-3">
             {/* Actions: Follow All stays primary and easy; "Meet the people"
                 swaps this card into the inline people preview. */}
             <div className="space-y-2">
