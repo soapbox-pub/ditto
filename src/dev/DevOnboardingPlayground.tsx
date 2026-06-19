@@ -36,7 +36,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/hooks/useAppContext";
-import { ONBOARDING_SEARCH_KEY } from "@/lib/onboardingHandoff";
+import {
+  buildHandoffPayload,
+  type HandoffTopic,
+  ONBOARDING_SEARCH_KEY,
+  resolveHandoffDestination,
+} from "@/lib/onboardingHandoff";
 import { getStorageKey } from "@/lib/storageKey";
 import { cn } from "@/lib/utils";
 
@@ -117,7 +122,10 @@ export function DevOnboardingPlayground() {
     try {
       if (trimmed) {
         sessionStorage.setItem(searchKey, trimmed);
-        setLastAction(`Seeded handoff key "${searchKey}" = "${trimmed}".`);
+        const dest = resolveHandoffDestination(trimmed);
+        setLastAction(
+          `Seeded handoff key "${searchKey}" = "${trimmed}" → ${dest?.path ?? "(no destination)"}.`,
+        );
       } else {
         sessionStorage.removeItem(searchKey);
         setLastAction(`Cleared handoff key "${searchKey}" (empty input).`);
@@ -135,6 +143,48 @@ export function DevOnboardingPlayground() {
       setLastAction("sessionStorage unavailable — nothing to clear.");
     }
   };
+
+  /**
+   * Seed the *structured* handoff payload (exactly what real onboarding writes)
+   * for a space-separated list of topics, then navigate to the app root so
+   * `OnboardingTopicsHandoff` consumes it. A leading `#` marks a hashtag topic.
+   */
+  const seedQuickTest = (topicString: string) => {
+    const topics: HandoffTopic[] = topicString
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((token) =>
+        token.startsWith("#")
+          ? { label: token.slice(1), isHashtag: true }
+          : { label: token },
+      );
+    const payload = buildHandoffPayload(topics);
+    try {
+      if (payload) {
+        sessionStorage.setItem(searchKey, payload);
+        const dest = resolveHandoffDestination(payload);
+        setLastAction(
+          `Seeded "${topicString}" → ${dest?.path ?? "(no destination)"}. Navigating…`,
+        );
+      } else {
+        sessionStorage.removeItem(searchKey);
+        setLastAction(`"${topicString}" produced no routable topics.`);
+      }
+    } catch {
+      setLastAction("sessionStorage unavailable — could not seed handoff.");
+      return;
+    }
+    navigate("/");
+  };
+
+  // Dev-only quick tests covering the handoff's branches: multi-topic with a
+  // mixed hashtag, two plain topics, a single hashtag, and multi-word plain.
+  const QUICK_TESTS = [
+    "Music Games #nostr",
+    "Design Art",
+    "#nostr",
+    "Bitcoin Open Source",
+  ] as const;
 
   // Live onboarding preview, rendered full-screen (SetupQuestionnaire owns its
   // own fixed overlay). A small floating "Close preview" button sits on top.
@@ -359,8 +409,28 @@ export function DevOnboardingPlayground() {
             <p className="text-xs text-muted-foreground">
               Seeds <code>{searchKey}</code> in sessionStorage, then "Go to app
               root" lets <code>OnboardingTopicsHandoff</code> consume it and
-              route to Search. (Search behavior itself is unchanged in this pass.)
+              route to the best existing experience: <code>/t/:tag</code> for a
+              hashtag topic, single-term <code>/search?q=</code> for a plain
+              topic. Multiple topics collapse to the first one.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              Quick tests (seed the real structured payload, then navigate)
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_TESTS.map((test) => (
+                <Button
+                  key={test}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => seedQuickTest(test)}
+                >
+                  {test}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">

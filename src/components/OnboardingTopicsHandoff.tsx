@@ -2,16 +2,25 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAppContext } from "@/hooks/useAppContext";
-import { ONBOARDING_SEARCH_KEY } from "@/lib/onboardingHandoff";
+import {
+  ONBOARDING_SEARCH_KEY,
+  resolveHandoffDestination,
+} from "@/lib/onboardingHandoff";
 import { getStorageKey } from "@/lib/storageKey";
 
 /**
  * Reads the one-shot onboarding Search handoff written by the conversations
  * intent's topics step. When a just-onboarded user picked first-explore topics,
- * `SetupQuestionnaire` seeds a search query into sessionStorage on completion;
- * this component (rendered inside the router, where `useNavigate` is available)
- * consumes that key exactly once and routes the user to the Search experience
- * for those topics.
+ * `SetupQuestionnaire` seeds a structured payload into sessionStorage on
+ * completion; this component (rendered inside the router, where `useNavigate` is
+ * available) consumes that key exactly once and routes the user to the best
+ * existing experience for those topics.
+ *
+ * Routing (see `resolveHandoffDestination`): a hashtag topic goes to the indexed
+ * `/t/:tag` hashtag feed; a plain topic goes to single-term `/search?q=`.
+ * Multiple topics collapse to the first one, because Search can't OR several
+ * terms into a useful query today — so we hand over one clear, working view
+ * rather than a space-joined phrase that matches nothing.
  *
  * Why sessionStorage instead of a direct navigate(): `InitialSyncGate` wraps
  * `AppRouter`, so it lives *outside* the `<BrowserRouter>` and can't call
@@ -34,10 +43,10 @@ export function OnboardingTopicsHandoff() {
     if (handled.current) return;
 
     const key = getStorageKey(config.appId, ONBOARDING_SEARCH_KEY);
-    let query: string | null = null;
+    let raw: string | null = null;
     try {
-      query = sessionStorage.getItem(key);
-      if (query) sessionStorage.removeItem(key);
+      raw = sessionStorage.getItem(key);
+      if (raw) sessionStorage.removeItem(key);
     } catch {
       // sessionStorage unavailable — nothing to hand off.
       return;
@@ -45,14 +54,14 @@ export function OnboardingTopicsHandoff() {
 
     handled.current = true;
 
-    const trimmed = query?.trim();
-    if (!trimmed) return;
+    const destination = resolveHandoffDestination(raw);
+    if (!destination) return;
 
     // Only steer the just-onboarded user from the landing route. If they've
     // already navigated elsewhere by the time this mounts, leave them be.
     if (location.pathname !== "/") return;
 
-    navigate(`/search?q=${encodeURIComponent(trimmed)}`, { replace: true });
+    navigate(destination.path, { replace: true });
   }, [config.appId, navigate, location.pathname]);
 
   return null;

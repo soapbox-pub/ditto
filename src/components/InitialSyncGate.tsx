@@ -23,7 +23,7 @@ import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import { getStorageKey } from "@/lib/storageKey";
-import { ONBOARDING_SEARCH_KEY } from "@/lib/onboardingHandoff";
+import { buildHandoffPayload, ONBOARDING_SEARCH_KEY } from "@/lib/onboardingHandoff";
 import {
   type ReactNode,
   useCallback,
@@ -627,12 +627,12 @@ export function SetupQuestionnaire({
       return;
     }
     if (showTopics && selectedTopics.length > 0) {
-      const query = buildTopicsSearchQuery(selectedTopics);
-      if (query) {
+      const payload = buildHandoffPayload(selectedTopics);
+      if (payload) {
         try {
           sessionStorage.setItem(
             getStorageKey(config.appId, ONBOARDING_SEARCH_KEY),
-            query,
+            payload,
           );
         } catch {
           // sessionStorage unavailable — fall back to the default feed landing.
@@ -891,18 +891,12 @@ function parseCustomTopic(raw: string): SelectedTopic | null {
   return { label: trimmed };
 }
 
-/**
- * Build a plain search query string from selected topics. Hashtag topics keep
- * their `#`; normal topics are passed as plain terms. Used for the `/search?q=`
- * handoff after onboarding. Returns an empty string when nothing is selected.
- */
-function buildTopicsSearchQuery(topics: SelectedTopic[]): string {
-  return topics
-    .map((t) => (t.isHashtag ? `#${t.label}` : t.label))
-    .filter((term) => term.trim().length > 0)
-    .join(" ")
-    .trim();
-}
+// The handoff query is built via `buildHandoffPayload` from
+// `@/lib/onboardingHandoff`, which serializes the selected topics into a
+// structured payload. `OnboardingTopicsHandoff` then routes each topic to the
+// best existing experience (the indexed `/t/:tag` hashtag feed for hashtags, or
+// single-term `/search?q=` for plain topics) instead of a broken space-joined
+// phrase query.
 
 /**
  * Human-readable list of the first few topic labels, e.g. "Music, Games, and
