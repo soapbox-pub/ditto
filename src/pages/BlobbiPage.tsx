@@ -263,12 +263,17 @@ function BlobbiContent() {
   
   // STEP 4: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
-  // 2) first item from profile.has that exists in companionsByD - preferred ordering
-  // 3) first companion in the collection (covers blobbis missing from profile.has)
-  // 4) undefined (show selector)
+  // 2) first companion in the collection (deterministically ordered by d-tag in
+  //    useBlobbisCollection, so this is stable across refreshes and care actions)
+  // 3) undefined (show selector)
   //
   // CRITICAL: Default selection must NEVER overwrite localStorage.
   // User selection persists only via handleSelectBlobbi, not via this computed value.
+  //
+  // NOTE: We no longer consult the profile `has` list for ordering. Ownership
+  // is derived from the authored kind 31124 events (the collection), which is
+  // the single source of truth; `has` was a redundant mirror that could drift
+  // and surface a stale/egg selection.
   const selectedD = useMemo(() => {
     // Priority 1: localStorage selection (if it exists in filtered collection)
     // USER SELECTION ALWAYS WINS - this is the authoritative source
@@ -278,23 +283,8 @@ function BlobbiContent() {
       }
       return storedSelectedD;
     }
-    
-    // Priority 2: First item from profile.has that exists in filtered collection
-    // This preserves the user's ordering preference from their profile
-    if (profile) {
-      for (const d of profile.has) {
-        if (filteredCompanionsByD[d]) {
-          if (DEBUG_BLOBBI) {
-            console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
-              '(storedSelectedD was:', storedSelectedD, 
-              storedSelectedD ? (filteredCompanionsByD[storedSelectedD] ? 'exists' : 'NOT in filteredCompanionsByD') : 'null', ')');
-          }
-          return d;
-        }
-      }
-    }
-    
-    // Priority 3: First companion in the filtered collection
+
+    // Priority 2: First companion in the deterministically-ordered collection
     if (filteredCompanions.length > 0) {
       const firstD = filteredCompanions[0].d;
       if (DEBUG_BLOBBI) {
@@ -302,13 +292,13 @@ function BlobbiContent() {
       }
       return firstD;
     }
-    
-    // Priority 4: No valid selection
+
+    // Priority 3: No valid selection
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
-  }, [profile, storedSelectedD, filteredCompanionsByD, filteredCompanions]);
+  }, [storedSelectedD, filteredCompanionsByD, filteredCompanions]);
   
   // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
   // This prevents the default selection from overwriting user selections during:
@@ -540,7 +530,6 @@ function BlobbiContent() {
       profileLoading,
       hasProfile: !!profile,
       profileName: profile?.name,
-      profileHas: profile?.has?.length ?? 0,
       collectionLoading,
       collectionFetching,
       companionsLoaded: companions.length,

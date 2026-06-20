@@ -353,7 +353,7 @@ export function useBlobbiOnboarding({
     };
     
     createProfileAsync();
-  }, [step, user?.pubkey, profile, isProcessing, suggestedName, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [step, user?.pubkey, profile, isProcessing, suggestedName, nostr, publishEvent, updateProfileEvent, invalidateProfile]);
   
   // ─── Actions ──────────────────────────────────────────────────────────────────
   

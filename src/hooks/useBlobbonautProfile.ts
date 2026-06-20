@@ -210,23 +210,13 @@ export function useBlobbonautProfile() {
     }
   }, [queryClient, user?.pubkey, setBootCache]);
   
-  // Derive effectiveCompanionD from profile:
-  // Priority: current_companion > first item in has[]
+  // Derive effectiveCompanionD from profile: the explicitly-set
+  // `current_companion`, or undefined. We no longer fall back to the profile
+  // `has` list — ownership/order is derived from the authored kind 31124
+  // collection (useBlobbisCollection), not the redundant `has` mirror.
   const effectiveCompanionD = useMemo(() => {
     const profile = query.data;
-    if (!profile) return undefined;
-    
-    // Use current_companion if set
-    if (profile.currentCompanion) {
-      return profile.currentCompanion;
-    }
-    
-    // Fall back to first item in has[]
-    if (profile.has.length > 0) {
-      return profile.has[0];
-    }
-    
-    return undefined;
+    return profile?.currentCompanion;
   }, [query.data]);
   
   // Check if profile needs migration to new kind (11125)

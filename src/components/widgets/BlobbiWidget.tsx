@@ -76,20 +76,18 @@ export function BlobbiWidget() {
     return record;
   }, [filteredCompanions]);
 
-  // Match BlobbiPage's selection logic: localStorage > profile.has > first companion
+  // Match BlobbiPage's selection logic: localStorage > first companion in the
+  // deterministically-ordered collection. We no longer consult profile.has —
+  // ownership/order comes from the authored kind 31124 collection (single
+  // source of truth), so a drifted/wiped has list can't surface a stale egg.
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
 
   const companion = useMemo<BlobbiCompanion | null>(() => {
     if (!filteredCompanions || filteredCompanions.length === 0) return null;
     if (storedSelectedD && filteredCompanionsByD[storedSelectedD]) return filteredCompanionsByD[storedSelectedD];
-    if (profile) {
-      for (const d of profile.has) {
-        if (filteredCompanionsByD[d]) return filteredCompanionsByD[d];
-      }
-    }
     return filteredCompanions[0];
-  }, [filteredCompanions, filteredCompanionsByD, storedSelectedD, profile]);
+  }, [filteredCompanions, filteredCompanionsByD, storedSelectedD]);
 
   // Zero-arg wrapper for fetching fresh data before an action (read step of
   // the read-modify-write pattern, same as BlobbiPage)

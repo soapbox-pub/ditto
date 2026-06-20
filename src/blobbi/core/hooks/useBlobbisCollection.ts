@@ -17,6 +17,19 @@ import {
 const CHUNK_SIZE = 20;
 
 /**
+ * Stable, deterministic owned-Blobbi ordering, by d-tag.
+ *
+ * Callers use `companions[0]` as the default-selection fallback, so the order
+ * must not depend on relay return order or optimistic-update insertion order.
+ * The d-tag is the only per-Blobbi identifier stable across the replaceable
+ * event's republishes (`created_at` and event `id` both change per care
+ * action). This replaces the former reliance on the profile `has` list.
+ */
+function sortCompanions(companions: BlobbiCompanion[]): BlobbiCompanion[] {
+  return [...companions].sort((a, b) => a.d.localeCompare(b.d));
+}
+
+/**
  * Split an array into chunks of a given size.
  */
 function chunkArray<T>(array: T[], size: number): T[][] {
@@ -157,13 +170,18 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
           companions.push(parsed);
         }
       }
-      
+
+      // Stable, deterministic ordering by d-tag (see sortCompanions). This
+      // replaces the former reliance on the profile `has` list as the
+      // ownership-order source of truth.
+      const sortedCompanions = sortCompanions(companions);
+
       console.log('[useBlobbisCollection] Parsed companions:', {
-        count: companions.length,
+        count: sortedCompanions.length,
         dTags: Object.keys(companionsByD),
       });
-      
-      return { companionsByD, companions };
+
+      return { companionsByD, companions: sortedCompanions };
     },
     enabled: !!user?.pubkey && (mode === 'all' || (!!sortedDList && sortedDList.length > 0)),
     staleTime: 30_000, // 30 seconds
@@ -207,7 +225,7 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       const newCompanionsByD = { ...data.companionsByD, [parsed.d]: parsed };
       queryClient.setQueryData<CollectionData>(queryKey, {
         companionsByD: newCompanionsByD,
-        companions: Object.values(newCompanionsByD),
+        companions: sortCompanions(Object.values(newCompanionsByD)),
       });
     }
 
