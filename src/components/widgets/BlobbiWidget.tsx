@@ -14,7 +14,7 @@ import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseIn
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
-import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, getSelectedBlobbiKey } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -54,11 +54,6 @@ const STAT_ACTION_NAME: Record<string, BlobbiAction> = {
   health: 'medicine',
   hygiene: 'clean',
 };
-
-/** localStorage key helper matching BlobbiPage pattern. */
-function getSelectedBlobbiKey(pubkey: string): string {
-  return `blobbi:selected:d:${pubkey.slice(0, 8)}`;
-}
 
 /** Mini Blobbi widget with live stats and quick actions. */
 export function BlobbiWidget() {

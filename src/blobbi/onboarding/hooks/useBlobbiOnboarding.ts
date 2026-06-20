@@ -33,6 +33,7 @@ import {
   BLOBBI_ADOPTION_COST,
   buildBlobbonautTags,
   updateBlobbonautTags,
+  mergeHasForAdoption,
   type BlobbonautProfile,
 } from '@/blobbi/core/lib/blobbi';
 
@@ -286,6 +287,31 @@ export function useBlobbiOnboarding({
       setActionInProgress('create-profile');
       
       try {
+        // GUARD: never create a blank profile over an existing one.
+        //
+        // The `profile` check above (line ~271) only reflects the TanStack
+        // Query cache, which can transiently read null (cache miss, relay
+        // hiccup, or a read-modify-write window during rapid writes). Because
+        // kind 11125 is replaceable, publishing a fresh profile here would
+        // clobber the real one — wiping its `has` list and dropping the user's
+        // existing Blobbis. (Observed in the wild: a user's evolving Blobbi was
+        // evicted from `has` and replaced by a string of fresh eggs.)
+        //
+        // So re-check against relays first. If a profile already exists, adopt
+        // it instead of overwriting it.
+        const existing = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+        if (existing) {
+          console.warn(
+            '[useBlobbiOnboarding] Profile already exists on relays — skipping blank-profile creation to avoid wiping has:',
+            { name: existing.name, hasLength: existing.has.length },
+          );
+          updateProfileEvent(existing.event);
+          setBlobbonautName(existing.name);
+          invalidateProfile();
+          setStep('adoption-question');
+          return;
+        }
+
         // Build tags with name and initial coins
         const baseTags = buildBlobbonautTags(user.pubkey);
         const tagsWithName = [
@@ -475,7 +501,10 @@ export function useBlobbiOnboarding({
       const baseEvent = freshProfile?.event ?? profile.event;
       
       const newCoins = coins - BLOBBI_ADOPTION_COST;
-      const newHas = [...(freshProfile?.has ?? profile.has), preview.d];
+      // Union the fresh and cached `has` lists (deduped) before appending the
+      // new egg. Adoption must only ever GROW `has` — never drop a Blobbi the
+      // user already owns just because one read returned a shorter list.
+      const newHas = mergeHasForAdoption(profile.has, freshProfile?.has, preview.d);
       
       const profileUpdates: Record<string, string | string[]> = {
         coins: newCoins.toString(),

@@ -51,6 +51,7 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   statsToTagUpdates,
+  getSelectedBlobbiKey,
   type BlobbiCompanion,
   type BlobbiStats,
   type BlobbonautProfile,
@@ -140,14 +141,7 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
 /**
- * Get the localStorage key for the selected Blobbi.
- * User-scoped: blobbi:selected:d:<pubkey>
- */
-function getSelectedBlobbiKey(pubkey: string): string {
-  return `blobbi:selected:d:${pubkey}`;
-}
-
-/** Enable debug logging in development only */
+ * Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
 /** Stat keys checked for the companion selector care badge (excludes energy). */

@@ -1846,6 +1846,41 @@ export function addPetToHas(currentHas: string[], newPetD: string): string[] {
   }
   return [...currentHas, newPetD];
 }
+
+/**
+ * Merge the known `has` lists when adopting a new Blobbi.
+ *
+ * Adoption must only ever GROW the owned-Blobbi list — it must never drop a
+ * Blobbi the user already owns. The cached profile and a fresh relay read can
+ * each be momentarily incomplete (cache miss, relay hiccup, replaceable-event
+ * write race), so we union both sources (deduped, order-preserving) before
+ * appending the newly-adopted pet.
+ *
+ * Returns the merged `has` list including `newPetD` exactly once.
+ */
+export function mergeHasForAdoption(
+  cachedHas: readonly string[] | undefined,
+  freshHas: readonly string[] | undefined,
+  newPetD: string,
+): string[] {
+  const merged = [...new Set([...(cachedHas ?? []), ...(freshHas ?? [])])];
+  return addPetToHas(merged, newPetD);
+}
+
+/**
+ * Get the localStorage key for the user's selected Blobbi.
+ *
+ * User-scoped by full pubkey: `blobbi:selected:d:<pubkey>`. This MUST be used
+ * by every surface that reads or writes the selected Blobbi (BlobbiPage,
+ * BlobbiWidget, onboarding, ...) so the selection stays in sync between them.
+ * Using a truncated pubkey here previously caused the widget and the page to
+ * read different keys, so selecting an adult Blobbi on one surface left the
+ * other falling back to a freshly-adopted egg.
+ */
+export function getSelectedBlobbiKey(pubkey: string): string {
+  return `blobbi:selected:d:${pubkey}`;
+}
+
 // ─── LocalStorage Cache Types ─────────────────────────────────────────────────
 
 export interface BlobbiBootCache {

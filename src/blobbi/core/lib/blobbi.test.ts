@@ -6,10 +6,12 @@ import {
   BLOBBI_ECOSYSTEM_NAMESPACE,
   buildEggTags,
   getCanonicalBlobbiD,
+  getSelectedBlobbiKey,
   isCanonicalBlobbiD,
   isValidBlobbiEvent,
   isLegacyBlobbiEvent,
   isUnsupportedLegacyBlobbiEvent,
+  mergeHasForAdoption,
   parseBlobbiEvent,
   deriveBlobbiSeedV1,
   getTagValue,
@@ -388,6 +390,27 @@ describe('old-app Blobbi with canonical-looking d-tag (schema-marker detection)'
     ]) {
       expect(names.has(marker)).toBe(false);
     }
+  });
+});
+
+describe('getSelectedBlobbiKey — shared selected-Blobbi persistence key', () => {
+  // Both BlobbiPage and BlobbiWidget import this single helper, so a selection
+  // made on one surface is visible to the other. Previously the widget keyed by
+  // a truncated pubkey, desyncing the two and leaving one surface on a fresh egg.
+  it('derives the same full-pubkey key for every surface', () => {
+    const pk = 'a'.repeat(64);
+    expect(getSelectedBlobbiKey(pk)).toBe(`blobbi:selected:d:${pk}`);
+  });
+});
+
+describe('mergeHasForAdoption — adoption must never drop an owned Blobbi', () => {
+  // Failure shape diagnosed from a real user: their evolving Blobbi was dropped
+  // from `has` when a fresh relay read came back wiped, so adoption (which used
+  // `freshProfile?.has ?? profile.has`) collapsed `has` to a single egg.
+  it('preserves the original when one read is momentarily empty', () => {
+    const ORIGINAL = 'blobbi-236ac926d53c-360fc30e93';
+    const NEW_EGG = 'blobbi-236ac926d53c-3c0c91148a';
+    expect(mergeHasForAdoption([ORIGINAL], [], NEW_EGG)).toEqual([ORIGINAL, NEW_EGG]);
   });
 });
 
