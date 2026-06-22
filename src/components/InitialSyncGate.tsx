@@ -1369,6 +1369,12 @@ function FollowsStep({
   const [loading, setLoading] = useState(true);
   const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
   const [followingPack, setFollowingPack] = useState<string | null>(null);
+  // Local UI state for individual follows performed inside the people preview.
+  // Used only for button state and the didFollow/preload signal.
+  const [followedPubkeys, setFollowedPubkeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [followingPubkey, setFollowingPubkey] = useState<string | null>(null);
 
   // Fetch the suggested follow packs
   useEffect(() => {
@@ -1402,15 +1408,26 @@ function FollowsStep({
     };
   }, [nostr]);
 
-  const handleFollowAll = useCallback(
-    async (pack: NostrEvent) => {
-      if (!user) return;
+  /**
+   * Shared merge/publish core for following one or more pubkeys. Preserves the
+   * original Follow All behavior exactly:
+   *  - keeps the expectedPubkey guard (refuses to publish to the wrong account);
+   *  - fetches the freshest kind 3 from relays (not cache);
+   *  - preserves non-p tags (relay hints, petnames, etc.) and existing p tags;
+   *  - adds only pubkeys not already followed;
+   *  - publishes kind 3 with `prev` for published_at preservation.
+   * Throws on guard failure or publish error so callers can manage their own
+   * in-flight/followed UI state.
+   */
+  const followPubkeys = useCallback(
+    async (pubkeys: string[]) => {
+      if (!user) throw new Error("Not logged in");
 
       // Defensive guard: when this is the signup flow, only publish kind 3
       // if the active signer matches the freshly generated key. Without
-      // this, a regression in the auto-switch would merge the follow pack
-      // into the *previously logged-in user's* contact list — silently
-      // adding follows to the wrong account.
+      // this, a regression in the auto-switch would merge follows into the
+      // *previously logged-in user's* contact list — silently adding follows
+      // to the wrong account.
       if (expectedPubkey && user.pubkey !== expectedPubkey) {
         toast({
           title: "Follows not saved",
@@ -1418,8 +1435,39 @@ function FollowsStep({
             "The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.",
           variant: "destructive",
         });
-        return;
+        throw new Error("Signer does not match expected pubkey");
       }
+
+      // 1. Fetch freshest kind 3 from relays (not cache)
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [3],
+        authors: [user.pubkey],
+      });
+
+      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
+      const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
+      const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
+      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
+
+      // 3. Merge: add new pubkeys that aren't already followed
+      const newPTags = pubkeys
+        .filter((pk) => !existingPubkeys.has(pk))
+        .map((pk) => ["p", pk]);
+
+      // 4. Publish with prev for published_at preservation
+      await publishEvent({
+        kind: 3,
+        content: prev?.content ?? "",
+        tags: [...nonPTags, ...existingPTags, ...newPTags],
+        prev: prev ?? undefined,
+      });
+    },
+    [user, nostr, publishEvent, expectedPubkey],
+  );
+
+  const handleFollowAll = useCallback(
+    async (pack: NostrEvent) => {
+      if (!user) return;
 
       const packId = pack.id;
       setFollowingPack(packId);
@@ -1429,29 +1477,7 @@ function FollowsStep({
           .filter(([n]) => n === "p")
           .map(([, pk]) => pk);
 
-        // 1. Fetch freshest kind 3 from relays (not cache)
-        const prev = await fetchFreshEvent(nostr, {
-          kinds: [3],
-          authors: [user.pubkey],
-        });
-
-        // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-        const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
-        const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
-        const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-        // 3. Merge: add new pubkeys that aren't already followed
-        const newPTags = packPubkeys
-          .filter((pk) => !existingPubkeys.has(pk))
-          .map((pk) => ["p", pk]);
-
-        // 4. Publish with prev for published_at preservation
-        await publishEvent({
-          kind: 3,
-          content: prev?.content ?? "",
-          tags: [...nonPTags, ...existingPTags, ...newPTags],
-          prev: prev ?? undefined,
-        });
+        await followPubkeys(packPubkeys);
 
         setFollowedPacks((prev) => new Set([...prev, packId]));
       } catch (error) {
@@ -1460,7 +1486,25 @@ function FollowsStep({
         setFollowingPack(null);
       }
     },
-    [user, nostr, publishEvent, expectedPubkey],
+    [user, followPubkeys],
+  );
+
+  const handleFollowPubkey = useCallback(
+    async (pubkey: string) => {
+      if (!user) return;
+
+      setFollowingPubkey(pubkey);
+
+      try {
+        await followPubkeys([pubkey]);
+        setFollowedPubkeys((prev) => new Set([...prev, pubkey]));
+      } catch (error) {
+        console.error("Failed to follow person:", error);
+      } finally {
+        setFollowingPubkey(null);
+      }
+    },
+    [user, followPubkeys],
   );
 
   return (
@@ -1493,6 +1537,9 @@ function FollowsStep({
               isFollowed={followedPacks.has(pack.id)}
               isFollowing={followingPack === pack.id}
               onFollowAll={() => handleFollowAll(pack)}
+              followedPubkeys={followedPubkeys}
+              followingPubkey={followingPubkey}
+              onFollowPubkey={handleFollowPubkey}
             />
           ))
         )}
@@ -1507,10 +1554,14 @@ function FollowsStep({
           Back
         </Button>
         <Button
-          onClick={() => onNext(followedPacks.size > 0)}
+          onClick={() =>
+            onNext(followedPacks.size > 0 || followedPubkeys.size > 0)
+          }
           className="flex-1 rounded-full h-11 gap-1.5"
         >
-          {followedPacks.size > 0 ? "Continue" : "Skip for now"}
+          {followedPacks.size > 0 || followedPubkeys.size > 0
+            ? "Continue"
+            : "Skip for now"}
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -1525,12 +1576,18 @@ function PackCard({
   isFollowed,
   isFollowing,
   onFollowAll,
+  followedPubkeys,
+  followingPubkey,
+  onFollowPubkey,
 }: {
   event: NostrEvent;
   descriptionOverride?: string;
   isFollowed: boolean;
   isFollowing: boolean;
   onFollowAll: () => void;
+  followedPubkeys: Set<string>;
+  followingPubkey: string | null;
+  onFollowPubkey: (pubkey: string) => void;
 }) {
   const { title, description, pubkeys } = useMemo(
     () => parsePackEvent(event),
@@ -1567,6 +1624,9 @@ function PackCard({
           isFollowing={isFollowing}
           onFollowAll={onFollowAll}
           onBack={() => setMode("summary")}
+          followedPubkeys={followedPubkeys}
+          followingPubkey={followingPubkey}
+          onFollowPubkey={onFollowPubkey}
         />
       ) : (
         <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
@@ -1719,6 +1779,9 @@ function PackPeoplePreview({
   isFollowing,
   onFollowAll,
   onBack,
+  followedPubkeys,
+  followingPubkey,
+  onFollowPubkey,
 }: {
   pubkeys: string[];
   membersMap?: Map<string, AuthorData>;
@@ -1726,6 +1789,9 @@ function PackPeoplePreview({
   isFollowing: boolean;
   onFollowAll: () => void;
   onBack: () => void;
+  followedPubkeys: Set<string>;
+  followingPubkey: string | null;
+  onFollowPubkey: (pubkey: string) => void;
 }) {
   const total = pubkeys.length;
   const [index, setIndex] = useState(0);
@@ -1742,6 +1808,16 @@ function PackPeoplePreview({
 
   const atStart = safeIndex === 0;
   const atEnd = safeIndex >= total - 1;
+
+  // Individual follow state for the person currently in view. The whole pack
+  // being followed implies this person is followed too. Disable the button
+  // while the pack follow is in flight, or while this person's own follow is
+  // in flight, to avoid concurrent kind 3 publishes overwriting each other.
+  const isCurrentFollowed =
+    isFollowed ||
+    (currentPubkey ? followedPubkeys.has(currentPubkey) : false);
+  const isCurrentFollowing = followingPubkey === currentPubkey;
+  const isAnyFollowInFlight = isFollowing || followingPubkey !== null;
 
   // Keyboard support: Left/Right step between people while the preview is open.
   const handleKeyDown = useCallback(
@@ -2056,9 +2132,39 @@ function PackPeoplePreview({
           <Button
             className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
             size="sm"
-            variant={isFollowed ? "outline" : "default"}
+            variant={isCurrentFollowed ? "outline" : "default"}
+            onClick={() => currentPubkey && onFollowPubkey(currentPubkey)}
+            disabled={
+              !currentPubkey ||
+              isCurrentFollowed ||
+              isCurrentFollowing ||
+              isFollowing
+            }
+          >
+            {isCurrentFollowing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Following…
+              </>
+            ) : isCurrentFollowed ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Following
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-3.5 h-3.5" />
+                Follow
+              </>
+            )}
+          </Button>
+
+          <Button
+            className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+            size="sm"
+            variant={isFollowed ? "outline" : "secondary"}
             onClick={onFollowAll}
-            disabled={isFollowed || isFollowing}
+            disabled={isFollowed || isAnyFollowInFlight}
           >
             {isFollowing ? (
               <>
