@@ -754,7 +754,7 @@ function DownloadStep({
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300">
-            Keep your key private. Avoid screenshotting it or pasting it anywhere except a password manager — anyone who has it can use your account.{" "}
+            Keep your key private. Avoid screenshotting it or pasting it anywhere except a password manager, anyone who has it can use your account.{" "}
             <a
               href="https://soapbox.pub/blog/managing-nostr-keys/"
               onClick={(e) => {
@@ -1853,7 +1853,6 @@ function PackPeoplePreview({
   const themeBgUrl = sanitizeUrl(activeTheme?.background?.url);
   const themeAccent = activeTheme?.colors.primary;
   const themeBgColor = activeTheme?.colors.background;
-  const hasRealTheme = Boolean(themeBgUrl || themeAccent || themeBgColor);
 
   // Two distinct visual roles, with cross-fallbacks:
   //   - Banner tile = "their profile" → prefer the kind-0 profile banner,
@@ -1946,7 +1945,7 @@ function PackPeoplePreview({
 
       <div className="relative">
         {/* Top bar: back to summary + position indicator. */}
-        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1">
+        <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-1">
           <Button
             type="button"
             variant="ghost"
@@ -1969,7 +1968,7 @@ function PackPeoplePreview({
             (falls back to the theme background image). Accent-tinted gradient
             fallback + accent ring tie it to their theme. */}
         <div
-          className="relative mx-4 h-24 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.3),hsl(var(--pack-accent,var(--primary))/0.06))] ring-1"
+          className="relative mx-4 h-20 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.3),hsl(var(--pack-accent,var(--primary))/0.06))] ring-1"
           style={{ ["--tw-ring-color" as string]: "hsl(var(--pack-accent,var(--primary)) / 0.35)" }}
         >
           {tileBgUrl && (
@@ -1981,35 +1980,19 @@ function PackPeoplePreview({
               loading="lazy"
             />
           )}
-          {/* Readability scrim over the image so the badge stays legible
-              regardless of how busy the banner/theme background is. */}
+          {/* Readability scrim over the image so the avatar overlap stays
+              legible regardless of how busy the banner/theme background is. */}
           {tileBgUrl && (
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"
             />
           )}
-          {/* Preview note — sits on the tile so the meaning is obvious right
-              where the preview happens. Copy changes to make clear whether
-              we're previewing a real theme or just a banner vibe, and either
-              way that the user's own theme is unaffected. */}
-          <span
-            className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm ring-1"
-            style={{ ["--tw-ring-color" as string]: "hsl(var(--pack-accent,var(--primary)) / 0.35)" }}
-          >
-            <Sparkles
-              className="size-2.5"
-              style={{ color: "hsl(var(--pack-accent,var(--primary)))" }}
-            />
-            {hasRealTheme
-              ? "Previewing their theme. Yours stays yours."
-              : "Their vibe preview. Your theme stays yours."}
-          </span>
         </div>
 
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-2.5">
           <Avatar
-            className="size-16 -mt-8 ring-4 shadow-sm"
+            className="size-14 -mt-7 ring-4 shadow-sm"
             shape={getAvatarShape(meta)}
             style={{
               ["--tw-ring-color" as string]:
@@ -2034,7 +2017,7 @@ function PackPeoplePreview({
               never use the person's theme text color here — only an accent
               ring + a thin accent top-line tie the panel to their theme. */}
           <div
-            className="relative mt-2 overflow-hidden rounded-xl bg-card/80 ring-1 backdrop-blur-md px-3 py-2.5 shadow-sm"
+            className="relative mt-2 overflow-hidden rounded-xl bg-card/80 ring-1 backdrop-blur-md px-3 py-2 shadow-sm"
             style={{
               ["--tw-ring-color" as string]:
                 "hsl(var(--pack-accent,var(--primary)) / 0.4)",
@@ -2060,19 +2043,20 @@ function PackPeoplePreview({
               </p>
             </div>
 
-            {/* Fixed-height bio area: exactly three text-xs/leading-relaxed
-                lines (~3.66rem). line-clamp-3 truncates long bios; short or
+            {/* Fixed-height bio area: exactly two text-xs/leading-relaxed
+                lines (~2.5rem). line-clamp-2 truncates long bios; short or
                 missing bios ("No bio yet.") still occupy the same height, so
                 the panel — and the controls below it — never shift between
-                people. */}
-            <p className="mt-2 h-[3.66rem] overflow-hidden text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                people. Two lines (down from three) keeps the bio readable
+                while trimming vertical height on short/mobile screens. */}
+            <p className="mt-1.5 h-[2.5rem] overflow-hidden text-xs text-muted-foreground leading-relaxed line-clamp-2">
               {bio || "No bio yet."}
             </p>
           </div>
         </div>
 
         {/* Stepper controls + Follow All. */}
-        <div className="px-4 pb-4 space-y-3">
+        <div className="px-4 pb-3 space-y-2.5">
           <div className="flex items-center justify-between gap-3">
             <Button
               type="button"
@@ -2258,7 +2242,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div className="space-y-2 sm:space-y-3 max-w-xs">
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">You're in.</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">You're in</h2>
         <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
           {GENERIC_OUTRO}
         </p>
