@@ -152,8 +152,14 @@ function darken(hsl: string, amount: number): string {
 
 /** Get a contrast foreground (white or dark) for a given background. */
 function contrastForeground(bgHsl: string): string {
-  const dark = isDarkTheme(bgHsl);
-  return dark ? '0 0% 100%' : '222.2 84% 4.9%';
+  const { h, s, l } = parseHsl(bgHsl);
+  const [r, g, b] = hslToRgb(h, s, l);
+  // Choose text color by the perceptual luminance midpoint (0.5): light
+  // backgrounds get dark text, dark backgrounds get white text. The previous
+  // `isDarkTheme` cutoff of 0.2 was tuned for picking page backgrounds and
+  // left saturated mid-tones (e.g. a vivid green at luminance ~0.34) with
+  // unreadable black text.
+  return getLuminance(r, g, b) > 0.5 ? '222.2 84% 4.9%' : '0 0% 100%';
 }
 
 // ─── Auto-Derive Full Token Set from Core Colors ──────────────────────
