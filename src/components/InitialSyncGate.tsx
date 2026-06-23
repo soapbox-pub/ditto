@@ -3,12 +3,16 @@ import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  ChevronLeft,
   ChevronRight,
   Download,
   Eye,
   EyeOff,
   Heart,
   Loader2,
+  Plus,
+  ShieldCheck,
+  Sparkles,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -16,6 +20,7 @@ import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
+import { getStorageKey } from "@/lib/storageKey";
 import {
   type ReactNode,
   useCallback,
@@ -29,12 +34,21 @@ import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ThemeGrid } from "@/components/ThemeSelector";
+import { ColorPicker } from "@/components/ui/color-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useActiveProfileTheme } from "@/hooks/useActiveProfileTheme";
 import { useAppContext } from "@/hooks/useAppContext";
-import { useAuthors } from "@/hooks/useAuthors";
+import { type AuthorData, useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
@@ -45,7 +59,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
-import { resolveTheme, resolveThemeConfig } from "@/themes";
+import { hexToHslString, hslStringToHex } from "@/lib/colorUtils";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
+import { tryNpubEncode } from "@/lib/safeNip19";
+import {
+  type CoreThemeColors,
+  resolveTheme,
+  resolveThemeConfig,
+} from "@/themes";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -65,6 +86,7 @@ interface InitialSyncGateProps {
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { phase, markComplete } = useInitialSync();
   const { isLoading: settingsLoading } = useEncryptedSettings();
   const [preloadApp, setPreloadApp] = useState(false);
@@ -76,9 +98,21 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const startSignup = useCallback(() => setSignupActive(true), []);
 
   const handleSignupComplete = useCallback(() => {
+    // Land brand-new users on the Ditto feed instead of their (empty)
+    // Following feed. useFeedTab reads this sessionStorage key on init, so
+    // seeding it here nudges only the just-onboarded user — existing users,
+    // who already have a value or default to Follows, are untouched.
+    try {
+      sessionStorage.setItem(
+        getStorageKey(config.appId, "feed-tab:home"),
+        "ditto",
+      );
+    } catch {
+      // sessionStorage unavailable — fall back to default tab behavior.
+    }
     setSignupActive(false);
     markComplete();
-  }, [markComplete]);
+  }, [markComplete, config.appId]);
 
   const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
 
@@ -221,30 +255,48 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Suggested follow packs shown to new users with empty follow lists. */
-const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] =
+const SUGGESTED_PACKS: {
+  kind: number;
+  pubkey: string;
+  identifier: string;
+  /** Optional friendlier description shown instead of the pack's own. */
+  description?: string;
+}[] =
   [
     {
       kind: 39089,
       pubkey:
         "932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d",
       identifier: "k4p5w0n22suf",
+      description:
+        "Builders, writers, and curious internet people shaping strange new corners of the web.",
     },
   ];
 
-// Steps for signup (includes keygen + profile) vs. settings-only (existing login)
-type SignupStep = "keygen" | "download" | "profile";
+// Steps for signup (includes welcome + keygen + profile) vs. settings-only (existing login)
+type SignupStep = "welcome" | "keygen" | "download" | "profile";
 type SettingsStep = "theme" | "follows" | "outro";
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = [
-  "theme",
-  "keygen",
-  "download",
-  "profile",
-  "follows",
-  "outro",
-];
 const SETTINGS_STEPS: Step[] = ["theme", "follows", "outro"];
+
+/**
+ * Build the ordered signup step list. A single, unified setup path. Deeper
+ * product education lives in the separate post-onboarding tour. The step order
+ * is index-driven, so the progress bar and next/back navigation pick it up
+ * automatically.
+ */
+function buildSignupSteps(): Step[] {
+  return [
+    "welcome",
+    "theme",
+    "keygen",
+    "download",
+    "profile",
+    "follows",
+    "outro",
+  ];
+}
 
 function SetupQuestionnaire({
   onComplete,
@@ -260,9 +312,14 @@ function SetupQuestionnaire({
   const { user } = useCurrentUser();
   const login = useLoginActions();
 
-  const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
+  const steps = useMemo(
+    () => (isSignup ? buildSignupSteps() : SETTINGS_STEPS),
+    [isSignup],
+  );
 
-  const [step, setStep] = useState<Step>(steps[0]);
+  const [step, setStep] = useState<Step>(
+    () => (isSignup ? "welcome" : "theme"),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
@@ -288,21 +345,35 @@ function SetupQuestionnaire({
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
 
-  const goTo = useCallback((target: Step) => setStep(target), []);
+  // Single source of truth for forward/back navigation: walk the active step
+  // list (`steps`) and skip any step that isn't currently renderable. This is
+  // the ONLY place step order is enforced — no step hardcodes its successor.
+  //
+  // `hasFollowsOverride` lets callers that *just* computed the follow-list
+  // state (handleSaveAndContinue) advance with the fresh value before the
+  // `hasFollows` state update has flushed.
+  const stepRenderable = useCallback(
+    (s: Step, hasFollowsValue: boolean | null) =>
+      s === "follows" ? hasFollowsValue === false : true,
+    [],
+  );
 
-  const next = useCallback(() => {
-    const i = steps.indexOf(step);
-    if (i < steps.length - 1) {
-      setStep(steps[i + 1]);
-    }
-  }, [step, steps]);
+  const advance = useCallback(
+    (from: Step, direction: 1 | -1, hasFollowsOverride?: boolean | null) => {
+      const effectiveHasFollows = hasFollowsOverride ?? hasFollows;
+      const i = steps.indexOf(from);
+      for (let j = i + direction; j >= 0 && j < steps.length; j += direction) {
+        if (stepRenderable(steps[j], effectiveHasFollows)) {
+          setStep(steps[j]);
+          return;
+        }
+      }
+    },
+    [steps, hasFollows, stepRenderable],
+  );
 
-  const back = useCallback(() => {
-    const i = steps.indexOf(step);
-    if (i > 0) {
-      setStep(steps[i - 1]);
-    }
-  }, [step, steps]);
+  const next = useCallback(() => advance(step, 1), [advance, step]);
+  const back = useCallback(() => advance(step, -1), [advance, step]);
 
   // Keygen handler — generates the key and advances to the save step.
   // The credential manager prompt is deferred until the user clicks "Continue".
@@ -315,11 +386,14 @@ function SetupQuestionnaire({
 
   // Continue handler for the download step — saves the key via the best
   // available method (native credential manager on iOS/Android, file download
-  // on web), logs in, and advances to the next step.
+  // on web) and logs in. It does NOT advance: the DownloadStep shows a small
+  // "saved somewhere safe?" confirmation ritual after this resolves, and only
+  // advances once the user explicitly confirms (via `next` passed separately).
   //
   // If the user dismisses the iOS credential prompt, `saveNsec` resolves to
-  // `'dismissed'` and we still advance — dismissal is a legitimate choice
-  // (e.g. the user is saving the key in their own password manager).
+  // `'dismissed'` and we still proceed to the confirmation — dismissal is a
+  // legitimate choice (e.g. the user is saving the key in their own password
+  // manager).
   //
   // On Android, if no credential provider is available (e.g. GrapheneOS or
   // other de-Googled devices), `saveNsec` falls back to writing the key to
@@ -327,7 +401,8 @@ function SetupQuestionnaire({
   // toast so the user knows where to find the backup file.
   //
   // Only unexpected errors (decode failure, filesystem write failure)
-  // surface as a destructive toast.
+  // surface as a destructive toast and re-throw so the DownloadStep keeps the
+  // user on the key view instead of advancing to the confirmation.
   const handleDownloadContinue = useCallback(async () => {
     try {
       const decoded = nip19.decode(nsec);
@@ -347,7 +422,6 @@ function SetupQuestionnaire({
       }
 
       login.nsec(nsec);
-      next();
     } catch {
       toast({
         title: "Save failed",
@@ -355,8 +429,9 @@ function SetupQuestionnaire({
           "Could not save the key. Please copy it manually.",
         variant: "destructive",
       });
+      throw new Error("save-failed");
     }
-  }, [nsec, login, next, config.appName]);
+  }, [nsec, login, config.appName]);
 
   // Check for existing follows and transition to the follows step (or outro if they have follows).
   //
@@ -390,17 +465,30 @@ function SetupQuestionnaire({
     setHasFollows(userHasFollows);
     setIsSaving(false);
 
-    if (userHasFollows) {
-      goTo("outro");
-    } else {
-      goTo("follows");
-    }
-  }, [user, nostr, goTo]);
+    // Advance through the active step list from the current step, skipping the
+    // follows step when the user already has a follow list. The freshly-computed
+    // value is passed as an override so we don't read stale `hasFollows` state.
+    advance(step, 1, userHasFollows);
+  }, [user, nostr, advance, step]);
+
+  // Finish onboarding. After the outro, the app continues to its normal default
+  // landing behavior. Deeper product education is handled later by the separate
+  // post-onboarding tour.
+  const handleComplete = useCallback(() => {
+    onComplete();
+  }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background h-[100dvh]">
+      {/* Ambient warmth — a soft, static brand-tinted gradient so the flow
+          doesn't feel flat. Non-interactive and behind all content. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_-10%,hsl(var(--primary)/0.10),transparent_60%)]"
+      />
+
       {/* Progress bar */}
-      <div className="h-1 bg-muted">
+      <div className="relative h-1 bg-muted">
         <div
           className="h-full bg-primary transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
@@ -408,13 +496,19 @@ function SetupQuestionnaire({
       </div>
 
       {/* Content area */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-md mx-auto my-auto px-6 py-12">
+      <div className="relative flex-1 flex flex-col overflow-y-auto overscroll-contain">
+        <div className="w-full max-w-md mx-auto my-auto px-6 py-6 sm:py-12">
           {/* Signup steps */}
+          {step === "welcome" && <WelcomeStep onNext={next} />}
+
           {step === "keygen" && <KeygenStep onGenerate={handleGenerate} />}
 
           {step === "download" && (
-            <DownloadStep nsec={nsec} onContinue={handleDownloadContinue} />
+            <DownloadStep
+              nsec={nsec}
+              onContinue={handleDownloadContinue}
+              onConfirm={next}
+            />
           )}
 
           {step === "profile" && (
@@ -430,7 +524,8 @@ function SetupQuestionnaire({
             <ThemeStep
               onNext={isSignup ? next : handleSaveAndContinue}
               onBack={back}
-              isFirst={isSignup && steps.indexOf("theme") === 0}
+              isFirst={steps.indexOf("theme") === 0}
+              fromWelcome={isSignup}
               isSaving={!isSignup && isSaving}
             />
           )}
@@ -439,16 +534,55 @@ function SetupQuestionnaire({
             <FollowsStep
               onNext={(didFollow) => {
                 if (didFollow) onPreload();
-                goTo("outro");
+                next();
               }}
               onBack={back}
               expectedPubkey={expectedPubkey}
             />
           )}
 
-          {step === "outro" && <OutroStep onComplete={onComplete} />}
+          {step === "outro" && <OutroStep onComplete={handleComplete} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Welcome Step
+// ---------------------------------------------------------------------------
+
+const GENERIC_OUTRO =
+  "Your space is ready. Explore, follow a few people, or post something small.";
+
+function WelcomeStep({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-7 sm:gap-9 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        {/* Soft glow behind the logo for a little warmth */}
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={56} className="relative sm:hidden" />
+        <DittoLogo size={72} className="relative hidden sm:block" />
+      </div>
+
+      <div className="space-y-3 sm:space-y-4 max-w-sm">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
+          A social app that starts with you
+        </h1>
+        <p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-pretty">
+          Pick your look, set up your account, and fill your first feed with
+          people worth hearing from.
+        </p>
+      </div>
+
+      <Button
+        size="lg"
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+        onClick={onNext}
+      >
+        Start
+        <ChevronRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 }
@@ -459,25 +593,32 @@ function SetupQuestionnaire({
 
 function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <DittoLogo size={80} />
+    <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={64} className="relative sm:hidden" />
+        <DittoLogo size={80} className="relative hidden sm:block" />
+      </div>
 
-      <div className="space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight">
+      <div className="space-y-2 sm:space-y-3">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
           Create your account
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key. We'll generate one
-          for you now.
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto text-pretty">
+          This account belongs to you. Ditto will create a private key so you
+          can come back safely.
+        </p>
+        <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-sm mx-auto">
+          Keep it private. You don't need to understand the math.
         </p>
       </div>
 
       <Button
         size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
         onClick={onGenerate}
       >
-        Generate my key
+        Create my account key
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -487,36 +628,93 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
 function DownloadStep({
   nsec,
   onContinue,
+  onConfirm,
 }: {
   nsec: string;
+  /** Saves the key and logs in. Resolves on success; throws on failure. */
   onContinue: () => Promise<void> | void;
+  /** Advances to the next step. Called only after the user confirms they saved it. */
+  onConfirm: () => void;
 }) {
-  const { config } = useAppContext();
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // After the key is saved we don't advance immediately. Instead we show a
+  // small, calm confirmation ritual ("saved somewhere safe?") so the user
+  // takes one more beat to make sure they can find the key later. They only
+  // continue once they explicitly confirm.
+  const [confirming, setConfirming] = useState(false);
 
   // Wrap the continue handler in an in-flight guard so rapid double-taps
   // don't trigger multiple credential prompts. `finally` guarantees the
   // button is re-enabled even if the handler throws, so users can never
-  // get stuck on a disabled button.
-  const handleClick = async () => {
+  // get stuck on a disabled button. On success we move to the confirmation
+  // step; on failure (handler throws) we stay on the key view.
+  const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
     try {
       await onContinue();
+      setConfirming(true);
+    } catch {
+      // onContinue already surfaced a toast; keep the user on the key view.
     } finally {
       setIsSaving(false);
     }
   };
 
+  // "Show key again" — return to the key view with the key revealed so the
+  // user can re-save it before confirming.
+  const handleShowAgain = () => {
+    setConfirming(false);
+    setShowKey(true);
+  };
+
+  if (confirming) {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+        <div className="flex flex-col items-center text-center gap-4">
+          <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="size-7" />
+          </span>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold tracking-tight">
+              Saved somewhere safe?
+            </h2>
+            <p className="text-sm text-muted-foreground text-pretty">
+              Take one more second to make sure you can find it later.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Button
+            size="lg"
+            className="w-full gap-2 rounded-full h-12"
+            onClick={onConfirm}
+          >
+            <Check className="w-4 h-4" /> Yes, I saved it
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="w-full gap-2 rounded-full h-12"
+            onClick={handleShowAgain}
+          >
+            <Eye className="w-4 h-4" /> Show key again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Your secret key
+          Save your key
         </h2>
-        <p className="text-sm text-muted-foreground">
-          This secret key controls your account on {config.appName}. You'll need it to log in later. Without it, you'll lose your account.
+        <p className="text-sm text-muted-foreground text-pretty">
+          Save this key somewhere safe. It's how you get back in.
         </p>
       </div>
 
@@ -544,10 +742,19 @@ function DownloadStep({
         </Button>
       </div>
 
+      {/* Calm, always-visible safety note — "protect what's yours", not a scare. */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
+        <ShieldCheck className="size-4 mt-0.5 shrink-0 text-primary" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          If you lose it, you may lose access. If someone else gets it, they can
+          use your account.
+        </p>
+      </div>
+
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300">
-            NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account.{" "}
+            Keep your key private. Avoid screenshotting it or pasting it anywhere except a password manager, anyone who has it can use your account.{" "}
             <a
               href="https://soapbox.pub/blog/managing-nostr-keys/"
               onClick={(e) => {
@@ -565,7 +772,7 @@ function DownloadStep({
       <Button
         size="lg"
         className="w-full gap-2 rounded-full h-12"
-        onClick={handleClick}
+        onClick={handleSave}
         disabled={isSaving}
       >
         {isSaving ? (
@@ -716,10 +923,11 @@ function ProfileStep({
         <IntroImage src="/profile-intro.png" />
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">
-            Set up your profile
+            Make yourself recognizable
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Tell people a bit about yourself. You can always change this later.
+          <p className="text-sm text-muted-foreground text-pretty">
+            Add a name or photo so people know who they're meeting. You can
+            change this anytime.
           </p>
         </div>
       </div>
@@ -793,11 +1001,14 @@ function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
+  fromWelcome = false,
   isSaving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
   isFirst?: boolean;
+  /** Whether the user arrived here from the welcome step (signup flow). */
+  fromWelcome?: boolean;
   isSaving?: boolean;
 }) {
   const { theme, customTheme, themes } = useTheme();
@@ -805,36 +1016,170 @@ function ThemeStep({
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
   const bgUrl = activeConfig?.background?.url;
 
+  // Discovery: count how many *distinct* themes the user manually selects.
+  // We only reveal a small "create your own" affordance once they've actively
+  // explored 2+ different themes — it should feel like a reward for tinkering,
+  // not an extra required step. Crucially, we do NOT count the theme the user
+  // arrived with. A user who picks a single theme and continues never sees the
+  // custom option. The mini customizer below is local-only (applyCustomTheme
+  // writes to AppContext even when logged out), so a custom theme built here
+  // persists and can be published later from Settings once the account/key
+  // exists. We intentionally do NOT mount the full ThemeSelector here (presets,
+  // My Themes, publish/share) — too much surface for onboarding. The mini
+  // customizer is colors-only during signup: background-image customization is
+  // deferred until after account creation, where it can be uploaded to Blossom
+  // and persisted properly (see TODO in src/pages/SettingsPage.tsx).
+  //
+  // ThemeGrid applies a selection imperatively (setTheme / applyCustomTheme)
+  // and then calls `onSelect` synchronously — before AppContext (and therefore
+  // `theme` / `customTheme` here) has re-rendered with the new value. So we
+  // can't read the new theme inside the onSelect handler. Instead, onSelect
+  // flips a "the user has started picking" flag, and an effect keyed on the
+  // settled theme records each distinct theme *after* that first interaction.
+  // This is what keeps the initial theme out of the count.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const hasInteracted = useRef(false);
+
+  // Mobile carousel reveal gate. On mobile the themes are a one-at-a-time
+  // carousel, so simply swiping forward through 2 themes shouldn't reveal
+  // "create your own" the way trying 2 themes on the desktop grid does. Instead
+  // we reveal once the user has actually explored the set: they reached the last
+  // theme, OR they navigated backward at least once (comparing options). This
+  // is mobile-only and never persisted beyond onboarding. The desktop grid
+  // never fires `onCarouselNavigate`, so its behavior is untouched.
+  const [mobileExplored, setMobileExplored] = useState(false);
+  const handleCarouselNavigate = useCallback(
+    ({ reachedLast, wentBackward }: { reachedLast: boolean; wentBackward: boolean }) => {
+      if (reachedLast || wentBackward) setMobileExplored(true);
+    },
+    [],
+  );
+
+  // Which reveal rule applies depends on the layout, which is breakpoint-driven.
+  // ThemeGrid switches between the mobile carousel and the desktop grid at
+  // Tailwind's `sm` (640px), so we match that exact breakpoint here rather than
+  // the app-wide `useIsMobile` (768px) to avoid a 640–767px mismatch.
+  const [isDesktopLayout, setIsDesktopLayout] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 640px)");
+    const onChange = () => setIsDesktopLayout(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  const themeKey = theme === "custom"
+    ? `custom:${JSON.stringify(customTheme?.colors)}`
+    : theme;
+
+  const handleThemeSelected = useCallback(() => {
+    hasInteracted.current = true;
+  }, []);
+
+  useEffect(() => {
+    // Only start counting once the user has manually picked at least once.
+    // This deliberately skips the theme the user landed on.
+    if (!hasInteracted.current) return;
+    setPicked((prev) => {
+      if (prev.has(themeKey)) return prev;
+      const next = new Set(prev);
+      next.add(themeKey);
+      return next;
+    });
+  }, [themeKey]);
+
+  // Desktop: reward tinkering across 2+ distinct themes (unchanged).
+  // Mobile: only after the user explored the carousel (last theme or a
+  // backward move), so a couple of forward swipes don't reveal it early.
+  const showCustomReveal = isDesktopLayout ? picked.size >= 2 : mobileExplored;
+
+  // The theme-step content is laid over the active theme's published
+  // background (painted just below). We give it a readable semi-transparent
+  // surface whenever that background is visible.
+  const hasBg = Boolean(bgUrl);
+
   return (
     <>
-      {/* Background image — full screen behind everything */}
+      {/* Theme-step-only background: preview the *active theme's* own published
+          background here so picking a preset with art feels live. */}
       {bgUrl && (
         <div
+          aria-hidden="true"
           className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
           style={{ backgroundImage: `url(${bgUrl})` }}
         />
       )}
 
-      {/* Center content — semi-transparent on desktop when bg is active */}
+      {/* Content — semi-transparent on desktop when a background is active so
+          the theme-step background painted above shows through
+          without hurting readability. */}
       <div
         className={cn(
           "relative z-10 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400",
           "sm:rounded-2xl sm:transition-[background-color,backdrop-filter] sm:duration-700",
-          bgUrl
+          hasBg
             ? "sm:bg-background/60 sm:backdrop-blur-md sm:-mx-4 sm:px-4 sm:py-4"
             : "",
         )}
       >
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">
-            Choose your look
+            {fromWelcome ? "Good. Let's start with the look" : "Choose your look"}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Pick a theme that feels right.
+          <p className="text-sm text-muted-foreground transition-opacity duration-300">
+            {showCustomReveal
+              ? "Trying things out? Nice. You can also create your own look."
+              : "Pick a starting look. You can change it anytime."}
           </p>
         </div>
 
-        <ThemeGrid columns="scroll" limit={9} />
+        <ThemeGrid columns="scroll" limit={9} onSelect={handleThemeSelected} onCarouselNavigate={handleCarouselNavigate} />
+
+        {/* Discovery reveal: a small, local-only "create your own" affordance
+            that appears once the user has explored a couple of themes. Opens a
+            tiny color customizer — NOT the full ThemeSelector.
+
+            Entrance is a small "plim" discovery moment: a quick zoom-in + glow
+            pulse and a one-shot ring ping on the icon. All purely motion-safe —
+            reduced-motion users just get the card, no movement. No sound. */}
+        {showCustomReveal && (
+          <button
+            type="button"
+            onClick={() => setCustomizerOpen(true)}
+            className={cn(
+              "group relative flex items-center gap-3 rounded-xl border-2 border-dashed border-border p-3.5 text-left",
+              "transition-all duration-200 hover:border-primary/50 hover:bg-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              // "Plim": zoom + fade entrance, slightly springy easing.
+              "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 motion-safe:ease-out",
+              "motion-safe:active:scale-[0.98]",
+            )}
+          >
+            <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              {/* One-shot glow ring that pings outward on reveal, then settles. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-primary/40 motion-safe:animate-ping motion-safe:[animation-iteration-count:2] motion-reduce:hidden"
+              />
+              <Plus className="size-4 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-500" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Create your own</span>
+              <span className="block text-xs text-muted-foreground">
+                Pick a few colors and make it yours.
+              </span>
+            </span>
+          </button>
+        )}
+
+        {/* Tiny local color customizer (colors only during signup). */}
+        <MiniThemeCustomizer
+          open={customizerOpen}
+          onOpenChange={setCustomizerOpen}
+        />
 
         {isFirst ? (
           <Button
@@ -885,6 +1230,97 @@ function ThemeStep({
 }
 
 // ---------------------------------------------------------------------------
+// Mini Theme Customizer (onboarding-only)
+// ---------------------------------------------------------------------------
+
+/** The three editable core colors, in display order. */
+const MINI_COLOR_KEYS: { key: keyof CoreThemeColors; label: string }[] = [
+  { key: "primary", label: "Accent" },
+  { key: "background", label: "Background" },
+  { key: "text", label: "Text" },
+];
+
+/**
+ * A deliberately tiny, local-only theme customizer for onboarding.
+ *
+ * Exposes only the three core colors (accent, background, text). It does NOT
+ * pull in the full ThemeSelector (no presets, no My Themes, no publish/share),
+ * and it does NOT offer a background image during signup — background-image
+ * customization is deferred until after account creation, where it can be
+ * uploaded to Blossom and persisted properly (see TODO in
+ * src/pages/SettingsPage.tsx).
+ *
+ * Colors apply live via `applyCustomTheme`, which writes to AppContext even
+ * when logged out, so the result persists into the app and can be refined or
+ * published later from Settings.
+ */
+function MiniThemeCustomizer({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { theme, customTheme, themes, applyCustomTheme } = useTheme();
+
+  // Resolve the colors currently in effect so the pickers start from what the
+  // user already sees.
+  const effectiveColors = useMemo<CoreThemeColors>(() => {
+    if (theme === "custom" && customTheme) return customTheme.colors;
+    const resolved = resolveTheme(theme);
+    if (resolved === "custom") {
+      return customTheme?.colors ?? resolveThemeConfig("dark", themes).colors;
+    }
+    return resolveThemeConfig(resolved, themes).colors;
+  }, [theme, customTheme, themes]);
+
+  const handleColorChange = useCallback(
+    (key: keyof CoreThemeColors, hex: string) => {
+      const newColors: CoreThemeColors = {
+        ...effectiveColors,
+        [key]: hexToHslString(hex),
+      };
+      // Preserve any font/background the user already had on a custom theme.
+      applyCustomTheme({ ...customTheme, colors: newColors });
+    },
+    [effectiveColors, customTheme, applyCustomTheme],
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-center">Create your own</DialogTitle>
+          <DialogDescription className="text-center text-pretty">
+            Pick a few colors. Changes apply instantly — you can fine-tune more
+            later in Settings.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-2 py-2">
+          {MINI_COLOR_KEYS.map(({ key, label }) => (
+            <ColorPicker
+              key={key}
+              label={label}
+              className="min-w-0"
+              value={hslStringToHex(effectiveColors[key])}
+              onChange={(hex) => handleColorChange(key, hex)}
+            />
+          ))}
+        </div>
+
+        <Button
+          className="w-full rounded-full h-11"
+          onClick={() => onOpenChange(false)}
+        >
+          Done
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Follow Packs Step
 // ---------------------------------------------------------------------------
 
@@ -897,6 +1333,17 @@ function parsePackEvent(event: NostrEvent) {
   const pubkeys = event.tags.filter(([n]) => n === "p").map(([, pk]) => pk);
 
   return { title, description, image, pubkeys };
+}
+
+/** Look up a friendlier curated description for a known suggested pack. */
+function getPackDescriptionOverride(event: NostrEvent): string | undefined {
+  const identifier = event.tags.find(([n]) => n === "d")?.[1];
+  return SUGGESTED_PACKS.find(
+    (p) =>
+      p.kind === event.kind &&
+      p.pubkey === event.pubkey &&
+      p.identifier === identifier,
+  )?.description;
 }
 
 function FollowsStep({
@@ -922,6 +1369,12 @@ function FollowsStep({
   const [loading, setLoading] = useState(true);
   const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
   const [followingPack, setFollowingPack] = useState<string | null>(null);
+  // Local UI state for individual follows performed inside the people preview.
+  // Used only for button state and the didFollow/preload signal.
+  const [followedPubkeys, setFollowedPubkeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [followingPubkey, setFollowingPubkey] = useState<string | null>(null);
 
   // Fetch the suggested follow packs
   useEffect(() => {
@@ -955,15 +1408,26 @@ function FollowsStep({
     };
   }, [nostr]);
 
-  const handleFollowAll = useCallback(
-    async (pack: NostrEvent) => {
-      if (!user) return;
+  /**
+   * Shared merge/publish core for following one or more pubkeys. Preserves the
+   * original Follow All behavior exactly:
+   *  - keeps the expectedPubkey guard (refuses to publish to the wrong account);
+   *  - fetches the freshest kind 3 from relays (not cache);
+   *  - preserves non-p tags (relay hints, petnames, etc.) and existing p tags;
+   *  - adds only pubkeys not already followed;
+   *  - publishes kind 3 with `prev` for published_at preservation.
+   * Throws on guard failure or publish error so callers can manage their own
+   * in-flight/followed UI state.
+   */
+  const followPubkeys = useCallback(
+    async (pubkeys: string[]) => {
+      if (!user) throw new Error("Not logged in");
 
       // Defensive guard: when this is the signup flow, only publish kind 3
       // if the active signer matches the freshly generated key. Without
-      // this, a regression in the auto-switch would merge the follow pack
-      // into the *previously logged-in user's* contact list — silently
-      // adding follows to the wrong account.
+      // this, a regression in the auto-switch would merge follows into the
+      // *previously logged-in user's* contact list — silently adding follows
+      // to the wrong account.
       if (expectedPubkey && user.pubkey !== expectedPubkey) {
         toast({
           title: "Follows not saved",
@@ -971,8 +1435,39 @@ function FollowsStep({
             "The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.",
           variant: "destructive",
         });
-        return;
+        throw new Error("Signer does not match expected pubkey");
       }
+
+      // 1. Fetch freshest kind 3 from relays (not cache)
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [3],
+        authors: [user.pubkey],
+      });
+
+      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
+      const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
+      const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
+      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
+
+      // 3. Merge: add new pubkeys that aren't already followed
+      const newPTags = pubkeys
+        .filter((pk) => !existingPubkeys.has(pk))
+        .map((pk) => ["p", pk]);
+
+      // 4. Publish with prev for published_at preservation
+      await publishEvent({
+        kind: 3,
+        content: prev?.content ?? "",
+        tags: [...nonPTags, ...existingPTags, ...newPTags],
+        prev: prev ?? undefined,
+      });
+    },
+    [user, nostr, publishEvent, expectedPubkey],
+  );
+
+  const handleFollowAll = useCallback(
+    async (pack: NostrEvent) => {
+      if (!user) return;
 
       const packId = pack.id;
       setFollowingPack(packId);
@@ -982,29 +1477,7 @@ function FollowsStep({
           .filter(([n]) => n === "p")
           .map(([, pk]) => pk);
 
-        // 1. Fetch freshest kind 3 from relays (not cache)
-        const prev = await fetchFreshEvent(nostr, {
-          kinds: [3],
-          authors: [user.pubkey],
-        });
-
-        // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-        const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
-        const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
-        const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-        // 3. Merge: add new pubkeys that aren't already followed
-        const newPTags = packPubkeys
-          .filter((pk) => !existingPubkeys.has(pk))
-          .map((pk) => ["p", pk]);
-
-        // 4. Publish with prev for published_at preservation
-        await publishEvent({
-          kind: 3,
-          content: prev?.content ?? "",
-          tags: [...nonPTags, ...existingPTags, ...newPTags],
-          prev: prev ?? undefined,
-        });
+        await followPubkeys(packPubkeys);
 
         setFollowedPacks((prev) => new Set([...prev, packId]));
       } catch (error) {
@@ -1013,7 +1486,25 @@ function FollowsStep({
         setFollowingPack(null);
       }
     },
-    [user, nostr, publishEvent, expectedPubkey],
+    [user, followPubkeys],
+  );
+
+  const handleFollowPubkey = useCallback(
+    async (pubkey: string) => {
+      if (!user) return;
+
+      setFollowingPubkey(pubkey);
+
+      try {
+        await followPubkeys([pubkey]);
+        setFollowedPubkeys((prev) => new Set([...prev, pubkey]));
+      } catch (error) {
+        console.error("Failed to follow person:", error);
+      } finally {
+        setFollowingPubkey(null);
+      }
+    },
+    [user, followPubkeys],
   );
 
   return (
@@ -1022,9 +1513,8 @@ function FollowsStep({
         <h2 className="text-xl font-semibold tracking-tight">
           Find your people
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Your feed is empty! Follow some people to get started. Here are some
-          curated packs to help you find interesting voices.
+        <p className="text-sm text-muted-foreground text-pretty">
+          Follow a few starter voices so your first feed feels alive.
         </p>
       </div>
 
@@ -1043,9 +1533,13 @@ function FollowsStep({
             <PackCard
               key={pack.id}
               event={pack}
+              descriptionOverride={getPackDescriptionOverride(pack)}
               isFollowed={followedPacks.has(pack.id)}
               isFollowing={followingPack === pack.id}
               onFollowAll={() => handleFollowAll(pack)}
+              followedPubkeys={followedPubkeys}
+              followingPubkey={followingPubkey}
+              onFollowPubkey={handleFollowPubkey}
             />
           ))
         )}
@@ -1060,10 +1554,14 @@ function FollowsStep({
           Back
         </Button>
         <Button
-          onClick={() => onNext(followedPacks.size > 0)}
+          onClick={() =>
+            onNext(followedPacks.size > 0 || followedPubkeys.size > 0)
+          }
           className="flex-1 rounded-full h-11 gap-1.5"
         >
-          {followedPacks.size > 0 ? "Continue" : "Skip for now"}
+          {followedPacks.size > 0 || followedPubkeys.size > 0
+            ? "Continue"
+            : "Skip for now"}
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -1074,99 +1572,609 @@ function FollowsStep({
 /** Compact follow pack card for the onboarding flow. */
 function PackCard({
   event,
+  descriptionOverride,
   isFollowed,
   isFollowing,
   onFollowAll,
+  followedPubkeys,
+  followingPubkey,
+  onFollowPubkey,
 }: {
   event: NostrEvent;
+  descriptionOverride?: string;
   isFollowed: boolean;
   isFollowing: boolean;
   onFollowAll: () => void;
+  followedPubkeys: Set<string>;
+  followingPubkey: string | null;
+  onFollowPubkey: (pubkey: string) => void;
 }) {
   const { title, description, pubkeys } = useMemo(
     () => parsePackEvent(event),
     [event],
   );
 
-  // Show first 6 member avatars
-  const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
+  const displayDescription = descriptionOverride || description;
+
+  // The card has two modes: a compact "summary" and an inline "people" stepper.
+  // Switching is a state change on the same card — no modal, the user stays in
+  // the onboarding flow.
+  const [mode, setMode] = useState<"summary" | "people">("summary");
+
+  // In summary mode we only need metadata for the small preview cluster (first
+  // six). When the user opens the inline preview we widen the fetch to every
+  // member; useAuthors dedupes/caches, so the cluster's six are reused.
+  const clusterPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
+  const previewPubkeys = mode === "people" ? pubkeys : clusterPubkeys;
   const { data: membersMap } = useAuthors(previewPubkeys);
 
   return (
-    <div className="rounded-xl ring-1 ring-border overflow-hidden">
-      <div className="p-4 space-y-3">
-        {/* Title + member count */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-sm leading-snug">{title}</h3>
-            {description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {description}
-              </p>
+    <div
+      className={cn(
+        "group rounded-2xl ring-1 ring-border overflow-hidden bg-card/60",
+        "transition-all duration-200 hover:ring-primary/50 hover:shadow-md hover:shadow-primary/5",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300",
+      )}
+    >
+      {mode === "people" ? (
+        <PackPeoplePreview
+          pubkeys={pubkeys}
+          membersMap={membersMap}
+          isFollowed={isFollowed}
+          isFollowing={isFollowing}
+          onFollowAll={onFollowAll}
+          onBack={() => setMode("summary")}
+          followedPubkeys={followedPubkeys}
+          followingPubkey={followingPubkey}
+          onFollowPubkey={onFollowPubkey}
+        />
+      ) : (
+        <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+          {/* Warm gradient header band to make the card feel inviting, not flat. */}
+          <div className="relative bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),transparent_70%)] px-4 pt-4 pb-3 space-y-3">
+            {/* "Starter voices" badge + member count */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-medium text-primary">
+                <Sparkles className="size-3" />
+                Starter voices
+              </span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                <Users className="w-3.5 h-3.5" />
+                {pubkeys.length} people
+              </span>
+            </div>
+
+            {/* Title + description */}
+            <div className="min-w-0 space-y-1">
+              <h3 className="font-semibold text-base leading-snug">{title}</h3>
+              {displayDescription && (
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {displayDescription}
+                </p>
+              )}
+            </div>
+
+            {/* Avatar cluster — a quick visual that real people are inside. */}
+            {clusterPubkeys.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {clusterPubkeys.map((pk) => {
+                    const meta = membersMap?.get(pk)?.metadata;
+                    const name =
+                      meta?.display_name || meta?.name || "Anonymous";
+                    return (
+                      <MiniAvatar
+                        key={pk}
+                        src={meta?.picture}
+                        name={name}
+                        metadata={meta}
+                      />
+                    );
+                  })}
+                </div>
+                {pubkeys.length > clusterPubkeys.length && (
+                  <span className="text-[11px] text-muted-foreground">
+                    +{pubkeys.length - clusterPubkeys.length} more
+                  </span>
+                )}
+              </div>
             )}
           </div>
-          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0 mt-0.5">
-            <Users className="w-3.5 h-3.5" />
-            {pubkeys.length}
+
+          <div className="px-4 pb-4 pt-3">
+            {/* Actions: Follow All stays primary and easy; "Meet the people"
+                swaps this card into the inline people preview. */}
+            <div className="space-y-2">
+              <Button
+                className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+                size="sm"
+                variant={isFollowed ? "outline" : "default"}
+                onClick={onFollowAll}
+                disabled={isFollowed || isFollowing}
+              >
+                {isFollowing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Following...
+                  </>
+                ) : isFollowed ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Added to your follows
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Follow All ({pubkeys.length})
+                  </>
+                )}
+              </Button>
+
+              {pubkeys.length > 0 && (
+                <Button
+                  className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setMode("people")}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Meet the people
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Author attribution */}
+          <AuthorAttribution pubkey={event.pubkey} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Inline "meet the people" stepper that lives *inside* the pack card.
+ *
+ * The user taps "Meet the people" and the card swaps from summary mode to this
+ * people mode — no modal, so they stay inside the onboarding flow. One person
+ * is shown at a time from a local `index`; compact arrow buttons + a "N of M"
+ * indicator sit inside the card, and Left/Right arrow keys step too. "Follow
+ * all" stays visible.
+ *
+ * Theme/vibe preview: when the current person has published an active profile
+ * theme (kind 16767), we preview a SAFE SUBSET of it — only inside this card —
+ * so the card briefly takes on that person's actual Ditto vibe. The subset is:
+ *   - their theme background image (already https-sanitized at the parse layer),
+ *     used as a large *ambient* layer behind the whole preview, blurred + dimmed
+ *     under a scrim so text stays readable;
+ *   - their theme background COLOR, used as the ambient base tint (and to avoid
+ *     a white/black flash while the next image loads);
+ *   - their accent/primary color, used for accents (avatar ring, dots, badge,
+ *     decorative gradients) via a card-scoped `--pack-accent` CSS variable.
+ * We deliberately do NOT trust their theme's text color for body copy, and we
+ * never let the busy background sit directly behind text — all readable text
+ * lives inside a translucent `bg-card/…` + backdrop-blur panel, so contrast is
+ * guaranteed on both light and dark app themes. No theme font is applied (that
+ * would mean loading remote font assets and injecting them globally).
+ *
+ * If there is no published theme, we fall back to the person's kind-0 banner.
+ * If there's no banner either, the soft accent gradient shows through.
+ *
+ * This is strictly preview-only and LOCAL to this card. We never touch the
+ * user's theme, never call applyCustomTheme, never inject global `<style>`
+ * theme variables, never persist anything, and never write to Nostr. The theme
+ * colors/background are applied only via inline `style` on this card's own
+ * subtree (the parent card is `overflow-hidden`, so the ambient layer is
+ * clipped to the card and nothing leaks to the rest of the app).
+ *
+ * Performance: the theme is fetched only for the CURRENT person via
+ * useActiveProfileTheme (TanStack-cached, replaceable kind 16767, limit 1), so
+ * stepping reuses the cache and only the visible person triggers a query.
+ * Member kind-0 metadata is passed in from the parent (already fetched).
+ */
+function PackPeoplePreview({
+  pubkeys,
+  membersMap,
+  isFollowed,
+  isFollowing,
+  onFollowAll,
+  onBack,
+  followedPubkeys,
+  followingPubkey,
+  onFollowPubkey,
+}: {
+  pubkeys: string[];
+  membersMap?: Map<string, AuthorData>;
+  isFollowed: boolean;
+  isFollowing: boolean;
+  onFollowAll: () => void;
+  onBack: () => void;
+  followedPubkeys: Set<string>;
+  followingPubkey: string | null;
+  onFollowPubkey: (pubkey: string) => void;
+}) {
+  const total = pubkeys.length;
+  const [index, setIndex] = useState(0);
+
+  const safeIndex = total > 0 ? Math.min(index, total - 1) : 0;
+  const currentPubkey = pubkeys[safeIndex];
+  const meta = currentPubkey ? membersMap?.get(currentPubkey)?.metadata : undefined;
+
+  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const goNext = useCallback(
+    () => setIndex((i) => Math.min(total - 1, i + 1)),
+    [total],
+  );
+
+  const atStart = safeIndex === 0;
+  const atEnd = safeIndex >= total - 1;
+
+  // Individual follow state for the person currently in view. The whole pack
+  // being followed implies this person is followed too. Disable the button
+  // while the pack follow is in flight, or while this person's own follow is
+  // in flight, to avoid concurrent kind 3 publishes overwriting each other.
+  const isCurrentFollowed =
+    isFollowed ||
+    (currentPubkey ? followedPubkeys.has(currentPubkey) : false);
+  const isCurrentFollowing = followingPubkey === currentPubkey;
+  const isAnyFollowInFlight = isFollowing || followingPubkey !== null;
+
+  // Keyboard support: Left/Right step between people while the preview is open.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goPrev();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goNext();
+      }
+    },
+    [goPrev, goNext],
+  );
+
+  const name = meta?.display_name || meta?.name || "Anonymous";
+  const bio = meta?.about?.replace(/\s+/g, " ").trim();
+  const bannerUrl = sanitizeUrl(meta?.banner);
+  const pictureUrl = sanitizeUrl(meta?.picture);
+
+  // Real theme preview: try the current person's published active profile
+  // theme (kind 16767). Fetched only for the visible person (TanStack-cached),
+  // so stepping reuses the cache. Strictly preview-only and local to this card.
+  const { data: activeTheme } = useActiveProfileTheme(currentPubkey);
+
+  // Safe preview subset:
+  //  - background image: already https-sanitized at the parse layer
+  //    (parseBackgroundTag -> sanitizeUrl), re-sanitized here as defense in
+  //    depth before it touches a CSS `url()`.
+  //  - background color + accent (primary): HSL triples like "228 20% 10%".
+  //    Used for the ambient layer + accents via card-scoped CSS vars. We do
+  //    NOT adopt their text color for body copy — contrast stays guaranteed.
+  const themeBgUrl = sanitizeUrl(activeTheme?.background?.url);
+  const themeAccent = activeTheme?.colors.primary;
+  const themeBgColor = activeTheme?.colors.background;
+
+  // Two distinct visual roles, with cross-fallbacks:
+  //   - Banner tile = "their profile" → prefer the kind-0 profile banner,
+  //     fall back to the theme background image.
+  //   - Card ambient = "their theme/space" → prefer the kind 16767 theme
+  //     background image, fall back to the profile banner.
+  // If neither exists for a role, the accent/primary gradient shows through.
+  // All URLs are sanitized https (or undefined).
+  const tileBgUrl = bannerUrl ?? themeBgUrl;
+  const ambientBgUrl = themeBgUrl ?? bannerUrl;
+
+  // Scope the theme to this card only. Setting CSS vars via inline style
+  // cascades to descendants but never leaks globally — the app's own
+  // `--primary`/`--background` stay untouched everywhere else.
+  const cardStyle: React.CSSProperties | undefined =
+    themeAccent || themeBgColor
+      ? ({
+          ...(themeAccent ? { "--pack-accent": themeAccent } : {}),
+          ...(themeBgColor ? { "--pack-bg": themeBgColor } : {}),
+        } as React.CSSProperties)
+      : undefined;
+
+  // Prefer a friendly handle (NIP-05 / @name); fall back to a shortened npub
+  // so the slide never looks empty even with no metadata at all.
+  const npub = currentPubkey ? tryNpubEncode(currentPubkey) : undefined;
+  const handle = meta?.nip05
+    ? meta.nip05.replace(/^_@/, "")
+    : meta?.name
+      ? `@${meta.name}`
+      : npub
+        ? `${npub.slice(0, 12)}…${npub.slice(-6)}`
+        : undefined;
+
+  return (
+    <div
+      className="relative overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+      style={cardStyle}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="group"
+      aria-label="Meet the people in this pack"
+    >
+      {/* Ambient theme layer — a large preview of the person's actual Ditto
+          SPACE behind the WHOLE inline preview. Prefers their kind 16767 theme
+          background image (falls back to their profile banner). Built in layers
+          so it reads strongly while staying readable:
+            1. their theme background COLOR as a base tint (also prevents a
+               white/black flash while the next person's image loads);
+            2. their theme background IMAGE — only lightly blurred and fairly
+               opaque now, so it's clearly recognizable as their space;
+            3. an accent-tinted decorative glow;
+            4. a scrim that stays light over the banner/top but deepens toward
+               the readable content panel so body text always has a calm backing.
+          Everything is contained by the parent's overflow-hidden + the card's
+          own overflow-hidden, and applied only via scoped CSS vars / inline
+          style — it never leaves this card. Keyed by pubkey so it cross-fades
+          smoothly when stepping between people. */}
+      <div
+        key={currentPubkey}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700"
+      >
+        {/* 1. Base color tint (graceful fallback while image loads). */}
+        {themeBgColor && (
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: "hsl(var(--pack-bg) / 0.7)" }}
+          />
+        )}
+        {/* 2. Theme background image — lightly blurred + fairly opaque so the
+            person's space is recognizable, not just a vague wash. */}
+        {ambientBgUrl && (
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-70 blur-[2px] scale-105 transition-opacity duration-700"
+            style={{ backgroundImage: `url("${ambientBgUrl}")` }}
+          />
+        )}
+        {/* 3. Accent glow for warmth. */}
+        <div
+          className="absolute inset-x-0 top-0 h-48 opacity-70"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 50% 0%, hsl(var(--pack-accent,var(--primary)) / 0.4), transparent 70%)",
+          }}
+        />
+        {/* 4. Readability scrim — light at the top (lets the banner/image read)
+            and deepening toward the content so the info panel stays legible. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-card/30 via-card/55 to-card/90" />
+      </div>
+
+      <div className="relative">
+        {/* Top bar: back to summary + position indicator. */}
+        <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 -ml-2 gap-1.5 text-xs"
+            onClick={onBack}
+          >
+            <ChevronLeft className="size-3.5" />
+            Back to pack
+          </Button>
+          <span
+            className="text-xs font-medium text-muted-foreground tabular-nums shrink-0"
+            aria-live="polite"
+          >
+            {safeIndex + 1} of {total}
           </span>
         </div>
 
-        {/* Member avatar stack */}
-        <div className="flex items-center gap-1">
-          <div className="flex -space-x-2">
-            {previewPubkeys.map((pk) => {
-              const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
-              return (
-                <MiniAvatar
-                  key={pk}
-                  src={member?.metadata?.picture}
-                  name={name}
-                />
-              );
-            })}
-          </div>
-          {pubkeys.length > previewPubkeys.length && (
-            <span className="text-xs text-muted-foreground ml-1">
-              +{pubkeys.length - previewPubkeys.length} more
-            </span>
+        {/* Banner tile = "their profile" — prefers the kind-0 profile banner
+            (falls back to the theme background image). Accent-tinted gradient
+            fallback + accent ring tie it to their theme. */}
+        <div
+          className="relative mx-4 h-20 overflow-hidden rounded-xl bg-[linear-gradient(135deg,hsl(var(--pack-accent,var(--primary))/0.3),hsl(var(--pack-accent,var(--primary))/0.06))] ring-1"
+          style={{ ["--tw-ring-color" as string]: "hsl(var(--pack-accent,var(--primary)) / 0.35)" }}
+        >
+          {tileBgUrl && (
+            <img
+              key={currentPubkey}
+              src={tileBgUrl}
+              alt=""
+              className="absolute inset-0 size-full object-cover motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500"
+              loading="lazy"
+            />
+          )}
+          {/* Readability scrim over the image so the avatar overlap stays
+              legible regardless of how busy the banner/theme background is. */}
+          {tileBgUrl && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"
+            />
           )}
         </div>
 
-        {/* Follow All button */}
-        <Button
-          className="w-full gap-2"
-          size="sm"
-          variant={isFollowed ? "outline" : "default"}
-          onClick={onFollowAll}
-          disabled={isFollowed || isFollowing}
-        >
-          {isFollowing ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Following...
-            </>
-          ) : isFollowed ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              Added to your follows
-            </>
-          ) : (
-            <>
-              <UserPlus className="w-3.5 h-3.5" />
-              Follow All ({pubkeys.length})
-            </>
-          )}
-        </Button>
-      </div>
+        <div className="px-4 pb-2.5">
+          <Avatar
+            className="size-14 -mt-7 ring-4 shadow-sm"
+            shape={getAvatarShape(meta)}
+            style={{
+              ["--tw-ring-color" as string]:
+                "hsl(var(--pack-accent,var(--primary)) / 0.55)",
+            }}
+          >
+            <AvatarImage src={pictureUrl} alt={name} />
+            <AvatarFallback
+              className="text-lg"
+              style={{
+                backgroundColor: "hsl(var(--pack-accent,var(--primary)) / 0.18)",
+                color: "hsl(var(--pack-accent,var(--primary)))",
+              }}
+            >
+              {name[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
 
-      {/* Author attribution */}
-      <AuthorAttribution pubkey={event.pubkey} />
+          {/* Readable panel: name + handle + bio live on a translucent card
+              layer with backdrop blur so the body text keeps strong contrast
+              over the ambient theme, on both light and dark app themes. We
+              never use the person's theme text color here — only an accent
+              ring + a thin accent top-line tie the panel to their theme. */}
+          <div
+            className="relative mt-2 overflow-hidden rounded-xl bg-card/80 ring-1 backdrop-blur-md px-3 py-2 shadow-sm"
+            style={{
+              ["--tw-ring-color" as string]:
+                "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+            }}
+          >
+            {/* Thin accent line along the top edge of the info panel. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-0.5"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, hsl(var(--pack-accent,var(--primary)) / 0.8), transparent)",
+              }}
+            />
+            <div className="space-y-0.5">
+              <p className="font-semibold text-sm leading-tight truncate text-card-foreground">
+                {name}
+              </p>
+              {/* Always reserve the handle line's height so the card doesn't
+                  shift when a person has no handle. */}
+              <p className="h-4 text-xs text-muted-foreground truncate">
+                {handle ?? "\u00A0"}
+              </p>
+            </div>
+
+            {/* Fixed-height bio area: exactly two text-xs/leading-relaxed
+                lines (~2.5rem). line-clamp-2 truncates long bios; short or
+                missing bios ("No bio yet.") still occupy the same height, so
+                the panel — and the controls below it — never shift between
+                people. Two lines (down from three) keeps the bio readable
+                while trimming vertical height on short/mobile screens. */}
+            <p className="mt-1.5 h-[2.5rem] overflow-hidden text-xs text-muted-foreground leading-relaxed line-clamp-2">
+              {bio || "No bio yet."}
+            </p>
+          </div>
+        </div>
+
+        {/* Stepper controls + Follow All. */}
+        <div className="px-4 pb-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-9 shrink-0 rounded-full ring-1 hover:bg-[hsl(var(--pack-accent,var(--primary))/0.12)]"
+              style={{
+                ["--tw-ring-color" as string]:
+                  "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+              }}
+              onClick={goPrev}
+              disabled={atStart}
+              aria-label="Previous person"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+
+            <div className="flex flex-1 justify-center gap-1" aria-hidden="true">
+              {/* Compact progress dots, capped so long packs don't overflow. */}
+              {total <= 12 ? (
+                pubkeys.map((pk, i) => (
+                  <span
+                    key={pk}
+                    className="size-1.5 rounded-full transition-colors"
+                    style={{
+                      backgroundColor:
+                        i === safeIndex
+                          ? "hsl(var(--pack-accent,var(--primary)))"
+                          : "hsl(var(--muted-foreground) / 0.3)",
+                    }}
+                  />
+                ))
+              ) : (
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {safeIndex + 1} / {total}
+                </span>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-9 shrink-0 rounded-full ring-1 hover:bg-[hsl(var(--pack-accent,var(--primary))/0.12)]"
+              style={{
+                ["--tw-ring-color" as string]:
+                  "hsl(var(--pack-accent,var(--primary)) / 0.4)",
+              }}
+              onClick={goNext}
+              disabled={atEnd}
+              aria-label="Next person"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          <Button
+            className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+            size="sm"
+            variant={isCurrentFollowed ? "outline" : "default"}
+            onClick={() => currentPubkey && onFollowPubkey(currentPubkey)}
+            disabled={
+              !currentPubkey ||
+              isCurrentFollowed ||
+              isCurrentFollowing ||
+              isFollowing
+            }
+          >
+            {isCurrentFollowing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Following…
+              </>
+            ) : isCurrentFollowed ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Following
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-3.5 h-3.5" />
+                Follow
+              </>
+            )}
+          </Button>
+
+          <Button
+            className="w-full gap-2 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
+            size="sm"
+            variant={isFollowed ? "outline" : "secondary"}
+            onClick={onFollowAll}
+            disabled={isFollowed || isAnyFollowInFlight}
+          >
+            {isFollowing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Following...
+              </>
+            ) : isFollowed ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Added to your follows
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-3.5 h-3.5" />
+                Follow All ({total})
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
 /** Small author attribution bar at the bottom of a pack card. */
+
 function AuthorAttribution({ pubkey }: { pubkey: string }) {
   const { data: authorData } = useAuthors([pubkey]);
   const metadata: NostrMetadata | undefined = authorData?.get(pubkey)?.metadata;
@@ -1186,7 +2194,7 @@ function AuthorAttribution({ pubkey }: { pubkey: string }) {
 function MiniAvatar({ src, name, metadata }: { src?: string; name: string; metadata?: NostrMetadata }) {
   return (
     <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
-      <AvatarImage src={src} alt={name} />
+      <AvatarImage src={sanitizeUrl(src)} alt={name} />
       <AvatarFallback className="bg-primary/15 text-primary text-[10px]">
         {name[0]?.toUpperCase()}
       </AvatarFallback>
@@ -1223,58 +2231,29 @@ function PackCardSkeleton() {
 
 function OutroStep({ onComplete }: { onComplete: () => void }) {
   return (
-    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="relative">
-        <DittoLogo size={72} />
-        <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5">
+    <div className="flex flex-col items-center text-center gap-6 sm:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="relative motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-700">
+        <div className="absolute -inset-5 rounded-full bg-primary/15 blur-2xl motion-safe:animate-pulse" />
+        <DittoLogo size={64} className="relative sm:hidden" />
+        <DittoLogo size={72} className="relative hidden sm:block" />
+        <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5 motion-safe:animate-in motion-safe:zoom-in motion-safe:duration-500 motion-safe:delay-200 motion-safe:fill-mode-both">
           <Heart className="w-5 h-5 text-primary fill-primary" />
         </div>
       </div>
 
-      <div className="space-y-3 max-w-xs">
-        <h2 className="text-2xl font-bold tracking-tight">You're all set</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          That's it! Go find something wonderful, share something fun, and make
-          yourself at home.
+      <div className="space-y-2 sm:space-y-3 max-w-xs">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">You're in</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+          {GENERIC_OUTRO}
         </p>
       </div>
 
       <Button
         size="lg"
-        className="w-full max-w-xs gap-2 rounded-full h-12"
+        className="w-full max-w-xs gap-2 rounded-full h-12 motion-safe:transition-transform motion-safe:active:scale-[0.98]"
         onClick={onComplete}
       >
-        Let's go
-        <ChevronRight className="w-4 h-4" />
-      </Button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Shared nav buttons
-// ---------------------------------------------------------------------------
-
-function _StepNav({
-  onBack,
-  onNext,
-  nextLabel = "Continue",
-}: {
-  onBack: () => void;
-  onNext: () => void;
-  nextLabel?: string;
-}) {
-  return (
-    <div className="flex gap-3">
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="flex-1 rounded-full h-11"
-      >
-        Back
-      </Button>
-      <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5">
-        {nextLabel}
+        Start exploring
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
