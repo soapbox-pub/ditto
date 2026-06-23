@@ -6,9 +6,29 @@ import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { AppPool } from '@/lib/AppPool';
-import { type EventsDB, EVENTS_STORE, INDEX, NIndexedDB } from '@/lib/NIndexedDB';
-import { type IDBPDatabase, openDB } from 'idb';
+import { NIndexedDB } from '@nostrify/indexeddb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
+
+/**
+ * IndexedDB database name for the events cache.
+ *
+ * `@nostrify/indexeddb` installs its own schema at version 1, while the old
+ * in-tree `NIndexedDB` used the `ditto-events` database at version 2. Opening
+ * an existing database at a *lower* version throws, which the package catches
+ * and degrades to a permanent no-op. To avoid that, the package-backed cache
+ * lives under a fresh name; the old `ditto-events` database is a disposable
+ * cache (everything re-fetches from relays) and is deleted on startup.
+ */
+const EVENTS_DB_NAME = 'nostr';
+
+/** Best-effort deletion of the abandoned legacy events cache database. */
+function deleteLegacyEventsDB(): void {
+  try {
+    indexedDB?.deleteDatabase('ditto-events');
+  } catch {
+    // Ignore — the legacy database is disposable.
+  }
+}
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -29,7 +49,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // the rest of the app share a single connection. The cache is append-only;
   // it is never automatically pruned.
   const eventStore = useRef<NIndexedDB | undefined>(undefined);
-  eventStore.current ??= new NIndexedDB(openNostrStorage());
+  eventStore.current ??= new NIndexedDB(EVENTS_DB_NAME);
 
 
   // Use refs so the pool always has the latest data
@@ -179,6 +199,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     };
   }, []);
 
+  // Drop the abandoned legacy events cache database (replaced by the
+  // package-backed store under a new name). Best-effort, runs once.
+  useEffect(() => {
+    deleteLegacyEventsDB();
+  }, []);
+
   // Provide the AppPool as the `nostr` object. It has the same interface
   // as NPool, so hooks using `useNostr()` get transparent caching and batching.
   // The `as unknown as NPool` cast is safe because AppPool exposes
@@ -193,35 +219,3 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 };
 
 export default NostrProvider;
-
-/**
- * Open (or create) the events cache database. Resolves to the connection, or
- * `null` if IndexedDB is unavailable — passed straight into the `NIndexedDB`
- * constructor, which awaits it internally and degrades to a no-op on `null`.
- */
-async function openNostrStorage(): Promise<IDBPDatabase<EventsDB> | null> {
-  try {
-    return await openDB<EventsDB>('ditto-events', 2, {
-      upgrade(db) {
-        // The schema is an incompatible rewrite of the old `nostr_events` /
-        // `addr` layout. The store is a disposable cache (everything
-        // re-fetches from relays), so we drop the old stores and start fresh
-        // rather than migrating. Old store names aren't in the typed schema,
-        // so iterate via the untyped name list.
-        for (const existing of Array.from(db.objectStoreNames) as string[]) {
-          db.deleteObjectStore(existing as typeof EVENTS_STORE);
-        }
-
-        const store = db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
-        store.createIndex(INDEX.createdAt, 'created_at');
-        store.createIndex(INDEX.pubkey, ['pubkey', 'created_at']);
-        store.createIndex(INDEX.kind, ['kind', 'created_at']);
-        store.createIndex(INDEX.pubkeyKind, ['pubkey', 'kind', 'created_at']);
-        store.createIndex(INDEX.tag, '_tagsCreated', { multiEntry: true });
-      },
-    });
-  } catch {
-    // IndexedDB unavailable — degrade to a no-op store.
-    return null;
-  }
-}

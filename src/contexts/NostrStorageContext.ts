@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { NIndexedDB } from '@/lib/NIndexedDB';
+import type { NIndexedDB } from '@nostrify/indexeddb';
 
 /**
  * The app-wide IndexedDB event store. Its connection may still be opening, but

@@ -67,6 +67,7 @@
     "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
+    "@nostrify/indexeddb": "^0.1.0",
     "@nostrify/nostrify": "^0.53.0",
     "@nostrify/react": "^0.6.3",
     "@nostrify/types": "^0.37.0",
