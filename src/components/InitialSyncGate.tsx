@@ -1028,7 +1028,8 @@ function ThemeStep({
   // My Themes, publish/share) — too much surface for onboarding. The mini
   // customizer is colors-only during signup: background-image customization is
   // deferred until after account creation, where it can be uploaded to Blossom
-  // and persisted properly (see TODO in src/pages/SettingsPage.tsx).
+  // and persisted properly (see TODO in
+  // src/components/ContentSettings.tsx / ThemePreferencesSection).
   //
   // ThemeGrid applies a selection imperatively (setTheme / applyCustomTheme)
   // and then calls `onSelect` synchronously — before AppContext (and therefore
@@ -1248,7 +1249,7 @@ const MINI_COLOR_KEYS: { key: keyof CoreThemeColors; label: string }[] = [
  * and it does NOT offer a background image during signup — background-image
  * customization is deferred until after account creation, where it can be
  * uploaded to Blossom and persisted properly (see TODO in
- * src/pages/SettingsPage.tsx).
+ * src/components/ContentSettings.tsx / ThemePreferencesSection).
  *
  * Colors apply live via `applyCustomTheme`, which writes to AppContext even
  * when logged out, so the result persists into the app and can be refined or
