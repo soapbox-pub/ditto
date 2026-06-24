@@ -9,6 +9,7 @@ import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { getStorageKey } from "@/lib/storageKey";
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
+import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import type { ThemeConfig } from "@/themes";
 
 
@@ -232,6 +233,14 @@ export function NostrSync() {
               updates.sidebarOrder = [];
               changed = true;
             }
+            // Reset right-sidebar widgets to the app defaults too.
+            if (
+              JSON.stringify(current.sidebarWidgets ?? []) !==
+              JSON.stringify(DEFAULT_SIDEBAR_WIDGETS)
+            ) {
+              updates.sidebarWidgets = DEFAULT_SIDEBAR_WIDGETS;
+              changed = true;
+            }
             if (current.homePage !== "feed") {
               updates.homePage = "feed";
               changed = true;
@@ -370,6 +379,25 @@ export function NostrSync() {
           JSON.stringify(current.sidebarOrder)
       ) {
         updates.sidebarOrder = encryptedSettings.sidebarOrder;
+        changed = true;
+      }
+
+      if (
+        encryptedSettings.sidebarWidgets &&
+        JSON.stringify(encryptedSettings.sidebarWidgets) !==
+          JSON.stringify(current.sidebarWidgets)
+      ) {
+        updates.sidebarWidgets = encryptedSettings.sidebarWidgets;
+        changed = true;
+      } else if (
+        isSwitch &&
+        !encryptedSettings.sidebarWidgets &&
+        JSON.stringify(current.sidebarWidgets ?? []) !==
+          JSON.stringify(DEFAULT_SIDEBAR_WIDGETS)
+      ) {
+        // The new user never saved widgets — reset to app defaults so the
+        // previous account's widgets don't bleed through.
+        updates.sidebarWidgets = DEFAULT_SIDEBAR_WIDGETS;
         changed = true;
       }
 

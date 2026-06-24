@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import type { WidgetConfig } from '@/contexts/AppContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -189,6 +190,17 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
 
 /** Pre-built Map for O(1) widget definition lookup. */
 const WIDGET_MAP = new Map(WIDGET_DEFINITIONS.map((w) => [w.id, w]));
+
+/**
+ * Default right-sidebar widgets for fresh installs / accounts with no
+ * synced widget config. Kept here so both the AppConfig default and the
+ * account-switch reset in NostrSync reference a single source of truth.
+ */
+export const DEFAULT_SIDEBAR_WIDGETS: WidgetConfig[] = [
+  { id: 'trends' },
+  { id: 'hot-posts' },
+  { id: 'wikipedia' },
+];
 
 /** Lookup a widget definition by ID. */
 export function getWidgetDefinition(id: string): WidgetDefinition | undefined {

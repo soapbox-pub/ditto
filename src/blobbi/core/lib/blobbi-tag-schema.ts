@@ -100,7 +100,7 @@ export const BLOBBI_TAG_SCHEMA: readonly BlobbiTagSchema[] = [
     source: 'system',
     regenerable: false,
     format: 'blobbi-{pubkeyPrefix12}-{petId10}',
-    notes: 'Canonical format required. Legacy formats trigger migration.',
+    notes: 'Canonical format required. Unsupported legacy Blobbi formats are ignored by the current app.',
   },
   {
     tag: 'b',
@@ -821,8 +821,10 @@ const VALID_STATES_BY_STAGE: Record<BlobbiStage, Set<string>> = {
 
 /**
  * Task-process states that should NOT remain in the `state` tag after stage transitions.
- * With the new model, state should never be 'incubating'/'evolving' — but we keep this
- * for migration: if a legacy event has them in state, the repair will fix it.
+ * With the new model, state should never be 'incubating'/'evolving'. This repair
+ * normalizes the internal state→progression_state model on events that are
+ * already being published (current Ditto Blobbis); it is NOT an old-app event
+ * migration path — unsupported old-app events never reach a publish.
  */
 const TASK_PROCESS_STATES = new Set(['incubating', 'evolving']);
 

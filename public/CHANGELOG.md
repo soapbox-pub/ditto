@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.23.4] - 2026-06-18
+
+A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.
+
+### Changed
+- Profiles and feeds load faster with fewer wasteful network requests
+
+## [2.23.3] - 2026-06-18
+
+A polish-focused update for how content shows up in your feed. Quoted posts now display their photos and videos inline, articles get rich preview cards, and short or media-heavy posts stop getting cut off early. Links to outside articles gain a one-tap "Open" button, Reddit embeds show at full height, and your home-screen widgets now stay in sync across all your devices. Plus assorted fixes to video previews, search, and embed spacing.
+
+### Added
+- Your sidebar widgets now sync across all your devices
+
+### Changed
+- Quoted posts now show their photos and videos inline, and articles render as rich preview cards
+- Articles linked from outside Ditto show an "Open" button and a source chip with the site's name and icon
+- Short posts, multi-image galleries, and video and audio posts are no longer cut off early in the feed
+- Reddit embeds now render at their full height
+- The profile "Posts" tab is now labeled "Feed"
+- External link discussions now appear inline on comment pages
+- The "Event not found" screen now has a "Try again" button
+- Old-format companion (Blobbi) items from other apps are now hidden instead of showing up broken
+
+### Fixed
+- Video previews now play correctly in the mobile app
+- Searching again while already on the search page now works
+
 ## [2.23.2] - 2026-06-14
 
 Ditto feels faster. Posts and profiles you've already seen now load instantly from your device, your own posts show up the moment you publish them, and the app holds up better when your connection is spotty. App pages also gained an Active Users graph so you can see how busy an app is at a glance, and the music section has a fresh set of curated artists to discover.

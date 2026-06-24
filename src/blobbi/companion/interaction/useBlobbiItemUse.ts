@@ -188,8 +188,10 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     
     // Parse the new event to get the updated companion
     const parsed = parseBlobbiEvent(event);
-    if (!parsed) {
-      // Fallback to invalidation if parsing fails
+    if (!parsed || parsed.isLegacy) {
+      // Fallback to invalidation if parsing fails. Defense-in-depth: also bail
+      // for old-format / unsupported Blobbis so they never enter companionsByD,
+      // mirroring the guard in useBlobbisCollection.updateCompanionEvent.
       queryClient.invalidateQueries({ 
         queryKey: ['blobbi-collection', user.pubkey] 
       });

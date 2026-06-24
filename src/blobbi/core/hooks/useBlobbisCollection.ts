@@ -8,12 +8,26 @@ import {
   KIND_BLOBBI_STATE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
   isValidBlobbiEvent,
+  isLegacyBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiCompanion,
 } from '../lib/blobbi';
 
 /** Maximum number of d-tags per query chunk to avoid relay issues */
 const CHUNK_SIZE = 20;
+
+/**
+ * Stable, deterministic owned-Blobbi ordering, by d-tag.
+ *
+ * Callers use `companions[0]` as the default-selection fallback, so the order
+ * must not depend on relay return order or optimistic-update insertion order.
+ * The d-tag is the only per-Blobbi identifier stable across the replaceable
+ * event's republishes (`created_at` and event `id` both change per care
+ * action). This replaces the former reliance on the profile `has` list.
+ */
+function sortCompanions(companions: BlobbiCompanion[]): BlobbiCompanion[] {
+  return [...companions].sort((a, b) => a.d.localeCompare(b.d));
+}
 
 /**
  * Split an array into chunks of a given size.
@@ -115,10 +129,18 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       
       console.log('[useBlobbisCollection] Total events received:', allEvents.length);
       
-      // Filter to valid events
-      const validEvents = allEvents.filter(isValidBlobbiEvent);
-      
-      console.log('[useBlobbisCollection] Valid events:', validEvents.length);
+      // Filter to valid events.
+      //
+      // Old-app legacy Blobbis are unsupported: they must never reach the UI,
+      // be selected, or be republished. Automatic migration into the canonical
+      // format was removed, so we exclude legacy-format events here at the
+      // single source of truth. A user with only legacy Blobbis is treated as
+      // having no current Blobbi (normal empty / new-user flow).
+      const validEvents = allEvents.filter(
+        (event) => isValidBlobbiEvent(event) && !isLegacyBlobbiEvent(event),
+      );
+
+      console.log('[useBlobbisCollection] Valid (canonical, non-legacy) events:', validEvents.length);
       
       // Group events by d-tag and keep only the newest per d
       const eventsByD = new Map<string, NostrEvent>();
@@ -139,18 +161,27 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       
       for (const [dTag, event] of eventsByD) {
         const parsed = parseBlobbiEvent(event);
-        if (parsed) {
+        // Ignore old-format / unsupported Blobbi events entirely. They must not
+        // render, be selectable, or trigger migration. isValidBlobbiEvent above
+        // is schema-level validation; this drops legacy companions at the parsed
+        // layer so nothing downstream (page, widget, floating companion) sees them.
+        if (parsed && !parsed.isLegacy) {
           companionsByD[dTag] = parsed;
           companions.push(parsed);
         }
       }
-      
+
+      // Stable, deterministic ordering by d-tag (see sortCompanions). This
+      // replaces the former reliance on the profile `has` list as the
+      // ownership-order source of truth.
+      const sortedCompanions = sortCompanions(companions);
+
       console.log('[useBlobbisCollection] Parsed companions:', {
-        count: companions.length,
+        count: sortedCompanions.length,
         dTags: Object.keys(companionsByD),
       });
-      
-      return { companionsByD, companions };
+
+      return { companionsByD, companions: sortedCompanions };
     },
     enabled: !!user?.pubkey && (mode === 'all' || (!!sortedDList && sortedDList.length > 0)),
     staleTime: 30_000, // 30 seconds
@@ -179,7 +210,10 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
   // and companion layer cache stay in sync (they use different query modes).
   const updateCompanionEvent = useCallback((event: NostrEvent) => {
     const parsed = parseBlobbiEvent(event);
-    if (!parsed || !user?.pubkey) return;
+    // Mirror the collection parse-loop guard: never let an old-format /
+    // unsupported Blobbi enter companionsByD via the optimistic cache path,
+    // even if a future caller accidentally passes one.
+    if (!parsed || parsed.isLegacy || !user?.pubkey) return;
     
     type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
     const matchingQueries = queryClient.getQueriesData<CollectionData>({
@@ -191,7 +225,7 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
       const newCompanionsByD = { ...data.companionsByD, [parsed.d]: parsed };
       queryClient.setQueryData<CollectionData>(queryKey, {
         companionsByD: newCompanionsByD,
-        companions: Object.values(newCompanionsByD),
+        companions: sortCompanions(Object.values(newCompanionsByD)),
       });
     }
 

@@ -30,6 +30,11 @@ interface StreamPostsOptions {
   authorPubkeys?: string[];
   /** NIP-50 sort preference. 'recent' = default (no sort: term). */
   sort?: 'recent' | 'hot' | 'trending';
+  /**
+   * When set, limits results to events published with one of these `client`
+   * tag values (NIP-89). Used by the "Only Ditto users" search filter.
+   */
+  clientTags?: string[];
 }
 
 /** Check if an event has imeta tags with image MIME types. */
@@ -85,6 +90,12 @@ function filterEvent(
   // Filter replies (kind 1 and 1111 only)
   if (event.kind === 1 || event.kind === 1111) {
     if (!options.includeReplies && isReplyEvent(event)) return false;
+  }
+
+  // Client filter — only keep events published with a matching NIP-89 `client` tag.
+  if (options.clientTags && options.clientTags.length > 0) {
+    const clientValue = event.tags.find(([name]) => name === 'client')?.[1];
+    if (!clientValue || !options.clientTags.includes(clientValue)) return false;
   }
 
   // Client-side search — applied to all kinds for streamed events.
@@ -228,6 +239,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // Stable key for authorPubkeys (follows list)
   const authorPubkeysKey = options.authorPubkeys ? [...options.authorPubkeys].sort().join(',') : '';
 
+  // Stable key for clientTags
+  const clientTagsKey = options.clientTags ? [...options.clientTags].sort().join(',') : '';
+
   // Build the search filter once — reused by initial fetch and pagination.
   const paginationFilter = useMemo(() => {
     // Build the kinds list based on mediaType (or override entirely)
@@ -296,9 +310,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       streamFilter.authors = resolvedAuthorPubkeys;
     }
 
+    // Client filter (NIP-89) — relays index the single-letter `client` tag.
+    if (options.clientTags && options.clientTags.length > 0) {
+      searchFilter['#client'] = options.clientTags;
+      streamFilter['#client'] = options.clientTags;
+    }
+
     return { searchFilter, streamFilter };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
-  }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, options.sort]);
+  }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, clientTagsKey, options.sort]);
 
   // Shared ref for the event map and known IDs — persists across initial fetch + pagination
   const eventMapRef = useRef(new Map<string, NostrEvent>());
@@ -386,8 +406,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           const oldest = Math.min(...events.map((e) => e.created_at));
           oldestTimestampRef.current = oldest;
         }
-        // If we got fewer events than PAGE_SIZE, there's no more to fetch
-        if (events.length < PAGE_SIZE) {
+        // Only stop when the relay returns no events at all. We can't use
+        // `events.length < PAGE_SIZE` here: NIP-50 search relays routinely
+        // return fewer than the requested limit per page even when older
+        // results exist, and many of these raw events get dropped by
+        // client-side filtering (mute/content/search/media), so the raw count
+        // is not a reliable signal that we've reached the end.
+        if (events.length === 0) {
           setHasNextPage(false);
         }
       } catch {
@@ -443,8 +468,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setIsFetchingNextPage(true);
     try {
       const { searchFilter } = paginationFilter;
+      const prevOldest = oldestTimestampRef.current;
       const events = await nostr.query(
-        [{ ...searchFilter, until: oldestTimestampRef.current - 1, limit: PAGE_SIZE }],
+        [{ ...searchFilter, until: prevOldest - 1, limit: PAGE_SIZE }],
       );
       for (const event of events) {
         ingestEvent(event, false);
@@ -454,10 +480,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         const oldest = Math.min(...events.map((e) => e.created_at));
         oldestTimestampRef.current = oldest;
       }
-      if (events.length < PAGE_SIZE) {
+      // Stop only when the relay returns nothing, or when the cursor can't
+      // advance past the previous oldest timestamp (the relay ignored `until`
+      // or returned the same tail) — otherwise we'd loop re-fetching the same
+      // page forever. We deliberately do NOT stop on `events.length < PAGE_SIZE`
+      // because search relays under-fill pages while older results remain.
+      if (events.length === 0 || oldestTimestampRef.current >= prevOldest) {
         setHasNextPage(false);
-      }
-    } catch {
+      }    } catch {
       // Transient failure — leave hasNextPage true so the user can retry
     } finally {
       isFetchingRef.current = false;
@@ -478,7 +508,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
     return filterEvent(event, options, query);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey]);
+  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {

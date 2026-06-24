@@ -1028,3 +1028,23 @@
   from { width: 0%; }
   to   { width: 100%; }
 }
+
+/* ── Kill the native video placeholder/play-circle ────────────────────────────
+   Android WebView (Chromium) and iOS WKWebView paint a large stretched gray
+   play-circle over any poster-less <video> while it loads, drawn by the media
+   controls shadow DOM. We render our own posters and play buttons, so suppress
+   every flavour of the built-in overlay. Scoped to the app's custom players via
+   data-no-native-poster so we never break <video controls> elsewhere. */
+video[data-no-native-poster] {
+  background-color: transparent;
+}
+video[data-no-native-poster]::-webkit-media-controls,
+video[data-no-native-poster]::-webkit-media-controls-overlay-play-button,
+video[data-no-native-poster]::-webkit-media-controls-overlay-enclosure,
+video[data-no-native-poster]::-webkit-media-controls-start-playback-button,
+video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  opacity: 0 !important;
+}

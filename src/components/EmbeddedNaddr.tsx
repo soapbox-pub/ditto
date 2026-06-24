@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, HandHeart, Image, MessageSquareOff } from 'lucide-react';
+import { Award, HandHeart, MessageSquareOff } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -19,12 +19,15 @@ import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
+import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { ExternalSourceLink } from '@/components/ExternalSourceLink';
+import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { sanitizeUrl, externalUrl } from '@/lib/sanitizeUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
@@ -36,6 +39,10 @@ interface EmbeddedNaddrProps {
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
+  /** Original URL the naddr was extracted from (e.g. a non-Ditto article link).
+   *  When it points to a different host than the current app, the card offers
+   *  an "Open" button so the source is still reachable. */
+  sourceUrl?: string;
 }
 
 /** Maximum characters of content to show in the embedded preview. */
@@ -99,7 +106,7 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
   );
 }
 
-function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNaddrProps) {
+function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
   if (isLoading) {
@@ -143,7 +150,13 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards }: EmbeddedNadd
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
-  return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  // Long-form articles (NIP-23) get a rich link-preview-style card: cover
+  // image on top, title + summary, author byline at the bottom.
+  if (ARTICLE_KINDS.has(event.kind)) {
+    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
+  }
+
+  return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
 }
 
 /** Compact badge showcase for kind 30009 embeds — smaller version of the feed BadgeContent. */
@@ -381,11 +394,13 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
   );
 }
 
-function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
+function EmbeddedNaddrCard({ event, className, disableHoverCards, sourceUrl }: { event: NostrEvent; className?: string; disableHoverCards?: boolean; sourceUrl?: string }) {
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
+
+  const openExternalUrl = useMemo(() => externalUrl(sourceUrl), [sourceUrl]);
 
   // Known kinds (articles, streams, themes, etc.) get rich title/description/
   // content rendering. Unknown kinds never do — we can't assume arbitrary
@@ -394,8 +409,8 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
   const kindLabel = getKindLabel(event.kind);
   const isKnownKind = kindLabel !== undefined;
 
-  const { title, description, image } = useMemo(
-    () => (isKnownKind ? extractMetadata(event) : { title: undefined, description: undefined, image: undefined }),
+  const { title, description } = useMemo(
+    () => (isKnownKind ? extractMetadata(event) : { title: undefined, description: undefined }),
     [isKnownKind, event],
   );
 
@@ -439,21 +454,18 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards }: { event: Nos
         <UnknownKindContent event={event} className="mt-0" />
       )}
 
-      {/* Kind label and attachment indicators */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {kindMeta && (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
-            {kindMeta.label}
-          </span>
-        )}
-        {image && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Image className="size-3" />
-            Image
-          </span>
-        )}
-      </div>
+      {/* Kind label + external-source link */}
+      {(kindMeta || openExternalUrl) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {kindMeta && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
+              {kindMeta.label}
+            </span>
+          )}
+          <ExternalSourceLink url={sourceUrl} className="ml-auto" />
+        </div>
+      )}
     </EmbeddedCardShell>
   );
 }

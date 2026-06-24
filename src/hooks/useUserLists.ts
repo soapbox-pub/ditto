@@ -168,35 +168,15 @@ export function useUserLists() {
       if (!user) return [];
       const abortSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
-      // Fetch lists and deletion events in parallel
-      const [listEvents, deletionEvents] = await Promise.all([
-        nostr.query(
-          [{ kinds: [30000], authors: [user.pubkey], limit: 100 }],
-          { signal: abortSignal },
-        ),
-        nostr.query(
-          [{ kinds: [5], authors: [user.pubkey], '#k': ['30000'], limit: 200 }],
-          { signal: abortSignal },
-        ),
-      ]);
-
-      // Build a set of deleted list coordinate tags (e.g. "30000:<pubkey>:<d-tag>")
-      const deletedCoords = new Set<string>();
-      for (const del of deletionEvents) {
-        for (const [name, value] of del.tags) {
-          if (name === 'a' && value?.startsWith('30000:')) {
-            deletedCoords.add(value);
-          }
-        }
-      }
+      const listEvents = await nostr.query(
+        [{ kinds: [30000], authors: [user.pubkey], limit: 100 }],
+        { signal: abortSignal },
+      );
 
       const filtered = listEvents
         .filter((e) => {
           const dTag = e.tags.find(([n]) => n === 'd')?.[1] ?? '';
           if (DEPRECATED_DTAGS.has(dTag)) return false;
-          // Filter out deleted lists
-          const coord = `30000:${user.pubkey}:${dTag}`;
-          if (deletedCoords.has(coord)) return false;
           // Filter out empty replacement events (from deletion step 1)
           // (note: events with encrypted content but no public tags are kept)
           const hasPTags = e.tags.some(([n]) => n === 'p');

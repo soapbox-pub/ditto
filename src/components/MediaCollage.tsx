@@ -10,6 +10,7 @@ import { Images, Play, ShieldAlert } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isValidBlurhash } from '@/lib/blurhash';
+import { BLANK_POSTER } from '@/lib/blankPoster';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -158,6 +159,8 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
       {item.type === 'video' && !showBlur && (
         <video
           src={item.url}
+          data-no-native-poster=""
+          poster={BLANK_POSTER}
           className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
           muted
           autoPlay={config.autoplayVideos}

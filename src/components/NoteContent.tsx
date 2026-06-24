@@ -548,7 +548,7 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
-        || (token.type === 'naddr-embed' && !token.url) || token.type === 'lightning-invoice';
+        || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
@@ -686,9 +686,11 @@ export function NoteContent({
             return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              // In preview contexts (e.g. triple-dot menu), replace image URLs
-              // with a newline so text flow is preserved without showing raw URLs.
-              return <span key={i}>{'\n'}</span>;
+              // In preview contexts (triple-dot menu, quote cards) media is
+              // rendered elsewhere or omitted. Render nothing — surrounding
+              // text whitespace is already collapsed during tokenization, so
+              // emitting a newline here only adds a redundant blank line.
+              return null;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
@@ -701,7 +703,7 @@ export function NoteContent({
           }
           case 'image-gallery': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
+              return null;
             }
             const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
             const galleryLightboxIndex =
@@ -754,7 +756,7 @@ export function NoteContent({
             );
           case 'media-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{'\n'}</span>;
+              return null;
             }
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
@@ -816,22 +818,12 @@ export function NoteContent({
                 </Link>
               );
             }
-            return (
-              <span key={i}>
-                {token.url && (
-                  <a
-                    href={token.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {token.url}
-                  </a>
-                )}
-                <EmbeddedNaddr addr={token.addr} className="my-2.5" />
-              </span>
-            );
+            // Both bare `nostr:naddr1…` references and `https://…/naddr1…`
+            // links render as the rich card. The raw URL is intentionally not
+            // shown above it — the card itself links to the content, matching
+            // how nevent/link embeds behave. When the naddr came from a
+            // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':

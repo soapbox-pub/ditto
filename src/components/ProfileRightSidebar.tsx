@@ -4,6 +4,7 @@ import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'l
 import { LinkFooter } from '@/components/LinkFooter';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
+import { BLANK_POSTER } from '@/lib/blankPoster';
 import { isValidBlurhash } from '@/lib/blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -212,6 +213,8 @@ function MediaTile({ item }: { item: MediaItem }) {
       {isVideo ? (
         <video
           src={item.url}
+          data-no-native-poster=""
+          poster={BLANK_POSTER}
           className="absolute inset-0 w-full h-full object-cover"
           muted
           autoPlay={config.autoplayVideos}

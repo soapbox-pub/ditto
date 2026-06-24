@@ -19,3 +19,30 @@ export function sanitizeUrl(raw: string | undefined | null): string | undefined 
   }
   return undefined;
 }
+
+/**
+ * Returns a safe HTTPS URL only when it points to a host other than the app's
+ * own. Used to decide whether to offer an "open externally" affordance: a link
+ * back into our own host should navigate in-app, not pop a new tab. Returns
+ * `undefined` for same-host, invalid, or non-HTTPS URLs.
+ */
+export function externalUrl(raw: string | undefined | null): string | undefined {
+  const safe = sanitizeUrl(raw);
+  if (!safe) return undefined;
+  try {
+    if (new URL(safe).host === window.location.host) return undefined;
+  } catch {
+    return undefined;
+  }
+  return safe;
+}
+
+/** Display hostname for a URL (drops a leading `www.`). Falls back to the raw
+ *  string when it can't be parsed. */
+export function displayHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}

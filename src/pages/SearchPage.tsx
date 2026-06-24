@@ -19,6 +19,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { NewPostsPill } from '@/components/NewPostsPill';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
@@ -53,8 +54,9 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
-import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
+import { DittoLogo } from '@/components/DittoLogo';
 import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
 
@@ -74,6 +76,7 @@ type SortPref = typeof VALID_SORTS[number];
 
 const DEFAULT_FILTERS = {
   includeReplies: true,
+  onlyDitto: false,
   mediaType: 'all' as const,
   language: 'global',
   platform: 'nostr' as const,
@@ -98,7 +101,6 @@ export function SearchPage() {
   });
 
   useLayoutOptions({ hasSubHeader: true });
-  const navHidden = useNavHidden();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -107,11 +109,16 @@ export function SearchPage() {
 
   // SearchPage only tracks the debounced value — raw keystroke state lives in
   // the SearchInput child component so typing doesn't re-render the whole page.
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('q') ?? '');
+  // The query is derived directly from the URL `q` param (single source of
+  // truth), so any navigation that changes it — sidebar search, the mobile
+  // search sheet doing navigate('/search?q=...'), or browser back/forward —
+  // is reflected immediately without a fragile URL↔state sync.
+  const debouncedSearchQuery = searchParams.get('q') ?? '';
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
   const includeReplies = parseBoolParam(searchParams.get('replies'), DEFAULT_FILTERS.includeReplies);
+  const onlyDitto = parseBoolParam(searchParams.get('ditto'), DEFAULT_FILTERS.onlyDitto);
   const VALID_MEDIA_TYPES = ['all', 'images', 'videos', 'vines', 'none'] as const;
   type MediaType = typeof VALID_MEDIA_TYPES[number];
   const rawMedia = searchParams.get('media') ?? DEFAULT_FILTERS.mediaType;
@@ -149,6 +156,7 @@ export function SearchPage() {
   }, [setSearchParams]);
 
   const setIncludeReplies = useCallback((v: boolean) => setParam('replies', String(v), String(DEFAULT_FILTERS.includeReplies)), [setParam]);
+  const setOnlyDitto = useCallback((v: boolean) => setParam('ditto', String(v), String(DEFAULT_FILTERS.onlyDitto)), [setParam]);
   const setMediaType = useCallback((v: string) => setParam('media', v, DEFAULT_FILTERS.mediaType), [setParam]);
   const setLanguage = useCallback((v: string) => setParam('lang', v, DEFAULT_FILTERS.language), [setParam]);
   const setPlatform = useCallback((v: string) => setParam('platform', v, DEFAULT_FILTERS.platform), [setParam]);
@@ -209,24 +217,14 @@ export function SearchPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Guard to prevent the URL→state sync from clobbering the input
-  // when we ourselves just wrote to the URL.
-  const internalUrlUpdate = useRef(false);
-
-  // Sync search query state → URL (debounced to avoid disrupting typing).
-  // Intentionally omits `searchParams` from deps — including it causes a
-  // feedback loop: writing to the URL updates searchParams, which re-triggers
-  // this effect, forcing extra renders on every keystroke.
-  // The functional updater form of setSearchParams already receives the latest
-  // params, so we don't need searchParams in scope here.
-  useEffect(() => {
-    const trimmed = debouncedSearchQuery.trim();
-    internalUrlUpdate.current = true;
+  // Write the debounced search input to the URL `q` param (the single source
+  // of truth). Debounced upstream by SearchInput so typing isn't disruptive.
+  const setSearchQuery = useCallback((value: string) => {
+    const trimmed = value.trim();
     setSearchParams((prev) => {
       const currentQ = prev.get('q') ?? '';
       if (trimmed === currentQ) {
         // No change — return the same object so React Router skips a history update.
-        internalUrlUpdate.current = false;
         return prev;
       }
       const next = new URLSearchParams(prev);
@@ -237,26 +235,20 @@ export function SearchPage() {
       }
       return next;
     }, { replace: true });
-  }, [debouncedSearchQuery, setSearchParams]);
-
-  // Sync URL → debounced query state (e.g., sidebar search or browser navigation)
-  useEffect(() => {
-    // Skip if we just wrote to the URL ourselves (avoids clobbering mid-typing input)
-    if (internalUrlUpdate.current) {
-      internalUrlUpdate.current = false;
-      return;
-    }
-    const q = searchParams.get('q') ?? '';
-    if (q !== debouncedSearchQuery.trim()) {
-      setDebouncedSearchQuery(q);
-    }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setSearchParams]);
 
   // NOTE: Previously this redirected NIP-19/NIP-05 identifiers away from the
   // search page. Now identifiers are handled as autocomplete suggestions in the
   // search dropdowns, and submitting always performs a text search.
 
   const protocols = useMemo(() => [platform], [platform]);
+
+  // When "Only Ditto users" is on, scope the query to the app's NIP-89 client
+  // tag value (defaults to "Ditto"). Empty array = no client filter.
+  const clientTags = useMemo<string[] | undefined>(
+    () => (onlyDitto ? [config.clientName ?? config.appName] : undefined),
+    [onlyDitto, config.clientName, config.appName],
+  );
 
   const kindOptions = useMemo(() => buildKindOptions(), []);
 
@@ -272,7 +264,7 @@ export function SearchPage() {
   );
 
   // Determine if any filter differs from the default
-  const hasActiveFilters = !includeReplies || mediaType !== DEFAULT_FILTERS.mediaType ||
+  const hasActiveFilters = !includeReplies || onlyDitto || mediaType !== DEFAULT_FILTERS.mediaType ||
     language !== DEFAULT_FILTERS.language || platform !== DEFAULT_FILTERS.platform ||
     kindFilter !== DEFAULT_FILTERS.kindFilter || authorScope !== DEFAULT_FILTERS.authorScope ||
     sort !== DEFAULT_FILTERS.sort || authorPubkeys.length > 0;
@@ -281,6 +273,7 @@ export function SearchPage() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('replies');
+      next.delete('ditto');
       next.delete('media');
       next.delete('lang');
       next.delete('platform');
@@ -297,6 +290,7 @@ export function SearchPage() {
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
     if (!includeReplies) labels.push('No replies');
+    if (onlyDitto) labels.push('Ditto users only');
     if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Divines', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
@@ -316,7 +310,7 @@ export function SearchPage() {
     if (authorScope === 'follows') labels.push('My follows');
     if (authorScope === 'people' && authorPubkeys.length > 0) labels.push(`${authorPubkeys.length} author${authorPubkeys.length > 1 ? 's' : ''}`);
     return labels;
-  }, [includeReplies, mediaType, language, platform, sort, kindFilter, customKindText, authorScope, authorPubkeys, kindOptions]);
+  }, [includeReplies, onlyDitto, mediaType, language, platform, sort, kindFilter, customKindText, authorScope, authorPubkeys, kindOptions]);
 
   // Hooks
   const { user } = useCurrentUser();
@@ -396,6 +390,7 @@ export function SearchPage() {
     kindsOverride,
     authorPubkeys: streamAuthorPubkeys,
     sort,
+    clientTags,
   });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? debouncedSearchQuery : '');
 
@@ -448,7 +443,7 @@ export function SearchPage() {
         <div className="flex items-center gap-2">
           <SearchInput
             initialValue={debouncedSearchQuery}
-            onDebouncedChange={setDebouncedSearchQuery}
+            onDebouncedChange={setSearchQuery}
           />
 
           {/* Add to feed button (posts tab only) */}
@@ -721,6 +716,15 @@ export function SearchPage() {
                   <span className="text-xs font-medium text-muted-foreground">Include replies</span>
                   <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
                 </div>
+
+                {/* Only Ditto users toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <DittoLogo size={14} className="shrink-0" />
+                    {config.appName} users only
+                  </span>
+                  <Switch checked={onlyDitto} onCheckedChange={setOnlyDitto} className="scale-90" />
+                </div>
               </PopoverContent>
             </Popover>
           )}
@@ -748,29 +752,14 @@ export function SearchPage() {
         {/* ─── Posts Tab ─── */}
         {activeTab === 'posts' && (
           <>
-            {/* New posts pill — sticks below the SubHeaderBar arc, hides with nav.
-                Mobile: top = MobileTopBar (2.5rem) + safe-area + SubHeaderBar (~2.5rem).
-                Desktop: top = SubHeaderBar only (~2.5rem), no MobileTopBar. */}
-            {newPostCount > 0 && (
-              <div
-                className={cn(
-                  'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-                  'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-                  navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
-                )}
-                style={{ marginBottom: '-3rem' }}
-              >
-                <button
-                  onClick={() => {
-                    flushStreamBuffer();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  {newPostCount} new post{newPostCount !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
+            {/* New posts pill — live stream. */}
+            <NewPostsPill
+              count={newPostCount}
+              onClick={() => {
+                flushStreamBuffer();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
             {/* Post results — stream */}
             {postsLoading && posts.length === 0 ? (
               <div className="divide-y divide-border">

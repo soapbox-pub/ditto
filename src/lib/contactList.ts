@@ -1,6 +1,6 @@
 import type { NostrEvent, NostrFilter, NPool } from '@nostrify/nostrify';
 
-import type { NIndexedDB } from '@/lib/NIndexedDB';
+import type { NIndexedDB } from '@nostrify/indexeddb';
 import { isNostrId } from '@/lib/nostrId';
 
 // ============================================================================

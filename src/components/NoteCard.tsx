@@ -34,7 +34,7 @@ import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
-const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
@@ -126,13 +126,14 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
-import { isSingleImagePost } from "@/lib/noteContent";
+import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
@@ -700,7 +701,7 @@ export const NoteCard = memo(function NoteCard({
           <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <ArticleContent event={event} preview className="mt-2" />
+            <EmbeddedArticleCard event={event} className="mt-2" />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
@@ -1496,12 +1497,12 @@ function TruncatedNoteContent({
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const singleImage = isSingleImagePost(event);
+  const mediaDominant = isMediaDominantPost(event);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
-  }, [singleImage]);
+    if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
+  }, [mediaDominant]);
 
   useEffect(() => {
     measure();
@@ -1799,14 +1800,37 @@ function VineMedia({
       {imeta?.url && (
         <div
           ref={containerRef}
-          className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
+          className={cn(
+            'relative mt-3 rounded-2xl overflow-hidden cursor-pointer bg-black',
+            // With preload="none" the <video> has no intrinsic height until it
+            // plays. With no thumbnail to set the box height, fall back to a 16:9
+            // box (most videos are landscape) instead of a square-ish sliver.
+            !imeta.thumbnail && !isPlaying && 'aspect-video',
+          )}
           onClick={handlePlayToggle}
         >
+          {/* When there's a thumbnail it drives the box size (the <video> below
+              is absolutely positioned on top); the plain <img> avoids WebView's
+              native gray play-circle that a poster-bearing <video> would draw. */}
+          {imeta.thumbnail && !isPlaying && (
+            <img
+              src={imeta.thumbnail}
+              alt=""
+              aria-hidden
+              className="w-full max-h-[70vh] object-cover"
+            />
+          )}
           <video
             ref={videoRef}
             src={imeta.url}
-            poster={imeta.thumbnail}
-            className="w-full max-h-[70vh] object-cover"
+            data-no-native-poster=""
+            poster={BLANK_POSTER}
+            className={cn(
+              'w-full max-h-[70vh] object-cover',
+              // Fill on top of the thumbnail (which sets the height) when one is
+              // present; otherwise lay out normally.
+              imeta.thumbnail && !isPlaying && 'absolute inset-0 h-full',
+            )}
             loop
             playsInline
             muted={isMuted}
