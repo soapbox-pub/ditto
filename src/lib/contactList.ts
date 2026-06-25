@@ -11,7 +11,10 @@ import { isNostrId } from '@/lib/nostrId';
 // pattern, captured here:
 //
 //   1. Query the relays for the latest kind 3 of the author.
-//   2. On a hit, persist it to the IndexedDB event store and return it.
+//   2. On a hit, persist it to the IndexedDB event store and return it —
+//      unless the locally cached copy is newer (e.g. we just published a
+//      follow that the relay hasn't indexed yet), in which case the cached
+//      copy wins so the read never goes backwards.
 //   3. On a relay miss, fall back to the cached event from the store rather
 //      than treating the contact list as empty/deleted (a miss is almost
 //      always a transient relay hiccup, not an intentional erasure).
@@ -49,6 +52,16 @@ export async function fetchContactList(
   if (event) {
     // Persist the fresh event to the store (fire-and-forget).
     void store.event(event);
+
+    // Guard against the relay returning a stale copy that's older than what we
+    // have locally — most commonly right after publishing a follow/unfollow,
+    // when the relay hasn't indexed the new kind 3 yet. Returning the older
+    // relay copy here would revert an optimistic UI update, so the newer of the
+    // two (by `created_at`) wins.
+    const cached = await readCachedContactList(store, pubkey);
+    if (cached && cached.created_at > event.created_at) {
+      return cached;
+    }
     return event;
   }
 
