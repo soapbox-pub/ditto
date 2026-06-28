@@ -225,7 +225,7 @@ export function AppRouter() {
             />
             <Route path="/webxdc" element={<WebxdcFeedPage />} />
             <Route path="/articles/new" element={<ArticleEditorPage />} />
-            <Route path="/articles/edit/:naddr" element={<ArticleEditorPage />} />
+            <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
             <Route
               path="/articles"
               element={

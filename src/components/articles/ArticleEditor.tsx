@@ -48,7 +48,6 @@ import { usePublishedArticles } from '@/hooks/usePublishedArticles';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { saveDraft as saveLocalDraft, deleteDraftBySlug, deleteLocalDraftById, getLocalDrafts } from '@/lib/localDrafts';
-import { tryNaddrEncode } from '@/lib/safeNip19';
 import type { ArticleFields } from '@/lib/articleHelpers';
 import { MilkdownEditor } from './MilkdownEditor';
 
@@ -253,24 +252,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
    * Navigate to the dedicated edit route for a published article. Using a
    * proper route (rather than mutating editor state in place) keeps the slug
    * fixed and ensures the publish flow treats this as an update, not a new
-   * article that would collide with the existing slug.
+   * article that would collide with the existing slug. The route param is the
+   * article's `d` tag; editing is scoped to the logged-in user's own articles.
    */
   const handleEditPublished = useCallback((pub: { slug: string }) => {
-    if (!user) return;
-    const naddr = tryNaddrEncode({
-      kind: 30023,
-      pubkey: user.pubkey,
-      identifier: pub.slug,
-    });
-    if (!naddr) {
-      toast({
-        title: 'Could not open article',
-        description: 'This article has an invalid address and cannot be edited.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    navigate(`/articles/edit/${naddr}`);
+    if (!user || !pub.slug) return;
+    navigate(`/articles/edit/${encodeURIComponent(pub.slug)}`);
   }, [user, navigate]);
 
   const handleDeleteDraft = useCallback(async () => {
