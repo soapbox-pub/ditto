@@ -48,6 +48,7 @@ import { usePublishedArticles } from '@/hooks/usePublishedArticles';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { saveDraft as saveLocalDraft, deleteDraftBySlug, deleteLocalDraftById, getLocalDrafts } from '@/lib/localDrafts';
+import { tryNaddrEncode } from '@/lib/safeNip19';
 import type { ArticleFields } from '@/lib/articleHelpers';
 import { MilkdownEditor } from './MilkdownEditor';
 
@@ -226,8 +227,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     return drafts.sort((a, b) => b.updatedAt - a.updatedAt);
   }, [relayDrafts, localDrafts]);
 
-  /** Load a draft or published article into the editor. */
-  const handleLoadItem = useCallback((item: ArticleData & { publishedAt?: number }, isPublishedArticle: boolean) => {
+  /** Load a draft into the editor. (Published articles open via the dedicated edit route.) */
+  const handleLoadDraft = useCallback((item: ArticleData) => {
     setArticle({
       title: item.title,
       summary: item.summary,
@@ -237,18 +238,40 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       slug: item.slug,
     });
     slugManuallyEdited.current = !!item.slug;
-    setIsEditMode(isPublishedArticle);
-    setOriginalSlug(isPublishedArticle ? item.slug : null);
-    setOriginalPublishedAt(item.publishedAt ?? null);
+    setIsEditMode(false);
+    setOriginalSlug(null);
+    setOriginalPublishedAt(null);
     setHasUnsavedChanges(false);
     setActiveTab('write');
     toast({
-      title: isPublishedArticle ? 'Article loaded for editing' : 'Draft loaded',
-      description: isPublishedArticle
-        ? 'Make changes and publish to update your article.'
-        : 'Your draft has been loaded into the editor.',
+      title: 'Draft loaded',
+      description: 'Your draft has been loaded into the editor.',
     });
   }, []);
+
+  /**
+   * Navigate to the dedicated edit route for a published article. Using a
+   * proper route (rather than mutating editor state in place) keeps the slug
+   * fixed and ensures the publish flow treats this as an update, not a new
+   * article that would collide with the existing slug.
+   */
+  const handleEditPublished = useCallback((pub: { slug: string }) => {
+    if (!user) return;
+    const naddr = tryNaddrEncode({
+      kind: 30023,
+      pubkey: user.pubkey,
+      identifier: pub.slug,
+    });
+    if (!naddr) {
+      toast({
+        title: 'Could not open article',
+        description: 'This article has an invalid address and cannot be edited.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    navigate(`/articles/edit/${naddr}`);
+  }, [user, navigate]);
 
   const handleDeleteDraft = useCallback(async () => {
     if (!deleteTarget) return;
@@ -684,8 +707,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                         updateArticle('slug', e.target.value);
                       }}
                       placeholder="article-url-slug"
-                      className="h-8 font-mono text-xs"
+                      disabled={isEditMode}
+                      className="h-8 font-mono text-xs disabled:opacity-70"
                     />
+                    {isEditMode && (
+                      <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
@@ -750,8 +777,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                       updateArticle('slug', e.target.value);
                     }}
                     placeholder="article-url-slug"
-                    className="h-8 font-mono text-xs"
+                    disabled={isEditMode}
+                    className="h-8 font-mono text-xs disabled:opacity-70"
                   />
+                  {isEditMode && (
+                    <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 flex-1">
                   <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
@@ -858,7 +889,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={draft.id}
                       className="group p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadItem(draft, false)}
+                      onClick={() => handleLoadDraft(draft)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -911,7 +942,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={pub.id}
                       className="group p-4 rounded-xl border border-border hover:border-green-500/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadItem(pub, true)}
+                      onClick={() => handleEditPublished(pub)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
