@@ -38,7 +38,6 @@ import {
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
-import { FabButton } from '@/components/FabButton';
 import { toast } from '@/hooks/useToast';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -834,15 +833,30 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                   </>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveDraft}
-                className="rounded-full gap-1.5 shrink-0"
-              >
-                <Save className="size-3.5" />
-                Save Draft
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  className="rounded-full gap-1.5 shrink-0"
+                >
+                  <Save className="size-3.5" />
+                  Save Draft
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={isPublishing || !user}
+                  className="rounded-full gap-1.5 shrink-0"
+                >
+                  {isPublishing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Send className="size-3.5" />
+                  )}
+                  {isEditMode ? 'Update' : 'Publish'}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -956,37 +970,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           )}
         </div>
       )}
-
-      {/* Publish FAB — mobile: fixed bottom right, hidden when keyboard is up */}
-      {!keyboardVisible && (
-        <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-          <FabButton
-            onClick={handlePublish}
-            disabled={isPublishing || !user}
-            title={isEditMode ? 'Update article' : 'Publish article'}
-            icon={isPublishing
-              ? <Loader2 size={18} className="animate-spin" />
-              : <Send strokeWidth={3} size={18} />
-            }
-          />
-        </div>
-      )}
-      {/* Publish FAB — desktop: sticky within column */}
-      <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
-        <div className="flex justify-end pr-4">
-          <div className="pointer-events-auto">
-            <FabButton
-              onClick={handlePublish}
-              disabled={isPublishing || !user}
-              title={isEditMode ? 'Update article' : 'Publish article'}
-              icon={isPublishing
-                ? <Loader2 size={18} className="animate-spin" />
-                : <Send strokeWidth={3} size={18} />
-              }
-            />
-          </div>
-        </div>
-      </div>
 
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
