@@ -1279,7 +1279,7 @@ export function ComposeBox({
           /* Preview mode - Show how post will look */
           mockEvent && (
             <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
-              <div className="text-lg opacity-85 [&_img]:max-w-full [&_img]:h-auto">
+              <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
             </div>
