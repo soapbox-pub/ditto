@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBlossomUri, resolveBlossomUri, BLOSSOM_URI_REGEX } from './blossomUri';
+import { parseBlossomUri, resolveBlossomUri, extractBlossomUris, blossomImetaTag, BLOSSOM_URI_REGEX } from './blossomUri';
 
 const HASH = 'b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553';
 const PUBKEY = 'ec4425ff5e9446080d2f70440188e3ca5d6da8713db7bdeef73d0ed54d9093f0';
@@ -105,5 +105,48 @@ describe('BLOSSOM_URI_REGEX', () => {
     const text = `look: blossom:${HASH}.pdf?xs=cdn.example.com&sz=1 done`;
     const match = text.match(BLOSSOM_URI_REGEX);
     expect(match?.[0]).toBe(`blossom:${HASH}.pdf?xs=cdn.example.com&sz=1`);
+  });
+});
+
+describe('extractBlossomUris', () => {
+  it('extracts every valid URI in order', () => {
+    const content = `first blossom:${HASH}.png?xs=a.example.com then blossom:${HASH}.mp4`;
+    const found = extractBlossomUris(content);
+    expect(found).toHaveLength(2);
+    expect(found[0].uri.ext).toBe('png');
+    expect(found[0].raw).toBe(`blossom:${HASH}.png?xs=a.example.com`);
+    expect(found[1].uri.ext).toBe('mp4');
+  });
+
+  it('skips malformed URIs', () => {
+    const content = `blossom:tooshort.png and blossom:${HASH}.jpg`;
+    const found = extractBlossomUris(content);
+    expect(found).toHaveLength(1);
+    expect(found[0].uri.ext).toBe('jpg');
+  });
+});
+
+describe('blossomImetaTag', () => {
+  it('builds a NIP-92 imeta tag with url, x, m and size', () => {
+    const raw = `blossom:${HASH}.png?xs=cdn.example.com&sz=184292`;
+    const uri = parseBlossomUri(raw)!;
+    expect(blossomImetaTag(uri, raw)).toEqual([
+      'imeta',
+      `url ${raw}`,
+      `x ${HASH}`,
+      'm image/png',
+      'size 184292',
+    ]);
+  });
+
+  it('omits size when unknown', () => {
+    const raw = `blossom:${HASH}.mp4`;
+    const uri = parseBlossomUri(raw)!;
+    expect(blossomImetaTag(uri, raw)).toEqual([
+      'imeta',
+      `url ${raw}`,
+      `x ${HASH}`,
+      'm video/mp4',
+    ]);
   });
 });

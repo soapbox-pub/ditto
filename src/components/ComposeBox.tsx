@@ -38,6 +38,7 @@ import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { extractBlossomUris, blossomImetaTag } from '@/lib/blossomUri';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
 const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
@@ -473,10 +474,19 @@ export function ComposeBox({
   // Detect webxdc attachments for preview mode
   const hasWebxdc = useMemo(() => webxdcUuids.size > 0, [webxdcUuids]);
 
+  // Detect BUD-10 blossom: media URIs (image/video/audio) for preview mode.
+  const hasBlossomMedia = useMemo(() => {
+    if (!content) return false;
+    return extractBlossomUris(content).some(({ uri }) => {
+      const mime = mimeFromExt(uri.ext);
+      return mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+    });
+  }, [content]);
+
   // Check if content has any previewable content (link previews, images, videos, audio, webxdc, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis || hasBlossomMedia;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis, hasBlossomMedia]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -562,6 +572,13 @@ export function ComposeBox({
         }
         tags.push(imetaTag);
       }
+    }
+
+    // NIP-92 / BUD-10: imeta for blossom: media URIs so preview matches publish.
+    for (const { uri, raw } of extractBlossomUris(content)) {
+      if (processedUrls.has(raw)) continue;
+      processedUrls.add(raw);
+      tags.push(blossomImetaTag(uri, raw));
     }
     
     return {
@@ -966,6 +983,13 @@ export function ComposeBox({
         }
       }
 
+      // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
+      for (const { uri, raw } of extractBlossomUris(finalContent)) {
+        if (processedUrls.has(raw)) continue;
+        processedUrls.add(raw);
+        tags.push(blossomImetaTag(uri, raw));
+      }
+
 
 
       let published: NostrEvent;
@@ -1125,6 +1149,13 @@ export function ComposeBox({
         const ext = match[1].toLowerCase();
         tags.push(['imeta', `url ${url}`, `m ${mimeFromExt(ext)}`]);
       }
+    }
+
+    // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
+    for (const { uri, raw } of extractBlossomUris(finalContent)) {
+      if (processedUrls.has(raw)) continue;
+      processedUrls.add(raw);
+      tags.push(blossomImetaTag(uri, raw));
     }
 
     tags.push(['alt', `Poll: ${finalContent}`]);

@@ -1,5 +1,6 @@
 import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { mimeFromExt } from '@/lib/mediaUrls';
 
 /**
  * BUD-10 `blossom:` URI support.
@@ -84,6 +85,35 @@ export function parseBlossomUri(raw: string): BlossomUri | undefined {
   }
 
   return { sha256, ext, path: `${sha256}.${ext}`, servers, authors, size };
+}
+
+/** A parsed `blossom:` URI paired with the exact matched source text. */
+export interface MatchedBlossomUri {
+  uri: BlossomUri;
+  raw: string;
+}
+
+/** Extract and parse every valid `blossom:` URI found in a string, in order. */
+export function extractBlossomUris(content: string): MatchedBlossomUri[] {
+  const matches = content.match(new RegExp(BLOSSOM_URI_REGEX.source, 'gi')) ?? [];
+  const result: MatchedBlossomUri[] = [];
+  for (const raw of matches) {
+    const uri = parseBlossomUri(raw);
+    if (uri) result.push({ uri, raw });
+  }
+  return result;
+}
+
+/**
+ * Build a NIP-92 `imeta` tag for a `blossom:` URI so other clients receive the
+ * blob's metadata. The `url` field keeps the original `blossom:` URI (per BUD-10
+ * a resolver can follow it), while `x` carries the sha256 hash, `m` the MIME
+ * type inferred from the extension, and `size` the byte count when known.
+ */
+export function blossomImetaTag(uri: BlossomUri, raw: string): string[] {
+  const fields = [`url ${raw}`, `x ${uri.sha256}`, `m ${mimeFromExt(uri.ext)}`];
+  if (typeof uri.size === 'number') fields.push(`size ${uri.size}`);
+  return ['imeta', ...fields];
 }
 
 /**
