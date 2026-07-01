@@ -1,0 +1,12 @@
+{
+  "name": "@blobbi/core",
+  "version": "0.0.0",
+  "description": "Portable, framework-agnostic core domain logic for Blobbi.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  }
+}

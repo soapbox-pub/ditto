@@ -199,9 +199,19 @@ export default defineConfig(({ mode }) => {
     exclude: ['@capacitor/filesystem', '@capacitor/share'],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      // Exact match first: `@blobbi/core` -> package entry point.
+      {
+        find: /^@blobbi\/core$/,
+        replacement: path.resolve(__dirname, "./packages/blobbi-core/src/index.ts"),
+      },
+      // Subpath match: `@blobbi/core/foo` -> package source.
+      {
+        find: /^@blobbi\/core\/(.*)$/,
+        replacement: path.resolve(__dirname, "./packages/blobbi-core/src") + "/$1",
+      },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 };

@@ -29,8 +29,10 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@blobbi/core": ["./packages/blobbi-core/src/index.ts"],
+      "@blobbi/core/*": ["./packages/blobbi-core/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "packages/blobbi-core/src"]
 }
