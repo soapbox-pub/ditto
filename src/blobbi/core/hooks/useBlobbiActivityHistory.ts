@@ -20,7 +20,7 @@ import {
   KIND_BLOBBI_INTERACTION,
   parseInteractionEvent,
   type BlobbiInteraction,
-} from '../lib/blobbi-interaction';
+} from '@blobbi/core/blobbi-interaction';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

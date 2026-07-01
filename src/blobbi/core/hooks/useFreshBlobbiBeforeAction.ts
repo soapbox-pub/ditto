@@ -14,7 +14,7 @@ import {
   type StorageItem,
 } from '@blobbi/core/blobbi';
 
-import { fetchFreshBlobbonautProfile } from '../lib/fetchFreshBlobbonautProfile';
+import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
 
 /**
  * Options for the fresh-fetch helper.

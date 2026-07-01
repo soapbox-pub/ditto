@@ -27,7 +27,7 @@ import {
   sortInteractionEvents,
   resolveSocialCheckpoint,
   type BlobbiInteraction,
-} from '../lib/blobbi-interaction';
+} from '@blobbi/core/blobbi-interaction';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

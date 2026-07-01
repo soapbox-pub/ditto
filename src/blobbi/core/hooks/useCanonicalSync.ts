@@ -29,14 +29,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates } from '@blobbi/core/blobbi';
-import { applyBlobbiDecay } from '../lib/blobbi-decay';
-import { consolidateSocialInteractions } from '../lib/blobbi-social-projection';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
+import { consolidateSocialInteractions } from '@blobbi/core/blobbi-social-projection';
 import {
   resolveSocialCheckpoint,
   serializeSocialCheckpoint,
   type BlobbiInteraction,
   type SocialCheckpoint,
-} from '../lib/blobbi-interaction';
+} from '@blobbi/core/blobbi-interaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 
