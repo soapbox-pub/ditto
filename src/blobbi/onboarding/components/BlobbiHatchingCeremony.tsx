@@ -37,7 +37,7 @@ import {
   updateBlobbiTags,
   type BlobbonautProfile,
   type BlobbiCompanion,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 import {
   generateEggPreview,

@@ -35,7 +35,7 @@ import {
   updateBlobbonautTags,
   mergeHasForAdoption,
   type BlobbonautProfile,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 import {
   generateEggPreview,

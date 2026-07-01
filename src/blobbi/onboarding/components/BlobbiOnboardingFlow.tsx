@@ -13,7 +13,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BlobbiHatchingCeremony } from './BlobbiHatchingCeremony';
 
-import type { BlobbonautProfile, BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbonautProfile, BlobbiCompanion } from '@blobbi/core/blobbi';
 
 interface BlobbiOnboardingFlowProps {
   /** Current profile (null if doesn't exist) */
