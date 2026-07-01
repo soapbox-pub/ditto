@@ -1,47 +1,15 @@
-// src/blobbi/shop/types/shop.types.ts
-
 /**
- * Shop item category for Blobbi items
+ * Compatibility shim.
+ *
+ * The canonical definitions moved to `@blobbi/core/types/shop` as part of the
+ * @blobbi/core extraction. This module re-exports them so existing import paths
+ * (`@/blobbi/shop/types/shop.types`) keep working during the migration.
+ *
+ * Note: only the pure shop *type* definitions moved. Runtime shop catalog data
+ * remains in `@/blobbi/shop/lib/blobbi-shop-items`.
+ *
+ * TODO(blobbi-core): migrate importers to `@blobbi/core` and remove this shim in
+ * a later validation cycle.
  */
-export type ShopItemCategory = 
-  | 'food' 
-  | 'toy' 
-  | 'medicine' 
-  | 'hygiene'
-  | 'energy';
 
-/**
- * Stat effects that items can apply to Blobbi
- * 
- * All stages use the same 5 stats: hunger, happiness, energy, hygiene, health
- * For eggs, only health, hygiene, happiness are active (hunger/energy fixed at 100)
- */
-export interface ItemEffect {
-  hunger?: number;
-  happiness?: number;
-  energy?: number;
-  hygiene?: number;
-  health?: number;
-}
-
-/**
- * Shop item definition for Blobbi shop
- */
-export interface ShopItem {
-  id: string;
-  name: string;
-  type: ShopItemCategory;
-  price: number;
-  icon: string;
-  effect?: ItemEffect;
-  status?: 'live' | 'disabled';
-}
-
-/**
- * Purchase request payload for Blobbi shop
- */
-export interface PurchaseRequest {
-  itemId: string;
-  price: number;    // Single item price (for validation)
-  quantity: number; // Number of items to purchase
-}
+export * from '@blobbi/core/types/shop.ts';
