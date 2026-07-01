@@ -56,7 +56,7 @@ import {
   type BlobbiStats,
   type BlobbonautProfile,
   type StorageItem,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';

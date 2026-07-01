@@ -37,7 +37,7 @@ import { Link } from "react-router-dom";
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
-import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
+import { parseBlobbiEvent } from "@blobbi/core/blobbi";
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import {

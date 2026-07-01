@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BlobbiStageVisual, type BlobbiLookMode } from '@/blobbi/ui/BlobbiStageVisual';
-import { parseBlobbiEvent } from '@/blobbi/core/lib/blobbi';
+import { parseBlobbiEvent } from '@blobbi/core/blobbi';
 import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
 import { resolveStatusRecipe, attenuateRecipeForFeed, EMPTY_RECIPE } from '@/blobbi/ui/lib/status-reactions';

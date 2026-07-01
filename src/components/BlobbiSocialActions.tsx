@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
-import { parseBlobbiEvent } from '@/blobbi/core/lib/blobbi';
+import { parseBlobbiEvent } from '@blobbi/core/blobbi';
 import {
   buildInteractionEventTemplate,
   type InteractionAction,
@@ -46,7 +46,7 @@ import {
 } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
-import type { BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiStats } from '@blobbi/core/blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

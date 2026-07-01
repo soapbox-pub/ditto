@@ -23,7 +23,7 @@ import {
   buildNormalizedProfileTags,
   isLegacyBlobbonautKind,
   type BlobbonautProfile,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 interface UseBlobbonautProfileNormalizationOptions {
   /** The current profile (null if doesn't exist) */

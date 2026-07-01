@@ -14,7 +14,7 @@ import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseIn
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getVisibleStats } from '@blobbi/core/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';
-import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, getSelectedBlobbiKey } from '@/blobbi/core/lib/blobbi';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, getSelectedBlobbiKey } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
 
 /** Stat-to-action mapping: each stat has an associated quick action + default item. */
