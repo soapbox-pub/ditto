@@ -12,4 +12,4 @@
  * a later validation cycle.
  */
 
-export * from '@blobbi/core/types/shop.ts';
+export * from '@blobbi/core/types/shop';

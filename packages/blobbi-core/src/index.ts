@@ -5,4 +5,4 @@
  * is consumed from source via aliases (`@blobbi/core`, `@blobbi/core/*`).
  */
 
-export { blobbiLogger, setBlobbiLogger, type BlobbiLogger } from './logger.ts';
+export { blobbiLogger, setBlobbiLogger, type BlobbiLogger } from './logger';
