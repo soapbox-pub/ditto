@@ -11,6 +11,19 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
 
+// In development, route @blobbi/core diagnostics to the console. The package
+// logger is a no-op by default, so production behavior is unchanged. Gated by
+// import.meta.env.DEV here so the Vite-only flag never leaks into core files.
+import { setBlobbiLogger } from '@blobbi/core/logger';
+if (import.meta.env.DEV) {
+  setBlobbiLogger({
+    debug: (...args) => console.log(...args),
+    info: (...args) => console.info(...args),
+    warn: (...args) => console.warn(...args),
+    error: (...args) => console.error(...args),
+  });
+}
+
 import '@fontsource-variable/inter';
 
 // ─── Native status bar theming (Android APK / iOS) ───────────────────────────

@@ -2,6 +2,8 @@ import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { blobbiLogger } from '@blobbi/core/logger';
+
 import { ADULT_FORMS, type AdultForm, deriveAdultFormFromSeed } from '@/blobbi/adult-blobbi/types/adult.types';
 
 import { validateAndRepairBlobbiTags } from './blobbi-tag-schema';
@@ -1213,15 +1215,13 @@ export function parseBlobbiEvent(event: NostrEvent): BlobbiCompanion | undefined
   // seed-identity sync all use it to ignore unsupported events.
   const isLegacy = isLegacyBlobbiEvent(event);
   
-  if (import.meta.env.DEV) {
-    console.log('[Blobbi]', {
-      d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
-      name,
-      isLegacy,
-      hasSeed: !!seed,
-      traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
-    });
-  }
+  blobbiLogger.debug('[Blobbi]', {
+    d: d.length > 30 ? `${d.slice(0, 20)}...` : d,
+    name,
+    isLegacy,
+    hasSeed: !!seed,
+    traits: `${visualTraits.baseColor} ${visualTraits.pattern} ${visualTraits.size}`,
+  });
   
   // Parse task progress tags: ["task", "name:value"]
   const tasks: BlobbiTaskProgress[] = [];
@@ -1674,8 +1674,8 @@ export function mergeBlobbiStateTagsForRepublish(
   const result = validateAndRepairBlobbiTags(mergedTags, existingTags);
   
   // Log repairs in development
-  if (import.meta.env.DEV && result.repaired) {
-    console.log('[Blobbi] Tag repairs applied:', result.repairs);
+  if (result.repaired) {
+    blobbiLogger.debug('[Blobbi] Tag repairs applied:', result.repairs);
   }
   
   // Log errors (these are non-fatal but should be monitored)

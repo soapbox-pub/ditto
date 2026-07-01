@@ -8,6 +8,8 @@
  * @module blobbi-tag-schema
  */
 
+import { blobbiLogger } from '@blobbi/core/logger';
+
 import type { BlobbiStage } from './blobbi';
 
 // ─── Tag Source Types ─────────────────────────────────────────────────────────
@@ -866,7 +868,6 @@ export function validateAndRepairBlobbiTags(
 ): TagRepairResult {
   const repairs: string[] = [];
   const errors: string[] = [];
-  const isDev = import.meta.env.DEV;
   
   // Build a map of current tags for quick lookup
   const tagMap = new Map<string, string[][]>();
@@ -939,9 +940,7 @@ export function validateAndRepairBlobbiTags(
     const schema = getTagSchema(name);
     if (schema && !schema.stages.includes(finalStage)) {
       repairs.push(`Removed tag '${name}' (not valid for stage '${finalStage}')`);
-      if (isDev) {
-        console.warn(`[Blobbi] Removed invalid-for-stage tag: ${name} (stage: ${finalStage})`);
-      }
+      blobbiLogger.warn(`[Blobbi] Removed invalid-for-stage tag: ${name} (stage: ${finalStage})`);
       continue;
     }
     
@@ -960,9 +959,7 @@ export function validateAndRepairBlobbiTags(
       if (TASK_PROCESS_STATES.has(currentState)) {
         filteredTags[stateTagIndex] = ['state', 'active'];
         repairs.push(`Repaired state from '${currentState}' to 'active' (task process completed)`);
-        if (isDev) {
-          console.warn(`[Blobbi] Fixed invalid state '${currentState}' -> 'active' after transition`);
-        }
+        blobbiLogger.warn(`[Blobbi] Fixed invalid state '${currentState}' -> 'active' after transition`);
       }
       
       // Validate state is valid for the stage
@@ -971,9 +968,7 @@ export function validateAndRepairBlobbiTags(
       if (!validStates.has(newState)) {
         filteredTags[stateTagIndex] = ['state', 'active'];
         repairs.push(`Repaired invalid state '${newState}' to 'active' for stage '${finalStage}'`);
-        if (isDev) {
-          console.warn(`[Blobbi] Fixed invalid state '${newState}' -> 'active' for stage ${finalStage}`);
-        }
+        blobbiLogger.warn(`[Blobbi] Fixed invalid state '${newState}' -> 'active' for stage ${finalStage}`);
       }
     }
   }
@@ -1050,9 +1045,7 @@ export function validateAndRepairBlobbiTags(
       // Skip tags that are not valid for the final stage
       const schema = getTagSchema(tagName);
       if (schema && !schema.stages.includes(finalStage)) {
-        if (isDev) {
-          console.warn(`[Blobbi] Skipped recovering '${tagName}' (not valid for stage '${finalStage}')`);
-        }
+        blobbiLogger.warn(`[Blobbi] Skipped recovering '${tagName}' (not valid for stage '${finalStage}')`);
         continue;
       }
       
@@ -1063,8 +1056,8 @@ export function validateAndRepairBlobbiTags(
   }
   
   // ─── Final dev diagnostics ───
-  if (isDev && repairs.length > 0) {
-    console.warn('[Blobbi] Tag repairs applied:', repairs);
+  if (repairs.length > 0) {
+    blobbiLogger.warn('[Blobbi] Tag repairs applied:', repairs);
   }
   
   return {
