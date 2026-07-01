@@ -63,11 +63,16 @@ export interface MissionsContent {
 /**
  * The top-level content JSON for kind 11125.
  * Keys are added alongside each other; `serializeProfileContent` preserves unknown keys.
+ *
+ * Only `missions` is interpreted by @blobbi/core. All other top-level keys
+ * (e.g. Ditto's `room_layouts` / `room_furniture`, or any future extension) are
+ * preserved opaquely as `unknown` and round-tripped unchanged — their shapes are
+ * owned and parsed by their respective host modules, not by @blobbi/core.
  */
 export interface ProfileContent {
   missions?: MissionsContent;
-  room_layouts?: import('@/blobbi/rooms/lib/room-layout-schema').RoomLayoutsContent;
-  room_furniture?: import('@/blobbi/rooms/lib/room-furniture-schema').RoomFurnitureContent;
+  /** Opaque extension keys (room layouts/furniture, etc.), preserved verbatim. */
+  [key: string]: unknown;
 }
 
 // ─── Evolution Missions (kind 31124) ─────────────────────────────────────────
