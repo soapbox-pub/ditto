@@ -7,10 +7,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useFcmNotifications } from '@/hooks/useFcmNotifications';
 import { toast } from '@/hooks/useToast';
 
 type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges' | 'letters' | 'highlights';
@@ -152,9 +154,16 @@ export function NotificationSettings() {
     disable: disablePush,
     syncPreferences: syncPushPreferences,
   } = usePushNotifications();
+  const {
+    supported: fcmSupported,
+    enable: enableFcm,
+    disable: disableFcm,
+    syncPreferences: syncFcmPreferences,
+  } = useFcmNotifications();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   const isNative = Capacitor.isNativePlatform();
+  const isAndroid = Capacitor.getPlatform() === 'android';
 
   // Web: toggle reflects actual browser push subscription (from the hook).
   // Native: toggle reflects NIP-78 persisted preference.
@@ -215,7 +224,23 @@ export function NotificationSettings() {
       return;
     }
 
-    // Native path — toggle drives NIP-78 setting directly.
+    // Native path — toggle drives the NIP-78 setting. On Android, when the
+    // delivery style is "push" (FCM), also register/unregister the device's
+    // FCM token with nostr-push. The "persistent" foreground-service path is
+    // driven separately by useNativeNotifications.
+    if (enabled && isAndroid && notificationStyle === 'push' && fcmSupported && user) {
+      try {
+        await LocalNotifications.requestPermissions();
+        await enableFcm(user.pubkey, prefs);
+      } catch (err) {
+        console.error('[fcm] Registration failed:', err);
+        toast({ title: 'Failed to enable notifications', description: 'Please try again.' });
+        return; // Don't persist enabled=true if registration failed
+      }
+    } else if (!enabled && isAndroid && fcmSupported) {
+      await disableFcm().catch((err) => console.error('[fcm] Failed to disable:', err));
+    }
+
     setNativePushEnabled(enabled);
     updateSettings.mutateAsync({ notificationsEnabled: enabled }).catch(() => {
       setNativePushEnabled(!enabled); // roll back on failure
@@ -235,14 +260,35 @@ export function NotificationSettings() {
         console.error('[push] Failed to sync preferences:', err);
       });
     }
+    // FCM (Android "push" style) uses the same server-side subscriptions.
+    if (pushEnabled && isAndroid && notificationStyle === 'push' && fcmSupported && user) {
+      syncFcmPreferences(next, user.pubkey).catch((err) => {
+        console.error('[fcm] Failed to sync preferences:', err);
+      });
+    }
   };
 
-  const handleStyleChange = (style: 'push' | 'persistent') => {
+  const handleStyleChange = async (style: 'push' | 'persistent') => {
     const prev = notificationStyle;
     setNotificationStyle(style);
     updateSettings.mutateAsync({ notificationStyle: style }).catch(() => {
       setNotificationStyle(prev); // roll back on failure
     });
+
+    // Switching delivery method: (de)register FCM accordingly. Only act when
+    // notifications are currently enabled; useNativeNotifications handles the
+    // foreground service for "persistent".
+    if (!isAndroid || !fcmSupported || !pushEnabled || !user) return;
+    try {
+      if (style === 'push') {
+        await LocalNotifications.requestPermissions();
+        await enableFcm(user.pubkey, prefs);
+      } else {
+        await disableFcm();
+      }
+    } catch (err) {
+      console.error('[fcm] Failed to apply style change:', err);
+    }
   };
 
   const handleToggleOnlyFollowing = (enabled: boolean) => {
@@ -255,6 +301,11 @@ export function NotificationSettings() {
     if (pushEnabled && !isNative && user) {
       syncPushPreferences(next, user.pubkey).catch((err) => {
         console.error('[push] Failed to sync onlyFollowing preference:', err);
+      });
+    }
+    if (pushEnabled && isAndroid && notificationStyle === 'push' && fcmSupported && user) {
+      syncFcmPreferences(next, user.pubkey).catch((err) => {
+        console.error('[fcm] Failed to sync onlyFollowing preference:', err);
       });
     }
   };

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'pub.ditto.app',
+  appId: 'pub.dittotastic.app',
   appName: 'Ditto',
   webDir: 'dist',
   server: {

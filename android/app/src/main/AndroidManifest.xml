@@ -87,6 +87,26 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- FCM push receiver. Handles data-payload messages and foreground
+             display. Only active when google-services.json is present. -->
+        <service
+            android:name=".DittoFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Notification channel + small icon used for FCM auto-displayed
+             notifications (when the app is backgrounded). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ditto_notifications" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_ditto" />
+
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
