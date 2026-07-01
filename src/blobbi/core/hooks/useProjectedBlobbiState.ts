@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 
-import type { BlobbiCompanion, BlobbiStats } from '../lib/blobbi';
+import type { BlobbiCompanion, BlobbiStats } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@blobbi/core/blobbi-decay';
 import { applySocialInteractions } from '@blobbi/core/blobbi-social-projection';
 import { resolveSocialCheckpoint, type BlobbiInteraction } from '@blobbi/core/blobbi-interaction';

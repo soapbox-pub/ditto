@@ -20,7 +20,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { NostrFilter } from '@nostrify/nostrify';
-import type { BlobbiCompanion } from '../lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_INTERACTION,
   parseInteractionEvent,

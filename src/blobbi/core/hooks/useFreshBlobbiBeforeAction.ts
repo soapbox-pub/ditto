@@ -12,7 +12,7 @@ import {
   type BlobbiCompanion,
   type BlobbonautProfile,
   type StorageItem,
-} from '../lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 import { fetchFreshBlobbonautProfile } from '../lib/fetchFreshBlobbonautProfile';
 

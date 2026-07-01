@@ -27,8 +27,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion } from '../lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates } from '../lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '../lib/blobbi-decay';
 import { consolidateSocialInteractions } from '../lib/blobbi-social-projection';
 import {

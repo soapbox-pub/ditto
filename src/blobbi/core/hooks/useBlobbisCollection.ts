@@ -11,7 +11,7 @@ import {
   isLegacyBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiCompanion,
-} from '../lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 /** Maximum number of d-tags per query chunk to avoid relay issues */
 const CHUNK_SIZE = 20;

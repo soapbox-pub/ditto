@@ -10,7 +10,7 @@ import {
   buildEggTags,
   parseBlobbiEvent,
   type BlobbiCompanion,
-} from '../lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { useCanonicalSync } from './useCanonicalSync';
 
 // Spy on the publish mutation.

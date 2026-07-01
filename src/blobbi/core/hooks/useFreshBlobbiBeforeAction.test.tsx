@@ -12,7 +12,7 @@ import {
   getCanonicalBlobbiD,
   type BlobbiCompanion,
   type BlobbonautProfile,
-} from '../lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { useFreshBlobbiBeforeAction } from './useFreshBlobbiBeforeAction';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────
