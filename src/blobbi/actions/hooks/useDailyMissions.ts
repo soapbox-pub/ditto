@@ -19,9 +19,9 @@ import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
-import type { MissionsContent } from '@/blobbi/core/lib/missions';
-import { isMissionComplete, missionProgress } from '@/blobbi/core/lib/missions';
-import { parseProfileContent } from '@/blobbi/core/lib/missions';
+import type { MissionsContent } from '@blobbi/core/missions';
+import { isMissionComplete, missionProgress } from '@blobbi/core/missions';
+import { parseProfileContent } from '@blobbi/core/missions';
 
 import {
   type BlobbiStage,

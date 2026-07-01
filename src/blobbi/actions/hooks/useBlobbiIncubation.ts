@@ -27,7 +27,7 @@ import {
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
-import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
+import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
 import {
   writeEvolutionToStorage,

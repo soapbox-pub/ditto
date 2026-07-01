@@ -130,7 +130,7 @@ import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getE
 import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
-import { serializeProfileContent } from '@/blobbi/core/lib/missions';
+import { serializeProfileContent } from '@blobbi/core/missions';
 import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';

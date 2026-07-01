@@ -25,7 +25,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import { KIND_BLOBBONAUT_PROFILE } from '@/blobbi/core/lib/blobbi';
-import { serializeProfileContent } from '@/blobbi/core/lib/missions';
+import { serializeProfileContent } from '@blobbi/core/missions';
 import { readDailyFromStorage } from '../lib/daily-mission-tracker';
 import { areAllDailyComplete } from '../lib/daily-missions';
 

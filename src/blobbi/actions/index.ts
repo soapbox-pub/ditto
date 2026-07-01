@@ -170,8 +170,8 @@ export {
   isTallyMission,
   isEventMission,
   missionProgress,
-} from '@/blobbi/core/lib/missions';
-export type { ProfileContent } from '@/blobbi/core/lib/missions';
+} from '@blobbi/core/missions';
+export type { ProfileContent } from '@blobbi/core/missions';
 
 // Item cooldown
 export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from './lib/item-cooldown';

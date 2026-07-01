@@ -23,8 +23,8 @@ import {
   parseBlobbonautEvent,
 } from '@/blobbi/core/lib/blobbi';
 import { buildXpTagUpdates } from '@/blobbi/core/lib/progression';
-import { serializeProfileContent } from '@/blobbi/core/lib/missions';
-import type { MissionsContent } from '@/blobbi/core/lib/missions';
+import { serializeProfileContent } from '@blobbi/core/missions';
+import type { MissionsContent } from '@blobbi/core/missions';
 import { totalDailyXp } from '../lib/daily-missions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

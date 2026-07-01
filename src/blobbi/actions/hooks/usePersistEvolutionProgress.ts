@@ -24,7 +24,7 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import {
   KIND_BLOBBI_STATE,
 } from '@/blobbi/core/lib/blobbi';
-import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
+import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 
 import type { NostrEvent } from '@nostrify/nostrify';
