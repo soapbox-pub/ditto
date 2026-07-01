@@ -87,6 +87,18 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Restarts the persistent notification service after reboot or app
+             update. Not exported: BOOT_COMPLETED / MY_PACKAGE_REPLACED are
+             system broadcasts and are delivered regardless. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -106,6 +118,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Restart the persistent notification service after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Let the user exempt Ditto from battery optimization so persistent
+         mode fetch alarms fire on time and the service can restart on boot
+         (Android 15+). Only requested when persistent mode is enabled. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.CAMERA" />
