@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import { NoteContent } from './NoteContent';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -126,6 +126,79 @@ describe('NoteContent', () => {
     // Trailing hyphen must not be captured into the hashtag.
     const nostrHashtag = screen.getByRole('link', { name: '#nostr' });
     expect(nostrHashtag).toHaveAttribute('href', '/t/nostr');
+  });
+
+  it('renders a BUD-10 blossom: image URI as an image resolved to an https server', async () => {
+    const hash = 'b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553';
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content: `Nice pic blossom:${hash}.png?xs=cdn.example.com`,
+      sig: 'test-sig',
+    };
+
+    render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    const img = await screen.findByRole('presentation');
+    expect(img).toHaveAttribute('src', `https://cdn.example.com/${hash}.png`);
+  });
+
+  it('groups multiple consecutive blossom: image URIs into a gallery', async () => {
+    const hash1 = 'b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553';
+    const hash2 = 'a7b3c2d1e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1';
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content: `blossom:${hash1}.png?xs=cdn.example.com\nblossom:${hash2}.jpg?xs=cdn.example.com`,
+      sig: 'test-sig',
+    };
+
+    const { container } = render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    // Two consecutive blossom image URIs group into one gallery grid, producing
+    // exactly two <img> elements resolved to their https servers.
+    await waitFor(() => {
+      expect(container.querySelectorAll('img').length).toBe(2);
+    });
+    const imgs = container.querySelectorAll('img');
+    expect(imgs[0]).toHaveAttribute('src', `https://cdn.example.com/${hash1}.png`);
+    expect(imgs[1]).toHaveAttribute('src', `https://cdn.example.com/${hash2}.jpg`);
+  });
+
+  it('renders a non-media blossom: URI as a download link', async () => {
+    const hash = 'b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553';
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content: `blossom:${hash}.pdf?xs=cdn.example.com&sz=184292`,
+      sig: 'test-sig',
+    };
+
+    render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    const link = await screen.findByRole('link', { name: /Blossom file/ });
+    expect(link).toHaveAttribute('href', `https://cdn.example.com/${hash}.pdf`);
   });
 
   it('falls back to "Anonymous" for users without metadata and styles them differently', async () => {

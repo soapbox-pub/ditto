@@ -20,7 +20,11 @@ import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
-import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
+import { useBlossomUri } from '@/hooks/useBlossomUri';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
@@ -266,7 +270,8 @@ type ContentToken =
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string }
   | { type: 'relay-link'; url: string }
-  | { type: 'lightning-invoice'; invoice: string };
+  | { type: 'lightning-invoice'; invoice: string }
+  | { type: 'blossom-uri'; uri: BlossomUri; raw: string };
 
 /**
  * Regex segment matching a single visual emoji unit, including:
@@ -327,6 +332,12 @@ export function NoteContent({
   highlightText,
   preserveEdgeWhitespace = false,
 }: NoteContentProps) {
+  const { config } = useAppContext();
+  const blossomServers = useMemo(
+    () => getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers),
+    [config.blossomServerMetadata, config.useAppBlossomServers],
+  );
+
   const tokens = useMemo(() => {
     const text = event.content;
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
@@ -337,7 +348,8 @@ export function NoteContent({
       + '|((?:https?|wss?):\\/\\/[^\\s]+)'
       + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
       + '|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
-      + `|(${HASHTAG_PATTERN})`,
+      + `|(${HASHTAG_PATTERN})`
+      + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)',
       'giu',
     );
 
@@ -351,6 +363,7 @@ export function NoteContent({
       const bolt11 = match[1];
       let url = match[2];
       const hashtag = match[7];
+      const blossom = match[8];
       const { 3: nostrPrefix, 4: nostrData, 5: barePrefix, 6: bareData } = match;
       const index = match.index;
       hadMatches = true;
@@ -472,6 +485,44 @@ export function NoteContent({
       } else if (hashtag) {
         const tag = hashtag.slice(1);
         result.push({ type: 'hashtag', tag, raw: hashtag });
+      } else if (blossom) {
+        const uri = parseBlossomUri(blossom);
+        if (uri) {
+          // Trim trailing whitespace on the preceding text token so the blob
+          // renders as its own block, mirroring image/media URL handling.
+          if (result.length > 0) {
+            const prev = result[result.length - 1];
+            if (prev.type === 'text') {
+              prev.value = prev.value.replace(/\s+$/, '');
+            }
+          }
+          // Resolve image blobs to a concrete URL up front and emit an
+          // `image-embed` token so consecutive blossom images group into a
+          // gallery and share the lightbox, exactly like http image URLs.
+          // (InlineImage still swaps across Blossom servers on load error.)
+          // Non-image blobs stay as `blossom-uri` tokens and render as their
+          // own players / download links.
+          const mime = mimeFromExt(uri.ext);
+          if (mime.startsWith('image/')) {
+            const [resolved] = resolveBlossomUri(uri, blossomServers);
+            if (resolved) {
+              result.push({ type: 'image-embed', url: resolved });
+            } else {
+              result.push({ type: 'blossom-uri', uri, raw: blossom });
+            }
+          } else {
+            result.push({ type: 'blossom-uri', uri, raw: blossom });
+          }
+          lastIndex = index + fullMatch.length;
+          const remaining = text.substring(lastIndex);
+          const leadingWs = remaining.match(/^\s+/);
+          if (leadingWs) {
+            lastIndex += leadingWs[0].length;
+          }
+          continue;
+        }
+        // Unparseable → leave as plain text.
+        result.push({ type: 'text', value: fullMatch });
       }
 
       lastIndex = index + fullMatch.length;
@@ -587,7 +638,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event, preserveEdgeWhitespace]);
+  }, [event, preserveEdgeWhitespace, blossomServers]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
@@ -864,6 +915,21 @@ export function NoteContent({
               return <span key={i} className="text-primary break-all">{token.invoice}</span>;
             }
             return <LightningInvoiceCard key={i} invoice={token.invoice} />;
+          case 'blossom-uri':
+            if (disableEmbeds || disableMediaEmbeds) {
+              return null;
+            }
+            return (
+              <BlossomEmbed
+                key={i}
+                uri={token.uri}
+                raw={token.raw}
+                artist={authorDisplayName}
+                avatarUrl={authorMetadata?.picture}
+                avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+                avatarShape={getAvatarShape(authorMetadata)}
+              />
+            );
         }
       })}
 
@@ -910,6 +976,131 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
       </div>
     </button>
   );
+}
+
+interface BlossomEmbedProps {
+  uri: BlossomUri;
+  raw: string;
+  artist?: string;
+  avatarUrl?: string;
+  avatarFallback?: string;
+  avatarShape?: ReturnType<typeof getAvatarShape>;
+}
+
+/**
+ * Renders a BUD-10 `blossom:` URI. The URI is resolved to a concrete HTTPS URL
+ * (via `xs` server hints then the user's Blossom servers), then displayed as an
+ * image, video, or audio player based on the file extension. Non-media blobs
+ * (pdf, bin, …) fall back to a download link. If no server can serve the blob,
+ * a plain link to the first candidate is shown.
+ */
+function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape }: BlossomEmbedProps) {
+  const { src, onError, failed } = useBlossomUri(uri);
+  const [loaded, setLoaded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const mime = mimeFromExt(uri.ext);
+  const category = mime.startsWith('image/')
+    ? 'image'
+    : mime.startsWith('video/')
+      ? 'video'
+      : mime.startsWith('audio/')
+        ? 'audio'
+        : 'file';
+
+  // No resolvable server, or every candidate failed to load: show a link so the
+  // reference isn't silently lost.
+  if (!src || failed) {
+    return (
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {raw}
+      </a>
+    );
+  }
+
+  if (category === 'image') {
+    return (
+      <>
+        <button
+          type="button"
+          className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+        >
+          <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
+            <img
+              src={src}
+              alt=""
+              className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => { setLoaded(true); onError(); }}
+            />
+          </div>
+        </button>
+        {lightboxOpen && (
+          <Lightbox
+            images={[src]}
+            currentIndex={0}
+            onClose={() => setLightboxOpen(false)}
+            onNext={() => {}}
+            onPrev={() => {}}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (category === 'video') {
+    return <VideoPlayer src={src} artist={artist} />;
+  }
+
+  if (category === 'audio') {
+    return (
+      <AudioVisualizer
+        src={src}
+        mime={mime}
+        avatarUrl={avatarUrl}
+        avatarFallback={avatarFallback}
+        avatarShape={avatarShape}
+      />
+    );
+  }
+
+  // Non-media blob (pdf, bin, …) — link to download it.
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 my-2 px-3 py-2 rounded-lg border bg-muted/40 hover:bg-muted text-primary break-all"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="font-medium">Blossom file</span>
+      <span className="text-muted-foreground text-sm">
+        {uri.sha256.slice(0, 8)}…{uri.ext ? `.${uri.ext}` : ''}
+        {typeof uri.size === 'number' ? ` · ${formatBytes(uri.size)}` : ''}
+      </span>
+    </a>
+  );
+}
+
+/** Human-readable byte size (e.g. "1.2 MB"). */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
 function NostrMention({ pubkey }: { pubkey: string }) {
