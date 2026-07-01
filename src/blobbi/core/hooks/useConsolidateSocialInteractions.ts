@@ -33,6 +33,13 @@ import {
 } from '../lib/blobbi-interaction';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+
+/**
+ * Ditto's care-item effect resolver, backed by the shop catalog. Injected into
+ * the (catalog-agnostic) social consolidation so item-specific effects are applied.
+ */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,6 +122,7 @@ export function useConsolidateSocialInteractions(
         decayResult.stats,
         interactions,
         resolved.checkpoint,
+        resolveCareItemEffect,
       );
 
       // If no interactions were actually consumed (all were dupes from

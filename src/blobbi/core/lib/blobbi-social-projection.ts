@@ -11,9 +11,15 @@
  *   - Interactions are processed in ascending `created_at` order (caller
  *     must provide them pre-sorted via `sortInteractionEvents`).
  *   - Duplicate event IDs are skipped.
- *   - When an interaction carries an `itemId`, the shop item's `ItemEffect`
- *     is applied. Otherwise a small fallback effect per action is used.
+ *   - When an interaction carries an `itemId` and the caller supplies a
+ *     `resolveCareItemEffect` resolver that returns an effect, that
+ *     item-specific effect is applied. Otherwise a small fallback effect per
+ *     action is used.
  *   - All stats are clamped to [STAT_MIN, STAT_MAX] after each interaction.
+ *
+ * The care-item effect table itself is NOT owned by this module: the host
+ * application injects a `resolveCareItemEffect` resolver so @blobbi/core stays
+ * decoupled from any specific item catalog.
  *
  * @module blobbi-social-projection
  */
@@ -21,17 +27,34 @@
 import type { BlobbiStats } from './blobbi';
 import { STAT_MIN, STAT_MAX } from './blobbi';
 import type { BlobbiInteraction, InteractionAction, SocialCheckpoint } from './blobbi-interaction';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
-import type { ItemEffect } from '@/blobbi/shop/types/shop.types';
+import type { ItemEffect } from '@blobbi/core/types/shop';
+
+/**
+ * Stat deltas a care item applies to a Blobbi when used in an interaction.
+ *
+ * Semantic alias for the underlying effect shape. The core thinks in terms of
+ * "care item effects", not shop/purchase concepts — the host maps its own
+ * catalog to this shape via `resolveCareItemEffect`.
+ */
+export type CareItemEffect = ItemEffect;
+
+/**
+ * Resolves an interaction's `itemId` to its care-item effect.
+ *
+ * Injected by the host so @blobbi/core never imports a concrete item catalog.
+ * Returns `undefined` when the id is unknown, in which case the fallback
+ * per-action effect is used.
+ */
+export type CareItemEffectResolver = (itemId: string) => CareItemEffect | undefined;
 
 // ─── Fallback Effects ─────────────────────────────────────────────────────────
 
 /**
- * Default stat deltas applied when an interaction has no `itemId` or the
- * item is not found in the shop catalog. Intentionally conservative —
- * item-based interactions should always be preferred.
+ * Default stat deltas applied when an interaction has no `itemId`, no resolver
+ * was provided, or the resolver did not recognise the item. Intentionally
+ * conservative — item-based interactions should always be preferred.
  */
-const FALLBACK_EFFECTS: Record<InteractionAction, ItemEffect> = {
+const FALLBACK_EFFECTS: Record<InteractionAction, CareItemEffect> = {
   feed:     { hunger: 10 },
   play:     { happiness: 10, energy: -5 },
   clean:    { hygiene: 15 },
@@ -59,14 +82,20 @@ const FALLBACK_EFFECTS: Record<InteractionAction, ItemEffect> = {
  *                       the Nostr `since` inclusive boundary.
  *                       When absent (no prior consolidation), all interactions
  *                       in the array are processed.
+ * @param resolveCareItemEffect - Optional resolver mapping an interaction's
+ *                       `itemId` to its care-item effect. Injected by the host
+ *                       so this module stays decoupled from any item catalog.
+ *                       When omitted (or when it returns `undefined`), the
+ *                       fallback per-action effect is used.
  * @returns A new `BlobbiStats` object with social effects applied.
  */
 export function applySocialInteractions(
   baseStats: BlobbiStats,
   interactions: readonly BlobbiInteraction[],
   checkpoint?: SocialCheckpoint,
+  resolveCareItemEffect?: CareItemEffectResolver,
 ): BlobbiStats {
-  return consolidateSocialInteractions(baseStats, interactions, checkpoint).stats;
+  return consolidateSocialInteractions(baseStats, interactions, checkpoint, resolveCareItemEffect).stats;
 }
 
 // ─── Consolidation ────────────────────────────────────────────────────────────
@@ -95,12 +124,17 @@ export interface ConsolidationResult {
  * @param baseStats    - Full stats after decay (all 5 fields required).
  * @param interactions - Parsed interactions, **must be sorted ascending**.
  * @param checkpoint   - Optional existing checkpoint for dedup seeding.
+ * @param resolveCareItemEffect - Optional resolver mapping an interaction's
+ *                       `itemId` to its care-item effect (see
+ *                       `applySocialInteractions`). Omitting it falls back to
+ *                       per-action defaults.
  * @returns Consolidation result with new stats and consumed interaction info.
  */
 export function consolidateSocialInteractions(
   baseStats: BlobbiStats,
   interactions: readonly BlobbiInteraction[],
   checkpoint?: SocialCheckpoint,
+  resolveCareItemEffect?: CareItemEffectResolver,
 ): ConsolidationResult {
   if (interactions.length === 0) {
     return { stats: baseStats, consumedCount: 0, lastConsumed: undefined };
@@ -125,7 +159,7 @@ export function consolidateSocialInteractions(
     seen.add(ix.event.id);
 
     // ── Resolve effect ──
-    const effect = resolveEffect(ix);
+    const effect = resolveEffect(ix, resolveCareItemEffect);
 
     // ── Apply ──
     applyEffect(stats, effect);
@@ -143,19 +177,23 @@ export function consolidateSocialInteractions(
  * Resolve the stat effect for a single interaction.
  *
  * Priority:
- *   1. Shop item effect (when `itemId` is present and resolves to a known item)
+ *   1. Injected care-item effect (when `itemId` is present and the resolver
+ *      returns an effect)
  *   2. Fallback per-action effect
  */
-function resolveEffect(ix: BlobbiInteraction): ItemEffect {
-  if (ix.itemId) {
-    const item = getShopItemById(ix.itemId);
-    if (item?.effect) return item.effect;
+function resolveEffect(
+  ix: BlobbiInteraction,
+  resolveCareItemEffect?: CareItemEffectResolver,
+): CareItemEffect {
+  if (ix.itemId && resolveCareItemEffect) {
+    const effect = resolveCareItemEffect(ix.itemId);
+    if (effect) return effect;
   }
   return FALLBACK_EFFECTS[ix.action];
 }
 
-/** Apply an `ItemEffect` to mutable stats, clamping each field. */
-function applyEffect(stats: BlobbiStats, effect: ItemEffect): void {
+/** Apply a `CareItemEffect` to mutable stats, clamping each field. */
+function applyEffect(stats: BlobbiStats, effect: CareItemEffect): void {
   if (effect.hunger !== undefined) {
     stats.hunger = clamp(stats.hunger + effect.hunger);
   }

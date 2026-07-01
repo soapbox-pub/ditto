@@ -38,6 +38,13 @@ import {
   type SocialCheckpoint,
 } from '../lib/blobbi-interaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+
+/**
+ * Ditto's care-item effect resolver, backed by the shop catalog. Injected into
+ * the (catalog-agnostic) social consolidation so item-specific effects are applied.
+ */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 // ─── Minimum elapsed time before a decay-only sync is worth publishing ───────
 // If decay occurred for less than this many seconds and there are no social
@@ -134,6 +141,7 @@ export function useCanonicalSync({
           decayResult.stats,
           pendingInteractions,
           resolved.checkpoint,
+          resolveCareItemEffect,
         );
         hasConsumableInteractions = result.consumedCount > 0 && !!result.lastConsumed;
       }
@@ -173,6 +181,7 @@ export function useCanonicalSync({
           freshDecay.stats,
           pendingInteractions,
           freshResolved.checkpoint,
+          resolveCareItemEffect,
         );
 
         if (freshResult.consumedCount > 0 && freshResult.lastConsumed) {

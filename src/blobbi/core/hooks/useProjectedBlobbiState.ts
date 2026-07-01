@@ -19,6 +19,13 @@ import type { BlobbiCompanion, BlobbiStats } from '../lib/blobbi';
 import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@/blobbi/core/lib/blobbi-decay';
 import { applySocialInteractions } from '@/blobbi/core/lib/blobbi-social-projection';
 import { resolveSocialCheckpoint, type BlobbiInteraction } from '@/blobbi/core/lib/blobbi-interaction';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+
+/**
+ * Ditto's care-item effect resolver, backed by the shop catalog. Injected into
+ * the (catalog-agnostic) social projection so item-specific effects are applied.
+ */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 /** UI refresh interval in milliseconds (60 seconds) */
 const UI_REFRESH_INTERVAL_MS = 60_000;
@@ -101,6 +108,7 @@ export function useProjectedBlobbiState(
           decayResult.stats,
           interactions,
           resolved.checkpoint,
+          resolveCareItemEffect,
         )
       : decayResult.stats;
 
@@ -154,6 +162,7 @@ export function calculateProjectedDecay(
         result.stats,
         interactions,
         resolved.checkpoint,
+        resolveCareItemEffect,
       ),
     };
   }
