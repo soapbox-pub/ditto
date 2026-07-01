@@ -16,7 +16,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import { Capacitor } from '@capacitor/core';
 
 export interface BlobbiPhotoModalProps {

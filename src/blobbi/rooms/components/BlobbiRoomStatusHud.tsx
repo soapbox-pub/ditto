@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { ROOM_CONTROL_SURFACE_SUBTLE } from '../lib/room-layout';
 
 import type { CareState } from '@blobbi/core/blobbi-segments';
-import type { BlobbiCompanion, BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbiStats } from '@blobbi/core/blobbi';
 
 // ─── Colour maps ──────────────────────────────────────────────────────────────
 
