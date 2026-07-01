@@ -6,11 +6,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import {
   clampStat,

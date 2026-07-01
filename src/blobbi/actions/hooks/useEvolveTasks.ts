@@ -15,7 +15,7 @@ import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import type { Mission } from '@blobbi/core/missions';
 import { missionProgress, isEventMission } from '@blobbi/core/missions';
 import {

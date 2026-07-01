@@ -19,12 +19,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile, BlobbiStage } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   STAT_MAX,
   updateBlobbiTags,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@blobbi/core/blobbi-tag-schema';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
@@ -58,7 +58,7 @@ export interface CanonicalActionResult {
   /** Latest profile tags */
   profileAllTags: string[][];
   /** Latest profile storage */
-  profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+  profileStorage: import('@blobbi/core/blobbi').StorageItem[];
 }
 
 /**

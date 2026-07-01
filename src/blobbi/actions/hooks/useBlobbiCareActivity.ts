@@ -24,13 +24,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
   isValidBlobbiEvent,
   parseBlobbiEvent,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 
 import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '../lib/blobbi-streak';
 

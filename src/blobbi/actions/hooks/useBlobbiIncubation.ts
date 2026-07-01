@@ -21,11 +21,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
@@ -67,7 +67,7 @@ export interface UseStartIncubationParams {
     content: string;
     allTags: string[][];
     profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+    profileStorage: import('@blobbi/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -332,7 +332,7 @@ export interface UseStopIncubationParams {
     content: string;
     allTags: string[][];
     profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+    profileStorage: import('@blobbi/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -465,7 +465,7 @@ export interface UseStartEvolutionParams {
     content: string;
     allTags: string[][];
     profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+    profileStorage: import('@blobbi/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -611,7 +611,7 @@ export interface UseStopEvolutionParams {
     content: string;
     allTags: string[][];
     profileAllTags: string[][];
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
+    profileStorage: import('@blobbi/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

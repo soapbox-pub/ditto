@@ -23,7 +23,7 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
   KIND_BLOBBI_STATE,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 

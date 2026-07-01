@@ -21,7 +21,7 @@ import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   parseBlobbonautEvent,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi/core/blobbi';
 import { buildXpTagUpdates } from '@/blobbi/core/lib/progression';
 import { serializeProfileContent } from '@blobbi/core/missions';
 import type { MissionsContent } from '@blobbi/core/missions';
