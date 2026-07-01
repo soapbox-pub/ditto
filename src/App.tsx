@@ -10,6 +10,7 @@ import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
+import { NotificationStream } from "@/components/NotificationStream";
 import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
 
@@ -205,6 +206,7 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
+                  <NotificationStream />
 
                     <NWCProvider>
                       <EmotionDevProvider>

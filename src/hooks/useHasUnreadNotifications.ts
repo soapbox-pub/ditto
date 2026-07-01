@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { Capacitor } from '@capacitor/core';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
@@ -16,9 +15,9 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
  * Respects the user's per-type notification preferences so that disabled
  * types (e.g. reactions) don't trigger the unread dot.
  *
- * Real-time updates are handled by the subscription in `useNotifications`,
- * which invalidates the `notifications-unread` query key when new events
- * arrive. This hook only needs polling as a fallback.
+ * Real-time updates are handled by the always-mounted NotificationStream
+ * component, which holds a persistent relay subscription and invalidates the
+ * `notifications-unread` query key when new events arrive — no polling.
  *
  * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
@@ -36,7 +35,6 @@ export function useHasUnreadNotifications(): boolean {
   const { data: followData } = useFollowList();
 
   const prefs = settings?.notificationPreferences;
-  const notificationStyle = settings?.notificationStyle ?? 'push';
 
   // Derive enabled kinds from preferences so disabled types don't trigger the dot
   const enabledKinds = useMemo(
@@ -78,9 +76,8 @@ export function useHasUnreadNotifications(): boolean {
       return events.some((e) => e.pubkey !== user.pubkey);
     },
     enabled: !!user && notificationsCursor !== null,
-    // Disable polling on native only when using persistent mode (foreground service
-    // handles it). In push mode on native, poll like web since there's no service.
-    refetchInterval: Capacitor.isNativePlatform() && notificationStyle === 'persistent' ? false : 60_000,
+    // No polling — the NotificationStream subscription invalidates this query
+    // when a new notification event arrives over the persistent websocket.
     placeholderData: (prev) => prev,
   });
 
