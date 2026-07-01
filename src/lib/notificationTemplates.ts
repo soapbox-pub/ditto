@@ -46,6 +46,16 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     body: '',
   },
   {
+    // On-chain (Bitcoin) zaps — kind 8333. Kept separate from the Lightning
+    // `zaps` template because the server parses kind 8333 `amount` tags as
+    // whole satoshis, whereas kind 9735 uses NIP-57 millisats. Both share the
+    // single "Zaps" preference toggle via TEMPLATE_ID_TO_PREF_KEY.
+    id: 'onchain-zaps',
+    kinds: [8333],
+    title: '{{author_name}} zapped you {{amount}} sats on-chain!',
+    body: '',
+  },
+  {
     id: 'mentions',
     kinds: [1],
     title: '{{author_name}} mentioned you',

@@ -53,6 +53,16 @@ export interface WebPushSubscription {
   auth_key: string;
 }
 
+/** Firebase Cloud Messaging subscription (Android native / iOS via Firebase). */
+export interface FcmPushSubscription {
+  type: 'fcm';
+  device_token: string;
+  project_id: string;
+}
+
+/** Any transport nostr-push accepts. */
+export type PushSubscription_ = WebPushSubscription | FcmPushSubscription;
+
 export interface RegisterSubscriptionParams {
   subscription_id: string;
   domain: string;
@@ -70,7 +80,7 @@ export interface RegisterSubscriptionParams {
     icon?: string;
     badge?: string;
   };
-  push_subscription: WebPushSubscription;
+  push_subscription: PushSubscription_;
 }
 
 export interface UpdateSubscriptionParams {
@@ -80,7 +90,7 @@ export interface UpdateSubscriptionParams {
     is_active?: boolean;
     filter?: RegisterSubscriptionParams['filter'];
     notification?: RegisterSubscriptionParams['notification'];
-    push_subscription?: WebPushSubscription;
+    push_subscription?: PushSubscription_;
   };
 }
 

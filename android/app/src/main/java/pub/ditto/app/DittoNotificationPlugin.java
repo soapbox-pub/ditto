@@ -19,6 +19,9 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.messaging.FirebaseMessaging;
+
 import org.json.JSONArray;
 
 /**
@@ -161,6 +164,55 @@ public class DittoNotificationPlugin extends Plugin {
         PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
         return pm != null && pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
     }
+
+    /**
+     * Return this device's FCM registration token and the Firebase project ID.
+     *
+     * Called by the JS layer (useFcmNotifications) to register the token with
+     * the nostr-push server. Rejects if Firebase is not configured (no
+     * google-services.json) or Google Play Services is unavailable.
+     */
+    @PluginMethod
+    public void getFcmToken(PluginCall call) {
+        final String projectId;
+        try {
+            FirebaseApp app = FirebaseApp.getInstance();
+            projectId = app.getOptions().getProjectId();
+        } catch (IllegalStateException e) {
+            // FirebaseApp not initialized — google-services.json missing or the
+            // google-services Gradle plugin was not applied.
+            call.reject("Firebase is not configured on this build", e);
+            return;
+        }
+
+        if (projectId == null || projectId.isEmpty()) {
+            call.reject("Firebase project ID is unavailable");
+            return;
+        }
+
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception ex = task.getException();
+                        Log.w(TAG, "Failed to fetch FCM token", ex);
+                        call.reject("Failed to fetch FCM token: " + (ex != null ? ex.getMessage() : "unknown"), ex);
+                        return;
+                    }
+
+                    String token = task.getResult();
+                    if (token == null || token.isEmpty()) {
+                        call.reject("FCM returned an empty token");
+                        return;
+                    }
+
+                    Log.d(TAG, "Fetched FCM token (len=" + token.length() + "), project=" + projectId);
+                    JSObject result = new JSObject();
+                    result.put("token", token);
+                    result.put("projectId", projectId);
+                    call.resolve(result);
+                });
+    }
+
 
     /**
      * Start the foreground service when style is "persistent" and config is valid.

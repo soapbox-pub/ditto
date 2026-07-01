@@ -52,10 +52,12 @@ const TEMPLATE_ID_TO_PREF_KEY: Record<string, keyof NonNullable<EncryptedSetting
   reactions: 'reactions',
   reposts: 'reposts',
   zaps: 'zaps',
+  'onchain-zaps': 'zaps',
   mentions: 'mentions',
   comments: 'comments',
   badges: 'badges',
   letters: 'letters',
+  highlights: 'highlights',
 };
 
 export interface UsePushNotificationsReturn {
