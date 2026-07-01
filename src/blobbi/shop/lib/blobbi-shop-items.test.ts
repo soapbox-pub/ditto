@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { getShopItemById } from './blobbi-shop-items';
 import { applyItemEffects } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { DIRECT_ACTION_HAPPINESS_EFFECTS } from '@/blobbi/actions/hooks/useBlobbiDirectAction';
-import type { BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiStats } from '@blobbi/core/blobbi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

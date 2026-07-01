@@ -16,9 +16,9 @@
 import { useState, useEffect, useMemo } from 'react';
 
 import type { BlobbiCompanion, BlobbiStats } from '../lib/blobbi';
-import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@/blobbi/core/lib/blobbi-decay';
-import { applySocialInteractions } from '@/blobbi/core/lib/blobbi-social-projection';
-import { resolveSocialCheckpoint, type BlobbiInteraction } from '@/blobbi/core/lib/blobbi-interaction';
+import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@blobbi/core/blobbi-decay';
+import { applySocialInteractions } from '@blobbi/core/blobbi-social-projection';
+import { resolveSocialCheckpoint, type BlobbiInteraction } from '@blobbi/core/blobbi-interaction';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 /**

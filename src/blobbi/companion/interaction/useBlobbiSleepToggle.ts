@@ -25,7 +25,7 @@ import {
   parseBlobbiEvent,
   isValidBlobbiEvent,
 } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { trackDailyMissionProgress } from '@/blobbi/actions/lib/daily-mission-tracker';
 

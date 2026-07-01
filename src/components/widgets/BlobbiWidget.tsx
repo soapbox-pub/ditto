@@ -12,10 +12,10 @@ import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompan
 import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
+import { getVisibleStats } from '@blobbi/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';
 import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, getSelectedBlobbiKey } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';

@@ -58,8 +58,8 @@ import {
   type StorageItem,
 } from '@/blobbi/core/lib/blobbi';
 
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -131,7 +131,7 @@ import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureC
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
 import { serializeProfileContent } from '@/blobbi/core/lib/missions';
-import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
+import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';

@@ -34,7 +34,7 @@ import {
   parseBlobbiEvent,
   isValidBlobbiEvent,
 } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -51,7 +51,7 @@ import {
 import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@/blobbi/actions/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
-import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
 
 import type { UseItemFunction } from './BlobbiActionsContextDef';
 

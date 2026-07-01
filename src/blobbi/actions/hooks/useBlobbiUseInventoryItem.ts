@@ -11,7 +11,7 @@ import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -28,7 +28,7 @@ import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDai
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { getStreakTagUpdates } from '../lib/blobbi-streak';
 import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';

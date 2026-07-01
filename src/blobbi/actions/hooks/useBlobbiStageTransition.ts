@@ -25,8 +25,8 @@ import {
   STAT_MAX,
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
-import { validateAndRepairBlobbiTags } from '@/blobbi/core/lib/blobbi-tag-schema';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
+import { validateAndRepairBlobbiTags } from '@blobbi/core/blobbi-tag-schema';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { createEvolveMissions } from '../lib/evolution-missions';
 import { writeEvolutionToStorage, clearEvolutionFromStorage } from '../lib/daily-mission-tracker';

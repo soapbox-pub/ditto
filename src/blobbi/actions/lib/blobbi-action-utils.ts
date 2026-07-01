@@ -3,7 +3,7 @@
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats, type StorageItem } from '@/blobbi/core/lib/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
-import { getBlobbiStatDisplayState, type CareState } from '@/blobbi/core/lib/blobbi-segments';
+import { getBlobbiStatDisplayState, type CareState } from '@blobbi/core/blobbi-segments';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 

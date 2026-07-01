@@ -26,7 +26,7 @@ import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
 } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
 import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
 import {

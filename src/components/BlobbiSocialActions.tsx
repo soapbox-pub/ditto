@@ -31,7 +31,7 @@ import { parseBlobbiEvent } from '@/blobbi/core/lib/blobbi';
 import {
   buildInteractionEventTemplate,
   type InteractionAction,
-} from '@/blobbi/core/lib/blobbi-interaction';
+} from '@blobbi/core/blobbi-interaction';
 import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
 import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
 import { SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';

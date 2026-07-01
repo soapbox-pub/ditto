@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { AlertTriangle, Utensils, Gamepad2, Heart, Droplets, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CareState } from '@/blobbi/core/lib/blobbi-segments';
+import type { CareState } from '@blobbi/core/blobbi-segments';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
