@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.23.5] - 2026-07-01
+
+Your feed now keeps up with the conversation in real time — a tappable pill appears when new posts arrive, so you never have to guess when to refresh. Search gains a "Ditto users only" filter, articles show a reading-time estimate and render as tidy preview cards in the feed, and editing your published articles is smoother than ever. Posts can now embed content-addressed images, video, and audio that stay reachable even if a server goes down. Plus a big speed-up to app startup and a batch of fixes.
+
+### Added
+- A live "new posts" pill appears on your feed when fresh posts arrive — tap it to refresh and jump to the top
+- A "Ditto users only" filter in search scopes results to people posting from Ditto
+- Articles show a "min read" estimate on feed cards and the article page
+- Posts can embed content-addressed images, videos, and audio that fall back across servers if one is unavailable
+
+### Changed
+- Feed articles now appear as compact preview cards with cover image, summary, and a reading-time footer
+- Editing your published articles now opens a dedicated page with the slug locked, fixing stale content and spurious errors when switching between articles
+- The article editor's publish action is now a normal button next to Save Draft instead of a floating corner button
+- Articles render with proper typographic quotes, dashes, and ellipses
+- Highlights now scroll their quoted excerpt into view so you see the point of the highlight right away
+- The app starts up faster by loading its Bitcoin signing tools only when you actually send an on-chain payment
+- The suggested follow packs during onboarding are now a selectable grid — pick several and follow them all at once
+
+### Fixed
+- The follow button now updates instantly instead of reverting until you reload the page
+- Search no longer stops loading more results prematurely
+- Vivid, saturated theme colors now get readable text instead of unreadable dark text
+- Your original companion no longer gets replaced by an egg after a profile hiccup
+
 ## [2.23.4] - 2026-06-18
 
 A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.

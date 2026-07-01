@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.23.4",
+  "version": "2.23.5",
   "type": "module",
   "scripts": {
     "dev": "npm i --silent && vite",
