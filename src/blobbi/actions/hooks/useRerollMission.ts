@@ -1,75 +1,38 @@
 /**
- * useRerollMission - Replace a daily mission with a new one from the pool
+ * useRerollMission - Ditto wrapper around the headless @blobbi/react hook.
  *
- * Updates the in-memory session store.
+ * The reroll logic lives in `@blobbi/react/hooks/useRerollMission` (app-agnostic,
+ * UI-free). This wrapper injects the current user's pubkey and re-adds Ditto's
+ * user-facing toast feedback, preserving the previous public API (`useRerollMission()`).
  */
-
-import { useMutation } from '@tanstack/react-query';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiStage } from '@blobbi/react/lib/daily-missions';
-import { rerollMission, getDefinition } from '@blobbi/react/lib/daily-missions';
 import {
-  readMissionsFromStorage,
-  writeMissionsToStorage,
-} from '@blobbi/react/lib/daily-mission-tracker';
+  useRerollMission as useRerollMissionBase,
+  type RerollMissionRequest,
+  type RerollMissionResult,
+} from '@blobbi/react/hooks/useRerollMission';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface RerollMissionRequest {
-  missionId: string;
-  availableStages?: BlobbiStage[];
-}
-
-export interface RerollMissionResult {
-  oldMissionId: string;
-  newMissionId: string;
-  rerollsRemaining: number;
-}
+// Re-export the package types so existing import paths keep working.
+export type { RerollMissionRequest, RerollMissionResult };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useRerollMission() {
   const { user } = useCurrentUser();
 
-  return useMutation({
-    mutationFn: async ({ missionId, availableStages }: RerollMissionRequest): Promise<RerollMissionResult> => {
-      if (!user?.pubkey) throw new Error('Must be logged in');
-
-      const current = readMissionsFromStorage(user.pubkey);
-      if (!current) throw new Error('No missions state');
-
-      const updated = rerollMission(current, missionId, availableStages);
-      if (!updated) throw new Error('Cannot reroll this mission');
-
-      writeMissionsToStorage(updated, user.pubkey);
-
-      // Notify React
-      window.dispatchEvent(new CustomEvent('daily-missions-updated', {
-        detail: { missionId, rerolled: true },
-      }));
-
-      // Find the new mission ID at the same index
-      const oldIdx = current.daily.findIndex((m) => m.id === missionId);
-      const newMissionId = updated.daily[oldIdx]?.id ?? missionId;
-
-      return {
-        oldMissionId: missionId,
-        newMissionId,
-        rerollsRemaining: updated.rerolls,
-      };
-    },
-    onSuccess: ({ newMissionId, rerollsRemaining }) => {
-      const def = getDefinition(newMissionId);
+  return useRerollMissionBase({
+    pubkey: user?.pubkey,
+    onSuccess: ({ newMissionId, newMissionTitle, rerollsRemaining }) => {
       const rerollText = rerollsRemaining === 0
         ? 'No rerolls left'
         : `${rerollsRemaining} reroll${rerollsRemaining === 1 ? '' : 's'} left`;
 
       toast({
         title: 'Mission Replaced',
-        description: `New mission: ${def?.title ?? newMissionId}. ${rerollText}.`,
+        description: `New mission: ${newMissionTitle ?? newMissionId}. ${rerollText}.`,
       });
     },
     onError: (error: Error) => {
