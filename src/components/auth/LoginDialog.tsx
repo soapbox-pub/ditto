@@ -2,7 +2,7 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Upload, Loader2, ExternalLink, FileUp, QrCode } from 'lucide-react';
+import { ChevronDown, Loader2, ExternalLink, FileUp, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
+import { DittoLogo } from '@/components/DittoLogo';
 import {
   useLoginActions,
   generateNostrConnectParams,
@@ -312,16 +313,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] sm:max-w-sm max-h-[90dvh] p-0 gap-6 overflow-hidden rounded-2xl overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-sm max-h-[90dvh] p-0 gap-3 overflow-hidden rounded-2xl overflow-y-auto">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="text-lg font-semibold leading-none tracking-tight text-center">
             Log in
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex size-40 text-8xl bg-primary/10 rounded-full items-center justify-center justify-self-center">
-          🔑
-        </div>
+        <LoginHero />
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
           {onSignupClick && !connectError && !showProgressView && !showQr && (
@@ -405,7 +404,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                   }}
                   placeholder='nsec1… or bunker://…'
                   autoComplete='off'
-                  className={`pr-10 ${
+                  className={`pr-12 ${
                     loginError ? 'border-destructive focus-visible:ring-destructive' : ''
                   }`}
                 />
@@ -422,10 +421,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                       type='button'
                       variant='ghost'
                       size='icon'
-                      className='absolute right-0 top-0 h-full px-3 hover:bg-transparent'
+                      className='absolute right-0 top-0 h-full w-10 rounded-l-none border-l border-input bg-muted/40 hover:bg-muted'
                       title='More login options'
+                      aria-label='More login options'
                     >
-                      <Upload className='h-4 w-4 text-muted-foreground' />
+                      <ChevronDown className='h-4 w-4 text-muted-foreground' />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align='end'>
@@ -474,3 +474,262 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 };
 
 export default LoginDialog;
+
+/**
+ * The orbital-ring path (`path5`) from `public/logo.svg`, inlined so the
+ * unlock moment can light the ring itself up white. Logo
+ * coordinates (viewBox -5 -10 100 100); mapped into the 176px overlay
+ * via `scale(1.76) translate(5 10)`.
+ */
+const RING_PATH = 'm 90.441615,21.60007 c -2.1797,-5.3398 -9.4102,-7.3984 -21,-6.0391 1.8906,1.8906 3.5391,3.9688 4.9297,6.2109 0.28906,0.46094 0.55859,0.92187 0.80859,1.3789 5.5391,-0.12109 7.6094,1.0391 7.8398,1.4492 0.12891,0.46875 -0.55078,2.7305 -4.5898,6.4805 -0.01953,0.01953 -0.03125,0.03125 -0.03906,0.03906 -0.26172,0.23828 -0.51953,0.48047 -0.80078,0.71875 -0.19922,0.17969 -0.41016,0.35938 -0.62891,0.53906 -0.10938,0.10156 -0.21875,0.19141 -0.33984,0.28906 -0.23828,0.19922 -0.5,0.41016 -0.76172,0.62109 -0.12891,0.10156 -0.26172,0.21094 -0.39844,0.32031 -0.42969,0.33984 -0.89063,0.69141 -1.3711,1.0508 -0.26953,0.21094 -0.53906,0.41016 -0.82812,0.60938 -0.32031,0.23047 -0.64062,0.46875 -0.98047,0.69922 0,0.01172 -0.01172,0.01172 -0.01172,0.01172 -0.26953,0.19141 -0.55078,0.37891 -0.82812,0.57031 -0.28125,0.19141 -0.55859,0.37109 -0.85156,0.55859 -0.25,0.16016 -0.5,0.32812 -0.76172,0.48828 -6,3.8984 -13.48,7.7188 -21.379,10.922 -8.0117,3.2383 -15.871,5.6602 -22.93,7.0391 -0.30078,0.05859 -0.60156,0.12109 -0.89062,0.17188 -0.60938,0.12109 -1.2188,0.21875 -1.8203,0.32031 -0.07031,0.01172 -0.12891,0.01953 -0.19922,0.03125 h -0.01953 c -0.28906,0.05078 -0.57031,0.08984 -0.83984,0.12891 -0.30859,0.05078 -0.60938,0.08984 -0.91016,0.12891 -0.57031,0.07813 -1.1094,0.14844 -1.6406,0.21094 -0.35156,0.03906 -0.69141,0.07031 -1.0195,0.10156 -0.30078,0.03125 -0.58984,0.05078 -0.87891,0.07813 -0.48047,0.03125 -0.92969,0.05859 -1.3711,0.07813 -0.39844,0.01953 -0.78125,0.03125 -1.1484,0.03906 -5.5116996,0.10938 -7.5702996,-1.0391 -7.8007996,-1.4492 -0.12891,-0.48047 0.55078,-2.7383 4.6093996,-6.5 -0.12891,-0.48828 -0.26172,-1 -0.37891,-1.5391 -0.51953,-2.4219 -0.78906,-4.8906 -0.78906,-7.3594 0,-0.17969 0,-0.37109 0.01172,-0.55078 -9.2733996,7.082 -13.0229996,13.59 -10.8749996,18.949 1.7383,4.2695 6.7188,6.4492 14.5899996,6.4492 2.8594,0 6.1016,-0.28906 9.7109,-0.87109 0.17188,-0.03125 0.33984,-0.05859 0.51953,-0.08984 0.17188,-0.03125 0.35156,-0.05859 0.51953,-0.08984 l 1.2188,-0.21875 c 0.57031,-0.10156 1.1484,-0.21875 1.7305,-0.33984 0.53125,-0.10938 1.0508,-0.21094 1.5781,-0.32812 0.01172,0 0.03125,-0.01172 0.03906,-0.01172 0.05078,-0.01172 0.08984,-0.01953 0.14062,-0.03125 0.07031,-0.01172 0.12891,-0.03125 0.19922,-0.05078 0.57812,-0.12891 1.1602,-0.26172 1.7383,-0.39844 0.05078,-0.01172 0.10156,-0.03125 0.14844,-0.03906 0.21094,-0.05078 0.42188,-0.10156 0.64062,-0.14844 h 0.01172 c 6.0898,-1.5117 12.559,-3.6406 19.102,-6.2891 6.5508,-2.6602 12.68,-5.6289 18.109,-8.7812 0.21875,-0.12891 0.44141,-0.26172 0.66016,-0.39062 0.58984,-0.33984 1.1797,-0.69141 1.7617,-1.0508 1.5703,-0.96094 3.0586,-1.9297 4.4805,-2.9102 0.12891,-0.08984 0.26172,-0.17969 0.39062,-0.26953 11.242,-7.8477 15.941,-15.09 13.594,-20.938 z';
+
+/**
+ * The animated login hero: the real app logo with a keyhole at the planet's
+ * center, and a little line-art key that appears, slides into the keyhole,
+ * turns, and fades out — a looping "this is how you log in" vignette.
+ * Honors `prefers-reduced-motion` (static logo + keyhole, no key).
+ */
+function LoginHero() {
+  return (
+    <div className="relative size-52 justify-self-center">
+      <LoginHeroKeyframes />
+
+      {/* Behind layer: the keyhole and the unlock ripples sit underneath the
+          logo, so the orbital ring sweeps in front of them. */}
+      <svg
+        viewBox="0 0 176 176"
+        width={208}
+        height={208}
+        aria-hidden="true"
+        className="absolute inset-0 overflow-visible"
+        fill="none"
+      >
+        {/* Unlock pulse: ripples that expand along the logo's orbital ring
+            (the "Saturn ring"), synced to the key's turn. The group carries
+            the ring's tilt; the ripples scale within it. */}
+        <g transform="rotate(-21 88 89)">
+          <ellipse
+            className="ditto-ring-ripple"
+            cx="88"
+            cy="89"
+            rx="83"
+            ry="26"
+            stroke="hsl(var(--primary))"
+            strokeWidth="3.5"
+            style={{ transformOrigin: '88px 89px' }}
+          />
+          <ellipse
+            className="ditto-ring-ripple ditto-ring-ripple2"
+            cx="88"
+            cy="89"
+            rx="83"
+            ry="26"
+            stroke="hsl(var(--primary))"
+            strokeWidth="2.5"
+            style={{ transformOrigin: '88px 89px' }}
+          />
+        </g>
+
+        {/* Opaque disc over the planet area: hides the ripples where they'd
+            cross the planet ("behind Saturn") without a mask, which would
+            force per-frame repaints of the animating subtree. Invisible
+            against the dialog's uniform background. Geometry measured from
+            the logo paths: planet center (87.3, 88), outer radius ≈ 55.6. */}
+        <circle cx="87.3" cy="88" r="56" fill="hsl(var(--background))" />
+
+        {/* Keyhole in the upper half of the logo's planet — a darker shade
+            of the logo color, so it reads as a hole. */}
+        <g fill="color-mix(in srgb, hsl(var(--primary)) 45%, black)">
+          <circle cx="87" cy="64" r="12" />
+          <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" />
+        </g>
+
+        {/* Unlock success: the keyhole lights up white along with the ring. */}
+        <g
+          className="ditto-ring-success"
+          fill="#fff"
+          style={{ filter: 'drop-shadow(0 0 8px rgb(255 255 255 / 0.7))' }}
+        >
+          <circle cx="87" cy="64" r="12" />
+          <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" />
+        </g>
+      </svg>
+
+      {/* Pre-blurred glow layer: a masked copy of the logo with a constant
+          blur, so the unlock glow animates cheap opacity instead of an
+          expensive per-frame drop-shadow filter. */}
+      <div
+        aria-hidden="true"
+        className="ditto-hero-logo-glow absolute inset-0"
+        style={{
+          backgroundColor: 'hsl(var(--primary))',
+          filter: 'blur(10px)',
+          maskImage: 'url(/logo.svg)',
+          maskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskImage: 'url(/logo.svg)',
+          WebkitMaskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'center',
+        }}
+      />
+
+      <DittoLogo size={208} className="relative" />
+
+      <svg
+        viewBox="0 0 176 176"
+        width={208}
+        height={208}
+        aria-hidden="true"
+        className="absolute inset-0 overflow-visible"
+        fill="none"
+      >
+        {/* Unlock success: the logo's orbital ring itself lights up white,
+            glowing as the key turns. */}
+        <g
+          className="ditto-ring-success"
+          transform="scale(1.76) translate(5 10)"
+          style={{ filter: 'drop-shadow(0 0 8px rgb(255 255 255 / 0.7))' }}
+        >
+          <path d={RING_PATH} fill="#fff" />
+        </g>
+
+        <defs>
+          {/* The "going in" illusion: the key stays visible across the whole
+              keyhole mouth and disappears exactly at the hole's far (right)
+              rim — the curved edge — as if sliding into the lock's interior.
+              The explicit userSpaceOnUse region keeps the mask from cropping
+              the key's strokes (the default region is the tight fill
+              bounding box). */}
+          <mask id="ditto-hero-keyhole-mask" maskUnits="userSpaceOnUse" x="-48" y="-48" width="272" height="272">
+            <rect x="-48" y="-48" width="272" height="272" fill="white" />
+            <rect x="87" y="40" width="60" height="48" fill="black" />
+            {/* The full keyhole opening — circle and bottom slot — stays
+                see-through, so the key vanishes at the opening's far edge. */}
+            <circle cx="87" cy="64" r="12" fill="white" />
+            <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" fill="white" />
+          </mask>
+        </defs>
+
+        {/* The key glides in from stage left in one motion. The teeth sit
+            at the tip, so they physically pass through the mouth and end up
+            inside the lock (occluded by the mask) before the turn — no
+            visibility tricks needed. The turn itself is a two-frame cel
+            swap of what's still outside the lock: the bow folds flat while
+            the turned key's implied base unfolds. */}
+        <g mask="url(#ditto-hero-keyhole-mask)">
+        <g className="ditto-key ditto-key-side">
+          <g stroke="hsl(var(--foreground))" strokeWidth="7" strokeLinecap="round">
+            {/* Shaft — seating deep past the far rim */}
+            <path d="M 52 64 H 110" />
+            {/* Teeth at the tip — swallowed by the keyhole as the key seats.
+                They start below the shaft axis so their round caps stay
+                inside the shaft instead of grazing its top edge. */}
+            <path d="M 99 66 v 10 M 108 66 v 11" />
+            {/* Frame 1: the bow in profile */}
+            <g className="ditto-key-frame1" style={{ transformOrigin: '39px 64px' }}>
+              <circle cx="39" cy="64" r="13" />
+            </g>
+            {/* Frame 2: the key turned edge-on — the bow reads as an implied
+                base: just a thicker line at the end you hold */}
+            <path
+              className="ditto-key-frame2"
+              d="M 26 64 H 52"
+              strokeWidth="10"
+              style={{ transformOrigin: '39px 64px' }}
+            />
+          </g>
+        </g>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Scoped keyframes for the login hero. Inlined (rather than added to
+ * tailwind.config) because they're specific to this vignette. Honors
+ * `prefers-reduced-motion`.
+ */
+function LoginHeroKeyframes() {
+  return (
+    <style>{`
+      .ditto-key-side {
+        animation: ditto-key-side 3.2s ease-in-out infinite;
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+      .ditto-key-frame1 {
+        animation: ditto-key-frame1 3.2s ease-in-out infinite;
+      }
+      .ditto-key-frame2 {
+        animation: ditto-key-frame2 3.2s ease-in-out infinite;
+        opacity: 0;
+      }
+      .ditto-hero-logo-glow {
+        animation: ditto-logo-glow 3.2s ease-in-out infinite;
+        opacity: 0;
+        will-change: opacity;
+      }
+      .ditto-ring-ripple {
+        animation: ditto-ring-ripple 3.2s ease-out infinite;
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+      .ditto-ring-ripple2 {
+        animation-delay: 0.12s;
+      }
+      .ditto-ring-success {
+        animation: ditto-ring-success 3.2s ease-in-out infinite;
+        opacity: 0;
+        will-change: opacity;
+      }
+      /* The key glides in as one smooth motion — from stage left straight
+         to full depth in the keyhole — holds through the turn, then fades
+         before the loop restarts. */
+      @keyframes ditto-key-side {
+        0%        { transform: translateX(-52px); opacity: 0; }
+        8%        { opacity: 1; }
+        30%, 74%  { transform: translateX(0); opacity: 1; }
+        84%, 100% { transform: translateX(0); opacity: 0; }
+      }
+      /* The turn: the two cels tween into each other over ~270ms — the bow
+         and teeth fold flat into the shaft axis while the turned key's thick
+         base unfolds, so the swap reads as one smooth quarter-turn. */
+      @keyframes ditto-key-frame1 {
+        0%, 40%   { opacity: 1; transform: scaleY(1); }
+        46%, 100% { opacity: 0; transform: scaleY(0.08); }
+      }
+      @keyframes ditto-key-frame2 {
+        0%, 40%   { opacity: 0; transform: scaleY(0.3); }
+        46%, 100% { opacity: 1; transform: scaleY(1); }
+      }
+      /* Unlock feedback, synced to the turn: the logo pulses a soft glow
+         while ripples expand outward along the orbital ring and dissolve. */
+      @keyframes ditto-logo-glow {
+        0%, 40%   { opacity: 0; }
+        48%       { opacity: 0.38; }
+        74%, 100% { opacity: 0; }
+      }
+      @keyframes ditto-ring-ripple {
+        0%, 40%   { opacity: 0; transform: scale(1); }
+        45%       { opacity: 0.6; }
+        72%, 100% { opacity: 0; transform: scale(1.24); }
+      }
+      /* The ring lights up in the success color as the key turns, holds,
+         then dims before the loop restarts. */
+      @keyframes ditto-ring-success {
+        0%, 40%   { opacity: 0; }
+        46%, 62%  { opacity: 0.9; }
+        78%, 100% { opacity: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ditto-key, .ditto-ring-ripple, .ditto-ring-success,
+        .ditto-hero-logo-glow { display: none; }
+        .ditto-key-side, .ditto-key-frame1, .ditto-key-frame2,
+        .ditto-hero-logo { animation: none; }
+      }
+    `}</style>
+  );
+}
