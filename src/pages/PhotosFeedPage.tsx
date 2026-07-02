@@ -31,6 +31,7 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteList } from "@/hooks/useMuteList";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
+import { getEffectiveBlossomServers } from "@/lib/appBlossom";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
 import { isEventMuted } from "@/lib/muteHelpers";
@@ -96,6 +97,12 @@ export function PhotosFeedPage() {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
+    // Needed to resolve BUD-10 blossom: URIs when checking for displayable media.
+    const blossomServers = getEffectiveBlossomServers(
+      config.blossomServerMetadata,
+      config.useAppBlossomServers,
+    );
+
     const events: NostrEvent[] =
       activeTab === "follows"
         ? (rawData.pages as unknown as { items: FeedItem[] }[])
@@ -108,9 +115,9 @@ export function PhotosFeedPage() {
       seen.add(event.id);
       if (event.kind !== PHOTO_KIND) return false;
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-      return eventToMediaItem(event) !== null;
+      return eventToMediaItem(event, blossomServers) !== null;
     });
-  }, [rawData?.pages, muteItems, activeTab]);
+  }, [rawData?.pages, muteItems, activeTab, config.blossomServerMetadata, config.useAppBlossomServers]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 
