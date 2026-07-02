@@ -114,12 +114,10 @@ export function useFreshBlobbiBeforeAction(pubkey?: string) {
     // (which filters out legacy events) returns null, reintroducing the legacy
     // event into a publish path (e.g. useCanonicalSync's refresh sync).
     if (cachedCompanion.isLegacy) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          '[FreshBlobbi] Refusing to act on legacy companion (unsupported):',
-          cachedCompanion.d.slice(0, 24),
-        );
-      }
+      console.warn(
+        '[FreshBlobbi] Refusing to act on legacy companion (unsupported):',
+        cachedCompanion.d.slice(0, 24),
+      );
       return null;
     }
 
