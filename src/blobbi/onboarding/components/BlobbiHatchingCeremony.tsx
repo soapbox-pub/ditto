@@ -38,6 +38,11 @@ import {
   type BlobbonautProfile,
   type BlobbiCompanion,
 } from '@blobbi/core/blobbi';
+import { validateAndRepairBlobbiTags } from '@blobbi/core/blobbi-tag-schema';
+import { serializeEvolutionContent } from '@blobbi/core/missions';
+import { createEvolveMissions } from '@blobbi/react/lib/evolution-missions';
+import { writeEvolutionToStorage } from '@blobbi/react/lib/daily-mission-tracker';
+import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
 
 import {
   generateEggPreview,
@@ -385,31 +390,71 @@ export function BlobbiHatchingCeremony({
     const now = Math.floor(Date.now() / 1000);
     const nowStr = now.toString();
 
-    const babyTags = updateBlobbiTags(tags, {
+    // Build a companion for streak updates. Prefer the real existing companion;
+    // otherwise derive one from the current preview. Skip streak updates if
+    // neither is available.
+    const streakCompanion: BlobbiCompanion | null =
+      existingCompanion ??
+      (previewRef.current
+        ? (previewToBlobbiCompanion(previewRef.current) as unknown as BlobbiCompanion)
+        : null);
+    const streakUpdates = streakCompanion ? (getStreakTagUpdates(streakCompanion) ?? {}) : {};
+
+    // First merge: promote to an active baby with full stats. Preserves all
+    // identity/extension tags (personality, trait, equip, etc.) via updateBlobbiTags.
+    const mergedTags = updateBlobbiTags(tags, {
       stage: 'baby',
       state: 'active',
-      progression_state: 'evolving',
-      progression_started_at: nowStr,
       hunger: STAT_MAX.toString(),
       happiness: STAT_MAX.toString(),
       health: STAT_MAX.toString(),
       hygiene: STAT_MAX.toString(),
       energy: STAT_MAX.toString(),
+      ...streakUpdates,
       last_interaction: nowStr,
       last_decay_at: nowStr,
     });
 
-    const babyName = previewRef.current?.name ?? 'Egg';
+    // Validate and repair: strips stale task / task_completed / state_started_at
+    // and normalizes state for the new stage. Uses the original egg tags for recovery.
+    const repairResult = validateAndRepairBlobbiTags(mergedTags, tags, { cleanupTaskTags: true });
+    if (repairResult.errors.length > 0) {
+      console.error('[HatchingCeremony] Tag validation errors:', repairResult.errors);
+      throw new Error(`Tag validation failed: ${repairResult.errors.join(', ')}`);
+    }
+
+    // Set progression AFTER validation, since cleanupTaskTags clears it. The
+    // baby auto-starts its evolution journey immediately.
+    const babyTags = updateBlobbiTags(repairResult.tags, {
+      progression_state: 'evolving',
+      progression_started_at: nowStr,
+    });
+
+    // Seed evolve missions into the 31124 content (JSON) so they survive reload.
+    const evolveMissions = createEvolveMissions();
+    const content = serializeEvolutionContent(JSON.stringify({}), evolveMissions);
+
     const event = await publishEvent({
       kind: KIND_BLOBBI_STATE,
-      content: `${babyName} is a baby Blobbi.`,
+      content,
       tags: babyTags,
     });
 
     eggTagsRef.current = babyTags;
     updateCompanionEvent(event);
     invalidateCompanion();
-  }, [publishEvent, updateCompanionEvent, invalidateCompanion]);
+
+    // Seed the evolution session store + notify so missions appear immediately.
+    const d = previewRef.current?.d;
+    if (user?.pubkey && d) {
+      writeEvolutionToStorage(evolveMissions, user.pubkey, d);
+      window.dispatchEvent(
+        new CustomEvent('daily-missions-updated', {
+          detail: { evolution: true, d },
+        }),
+      );
+    }
+  }, [publishEvent, updateCompanionEvent, invalidateCompanion, existingCompanion, user?.pubkey]);
 
   // ── Egg click ──
   const handleEggClick = useCallback(() => {
@@ -490,9 +535,12 @@ export function BlobbiHatchingCeremony({
       const currentTags = eggTagsRef.current;
       if (currentTags && finalName !== (previewRef.current?.name ?? 'Egg')) {
         const namedTags = updateBlobbiTags(currentTags, { name: finalName });
+        // Preserve the just-seeded evolution JSON so renaming doesn't wipe it.
+        const evolveMissions = createEvolveMissions();
+        const content = serializeEvolutionContent(JSON.stringify({}), evolveMissions);
         const event = await publishEvent({
           kind: KIND_BLOBBI_STATE,
-          content: `${finalName} is a baby Blobbi.`,
+          content,
           tags: namedTags,
         });
         updateCompanionEvent(event);
