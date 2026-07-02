@@ -1,6 +1,6 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
-import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats, type StorageItem } from '@blobbi/core/blobbi';
+import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats } from '@blobbi/core/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { getBlobbiStatDisplayState, type CareState } from '@blobbi/core/blobbi-segments';
@@ -275,35 +275,6 @@ export function hasHappinessEffectForEgg(effects: ItemEffect | undefined): boole
   return effects.happiness !== undefined && effects.happiness !== 0;
 }
 
-// ─── Item Helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Decrement item quantity in storage array.
- * If quantity becomes 0, removes the item entirely.
- * Returns a new storage array (immutable).
- */
-export function decrementStorageItem(
-  storage: StorageItem[],
-  itemId: string,
-  amount = 1
-): StorageItem[] {
-  const result: StorageItem[] = [];
-
-  for (const item of storage) {
-    if (item.itemId !== itemId) {
-      result.push(item);
-      continue;
-    }
-    const newQuantity = item.quantity - amount;
-    if (newQuantity > 0) {
-      result.push({ ...item, quantity: newQuantity });
-    }
-    // If newQuantity <= 0, we don't add it (remove item)
-  }
-
-  return result;
-}
-
 // ─── Stage Restriction Helpers ────────────────────────────────────────────────
 
 /**
@@ -333,11 +304,6 @@ export const EGG_VISIBLE_INVENTORY_ACTIONS: InventoryAction[] = ['clean', 'medic
  * All actions visible in the egg UI.
  */
 export const EGG_VISIBLE_ACTIONS: BlobbiAction[] = ['clean', 'medicine', 'play_music', 'sing'];
-
-/**
- * @deprecated Use EGG_ALLOWED_INVENTORY_ACTIONS instead
- */
-export const EGG_ALLOWED_ACTIONS = EGG_ALLOWED_INVENTORY_ACTIONS;
 
 /**
  * Check if a companion can use a specific item action.
@@ -370,15 +336,6 @@ export function isActionVisibleForStage(stage: 'egg' | 'baby' | 'adult', action:
     return EGG_VISIBLE_ACTIONS.includes(action);
   }
   return true; // baby and adult see all actions
-}
-
-/**
- * Check if a companion can use general items (feed, play, clean).
- * Eggs cannot use food, toys, or hygiene items.
- * @deprecated Use canUseAction(companion, action) for action-specific checks
- */
-export function canUseInventoryItems(companion: BlobbiCompanion): boolean {
-  return GENERAL_ITEM_USABLE_STAGES.includes(companion.stage as typeof GENERAL_ITEM_USABLE_STAGES[number]);
 }
 
 /**

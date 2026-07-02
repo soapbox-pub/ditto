@@ -3,41 +3,6 @@
 import type { ItemEffect } from '../types/shop.types';
 
 /**
- * Format item effects as a concise summary string for display in list rows.
- * 
- * @deprecated Use `<ItemEffectDisplay variant="inline" />` component instead
- * for consistent effect rendering across all Blobbi UIs.
- * 
- * @example
- * formatEffectSummary({ hunger: 15, hygiene: -2, energy: 5 })
- * // Returns: "+15 hunger, -2 hygiene, +5 energy"
- */
-export function formatEffectSummary(effect: ItemEffect | undefined): string {
-  if (!effect || Object.keys(effect).length === 0) {
-    return 'No effects';
-  }
-
-  // Use canonical stat order for consistency
-  const STAT_ORDER: (keyof ItemEffect)[] = ['hunger', 'happiness', 'energy', 'hygiene', 'health'];
-  const entries: Array<[string, number]> = [];
-  
-  for (const stat of STAT_ORDER) {
-    const value = effect[stat];
-    if (value !== undefined && value !== 0) {
-      entries.push([stat, value]);
-    }
-  }
-
-  return entries
-    .map(([stat, value]) => {
-      const sign = value > 0 ? '+' : '';
-      const statName = stat.replace('_', ' ');
-      return `${sign}${value} ${statName}`;
-    })
-    .join(', ');
-}
-
-/**
  * Get the number of positive and negative effects for an item.
  * Useful for displaying quick stat summaries.
  */
