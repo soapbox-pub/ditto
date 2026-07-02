@@ -41,7 +41,7 @@ export interface UseBlobbiCareActivityOptions {
   updateCompanionEvent: (event: NostrEvent) => void;
   /** Owner hex pubkey. When absent (logged out), registering activity throws. */
   pubkey: string | undefined;
-  /** Publishes the updated kind 30078 Blobbi state event (host `useNostrPublish`). */
+  /** Publishes the updated kind 31124 Blobbi state event (host `useNostrPublish`). */
   publish: PublishAdapter['publish'];
 }
 
