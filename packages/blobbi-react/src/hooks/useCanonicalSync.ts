@@ -20,6 +20,11 @@
  * not re-trigger when the companion object updates from its own publish.
  * The effect depends only on `companion.d` + interactions-loaded status.
  *
+ * Item-specific care effects are resolved through an injected, catalog-agnostic
+ * `resolveCareItemEffect` resolver so this hook stays free of any host-app shop
+ * catalog. When no resolver is provided, only the generic fallback effects in
+ * @blobbi/core's social projection are applied.
+ *
  * @module useCanonicalSync
  */
 
@@ -30,21 +35,24 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates, buildBlobbiAddress } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
-import { consolidateSocialInteractions } from '@blobbi/core/blobbi-social-projection';
+import { consolidateSocialInteractions, type CareItemEffectResolver } from '@blobbi/core/blobbi-social-projection';
 import {
   resolveSocialCheckpoint,
   serializeSocialCheckpoint,
   type BlobbiInteraction,
   type SocialCheckpoint,
 } from '@blobbi/core/blobbi-interaction';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+
+import type { PublishAdapter } from '../adapters/types';
 
 /**
- * Ditto's care-item effect resolver, backed by the shop catalog. Injected into
- * the (catalog-agnostic) social consolidation so item-specific effects are applied.
+ * Default no-op care-item effect resolver.
+ *
+ * Returns `undefined` for every item, so @blobbi/core falls back to its generic
+ * per-action effects. Hosts with a real item catalog inject their own resolver
+ * (e.g. `(itemId) => getShopItemById(itemId)?.effect`).
  */
-const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
+const noopResolveCareItemEffect: CareItemEffectResolver = () => undefined;
 
 // ─── Minimum elapsed time before a decay-only sync is worth publishing ───────
 // If decay occurred for less than this many seconds and there are no social
@@ -55,7 +63,7 @@ const MIN_DECAY_ELAPSED_SECONDS = 60;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface UseCanonicalSyncParams {
+export interface UseCanonicalSyncOptions {
   /**
    * The currently selected companion parsed from the owner's 31124 event.
    * The hook reads canonical tags/content from `companion.event`.
@@ -85,6 +93,13 @@ interface UseCanonicalSyncParams {
    * consolidated. Used to trigger visual reward feedback (e.g. hearts).
    */
   onSocialConsolidated?: (consumedCount: number) => void;
+  /** Publishes the updated kind 31124 Blobbi state event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /**
+   * Optional resolver mapping an interaction's item id to a care effect.
+   * Defaults to a no-op (generic per-action effects only).
+   */
+  resolveCareItemEffect?: CareItemEffectResolver;
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -95,15 +110,18 @@ interface UseCanonicalSyncParams {
  * Runs once per companion selection. Waits for interactions to be loaded
  * so decay and social consolidation can happen in a single publish.
  */
-export function useCanonicalSync({
-  companion,
-  interactions,
-  interactionsLoading,
-  updateCompanionEvent,
-  ensureCanonicalBeforeAction,
-  onSocialConsolidated,
-}: UseCanonicalSyncParams): void {
-  const { mutateAsync: publishEvent } = useNostrPublish();
+export function useCanonicalSync(options: UseCanonicalSyncOptions): void {
+  const {
+    companion,
+    interactions,
+    interactionsLoading,
+    updateCompanionEvent,
+    ensureCanonicalBeforeAction,
+    onSocialConsolidated,
+    publish,
+    resolveCareItemEffect = noopResolveCareItemEffect,
+  } = options;
+
   const queryClient = useQueryClient();
 
   // Track which companion d-tag has already been synced this session.
@@ -207,7 +225,7 @@ export function useCanonicalSync({
       const newTags = updateBlobbiTags(canonical.allTags, statsToTagUpdates(publishStats, freshNow));
 
       const prev = canonical.companion.event;
-      const event = await publishEvent({
+      const event = await publish({
         kind: KIND_BLOBBI_STATE,
         content: publishContent,
         tags: newTags,
@@ -234,7 +252,7 @@ export function useCanonicalSync({
     } finally {
       syncInProgressRef.current = false;
     }
-  }, [ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, queryClient, onSocialConsolidated]);
+  }, [ensureCanonicalBeforeAction, publish, updateCompanionEvent, queryClient, onSocialConsolidated, resolveCareItemEffect]);
 
   // ── Effect: trigger sync when companion is selected and data is ready ──
   useEffect(() => {

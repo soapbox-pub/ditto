@@ -13,11 +13,8 @@ import {
 } from '@blobbi/core/blobbi';
 import { useCanonicalSync } from './useCanonicalSync';
 
-// Spy on the publish mutation.
+// Publish spy passed directly as the `publish` option (no host `useNostrPublish`).
 const publishEvent = vi.fn<(...args: unknown[]) => Promise<NostrEvent>>();
-vi.mock('@/hooks/useNostrPublish', () => ({
-  useNostrPublish: () => ({ mutateAsync: publishEvent }),
-}));
 
 const PUBKEY = 'a'.repeat(64);
 const PET_ID = '0123456789';
@@ -134,6 +131,7 @@ describe('useCanonicalSync — never publishes for legacy companions', () => {
           interactionsLoading: false,
           updateCompanionEvent: vi.fn(),
           ensureCanonicalBeforeAction,
+          publish: publishEvent,
         }),
       { wrapper },
     );
@@ -160,6 +158,7 @@ describe('useCanonicalSync — never publishes for legacy companions', () => {
           interactionsLoading: false,
           updateCompanionEvent: vi.fn(),
           ensureCanonicalBeforeAction,
+          publish: publishEvent,
         }),
       { wrapper },
     );
@@ -183,6 +182,7 @@ describe('useCanonicalSync — never publishes for legacy companions', () => {
           interactionsLoading: false,
           updateCompanionEvent: vi.fn(),
           ensureCanonicalBeforeAction,
+          publish: publishEvent,
         }),
       { wrapper },
     );

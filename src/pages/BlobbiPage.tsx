@@ -10,7 +10,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
 import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
 import { useBlobbiActivityHistory } from '@blobbi/react/hooks/useBlobbiActivityHistory';
-import { useCanonicalSync } from '@/blobbi/core/hooks/useCanonicalSync';
+import { useCanonicalSync } from '@blobbi/react/hooks/useCanonicalSync';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -941,6 +941,8 @@ function BlobbiDashboard({
     updateCompanionEvent,
     ensureCanonicalBeforeAction,
     onSocialConsolidated: handleSocialConsolidated,
+    publish: publishEvent,
+    resolveCareItemEffect: (itemId) => getShopItemById(itemId)?.effect,
   });
 
   // ─── Social Permission Toggle ───
