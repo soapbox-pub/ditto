@@ -33,6 +33,7 @@ import {
   updateBlobbiTags,
   parseBlobbiEvent,
   isValidBlobbiEvent,
+  buildBlobbiAddress,
 } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
@@ -408,7 +409,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
 
       // Invalidate interactions query so social projection reflects the new 1124.
       {
-        const coordinate = `31124:${companion.event.pubkey}:${companion.d}`;
+        const coordinate = buildBlobbiAddress(companion.event.pubkey, companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

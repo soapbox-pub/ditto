@@ -22,7 +22,7 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates } from '@blobbi/core/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates, buildBlobbiAddress } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { consolidateSocialInteractions } from '@blobbi/core/blobbi-social-projection';
 import {
@@ -159,7 +159,7 @@ export function useConsolidateSocialInteractions(
       // The checkpoint has changed, which shifts the query key
       // (includes `processed_until`), so invalidation triggers a
       // fresh fetch with the new `since` filter.
-      const coordinate = `31124:${companion.event.pubkey}:${companion.d}`;
+      const coordinate = buildBlobbiAddress(companion.event.pubkey, companion.d);
       queryClient.invalidateQueries({
         queryKey: ['blobbi-interactions', coordinate],
       });

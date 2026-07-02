@@ -10,6 +10,7 @@ import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
+  buildBlobbiAddress,
 } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
@@ -303,7 +304,7 @@ export function useBlobbiUseInventoryItem({
       // The 31124 canonical state is already updated above. Invalidate the
       // interactions query so the social projection picks up the new 1124.
       {
-        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        const coordinate = buildBlobbiAddress(canonical.companion.event.pubkey, canonical.companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

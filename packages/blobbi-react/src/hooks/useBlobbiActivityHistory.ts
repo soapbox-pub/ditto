@@ -16,6 +16,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import { buildBlobbiAddress } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_INTERACTION,
   parseInteractionEvent,
@@ -54,7 +55,7 @@ export function useBlobbiActivityHistory(
 
   const coordinate = useMemo(() => {
     if (!companion) return undefined;
-    return `31124:${companion.event.pubkey}:${companion.d}`;
+    return buildBlobbiAddress(companion.event.pubkey, companion.d);
   }, [companion]);
 
   const query = useQuery({

@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
-import { parseBlobbiEvent } from '@blobbi/core/blobbi';
+import { parseBlobbiEvent, buildBlobbiAddress } from '@blobbi/core/blobbi';
 import {
   buildInteractionEventTemplate,
   type InteractionAction,
@@ -242,7 +242,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
 
         // Invalidate interaction queries so the projected social status
         // and activity history both reflect the just-published event.
-        const coordinate = `31124:${companion.event.pubkey}:${companion.d}`;
+        const coordinate = buildBlobbiAddress(companion.event.pubkey, companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

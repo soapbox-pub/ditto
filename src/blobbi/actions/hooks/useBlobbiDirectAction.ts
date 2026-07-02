@@ -10,6 +10,7 @@ import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
+  buildBlobbiAddress,
 } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import {
@@ -212,7 +213,7 @@ export function useBlobbiDirectAction({
         // relay may not have it yet — but the 31124 was already updated
         // above, so the owner's UI is already correct via canonical state.
         // This invalidation ensures eventual consistency for the projection.
-        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        const coordinate = buildBlobbiAddress(canonical.companion.event.pubkey, canonical.companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

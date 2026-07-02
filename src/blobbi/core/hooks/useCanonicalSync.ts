@@ -28,7 +28,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates } from '@blobbi/core/blobbi';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, statsToTagUpdates, buildBlobbiAddress } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { consolidateSocialInteractions } from '@blobbi/core/blobbi-social-projection';
 import {
@@ -218,7 +218,7 @@ export function useCanonicalSync({
       updateCompanionEvent(event);
 
       // Invalidate interactions query so it refetches with the new checkpoint
-      const coordinate = `31124:${comp.event.pubkey}:${comp.d}`;
+      const coordinate = buildBlobbiAddress(comp.event.pubkey, comp.d);
       queryClient.invalidateQueries({
         queryKey: ['blobbi-interactions', coordinate],
       });

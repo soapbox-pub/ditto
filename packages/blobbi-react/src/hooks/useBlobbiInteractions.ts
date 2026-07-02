@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { NostrFilter } from '@nostrify/nostrify';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import { buildBlobbiAddress } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_INTERACTION,
   parseInteractionEvent,
@@ -77,7 +78,7 @@ export function useBlobbiInteractions(
   // coordinate is correct regardless of who is viewing.
   const coordinate = useMemo(() => {
     if (!companion) return undefined;
-    return `31124:${companion.event.pubkey}:${companion.d}`;
+    return buildBlobbiAddress(companion.event.pubkey, companion.d);
   }, [companion]);
 
   // ── Canonical checkpoint resolution ──
