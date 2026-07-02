@@ -36,7 +36,9 @@ async function nativeNotification(type: NotificationType) {
 
 async function nativeSelectionChanged() {
   const { Haptics } = await getHaptics();
+  await Haptics.selectionStart();
   await Haptics.selectionChanged();
+  await Haptics.selectionEnd();
 }
 
 function vibrate(ms: number) {
