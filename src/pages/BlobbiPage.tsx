@@ -144,6 +144,13 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
  * Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
 
+/**
+ * Stable care-item effect resolver backed by the shop catalog. Defined at module
+ * scope so it keeps a stable identity across renders (avoids recreating the
+ * useCanonicalSync callback/effect deps every render).
+ */
+const resolveBlobbiCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
+
 /** Stat keys checked for the companion selector care badge (excludes energy). */
 const CARE_BADGE_STATS = ['hunger', 'happiness', 'hygiene', 'health'] as const;
 
@@ -942,7 +949,7 @@ function BlobbiDashboard({
     ensureCanonicalBeforeAction,
     onSocialConsolidated: handleSocialConsolidated,
     publish: publishEvent,
-    resolveCareItemEffect: (itemId) => getShopItemById(itemId)?.effect,
+    resolveCareItemEffect: resolveBlobbiCareItemEffect,
   });
 
   // ─── Social Permission Toggle ───
