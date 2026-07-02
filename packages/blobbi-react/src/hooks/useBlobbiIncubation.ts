@@ -1,0 +1,756 @@
+/**
+ * Hooks for Blobbi incubation task system.
+ *
+ * When a user starts incubation:
+ * 1. Apply accumulated decay from last_decay_at to now
+ * 2. Set progression_state to 'incubating'
+ * 3. Add progression_started_at timestamp
+ * 4. Update last_decay_at to the same timestamp
+ * 5. Clear any previous task progress
+ *
+ * Tasks are computed from Nostr events with created_at >= progression_started_at.
+ *
+ * Headless and app-agnostic: these hooks surface success/error through the
+ * returned mutation (and optional callbacks) so the host app can render its own
+ * user feedback (toasts, etc.). The host supplies the owner `pubkey`, a
+ * `publish` function, an `updateCompanionEvent` cache callback, and an
+ * `ensureCanonicalBeforeAction` freshness callback.
+ */
+
+import { useMutation, type UseMutationResult } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
+
+import type { BlobbiCompanion, BlobbonautProfile, StorageItem } from '@blobbi/core/blobbi';
+import {
+  KIND_BLOBBI_STATE,
+  updateBlobbiTags,
+} from '@blobbi/core/blobbi';
+import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
+import { serializeEvolutionContent } from '@blobbi/core/missions';
+
+import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
+import {
+  writeEvolutionToStorage,
+  clearEvolutionFromStorage,
+} from '../lib/daily-mission-tracker';
+
+import type { PublishAdapter } from '../adapters/types';
+
+// ─── Shared Types ───────────────────────────────────────────────────────────
+
+/**
+ * Fresh companion + profile data to use as the base for an action.
+ */
+export interface CanonicalIncubationResult {
+  companion: BlobbiCompanion;
+  content: string;
+  allTags: string[][];
+  /** Latest profile tags */
+  profileAllTags: string[][];
+  /** Latest profile storage */
+  profileStorage: StorageItem[];
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Mode for starting incubation.
+ * This makes the intent explicit rather than auto-detecting behavior.
+ */
+export type StartIncubationMode =
+  | 'start'              // Normal start (no other Blobbi incubating)
+  | 'restart'            // Restart same Blobbi (already incubating)
+  | 'switch';            // Switch from another incubating Blobbi
+
+/**
+ * Request to start incubation with explicit mode.
+ */
+export interface StartIncubationRequest {
+  /** Explicit mode for this operation */
+  mode: StartIncubationMode;
+  /** The d-tag of the other Blobbi to stop (required when mode === 'switch') */
+  stopOtherD?: string;
+}
+
+/**
+ * Parameters for start incubation hook.
+ */
+export interface UseStartIncubationParams {
+  companion: BlobbiCompanion | null;
+  profile: BlobbonautProfile | null;
+  /** Owner hex pubkey. When absent (logged out), starting incubation throws. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 31124 companion event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Called to fetch fresh companion + profile data before acting */
+  ensureCanonicalBeforeAction: () => Promise<CanonicalIncubationResult | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /**
+   * Optional success callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onSuccess?: (result: StartIncubationResult, variables: StartIncubationRequest) => void;
+  /**
+   * Optional error callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onError?: (error: Error, variables: StartIncubationRequest) => void;
+}
+
+/**
+ * Result of starting incubation.
+ */
+export interface StartIncubationResult {
+  /** The Blobbi's name */
+  name: string;
+  /** Timestamp when incubation started */
+  progressionStartedAt: number;
+  /** Mode that was used */
+  mode: StartIncubationMode;
+  /** Name of other Blobbi that was stopped (if mode === 'switch') */
+  stoppedOtherName?: string;
+}
+
+// ─── Start Incubation Hook ────────────────────────────────────────────────────
+
+/**
+ * Hook to start the incubation process for an egg.
+ *
+ * This sets progression_state to 'incubating' and records the start timestamp.
+ * Tasks will be computed based on events created after this timestamp.
+ *
+ * IMPORTANT: The mode must be explicitly specified by the caller (UI).
+ * This hook does NOT auto-detect whether to switch or restart.
+ * The UI dialog determines the mode and passes it explicitly.
+ *
+ * Modes:
+ * - 'start': Normal start, no other Blobbi incubating
+ * - 'restart': Restart same Blobbi (already incubating), resets task progress
+ * - 'switch': Stop another Blobbi first, then start this one
+ *
+ * Requirements:
+ * - Blobbi must be in egg stage
+ * - User must be logged in
+ */
+export function useStartIncubation({
+  companion,
+  profile,
+  pubkey,
+  publish,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  onSuccess,
+  onError,
+}: UseStartIncubationParams): UseMutationResult<StartIncubationResult, Error, StartIncubationRequest> {
+  const { nostr } = useNostr();
+
+  return useMutation<StartIncubationResult, Error, StartIncubationRequest>({
+    mutationFn: async (request: StartIncubationRequest): Promise<StartIncubationResult> => {
+      const { mode, stopOtherD } = request;
+
+      // ─── Validation ───
+      if (!pubkey) {
+        throw new Error('You must be logged in to start incubation');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+
+      if (companion.stage !== 'egg') {
+        throw new Error('Only eggs can be incubated');
+      }
+
+      // Validate switch mode requires stopOtherD
+      if (mode === 'switch' && !stopOtherD) {
+        throw new Error('Switch mode requires stopOtherD parameter');
+      }
+
+      let stoppedOtherName: string | undefined;
+
+      // ─── Stop Other Incubating Blobbi (switch mode only) ───
+      if (mode === 'switch' && stopOtherD) {
+        // Fetch the current event for the other Blobbi
+        const [otherEvent] = await nostr.query([{
+          kinds: [KIND_BLOBBI_STATE],
+          authors: [pubkey],
+          '#d': [stopOtherD],
+          limit: 1,
+        }]);
+
+        if (otherEvent) {
+          // Get name from the event for the result
+          const nameTag = otherEvent.tags.find(t => t[0] === 'name');
+          stoppedOtherName = nameTag?.[1] ?? stopOtherD;
+
+          // Stop the other Blobbi's incubation
+          const now = Math.floor(Date.now() / 1000);
+          const nowStr = now.toString();
+
+          // Parse stats from the event
+          const getTagValue = (tags: string[][], name: string): number =>
+            parseInt(tags.find(t => t[0] === name)?.[1] ?? '50', 10);
+
+          const otherStats = {
+            hunger: getTagValue(otherEvent.tags, 'hunger'),
+            happiness: getTagValue(otherEvent.tags, 'happiness'),
+            health: getTagValue(otherEvent.tags, 'health'),
+            hygiene: getTagValue(otherEvent.tags, 'hygiene'),
+            energy: getTagValue(otherEvent.tags, 'energy'),
+          };
+          const otherLastDecayAt = getTagValue(otherEvent.tags, 'last_decay_at') || now;
+
+          // Apply decay to the other Blobbi
+          const otherDecayResult = applyBlobbiDecay({
+            stage: 'egg',
+            state: 'active',
+            stats: otherStats,
+            lastDecayAt: otherLastDecayAt,
+            now,
+          });
+
+          // Remove task tags and progression timing from the other Blobbi
+          const otherCleanedTags = otherEvent.tags.filter(tag =>
+            tag[0] !== 'task' &&
+            tag[0] !== 'task_completed' &&
+            tag[0] !== 'state_started_at' &&
+            tag[0] !== 'progression_started_at'
+          );
+
+          const otherNewTags = updateBlobbiTags(otherCleanedTags, {
+            health: otherDecayResult.stats.health.toString(),
+            hygiene: otherDecayResult.stats.hygiene.toString(),
+            happiness: otherDecayResult.stats.happiness.toString(),
+            hunger: '100',
+            energy: '100',
+            progression_state: 'none',
+            last_interaction: nowStr,
+            last_decay_at: nowStr,
+          });
+
+          // Clear evolution from the other Blobbi's content
+          const otherContent = serializeEvolutionContent(otherEvent.content, []);
+
+          // Publish the stop event for the other Blobbi
+          const stopEvent = await publish({
+            kind: KIND_BLOBBI_STATE,
+            content: otherContent,
+            tags: otherNewTags,
+          });
+
+          // Update the cache for the stopped Blobbi
+          updateCompanionEvent(stopEvent);
+
+          // Clear evolution session store for the stopped Blobbi
+          clearEvolutionFromStorage(pubkey, stopOtherD);
+        }
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion for incubation');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      // CRITICAL: Apply decay from last_decay_at to now before changing state
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Build Updated Tags ───
+      // Remove any existing task tags when starting fresh (for all modes)
+      const cleanedTags = canonical.allTags.filter(tag =>
+        tag[0] !== 'task' && tag[0] !== 'task_completed'
+      );
+
+      // Build stats update with decayed values
+      // Eggs have fixed hunger and energy at 100
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: '100',
+        energy: '100',
+      };
+
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        progression_state: 'incubating',
+        progression_started_at: nowStr,
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Build evolution content for 31124 ───
+      const hatchMissions = createHatchMissions();
+      const content = serializeEvolutionContent(canonical.content, hatchMissions);
+
+      // ─── Publish Event ───
+      const event = await publish({
+        kind: KIND_BLOBBI_STATE,
+        content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+
+      // ─── Populate evolution missions in session store (per-Blobbi) ───
+      writeEvolutionToStorage(hatchMissions, pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
+
+      return {
+        name: canonical.companion.name,
+        progressionStartedAt: now,
+        mode,
+        stoppedOtherName,
+      };
+    },
+    onSuccess,
+    onError,
+  });
+}
+
+// ─── Stop Incubation Hook ─────────────────────────────────────────────────────
+
+/**
+ * Parameters for stop incubation hook.
+ */
+export interface UseStopIncubationParams {
+  companion: BlobbiCompanion | null;
+  /** Owner hex pubkey. When absent (logged out), stopping incubation throws. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 31124 companion event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Called to fetch fresh companion + profile data before acting */
+  ensureCanonicalBeforeAction: () => Promise<CanonicalIncubationResult | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /**
+   * Optional success callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onSuccess?: (result: StopIncubationResult) => void;
+  /**
+   * Optional error callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onError?: (error: Error) => void;
+}
+
+/**
+ * Result of stopping incubation.
+ */
+export interface StopIncubationResult {
+  /** The Blobbi's name */
+  name: string;
+}
+
+/**
+ * Hook to stop/cancel the incubation process for a Blobbi.
+ *
+ * This clears the progression process and all task progress tags.
+ * The user can restart incubation later, but will need to complete tasks again.
+ *
+ * When stopping incubation:
+ * - Apply accumulated decay first
+ * - Set progression_state back to 'none'
+ * - Remove progression_started_at tag
+ * - Remove all task and task_completed tags
+ *
+ * Requirements:
+ * - Blobbi must have progressionState === 'incubating'
+ * - User must be logged in
+ */
+export function useStopIncubation({
+  companion,
+  pubkey,
+  publish,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  onSuccess,
+  onError,
+}: UseStopIncubationParams): UseMutationResult<StopIncubationResult, Error, void> {
+  return useMutation<StopIncubationResult, Error, void>({
+    mutationFn: async (): Promise<StopIncubationResult> => {
+      // ─── Validation ───
+      if (!pubkey) {
+        throw new Error('You must be logged in to stop incubation');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (companion.progressionState !== 'incubating') {
+        throw new Error('This Blobbi is not incubating');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Build Updated Tags ───
+      // Remove task tags and progression timing
+      const cleanedTags = canonical.allTags.filter(tag =>
+        tag[0] !== 'task' &&
+        tag[0] !== 'task_completed' &&
+        tag[0] !== 'state_started_at' &&
+        tag[0] !== 'progression_started_at'
+      );
+
+      // Build stats update with decayed values
+      // Eggs have fixed hunger and energy at 100
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: '100',
+        energy: '100',
+      };
+
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        progression_state: 'none',
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Clear evolution from 31124 content ───
+      const content = serializeEvolutionContent(canonical.content, []);
+
+      // ─── Publish Event ───
+      const event = await publish({
+        kind: KIND_BLOBBI_STATE,
+        content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+
+      // ─── Clear evolution missions in session store ───
+      clearEvolutionFromStorage(pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
+
+      return {
+        name: canonical.companion.name,
+      };
+    },
+    onSuccess,
+    onError,
+  });
+}
+
+// ─── Start Evolution Hook ─────────────────────────────────────────────────────
+
+/**
+ * Parameters for start evolution hook.
+ */
+export interface UseStartEvolutionParams {
+  companion: BlobbiCompanion | null;
+  /** Owner hex pubkey. When absent (logged out), starting evolution throws. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 31124 companion event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Called to fetch fresh companion + profile data before acting */
+  ensureCanonicalBeforeAction: () => Promise<CanonicalIncubationResult | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /**
+   * Optional success callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onSuccess?: (result: StartEvolutionResult) => void;
+  /**
+   * Optional error callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onError?: (error: Error) => void;
+}
+
+/**
+ * Result of starting evolution.
+ */
+export interface StartEvolutionResult {
+  /** The Blobbi's name */
+  name: string;
+  /** Timestamp when evolution started */
+  progressionStartedAt: number;
+}
+
+/**
+ * Hook to start the evolution process for a baby Blobbi.
+ *
+ * This sets progression_state to 'evolving' and records the start timestamp.
+ * Tasks will be computed based on events created after this timestamp.
+ *
+ * Requirements:
+ * - Blobbi must be in baby stage
+ * - Blobbi must not already be evolving
+ * - User must be logged in
+ */
+export function useStartEvolution({
+  companion,
+  pubkey,
+  publish,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  onSuccess,
+  onError,
+}: UseStartEvolutionParams): UseMutationResult<StartEvolutionResult, Error, void> {
+  return useMutation<StartEvolutionResult, Error, void>({
+    mutationFn: async (): Promise<StartEvolutionResult> => {
+      // ─── Validation ───
+      if (!pubkey) {
+        throw new Error('You must be logged in to start evolution');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (companion.stage !== 'baby') {
+        throw new Error('Only baby Blobbis can evolve');
+      }
+
+      if (companion.progressionState === 'evolving') {
+        throw new Error('This Blobbi is already evolving');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion for evolution');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Build Updated Tags ───
+      // Remove any existing task tags when starting fresh
+      const cleanedTags = canonical.allTags.filter(tag =>
+        tag[0] !== 'task' && tag[0] !== 'task_completed'
+      );
+
+      // Build stats update with decayed values
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: decayResult.stats.hunger.toString(),
+        energy: decayResult.stats.energy.toString(),
+      };
+
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        progression_state: 'evolving',
+        progression_started_at: nowStr,
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Build evolution content for 31124 ───
+      const evolveMissions = createEvolveMissions();
+      const content = serializeEvolutionContent(canonical.content, evolveMissions);
+
+      // ─── Publish Event ───
+      const event = await publish({
+        kind: KIND_BLOBBI_STATE,
+        content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+
+      // ─── Populate evolution missions in session store (per-Blobbi) ───
+      writeEvolutionToStorage(evolveMissions, pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
+
+      return {
+        name: canonical.companion.name,
+        progressionStartedAt: now,
+      };
+    },
+    onSuccess,
+    onError,
+  });
+}
+
+// ─── Stop Evolution Hook ──────────────────────────────────────────────────────
+
+/**
+ * Parameters for stop evolution hook.
+ */
+export interface UseStopEvolutionParams {
+  companion: BlobbiCompanion | null;
+  /** Owner hex pubkey. When absent (logged out), stopping evolution throws. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 31124 companion event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Called to fetch fresh companion + profile data before acting */
+  ensureCanonicalBeforeAction: () => Promise<CanonicalIncubationResult | null>;
+  /** Update companion event in local cache */
+  updateCompanionEvent: (event: NostrEvent) => void;
+  /**
+   * Optional success callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onSuccess?: (result: StopEvolutionResult) => void;
+  /**
+   * Optional error callback, forwarded to the underlying mutation. Hosts use
+   * this to surface user feedback (toasts, etc.) — the hook itself stays UI-free.
+   */
+  onError?: (error: Error) => void;
+}
+
+/**
+ * Result of stopping evolution.
+ */
+export interface StopEvolutionResult {
+  /** The Blobbi's name */
+  name: string;
+}
+
+/**
+ * Hook to stop/cancel the evolution process for a Blobbi.
+ *
+ * This clears the progression process and all task progress tags.
+ * The user can restart evolution later, but will need to complete tasks again.
+ *
+ * When stopping evolution:
+ * - Apply accumulated decay first
+ * - Set progression_state back to 'none'
+ * - Remove progression_started_at tag
+ * - Remove all task and task_completed tags
+ *
+ * Requirements:
+ * - Blobbi must have progressionState === 'evolving'
+ * - User must be logged in
+ */
+export function useStopEvolution({
+  companion,
+  pubkey,
+  publish,
+  ensureCanonicalBeforeAction,
+  updateCompanionEvent,
+  onSuccess,
+  onError,
+}: UseStopEvolutionParams): UseMutationResult<StopEvolutionResult, Error, void> {
+  return useMutation<StopEvolutionResult, Error, void>({
+    mutationFn: async (): Promise<StopEvolutionResult> => {
+      // ─── Validation ───
+      if (!pubkey) {
+        throw new Error('You must be logged in to stop evolution');
+      }
+
+      if (!companion) {
+        throw new Error('No companion selected');
+      }
+
+      if (companion.progressionState !== 'evolving') {
+        throw new Error('This Blobbi is not evolving');
+      }
+
+      // ─── Ensure Canonical Before Action ───
+      const canonical = await ensureCanonicalBeforeAction();
+      if (!canonical) {
+        throw new Error('Failed to prepare companion');
+      }
+
+      // ─── Apply Accumulated Decay ───
+      const now = Math.floor(Date.now() / 1000);
+      const nowStr = now.toString();
+
+      const decayResult = applyBlobbiDecay({
+        stage: canonical.companion.stage,
+        state: canonical.companion.state,
+        stats: canonical.companion.stats,
+        lastDecayAt: canonical.companion.lastDecayAt,
+        now,
+      });
+
+      // ─── Build Updated Tags ───
+      // Remove task tags and progression timing
+      const cleanedTags = canonical.allTags.filter(tag =>
+        tag[0] !== 'task' &&
+        tag[0] !== 'task_completed' &&
+        tag[0] !== 'state_started_at' &&
+        tag[0] !== 'progression_started_at'
+      );
+
+      // Build stats update with decayed values
+      const statsUpdate: Record<string, string> = {
+        health: decayResult.stats.health.toString(),
+        hygiene: decayResult.stats.hygiene.toString(),
+        happiness: decayResult.stats.happiness.toString(),
+        hunger: decayResult.stats.hunger.toString(),
+        energy: decayResult.stats.energy.toString(),
+      };
+
+      const newTags = updateBlobbiTags(cleanedTags, {
+        ...statsUpdate,
+        progression_state: 'none',
+        last_interaction: nowStr,
+        last_decay_at: nowStr,
+      });
+
+      // ─── Clear evolution from 31124 content ───
+      const content = serializeEvolutionContent(canonical.content, []);
+
+      // ─── Publish Event ───
+      const event = await publish({
+        kind: KIND_BLOBBI_STATE,
+        content,
+        tags: newTags,
+      });
+
+      updateCompanionEvent(event);
+
+      // ─── Clear evolution missions in session store ───
+      clearEvolutionFromStorage(pubkey, canonical.companion.d);
+      window.dispatchEvent(new CustomEvent('daily-missions-updated', { detail: { evolution: true, d: canonical.companion.d } }));
+
+      return {
+        name: canonical.companion.name,
+      };
+    },
+    onSuccess,
+    onError,
+  });
+}
