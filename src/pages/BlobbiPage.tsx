@@ -68,7 +68,6 @@ import {
   InlineMusicPlayer,
   InlineSingCard,
   useBlobbiUseInventoryItem,
-  useBlobbiHatch,
   useBlobbiEvolve,
   useBlobbiDirectAction,
   useStartIncubation,
@@ -470,12 +469,9 @@ function BlobbiContent() {
   useBlobbiActionsRegistration(useItemForContext, isUsingItem);
   
   // ─── Stage Transition Hooks ───
-  const { isPending: isHatching } = useBlobbiHatch({
-    companion,
-    profile,
-    ensureCanonicalBeforeAction,
-    updateCompanionEvent,
-  });
+  // Hatching is published inline by BlobbiHatchingCeremony.executeHatch; there
+  // is no live hatch mutation on this page, so the spinner source is constant.
+  const isHatching = false;
   
   const { mutateAsync: executeEvolve, isPending: isEvolving } = useBlobbiEvolve({
     companion,

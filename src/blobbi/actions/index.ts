@@ -9,7 +9,7 @@ export { InlineSingCard } from './components/InlineSingCard';
 export { useBlobbiUseInventoryItem } from './hooks/useBlobbiUseInventoryItem';
 export type { UseItemRequest, UseItemResult, UseBlobbiUseInventoryItemParams } from './hooks/useBlobbiUseInventoryItem';
 
-export { useBlobbiHatch, useBlobbiEvolve } from './hooks/useBlobbiStageTransition';
+export { useBlobbiEvolve } from './hooks/useBlobbiStageTransition';
 export type { 
   UseBlobbiStageTransitionParams, 
   StageTransitionResult,
