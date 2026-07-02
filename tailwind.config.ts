@@ -162,6 +162,26 @@ export default {
 				'80%': { opacity: '1' },
 				'100%': { transform: 'translate(var(--celebration-sway, 0px), var(--celebration-distance, 240px)) rotate(var(--celebration-spin, 540deg))', opacity: '0' }
 			},
+			'heart-drift': {
+				// Love-list paper background hearts: a gentle side-to-side
+				// drift so the scattered hearts feel alive. Only ~12 per card,
+				// and translate-only so it composites cheaply.
+				'0%, 100%': { transform: 'translateX(-5px)' },
+				'50%': { transform: 'translateX(5px)' }
+			},
+			'heart-float': {
+				// Love-list ambient float: a heart rises from below the sheet up
+				// past its top edge (clipped by overflow-hidden) like a lava-lamp
+				// bubble, swaying and tipping side to side, fading in low and out
+				// high. Vertical travel is driven by `bottom` (% of the sheet) so
+				// it adapts to any card height; sway/tip come from CSS vars.
+				// Loops forever, so only a handful run per card.
+				'0%': { bottom: '-8%', transform: 'translateX(0) rotate(-10deg)', opacity: '0' },
+				'12%': { opacity: 'var(--float-opacity, 0.5)' },
+				'50%': { transform: 'translateX(var(--float-sway, 14px)) rotate(10deg)' },
+				'85%': { opacity: 'var(--float-opacity, 0.5)' },
+				'100%': { bottom: '106%', transform: 'translateX(0) rotate(-6deg)', opacity: '0' }
+			},
 			'heart-fall': {
 				// Love List heart: bursts in near the top, falls fast, then
 				// dissolves in mid-air (fade starts early and finishes well
@@ -235,6 +255,8 @@ export default {
 				'success-spark': 'success-spark 1.1s ease-out both',
 				'celebration-fall': 'celebration-fall 2s linear both',
 				'heart-fall': 'heart-fall 2s ease-in both',
+				'heart-drift': 'heart-drift 4s ease-in-out infinite',
+				'heart-float': 'heart-float var(--float-duration, 7s) ease-in-out infinite',
 				'celebration-rise': 'celebration-rise 2.6s ease-out both',
 				'celebration-twinkle': 'celebration-twinkle 1.2s ease-in-out both',
 				'celebration-sun': 'celebration-sun 3.2s ease-out both',
