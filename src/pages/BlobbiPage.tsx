@@ -1510,10 +1510,19 @@ function BlobbiDashboard({
   };
   
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
-  usePersistEvolutionProgress(companion.d, updateCompanionEvent);
+  usePersistEvolutionProgress({
+    pubkey: user?.pubkey,
+    companionD: companion.d,
+    publish: publishEvent,
+    updateCompanionEvent,
+  });
 
   // Persist daily mission progress (debounced) to kind 11125 so it survives page refresh
-  usePersistDailyProgress(updateProfileEvent);
+  usePersistDailyProgress({
+    pubkey: user?.pubkey,
+    publish: publishEvent,
+    updateProfileEvent,
+  });
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);

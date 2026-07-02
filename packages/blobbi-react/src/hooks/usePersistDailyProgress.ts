@@ -13,38 +13,44 @@
  * - Uses fetchFreshEvent to avoid stale-read overwrites
  * - Writes ONLY to content.missions — does NOT modify XP/level tags
  * - Skips publish if missions haven't changed from the persisted state
- * - Skips if all missions are already complete (useAwardDailyXp handles that)
+ * - Skips if all missions are already complete (host XP-award path handles that)
  * - Pending/dirty flag ensures updates during in-flight publishes are not dropped
  */
 
 import { useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
-
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { KIND_BLOBBONAUT_PROFILE } from '@blobbi/core/blobbi';
 import { serializeProfileContent } from '@blobbi/core/missions';
-import { readDailyFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
-import { areAllDailyComplete } from '@blobbi/react/lib/daily-missions';
+import { fetchFreshEvent } from '@blobbi/core/fetchFreshEvent';
+
+import { readDailyFromStorage } from '../lib/daily-mission-tracker';
+import { areAllDailyComplete } from '../lib/daily-missions';
+
+import type { PublishAdapter } from '../adapters/types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Delay before persisting daily progress (ms). */
 const PERSIST_DELAY_MS = 3_000;
 
+// ─── Options ──────────────────────────────────────────────────────────────────
+
+export interface PersistDailyProgressOptions {
+  /** Owner hex pubkey. When absent (logged out), the hook is inert. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 11125 profile event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Optional callback to update the profile event in the host's query cache. */
+  updateProfileEvent?: (event: NostrEvent) => void;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * @param updateProfileEvent - Callback to update profile in query cache after persist
- */
-export function usePersistDailyProgress(
-  updateProfileEvent?: (event: import('@nostrify/nostrify').NostrEvent) => void,
-): void {
-  const { user } = useCurrentUser();
+export function usePersistDailyProgress(options: PersistDailyProgressOptions): void {
+  const { pubkey, publish, updateProfileEvent } = options;
   const { nostr } = useNostr();
-  const { mutateAsync: publishEvent } = useNostrPublish();
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const publishingRef = useRef(false);
@@ -54,19 +60,19 @@ export function usePersistDailyProgress(
 
   // Store latest values in refs so the persist function always reads fresh
   // values without needing to be recreated (which would reset the timer).
-  const userRef = useRef(user);
+  const pubkeyRef = useRef(pubkey);
   const nostrRef = useRef(nostr);
-  const publishEventRef = useRef(publishEvent);
+  const publishRef = useRef(publish);
   const updateProfileEventRef = useRef(updateProfileEvent);
 
-  userRef.current = user;
+  pubkeyRef.current = pubkey;
   nostrRef.current = nostr;
-  publishEventRef.current = publishEvent;
+  publishRef.current = publish;
   updateProfileEventRef.current = updateProfileEvent;
 
   // Stable persist function that reads from refs — never changes identity.
   const persistRef = useRef(async () => {
-    const pubkey = userRef.current?.pubkey;
+    const pubkey = pubkeyRef.current;
     if (!pubkey) return;
 
     // If already publishing, mark pending so we re-run after completion.
@@ -78,8 +84,8 @@ export function usePersistDailyProgress(
     const missions = readDailyFromStorage(pubkey);
     if (!missions || missions.daily.length === 0) return;
 
-    // Skip if all missions are complete — useAwardDailyXp is responsible for
-    // writing the final state together with XP/level tags. Persisting here
+    // Skip if all missions are complete — the host XP-award path is responsible
+    // for writing the final state together with XP/level tags. Persisting here
     // would race with the XP-award write and could overwrite fresher tags.
     if (areAllDailyComplete(missions)) {
       dirtyRef.current = false;
@@ -96,15 +102,13 @@ export function usePersistDailyProgress(
 
       // Safety: never publish a kind 11125 event without an existing profile.
       if (!prev) {
-        if (import.meta.env.DEV) {
-          console.warn('[PersistDailyProgress] No existing profile event found, skipping persist');
-        }
+        console.warn('[PersistDailyProgress] No existing profile event found, skipping persist');
         return;
       }
 
       // Re-read missions after the async fetch. If missions became all-complete
       // while we were waiting (e.g. user completed the last mission during the
-      // fetch), bail out — useAwardDailyXp owns the final write.
+      // fetch), bail out — the host XP-award path owns the final write.
       const freshMissions = readDailyFromStorage(pubkey);
       if (!freshMissions || areAllDailyComplete(freshMissions)) return;
 
@@ -117,7 +121,7 @@ export function usePersistDailyProgress(
         return;
       }
 
-      const event = await publishEventRef.current({
+      const event = await publishRef.current({
         kind: KIND_BLOBBONAUT_PROFILE,
         content,
         // Preserve existing tags exactly — do NOT modify XP/level

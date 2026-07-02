@@ -131,8 +131,10 @@ export {
 export { useDailyMissions } from '@blobbi/react/hooks/useDailyMissions';
 export type { DailyMissionView, UseDailyMissionsResult } from '@blobbi/react/hooks/useDailyMissions';
 export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
-export { usePersistEvolutionProgress } from './hooks/usePersistEvolutionProgress';
-export { usePersistDailyProgress } from './hooks/usePersistDailyProgress';
+export { usePersistEvolutionProgress } from '@blobbi/react/hooks/usePersistEvolutionProgress';
+export type { PersistEvolutionProgressOptions } from '@blobbi/react/hooks/usePersistEvolutionProgress';
+export { usePersistDailyProgress } from '@blobbi/react/hooks/usePersistDailyProgress';
+export type { PersistDailyProgressOptions } from '@blobbi/react/hooks/usePersistDailyProgress';
 export type { AwardDailyXpRequest, AwardDailyXpResult, ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
 export { useRerollMission } from './hooks/useRerollMission';
 export type { RerollMissionRequest, RerollMissionResult } from './hooks/useRerollMission';

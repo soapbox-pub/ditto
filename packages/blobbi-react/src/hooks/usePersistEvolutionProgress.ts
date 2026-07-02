@@ -16,44 +16,45 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
-
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-
-import {
-  KIND_BLOBBI_STATE,
-} from '@blobbi/core/blobbi';
-import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { readEvolutionFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
-
 import type { NostrEvent } from '@nostrify/nostrify';
+
+import { KIND_BLOBBI_STATE } from '@blobbi/core/blobbi';
+import { serializeEvolutionContent } from '@blobbi/core/missions';
+import { fetchFreshEvent } from '@blobbi/core/fetchFreshEvent';
+
+import { readEvolutionFromStorage } from '../lib/daily-mission-tracker';
+
+import type { PublishAdapter } from '../adapters/types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Delay before persisting evolution progress (ms). */
 const PERSIST_DELAY_MS = 5_000;
 
+// ─── Options ──────────────────────────────────────────────────────────────────
+
+export interface PersistEvolutionProgressOptions {
+  /** Owner hex pubkey. When absent (logged out), the hook is inert. */
+  pubkey: string | undefined;
+  /** The d-tag of the active Blobbi (required for per-Blobbi storage). */
+  companionD: string | undefined;
+  /** Publishes the updated kind 31124 Blobbi state event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
+  /** Callback to update the companion event in the host's query cache. */
+  updateCompanionEvent: (event: NostrEvent) => void;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * @param companionD - The d-tag of the active Blobbi (required for per-Blobbi storage)
- * @param updateCompanionEvent - Callback to update companion in query cache
- */
-export function usePersistEvolutionProgress(
-  companionD: string | undefined,
-  updateCompanionEvent: (event: NostrEvent) => void,
-): void {
-  const { user } = useCurrentUser();
+export function usePersistEvolutionProgress(options: PersistEvolutionProgressOptions): void {
+  const { pubkey, companionD, publish, updateCompanionEvent } = options;
   const { nostr } = useNostr();
-  const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const publishingRef = useRef(false);
 
   const persist = useCallback(async () => {
-    const pubkey = user?.pubkey;
     if (!pubkey || !companionD || publishingRef.current) return;
 
     const evolution = readEvolutionFromStorage(pubkey, companionD);
@@ -80,7 +81,7 @@ export function usePersistEvolutionProgress(
       // primary interaction write path already persisted the same data.
       if (content === prev.content) return;
 
-      const event = await publishEvent({
+      const event = await publish({
         kind: KIND_BLOBBI_STATE,
         content,
         tags: prev.tags,
@@ -92,7 +93,7 @@ export function usePersistEvolutionProgress(
     } finally {
       publishingRef.current = false;
     }
-  }, [user?.pubkey, companionD, nostr, publishEvent, updateCompanionEvent, queryClient]);
+  }, [pubkey, companionD, nostr, publish, updateCompanionEvent, queryClient]);
 
   useEffect(() => {
     const handler = (e: Event) => {
