@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.25.0] - 2026-07-02
+
+Ditto feels instant now. Your posts pop into the feed the moment you hit publish, and bookmarking, pinning, muting, liking, and following all land right away instead of waiting on the network. Love a profile and hearts rain down over their header, with the love letter card getting its own gentle drift of floating hearts. Plus you can now unmute a conversation straight from the note menu, and a batch of little fixes and polish.
+
+### Added
+- Your new posts appear in the feed instantly when you publish, no waiting for the network
+- Bookmarks, pins, mutes, likes, follows, and more now update the moment you tap, with a graceful undo if a publish fails
+- Loving a profile now showers hearts across their header
+- The love letter card comes alive with hearts that gently drift and float upward
+- Unmute a conversation right from the note menu
+
+### Changed
+- Opening a note always plays its celebration now, even after a busy morning feed has used up the session's animations
+
+### Fixed
+- Selection haptics now work on Android
+- Bookmarking a post now confirms with a toast and tells you if it failed
+
 ## [2.24.0] - 2026-07-01
 
 Something wonderful happens on the feed now. Notifications are instant on every platform. Sharing into Ditto works when installed as a web app. Android users on persistent notifications can fix battery issues with one tap.
