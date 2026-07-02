@@ -13,7 +13,7 @@ import { useMemo } from 'react';
 
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
-import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
 import type { CompanionData } from '../types/companion.types';
 
 interface UseBlobbiCompanionDataResult {

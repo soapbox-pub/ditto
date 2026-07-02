@@ -10,6 +10,11 @@
  * The projected state is for UI display only. Actual mutations must
  * recalculate from the persisted state before publishing.
  * 
+ * Item-specific care effects are resolved through an injected, catalog-agnostic
+ * `resolveCareItemEffect` resolver so this hook stays free of any host-app shop
+ * catalog. When no resolver is provided, only the generic fallback effects in
+ * @blobbi/core's social projection are applied.
+ * 
  * @see docs/blobbi/decay-system.md
  */
 
@@ -17,15 +22,17 @@ import { useState, useEffect, useMemo } from 'react';
 
 import type { BlobbiCompanion, BlobbiStats } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay, getVisibleStatsWithValues, type DecayResult } from '@blobbi/core/blobbi-decay';
-import { applySocialInteractions } from '@blobbi/core/blobbi-social-projection';
+import { applySocialInteractions, type CareItemEffectResolver } from '@blobbi/core/blobbi-social-projection';
 import { resolveSocialCheckpoint, type BlobbiInteraction } from '@blobbi/core/blobbi-interaction';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 
 /**
- * Ditto's care-item effect resolver, backed by the shop catalog. Injected into
- * the (catalog-agnostic) social projection so item-specific effects are applied.
+ * Default no-op care-item effect resolver.
+ *
+ * Returns `undefined` for every item, so @blobbi/core falls back to its generic
+ * per-action effects. Hosts with a real item catalog inject their own resolver
+ * (e.g. `(itemId) => getShopItemById(itemId)?.effect`).
  */
-const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
+const noopResolveCareItemEffect: CareItemEffectResolver = () => undefined;
 
 /** UI refresh interval in milliseconds (60 seconds) */
 const UI_REFRESH_INTERVAL_MS = 60_000;
@@ -60,13 +67,16 @@ export interface ProjectedBlobbiState {
  * - Pure calculation - does not publish any events
  * - Returns both full stats and stage-appropriate visible stats
  * 
- * @param companion    - The persisted Blobbi companion (source of truth)
- * @param interactions - Optional sorted kind 1124 interactions to project on top of decay
+ * @param companion             - The persisted Blobbi companion (source of truth)
+ * @param interactions          - Optional sorted kind 1124 interactions to project on top of decay
+ * @param resolveCareItemEffect - Optional resolver mapping an interaction's item id to a
+ *                                care effect. Defaults to a no-op (generic effects only).
  * @returns Projected state with decay (and social effects) applied, or null if no companion
  */
 export function useProjectedBlobbiState(
   companion: BlobbiCompanion | null,
   interactions?: readonly BlobbiInteraction[],
+  resolveCareItemEffect: CareItemEffectResolver = noopResolveCareItemEffect,
 ): ProjectedBlobbiState | null {
   // Track when we last recalculated
   const [refreshTick, setRefreshTick] = useState(0);
@@ -123,7 +133,7 @@ export function useProjectedBlobbiState(
       isFresh: true,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshTick triggers recalculation
-  }, [companion, interactions, refreshTick]);
+  }, [companion, interactions, resolveCareItemEffect, refreshTick]);
   
   return projectedState;
 }
@@ -135,15 +145,18 @@ export function useProjectedBlobbiState(
  * This is a utility function for use outside of React components,
  * such as in feed card rendering (BlobbiStateCard).
  * 
- * @param companion    - The persisted Blobbi companion
- * @param now          - Unix timestamp to calculate decay to (defaults to current time)
- * @param interactions - Optional sorted kind 1124 interactions to project
+ * @param companion             - The persisted Blobbi companion
+ * @param now                   - Unix timestamp to calculate decay to (defaults to current time)
+ * @param interactions          - Optional sorted kind 1124 interactions to project
+ * @param resolveCareItemEffect - Optional resolver mapping an interaction's item id to a
+ *                                care effect. Defaults to a no-op (generic effects only).
  * @returns Decay result with socially-adjusted stats
  */
 export function calculateProjectedDecay(
   companion: BlobbiCompanion,
   now?: number,
   interactions?: readonly BlobbiInteraction[],
+  resolveCareItemEffect: CareItemEffectResolver = noopResolveCareItemEffect,
 ): DecayResult {
   const result = applyBlobbiDecay({
     stage: companion.stage,

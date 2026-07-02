@@ -13,7 +13,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 
-import { isItemOnCooldown, subscribeCooldowns } from '../lib/item-cooldown';
+import { isItemOnCooldown, subscribeCooldowns } from '@blobbi/react/lib/item-cooldown';
 
 /** Monotonic version counter bumped by the subscription callback. */
 let snapshotVersion = 0;

@@ -21,7 +21,7 @@ import {
 import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
 import type { DailyMissionAction } from '../lib/daily-missions';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { getStreakTagUpdates } from '../lib/blobbi-streak';
+import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
 import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
 import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
 

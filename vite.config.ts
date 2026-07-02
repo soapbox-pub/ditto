@@ -210,6 +210,16 @@ export default defineConfig(({ mode }) => {
         find: /^@blobbi\/core\/(.*)$/,
         replacement: path.resolve(__dirname, "./packages/blobbi-core/src") + "/$1",
       },
+      // Exact match first: `@blobbi/react` -> package entry point.
+      {
+        find: /^@blobbi\/react$/,
+        replacement: path.resolve(__dirname, "./packages/blobbi-react/src/index.ts"),
+      },
+      // Subpath match: `@blobbi/react/foo` -> package source.
+      {
+        find: /^@blobbi\/react\/(.*)$/,
+        replacement: path.resolve(__dirname, "./packages/blobbi-react/src") + "/$1",
+      },
       { find: "@", replacement: path.resolve(__dirname, "./src") },
     ],
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],

@@ -7,9 +7,9 @@ import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, The
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
-import { useBlobbiActivityHistory } from '@/blobbi/core/hooks/useBlobbiActivityHistory';
+import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
+import { useBlobbiActivityHistory } from '@blobbi/react/hooks/useBlobbiActivityHistory';
 import { useCanonicalSync } from '@/blobbi/core/hooks/useCanonicalSync';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { timeAgo } from '@/lib/timeAgo';

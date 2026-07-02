@@ -3,14 +3,18 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BlobbiStageVisual, type BlobbiLookMode } from '@/blobbi/ui/BlobbiStageVisual';
 import { parseBlobbiEvent } from '@blobbi/core/blobbi';
-import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
+import { calculateProjectedDecay } from '@blobbi/react/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
+import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { resolveStatusRecipe, attenuateRecipeForFeed, EMPTY_RECIPE } from '@/blobbi/ui/lib/status-reactions';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import { ReactionSparkles, ReactionBubbles } from '@/blobbi/ui/ReactionOverlays';
 import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
 import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
 import { cn } from '@/lib/utils';
+
+/** Ditto's care-item effect resolver, backed by the shop catalog. */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 interface BlobbiStateCardProps {
   event: NostrEvent;
@@ -46,7 +50,7 @@ export function BlobbiStateCard({ event, lookMode = 'forward', interactionReacti
     if (!companion || isEgg) return { recipe: EMPTY_RECIPE, recipeLabel: 'neutral' };
 
     const socialInteractions = interactions.length > 0 ? interactions : undefined;
-    const { stats } = calculateProjectedDecay(companion, undefined, socialInteractions);
+    const { stats } = calculateProjectedDecay(companion, undefined, socialInteractions, resolveCareItemEffect);
 
     const result = resolveStatusRecipe(stats);
 

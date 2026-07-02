@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@blobbi/core": ["../blobbi-core/src/index.ts"],
+      "@blobbi/core/*": ["../blobbi-core/src/*"],
+      "@blobbi/react": ["./src/index.ts"],
+      "@blobbi/react/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

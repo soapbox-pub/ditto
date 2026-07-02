@@ -31,8 +31,10 @@
     "paths": {
       "@/*": ["./src/*"],
       "@blobbi/core": ["./packages/blobbi-core/src/index.ts"],
-      "@blobbi/core/*": ["./packages/blobbi-core/src/*"]
+      "@blobbi/core/*": ["./packages/blobbi-core/src/*"],
+      "@blobbi/react": ["./packages/blobbi-react/src/index.ts"],
+      "@blobbi/react/*": ["./packages/blobbi-react/src/*"]
     }
   },
-  "include": ["src", "packages/blobbi-core/src"]
+  "include": ["src", "packages/blobbi-core/src", "packages/blobbi-react/src"]
 }

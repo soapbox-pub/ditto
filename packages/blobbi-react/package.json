@@ -1,0 +1,19 @@
+{
+  "name": "@blobbi/react",
+  "version": "0.0.0",
+  "description": "Portable, app-agnostic React hooks for Blobbi, built on @blobbi/core.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "peerDependencies": {
+    "@blobbi/core": "*",
+    "@nostrify/nostrify": "*",
+    "@nostrify/react": "*",
+    "@tanstack/react-query": "*",
+    "react": "*"
+  }
+}

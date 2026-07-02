@@ -32,7 +32,7 @@ import {
   parseBlobbiEvent,
 } from '@blobbi/core/blobbi';
 
-import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '../lib/blobbi-streak';
+import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '@blobbi/react/lib/blobbi-streak';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

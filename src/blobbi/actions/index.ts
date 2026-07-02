@@ -173,10 +173,10 @@ export {
 } from '@blobbi/core/missions';
 export type { ProfileContent } from '@blobbi/core/missions';
 
-// Item cooldown
-export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from './lib/item-cooldown';
-export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from './lib/item-cooldown';
-export { useItemCooldown } from './hooks/useItemCooldown';
+// Item cooldown (extracted to @blobbi/react)
+export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from '@blobbi/react/lib/item-cooldown';
+export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from '@blobbi/react/lib/item-cooldown';
+export { useItemCooldown } from '@blobbi/react/hooks/useItemCooldown';
 
 // Action XP
 export {
@@ -190,17 +190,17 @@ export {
   formatXPGain,
 } from './lib/blobbi-xp';
 
-// Streak tracking
+// Streak tracking (extracted to @blobbi/react)
 export {
   calculateStreakUpdate,
   getStreakTagUpdates,
   needsStreakUpdate,
   getStreakStatus,
-} from './lib/blobbi-streak';
+} from '@blobbi/react/lib/blobbi-streak';
 export type {
   StreakUpdateResult,
   StreakTagUpdates,
-} from './lib/blobbi-streak';
+} from '@blobbi/react/lib/blobbi-streak';
 
 export { useBlobbiCareActivity } from './hooks/useBlobbiCareActivity';
 export type {

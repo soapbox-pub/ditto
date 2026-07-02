@@ -32,8 +32,8 @@ import {
   buildInteractionEventTemplate,
   type InteractionAction,
 } from '@blobbi/core/blobbi-interaction';
-import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
-import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
+import { calculateProjectedDecay } from '@blobbi/react/hooks/useProjectedBlobbiState';
 import { SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import {
   ACTION_METADATA,
@@ -44,11 +44,14 @@ import {
   hasHappinessEffectForEgg,
   type InventoryAction,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getLiveShopItems, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
 import type { BlobbiStats } from '@blobbi/core/blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Ditto's care-item effect resolver, backed by the shop catalog. */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 /** Default source tag value when the component is used on the Blobbi detail/naddr page. */
 const DEFAULT_SOURCE = 'blobbi-view';
@@ -136,7 +139,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
   const projectedStats = useMemo(() => {
     if (!companion) return undefined;
     const pending = interactions.length > 0 ? interactions : undefined;
-    return calculateProjectedDecay(companion, undefined, pending).stats;
+    return calculateProjectedDecay(companion, undefined, pending, resolveCareItemEffect).stats;
   }, [companion, interactions]);
 
   // Filter social actions to only those the Blobbi currently needs.
