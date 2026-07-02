@@ -17,8 +17,6 @@
 
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-
 import type { MissionsContent } from '@blobbi/core/missions';
 import { isMissionComplete, missionProgress } from '@blobbi/core/missions';
 import { parseProfileContent } from '@blobbi/core/missions';
@@ -63,6 +61,12 @@ export interface DailyMissionView {
 }
 
 export interface UseDailyMissionsOptions {
+  /**
+   * The owner's hex pubkey. Missions are scoped per pubkey. When absent
+   * (logged out), the hook behaves as it did for logged-out users: the
+   * session store is keyed on the empty string and no persisted data hydrates.
+   */
+  pubkey?: string;
   /** Available Blobbi stages the user has (filters eligible missions) */
   availableStages?: BlobbiStage[];
   /**
@@ -105,9 +109,7 @@ export interface UseDailyMissionsResult {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useDailyMissions(options: UseDailyMissionsOptions = {}): UseDailyMissionsResult {
-  const { availableStages, profileContent } = options;
-  const { user } = useCurrentUser();
-  const pubkey = user?.pubkey;
+  const { pubkey, availableStages, profileContent } = options;
 
   // Version counter to trigger re-reads from session store
   const [version, setVersion] = useState(0);

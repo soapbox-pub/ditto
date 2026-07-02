@@ -7,9 +7,9 @@ import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { StatIndicator } from '@/blobbi/ui/StatIndicator';
 import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
-import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi/react/hooks/useBlobbisCollection';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
-import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
+import { useFreshBlobbiBeforeAction } from '@blobbi/react/hooks/useFreshBlobbiBeforeAction';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getVisibleStats } from '@blobbi/core/blobbi-decay';
@@ -58,9 +58,9 @@ const STAT_ACTION_NAME: Record<string, BlobbiAction> = {
 /** Mini Blobbi widget with live stats and quick actions. */
 export function BlobbiWidget() {
   const { user } = useCurrentUser();
-  const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection();
+  const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection(undefined, user?.pubkey);
   const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
-  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction(user?.pubkey);
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   // Companions list (deduplicated by d-tag, newest wins, inside

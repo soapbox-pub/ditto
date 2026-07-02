@@ -11,8 +11,9 @@
 
 import { useMemo } from 'react';
 
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
-import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi/react/hooks/useBlobbisCollection';
 import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
 import type { CompanionData } from '../types/companion.types';
 
@@ -40,6 +41,9 @@ interface UseBlobbiCompanionDataResult {
  * - Projected decay recalculates every 60 seconds while mounted
  */
 export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
+  // Current user — needed to scope the (now app-agnostic) collection query.
+  const { user } = useCurrentUser();
+
   // Use the shared profile hook - this ensures reactivity when profile changes
   const { profile, isLoading: profileLoading } = useBlobbonautProfile();
   
@@ -58,7 +62,7 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
   const {
     companionsByD,
     isLoading: collectionLoading,
-  } = useBlobbisCollection(dList);
+  } = useBlobbisCollection(dList, user?.pubkey);
   
   // Get the BlobbiCompanion from the collection
   const blobbi = currentCompanionD ? companionsByD[currentCompanionD] ?? null : null;

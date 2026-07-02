@@ -3,7 +3,6 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   KIND_BLOBBI_STATE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
@@ -41,7 +40,7 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 }
 
 /**
- * Hook to fetch Blobbi companions (Kind 31124) owned by the logged-in user.
+ * Hook to fetch Blobbi companions (Kind 31124) owned by the given pubkey.
  * 
  * Two modes:
  * - **No dList** (default): Fetches ALL the user's blobbi events by author +
@@ -55,10 +54,13 @@ function chunkArray<T>(array: T[], size: number): T[][] {
  * - Keeps only the newest event per d-tag
  * - Returns both a lookup record and array of companions
  * - Provides invalidation and optimistic update helpers
+ *
+ * @param dList  - Optional list of d-tags to fetch. Omit to fetch all.
+ * @param pubkey - The owner's hex pubkey. When absent (logged out), the query
+ *                 stays disabled and returns an empty collection.
  */
-export function useBlobbisCollection(dList?: string[] | undefined) {
+export function useBlobbisCollection(dList?: string[] | undefined, pubkey?: string) {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   
   // Determine the mode: 'all' fetches everything, 'dlist' fetches by specific d-tags
@@ -75,9 +77,9 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
   
   // Main query to fetch companions from relays
   const query = useQuery({
-    queryKey: ['blobbi-collection', user?.pubkey, queryKeySegment],
+    queryKey: ['blobbi-collection', pubkey, queryKeySegment],
     queryFn: async ({ signal }) => {
-      if (!user?.pubkey) {
+      if (!pubkey) {
         console.log('[useBlobbisCollection] No pubkey, returning empty');
         return { companionsByD: {}, companions: [] };
       }
@@ -88,7 +90,7 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
         // Fetch ALL the user's blobbi events — author is the source of truth
         const filter = {
           kinds: [KIND_BLOBBI_STATE],
-          authors: [user.pubkey],
+          authors: [pubkey],
           '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
         };
         
@@ -114,7 +116,7 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
         for (const chunk of chunks) {
           const filter = {
             kinds: [KIND_BLOBBI_STATE],
-            authors: [user.pubkey],
+            authors: [pubkey],
             '#d': chunk,
           };
           
@@ -183,7 +185,7 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
 
       return { companionsByD, companions: sortedCompanions };
     },
-    enabled: !!user?.pubkey && (mode === 'all' || (!!sortedDList && sortedDList.length > 0)),
+    enabled: !!pubkey && (mode === 'all' || (!!sortedDList && sortedDList.length > 0)),
     staleTime: 30_000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -197,12 +199,12 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
   // pattern (fetch fresh → mutate → optimistic update) keeps the cache correct.
   // Only call this when the set of d-tags itself changes (e.g. adoption, deletion).
   const invalidate = useCallback(() => {
-    if (user?.pubkey) {
+    if (pubkey) {
       queryClient.invalidateQueries({
-        queryKey: ['blobbi-collection', user.pubkey, queryKeySegment],
+        queryKey: ['blobbi-collection', pubkey, queryKeySegment],
       });
     }
-  }, [queryClient, user?.pubkey, queryKeySegment]);
+  }, [queryClient, pubkey, queryKeySegment]);
   
   // Update a single companion event in the query cache (optimistic update).
   // CRITICAL: Updates ALL blobbi-collection queries for this user, not just the
@@ -213,11 +215,11 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
     // Mirror the collection parse-loop guard: never let an old-format /
     // unsupported Blobbi enter companionsByD via the optimistic cache path,
     // even if a future caller accidentally passes one.
-    if (!parsed || parsed.isLegacy || !user?.pubkey) return;
+    if (!parsed || parsed.isLegacy || !pubkey) return;
     
     type CollectionData = { companionsByD: Record<string, BlobbiCompanion>; companions: BlobbiCompanion[] };
     const matchingQueries = queryClient.getQueriesData<CollectionData>({
-      queryKey: ['blobbi-collection', user.pubkey],
+      queryKey: ['blobbi-collection', pubkey],
     });
 
     for (const [queryKey, data] of matchingQueries) {
@@ -232,14 +234,14 @@ export function useBlobbisCollection(dList?: string[] | undefined) {
     // If no existing queries matched (first load), set our own query key
     if (matchingQueries.length === 0) {
       queryClient.setQueryData<CollectionData>(
-        ['blobbi-collection', user.pubkey, queryKeySegment],
+        ['blobbi-collection', pubkey, queryKeySegment],
         {
           companionsByD: { [parsed.d]: parsed },
           companions: [parsed],
         },
       );
     }
-  }, [queryClient, user?.pubkey, queryKeySegment]);
+  }, [queryClient, pubkey, queryKeySegment]);
   
   // Memoize return values for stability
   const companionsByD = query.data?.companionsByD ?? {};

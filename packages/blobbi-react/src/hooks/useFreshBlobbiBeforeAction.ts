@@ -2,8 +2,6 @@ import { useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-
 import {
   KIND_BLOBBI_STATE,
   isLegacyBlobbiEvent,
@@ -60,10 +58,12 @@ export interface FreshBlobbiResult {
  * NOTE: This hook does NOT migrate old-app legacy Blobbi events. Automatic
  * migration of legacy formats was removed; only current canonical Blobbis are
  * supported.
+ *
+ * @param pubkey - The owner's hex pubkey. When absent (logged out),
+ *                 `fetchFreshBlobbiBeforeAction` returns null.
  */
-export function useFreshBlobbiBeforeAction() {
+export function useFreshBlobbiBeforeAction(pubkey?: string) {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
 
   /**
    * Fetch the freshest companion event directly from relays, bypassing cache.
@@ -73,12 +73,12 @@ export function useFreshBlobbiBeforeAction() {
    * base for a republish (no migration into the canonical format).
    */
   const fetchFreshCompanion = useCallback(async (
-    pubkey: string,
+    ownerPubkey: string,
     dTag: string,
   ): Promise<BlobbiCompanion | null> => {
     const events = await nostr.query([{
       kinds: [KIND_BLOBBI_STATE],
-      authors: [pubkey],
+      authors: [ownerPubkey],
       '#d': [dTag],
     }]);
 
@@ -103,7 +103,7 @@ export function useFreshBlobbiBeforeAction() {
   const fetchFreshBlobbiBeforeAction = useCallback(async (
     options: FreshBlobbiOptions,
   ): Promise<FreshBlobbiResult | null> => {
-    if (!user?.pubkey) return null;
+    if (!pubkey) return null;
 
     const { companion: cachedCompanion, profile: cachedProfile } = options;
 
@@ -125,8 +125,8 @@ export function useFreshBlobbiBeforeAction() {
 
     // Fetch fresh data from relays (read step of read-modify-write)
     const [freshCompanion, freshProfile] = await Promise.all([
-      fetchFreshCompanion(user.pubkey, cachedCompanion.d),
-      fetchFreshBlobbonautProfile(nostr, user.pubkey),
+      fetchFreshCompanion(pubkey, cachedCompanion.d),
+      fetchFreshBlobbonautProfile(nostr, pubkey),
     ]);
 
     // Use fresh data, falling back to the cached companion only when the relay
@@ -145,7 +145,7 @@ export function useFreshBlobbiBeforeAction() {
       profileEvent: profile.event,
       profileStorage: profile.storage,
     };
-  }, [user?.pubkey, nostr, fetchFreshCompanion]);
+  }, [pubkey, nostr, fetchFreshCompanion]);
 
   return {
     /** Fetch fresh companion + profile data before an action */

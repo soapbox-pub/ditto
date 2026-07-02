@@ -13,7 +13,7 @@ import {
   type BlobbiCompanion,
   type BlobbonautProfile,
 } from '@blobbi/core/blobbi';
-import { useFreshBlobbiBeforeAction } from './useFreshBlobbiBeforeAction';
+import { useFreshBlobbiBeforeAction } from '@blobbi/react/hooks/useFreshBlobbiBeforeAction';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────
 // Control the relay response per-test.
@@ -23,9 +23,6 @@ vi.mock('@nostrify/react', () => ({
 }));
 
 const PUBKEY = 'a'.repeat(64);
-vi.mock('@/hooks/useCurrentUser', () => ({
-  useCurrentUser: () => ({ user: { pubkey: PUBKEY } }),
-}));
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 const PET_ID = '0123456789';
@@ -104,7 +101,7 @@ describe('useFreshBlobbiBeforeAction — legacy companion never reaches publish 
   });
 
   it('returns null immediately for a legacy cached companion (no relay fetch, no fallback)', async () => {
-    const { result } = renderHook(() => useFreshBlobbiBeforeAction());
+    const { result } = renderHook(() => useFreshBlobbiBeforeAction(PUBKEY));
 
     const out = await result.current.fetchFreshBlobbiBeforeAction({
       companion: makeCompanion(makeLegacyEvent()),
@@ -122,7 +119,7 @@ describe('useFreshBlobbiBeforeAction — legacy companion never reaches publish 
     // Relay returns only legacy events; fresh fetch filters them → null.
     query.mockResolvedValue([makeLegacyEvent()]);
 
-    const { result } = renderHook(() => useFreshBlobbiBeforeAction());
+    const { result } = renderHook(() => useFreshBlobbiBeforeAction(PUBKEY));
 
     const out = await result.current.fetchFreshBlobbiBeforeAction({
       companion: makeCompanion(makeLegacyEvent()),
@@ -140,7 +137,7 @@ describe('useFreshBlobbiBeforeAction — legacy companion never reaches publish 
 
     const cached = makeCompanion(makeCanonicalEvent());
     const profile = makeProfile();
-    const { result } = renderHook(() => useFreshBlobbiBeforeAction());
+    const { result } = renderHook(() => useFreshBlobbiBeforeAction(PUBKEY));
 
     const out = await result.current.fetchFreshBlobbiBeforeAction({
       companion: cached,
@@ -165,7 +162,7 @@ describe('useFreshBlobbiBeforeAction — legacy companion never reaches publish 
     });
 
     const cached = makeCompanion(makeCanonicalEvent());
-    const { result } = renderHook(() => useFreshBlobbiBeforeAction());
+    const { result } = renderHook(() => useFreshBlobbiBeforeAction(PUBKEY));
 
     const out = await result.current.fetchFreshBlobbiBeforeAction({
       companion: cached,

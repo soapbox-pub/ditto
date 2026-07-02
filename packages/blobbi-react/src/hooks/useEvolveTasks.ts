@@ -1,4 +1,4 @@
-// src/blobbi/actions/hooks/useEvolveTasks.ts
+// packages/blobbi-react/src/hooks/useEvolveTasks.ts
 
 /**
  * Hook to compute evolve task progress.
@@ -14,7 +14,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import type { Mission } from '@blobbi/core/missions';
 import { missionProgress, isEventMission } from '@blobbi/core/missions';
@@ -42,7 +41,7 @@ import {
   KIND_PROFILE_METADATA,
   type HatchTask,
   type TaskType,
-} from './useHatchTasks';
+} from '@blobbi/react/hooks/useHatchTasks';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -85,14 +84,15 @@ export interface EvolveTasksResult {
  * Hook to compute evolve task progress from evolution missions + Nostr event backfill.
  *
  * @param companion - The Blobbi companion (must be in evolving state)
+ * @param pubkey    - The owner's hex pubkey. When absent (logged out), the hook
+ *                    stays disabled and returns empty tasks.
  */
 export function useEvolveTasks(
   companion: BlobbiCompanion | null,
+  pubkey?: string,
 ): EvolveTasksResult {
-  const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
-  const pubkey = user?.pubkey;
   const companionD = companion?.d;
   const isEvolving = companion?.progressionState === 'evolving';
 

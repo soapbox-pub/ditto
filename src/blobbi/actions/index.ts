@@ -35,8 +35,8 @@ export type {
   StopEvolutionResult,
 } from './hooks/useBlobbiIncubation';
 
-export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from './hooks/useActiveTaskProcess';
-export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from './hooks/useActiveTaskProcess';
+export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from '@blobbi/react/hooks/useActiveTaskProcess';
+export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from '@blobbi/react/hooks/useActiveTaskProcess';
 
 export { 
   useHatchTasks, 
@@ -45,8 +45,8 @@ export {
   KIND_COLOR_MOMENT,
   HATCH_REQUIRED_INTERACTIONS,
   REQUIRED_INTERACTIONS, // Legacy export
-} from './hooks/useHatchTasks';
-export type { HatchTask, HatchTasksResult, TaskType } from './hooks/useHatchTasks';
+} from '@blobbi/react/hooks/useHatchTasks';
+export type { HatchTask, HatchTasksResult, TaskType } from '@blobbi/react/hooks/useHatchTasks';
 
 export {
   useEvolveTasks,
@@ -55,8 +55,8 @@ export {
   EVOLVE_REQUIRED_COLOR_MOMENTS,
   EVOLVE_REQUIRED_INTERACTIONS,
   EVOLVE_STAT_THRESHOLD,
-} from './hooks/useEvolveTasks';
-export type { EvolveTasksResult } from './hooks/useEvolveTasks';
+} from '@blobbi/react/hooks/useEvolveTasks';
+export type { EvolveTasksResult } from '@blobbi/react/hooks/useEvolveTasks';
 
 export { useBlobbiDirectAction, DIRECT_ACTION_HAPPINESS_EFFECTS } from './hooks/useBlobbiDirectAction';
 export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionParams } from './hooks/useBlobbiDirectAction';
@@ -128,8 +128,8 @@ export {
 } from './lib/blobbi-action-utils';
 
 // Daily Missions
-export { useDailyMissions } from './hooks/useDailyMissions';
-export type { DailyMissionView, UseDailyMissionsResult } from './hooks/useDailyMissions';
+export { useDailyMissions } from '@blobbi/react/hooks/useDailyMissions';
+export type { DailyMissionView, UseDailyMissionsResult } from '@blobbi/react/hooks/useDailyMissions';
 export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
 export { usePersistEvolutionProgress } from './hooks/usePersistEvolutionProgress';
 export { usePersistDailyProgress } from './hooks/usePersistDailyProgress';

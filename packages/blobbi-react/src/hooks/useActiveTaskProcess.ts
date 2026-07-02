@@ -1,4 +1,4 @@
-// src/blobbi/actions/hooks/useActiveTaskProcess.ts
+// packages/blobbi-react/src/hooks/useActiveTaskProcess.ts
 
 /**
  * Central abstraction for the active task process (hatch or evolve).
@@ -18,10 +18,10 @@
 
 import { useMemo } from 'react';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
-import type { HatchTask, HatchTasksResult } from './useHatchTasks';
-import type { EvolveTasksResult } from './useEvolveTasks';
-import { HATCH_REQUIRED_INTERACTIONS } from './useHatchTasks';
-import { EVOLVE_REQUIRED_INTERACTIONS } from './useEvolveTasks';
+import type { HatchTask, HatchTasksResult } from '@blobbi/react/hooks/useHatchTasks';
+import type { EvolveTasksResult } from '@blobbi/react/hooks/useEvolveTasks';
+import { HATCH_REQUIRED_INTERACTIONS } from '@blobbi/react/hooks/useHatchTasks';
+import { EVOLVE_REQUIRED_INTERACTIONS } from '@blobbi/react/hooks/useEvolveTasks';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

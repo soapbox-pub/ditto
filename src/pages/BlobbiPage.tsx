@@ -16,11 +16,11 @@ import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
-import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi/react/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
+import { useFreshBlobbiBeforeAction } from '@blobbi/react/hooks/useFreshBlobbiBeforeAction';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
@@ -214,7 +214,7 @@ function BlobbiContent() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
-  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction(user?.pubkey);
   
   const {
     profile,
@@ -239,7 +239,7 @@ function BlobbiContent() {
     isFetching: collectionFetching,
     invalidate: invalidateCollection,
     updateCompanionEvent,
-  } = useBlobbisCollection();
+  } = useBlobbisCollection(undefined, user?.pubkey);
   
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
   // useBlobbisCollection). The collection is already legacy-free — old-format
@@ -1279,18 +1279,20 @@ function BlobbiDashboard({
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
   // Daily missions (per-user, kind 11125)
-  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  const dailyMissions = useDailyMissions({ pubkey: user?.pubkey, availableStages, profileContent: profile?.content });
   
   // Hatch tasks hook - only active when incubating (egg stage)
   // Evolution missions now come from companion (kind 31124), not dailyMissions
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
+    user?.pubkey,
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
   // Evolution missions now come from companion (kind 31124), not dailyMissions
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
+    user?.pubkey,
   );
   
   // ─── Unified Task Process Abstraction ───

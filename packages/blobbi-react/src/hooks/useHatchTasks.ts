@@ -1,4 +1,4 @@
-// src/blobbi/actions/hooks/useHatchTasks.ts
+// packages/blobbi-react/src/hooks/useHatchTasks.ts
 
 /**
  * Hook to compute hatch task progress.
@@ -17,7 +17,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrFilter } from '@nostrify/nostrify';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import type { Mission } from '@blobbi/core/missions';
 import { missionProgress, isEventMission } from '@blobbi/core/missions';
@@ -104,14 +103,15 @@ export interface HatchTasksResult {
  * Hook to compute hatch task progress from evolution missions + Nostr event backfill.
  *
  * @param companion - The Blobbi companion (must be incubating)
+ * @param pubkey    - The owner's hex pubkey. When absent (logged out), the hook
+ *                    stays disabled and returns empty tasks.
  */
 export function useHatchTasks(
   companion: BlobbiCompanion | null,
+  pubkey?: string,
 ): HatchTasksResult {
-  const { user } = useCurrentUser();
   const { nostr } = useNostr();
 
-  const pubkey = user?.pubkey;
   const companionD = companion?.d;
   const isIncubating = companion?.progressionState === 'incubating';
 
