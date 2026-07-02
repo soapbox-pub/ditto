@@ -18,11 +18,11 @@ import {
   DIRECT_ACTION_METADATA,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
-import type { DailyMissionAction } from '../lib/daily-missions';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
+import type { DailyMissionAction } from '@blobbi/react/lib/daily-missions';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
-import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
+import { calculateActionXP, applyXPGain, formatXPGain } from '@blobbi/react/lib/blobbi-xp';
 import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
 
 // Import NostrEvent type

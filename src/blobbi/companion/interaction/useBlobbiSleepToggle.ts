@@ -27,7 +27,7 @@ import {
 } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
-import { trackDailyMissionProgress } from '@/blobbi/actions/lib/daily-mission-tracker';
+import { trackDailyMissionProgress } from '@blobbi/react/lib/daily-mission-tracker';
 
 export interface UseBlobbiSleepToggleResult {
   /** Toggle sleep/wake state. Resolves when published. */

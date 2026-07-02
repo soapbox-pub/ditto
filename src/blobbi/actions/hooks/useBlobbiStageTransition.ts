@@ -28,8 +28,8 @@ import {
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { validateAndRepairBlobbiTags } from '@blobbi/core/blobbi-tag-schema';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { createEvolveMissions } from '../lib/evolution-missions';
-import { writeEvolutionToStorage, clearEvolutionFromStorage } from '../lib/daily-mission-tracker';
+import { createEvolveMissions } from '@blobbi/react/lib/evolution-missions';
+import { writeEvolutionToStorage, clearEvolutionFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
 import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
 
 // ─── Content Helpers ──────────────────────────────────────────────────────────

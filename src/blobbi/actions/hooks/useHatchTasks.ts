@@ -26,7 +26,7 @@ import {
   readEvolutionFromStorage,
   writeEvolutionToStorage,
   hydrateEvolutionFromPersisted,
-} from '../lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 import {
   HATCH_MISSIONS,
   HATCH_REQUIRED_INTERACTIONS,
@@ -34,7 +34,7 @@ import {
   createHatchMissions,
   evolutionMatchesDefinitions,
   migrateEvolutionMissions,
-} from '../lib/evolution-missions';
+} from '@blobbi/react/lib/evolution-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

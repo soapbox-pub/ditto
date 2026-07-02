@@ -140,7 +140,7 @@ export {
   trackDailyMissionProgress,
   trackDailyMissionEvent,
   trackMultipleDailyMissionActions,
-} from './lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 export type {
   DailyMissionAction,
   DailyMissionDefinition,
@@ -148,7 +148,7 @@ export type {
   TallyMission,
   EventMission,
   MissionsContent,
-} from './lib/daily-missions';
+} from '@blobbi/react/lib/daily-missions';
 
 // Progression
 export {
@@ -178,7 +178,7 @@ export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from '@blobbi/r
 export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from '@blobbi/react/lib/item-cooldown';
 export { useItemCooldown } from '@blobbi/react/hooks/useItemCooldown';
 
-// Action XP
+// Action XP (extracted to @blobbi/react)
 export {
   ACTION_XP,
   INVENTORY_ACTION_XP,
@@ -188,7 +188,7 @@ export {
   calculateInventoryActionXP,
   applyXPGain,
   formatXPGain,
-} from './lib/blobbi-xp';
+} from '@blobbi/react/lib/blobbi-xp';
 
 // Streak tracking (extracted to @blobbi/react)
 export {

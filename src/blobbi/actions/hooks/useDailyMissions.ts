@@ -34,12 +34,12 @@ import {
   getDefinition,
   MAX_DAILY_REROLLS,
   DAILY_BONUS_XP,
-} from '../lib/daily-missions';
+} from '@blobbi/react/lib/daily-missions';
 
 import {
   readDailyFromStorage,
   writeDailyToStorage,
-} from '../lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -4,24 +4,13 @@ import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type Blobbi
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { getBlobbiStatDisplayState, type CareState } from '@blobbi/core/blobbi-segments';
+import type { InventoryAction, DirectAction, BlobbiAction } from '@blobbi/react/lib/blobbi-actions';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 
-/**
- * Item-based care actions (use a shop catalog item on the companion)
- */
-export type InventoryAction = 'feed' | 'play' | 'clean' | 'medicine' | 'boost';
-
-/**
- * Direct actions that don't use items.
- * These actions affect stats directly without selecting a shop item.
- */
-export type DirectAction = 'play_music' | 'sing';
-
-/**
- * All Blobbi actions (item-based + direct)
- */
-export type BlobbiAction = InventoryAction | DirectAction;
+// Action taxonomy now lives in @blobbi/react/lib/blobbi-actions (app-agnostic).
+// Re-exported here so existing Ditto import paths keep working.
+export type { InventoryAction, DirectAction, BlobbiAction };
 
 /**
  * Mapping from action type to allowed item categories

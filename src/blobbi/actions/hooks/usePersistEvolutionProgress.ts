@@ -25,7 +25,7 @@ import {
   KIND_BLOBBI_STATE,
 } from '@blobbi/core/blobbi';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { readEvolutionFromStorage } from '../lib/daily-mission-tracker';
+import { readEvolutionFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 

@@ -23,7 +23,7 @@ import {
   readEvolutionFromStorage,
   writeEvolutionToStorage,
   hydrateEvolutionFromPersisted,
-} from '../lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 import {
   EVOLVE_MISSIONS,
   EVOLVE_REQUIRED_INTERACTIONS,
@@ -34,7 +34,7 @@ import {
   createEvolveMissions,
   evolutionMatchesDefinitions,
   migrateEvolutionMissions,
-} from '../lib/evolution-missions';
+} from '@blobbi/react/lib/evolution-missions';
 
 import {
   KIND_THEME_DEFINITION,

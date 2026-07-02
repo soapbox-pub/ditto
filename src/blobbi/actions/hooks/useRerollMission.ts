@@ -9,12 +9,12 @@ import { useMutation } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiStage } from '../lib/daily-missions';
-import { rerollMission, getDefinition } from '../lib/daily-missions';
+import type { BlobbiStage } from '@blobbi/react/lib/daily-missions';
+import { rerollMission, getDefinition } from '@blobbi/react/lib/daily-missions';
 import {
   readMissionsFromStorage,
   writeMissionsToStorage,
-} from '../lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

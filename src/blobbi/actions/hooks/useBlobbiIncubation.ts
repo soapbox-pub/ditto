@@ -28,11 +28,11 @@ import {
 } from '@blobbi/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { createHatchMissions, createEvolveMissions } from '../lib/evolution-missions';
+import { createHatchMissions, createEvolveMissions } from '@blobbi/react/lib/evolution-missions';
 import {
   writeEvolutionToStorage,
   clearEvolutionFromStorage,
-} from '../lib/daily-mission-tracker';
+} from '@blobbi/react/lib/daily-mission-tracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

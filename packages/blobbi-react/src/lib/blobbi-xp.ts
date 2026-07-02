@@ -12,7 +12,7 @@
  * - XP accumulates across all life stages and never resets
  */
 
-import type { BlobbiAction, InventoryAction, DirectAction } from './blobbi-action-utils';
+import type { BlobbiAction, InventoryAction, DirectAction } from '@blobbi/react/lib/blobbi-actions';
 
 // ─── XP Values by Action ──────────────────────────────────────────────────────
 

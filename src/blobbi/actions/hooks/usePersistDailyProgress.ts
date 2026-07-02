@@ -26,8 +26,8 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import { KIND_BLOBBONAUT_PROFILE } from '@blobbi/core/blobbi';
 import { serializeProfileContent } from '@blobbi/core/missions';
-import { readDailyFromStorage } from '../lib/daily-mission-tracker';
-import { areAllDailyComplete } from '../lib/daily-missions';
+import { readDailyFromStorage } from '@blobbi/react/lib/daily-mission-tracker';
+import { areAllDailyComplete } from '@blobbi/react/lib/daily-missions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

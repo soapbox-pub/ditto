@@ -24,10 +24,10 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '../lib/daily-mission-tracker';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi/react/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@blobbi/core/missions';
 import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
-import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
+import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '@blobbi/react/lib/blobbi-xp';
 import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
 
 // Import NostrEvent type
