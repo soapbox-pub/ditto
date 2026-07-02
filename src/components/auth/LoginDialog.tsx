@@ -544,8 +544,8 @@ function LoginHero() {
           fill="color-mix(in srgb, hsl(var(--primary)) 45%, black)"
           transform="translate(87 0) scale(0.82 1) translate(-87 0)"
         >
-          <circle cx="87" cy="80" r="12" />
-          <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
+          <circle cx="87" cy="80" r="8" />
+          <path d="M 83 86 L 91 86 L 94 98 H 80 Z" />
         </g>
 
         {/* Unlock success: the keyhole lights up white along with the ring. */}
@@ -555,8 +555,8 @@ function LoginHero() {
           style={{ filter: 'drop-shadow(0 0 8px rgb(255 255 255 / 0.7))' }}
           transform="translate(87 0) scale(0.82 1) translate(-87 0)"
         >
-          <circle cx="87" cy="80" r="12" />
-          <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
+          <circle cx="87" cy="80" r="8" />
+          <path d="M 83 86 L 91 86 L 94 98 H 80 Z" />
         </g>
       </svg>
 
@@ -618,21 +618,25 @@ function LoginHero() {
         </g>
 
         <defs>
-          {/* The "going in" illusion: the key stays visible across the whole
-              keyhole mouth and disappears exactly at the hole's far (right)
-              rim — the curved edge — as if sliding into the lock's interior.
-              The explicit userSpaceOnUse region keeps the mask from cropping
-              the key's strokes (the default region is the tight fill
-              bounding box). */}
+          {/* The "going in" illusion: the key vanishes at the hole's
+              vertical midline, so the right half of the mouth stays
+              visibly empty as the key slides in — like a real lock, where
+              the body past the mouth is inside the plug, not spanning the
+              hole. The explicit userSpaceOnUse region keeps the mask from
+              cropping the key's strokes (the default region is the tight
+              fill bounding box). */}
           <mask id="ditto-hero-keyhole-mask" maskUnits="userSpaceOnUse" x="-48" y="-48" width="272" height="272">
             <rect x="-48" y="-48" width="272" height="272" fill="white" />
-            <rect x="87" y="56" width="60" height="48" fill="black" />
-            {/* The full keyhole opening — circle and bottom slot — stays
-                see-through, so the key vanishes at the opening's far edge. */}
-            <g transform="translate(87 0) scale(0.82 1) translate(-87 0)" fill="white">
-              <circle cx="87" cy="80" r="12" />
-              <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
-            </g>
+            {/* The cutoff starts just before the midline and bows into the
+                hole at shaft height, so the key's visible end is a rounded
+                capsule tip while most of the mouth stays empty. */}
+            {/* The bulge is a semicircle matched to the shaft's half-height
+                (r 4), so the visible shaft terminates in a perfect rounded
+                cap — a popsicle-stick end — right at the mouth. */}
+            <path
+              d="M 85 56 H 147 V 104 H 85 V 84 A 4 4 0 0 0 85 76 Z"
+              fill="black"
+            />
           </mask>
         </defs>
 
