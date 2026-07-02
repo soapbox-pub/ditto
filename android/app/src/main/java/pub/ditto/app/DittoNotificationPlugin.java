@@ -10,10 +10,13 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 
+import androidx.activity.result.ActivityResult;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONArray;
@@ -106,10 +109,8 @@ public class DittoNotificationPlugin extends Plugin {
      */
     @PluginMethod
     public void isIgnoringBatteryOptimizations(PluginCall call) {
-        PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
-        boolean ignoring = pm != null && pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
         JSObject ret = new JSObject();
-        ret.put("ignoring", ignoring);
+        ret.put("ignoring", ignoringBatteryOptimizations());
         call.resolve(ret);
     }
 
@@ -118,26 +119,45 @@ public class DittoNotificationPlugin extends Plugin {
      * optimizations (one tap: "Allow"). Falls back to the battery
      * optimization settings list on OEM builds that don't handle the direct
      * request intent.
+     *
+     * Launched for a result so the plugin call only resolves once the dialog
+     * (or settings screen) closes, carrying the fresh exemption state — the
+     * dialog overlays the WebView without hiding it, so the JS layer gets no
+     * visibilitychange event to re-check on.
      */
     @PluginMethod
     public void requestIgnoreBatteryOptimizations(PluginCall call) {
         try {
             Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             intent.setData(Uri.parse("package:" + getContext().getPackageName()));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(intent);
-            call.resolve();
+            startActivityForResult(call, intent, "batteryOptimizationResult");
         } catch (Exception e) {
             Log.w(TAG, "Direct battery optimization request failed, opening settings list", e);
             try {
                 Intent fallback = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(fallback);
-                call.resolve();
+                startActivityForResult(call, fallback, "batteryOptimizationResult");
             } catch (Exception e2) {
                 call.reject("Unable to open battery optimization settings", e2);
             }
         }
+    }
+
+    /**
+     * The user closed the exemption dialog (or returned from the settings
+     * list). Resolve with the current exemption state so the UI can update
+     * immediately.
+     */
+    @ActivityCallback
+    private void batteryOptimizationResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        JSObject ret = new JSObject();
+        ret.put("ignoring", ignoringBatteryOptimizations());
+        call.resolve(ret);
+    }
+
+    private boolean ignoringBatteryOptimizations() {
+        PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        return pm != null && pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
     }
 
     /**

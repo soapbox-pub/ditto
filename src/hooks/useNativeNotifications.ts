@@ -14,8 +14,11 @@ interface DittoNotificationPlugin {
   configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; notificationStyle?: string }): Promise<void>;
   /** Android: whether the app is exempt from battery optimizations (Doze). */
   isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
-  /** Android: show the one-tap system dialog to grant the exemption. */
-  requestIgnoreBatteryOptimizations(): Promise<void>;
+  /**
+   * Android: show the one-tap system dialog to grant the exemption.
+   * Resolves when the dialog closes, with the fresh exemption state.
+   */
+  requestIgnoreBatteryOptimizations(): Promise<{ ignoring: boolean }>;
 }
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
@@ -43,14 +46,20 @@ export async function isIgnoringBatteryOptimizations(): Promise<boolean> {
 
 /**
  * Open the one-tap system dialog asking the user to exempt Ditto from
- * battery optimizations. No-op outside Android.
+ * battery optimizations. Resolves once the dialog closes, returning the
+ * fresh exemption state (`true` = exempt) so callers can update their UI
+ * immediately — the dialog overlays the WebView without hiding it, so no
+ * visibilitychange event fires when it closes. No-op outside Android.
  */
-export async function requestIgnoreBatteryOptimizations(): Promise<void> {
-  if (Capacitor.getPlatform() !== 'android') return;
+export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return true;
   try {
-    await DittoNotification.requestIgnoreBatteryOptimizations();
+    const { ignoring } = await DittoNotification.requestIgnoreBatteryOptimizations();
+    return ignoring;
   } catch (err) {
     console.error('[notifications] Failed to request battery optimization exemption:', err);
+    // The request may still have opened a settings screen — re-check.
+    return isIgnoringBatteryOptimizations();
   }
 }
 

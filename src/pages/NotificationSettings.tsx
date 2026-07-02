@@ -400,7 +400,12 @@ export function NotificationSettings() {
                         size="sm"
                         variant="outline"
                         className="mt-2 h-8 text-xs"
-                        onClick={() => requestIgnoreBatteryOptimizations()}
+                        onClick={async () => {
+                          // Resolves when the system dialog closes, with the
+                          // fresh exemption state — update the banner right away.
+                          const ignoring = await requestIgnoreBatteryOptimizations();
+                          setBatteryOptimized(!ignoring);
+                        }}
                       >
                         Disable battery optimization
                       </Button>
