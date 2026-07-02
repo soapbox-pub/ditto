@@ -196,7 +196,7 @@ import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
-import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
+import { detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -1117,15 +1117,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Celebration effect — same as the feed (see NoteCard): text notes with
   // celebratory words/emojis play a one-shot confetti overlay. On the detail
   // page the note is the focus, so it plays shortly after mount rather than
-  // waiting on an intersection observer. Shares the once-per-session set
-  // with the feed so it doesn't replay for a note already celebrated there.
+  // waiting on an intersection observer, and it always plays — deliberately
+  // opening a note is an explicit action, so the feed's once-per-session
+  // suppression doesn't apply here. It still marks the event celebrated so
+  // the feed card won't replay it afterwards.
   const celebration = useMemo(
     () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
     [event],
   );
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
-    if (!celebration || !canCelebrate(event.id)) return;
+    if (!celebration) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     // Short delay so the page settles before the confetti drops.
     const arm = setTimeout(() => {
