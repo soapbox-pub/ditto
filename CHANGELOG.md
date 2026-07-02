@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.2] - 2026-07-02
+
+A small fix so that "GM" notes wrapped in quotation marks now correctly trigger the sunrise celebration.
+
+### Fixed
+- GM sunrise animation now fires when note content is wrapped in quotes (e.g. "GM")
+
 ## [2.25.1] - 2026-07-02
 
 A fresh login screen with a playful animated key that unlocks the Ditto planet, a one-tap login for browser extension users, and fixes for profile media galleries not showing Blossom-hosted content and a lag on Android taps.
