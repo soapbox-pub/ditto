@@ -411,6 +411,50 @@ export function getCanonicalBlobbonautD(pubkey: string): string {
 }
 
 /**
+ * Build a canonical Blobbi address coordinate for the `a` tag of events that
+ * reference a Kind 31124 Blobbi state (e.g. kind 1124 interactions).
+ *
+ * Format: `31124:<owner-pubkey>:<blobbi-d-tag>`
+ *
+ * This is the single source of truth for the coordinate string. Callers that
+ * reference a Blobbi (interactions, presence, activity history) should use this
+ * instead of hand-building the string, so the kind prefix and separator layout
+ * cannot drift.
+ */
+export function buildBlobbiAddress(pubkey: string, d: string): string {
+  return `${KIND_BLOBBI_STATE}:${pubkey}:${d}`;
+}
+
+/**
+ * Parse a canonical Blobbi address coordinate (`31124:<pubkey>:<d>`) into its
+ * parts. The inverse of {@link buildBlobbiAddress}.
+ *
+ * Returns `undefined` unless the address is exactly:
+ * - `KIND_BLOBBI_STATE` (31124) as the kind segment,
+ * - exactly 3 colon-separated parts,
+ * - a non-empty pubkey,
+ * - a non-empty d-tag.
+ *
+ * Deep hex/format validation of the pubkey and d-tag is intentionally NOT
+ * performed here — callers that need it can layer `isCanonicalBlobbiD` or
+ * `isNostrId` on top. This keeps the parser small and permissive of legacy
+ * d-tags while still rejecting malformed coordinates.
+ */
+export function parseBlobbiAddress(
+  address: string,
+): { kind: typeof KIND_BLOBBI_STATE; pubkey: string; d: string } | undefined {
+  const parts = address.split(':');
+  if (parts.length !== 3) return undefined;
+
+  const [kindStr, pubkey, d] = parts;
+  if (kindStr !== String(KIND_BLOBBI_STATE)) return undefined;
+  if (!pubkey) return undefined;
+  if (!d) return undefined;
+
+  return { kind: KIND_BLOBBI_STATE, pubkey, d };
+}
+
+/**
  * Derive the Blobbi seed using sha256.
  * seed = sha256("blobbi:v1|" + pubkey + ":" + d + ":" + createdAt)
  * 

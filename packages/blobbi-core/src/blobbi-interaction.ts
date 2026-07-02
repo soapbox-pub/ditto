@@ -21,7 +21,7 @@
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import type { BlobbiCompanion } from './blobbi';
+import { buildBlobbiAddress, parseBlobbiAddress, type BlobbiCompanion } from './blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ export function buildInteractionEventTemplate(params: InteractionEventParams): {
   content: string;
   tags: string[][];
 } {
-  const coordinate = `31124:${params.ownerPubkey}:${params.blobbiDTag}`;
+  const coordinate = buildBlobbiAddress(params.ownerPubkey, params.blobbiDTag);
 
   const tags: string[][] = [
     ['a', coordinate],
@@ -167,7 +167,7 @@ export function buildInteractionEventTemplate(params: InteractionEventParams): {
  *
  * Checks:
  * - Correct kind
- * - Has `a` tag starting with "31124:"
+ * - Has a well-formed `a` tag coordinate (`31124:<pubkey>:<d>`)
  * - Has `p` tag (non-empty)
  * - Has `action` tag with a recognised V1 value
  * - Has `source` tag (non-empty)
@@ -191,7 +191,7 @@ export function parseInteractionEvent(event: NostrEvent): BlobbiInteraction | un
   const actionTag = tags.find(([n]) => n === 'action')?.[1];
   const sourceTag = tags.find(([n]) => n === 'source')?.[1];
 
-  if (!aTag || !aTag.startsWith('31124:')) return undefined;
+  if (!aTag || !parseBlobbiAddress(aTag)) return undefined;
   if (!pTag) return undefined;
   if (!actionTag || !(INTERACTION_ACTIONS as readonly string[]).includes(actionTag)) return undefined;
   if (!sourceTag) return undefined;

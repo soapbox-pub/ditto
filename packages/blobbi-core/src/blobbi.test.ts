@@ -5,6 +5,8 @@ import {
   KIND_BLOBBI_STATE,
   BLOBBI_ECOSYSTEM_NAMESPACE,
   buildEggTags,
+  buildBlobbiAddress,
+  parseBlobbiAddress,
   getCanonicalBlobbiD,
   getSelectedBlobbiKey,
   isCanonicalBlobbiD,
@@ -51,6 +53,47 @@ describe('canonical Blobbi d-tag', () => {
     expect(isCanonicalBlobbiD('blobbi-puck')).toBe(false);
     expect(isCanonicalBlobbiD('blobbi-fluffy')).toBe(false);
     expect(isCanonicalBlobbiD(`blobbi-${PUBKEY.slice(0, 12)}`)).toBe(false);
+  });
+});
+
+describe('Blobbi address helpers (build/parse 31124:<pubkey>:<d>)', () => {
+  const D = getCanonicalBlobbiD(PUBKEY, PET_ID);
+
+  it('buildBlobbiAddress produces a canonical coordinate', () => {
+    expect(buildBlobbiAddress(PUBKEY, D)).toBe(`${KIND_BLOBBI_STATE}:${PUBKEY}:${D}`);
+    expect(buildBlobbiAddress(PUBKEY, D)).toBe(`31124:${PUBKEY}:${D}`);
+  });
+
+  it('round-trips build → parse', () => {
+    const address = buildBlobbiAddress(PUBKEY, D);
+    const parsed = parseBlobbiAddress(address);
+    expect(parsed).toEqual({ kind: KIND_BLOBBI_STATE, pubkey: PUBKEY, d: D });
+  });
+
+  it('parses a hand-written canonical coordinate', () => {
+    expect(parseBlobbiAddress(`31124:${PUBKEY}:${D}`)).toEqual({
+      kind: KIND_BLOBBI_STATE,
+      pubkey: PUBKEY,
+      d: D,
+    });
+  });
+
+  it('returns undefined for malformed / non-31124 addresses', () => {
+    // Wrong kind
+    expect(parseBlobbiAddress(`11125:${PUBKEY}:${D}`)).toBeUndefined();
+    expect(parseBlobbiAddress(`1124:${PUBKEY}:${D}`)).toBeUndefined();
+    // Too few parts
+    expect(parseBlobbiAddress(`31124:${PUBKEY}`)).toBeUndefined();
+    expect(parseBlobbiAddress('31124')).toBeUndefined();
+    // Too many parts
+    expect(parseBlobbiAddress(`31124:${PUBKEY}:${D}:extra`)).toBeUndefined();
+    // Empty pubkey / d
+    expect(parseBlobbiAddress(`31124::${D}`)).toBeUndefined();
+    expect(parseBlobbiAddress(`31124:${PUBKEY}:`)).toBeUndefined();
+    expect(parseBlobbiAddress('31124::')).toBeUndefined();
+    // Empty / junk
+    expect(parseBlobbiAddress('')).toBeUndefined();
+    expect(parseBlobbiAddress('not-an-address')).toBeUndefined();
   });
 });
 
