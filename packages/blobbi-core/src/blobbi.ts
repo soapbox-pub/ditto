@@ -1695,7 +1695,15 @@ export function mergeBlobbiStateTagsForRepublish(
     }
   }
   
-  // Preserve unknown tags (tags not managed by us), excluding deprecated tags
+  // Preserve unknown tags (tags not managed by us), excluding deprecated tags.
+  //
+  // INVARIANT: unknown/unmanaged extension tags MUST survive republish. Host
+  // apps (e.g. Blobbi Island) attach their own tags to kind 31124 events —
+  // future accessories, `equip`, and similar. Core does not understand these
+  // tags but must never clobber them. Do not add such tags to
+  // MANAGED_BLOBBI_STATE_TAG_NAMES unless core intends to own them, and note
+  // that validateAndRepairBlobbiTags only stage-filters tags that HAVE a
+  // schema entry — unknown tags pass through untouched by design.
   const unknownTags = existingTags.filter(tag => 
     !MANAGED_BLOBBI_STATE_TAG_NAMES.has(tag[0]) && 
     !DEPRECATED_BLOBBI_TAG_NAMES.has(tag[0])
@@ -1760,7 +1768,12 @@ export function mergeBlobbonautTagsForRepublish(
     }
   }
   
-  // Preserve unknown tags (tags not managed by us)
+  // Preserve unknown tags (tags not managed by us).
+  //
+  // INVARIANT: unknown/unmanaged extension tags MUST survive republish. Host
+  // apps attach their own tags to kind 11125 profiles (e.g. Blobbi Island's
+  // inventory `inv` tags). Core must never clobber them. Only `has` is deduped
+  // below; all other unmanaged tags are passed through verbatim.
   const unknownTags = existingTags.filter(tag => !MANAGED_BLOBBONAUT_PROFILE_TAG_NAMES.has(tag[0]));
   
   // Deduplicate 'has' tags

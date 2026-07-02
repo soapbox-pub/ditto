@@ -936,7 +936,12 @@ export function validateAndRepairBlobbiTags(
   for (const tag of filteredTags) {
     const name = tag[0];
     
-    // Check if this tag is valid for the current stage
+    // Check if this tag is valid for the current stage.
+    //
+    // INVARIANT: only tags that HAVE a schema entry are stage-filtered. Unknown
+    // /unmanaged extension tags (schema === undefined) — e.g. a host app's
+    // future accessory or `equip` tags — are intentionally passed through
+    // untouched. Core must not clobber tags it does not own.
     const schema = getTagSchema(name);
     if (schema && !schema.stages.includes(finalStage)) {
       repairs.push(`Removed tag '${name}' (not valid for stage '${finalStage}')`);
