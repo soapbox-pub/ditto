@@ -136,8 +136,11 @@ export function useLoveList() {
     return lovedPubkeys?.includes(pubkey) ?? false;
   }
 
-  /** Shared read-modify-write cycle for add/remove. */
-  async function mutateLoveList(targetPubkey: string, action: 'add' | 'remove'): Promise<void> {
+  /** Shared read-modify-write cycle for add/remove. Returns the published
+   *  event so the caller can seed the cache with the authoritative result
+   *  instead of refetching (relays are eventually-consistent — an immediate
+   *  refetch often returns the pre-mutation list and clobbers the change). */
+  async function mutateLoveList(targetPubkey: string, action: 'add' | 'remove'): Promise<NostrEvent> {
     if (!user) throw new Error('User is not logged in');
 
     // ① Fetch the freshest kind 15683 (local store acts as a data-loss floor).
@@ -176,17 +179,22 @@ export function useLoveList() {
     // and to localStorage so the Loved tab survives an immediate refresh.
     void store.event(published);
     setCachedLovedPubkeys(config.appId, user.pubkey, loveListPubkeys(published));
+
+    return published;
   }
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['love-list'] });
-    // The Loved feed tab filters by loved authors, so a membership change
-    // should refresh it (the feed key intentionally excludes the list itself,
-    // mirroring the follow-list behavior).
+  const loveListKey = ['love-list', user?.pubkey ?? ''];
+
+  /** Seed the love-list cache with the authoritative published event so the
+   *  optimistic UI is confirmed (not clobbered) without a stale relay
+   *  refetch. Only refresh the Loved feed, which reads loved authors. */
+  const onMutated = (published: NostrEvent) => {
+    queryClient.setQueryData<LoveListData>(loveListKey, {
+      event: published,
+      pubkeys: loveListPubkeys(published),
+    });
     queryClient.invalidateQueries({ queryKey: ['feed'] });
   };
-
-  const loveListKey = ['love-list', user?.pubkey ?? ''];
 
   /**
    * Optimistically update the love-list cache so the heart button flips
@@ -215,7 +223,7 @@ export function useLoveList() {
     onError: (_err, _pubkey, ctx) => {
       rollbackQuery(queryClient, loveListKey, ctx?.snapshot);
     },
-    onSuccess: invalidate,
+    onSuccess: onMutated,
   });
 
   /** Remove a pubkey from the Love List. */
@@ -225,7 +233,7 @@ export function useLoveList() {
     onError: (_err, _pubkey, ctx) => {
       rollbackQuery(queryClient, loveListKey, ctx?.snapshot);
     },
-    onSuccess: invalidate,
+    onSuccess: onMutated,
   });
 
   return {
