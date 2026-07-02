@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.25.1] - 2026-07-02
+
+A fresh login screen with a playful animated key that unlocks the Ditto planet, a one-tap login for browser extension users, and fixes for profile media galleries not showing Blossom-hosted content and a lag on Android taps.
+
+### Added
+- The login screen now greets you with an animated key unlocking Ditto
+- If you have a Nostr browser extension installed, logging in is now a single tap — your account is detected and confirmed automatically
+
+### Fixed
+- Profile media galleries and the Photos feed now correctly display Blossom-hosted images and videos
+- Tapping items on Android no longer feels sluggish due to an overly heavy haptic sequence
+
 ## [2.25.0] - 2026-07-02
 
 Ditto feels instant now. Your posts pop into the feed the moment you hit publish, and bookmarking, pinning, muting, liking, and following all land right away instead of waiting on the network. Love a profile and hearts rain down over their header, with the love letter card getting its own gentle drift of floating hearts. Plus you can now unmute a conversation straight from the note menu, and a batch of little fixes and polish.
