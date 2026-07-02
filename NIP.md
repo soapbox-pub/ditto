@@ -551,6 +551,42 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 
 ---
 
+## Kind 1 Extension: Tarot Reading (Nostrdamus)
+
+### Summary
+
+A tarot reading shared from the Tarot page is a plain kind 1 note that encodes the three-card spread so it can be reconstructed from the note alone. The format originates from [Nostrdamus](https://nostrdamus.me) and is fully interoperable with it — Nostr is the database; no other storage exists.
+
+### Event Structure
+
+```json
+{
+  "kind": 1,
+  "content": "My daily tarot reading ✨ #nostrdamus #daily\n\n• Past: The Fool - …\n• Present: The Star (Reversed) - …\n• Future: The Sun - …\n\n#past_the_fool_upright #present_the_star_reversed #future_the_sun_upright https://blossom.example/abc.png",
+  "tags": [
+    ["t", "nostrdamus"],
+    ["t", "daily"],
+    ["imeta",
+      "url https://blossom.example/abc.png",
+      "m image/png",
+      "summary daily_reading #past_the_fool_upright #present_the_star_reversed #future_the_sun_upright",
+      "alt Daily tarot reading with three cards: The Fool, The Star (Reversed), The Sun"
+    ]
+  ]
+}
+```
+
+- **`t` tags** — `nostrdamus` marks the note as a tarot reading; `daily` or `weekly` identifies the reading type.
+- **Card hashtags** — each drawn card is encoded as `#<position>_<card_name>_<orientation>` where `position` ∈ `past|present|future`, `card_name` is the lowercased card name with spaces replaced by underscores, and `orientation` ∈ `upright|reversed`.
+- **`imeta` summary** — `"<daily|weekly>_reading"` followed by the card hashtags. Clients reconstruct the spread from this field, falling back to parsing the hashtags in `content` (the legacy Nostrdamus format).
+
+### Client Behavior
+
+- Clients query `kinds: [1]`, `authors: [<user>]`, `#t: ["nostrdamus"]` with a `since` of 24 hours (daily) or 7 days (weekly) to restore the user's current sealed reading across devices.
+- A reading is only valid when all three positions are present; otherwise the note is treated as a regular text note.
+
+---
+
 ## Community NIP Specifications
 
 The following specifications are maintained by their respective authors. Ditto implements these kinds but does not own the specs. See each link for the full event structure, tags, and client behavior.

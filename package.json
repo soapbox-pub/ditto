@@ -56,6 +56,7 @@
     "@fontsource/special-elite": "^5.2.8",
     "@getalby/sdk": "^5.1.1",
     "@hookform/resolvers": "^5.2.2",
+    "@lucide/lab": "^0.1.2",
     "@milkdown/core": "^7.20.0",
     "@milkdown/ctx": "^7.20.0",
     "@milkdown/plugin-clipboard": "^7.20.0",

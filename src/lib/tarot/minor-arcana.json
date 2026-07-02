@@ -1,0 +1,218 @@
+[
+ {
+  "name": "Ace of Wands",
+  "suit": "wands",
+  "icon": "wand",
+  "meaning_up": "Inspiration, new opportunities, growth, potential",
+  "meaning_rev": "An emerging idea, lack of direction, distractions, delays",
+  "desc": "The Ace of Wands represents a new spark of inspiration and a surge of creative energy. It's a sign of new beginnings and the potential for growth. This card encourages you to follow your passions and seize the opportunities that come your way.",
+  "fortune_telling": [
+   "A spark of inspiration set your whole path burning.",
+   "That idea flickering right now is live. Strike while it's hot.",
+   "A jolt of creative fire is coming. Have kindling ready."
+  ],
+  "fortune_telling_rev": [
+   "A promising spark fizzled for lack of air. It taught you how to tend the next one.",
+   "The idea is real; the direction is fuzzy. Aim before you ignite.",
+   "Delays will test a new venture. Keep the ember covered, not abandoned."
+  ]
+ },
+ {
+  "name": "Two of Wands",
+  "suit": "wands",
+  "icon": "sprout",
+  "meaning_up": "Future-planning, progress, decisions, discovery",
+  "meaning_rev": "Fear of unknown, lack of planning",
+  "desc": "The Two of Wands signifies a moment of planning and decision-making. You have a choice to make that will shape your future. This card encourages you to explore your options and make a bold move.",
+  "fortune_telling": [
+   "You once stood at the map and dared to plan bigger. That vision got you moving.",
+   "The world is wider than your current view. Plan the bolder route.",
+   "A choice between safe and vast is coming. Pack for vast."
+  ],
+  "fortune_telling_rev": [
+   "You drew the map but never took the trip. The lesson traveled anyway.",
+   "Fear of the unknown is dressed up as prudence. Which is it, really?",
+   "You'll be tempted to settle for the smaller plan. Don't shrink the map."
+  ]
+ },
+ {
+  "name": "Three of Wands",
+  "suit": "wands",
+  "icon": "flame",
+  "meaning_up": "Progress, expansion, foresight, overseas opportunities",
+  "meaning_rev": "Playing small, lack of foresight, unexpected delays",
+  "desc": "The Three of Wands represents progress and expansion. Your plans are in motion, and you are starting to see the results of your efforts. This card encourages you to look to the future with optimism and to be open to new opportunities.",
+  "fortune_telling": [
+   "You sent your ships out early, and they've been coming back ever since.",
+   "Your efforts are already in motion. Watch the horizon, not your feet.",
+   "Returns on work already done are sailing in. Expansion follows."
+  ],
+  "fortune_telling_rev": [
+   "You waited on returns that came late or small. Patience got a workout.",
+   "Progress is slower than the plan. Adjust the timeline, not the goal.",
+   "Obstacles may delay what you're owed. It still arrives; keep building the dock."
+  ]
+ },
+ {
+  "name": "Ace of Cups",
+  "suit": "cups",
+  "icon": "wine",
+  "meaning_up": "Love, new relationships, compassion, creativity",
+  "meaning_rev": "Self-love, intuition, repressed emotions",
+  "desc": "The Ace of Cups represents new beginnings in the realm of emotions. It's a symbol of love, compassion, and creativity. This card encourages you to open your heart and embrace the flow of feelings.",
+  "fortune_telling": [
+   "A love or friendship arrived like weather and changed your whole climate.",
+   "Your cup is filling. Don't overthink it; drink.",
+   "New love, new warmth, or new compassion is heading your way. Leave the door unlatched."
+  ],
+  "fortune_telling_rev": [
+   "You kept your cup covered while something real was pouring.",
+   "Feelings are backing up behind the dam. Let one out and see what happens.",
+   "An emotional opening will arrive disguised as an inconvenience. Open anyway."
+  ]
+ },
+ {
+  "name": "Two of Cups",
+  "suit": "cups",
+  "icon": "wineGlassBottle",
+  "meaning_up": "Unified love, partnership, mutual attraction",
+  "meaning_rev": "Self-love, break-ups, disharmony, distrust",
+  "desc": "The Two of Cups represents a deep connection between two people. It's a symbol of partnership, mutual respect, and love. This card encourages you to nurture your relationships and celebrate the bonds you share.",
+  "fortune_telling": [
+   "A true partnership doubled what you could carry.",
+   "This connection is mutual. Meet it halfway, exactly halfway.",
+   "A meaningful bond is forming. What you give it, it gives back."
+  ],
+  "fortune_telling_rev": [
+   "A bond fell out of balance, one cup always emptier than the other.",
+   "Someone is pouring more than the other. Level it or name it.",
+   "A small rift is ahead. Mend it while it's still small."
+  ]
+ },
+ {
+  "name": "Three of Cups",
+  "suit": "cups",
+  "icon": "cauldron",
+  "meaning_up": "Celebration, friendship, creativity, collaborations",
+  "meaning_rev": "Independence, alone time, hardcore partying, 'three's a crowd'",
+  "desc": "The Three of Cups is a card of celebration and friendship. It represents a time of joy, creativity, and collaboration. This card encourages you to connect with others and share in the happiness of the moment.",
+  "fortune_telling": [
+   "Your people showed up for you once, glasses raised. They made the hard parts lighter.",
+   "This calls for company. Gather your people and celebrate something minor on purpose.",
+   "A reunion or celebration is coming. Say yes and bring the good snacks."
+  ],
+  "fortune_telling_rev": [
+   "The party ran long, or the circle ran shallow. You learned who stays for cleanup.",
+   "Too much noise, not enough nourishment. Trade the crowd for the two who matter.",
+   "Watch for a third wheel or an overbooked calendar. Guard the inner circle."
+  ]
+ },
+ {
+  "name": "Ace of Swords",
+  "suit": "swords",
+  "icon": "sword",
+  "meaning_up": "Breakthroughs, new ideas, mental clarity, success",
+  "meaning_rev": "Inner clarity, re-thinking an idea, clouded judgement",
+  "desc": "The Ace of Swords represents a moment of breakthrough and mental clarity. It's a symbol of new ideas, truth, and success. This card encourages you to think clearly and cut through the confusion to find the truth.",
+  "fortune_telling": [
+   "One clear realization cut through years of fog.",
+   "The truth is sharp today. Use it precisely, not casually.",
+   "A breakthrough insight is coming. When it lands, act on it cleanly."
+  ],
+  "fortune_telling_rev": [
+   "A half-truth or a muddled call left a mark.",
+   "Your thinking is cloudy. Don't swing the blade until it clears.",
+   "Beware a clever argument that cuts the wrong way. Sharpen first, then decide."
+  ]
+ },
+ {
+  "name": "Two of Swords",
+  "suit": "swords",
+  "icon": "swords",
+  "meaning_up": "Difficult decisions, weighing up options, an impasse, avoidance",
+  "meaning_rev": "Indecision, confusion, information overload, stalemate",
+  "desc": "The Two of Swords represents a difficult decision or an impasse. You are faced with a choice, but you may be feeling stuck or unable to see the way forward. This card encourages you to seek balance and make a decision with a clear mind.",
+  "fortune_telling": [
+   "You once refused to choose, and the standoff held. Some peace is just a truce.",
+   "The blindfold is self-tied. Both options cost something; pick one and untie it.",
+   "A decision you've been dodging will circle back. Meet it with eyes open."
+  ],
+  "fortune_telling_rev": [
+   "A dam of indecision finally broke, and the flood sorted out the truth.",
+   "The stalemate is cracking. Let it. Motion beats deadlock.",
+   "Delay is about to stop working. Choose before the choice is made for you."
+  ]
+ },
+ {
+  "name": "Three of Swords",
+  "suit": "swords",
+  "icon": "sword",
+  "meaning_up": "Heartbreak, emotional pain, sorrow, grief, hurt",
+  "meaning_rev": "Negative self-talk, releasing pain, optimism, forgiveness",
+  "desc": "The Three of Swords is a card of heartbreak and emotional pain. It represents a time of sorrow, grief, and hurt. This card encourages you to acknowledge your pain and allow yourself to heal.",
+  "fortune_telling": [
+   "A heartbreak went clean through, and you healed around it. It's part of your architecture now.",
+   "This hurts because it mattered. Feel it properly; shortcuts scar worse.",
+   "A painful truth may land soon. It will hurt less than the not-knowing did."
+  ],
+  "fortune_telling_rev": [
+   "An old wound finally started closing. You stopped re-reading the ending.",
+   "You're healing. Stop picking at the seam to check.",
+   "Forgiveness, given or received, is closer than it looks. Let the swords fall out."
+  ]
+ },
+ {
+  "name": "Ace of Pentacles",
+  "suit": "pentacles",
+  "icon": "circle-dollar-sign",
+  "meaning_up": "A new opportunity, manifestation, prosperity",
+  "meaning_rev": "Lost opportunity, lack of planning, poor financial control",
+  "desc": "The Ace of Pentacles represents a new opportunity for prosperity and abundance. It's a symbol of manifestation, wealth, and security. This card encourages you to seize the opportunities that come your way and build a solid foundation for your future.",
+  "fortune_telling": [
+   "A seed of real opportunity took root and held.",
+   "Something tangible is being offered. Take it with both hands.",
+   "A concrete opportunity is coming: money, work, or ground to build on. Plant it, don't pocket it."
+  ],
+  "fortune_telling_rev": [
+   "An opportunity slipped through your fingers, and the lesson stayed.",
+   "Don't grip the coin so hard you can't catch the next one.",
+   "A shaky offer will glitter soon. Test the soil before you plant."
+  ]
+ },
+ {
+  "name": "Two of Pentacles",
+  "suit": "pentacles",
+  "icon": "coins",
+  "meaning_up": "Multiple priorities, time management, prioritisation, adaptability",
+  "meaning_rev": "Over-committed, disorganisation, re-prioritisation",
+  "desc": "The Two of Pentacles represents the need to balance multiple priorities and manage your time effectively. It's a symbol of adaptability and flexibility. This card encourages you to be organized and find a healthy work-life balance.",
+  "fortune_telling": [
+   "You kept everything in the air when dropping something wasn't an option. That was skill, not luck.",
+   "You're juggling well, but juggle on purpose. Priorities are the actual trick.",
+   "More balls are incoming. Decide now which ones are allowed to bounce."
+  ],
+  "fortune_telling_rev": [
+   "You dropped something because you were carrying too much. It happens to every juggler.",
+   "Overcommitment is coming due. Put one thing down gracefully.",
+   "The load ahead won't fit in two hands. Simplify before it decides for you."
+  ]
+ },
+ {
+  "name": "Three of Pentacles",
+  "suit": "pentacles",
+  "icon": "gem",
+  "meaning_up": "Teamwork, collaboration, learning, implementation",
+  "meaning_rev": "Disharmony, misalignment, working alone",
+  "desc": "The Three of Pentacles is a card of teamwork and collaboration. It represents a time of learning, skill-building, and successful implementation of plans. This card encourages you to work with others and learn from their expertise.",
+  "fortune_telling": [
+   "Working with others, and being valued for your craft, built something that lasted.",
+   "This is collaboration weather. Show your work and let others make it better.",
+   "A team effort will showcase your skill. Bring your best stone to the cathedral."
+  ],
+  "fortune_telling_rev": [
+   "A team pulling in three directions taught you what alignment is worth.",
+   "Everyone is building a different building. Compare blueprints today.",
+   "Credit or coordination may wobble ahead. Put the agreements in writing."
+  ]
+ }
+]

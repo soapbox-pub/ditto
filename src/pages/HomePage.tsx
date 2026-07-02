@@ -22,6 +22,7 @@ const PAGE_LOADERS: Record<string, React.LazyExoticComponent<React.ComponentType
   'podcasts': lazy(() => import('./PodcastsFeedPage').then(m => ({ default: m.PodcastsFeedPage }))),
   'webxdc': lazy(() => import('./WebxdcFeedPage').then(m => ({ default: m.WebxdcFeedPage }))),
   'themes': lazy(() => import('./ThemesPage').then(m => ({ default: m.ThemesPage }))),
+  'tarot': lazy(() => import('./TarotPage').then(m => ({ default: m.TarotPage }))),
   'treasures': lazy(() => import('./TreasuresPage').then(m => ({ default: m.TreasuresPage }))),
   'world': lazy(() => import('./WorldPage').then(m => ({ default: m.WorldPage }))),
   'books': lazy(() => import('./BooksPage').then(m => ({ default: m.BooksPage }))),
