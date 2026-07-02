@@ -6,6 +6,7 @@ import {
   Bookmark,
   ClipboardCopy,
   AtSign,
+  Bell,
   BellOff,
   VolumeX,
   Flag,
@@ -213,6 +214,11 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const bookmarked = isBookmarked(event.id);
   const pinned = isPinned(event.id);
   const userMuted = isMuted('pubkey', event.pubkey);
+  // Conversation = the thread root (NIP-10 root marker), falling back to this
+  // event's own id when it is itself a root. Muting stores an 'e' thread entry.
+  const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+  const threadId = rootTag?.[1] ?? event.id;
+  const conversationMuted = isMuted('thread', threadId);
   const author = useAuthor(event.pubkey);
   const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
 
@@ -247,16 +253,18 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   const handleMuteConversation = () => {
     impactLight();
-    const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
-    const threadId = rootTag?.[1] ?? event.id;
-    addMute.mutate(
+    const mutation = conversationMuted ? removeMute : addMute;
+    mutation.mutate(
       { type: 'thread', value: threadId },
       {
         onSuccess: () => {
-          toast({ title: 'Conversation muted' });
+          toast({ title: conversationMuted ? 'Conversation unmuted' : 'Conversation muted' });
         },
         onError: () => {
-          toast({ title: 'Failed to mute conversation', variant: 'destructive' });
+          toast({
+            title: conversationMuted ? 'Failed to unmute conversation' : 'Failed to mute conversation',
+            variant: 'destructive',
+          });
         },
       },
     );
@@ -303,6 +311,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
           bookmarked={bookmarked}
           pinned={pinned}
           userMuted={userMuted}
+          conversationMuted={conversationMuted}
           displayName={displayName}
           onBookmark={handleBookmark}
           onTogglePin={handleTogglePin}
@@ -394,6 +403,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   bookmarked: boolean;
   pinned: boolean;
   userMuted: boolean;
+  conversationMuted: boolean;
   displayName: string;
   onBookmark: () => void;
   onTogglePin: () => void;
@@ -407,7 +417,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onRestore: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
@@ -503,8 +513,8 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
         <div className="py-1">
           {!isOwnPost && (
             <MenuItem
-              icon={<BellOff className="size-5" />}
-              label="Mute Conversation"
+              icon={conversationMuted ? <Bell className="size-5" /> : <BellOff className="size-5" />}
+              label={conversationMuted ? 'Unmute Conversation' : 'Mute Conversation'}
               onClick={onMuteConversation}
             />
           )}
