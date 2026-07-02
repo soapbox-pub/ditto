@@ -14,7 +14,7 @@ import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn } from '@/lib/utils';
-import { impactLight } from '@/lib/haptics';
+import { impactMedium } from '@/lib/haptics';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/lib/customEmoji';
 
@@ -32,6 +32,13 @@ interface QuickReactMenuProps {
   reactedEvent?: NostrEvent;
   /** Called after an emoji is selected so the parent can close the popover. */
   onClose?: () => void;
+  /**
+   * Called the moment a reaction is selected (both the default publish path
+   * and the `onReact` delegate path) — for send-side feedback like the
+   * reaction burst animation. Receives the selected emoji (custom emojis
+   * arrive in `:shortcode:` form).
+   */
+  onReacted?: (emoji: string) => void;
   /** Called when the full picker is opened/closed so the parent can lock the popover open. */
   onExpandChange?: (expanded: boolean) => void;
   /**
@@ -50,6 +57,7 @@ export function QuickReactMenu({
   eventKind,
   reactedEvent,
   onClose,
+  onReacted,
   onExpandChange,
   onReact,
   className,
@@ -92,10 +100,13 @@ export function QuickReactMenu({
   /** Publish a reaction with a native Unicode emoji string. */
   const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
     if (!user) return;
-    impactLight();
+    impactMedium();
 
     // Close the entire popover
     onClose?.();
+
+    // Send-side feedback (reaction burst) in the parent button
+    onReacted?.((emoji === '+' || emoji === '') ? '👍' : emoji);
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
@@ -161,7 +172,7 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
+  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose, onReacted]);
 
   /** Handle selection from the quick buttons (native or custom emoji). */
   const handleQuickSelect = useCallback((emoji: string) => {

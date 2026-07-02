@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInView } from "react-intersection-observer";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
@@ -50,6 +51,7 @@ import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
 import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -105,6 +107,7 @@ import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
+import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -390,6 +393,41 @@ export const NoteCard = memo(function NoteCard({
   );
 
   const pollVoteLabel = usePollVoteLabel(event);
+
+  // Celebration effect — text notes containing celebratory words/emojis
+  // ("congrats", "happy birthday", "gm", 🎉…) play a one-shot particle
+  // overlay once the card has been mostly in view for a beat (the dwell
+  // keeps the effect from spraying mid-scroll, where it reads as visual
+  // noise). Eligibility (once per event per session, sunrise budget) lives
+  // in @/lib/celebrations; skipped entirely under prefers-reduced-motion.
+  // The observer is skipped for ordinary notes so the feed doesn't pay for
+  // it.
+  const celebration = useMemo(
+    () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
+    [event],
+  );
+  const [celebrating, setCelebrating] = useState(false);
+  const { ref: celebrationRef, inView: celebrationInView } = useInView({
+    threshold: 0.6,
+    skip: !celebration || celebrating || !canCelebrate(event.id, celebration),
+  });
+  useEffect(() => {
+    if (!celebration || !celebrationInView) return;
+    if (!canCelebrate(event.id, celebration)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Arm after a short dwell; scrolling away flips `celebrationInView` and
+    // the cleanup cancels before anything plays.
+    const arm = setTimeout(() => {
+      markCelebrated(event.id, celebration);
+      setCelebrating(true);
+    }, 400);
+    return () => clearTimeout(arm);
+  }, [celebration, celebrationInView, event.id]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = setTimeout(() => setCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [celebrating]);
 
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -1415,14 +1453,16 @@ export const NoteCard = memo(function NoteCard({
   // ── Normal layout ──
   return (
     <article
+      ref={celebrationRef}
       className={cn(
-        "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         highlight && "animate-highlight-fade",
         className,
       )}
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
+      {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
       {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
       {wrapperHeader ? (
         wrapperHeader

@@ -67,6 +67,7 @@ import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -195,6 +196,7 @@ import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
+import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -1111,6 +1113,32 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const verifiedOnchainZap = useVerifiedOnchainZap(event.kind === 8333 ? event : undefined);
 
   const pollVoteLabel = usePollVoteLabel(event);
+
+  // Celebration effect — same as the feed (see NoteCard): text notes with
+  // celebratory words/emojis play a one-shot confetti overlay. On the detail
+  // page the note is the focus, so it plays shortly after mount rather than
+  // waiting on an intersection observer. Shares the once-per-session set
+  // with the feed so it doesn't replay for a note already celebrated there.
+  const celebration = useMemo(
+    () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
+    [event],
+  );
+  const [celebrating, setCelebrating] = useState(false);
+  useEffect(() => {
+    if (!celebration || !canCelebrate(event.id, celebration)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Short delay so the page settles before the confetti drops.
+    const arm = setTimeout(() => {
+      markCelebrated(event.id, celebration);
+      setCelebrating(true);
+    }, 600);
+    return () => clearTimeout(arm);
+  }, [celebration, event.id]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = setTimeout(() => setCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [celebrating]);
 
   // NIP-19 encoded event identifier for share URLs
   const encodedEventId = useMemo(() => encodeEventAddress(event), [event]);
@@ -2219,7 +2247,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Main post — expanded Ditto-style view */}
       {!isReaction && !isRepost && !isVanish && !isZap && !isOnchainZap && !isProfile && !isPollVote && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+        <article
+          ref={focusedPostRef}
+          className={cn(
+            "relative px-4 pt-3 pb-0",
+            // Clip confetti to the card only while it plays — overflow-hidden
+            // is not part of this article's normal layout.
+            celebrating && "overflow-hidden",
+          )}
+        >
+          {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
           {/* Kind action header for app handlers */}
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
