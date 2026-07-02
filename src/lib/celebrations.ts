@@ -85,9 +85,22 @@ const celebratedEventIds = new Set<string>();
 const MAX_SUNRISES_PER_SESSION = 3;
 let sunrisePlays = 0;
 
-/** Whether this event's celebration is still eligible to play. */
-export function canCelebrate(id: string, variant: CelebrationVariant): boolean {
+/**
+ * Whether this event's celebration is still eligible to play.
+ *
+ * `ignoreSessionBudget` skips the per-session sunrise cap (but never the
+ * once-per-event check). The cap exists to keep a gm-flooded feed from
+ * strobing during rapid scrolling; deliberately opening a note is a much
+ * stronger signal, so detail pages pass this to play even after feed cards
+ * have spent the budget.
+ */
+export function canCelebrate(
+  id: string,
+  variant: CelebrationVariant,
+  opts?: { ignoreSessionBudget?: boolean },
+): boolean {
   if (celebratedEventIds.has(id)) return false;
+  if (opts?.ignoreSessionBudget) return true;
   if (variant === 'sunrise' && sunrisePlays >= MAX_SUNRISES_PER_SESSION) return false;
   return true;
 }

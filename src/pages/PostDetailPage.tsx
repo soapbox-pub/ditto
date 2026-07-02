@@ -1118,14 +1118,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // celebratory words/emojis play a one-shot confetti overlay. On the detail
   // page the note is the focus, so it plays shortly after mount rather than
   // waiting on an intersection observer. Shares the once-per-session set
-  // with the feed so it doesn't replay for a note already celebrated there.
+  // with the feed so it doesn't replay for a note already celebrated there,
+  // but bypasses the per-session sunrise budget — deliberately opening a
+  // note is a stronger signal than scrolling past it, and the budget exists
+  // only to keep gm-flooded feeds from strobing.
   const celebration = useMemo(
     () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
     [event],
   );
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
-    if (!celebration || !canCelebrate(event.id, celebration)) return;
+    if (!celebration || !canCelebrate(event.id, celebration, { ignoreSessionBudget: true })) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     // Short delay so the page settles before the confetti drops.
     const arm = setTimeout(() => {
