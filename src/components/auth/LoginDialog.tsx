@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
-import { DittoLogo } from '@/components/DittoLogo';
 import {
   useLoginActions,
   generateNostrConnectParams,
@@ -484,6 +483,16 @@ export default LoginDialog;
 const RING_PATH = 'm 90.441615,21.60007 c -2.1797,-5.3398 -9.4102,-7.3984 -21,-6.0391 1.8906,1.8906 3.5391,3.9688 4.9297,6.2109 0.28906,0.46094 0.55859,0.92187 0.80859,1.3789 5.5391,-0.12109 7.6094,1.0391 7.8398,1.4492 0.12891,0.46875 -0.55078,2.7305 -4.5898,6.4805 -0.01953,0.01953 -0.03125,0.03125 -0.03906,0.03906 -0.26172,0.23828 -0.51953,0.48047 -0.80078,0.71875 -0.19922,0.17969 -0.41016,0.35938 -0.62891,0.53906 -0.10938,0.10156 -0.21875,0.19141 -0.33984,0.28906 -0.23828,0.19922 -0.5,0.41016 -0.76172,0.62109 -0.12891,0.10156 -0.26172,0.21094 -0.39844,0.32031 -0.42969,0.33984 -0.89063,0.69141 -1.3711,1.0508 -0.26953,0.21094 -0.53906,0.41016 -0.82812,0.60938 -0.32031,0.23047 -0.64062,0.46875 -0.98047,0.69922 0,0.01172 -0.01172,0.01172 -0.01172,0.01172 -0.26953,0.19141 -0.55078,0.37891 -0.82812,0.57031 -0.28125,0.19141 -0.55859,0.37109 -0.85156,0.55859 -0.25,0.16016 -0.5,0.32812 -0.76172,0.48828 -6,3.8984 -13.48,7.7188 -21.379,10.922 -8.0117,3.2383 -15.871,5.6602 -22.93,7.0391 -0.30078,0.05859 -0.60156,0.12109 -0.89062,0.17188 -0.60938,0.12109 -1.2188,0.21875 -1.8203,0.32031 -0.07031,0.01172 -0.12891,0.01953 -0.19922,0.03125 h -0.01953 c -0.28906,0.05078 -0.57031,0.08984 -0.83984,0.12891 -0.30859,0.05078 -0.60938,0.08984 -0.91016,0.12891 -0.57031,0.07813 -1.1094,0.14844 -1.6406,0.21094 -0.35156,0.03906 -0.69141,0.07031 -1.0195,0.10156 -0.30078,0.03125 -0.58984,0.05078 -0.87891,0.07813 -0.48047,0.03125 -0.92969,0.05859 -1.3711,0.07813 -0.39844,0.01953 -0.78125,0.03125 -1.1484,0.03906 -5.5116996,0.10938 -7.5702996,-1.0391 -7.8007996,-1.4492 -0.12891,-0.48047 0.55078,-2.7383 4.6093996,-6.5 -0.12891,-0.48828 -0.26172,-1 -0.37891,-1.5391 -0.51953,-2.4219 -0.78906,-4.8906 -0.78906,-7.3594 0,-0.17969 0,-0.37109 0.01172,-0.55078 -9.2733996,7.082 -13.0229996,13.59 -10.8749996,18.949 1.7383,4.2695 6.7188,6.4492 14.5899996,6.4492 2.8594,0 6.1016,-0.28906 9.7109,-0.87109 0.17188,-0.03125 0.33984,-0.05859 0.51953,-0.08984 0.17188,-0.03125 0.35156,-0.05859 0.51953,-0.08984 l 1.2188,-0.21875 c 0.57031,-0.10156 1.1484,-0.21875 1.7305,-0.33984 0.53125,-0.10938 1.0508,-0.21094 1.5781,-0.32812 0.01172,0 0.03125,-0.01172 0.03906,-0.01172 0.05078,-0.01172 0.08984,-0.01953 0.14062,-0.03125 0.07031,-0.01172 0.12891,-0.03125 0.19922,-0.05078 0.57812,-0.12891 1.1602,-0.26172 1.7383,-0.39844 0.05078,-0.01172 0.10156,-0.03125 0.14844,-0.03906 0.21094,-0.05078 0.42188,-0.10156 0.64062,-0.14844 h 0.01172 c 6.0898,-1.5117 12.559,-3.6406 19.102,-6.2891 6.5508,-2.6602 12.68,-5.6289 18.109,-8.7812 0.21875,-0.12891 0.44141,-0.26172 0.66016,-0.39062 0.58984,-0.33984 1.1797,-0.69141 1.7617,-1.0508 1.5703,-0.96094 3.0586,-1.9297 4.4805,-2.9102 0.12891,-0.08984 0.26172,-0.17969 0.39062,-0.26953 11.242,-7.8477 15.941,-15.09 13.594,-20.938 z';
 
 /**
+ * The planet arcs (`path1` + `path4`) from `public/logo.svg` — without
+ * `path2`/`path3`, the little highlight ("shine") arcs — so the hero
+ * renders a clean planet. Same coordinate mapping as RING_PATH.
+ */
+const PLANET_PATHS = [
+  'm 71.719615,49.36907 -0.62891,0.37109 c -0.12891,0.07031 -0.26172,0.14844 -0.39062,0.21875 -3.9883,10.309 -14.008,17.617 -25.699,17.617 -4.1211,0 -8.0312,-0.89844 -11.539,-2.5391 -0.12891,0.03906 -0.26172,0.07031 -0.39063,0.10156 l -0.35156,0.08984 h -0.02734 l -0.25,0.05859 -0.07813,0.01953 -0.10938,0.03125 c -0.55859,0.12891 -1.1289,0.26172 -1.6992,0.39062 -0.10156,0.03125 -0.19922,0.05078 -0.30078,0.07031 l -0.30078,0.10156 -0.18359,0.0078 c -0.26953,0.05859 -1.3086,0.26953 -1.3086,0.26953 -0.28906,0.05859 -0.55859,0.10937 -0.82813,0.17187 4.9805,3.3086 10.961,5.2305 17.371,5.2305 15.059,0 27.699,-10.602 30.828,-24.738 -0.75,0.48828 -1.5195,0.96875 -2.2891,1.4414 -0.59375,0.36328 -1.2031,0.72656 -1.8242,1.0859 z',
+  'm 14.691615,48.83807 c 0.10156,0.33984 0.19922,0.67969 0.32812,1.0195 0.42969,1.3516 0.94922,2.6484 1.5781,3.9102 0.10156,-0.01172 0.21094,-0.01172 0.32031,-0.01953 l 0.16016,-0.01172 0.80078,-0.07031 c 0.37109,-0.03906 0.67188,-0.07031 0.98047,-0.10156 0.51172,-0.05859 1.0195,-0.12109 1.5586,-0.19922 l 0.21875,-0.03125 c 0.07031,-0.01172 0.14062,-0.01953 0.21094,-0.03125 -1.2188,-2.2109 -2.1484,-4.6016 -2.7305,-7.1211 -0.16016,-0.71094 -0.30078,-1.4297 -0.39844,-2.1602 -0.19922,-1.3086 -0.30078,-2.6602 -0.30078,-4.0312 0,-0.89844 0.03906,-1.7812 0.12891,-2.6484 0.07031,-0.71094 0.16016,-1.4102 0.28906,-2.1016 2.25,-12.949 13.57,-22.828 27.16,-22.828 6.0508,0 11.648,1.9609 16.211,5.3008 0.57031,0.41016 1.1289,0.85938 1.6719,1.3203 1.6914,1.4219 3.2109,3.0703 4.5,4.8789 0.42969,0.60156 0.83984,1.2109 1.2188,1.8398 1.3203,2.1602 2.3398,4.5117 3.0195,7 0.23828,-0.17188 0.42969,-0.30859 0.62891,-0.46875 0.64844,-0.48047 1.2109,-0.92188 1.7383,-1.3398 0.28125,-0.23047 0.5,-0.41016 0.71094,-0.57812 0.10156,-0.07813 0.19141,-0.16016 0.28125,-0.23828 -0.42969,-1.3516 -0.96094,-2.6484 -1.5898,-3.8984 -0.14062,-0.32812 -0.30859,-0.64844 -0.48047,-0.96875 -0.32812,-0.64844 -0.69922,-1.2891 -1.0898,-1.9102 -1.6797,-2.7109 -3.7695,-5.1406 -6.1719,-7.2188 -0.57031,-0.48828 -1.1484,-0.96875 -1.7617,-1.4102 -0.55859,-0.42188 -1.1406,-0.82812 -1.7305,-1.2109 -4.9414,-3.2188 -10.852,-5.0898 -17.16,-5.0898 -14.961,0 -27.531,10.469 -30.75,24.469 -0.17188,0.67969 -0.30859,1.3711 -0.42188,2.0703 -0.12891,0.73828 -0.21875,1.5 -0.28906,2.2617 -0.07813,0.91016 -0.12109,1.8398 -0.12109,2.7812 0,2.3008 0.25,4.5508 0.71875,6.7109 0.17188,0.71484 0.35156,1.4258 0.5625,2.125 z',
+];
+
+/**
  * The animated login hero: the real app logo with a keyhole at the planet's
  * center, and a little line-art key that appears, slides into the keyhole,
  * turns, and fades out — a looping "this is how you log in" vignette.
@@ -518,16 +527,6 @@ function LoginHero() {
             strokeWidth="3.5"
             style={{ transformOrigin: '88px 89px' }}
           />
-          <ellipse
-            className="ditto-ring-ripple ditto-ring-ripple2"
-            cx="88"
-            cy="89"
-            rx="83"
-            ry="26"
-            stroke="hsl(var(--primary))"
-            strokeWidth="2.5"
-            style={{ transformOrigin: '88px 89px' }}
-          />
         </g>
 
         {/* Opaque disc over the planet area: hides the ripples where they'd
@@ -537,11 +536,16 @@ function LoginHero() {
             the logo paths: planet center (87.3, 88), outer radius ≈ 55.6. */}
         <circle cx="87.3" cy="88" r="56" fill="hsl(var(--background))" />
 
-        {/* Keyhole in the upper half of the logo's planet — a darker shade
-            of the logo color, so it reads as a hole. */}
-        <g fill="color-mix(in srgb, hsl(var(--primary)) 45%, black)">
-          <circle cx="87" cy="64" r="12" />
-          <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" />
+        {/* Keyhole at the planet's center, drawn in 3/4 perspective —
+            squashed horizontally so its face angles toward the incoming
+            key, making the side entry read correctly. A darker shade of
+            the logo color, so it reads as a hole. */}
+        <g
+          fill="color-mix(in srgb, hsl(var(--primary)) 45%, black)"
+          transform="translate(87 0) scale(0.82 1) translate(-87 0)"
+        >
+          <circle cx="87" cy="80" r="12" />
+          <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
         </g>
 
         {/* Unlock success: the keyhole lights up white along with the ring. */}
@@ -549,33 +553,51 @@ function LoginHero() {
           className="ditto-ring-success"
           fill="#fff"
           style={{ filter: 'drop-shadow(0 0 8px rgb(255 255 255 / 0.7))' }}
+          transform="translate(87 0) scale(0.82 1) translate(-87 0)"
         >
-          <circle cx="87" cy="64" r="12" />
-          <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" />
+          <circle cx="87" cy="80" r="12" />
+          <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
         </g>
       </svg>
 
-      {/* Pre-blurred glow layer: a masked copy of the logo with a constant
-          blur, so the unlock glow animates cheap opacity instead of an
-          expensive per-frame drop-shadow filter. */}
-      <div
+      {/* Pre-blurred glow layer: the same inline logo paths (no shine arcs)
+          with a constant blur, so the unlock glow animates cheap opacity
+          instead of an expensive per-frame drop-shadow filter. */}
+      <svg
+        viewBox="0 0 176 176"
+        width={208}
+        height={208}
         aria-hidden="true"
         className="ditto-hero-logo-glow absolute inset-0"
-        style={{
-          backgroundColor: 'hsl(var(--primary))',
-          filter: 'blur(10px)',
-          maskImage: 'url(/logo.svg)',
-          maskSize: 'contain',
-          maskRepeat: 'no-repeat',
-          maskPosition: 'center',
-          WebkitMaskImage: 'url(/logo.svg)',
-          WebkitMaskSize: 'contain',
-          WebkitMaskRepeat: 'no-repeat',
-          WebkitMaskPosition: 'center',
-        }}
-      />
+        style={{ filter: 'blur(10px)' }}
+        fill="none"
+      >
+        <g transform="scale(1.76) translate(5 10)" fill="hsl(var(--primary))">
+          {PLANET_PATHS.map((d, i) => (
+            <path key={i} d={d} />
+          ))}
+          <path d={RING_PATH} />
+        </g>
+      </svg>
 
-      <DittoLogo size={208} className="relative" />
+      {/* The logo, inlined from its source paths — planet arcs and orbital
+          ring only, without the logo's little "shine" arcs. */}
+      <svg
+        viewBox="0 0 176 176"
+        width={208}
+        height={208}
+        aria-label="Ditto"
+        role="img"
+        className="relative"
+        fill="none"
+      >
+        <g transform="scale(1.76) translate(5 10)" fill="hsl(var(--primary))">
+          {PLANET_PATHS.map((d, i) => (
+            <path key={i} d={d} />
+          ))}
+          <path d={RING_PATH} />
+        </g>
+      </svg>
 
       <svg
         viewBox="0 0 176 176"
@@ -604,41 +626,60 @@ function LoginHero() {
               bounding box). */}
           <mask id="ditto-hero-keyhole-mask" maskUnits="userSpaceOnUse" x="-48" y="-48" width="272" height="272">
             <rect x="-48" y="-48" width="272" height="272" fill="white" />
-            <rect x="87" y="40" width="60" height="48" fill="black" />
+            <rect x="87" y="56" width="60" height="48" fill="black" />
             {/* The full keyhole opening — circle and bottom slot — stays
                 see-through, so the key vanishes at the opening's far edge. */}
-            <circle cx="87" cy="64" r="12" fill="white" />
-            <path d="M 81 72 L 93 72 L 98.5 91 H 75.5 Z" fill="white" />
+            <g transform="translate(87 0) scale(0.82 1) translate(-87 0)" fill="white">
+              <circle cx="87" cy="80" r="12" />
+              <path d="M 81 88 L 93 88 L 98.5 107 H 75.5 Z" />
+            </g>
           </mask>
         </defs>
 
-        {/* The key glides in from stage left in one motion. The teeth sit
-            at the tip, so they physically pass through the mouth and end up
-            inside the lock (occluded by the mask) before the turn — no
-            visibility tricks needed. The turn itself is a two-frame cel
-            swap of what's still outside the lock: the bow folds flat while
-            the turned key's implied base unfolds. */}
+        {/* The key glides in from stage left in one motion. Its teeth sit
+            near the tip, so they physically pass through the mouth and end
+            up inside the lock (occluded by the mask) before the turn. The
+            turn tweens the bow smoothly through its three poses — full
+            ring, half-turned, edge-on — while the torque wrapper jabs the
+            whole key a few degrees, like a wrist twisting it. */}
         <g mask="url(#ditto-hero-keyhole-mask)">
         <g className="ditto-key ditto-key-side">
-          <g stroke="hsl(var(--foreground))" strokeWidth="7" strokeLinecap="round">
-            {/* Shaft — seating deep past the far rim */}
-            <path d="M 52 64 H 110" />
-            {/* Teeth at the tip — swallowed by the keyhole as the key seats.
-                They start below the shaft axis so their round caps stay
-                inside the shaft instead of grazing its top edge. */}
-            <path d="M 99 66 v 10 M 108 66 v 11" />
-            {/* Frame 1: the bow in profile */}
-            <g className="ditto-key-frame1" style={{ transformOrigin: '39px 64px' }}>
-              <circle cx="39" cy="64" r="13" />
-            </g>
-            {/* Frame 2: the key turned edge-on — the bow reads as an implied
-                base: just a thicker line at the end you hold */}
+          {/* Torque wrapper: the whole visible key jabs a few degrees
+              around the mouth as the bow snaps through its turn cels —
+              the wrist twist that sells the rotation. */}
+          <g className="ditto-key-torque" style={{ transformOrigin: '87px 80px' }}>
+            {/* Bow — a diamond ring (fantasy-key head). The turn animates
+                the diamond's geometry itself (not a scale transform), so
+                the 8-unit stroke — the metal — keeps constant thickness
+                while the shape foreshortens to a ~75% rotation. */}
             <path
-              className="ditto-key-frame2"
-              d="M 26 64 H 52"
-              strokeWidth="10"
-              style={{ transformOrigin: '39px 64px' }}
-            />
+              d="M 26 80 L 42 64 L 58 80 L 42 96 Z"
+              fill="none"
+              stroke="hsl(var(--foreground))"
+              strokeWidth="8"
+              strokeLinejoin="round"
+            >
+              <animate
+                attributeName="d"
+                dur="3.2s"
+                repeatCount="indefinite"
+                calcMode="linear"
+                keyTimes="0;0.4;0.43;0.46;1"
+                values="M 26 80 L 42 64 L 58 80 L 42 96 Z;
+                        M 26 80 L 42 64 L 58 80 L 42 96 Z;
+                        M 26 80 L 42 68.8 L 58 80 L 42 91.2 Z;
+                        M 26 80 L 42 72.8 L 58 80 L 42 87.2 Z;
+                        M 26 80 L 42 72.8 L 58 80 L 42 87.2 Z"
+              />
+            </path>
+            <g fill="hsl(var(--foreground))">
+              {/* Shaft — a solid slab with rounded ends */}
+              <rect x="54" y="76" width="59" height="8" rx="4" />
+              {/* Two blocky teeth at the tip, the outer one flush with the
+                  end — fully swallowed by the keyhole once seated */}
+              <rect x="98.5" y="80" width="7" height="12" rx="2.5" />
+              <rect x="106" y="80" width="7" height="15" rx="2.5" />
+            </g>
           </g>
         </g>
         </g>
@@ -660,12 +701,8 @@ function LoginHeroKeyframes() {
         opacity: 0;
         will-change: transform, opacity;
       }
-      .ditto-key-frame1 {
-        animation: ditto-key-frame1 3.2s ease-in-out infinite;
-      }
-      .ditto-key-frame2 {
-        animation: ditto-key-frame2 3.2s ease-in-out infinite;
-        opacity: 0;
+      .ditto-key-torque {
+        animation: ditto-key-torque 3.2s ease-in-out infinite;
       }
       .ditto-hero-logo-glow {
         animation: ditto-logo-glow 3.2s ease-in-out infinite;
@@ -676,9 +713,6 @@ function LoginHeroKeyframes() {
         animation: ditto-ring-ripple 3.2s ease-out infinite;
         opacity: 0;
         will-change: transform, opacity;
-      }
-      .ditto-ring-ripple2 {
-        animation-delay: 0.12s;
       }
       .ditto-ring-success {
         animation: ditto-ring-success 3.2s ease-in-out infinite;
@@ -694,16 +728,12 @@ function LoginHeroKeyframes() {
         30%, 74%  { transform: translateX(0); opacity: 1; }
         84%, 100% { transform: translateX(0); opacity: 0; }
       }
-      /* The turn: the two cels tween into each other over ~270ms — the bow
-         and teeth fold flat into the shaft axis while the turned key's thick
-         base unfolds, so the swap reads as one smooth quarter-turn. */
-      @keyframes ditto-key-frame1 {
-        0%, 40%   { opacity: 1; transform: scaleY(1); }
-        46%, 100% { opacity: 0; transform: scaleY(0.08); }
-      }
-      @keyframes ditto-key-frame2 {
-        0%, 40%   { opacity: 0; transform: scaleY(0.3); }
-        46%, 100% { opacity: 1; transform: scaleY(1); }
+      /* The wrist: a quick torque jab around the mouth during the cel
+         snaps, easing back as the lock gives. */
+      @keyframes ditto-key-torque {
+        0%, 40%   { transform: rotate(0deg); }
+        43%       { transform: rotate(5deg); }
+        50%, 100% { transform: rotate(0deg); }
       }
       /* Unlock feedback, synced to the turn: the logo pulses a soft glow
          while ripples expand outward along the orbital ring and dissolve. */
@@ -727,8 +757,8 @@ function LoginHeroKeyframes() {
       @media (prefers-reduced-motion: reduce) {
         .ditto-key, .ditto-ring-ripple, .ditto-ring-success,
         .ditto-hero-logo-glow { display: none; }
-        .ditto-key-side, .ditto-key-frame1, .ditto-key-frame2,
-        .ditto-hero-logo { animation: none; }
+        .ditto-key-side,
+        .ditto-key-torque, .ditto-hero-logo { animation: none; }
       }
     `}</style>
   );
