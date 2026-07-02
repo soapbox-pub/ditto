@@ -36,9 +36,20 @@ async function nativeNotification(type: NotificationType) {
 
 async function nativeSelectionChanged() {
   const { Haptics } = await getHaptics();
-  await Haptics.selectionStart();
-  await Haptics.selectionChanged();
-  await Haptics.selectionEnd();
+  if (Capacitor.getPlatform() === 'android') {
+    // Android: the plugin's selection sequence needs three sequential bridge
+    // round-trips (selectionStart/selectionChanged/selectionEnd), each resolved
+    // via evaluateJavascript on the UI thread, and its "selection" haptic is a
+    // 100ms waveform buzz — together they visibly delay taps that navigate.
+    // A single short one-shot vibration is one bridge call and feels like the
+    // crisp tick this API is meant to produce.
+    await Haptics.vibrate({ duration: 10 });
+  } else {
+    // iOS: maps to UISelectionFeedbackGenerator, which is cheap and crisp.
+    await Haptics.selectionStart();
+    await Haptics.selectionChanged();
+    await Haptics.selectionEnd();
+  }
 }
 
 function vibrate(ms: number) {
