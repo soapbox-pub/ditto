@@ -24,6 +24,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -985,10 +986,23 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Hearts sprinkle over the header when this profile is added to the Love List.
+  const [lovedCelebrating, setLovedCelebrating] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
+  // Sprinkle hearts over the header for a moment when a profile is loved.
+  // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
+  // as defense-in-depth).
+  const handleLoved = useCallback(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setLovedCelebrating(true);
+  }, []);
+  useEffect(() => {
+    if (!lovedCelebrating) return;
+    const timeout = setTimeout(() => setLovedCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [lovedCelebrating]);
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
   const isNip05Param = useMemo(() => {
     if (!npub) return false;
@@ -1905,7 +1919,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }
 
   return (
-    <main className="flex-1 min-w-0">
+    <main className="flex-1 min-w-0 relative">
+      {/* Love List celebration — hearts rain down over the top of the profile
+          when this profile is added to the Love List. Anchored to the top
+          third of the page so the sprinkle covers the header. */}
+      {lovedCelebrating && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
+          <CelebrationOverlay variant="hearts" />
+        </div>
+      )}
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -2172,7 +2194,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   )}
                   {/* Love List toggle */}
                   {!isOwnProfile && (
-                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} />
+                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} onLoved={handleLoved} />
                   )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">

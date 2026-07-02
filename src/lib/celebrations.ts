@@ -13,7 +13,8 @@ export type CelebrationVariant =
   | 'birthday'
   | 'sunrise'
   | 'sparkle'
-  | 'spooky';
+  | 'spooky'
+  | 'hearts';
 
 // ── Year-round triggers ──
 

@@ -11,6 +11,11 @@ const SPARKLE_COLORS = ['#fbbf24', '#a78bfa', '#f472b6', '#fde68a'];
 const CONFETTI_COUNT = 16;
 const BALLOON_COUNT = 3;
 const SPARKLE_COUNT = 10;
+const HEART_COUNT = 24;
+
+/** A few heart glyphs so the sprinkle doesn't read as a single repeated
+ *  sticker. */
+const HEART_CHARS = ['❤️', '💖', '💕', '💗'];
 
 /** Gentle drift speed (px/s) for falling/rising particles. Kept slow so the
  *  effect reads as confetti settling, not a glitchy flash — especially on
@@ -58,6 +63,17 @@ interface Sparkle {
   color?: string;
 }
 
+/** A heart glyph that falls from the top, swaying and gently rotating. */
+interface HeartPiece {
+  char: string;
+  left: number;
+  delay: number;
+  speed: number;
+  sway: number;
+  spin: number;
+  fontSize: number;
+}
+
 function generateConfetti(): FallingPiece[] {
   return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
     left: 4 + Math.random() * 92,
@@ -79,6 +95,20 @@ function generateBalloons(): Riser[] {
     speed: MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED),
     sway: (Math.random() - 0.5) * 40,
     fontSize: 15 + Math.random() * 6,
+  }));
+}
+
+/** Hearts sprinkle for the Love List — hearts rain down from the top,
+ *  swaying and gently tilting, staggered so they keep coming for a beat. */
+function generateHearts(): HeartPiece[] {
+  return Array.from({ length: HEART_COUNT }, (_, i) => ({
+    char: HEART_CHARS[i % HEART_CHARS.length],
+    left: 2 + Math.random() * 96,
+    delay: Math.random() * 1.8,
+    speed: MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED),
+    sway: (Math.random() - 0.5) * 70,
+    spin: (Math.random() - 0.5) * 90,
+    fontSize: 14 + Math.random() * 12,
   }));
 }
 
@@ -137,6 +167,7 @@ function generatePumpkins(): Sparkle[] {
  *   (seasonal, all of October).
  * - `sparkle` — twinkling stars across the card (welcome posts).
  * - `sunrise` — a warm glow and sun rising from the bottom (gm posts).
+ * - `hearts` — hearts rain down from the top (adding a profile to your Love List).
  *
  * Falling/rising travel distance is measured from the card itself and
  * per-piece durations derive from a constant px/s speed, so particles drift
@@ -153,13 +184,21 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
   const containerRef = useRef<HTMLDivElement>(null);
   const [distance, setDistance] = useState<number>();
 
+  // Hearts fill a full page-region overlay rather than a feed card, so they
+  // travel further than the card variants. Speed scales with the measured
+  // region so hearts always reach the bottom within the shared overlay
+  // lifetime, and the per-piece duration cap keeps them inside the budget.
+  const isRegion = variant === 'hearts';
+  const maxDistance = isRegion ? 900 : MAX_DISTANCE;
+  const maxPieceDuration = isRegion ? 4 : MAX_PIECE_DURATION;
+
   // Measure the card once on mount; particles render only after the
   // distance is known so durations are correct from the first frame.
   useLayoutEffect(() => {
     const height = containerRef.current?.offsetHeight ?? 0;
     // +24 so pieces fully exit past the card edge before fading.
-    setDistance(Math.min(height + 24, MAX_DISTANCE));
-  }, []);
+    setDistance(Math.min(height + 24, maxDistance));
+  }, [maxDistance]);
 
   // Stable per mount — the effect plays once, so no need to regenerate.
   const falling = useMemo(
@@ -171,6 +210,10 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
     if (variant === 'spooky') return generateSpookyRisers();
     return [];
   }, [variant]);
+  const hearts = useMemo(
+    () => (variant === 'hearts' ? generateHearts() : []),
+    [variant],
+  );
   const sparkles = useMemo(() => {
     if (variant === 'sparkle') return generateSparkles();
     if (variant === 'spooky') return generatePumpkins();
@@ -178,7 +221,7 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
   }, [variant]);
 
   const duration = (speed: number) =>
-    distance ? Math.min(distance / speed, MAX_PIECE_DURATION) : 0;
+    distance ? Math.min(distance / speed, maxPieceDuration) : 0;
 
   return (
     <div
@@ -205,6 +248,25 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
             '--celebration-spin': `${p.spin}deg`,
           } as React.CSSProperties}
         />
+      ))}
+      {distance !== undefined && hearts.map((h, i) => (
+        <span
+          key={`h-${i}`}
+          className="absolute animate-celebration-fall select-none"
+          style={{
+            top: -20,
+            left: `${h.left}%`,
+            fontSize: h.fontSize,
+            lineHeight: 1,
+            opacity: 0,
+            animationDelay: `${h.delay}s`,
+            animationDuration: `${duration(h.speed)}s`,
+            '--celebration-sway': `${h.sway}px`,
+            '--celebration-spin': `${h.spin}deg`,
+          } as React.CSSProperties}
+        >
+          {h.char}
+        </span>
       ))}
       {distance !== undefined && risers.map((b, i) => (
         <span
