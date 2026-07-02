@@ -398,7 +398,7 @@ export const NoteCard = memo(function NoteCard({
   // ("congrats", "happy birthday", "gm", 🎉…) play a one-shot particle
   // overlay once the card has been mostly in view for a beat (the dwell
   // keeps the effect from spraying mid-scroll, where it reads as visual
-  // noise). Eligibility (once per event per session, sunrise budget) lives
+  // noise). Eligibility (once per event per session) lives
   // in @/lib/celebrations; skipped entirely under prefers-reduced-motion.
   // The observer is skipped for ordinary notes so the feed doesn't pay for
   // it.
@@ -409,16 +409,16 @@ export const NoteCard = memo(function NoteCard({
   const [celebrating, setCelebrating] = useState(false);
   const { ref: celebrationRef, inView: celebrationInView } = useInView({
     threshold: 0.6,
-    skip: !celebration || celebrating || !canCelebrate(event.id, celebration),
+    skip: !celebration || celebrating || !canCelebrate(event.id),
   });
   useEffect(() => {
     if (!celebration || !celebrationInView) return;
-    if (!canCelebrate(event.id, celebration)) return;
+    if (!canCelebrate(event.id)) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     // Arm after a short dwell; scrolling away flips `celebrationInView` and
     // the cleanup cancels before anything plays.
     const arm = setTimeout(() => {
-      markCelebrated(event.id, celebration);
+      markCelebrated(event.id);
       setCelebrating(true);
     }, 400);
     return () => clearTimeout(arm);
