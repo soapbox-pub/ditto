@@ -185,15 +185,45 @@ export function useLoveList() {
     queryClient.invalidateQueries({ queryKey: ['feed'] });
   };
 
+  const loveListKey = ['love-list', user?.pubkey ?? ''];
+
+  /**
+   * Optimistically update the love-list cache so the heart button flips
+   * instantly. Returns a snapshot for rollback on error.
+   */
+  function optimisticSet(targetPubkey: string, action: 'add' | 'remove'): LoveListData | undefined {
+    const prev = queryClient.getQueryData<LoveListData>(loveListKey);
+    const prevPubkeys = prev?.pubkeys ?? [];
+    const nextPubkeys =
+      action === 'add'
+        ? prevPubkeys.includes(targetPubkey)
+          ? prevPubkeys
+          : [...prevPubkeys, targetPubkey]
+        : prevPubkeys.filter((pk) => pk !== targetPubkey);
+    queryClient.setQueryData<LoveListData>(loveListKey, {
+      event: prev?.event ?? null,
+      pubkeys: nextPubkeys,
+    });
+    return prev;
+  }
+
   /** Add a pubkey to the Love List. */
   const addLove = useMutation({
     mutationFn: (pubkey: string) => mutateLoveList(pubkey, 'add'),
+    onMutate: (pubkey: string) => ({ snapshot: optimisticSet(pubkey, 'add') }),
+    onError: (_err, _pubkey, ctx) => {
+      if (ctx?.snapshot) queryClient.setQueryData(loveListKey, ctx.snapshot);
+    },
     onSuccess: invalidate,
   });
 
   /** Remove a pubkey from the Love List. */
   const removeLove = useMutation({
     mutationFn: (pubkey: string) => mutateLoveList(pubkey, 'remove'),
+    onMutate: (pubkey: string) => ({ snapshot: optimisticSet(pubkey, 'remove') }),
+    onError: (_err, _pubkey, ctx) => {
+      if (ctx?.snapshot) queryClient.setQueryData(loveListKey, ctx.snapshot);
+    },
     onSuccess: invalidate,
   });
 

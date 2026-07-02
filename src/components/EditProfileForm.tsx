@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useToast } from '@/hooks/useToast';
 
 import { Button } from '@/components/ui/button';
@@ -242,10 +243,15 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       }
 
       // Publish the metadata event (kind 0)
-      await publishEvent({
+      const published = await publishEvent({
         kind: 0,
         content: JSON.stringify(data),
       });
+
+      // Optimistically seed the author cache from the freshly-signed event so
+      // the profile name/avatar update immediately, before the relay confirms
+      // and the queries below refetch.
+      queryClient.setQueryData(['author', user.pubkey], parseAuthorEvent(published));
 
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['logins'] });

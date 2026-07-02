@@ -79,6 +79,17 @@ export function useUpdatePaymentTargets() {
         prev: prev ?? undefined,
       });
     },
+    // Optimistically apply the new target set so the settings UI updates
+    // immediately. Snapshot for rollback on error.
+    onMutate: (targets: PaymentTarget[]) => {
+      const key = ['payment-targets', user?.pubkey];
+      const snapshot = queryClient.getQueryData<PaymentTarget[]>(key);
+      queryClient.setQueryData<PaymentTarget[]>(key, targets);
+      return { snapshot, key };
+    },
+    onError: (_err, _targets, ctx) => {
+      if (ctx) queryClient.setQueryData(ctx.key, ctx.snapshot);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-targets', user?.pubkey] });
     },

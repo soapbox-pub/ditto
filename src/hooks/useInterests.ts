@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { optimisticPatchEventTags, rollbackEvent } from '@/lib/optimisticEvent';
 
 export function useInterests(tagName: 't' | 'g' = 't') {
   const { nostr } = useNostr();
@@ -74,6 +75,23 @@ export function useInterests(tagName: 't' | 'g' = 't') {
         prev: prev ?? undefined,
       });
     },
+    // Optimistically add the tag so hasInterest() flips before the round-trip.
+    onMutate: (tag: string) => {
+      const normalized = tag.toLowerCase().replace(/^#/, '');
+      const key = ['interests', user?.pubkey];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: 10015,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) =>
+          tags.some(([n, v]) => n === tagName && v.toLowerCase() === normalized)
+            ? tags
+            : [...tags, [tagName, normalized]],
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _tag, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
+    },
     onSuccess: invalidate,
   });
 
@@ -100,6 +118,21 @@ export function useInterests(tagName: 't' | 'g' = 't') {
         tags: newTags,
         prev,
       });
+    },
+    // Optimistically remove the tag so hasInterest() flips before the round-trip.
+    onMutate: (tag: string) => {
+      const normalized = tag.toLowerCase().replace(/^#/, '');
+      const key = ['interests', user?.pubkey];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: 10015,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) =>
+          tags.filter(([name, value]) => !(name === tagName && value.toLowerCase() === normalized)),
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _tag, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: invalidate,
   });

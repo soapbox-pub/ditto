@@ -182,6 +182,29 @@ export function PollContent({ event }: { event: NostrEvent }) {
   const handleVote = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!selectedOption || !user || hasVoted || isExpired) return;
+
+    const votesKey = ['poll-votes', event.id];
+    // Snapshot for rollback if the publish fails.
+    const snapshot = queryClient.getQueryData<NostrEvent[]>(votesKey);
+
+    // Optimistically append the user's vote so the tally and "you voted"
+    // state update instantly, before the relay round-trip.
+    const optimisticVote: NostrEvent = {
+      id: `optimistic-${event.id}-${user.pubkey}`,
+      pubkey: user.pubkey,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1018,
+      tags: [
+        ['e', event.id],
+        ['response', selectedOption],
+      ],
+      content: '',
+      sig: '',
+    };
+    queryClient.setQueryData<NostrEvent[]>(votesKey, (prev) =>
+      dedupeVotes([...(prev ?? []), optimisticVote]),
+    );
+
     publishEvent({
       kind: 1018,
       content: '',
@@ -192,6 +215,9 @@ export function PollContent({ event }: { event: NostrEvent }) {
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['poll-votes', event.id] });
+      },
+      onError: () => {
+        queryClient.setQueryData(votesKey, snapshot);
       },
     });
   };
