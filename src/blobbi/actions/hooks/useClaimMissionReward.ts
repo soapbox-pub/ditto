@@ -1,43 +1,28 @@
 /**
- * useAwardDailyXp - Award XP for completed daily missions
+ * useAwardDailyXp - Ditto wrapper around the headless @blobbi/react hook.
  *
- * Completion is implicit (derived from progress vs target).
- * This hook calculates the total XP earned today and persists
- * the updated XP total to kind 11125 tags.
- *
- * Uses fetchFreshEvent to avoid stale-read overwrites when
- * multiple mutations race (e.g. item use XP + daily XP).
+ * The XP-award logic lives in `@blobbi/react/hooks/useAwardDailyXp`
+ * (app-agnostic, UI-free). This wrapper injects the current user's pubkey and
+ * the host `publish` function, and re-adds Ditto's user-facing toast feedback
+ * plus the `blobbonaut-profile` query invalidation — preserving the previous
+ * public API (`useAwardDailyXp(updateProfileEvent)`).
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
-import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 import {
-  KIND_BLOBBONAUT_PROFILE,
-  updateBlobbonautTags,
-  parseBlobbonautEvent,
-} from '@blobbi/core/blobbi';
-import { buildXpTagUpdates } from '@blobbi/core/progression';
-import { serializeProfileContent } from '@blobbi/core/missions';
-import type { MissionsContent } from '@blobbi/core/missions';
-import { totalDailyXp } from '@blobbi/react/lib/daily-missions';
+  useAwardDailyXp as useAwardDailyXpBase,
+  type AwardDailyXpRequest,
+  type AwardDailyXpResult,
+} from '@blobbi/react/hooks/useAwardDailyXp';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface AwardDailyXpRequest {
-  /** Current missions state to calculate XP from */
-  missions: MissionsContent;
-}
-
-export interface AwardDailyXpResult {
-  xpAwarded: number;
-  newTotalXp: number;
-}
+// Re-export the package types so existing import paths keep working.
+export type { AwardDailyXpRequest, AwardDailyXpResult };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -47,53 +32,16 @@ export interface AwardDailyXpResult {
  * @param updateProfileEvent - Callback to update profile in query cache
  */
 export function useAwardDailyXp(
-  updateProfileEvent: (event: import('@nostrify/nostrify').NostrEvent) => void,
+  updateProfileEvent: (event: NostrEvent) => void,
 ) {
   const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async ({ missions }: AwardDailyXpRequest): Promise<AwardDailyXpResult> => {
-      if (!user?.pubkey) throw new Error('Must be logged in');
-
-      const xpToAward = totalDailyXp(missions);
-      if (xpToAward <= 0) return { xpAwarded: 0, newTotalXp: 0 };
-
-      // Fetch fresh profile from relays to avoid stale-read overwrites
-      const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_BLOBBONAUT_PROFILE],
-        authors: [user.pubkey],
-      });
-
-      const freshProfile = prev ? parseBlobbonautEvent(prev) : undefined;
-      const currentXp = freshProfile?.xp ?? 0;
-      const newTotalXp = currentXp + xpToAward;
-
-      // Update XP and level tags on the fresh event's tags
-      const updatedTags = updateBlobbonautTags(
-        prev?.tags ?? [],
-        buildXpTagUpdates(newTotalXp),
-      );
-
-      // Persist missions state to content field
-      const content = serializeProfileContent(
-        prev?.content ?? '',
-        { missions },
-      );
-
-      const event = await publishEvent({
-        kind: KIND_BLOBBONAUT_PROFILE,
-        content,
-        tags: updatedTags,
-        prev: prev ?? undefined,
-      });
-
-      updateProfileEvent(event);
-
-      return { xpAwarded: xpToAward, newTotalXp };
-    },
+  return useAwardDailyXpBase({
+    pubkey: user?.pubkey,
+    publish,
+    updateProfileEvent,
     onSuccess: ({ xpAwarded }) => {
       if (user?.pubkey) {
         queryClient.invalidateQueries({ queryKey: ['blobbonaut-profile', user.pubkey] });
