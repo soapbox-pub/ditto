@@ -29,7 +29,9 @@ const SPARKLE_RE = /\bwelcome\s+to\s+(?:nostr|ditto)\b|#introductions?\b/iu;
 
 // The "gm" morning ritual, and its cousin "pv" (pura vida). Anchored to the
 // start of the note so ordinary words containing these letters never fire.
-const SUNRISE_RE = /^\s*(?:gm|good\s+morning|pv|pura\s+vida)\b/i;
+// Leading non-word characters (quotes, punctuation) are skipped so that
+// verbatim posts like `"GM"` are caught alongside plain `GM`.
+const SUNRISE_RE = /^\W*(?:gm|good\s+morning|pv|pura\s+vida)\b/i;
 
 // ── Seasonal triggers (only active in season) ──
 
