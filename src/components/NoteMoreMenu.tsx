@@ -197,10 +197,85 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
 
+  const { user } = useCurrentUser();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+
+  // Bookmark / pin / mute mutations live in the PARENT — which stays mounted
+  // while the menu Content unmounts on close. In TanStack Query v5, callbacks
+  // passed to mutate() at the call site are dropped when the calling component
+  // unmounts, so if these lived in the (unmounting) Content the success/error
+  // toasts would silently never fire. See NoteMoreMenuContent unmount at
+  // `{open && (...)}` below.
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
+  const { addMute, removeMute, isMuted } = useMuteList();
+
+  const bookmarked = isBookmarked(event.id);
+  const pinned = isPinned(event.id);
+  const userMuted = isMuted('pubkey', event.pubkey);
+  const author = useAuthor(event.pubkey);
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
 
   const nip19Id = encodeEventNip19(event);
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
+
+  const handleBookmark = () => {
+    impactLight();
+    toggleBookmark.mutate(event.id, {
+      onSuccess: () => {
+        toast({ title: bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks' });
+      },
+      onError: () => {
+        toast({ title: 'Failed to update bookmarks', variant: 'destructive' });
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const handleTogglePin = () => {
+    impactLight();
+    togglePin.mutate(event.id, {
+      onSuccess: () => {
+        toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
+      },
+      onError: () => {
+        toast({ title: 'Failed to update pinned posts', variant: 'destructive' });
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const handleMuteConversation = () => {
+    impactLight();
+    const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+    const threadId = rootTag?.[1] ?? event.id;
+    addMute.mutate(
+      { type: 'thread', value: threadId },
+      {
+        onSuccess: () => {
+          toast({ title: 'Conversation muted' });
+        },
+        onError: () => {
+          toast({ title: 'Failed to mute conversation', variant: 'destructive' });
+        },
+      },
+    );
+    onOpenChange(false);
+  };
+
+  const handleMuteUser = () => {
+    const muteItem = { type: 'pubkey' as const, value: event.pubkey };
+    const mutation = userMuted ? removeMute : addMute;
+    mutation.mutate(muteItem, {
+      onSuccess: () => {
+        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
+      },
+      onError: () => {
+        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
+      },
+    });
+    onOpenChange(false);
+  };
 
   const handleDelete = () => {
     const dTag = event.tags.find(([name]) => name === 'd')?.[1];
@@ -225,6 +300,14 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
           event={event}
           open={open}
           onOpenChange={onOpenChange}
+          bookmarked={bookmarked}
+          pinned={pinned}
+          userMuted={userMuted}
+          displayName={displayName}
+          onBookmark={handleBookmark}
+          onTogglePin={handleTogglePin}
+          onMuteConversation={handleMuteConversation}
+          onMuteUser={handleMuteUser}
           onReport={() => {
             onOpenChange(false);
             setTimeout(() => setReportOpen(true), 150);
@@ -308,6 +391,14 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 }
 
 interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
+  bookmarked: boolean;
+  pinned: boolean;
+  userMuted: boolean;
+  displayName: string;
+  onBookmark: () => void;
+  onTogglePin: () => void;
+  onMuteConversation: () => void;
+  onMuteUser: () => void;
   onReport: () => void;
   onMention: () => void;
   onAddToList: () => void;
@@ -316,20 +407,12 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onRestore: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
-  const { isBookmarked, toggleBookmark } = useBookmarks();
-  const bookmarked = isBookmarked(event.id);
-  const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
-  const pinned = isPinned(event.id);
   const isOwnPost = user?.pubkey === event.pubkey;
   const isRestorable = isOwnPost && isReplaceableLikeKind(event.kind);
-  const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
-  const { addMute, removeMute, isMuted } = useMuteList();
-  const userMuted = isMuted('pubkey', event.pubkey);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
 
   const nip19Id = encodeEventNip19(event);
@@ -356,19 +439,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
     close();
   };
 
-  const handleBookmark = () => {
-    impactLight();
-    toggleBookmark.mutate(event.id, {
-      onSuccess: () => {
-        toast({ title: bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks' });
-      },
-      onError: () => {
-        toast({ title: 'Failed to update bookmarks', variant: 'destructive' });
-      },
-    });
-    close();
-  };
-
   const handleToggleSidebar = () => {
     if (isInSidebar) {
       removeFromSidebar(sidebarUri);
@@ -377,51 +447,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
       addToSidebar(sidebarUri);
       toast({ title: 'Added to sidebar' });
     }
-    close();
-  };
-
-  const handleTogglePin = () => {
-    impactLight();
-    togglePin.mutate(event.id, {
-      onSuccess: () => {
-        toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
-      },
-      onError: () => {
-        toast({ title: 'Failed to update pinned posts', variant: 'destructive' });
-      },
-    });
-    close();
-  };
-
-  const handleMuteConversation = () => {
-    impactLight();
-    const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
-    const threadId = rootTag?.[1] ?? event.id;
-    addMute.mutate(
-      { type: 'thread', value: threadId },
-      {
-        onSuccess: () => {
-          toast({ title: 'Conversation muted' });
-        },
-        onError: () => {
-          toast({ title: 'Failed to mute conversation', variant: 'destructive' });
-        },
-      },
-    );
-    close();
-  };
-
-  const handleMuteUser = () => {
-    const muteItem = { type: 'pubkey' as const, value: event.pubkey };
-    const mutation = userMuted ? removeMute : addMute;
-    mutation.mutate(muteItem, {
-      onSuccess: () => {
-        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
-      },
-      onError: () => {
-        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
-      },
-    });
     close();
   };
 
@@ -457,7 +482,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
             label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
-            onClick={handleBookmark}
+            onClick={onBookmark}
           />
           {user && (
             <MenuItem
@@ -480,14 +505,14 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
             <MenuItem
               icon={<BellOff className="size-5" />}
               label="Mute Conversation"
-              onClick={handleMuteConversation}
+              onClick={onMuteConversation}
             />
           )}
           {isOwnPost && (
             <MenuItem
               icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
               label={pinned ? 'Unpin from profile' : 'Pin on profile'}
-              onClick={handleTogglePin}
+              onClick={onTogglePin}
             />
           )}
           {isRestorable && (
@@ -522,7 +547,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, onReport, onMention, o
               <MenuItem
                 icon={<VolumeX className="size-5" />}
                 label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
-                onClick={handleMuteUser}
+                onClick={onMuteUser}
               />
               <MenuItem
                 icon={<Flag className="size-5" />}
