@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.24.0] - 2026-07-01
+
+Something wonderful happens on the feed now. Notifications are instant on every platform. Sharing into Ditto works when installed as a web app. Android users on persistent notifications can fix battery issues with one tap.
+
+### Added
+- Feed cards come alive with particle effects — confetti, balloons, sunrises, and more
+- Reacting to a post sends a satisfying burst of particles from the heart
+- Notifications are now instant on web and Android, powered by a live relay connection instead of polling
+- Sharing from other apps now works when Ditto is installed as a web app
+- iOS visitors to the web app see a native App Store banner
+- Android: the persistent notification service now survives reboots
+- Android: a one-tap button in notification settings to fix battery optimization issues
+
 ## [2.23.5] - 2026-07-01
 
 Your feed now keeps up with the conversation in real time — a tappable pill appears when new posts arrive, so you never have to guess when to refresh. Search gains a "Ditto users only" filter, articles show a reading-time estimate and render as tidy preview cards in the feed, and editing your published articles is smoother than ever. Posts can now embed content-addressed images, video, and audio that stay reachable even if a server goes down. Plus a big speed-up to app startup and a batch of fixes.
