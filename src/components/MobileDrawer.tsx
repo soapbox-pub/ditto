@@ -10,7 +10,7 @@ import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { LinkFooter } from '@/components/LinkFooter';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import LoginDialog from '@/components/auth/LoginDialog';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -378,7 +378,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         </SheetContent>
       </Sheet>
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={() => setLoginDialogOpen(false)}

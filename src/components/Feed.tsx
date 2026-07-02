@@ -10,7 +10,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Heart, Loader2, MapPin } from 'lucide-react';
-import LoginDialog from '@/components/auth/LoginDialog';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
@@ -482,7 +482,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
       {/* Login/Signup dialogs (only needed on main feed) */}
       {!kinds && (
-        <LoginDialog
+        <LoginFlow
           isOpen={loginDialogOpen}
           onClose={() => setLoginDialogOpen(false)}
           onLogin={() => setLoginDialogOpen(false)}
