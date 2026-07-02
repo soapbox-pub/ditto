@@ -1,17 +1,17 @@
 /**
  * useBlobbiCareActivity - Hook for registering care activity and updating streaks
- * 
+ *
  * This hook provides a centralized way to register care activity for a Blobbi companion.
  * It handles:
  * - Calculating streak updates based on the last activity day
  * - Publishing updated Blobbi state to Nostr
  * - Updating local cache
- * 
+ *
  * Use this hook whenever care activity should count toward the streak:
  * - Opening the Blobbi page (page check-in)
  * - Performing care actions (feed, clean, play, etc.)
  * - Any other care interaction
- * 
+ *
  * The streak only increments once per calendar day, regardless of how many
  * activities are performed.
  */
@@ -21,9 +21,6 @@ import { useNostr } from '@nostrify/react';
 import { useMutation } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-
 import type { BlobbiCompanion } from '@blobbi/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
@@ -32,14 +29,20 @@ import {
   parseBlobbiEvent,
 } from '@blobbi/core/blobbi';
 
-import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '@blobbi/react/lib/blobbi-streak';
+import { getStreakTagUpdates, calculateStreakUpdate, type StreakUpdateResult } from '../lib/blobbi-streak';
+
+import type { PublishAdapter } from '../adapters/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseBlobbiCareActivityParams {
-  companion: BlobbiCompanion | null;
+export interface UseBlobbiCareActivityOptions {
+  companion: BlobbiCompanion | undefined;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
+  /** Owner hex pubkey. When absent (logged out), registering activity throws. */
+  pubkey: string | undefined;
+  /** Publishes the updated kind 30078 Blobbi state event (host `useNostrPublish`). */
+  publish: PublishAdapter['publish'];
 }
 
 export interface CareActivityResult {
@@ -55,26 +58,22 @@ export interface CareActivityResult {
 
 /**
  * Hook to register care activity and update streaks.
- * 
+ *
  * Returns a function to register activity and a mutation for the actual update.
  * The register function is idempotent - calling it multiple times on the same day
  * will only update once.
  */
-export function useBlobbiCareActivity({
-  companion,
-  updateCompanionEvent,
-}: UseBlobbiCareActivityParams) {
+export function useBlobbiCareActivity(options: UseBlobbiCareActivityOptions) {
+  const { companion, updateCompanionEvent, pubkey, publish } = options;
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  
+
   // Track if we've already registered activity this session to avoid duplicate calls
   // This is a performance optimization - the actual idempotency is handled by day comparison
   const lastRegisteredDay = useRef<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (): Promise<CareActivityResult> => {
-      if (!user?.pubkey) {
+      if (!pubkey) {
         throw new Error('You must be logged in to register care activity');
       }
 
@@ -85,7 +84,7 @@ export function useBlobbiCareActivity({
       // Fetch fresh companion from relays (read-modify-write pattern)
       const freshEvents = await nostr.query([{
         kinds: [KIND_BLOBBI_STATE],
-        authors: [user.pubkey],
+        authors: [pubkey],
         '#d': [companion.d],
       }]);
       const freshCompanion = freshEvents
@@ -95,14 +94,14 @@ export function useBlobbiCareActivity({
         .find(Boolean) ?? companion;
 
       const now = new Date();
-      
+
       // Calculate what the streak update should be using fresh data
       const result = calculateStreakUpdate(
         freshCompanion.careStreak,
         freshCompanion.careStreakLastDay,
         now
       );
-      
+
       // If no update needed (same day), return early without publishing
       if (!result.wasUpdated) {
         return {
@@ -111,10 +110,10 @@ export function useBlobbiCareActivity({
           action: result.action,
         };
       }
-      
+
       // Get the tag updates using fresh data
       const streakUpdates = getStreakTagUpdates(freshCompanion, now);
-      
+
       if (!streakUpdates) {
         // Shouldn't happen if wasUpdated is true, but handle gracefully
         return {
@@ -123,35 +122,24 @@ export function useBlobbiCareActivity({
           action: 'same_day',
         };
       }
-      
+
       // Build updated tags from fresh data
       const updatedTags = updateBlobbiTags(freshCompanion.allTags, streakUpdates);
-      
+
       // Publish the updated event
-      const event = await publishEvent({
+      const event = await publish({
         kind: KIND_BLOBBI_STATE,
         content: freshCompanion.event.content,
         tags: updatedTags,
         prev: freshCompanion.event,
       });
-      
+
       // Update local cache (optimistic — no invalidation needed)
       updateCompanionEvent(event);
-      
+
       // Update session tracker
       lastRegisteredDay.current = result.newLastDay;
-      
-      // Log for debugging (dev only)
-      if (import.meta.env.DEV) {
-        console.log('[CareActivity] Streak updated:', {
-          action: result.action,
-          previousStreak: freshCompanion.careStreak,
-          newStreak: result.newStreak,
-          lastDay: freshCompanion.careStreakLastDay,
-          newDay: result.newLastDay,
-        });
-      }
-      
+
       return {
         wasUpdated: true,
         newStreak: result.newStreak,
@@ -166,14 +154,14 @@ export function useBlobbiCareActivity({
   /**
    * Register care activity. Call this when care-related activity happens.
    * Safe to call multiple times - only updates streak once per day.
-   * 
+   *
    * @returns Promise with the result of the activity registration
    */
   const registerCareActivity = useCallback(async (): Promise<CareActivityResult | null> => {
     if (!companion) {
       return null;
     }
-    
+
     // Quick check if we've already registered for this companion's last day (session cache)
     // This is an optimization to avoid unnecessary mutation calls
     if (lastRegisteredDay.current === companion.careStreakLastDay) {
@@ -184,7 +172,7 @@ export function useBlobbiCareActivity({
         action: 'same_day',
       };
     }
-    
+
     return mutation.mutateAsync();
   }, [companion, mutation]);
 

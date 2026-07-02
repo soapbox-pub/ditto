@@ -204,8 +204,8 @@ export type {
   StreakTagUpdates,
 } from '@blobbi/react/lib/blobbi-streak';
 
-export { useBlobbiCareActivity } from './hooks/useBlobbiCareActivity';
+export { useBlobbiCareActivity } from '@blobbi/react/hooks/useBlobbiCareActivity';
 export type {
-  UseBlobbiCareActivityParams,
+  UseBlobbiCareActivityOptions,
   CareActivityResult,
-} from './hooks/useBlobbiCareActivity';
+} from '@blobbi/react/hooks/useBlobbiCareActivity';
