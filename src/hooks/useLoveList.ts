@@ -6,6 +6,7 @@ import { useNostrPublish } from './useNostrPublish';
 import { useNostrStorage } from './useNostrStorage';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import { getStorageKey } from '@/lib/storageKey';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -212,7 +213,7 @@ export function useLoveList() {
     mutationFn: (pubkey: string) => mutateLoveList(pubkey, 'add'),
     onMutate: (pubkey: string) => ({ snapshot: optimisticSet(pubkey, 'add') }),
     onError: (_err, _pubkey, ctx) => {
-      if (ctx?.snapshot) queryClient.setQueryData(loveListKey, ctx.snapshot);
+      rollbackQuery(queryClient, loveListKey, ctx?.snapshot);
     },
     onSuccess: invalidate,
   });
@@ -222,7 +223,7 @@ export function useLoveList() {
     mutationFn: (pubkey: string) => mutateLoveList(pubkey, 'remove'),
     onMutate: (pubkey: string) => ({ snapshot: optimisticSet(pubkey, 'remove') }),
     onError: (_err, _pubkey, ctx) => {
-      if (ctx?.snapshot) queryClient.setQueryData(loveListKey, ctx.snapshot);
+      rollbackQuery(queryClient, loveListKey, ctx?.snapshot);
     },
     onSuccess: invalidate,
   });

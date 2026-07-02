@@ -54,7 +54,30 @@ export function rollbackEvent(
   queryKey: QueryKey,
   snapshot: NostrEvent | null | undefined,
 ): void {
-  queryClient.setQueryData(queryKey, snapshot);
+  rollbackQuery(queryClient, queryKey, snapshot);
+}
+
+/**
+ * Restore a cached query value to a snapshot, handling the `undefined` case
+ * correctly.
+ *
+ * `setQueryData(key, undefined)` is a no-op in TanStack Query — `undefined` is
+ * the "don't change" sentinel. So a snapshot of `undefined` (the key held
+ * nothing before the optimistic write) must remove the query outright,
+ * otherwise the optimistic value lingers after a failed publish. Every
+ * optimistic mutation's `onError` should roll back through this rather than
+ * calling `setQueryData` directly.
+ */
+export function rollbackQuery<T>(
+  queryClient: QueryClient,
+  queryKey: QueryKey,
+  snapshot: T | undefined,
+): void {
+  if (snapshot === undefined) {
+    queryClient.removeQueries({ queryKey, exact: true });
+  } else {
+    queryClient.setQueryData<T>(queryKey, snapshot);
+  }
 }
 
 /**

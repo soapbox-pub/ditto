@@ -16,6 +16,7 @@ import { useNostrPublish } from './useNostrPublish';
 import { useFollowPacks } from './useFollowPacks';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
@@ -212,7 +213,7 @@ export function useUserLists() {
   }
 
   function rollbackLists(snapshot: UserList[] | undefined): void {
-    queryClient.setQueryData(listsKey, snapshot);
+    rollbackQuery(queryClient, listsKey, snapshot);
   }
 
   /** Create a new list. Returns the created UserList. */

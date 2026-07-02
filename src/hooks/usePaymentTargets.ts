@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import {
   PAYMENT_TARGETS_KIND,
   parsePaymentTargets,
@@ -88,7 +89,7 @@ export function useUpdatePaymentTargets() {
       return { snapshot, key };
     },
     onError: (_err, _targets, ctx) => {
-      if (ctx) queryClient.setQueryData(ctx.key, ctx.snapshot);
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-targets', user?.pubkey] });

@@ -3,6 +3,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 
 type RSVPStatus = 'accepted' | 'declined' | 'tentative';
 
@@ -63,7 +64,7 @@ export function usePublishRSVP() {
       return { snapshot, key };
     },
     onError: (_err, _variables, ctx) => {
-      if (ctx) queryClient.setQueryData(ctx.key, ctx.snapshot);
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['event-rsvps', variables.eventCoord] });

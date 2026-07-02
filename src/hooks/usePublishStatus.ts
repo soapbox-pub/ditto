@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { UserStatus } from '@/hooks/useUserStatus';
 
@@ -60,7 +61,7 @@ export function usePublishStatus() {
       return { snapshot, key };
     },
     onError: (_err, _params, ctx) => {
-      if (ctx) queryClient.setQueryData(ctx.key, ctx.snapshot);
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       if (user) {

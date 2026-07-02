@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -217,7 +218,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
         queryClient.invalidateQueries({ queryKey: ['poll-votes', event.id] });
       },
       onError: () => {
-        queryClient.setQueryData(votesKey, snapshot);
+        rollbackQuery(queryClient, votesKey, snapshot);
       },
     });
   };
