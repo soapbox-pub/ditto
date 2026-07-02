@@ -11,7 +11,7 @@
  */
 
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
-import { hexToHsl, hslToHex } from '@/blobbi/core/lib/color-guardrails';
+import { hexToHsl, hslToHex } from '@blobbi/core/color-guardrails';
 import { lightenColor, darkenColor, uniquifySvgIds, ensureSvgFillsContainer } from '@/blobbi/ui/lib/svg';
 import type { AdultForm, AdultSvgCustomization } from '../types/adult.types';
 

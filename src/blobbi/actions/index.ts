@@ -159,8 +159,8 @@ export {
   getUnlocks,
   buildXpTagUpdates,
   MAX_LEVEL,
-} from '@/blobbi/core/lib/progression';
-export type { Unlocks } from '@/blobbi/core/lib/progression';
+} from '@blobbi/core/progression';
+export type { Unlocks } from '@blobbi/core/progression';
 
 // Missions content model
 export {
