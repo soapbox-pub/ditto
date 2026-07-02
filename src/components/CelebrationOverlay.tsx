@@ -11,11 +11,16 @@ const SPARKLE_COLORS = ['#fbbf24', '#a78bfa', '#f472b6', '#fde68a'];
 const CONFETTI_COUNT = 16;
 const BALLOON_COUNT = 3;
 const SPARKLE_COUNT = 10;
-const HEART_COUNT = 24;
+const HEART_COUNT = 44;
 
 /** A few heart glyphs so the sprinkle doesn't read as a single repeated
  *  sticker. */
 const HEART_CHARS = ['❤️', '💖', '💕', '💗'];
+
+/** Hearts fall faster than the gentle confetti drift — the extra pace is
+ *  what gives the reaction its umph. */
+const HEART_MIN_SPEED = 130;
+const HEART_MAX_SPEED = 220;
 
 /** Gentle drift speed (px/s) for falling/rising particles. Kept slow so the
  *  effect reads as confetti settling, not a glitchy flash — especially on
@@ -98,17 +103,19 @@ function generateBalloons(): Riser[] {
   }));
 }
 
-/** Hearts sprinkle for the Love List — hearts rain down from the top,
- *  swaying and gently tilting, staggered so they keep coming for a beat. */
+/** Hearts burst for the Love List — a dense pop of hearts that lands almost
+ *  at once and rains down fast, then a light tail keeps a few coming. The
+ *  squared delay front-loads most hearts into the first beat so it reads as
+ *  a reaction, not a drizzle. */
 function generateHearts(): HeartPiece[] {
   return Array.from({ length: HEART_COUNT }, (_, i) => ({
     char: HEART_CHARS[i % HEART_CHARS.length],
     left: 2 + Math.random() * 96,
-    delay: Math.random() * 1.8,
-    speed: MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED),
-    sway: (Math.random() - 0.5) * 70,
-    spin: (Math.random() - 0.5) * 90,
-    fontSize: 14 + Math.random() * 12,
+    delay: Math.random() ** 2 * 1.1,
+    speed: HEART_MIN_SPEED + Math.random() * (HEART_MAX_SPEED - HEART_MIN_SPEED),
+    sway: (Math.random() - 0.5) * 90,
+    spin: (Math.random() - 0.5) * 120,
+    fontSize: 16 + Math.random() * 16,
   }));
 }
 
@@ -252,7 +259,7 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
       {distance !== undefined && hearts.map((h, i) => (
         <span
           key={`h-${i}`}
-          className="absolute animate-celebration-fall select-none"
+          className="absolute animate-heart-fall select-none"
           style={{
             top: -20,
             left: `${h.left}%`,

@@ -162,6 +162,17 @@ export default {
 				'80%': { opacity: '1' },
 				'100%': { transform: 'translate(var(--celebration-sway, 0px), var(--celebration-distance, 240px)) rotate(var(--celebration-spin, 540deg))', opacity: '0' }
 			},
+			'heart-fall': {
+				// Love List heart: bursts in near the top, falls fast, then
+				// dissolves in mid-air (fade starts early and finishes well
+				// before the travel end) so hearts never snap off at the
+				// overflow-clipped bottom edge.
+				'0%': { transform: 'translate(0, -12px) rotate(0deg) scale(0.6)', opacity: '0' },
+				'6%': { opacity: '1', transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+				'45%': { opacity: '1' },
+				'85%': { opacity: '0' },
+				'100%': { transform: 'translate(var(--celebration-sway, 0px), var(--celebration-distance, 240px)) rotate(var(--celebration-spin, 90deg)) scale(0.9)', opacity: '0' }
+			},
 			'celebration-rise': {
 				// Birthday balloon: floats up from the bottom of the card.
 				'0%': { transform: 'translate(0, 20px)', opacity: '0' },
@@ -223,6 +234,7 @@ export default {
 				'success-fade-up': 'success-fade-up 0.45s ease-out both',
 				'success-spark': 'success-spark 1.1s ease-out both',
 				'celebration-fall': 'celebration-fall 2s linear both',
+				'heart-fall': 'heart-fall 2s ease-in both',
 				'celebration-rise': 'celebration-rise 2.6s ease-out both',
 				'celebration-twinkle': 'celebration-twinkle 1.2s ease-in-out both',
 				'celebration-sun': 'celebration-sun 3.2s ease-out both',
