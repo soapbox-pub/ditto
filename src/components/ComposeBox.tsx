@@ -29,7 +29,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import type { FeedItem } from '@/lib/feedUtils';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
@@ -1086,6 +1087,36 @@ export function ComposeBox({
           prev ? { ...prev, replies: prev.replies + 1 } : prev,
         );
       }
+      // Optimistically prepend the new event to every cached feed page-set so
+      // it appears immediately without waiting for a relay round-trip.
+      // Only inject for top-level posts (not replies) — replies are handled by
+      // the replies list and the reply-count bump above.
+      if (!replyTo) {
+        /** A minimal FeedItem wrapping the freshly signed event. */
+        const optimisticItem: FeedItem = {
+          event: published,
+          sortTimestamp: published.created_at,
+        };
+        // Seed the event cache so embedded previews also resolve instantly.
+        queryClient.setQueryData(['event', published.id], published);
+
+        type FeedPage = { items: FeedItem[]; oldestQueryTimestamp: number; rawCount: number };
+        queryClient.setQueriesData<InfiniteData<FeedPage>>(
+          { queryKey: ['feed'], type: 'active' },
+          (prev) => {
+            if (!prev) return prev;
+            const [firstPage, ...rest] = prev.pages;
+            if (!firstPage) return prev;
+            // Guard against double-insertion if the relay echoes back quickly.
+            if (firstPage.items.some((item) => item.event.id === published.id)) return prev;
+            return {
+              ...prev,
+              pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
+            };
+          },
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         if (isExternalRoot(replyTo)) {
