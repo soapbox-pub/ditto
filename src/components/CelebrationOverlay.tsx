@@ -234,7 +234,7 @@ export function CelebrationOverlay({ variant }: { variant: CelebrationVariant })
     <div
       ref={containerRef}
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden"
+      className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden z-10"
       style={{ '--celebration-distance': `${distance ?? 0}px` } as React.CSSProperties}
     >
       {distance !== undefined && falling.map((p, i) => (
