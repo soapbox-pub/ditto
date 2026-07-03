@@ -10,6 +10,8 @@ interface GifPickerProps {
   onSelect: (gif: GifResult) => void;
   /** Auto-focus the search input on mount (disable on mobile so the virtual keyboard doesn't pop up). */
   autoFocus?: boolean;
+  /** Reports whether the user is actively searching (input focused or query non-empty). */
+  onSearchActiveChange?: (active: boolean) => void;
 }
 
 /** A single GIF thumbnail with lazy loading and hover animation. */
@@ -103,9 +105,16 @@ function GifGrid({ results, onSelect }: { results: GifResult[]; onSelect: (gif: 
   );
 }
 
-export function GifPicker({ onSelect, autoFocus = true }: GifPickerProps) {
+export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: GifPickerProps) {
   const { query, setQuery, clearQuery, results, isLoading, isError, isSearching } = useGifSearch();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Report search activity so the container can give results more room.
+  const searchActive = searchFocused || query.trim().length > 0;
+  useEffect(() => {
+    onSearchActiveChange?.(searchActive);
+  }, [searchActive, onSearchActiveChange]);
 
   // Auto-focus the search input on mount (desktop only — on mobile this
   // would raise the virtual keyboard over the picker).
@@ -133,6 +142,8 @@ export function GifPicker({ onSelect, autoFocus = true }: GifPickerProps) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search GIFs..."
             className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />
