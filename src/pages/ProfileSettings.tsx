@@ -1081,6 +1081,12 @@ function BirthdaySection() {
         <Select
           value={month !== undefined ? String(month) : ''}
           onValueChange={(v) => {
+            // Radix's hidden native <select> (rendered because this sits
+            // inside the profile <form>) can fire a spurious change with ''
+            // when the controlled value is set programmatically before the
+            // items register — Number('') is 0, which poisoned the state.
+            // A real selection is never '' (Radix forbids empty item values).
+            if (!v) return;
             const m = Number(v);
             setMonth(m);
             // Clamp the day if the new month is shorter (e.g. May 31 → June).
@@ -1105,7 +1111,7 @@ function BirthdaySection() {
 
         <Select
           value={day !== undefined ? String(day) : ''}
-          onValueChange={(v) => setDay(Number(v))}
+          onValueChange={(v) => { if (v) setDay(Number(v)); }}
         >
           <SelectTrigger className="h-9 w-20" aria-label="Birthday day">
             <SelectValue placeholder="Day">
