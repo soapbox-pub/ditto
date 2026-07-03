@@ -10,7 +10,7 @@ import {
   ACTION_XP,
   INVENTORY_ACTION_XP,
   DIRECT_ACTION_XP,
-} from '@blobbi/react/lib/blobbi-xp';
+} from '@blobbi/react';
 
 describe('calculateActionXP', () => {
   it('returns the correct XP for each inventory action', () => {

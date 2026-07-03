@@ -5,7 +5,7 @@
  * decoupled from app-specific concerns.
  */
 
-import type { BlobbiVisualTraits, BlobbiStats } from '@blobbi/core/blobbi';
+import type { BlobbiVisualTraits, BlobbiStats } from '@blobbi/core';
 import type { BlobbiState } from '@/blobbi/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
