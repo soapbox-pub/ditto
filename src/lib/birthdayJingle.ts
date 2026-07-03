@@ -6,13 +6,14 @@
  * `src/blobbi/ui/lib/munchSound.ts`.
  *
  * Styled like a cheerful handheld-RPG town theme (think Pokémon X/Y):
- * a bouncy square-wave chiptune lead with snappy staccato envelopes, a
- * soft "oom-pah" triangle bass keeping the waltz bounce, a feedback echo
- * for that roomy Game Freak sparkle, and a turnaround twinkle inside the
- * final bar. The whole pass sits on a strict 8-bar 3/4 grid, so it loops
- * gaplessly — the next pickup lands exactly on the final bar's third
- * beat, like game BGM. Everything runs through a lowpass at a low master
- * gain so it stays cute, not shrill.
+ * a bouncy square-wave chiptune lead doubled by a glockenspiel chime an
+ * octave up (sine fundamental + fast-decaying inharmonic bell partial),
+ * snappy staccato envelopes, a soft "oom-pah" triangle bass keeping the
+ * waltz bounce, a feedback echo for that roomy Game Freak sparkle, and a
+ * turnaround twinkle inside the final bar. The whole pass sits on a
+ * strict 8-bar 3/4 grid, so it loops gaplessly — the next pickup lands
+ * exactly on the final bar's third beat, like game BGM. Everything runs
+ * through a lowpass at a low master gain so it stays cute, not shrill.
  *
  * Browsers keep `AudioContext`s suspended until a user gesture. `start()`
  * attempts to resume immediately; if the context stays suspended, one-time
@@ -21,7 +22,7 @@
 
 // ─── Tuning ───────────────────────────────────────────────────────────────────
 
-const MASTER_GAIN = 0.055;
+const MASTER_GAIN = 0.09;
 const TEMPO_BPM = 132;
 const BEAT_SEC = 60 / TEMPO_BPM;
 /** How far ahead of the current pass ending we schedule the next one. */
@@ -126,6 +127,8 @@ interface JingleSession {
   nodes: AudioNode[];
   timer: ReturnType<typeof setTimeout> | null;
   gestureCleanup: (() => void) | null;
+  /** Playback has been scheduled — guards against double-starting. */
+  began: boolean;
   stopped: boolean;
 }
 
@@ -172,6 +175,47 @@ function scheduleLead(s: JingleSession, freq: number, start: number, beats: numb
   cleanupOnEnd(osc, [osc, gain]);
 }
 
+/**
+ * Glockenspiel chime doubling the melody an octave up — the cute "game
+ * noise". A sine fundamental with a fast-decaying inharmonic partial
+ * (bell-like ×2.76 overtone), ringing past the staccato lead like a tiny
+ * music box mallet. Routed through the lead bus so the echo catches it.
+ */
+function scheduleChime(s: JingleSession, freq: number, start: number): void {
+  const { ac, leadBus } = s;
+  const ring = 0.55;
+
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(0.3, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + ring);
+  gain.connect(leadBus);
+
+  const fundamental = ac.createOscillator();
+  fundamental.type = 'sine';
+  fundamental.frequency.setValueAtTime(freq * 2, start);
+  fundamental.connect(gain);
+  fundamental.start(start);
+  fundamental.stop(start + ring + 0.03);
+
+  // Bell partial: inharmonic overtone that decays much faster than the
+  // fundamental — this is what makes it read as "chime" instead of "beep".
+  const partialGain = ac.createGain();
+  partialGain.gain.setValueAtTime(0.0001, start);
+  partialGain.gain.linearRampToValueAtTime(0.12, start + 0.003);
+  partialGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+  partialGain.connect(leadBus);
+
+  const partial = ac.createOscillator();
+  partial.type = 'sine';
+  partial.frequency.setValueAtTime(freq * 2 * 2.76, start);
+  partial.connect(partialGain);
+  partial.start(start);
+  partial.stop(start + 0.15);
+
+  s.nodes.push(gain, fundamental, partialGain, partial);
+  cleanupOnEnd(fundamental, [fundamental, gain, partial, partialGain]);
+}
 /** Soft triangle pluck for the waltz bass — rounder and quieter than the lead. */
 function scheduleBassPluck(s: JingleSession, freq: number, start: number, level: number): void {
   const { ac, lowpass } = s;
@@ -222,10 +266,11 @@ function schedulePass(s: JingleSession, passStart: number): void {
 
   const at = (beats: number) => passStart + beats * BEAT_SEC;
 
-  // Lead melody.
+  // Lead melody, doubled by the glockenspiel chime an octave up.
   let beat = 0;
   for (const [freq, beats] of MELODY) {
     scheduleLead(s, freq, at(beat), beats);
+    scheduleChime(s, freq, at(beat));
     beat += beats;
   }
 
@@ -307,20 +352,26 @@ export function startBirthdayJingle(): void {
       nodes: [],
       timer: null,
       gestureCleanup: null,
+      began: false,
       stopped: false,
     };
     session = s;
 
-    if (ac.state === 'suspended') {
-      // Try to resume right away (works when a gesture already unlocked
-      // audio this session); otherwise wait for the first interaction.
-      void ac.resume().catch(() => {});
+    // Begin playback exactly once, tearing down any pending gesture
+    // listeners. Both the async resume() success path and the gesture
+    // path funnel through here.
+    const tryBegin = () => {
+      if (s.began || s.stopped || ac.state !== 'running') return;
+      s.began = true;
+      s.gestureCleanup?.();
+      beginPlayback(s);
+    };
 
+    if (ac.state === 'suspended') {
+      // Also arm gesture listeners in case resume() is rejected until the
+      // user actually interacts with the page.
       const onGesture = () => {
-        cleanup();
-        void ac.resume().then(() => {
-          if (!s.stopped && ac.state === 'running') beginPlayback(s);
-        }).catch(() => {});
+        void ac.resume().then(tryBegin).catch(() => {});
       };
       const cleanup = () => {
         window.removeEventListener('pointerdown', onGesture);
@@ -331,13 +382,13 @@ export function startBirthdayJingle(): void {
       window.addEventListener('keydown', onGesture);
       s.gestureCleanup = cleanup;
 
-      // If resume() succeeded immediately, start now.
-      if ((ac.state as AudioContextState) === 'running') {
-        cleanup();
-        beginPlayback(s);
-      }
+      // Try to resume right away — this succeeds when a gesture already
+      // unlocked audio for the page (e.g. the click that navigated here),
+      // and MUST start playback on success: resolving without starting was
+      // why the jingle sometimes never played at all.
+      void ac.resume().then(tryBegin).catch(() => {});
     } else {
-      beginPlayback(s);
+      tryBegin();
     }
   } catch {
     session = null;
