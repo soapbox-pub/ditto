@@ -105,6 +105,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { tryNpubEncode } from '@/lib/safeNip19';
 import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
 import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -993,6 +994,8 @@ export function ProfilePage() {
   const [lovedCelebrating, setLovedCelebrating] = useState(false);
   // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
   const [jingleMuted, setJingleMuted] = useState(false);
+  // NIP-24 birthday — composer prefilled with a birthday wish mentioning this profile.
+  const [birthdayComposeOpen, setBirthdayComposeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1359,6 +1362,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     [metadataEvent?.content],
   );
   const isBirthday = isBirthdayToday(birthday);
+  // npub for the prefilled birthday-wish mention. tryNpubEncode because the
+  // pubkey may come from an untrusted NIP-05 .well-known lookup.
+  const birthdayNpub = isBirthday ? tryNpubEncode(pubkey) : undefined;
 
   // Loop the birthday jingle while viewing the profile; stops on navigation
   // away (unmount), profile change, or mute.
@@ -2230,6 +2236,20 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <QrCode className="size-5" />
                     </Button>
                   )}
+                  {/* Wish happy birthday (someone else's birthday only) */}
+                  {!isOwnProfile && birthdayNpub && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10 border-amber-400/60 text-amber-600 dark:text-amber-400 hover:bg-amber-400/10 hover:text-amber-700 dark:hover:text-amber-300"
+                      onClick={() => setBirthdayComposeOpen(true)}
+                      disabled={!user}
+                      title={`Wish ${displayName} a happy birthday`}
+                      aria-label={`Wish ${displayName} a happy birthday`}
+                    >
+                      <Cake className="size-5" />
+                    </Button>
+                  )}
                   {/* Love List toggle */}
                   {!isOwnProfile && (
                     <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} onLoved={handleLoved} />
@@ -2773,6 +2793,17 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {/* Follow QR dialog (own profile action bar button) */}
         {isOwnProfile && (
           <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
+        )}
+
+        {/* Birthday wish composer — prefilled mention (someone else's birthday only) */}
+        {!isOwnProfile && birthdayNpub && (
+          <ReplyComposeModal
+            open={birthdayComposeOpen}
+            onOpenChange={setBirthdayComposeOpen}
+            initialContent={`Happy birthday, nostr:${birthdayNpub}! 🎂🎉`}
+            title="Wish a happy birthday"
+            placeholder={`Wish ${displayName} a happy birthday...`}
+          />
         )}
 
         {/* Followers List Modal */}
