@@ -19,6 +19,20 @@ const SENSITIVE_HASHTAGS = new Set([
 ]);
 
 /**
+ * Prefixes that mark a hashtag as sensitive regardless of what follows
+ * (e.g. `#nsfwart`, `#nsfwphotography`). Kept separate from the exact-match
+ * set because most terms are only unambiguous as whole words — prefix-matching
+ * `gore` would flag `#goretex`.
+ */
+const SENSITIVE_HASHTAG_PREFIXES = ['nsfw', 'nsfl'];
+
+/** Whether a normalized (trimmed, lowercased) hashtag marks a post as sensitive. */
+function isSensitiveHashtag(hashtag: string): boolean {
+  return SENSITIVE_HASHTAGS.has(hashtag) ||
+    SENSITIVE_HASHTAG_PREFIXES.some((prefix) => hashtag.startsWith(prefix));
+}
+
+/**
  * Extracts the content-warning reason from an event's tags (NIP-36).
  * Returns the reason string, or an empty string if the tag is present with no reason,
  * or undefined if the event has no content warning.
@@ -45,10 +59,10 @@ export function getContentWarning(event: NostrEvent): string | undefined {
     return '';
   }
 
-  // No explicit tag: treat sensitive hashtags (e.g. #nsfw) as a content warning
+  // No explicit tag: treat sensitive hashtags (e.g. #nsfw, #nsfwart) as a content warning
   const tTag = event.tags.find(
     ([name, value]) =>
-      name === 't' && value !== undefined && SENSITIVE_HASHTAGS.has(value.trim().toLowerCase()),
+      name === 't' && value !== undefined && isSensitiveHashtag(value.trim().toLowerCase()),
   );
   if (tTag?.[1]) return tTag[1].trim().toLowerCase();
 
