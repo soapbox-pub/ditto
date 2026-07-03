@@ -1094,10 +1094,8 @@ function BirthdaySection() {
           }}
         >
           <SelectTrigger className="h-9 w-36" aria-label="Birthday month">
-            {/* Explicit children: Radix only derives the trigger label from a
-                mounted SelectItem when the user picks one — a value set
-                programmatically (loading the saved birthday) can render as the
-                placeholder even though the state is correct. */}
+            {/* Explicit children keep the trigger label a pure function of
+                component state instead of Radix's internal item registration. */}
             <SelectValue placeholder="Month">
               {month !== undefined ? MONTH_NAMES[month - 1] : undefined}
             </SelectValue>
