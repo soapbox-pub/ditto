@@ -1,4 +1,5 @@
 import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
@@ -162,11 +163,29 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Seed the author query cache from the metadata we already fetched
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
-        for (const meta of metadataEvents) {
-          if (!queryClient.getQueryData(['author', meta.pubkey])) {
-            const parsed = parseAuthorEvent(meta);
-            queryClient.setQueryData(['author', meta.pubkey], parsed);
-            // Persist to IndexedDB (fire-and-forget)
+        // Only fills empty entries — but on a fresh page load the cache is
+        // empty, so a stale relay copy could be seeded and marked fresh,
+        // blocking useAuthor's guarded fetch. Prefer the newest of
+        // {relay copy, local store} so a just-saved profile isn't downgraded.
+        if (metadataEvents.length > 0) {
+          const unseeded = metadataEvents.filter((meta) => !queryClient.getQueryData(['author', meta.pubkey]));
+          const storedEvents = unseeded.length > 0
+            ? await store.query([{ kinds: [0], authors: [...new Set(unseeded.map((e) => e.pubkey))] }])
+            : [];
+          const newestStored = new Map<string, NostrEvent>();
+          for (const stored of storedEvents) {
+            const current = newestStored.get(stored.pubkey);
+            if (!current || stored.created_at > current.created_at) {
+              newestStored.set(stored.pubkey, stored);
+            }
+          }
+
+          for (const meta of unseeded) {
+            const stored = newestStored.get(meta.pubkey);
+            const newest = stored && stored.created_at > meta.created_at ? stored : meta;
+            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(newest));
+            // Persist the relay copy to IndexedDB (fire-and-forget) — the
+            // store keeps the newest replaceable event itself.
             void store.event(meta);
           }
         }

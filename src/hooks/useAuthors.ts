@@ -94,12 +94,40 @@ export function useAuthors(pubkeys: string[]) {
         { signal },
       );
 
+      // Never downgrade to an older profile than one we already hold. Relay
+      // propagation lags right after a profile edit, so a batch fetch can
+      // return a stale kind 0 — unconditionally seeding it into
+      // ['author', pubkey] would clobber a freshly-saved profile (e.g.
+      // blanking a just-added birthday). Prefer the newest of
+      // {relay result, query cache, local store} per author.
+      const storedEvents = events.length > 0
+        ? await store.query([{ kinds: [0], authors: [...new Set(events.map((e) => e.pubkey))] }])
+        : [];
+      const newestStored = new Map<string, NostrEvent>();
+      for (const stored of storedEvents) {
+        const current = newestStored.get(stored.pubkey);
+        if (!current || stored.created_at > current.created_at) {
+          newestStored.set(stored.pubkey, stored);
+        }
+      }
+
       for (const event of events) {
-        const parsed = parseAuthorEvent(event);
+        let newest = event;
+        const existing = queryClient.getQueryData<AuthorData>(['author', event.pubkey]);
+        if (existing?.event && existing.event.created_at > newest.created_at) {
+          newest = existing.event;
+        }
+        const stored = newestStored.get(event.pubkey);
+        if (stored && stored.created_at > newest.created_at) {
+          newest = stored;
+        }
+
+        const parsed = parseAuthorEvent(newest);
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
-        // Persist to IndexedDB (fire-and-forget)
+        // Persist the relay copy to IndexedDB (fire-and-forget) — the store
+        // keeps the newest replaceable event itself.
         void store.event(event);
       }
 

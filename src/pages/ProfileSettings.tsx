@@ -1088,7 +1088,13 @@ function BirthdaySection() {
           }}
         >
           <SelectTrigger className="h-9 w-36" aria-label="Birthday month">
-            <SelectValue placeholder="Month" />
+            {/* Explicit children: Radix only derives the trigger label from a
+                mounted SelectItem when the user picks one — a value set
+                programmatically (loading the saved birthday) can render as the
+                placeholder even though the state is correct. */}
+            <SelectValue placeholder="Month">
+              {month !== undefined ? MONTH_NAMES[month - 1] : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {MONTH_NAMES.map((name, i) => (
@@ -1102,7 +1108,9 @@ function BirthdaySection() {
           onValueChange={(v) => setDay(Number(v))}
         >
           <SelectTrigger className="h-9 w-20" aria-label="Birthday day">
-            <SelectValue placeholder="Day" />
+            <SelectValue placeholder="Day">
+              {day !== undefined ? String(day) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: dayCount }, (_, i) => (
